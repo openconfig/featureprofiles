@@ -18,7 +18,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/diffutils"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -34,10 +37,11 @@ import (
 )
 
 const (
-	maxSwitchoverTime = 900
-	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
-	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
+	maxSwitchoverTime        = 900
+	maxConfigConvergenceTime = 60
+	controlcardType          = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	activeController         = oc.Platform_ComponentRedundantRole_PRIMARY
+	standbyController        = oc.Platform_ComponentRedundantRole_SECONDARY
 )
 
 func TestMain(m *testing.M) {
@@ -71,40 +75,24 @@ func TestMain(m *testing.M) {
 //    https://github.com/fullstorydev/grpcurl
 //
 
-func TestSupervisorSwitchover(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
+func performSwitchover(t *testing.T, dut *ondatra.DUTDevice, rpActive string, rpStandby string) {
+	t.Helper()
 
-	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
-	t.Logf("Found controller card list: %v", controllerCards)
-
-	if *args.NumControllerCards >= 0 && len(controllerCards) != *args.NumControllerCards {
-		t.Errorf("Incorrect number of controller cards: got %v, want exactly %v (specified by flag)", len(controllerCards), *args.NumControllerCards)
-	}
-
-	if got, want := len(controllerCards), 2; got < want {
-		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
-	}
-
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, controllerCards)
-	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
-
-	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
+	switchoverReady := gnmi.OC().Component(rpActive).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
 	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
 	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
 
-	intfsOperStatusUPBeforeSwitch := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
-	t.Logf("intfsOperStatusUP interfaces before switchover: %v", intfsOperStatusUPBeforeSwitch)
-	if got, want := len(intfsOperStatusUPBeforeSwitch), 0; got == want {
-		t.Errorf("Get the number of intfsOperStatusUP interfaces for %q: got %v, want > %v", dut.Name(), got, want)
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
+		ControlProcessor: components.GetSubcomponentPath(rpStandby, useNameOnly),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
@@ -113,7 +101,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 	}
 	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
 
-	want := rpStandbyBeforeSwitch
+	want := rpStandby
 	got := ""
 	if deviations.GNOISubcomponentPath(dut) {
 		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
@@ -129,6 +117,10 @@ func TestSupervisorSwitchover(t *testing.T) {
 	if got := switchoverResponse.GetUptime(); got == 0 {
 		t.Errorf("switchoverResponse.GetUptime(): got %v, want > 0", got)
 	}
+}
+
+func waitForBootup(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 
 	startSwitchover := time.Now()
 	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
@@ -149,6 +141,48 @@ func TestSupervisorSwitchover(t *testing.T) {
 		}
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+}
+
+func validateConfigMatch(t *testing.T, want, got *oc.Root) {
+	var dc diffutils.DiffCollector
+	cmp.Diff(want, got,
+		cmp.Reporter(&dc),
+		cmpopts.IgnoreUnexported(oc.RoutingPolicy_PolicyDefinition_Statement_OrderedMap{}),
+	)
+
+	for _, de := range dc.Diff() {
+		if de.Vx.IsValid() && !de.Vx.IsZero() {
+			t.Errorf("Configuration differed (-want +got):\n%v", de.String())
+		} else {
+			t.Logf("Configuration ignored due to zero value (-want +got):\n%v", de.String())
+		}
+	}
+}
+func TestSupervisorSwitchover(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
+	t.Logf("Found controller card list: %v", controllerCards)
+
+	if *args.NumControllerCards >= 0 && len(controllerCards) != *args.NumControllerCards {
+		t.Errorf("Incorrect number of controller cards: got %v, want exactly %v (specified by flag)", len(controllerCards), *args.NumControllerCards)
+	}
+
+	if got, want := len(controllerCards), 2; got < want {
+		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
+	}
+
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, controllerCards)
+	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
+
+	intfsOperStatusUPBeforeSwitch := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
+	t.Logf("intfsOperStatusUP interfaces before switchover: %v", intfsOperStatusUPBeforeSwitch)
+	if got, want := len(intfsOperStatusUPBeforeSwitch), 0; got == want {
+		t.Errorf("Get the number of intfsOperStatusUP interfaces for %q: got %v, want > %v", dut.Name(), got, want)
+	}
+
+	performSwitchover(t, dut, rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
+	waitForBootup(t, dut)
 
 	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, dut, controllerCards)
 	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
@@ -181,4 +215,86 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
+}
+
+func TestConfigurationUnchanged(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
+	t.Logf("Found controller card list: %v", controllerCards)
+
+	if *args.NumControllerCards >= 0 && len(controllerCards) != *args.NumControllerCards {
+		t.Errorf("Incorrect number of controller cards: got %v, want exactly %v (specified by flag)", len(controllerCards), *args.NumControllerCards)
+	}
+
+	if got, want := len(controllerCards), 2; got < want {
+		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
+	}
+
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, controllerCards)
+	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
+
+	largeConf := BuildConfig(t)
+	gnmi.Update(t, dut, gnmi.OC().Config(), largeConf)
+
+	confBefore := gnmi.Get(t, dut, gnmi.OC().Config())
+	performSwitchover(t, dut, rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
+	waitForBootup(t, dut)
+
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, dut, controllerCards)
+	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
+
+	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
+		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
+	}
+	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
+		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
+	}
+
+	confAfter := gnmi.Get(t, dut, gnmi.OC().Config())
+	validateConfigMatch(t, confBefore, confAfter)
+}
+
+func TestConfigurationConvergence(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
+	t.Logf("Found controller card list: %v", controllerCards)
+
+	if *args.NumControllerCards >= 0 && len(controllerCards) != *args.NumControllerCards {
+		t.Fatalf("Incorrect number of controller cards: got %v, want exactly %v (specified by flag)", len(controllerCards), *args.NumControllerCards)
+	}
+
+	if got, want := len(controllerCards), 2; got < want {
+		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
+	}
+
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, controllerCards)
+	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
+
+	largeConf := BuildConfig(t)
+	performSwitchover(t, dut, rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
+	waitForBootup(t, dut)
+	start := time.Now()
+	gnmi.Update(t, dut, gnmi.OC().Config(), largeConf)
+	elapsed := time.Since(start).Seconds()
+
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, dut, controllerCards)
+	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
+
+	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
+		t.Fatalf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
+	}
+	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
+		t.Fatalf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
+	}
+
+	if uint64(elapsed) > uint64(maxConfigConvergenceTime) {
+		t.Fatalf("Time taken for configuration convergence is more than the expected: want %v got %v", maxConfigConvergenceTime, elapsed)
+	} else {
+		t.Logf("Time taken for configuration convergence: %v", elapsed)
+	}
+
+	confAfter := gnmi.Get(t, dut, gnmi.OC().Config())
+	validateConfigMatch(t, largeConf, confAfter)
 }
