@@ -2,7 +2,7 @@ module github.com/openconfig/featureprofiles
 
 go 1.17
 
-replace github.com/openconfig/ondatra => github.com/bstoll/ondatra v0.0.0-20211214234945-e3feff08cc24
+replace github.com/openconfig/ondatra => github.com/bstoll/ondatra v0.0.0-20211220220458-06e1e0e3bf45
 
 require github.com/openconfig/ondatra v0.0.0-00010101000000-000000000000
 
