@@ -1,0 +1,40 @@
+id {
+    name: "system_base"
+    version: 1
+}
+
+config_path {
+    path: "/system/config/hostname"
+}
+telemetry_path {
+    path: "/system/state/hostname"
+}
+
+config_path {
+    path: "/system/config/domain-name"
+}
+telemetry_path {
+    path: "/system/state/domain-name"
+}
+
+config_path {
+    path: "/system/config/login-banner"
+}
+telemetry_path {
+    path: "/system/state/login-banner"
+}
+
+config_path {
+    path: "/system/config/motd-banner"
+}
+telemetry_path {
+    path: "/system/state/motd-banner"
+}
+
+telemetry_path {
+    path: "/system/state/current-datetime"
+}
+telemetry_path {
+    path: "/system/state/boot-time"
+}
+

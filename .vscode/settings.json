@@ -1,0 +1,8 @@
+{
+    "go.testFlags": [
+        "-v",
+        "-alsologtostderr",
+        "-config", "/usr/local/google/home/bstoll/Projects/functionaltests/kne/ceos_testbed.kne.yml",
+        "-testbed", "/usr/local/google/home/bstoll/Projects/functionaltests/testbeds/ceos_testbed.textproto",
+    ],
+}
