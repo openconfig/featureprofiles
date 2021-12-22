@@ -1,5 +1,9 @@
 # Feature Profiles
 
+Feature profiles define independent features that can be invoked on network devices.  A feature profile can be a combination or subset of configuration, telemetry, operational commands, or any other interface that the device exposes.  Example management plane device APIs are gNMI, gNOI, and control plane APIs such as gRIBI, BGP, IS-IS.
+
+Feature profiles include a suite of tests for validating each defined feature.
+
 ## Virtualized Testing
 
 ### Arista cEOS
@@ -10,7 +14,7 @@ cat >topologies/kne/testbed.kne.yml << EOF
 username: admin
 password: admin
 topology: $PWD/topologies/kne/arista_ceos.textproto
-cli: /usr/local/google/home/bstoll/go/bin/kne_cli
+cli: $HOME/go/bin/kne_cli
 EOF
 ```
 Testing
@@ -31,7 +35,7 @@ cat >topologies/kne/testbed.kne.yml << EOF
 username: admin
 password: admin
 topology: $PWD/topologies/kne/nokia_srl.textproto
-cli: /usr/local/google/home/bstoll/go/bin/kne_cli
+cli: $HOME/go/bin/kne_cli
 EOF
 ```
 
@@ -44,4 +48,3 @@ Cleanup
 ```
 kne_cli delete topologies/kne/nokia_srl.textproto
 ```
-

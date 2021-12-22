@@ -1,8 +1,0 @@
-{
-    "go.testFlags": [
-        "-v",
-        "-alsologtostderr",
-        "-config", "${workspaceFolder}/topologies/kne/testbed.kne.yml",
-        "-testbed", "${workspaceFolder}/topologies/testbed.textproto",
-    ],
-}
