@@ -12,8 +12,11 @@ func TestMain(m *testing.M) {
 	ondatra.RunTests(m, kinit.Init)
 }
 
-// path:/system/config/hostname
-// path:/system/state/hostname
+// TestHostname verifies that the hostname configuration paths can be read,
+// updated, and deleted.
+//
+// config_path:/system/config/hostname
+// telemetry_path:/system/state/hostname
 func TestHostname(t *testing.T) {
 	var tests = []string{
 		"abcdefghijkmnop",
@@ -53,8 +56,11 @@ func TestHostname(t *testing.T) {
 	}
 }
 
-// path:/system/config/domain-name
-// path:/system/state/domain-name
+// TestDomainName verifies that the domainname configuration paths can be read,
+// updated, and deleted.
+//
+// config_path:/system/config/domain-name
+// telemetry_path:/system/state/domain-name
 func TestDomainName(t *testing.T) {
 	var tests = []string{
 		"abcdefghijkmnop",
@@ -94,7 +100,10 @@ func TestDomainName(t *testing.T) {
 	}
 }
 
-// path:system/state/current-datetime
+// TestCurrentDateTime verifies that the current date and time state path can
+// be read.
+//
+// telemetry_path:system/state/current-datetime
 //func TestCurrentDateTime(t *testing.T) {
 //	dut := ondatra.DUT(t, "dut1")
 //	dt := dut.Telemetry().System().CurrentDatetime()
