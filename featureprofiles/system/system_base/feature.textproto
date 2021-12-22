@@ -38,3 +38,10 @@ telemetry_path {
     path: "/system/state/boot-time"
 }
 
+config_path {
+    path: "/system/config/timezone-name"
+}
+telemetry_path {
+    path: "/system/state/timezone-name"
+}
+
