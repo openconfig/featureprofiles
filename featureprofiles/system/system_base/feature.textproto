@@ -76,9 +76,6 @@ telemetry_path {
     path: "/system/messages/state/severity"
 }
 telemetry_path {
-    path: "/system/messages/state/severity"
-}
-telemetry_path {
     path: "/system/messages/state/message/msg"
 }
 telemetry_path {
