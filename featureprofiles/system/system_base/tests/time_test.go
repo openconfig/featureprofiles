@@ -31,9 +31,6 @@ func TestCurrentDateTime(t *testing.T) {
 func TestBootTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut1")
 	bt := dut.Telemetry().System().BootTime().Get(t)
-	if bt == 0 {
-		t.Errorf("Unexpected boot timestamp: got %d", bt)
-	}
 
 	// Boot time should be after Dec 22, 2021 00:00:00 GMT in nanoseconds
 	if bt < 1640131200000000000 {
