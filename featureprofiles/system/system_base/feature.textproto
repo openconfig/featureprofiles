@@ -94,6 +94,7 @@ telemetry_path {
     path: "/system/messages/state/message/msgid"
 }
 
+
 gnoi_service {
   service_name: "gnoi.os.OS"
   method_name: "Install"
@@ -112,4 +113,29 @@ gnoi_service {
 gnoi_service {
   service_name: "gnoi.os.FactoryReset"
   method_name: "Start"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.System"
+  method_name: "Ping"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.System"
+  method_name: "Traceroute"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.System"
+  method_name: "Reboot"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.System"
+  method_name: "RebootStatus"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.System"
+  method_name: "CancelReboot"
 }
