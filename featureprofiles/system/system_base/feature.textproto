@@ -45,53 +45,6 @@ telemetry_path {
     path: "/system/state/timezone-name"
 }
 
-# Alarms
-telemetry_path {
-    path: "/system/alarms/alarm/id"
-}
-telemetry_path {
-    path: "/system/alarms/alarm/state/id"
-}
-telemetry_path {
-    path: "/system/alarms/alarm/state/resource"
-}
-telemetry_path {
-    path: "/system/alarms/alarm/state/text"
-}
-telemetry_path {
-    path: "/system/alarms/alarm/state/time-created"
-}
-telemetry_path {
-    path: "/system/alarms/alarm/state/severity"
-}
-telemetry_path {
-    path: "/system/alarms/alarm/state/type-id"
-}
-
-# Messages
-config_path {
-    path: "/system/messages/config/severity"
-}
-telemetry_path {
-    path: "/system/messages/state/severity"
-}
-telemetry_path {
-    path: "/system/messages/state/message/msg"
-}
-telemetry_path {
-    path: "/system/messages/state/message/priority"
-}
-telemetry_path {
-    path: "/system/messages/state/message/app-name"
-}
-telemetry_path {
-    path: "/system/messages/state/message/procid"
-}
-telemetry_path {
-    path: "/system/messages/state/message/msgid"
-}
-
-
 gnoi_service {
   service_name: "gnoi.os.OS"
   method_name: "Install"
