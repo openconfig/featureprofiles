@@ -1,0 +1,44 @@
+id {
+  name: "gribi_ip4_entry"
+  version: 1
+}
+
+telemetry_path {
+  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/index"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/index"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/subinterface"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/state/index"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/state/ip-address"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/state/mac-address"
+}
