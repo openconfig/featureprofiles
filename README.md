@@ -7,6 +7,8 @@ Feature profiles include a suite of tests for validating each defined feature.
 ## Virtualized Testing
 
 ### Arista cEOS
+[Arista cEOS](https://www.arista.com/en/products/software-controlled-container-networking) images can be obtained by contacting Arista.
+
 Setup
 ```
 kne_cli create topologies/kne/arista_ceos.textproto
@@ -28,6 +30,8 @@ kne_cli delete topologies/kne/arista_ceos.textproto
 ```
 
 ### Nokia SR-Linux
+SR Linux images can be found [here](https://github.com/nokia/srlinux-container-image/pkgs/container/srlinux) and will require the [SRL Controller](https://github.com/srl-labs/srl-controller) to be installed on the KNE Kubernetes cluster.
+
 Setup
 ```
 kne_cli create topologies/kne/nokia_srl.textproto
