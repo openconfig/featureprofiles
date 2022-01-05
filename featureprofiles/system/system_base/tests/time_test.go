@@ -10,8 +10,6 @@ import (
 // TestCurrentDateTime verifies that the current date and time state path can
 // be parsed as RFC3339 time format.
 //
-// TODO(bstoll): Need working implementation to validate against
-//
 // telemetry_path:/system/state/current-datetime
 func TestCurrentDateTime(t *testing.T) {
 	t.Skip("Need working implementation to validate against")
@@ -45,42 +43,42 @@ func TestBootTime(t *testing.T) {
 func TestTimeZone(t *testing.T) {
 	t.Skip("Need working implementation to validate against")
 
+	testCases := []struct {
+		description string
+		tz          string
+	}{
+		{"UTC", "Etc/UTC"},
+		{"GMT", "Etc/GMT"},
+		{"Short UTC", "UTC"},
+		{"Short GMT", "GMT"},
+		{"America/Chicago", "America/Chicago"},
+		{"PST8PDT", "PST8PDT"},
+		{"Europe/London", "Europe/London"},
+	}
+
 	dut := ondatra.DUT(t, "dut1")
-	configTz := dut.Config().System().Clock().TimezoneName()
-	stateTz := dut.Telemetry().System().Clock().TimezoneName()
 
-	var timezones = []string{
-		"Etc/UTC",
-		"Etc/GMT",
-		"UTC",
-		"GMT",
-		"America/Chicago",
-		"PST8PDT",
-		"Europe/London",
-	}
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			config := dut.Config().System().Clock().TimezoneName()
+			state := dut.Telemetry().System().Clock().TimezoneName()
 
-	for _, timezone := range timezones {
-		configTz.Replace(t, timezone)
+			config.Replace(t, testCase.tz)
 
-		configGot := configTz.Get(t)
-		if configGot != timezone {
-			t.Errorf("Config timezone got %s want %s", configGot, timezone)
-		}
-
-		stateGot := stateTz.Await(t, 5*time.Second, timezone)
-		success := false
-		for _, v := range stateGot {
-			if v.Present && v.Val(t) == timezone {
-				success = true
+			configGot := config.Get(t)
+			if configGot != testCase.tz {
+				t.Errorf("Config timezone: got %s, want %s", configGot, testCase.tz)
 			}
-		}
-		if !success {
-			t.Errorf("Telemetry timezone got %v want %s", stateGot, timezone)
-		}
-	}
 
-	configTz.Delete(t)
-	if qs := configTz.GetFull(t); qs.IsPresent() == true {
-		t.Errorf("Delete timezone fail; got %v", qs)
+			stateGot := state.Await(t, 5*time.Second, testCase.tz)
+			if stateGot.Val(t) != testCase.tz {
+				t.Errorf("State domainname: got %v, want %s", stateGot, testCase.tz)
+			}
+
+			config.Delete(t)
+			if qs := config.Lookup(t); qs.IsPresent() == true {
+				t.Errorf("Delete timezone fail: got %v", qs)
+			}
+		})
 	}
 }

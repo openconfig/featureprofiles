@@ -13,41 +13,42 @@ import (
 // config_path:/system/config/hostname
 // telemetry_path:/system/state/hostname
 func TestHostname(t *testing.T) {
-	var tests = []string{
-		"abcdefghijkmnop",
-		"123456789012345",
-		"x",
-		"foo_bar-baz",
-		"test.example",
-		"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+	testCases := []struct {
+		description string
+		hostname    string
+	}{
+		{"15 Letters", "abcdefghijkmnop"},
+		{"15 Numbers", "123456789012345"},
+		{"Single Character", "x"},
+		{"Dash and Underscore", "foo_bar-baz"},
+		{"Periods", "test.name.example"},
+		{"63 Characters", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
 	}
+
 	dut := ondatra.DUT(t, "dut1")
-	configHn := dut.Config().System().Hostname()
-	stateHn := dut.Telemetry().System().Hostname()
 
-	for _, test := range tests {
-		configHn.Replace(t, test)
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			config := dut.Config().System().Hostname()
+			state := dut.Telemetry().System().Hostname()
 
-		configGot := configHn.Get(t)
-		if configGot != test {
-			t.Errorf("Config hostname got %s want %s", configGot, test)
-		}
+			config.Replace(t, testCase.hostname)
 
-		stateGot := stateHn.Await(t, 5*time.Second, test)
-		success := false
-		for _, v := range stateGot {
-			if v.Present && v.Val(t) == test {
-				success = true
+			configGot := config.Get(t)
+			if configGot != testCase.hostname {
+				t.Errorf("Config hostname: got %s, want %s", configGot, testCase.hostname)
 			}
-		}
-		if !success {
-			t.Errorf("Telemetry hostname got %v want %s", stateGot, test)
-		}
-	}
 
-	configHn.Delete(t)
-	if qs := configHn.GetFull(t); qs.IsPresent() == true {
-		t.Errorf("Delete hostname fail; got %v", qs)
+			stateGot := state.Await(t, 5*time.Second, testCase.hostname)
+			if stateGot.Val(t) != testCase.hostname {
+				t.Errorf("Telemetry hostname: got %v, want %s", stateGot, testCase.hostname)
+			}
+
+			config.Delete(t)
+			if qs := config.Lookup(t); qs.IsPresent() == true {
+				t.Errorf("Delete hostname fail: got %v", qs)
+			}
+		})
 	}
 }
 
@@ -57,40 +58,41 @@ func TestHostname(t *testing.T) {
 // config_path:/system/config/domain-name
 // telemetry_path:/system/state/domain-name
 func TestDomainName(t *testing.T) {
-	var tests = []string{
-		"abcdefghijkmnop",
-		"123456789012345",
-		"x",
-		"foo_bar-baz",
-		"test.example",
-		"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+	testCases := []struct {
+		description string
+		domainname  string
+	}{
+		{"15 Letters", "abcdefghijkmnop"},
+		{"15 Numbers", "123456789012345"},
+		{"Single Character", "x"},
+		{"Dash and Underscore", "foo_bar-baz"},
+		{"Periods", "test.name.example"},
+		{"63 Characters", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
 	}
+
 	dut := ondatra.DUT(t, "dut1")
-	configDn := dut.Config().System().DomainName()
-	stateDn := dut.Telemetry().System().DomainName()
 
-	for _, test := range tests {
-		configDn.Replace(t, test)
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			config := dut.Config().System().DomainName()
+			state := dut.Telemetry().System().DomainName()
 
-		configGot := configDn.Get(t)
-		if configGot != test {
-			t.Errorf("Config domainname got %s want %s", configGot, test)
-		}
+			config.Replace(t, testCase.domainname)
 
-		stateGot := stateDn.Await(t, 5*time.Second, test)
-		success := false
-		for _, v := range stateGot {
-			if v.Present && v.Val(t) == test {
-				success = true
+			configGot := config.Get(t)
+			if configGot != testCase.domainname {
+				t.Errorf("Config domainname: got %s, want %s", configGot, testCase.domainname)
 			}
-		}
-		if !success {
-			t.Errorf("Set domainname got %v want %s", stateGot, test)
-		}
-	}
 
-	configDn.Delete(t)
-	if qs := configDn.GetFull(t); qs.IsPresent() == true {
-		t.Errorf("Delete domainname fail")
+			stateGot := state.Await(t, 5*time.Second, testCase.domainname)
+			if stateGot.Val(t) != testCase.domainname {
+				t.Errorf("Telemetry domainname: got %v, want %s", stateGot, testCase.domainname)
+			}
+
+			config.Delete(t)
+			if qs := config.Lookup(t); qs.IsPresent() == true {
+				t.Errorf("Delete domainname fail: got %v", qs)
+			}
+		})
 	}
 }

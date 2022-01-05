@@ -14,33 +14,40 @@ import (
 func TestMotdBanner(t *testing.T) {
 	t.Skip("Need working implementation to validate against")
 
-	var bannerValues = []string{
-		"",
-		"x",
-		"Warning Text",
-		"WARNING : Unauthorized access to this system is forbidden and will be prosecuted by law. By accessing this system, you agree that your actions may be monitored if unauthorized usage is suspected.",
+	testCases := []struct {
+		description string
+		banner      string
+	}{
+		{"Empty String", ""},
+		{"Single Character", "x"},
+		{"Short String", "Warning Text"},
+		{"Long String", "WARNING : Unauthorized access to this system is forbidden and will be prosecuted by law. By accessing this system, you agree that your actions may be monitored if unauthorized usage is suspected."},
 	}
+
 	dut := ondatra.DUT(t, "dut1")
-	configB := dut.Config().System().MotdBanner()
-	stateB := dut.Config().System().MotdBanner()
 
-	for _, banner := range bannerValues {
-		configB.Replace(t, banner)
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			config := dut.Config().System().MotdBanner()
+			state := dut.Config().System().MotdBanner()
 
-		configGot := configB.Get(t)
-		if configGot != banner {
-			t.Errorf("Config MOTD Banner got %s want %s", configGot, banner)
-		}
+			config.Replace(t, testCase.banner)
 
-		stateGot := stateB.Get(t)
-		if stateGot != banner {
-			t.Errorf("Telemetry MOTD Banner got %v want %s", stateGot, banner)
-		}
-	}
+			configGot := config.Get(t)
+			if configGot != testCase.banner {
+				t.Errorf("Config MOTD Banner: got %s, want %s", configGot, testCase.banner)
+			}
 
-	configB.Delete(t)
-	if qs := configB.GetFull(t); qs.IsPresent() == true {
-		t.Errorf("Delete MOTD Banner fail; got %v", qs)
+			stateGot := state.Get(t)
+			if stateGot != testCase.banner {
+				t.Errorf("Telemetry MOTD Banner: got %v, want %s", stateGot, testCase.banner)
+			}
+
+			config.Delete(t)
+			if qs := config.Lookup(t); qs.IsPresent() == true {
+				t.Errorf("Delete MOTD Banner fail: got %v", qs)
+			}
+		})
 	}
 }
 
@@ -52,32 +59,39 @@ func TestMotdBanner(t *testing.T) {
 func TestLoginBanner(t *testing.T) {
 	t.Skip("Need working implementation to validate against")
 
-	var bannerValues = []string{
-		"",
-		"x",
-		"Warning Text",
-		"WARNING : Unauthorized access to this system is forbidden and will be prosecuted by law. By accessing this system, you agree that your actions may be monitored if unauthorized usage is suspected.",
+	testCases := []struct {
+		description string
+		banner      string
+	}{
+		{"Empty String", ""},
+		{"Single Character", "x"},
+		{"Short String", "Warning Text"},
+		{"Long String", "WARNING : Unauthorized access to this system is forbidden and will be prosecuted by law. By accessing this system, you agree that your actions may be monitored if unauthorized usage is suspected."},
 	}
+
 	dut := ondatra.DUT(t, "dut1")
-	configB := dut.Config().System().LoginBanner()
-	stateB := dut.Config().System().LoginBanner()
 
-	for _, banner := range bannerValues {
-		configB.Replace(t, banner)
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			config := dut.Config().System().LoginBanner()
+			state := dut.Config().System().LoginBanner()
 
-		configGot := configB.Get(t)
-		if configGot != banner {
-			t.Errorf("Config Login Banner got %s want %s", configGot, banner)
-		}
+			config.Replace(t, testCase.banner)
 
-		stateGot := stateB.Get(t)
-		if stateGot != banner {
-			t.Errorf("Telemetry Login Banner got %v want %s", stateGot, banner)
-		}
-	}
+			configGot := config.Get(t)
+			if configGot != testCase.banner {
+				t.Errorf("Config Login Banner: got %s, want %s", configGot, testCase.banner)
+			}
 
-	configB.Delete(t)
-	if qs := configB.GetFull(t); qs.IsPresent() == true {
-		t.Errorf("Delete Login Banner fail; got %v", qs)
+			stateGot := state.Get(t)
+			if stateGot != testCase.banner {
+				t.Errorf("Telemetry Login Banner: got %v, want %s", stateGot, testCase.banner)
+			}
+
+			config.Delete(t)
+			if qs := config.Lookup(t); qs.IsPresent() == true {
+				t.Errorf("Delete Login Banner fail: got %v", qs)
+			}
+		})
 	}
 }
