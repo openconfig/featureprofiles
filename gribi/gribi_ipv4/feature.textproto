@@ -1,5 +1,5 @@
 id {
-  name: "gribi_ip4_entry"
+  name: "gribi_ipv4_entry"
   version: 1
 }
 
