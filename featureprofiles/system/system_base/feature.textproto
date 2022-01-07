@@ -1,0 +1,91 @@
+id {
+    name: "system_base"
+    version: 1
+}
+
+config_path {
+    path: "/system/config/hostname"
+}
+telemetry_path {
+    path: "/system/state/hostname"
+}
+
+config_path {
+    path: "/system/config/domain-name"
+}
+telemetry_path {
+    path: "/system/state/domain-name"
+}
+
+config_path {
+    path: "/system/config/login-banner"
+}
+telemetry_path {
+    path: "/system/state/login-banner"
+}
+
+config_path {
+    path: "/system/config/motd-banner"
+}
+telemetry_path {
+    path: "/system/state/motd-banner"
+}
+
+telemetry_path {
+    path: "/system/state/current-datetime"
+}
+telemetry_path {
+    path: "/system/state/boot-time"
+}
+
+config_path {
+    path: "/system/config/timezone-name"
+}
+telemetry_path {
+    path: "/system/state/timezone-name"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.OS"
+  method_name: "Install"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.OS"
+  method_name: "Activate"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.OS"
+  method_name: "Verify"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.FactoryReset"
+  method_name: "Start"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.System"
+  method_name: "Ping"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.System"
+  method_name: "Traceroute"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.System"
+  method_name: "Reboot"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.System"
+  method_name: "RebootStatus"
+}
+
+gnoi_service {
+  service_name: "gnoi.os.System"
+  method_name: "CancelReboot"
+}
