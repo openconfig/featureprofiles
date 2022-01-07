@@ -1,0 +1,46 @@
+duts {
+  id: "dut1"
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+}
+duts {
+  id: "dut2"
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+}
+links {
+  a: "dut1:port1"
+  b: "dut2:port1"
+}
+links {
+  a: "dut1:port2"
+  b: "dut2:port2"
+}
+links {
+  a: "dut1:port3"
+  b: "dut2:port3"
+}
+links {
+  a: "dut1:port4"
+  b: "dut2:port4"
+}
