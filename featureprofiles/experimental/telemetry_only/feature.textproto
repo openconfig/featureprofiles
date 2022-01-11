@@ -1,0 +1,211 @@
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+id {
+  name: "telemetry_only"
+  version: 1
+}
+
+telemetry_path {
+  path: "/components/component/fan/state/speed"
+}
+telemetry_path {
+  path: "/components/component/integrated-circuit/state/node-id"
+}
+telemetry_path {
+  path: "/components/component/state/empty"
+}
+telemetry_path {
+  path: "/components/component/state/firmware-version"
+}
+telemetry_path {
+  path: "/components/component/state/hardware-version"
+}
+telemetry_path {
+  path: "/components/component/state/mfg-date"
+}
+telemetry_path {
+  path: "/components/component/state/mfg-name"
+}
+telemetry_path {
+  path: "/components/component/state/name"
+}
+telemetry_path {
+  path: "/components/component/state/oper-status"
+}
+telemetry_path {
+  path: "/components/component/state/parent"
+}
+telemetry_path {
+  path: "/components/component/state/part-no"
+}
+telemetry_path {
+  path: "/components/component/state/serial-no"
+}
+telemetry_path {
+  path: "/components/component/state/software-version"
+}
+telemetry_path {
+  path: "/components/component/state/temperature/instant"
+}
+telemetry_path {
+  path: "/components/component/state/type"
+}
+telemetry_path {
+  path: "/components/component/transceiver/physical-channels/channel/state/input-power/instant"
+}
+telemetry_path {
+  path: "/components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant"
+}
+telemetry_path {
+  path: "/components/component/transceiver/physical-channels/channel/state/output-power/instant"
+}
+telemetry_path {
+  path: "/components/component/transceiver/state/form-factor"
+}
+telemetry_path {
+  path: "/interfaces/interface/aggregation/state/member"
+}
+telemetry_path {
+  path: "/interfaces/interface/ethernet/state/counters/in-maxsize-exceeded"
+}
+telemetry_path {
+  path: "/interfaces/interface/hold-time/state/down"
+}
+telemetry_path {
+  path: "/interfaces/interface/hold-time/state/up"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/counters/carrier-transitions"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/counters/in-discards"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/counters/in-fcs-errors"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/counters/in-pkts"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/cpu"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/hardware-port"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/last-change"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/management"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/physical-channel"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/transceiver"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/prefix-length"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/prefix-length"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/state/index"
+}
+telemetry_path {
+  path: "/lacp/interfaces/interface/members/member/state/activity"
+}
+telemetry_path {
+  path: "/lacp/interfaces/interface/members/member/state/collecting"
+}
+telemetry_path {
+  path: "/lacp/interfaces/interface/members/member/state/distributing"
+}
+telemetry_path {
+  path: "/lacp/interfaces/interface/state/system-id-mac"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/name"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/transmit-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/transmit-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/state/name"
+}
+telemetry_path {
+  path: "/system/alarms/alarm/state/id"
+}
+telemetry_path {
+  path: "/system/alarms/alarm/state/resource"
+}
+telemetry_path {
+  path: "/system/alarms/alarm/state/severity"
+}
+telemetry_path {
+  path: "/system/alarms/alarm/state/text"
+}
+telemetry_path {
+  path: "/system/alarms/alarm/state/time-created"
+}
+telemetry_path {
+  path: "/system/alarms/alarm/state/type-id"
+}
+telemetry_path {
+  path: "/system/cpus/cpu/state/total/avg"
+}
+telemetry_path {
+  path: "/system/memory/state/counters/correctable-ecc-errors"
+}
+telemetry_path {
+  path: "/system/memory/state/counters/uncorrectable-ecc-errors"
+}
+telemetry_path {
+  path: "/system/memory/state/free"
+}
+telemetry_path {
+  path: "/system/memory/state/physical"
+}
+telemetry_path {
+  path: "/system/memory/state/used"
+}
+telemetry_path {
+  path: "/system/processes/process/state/cpu-utilization"
+}
+telemetry_path {
+  path: "/system/processes/process/state/memory-usage"
+}
+telemetry_path {
+  path: "/system/processes/process/state/name"
+}
+telemetry_path {
+  path: "/system/processes/process/state/pid"
+}
+telemetry_path {
+  path: "/system/state/hostname"
+}

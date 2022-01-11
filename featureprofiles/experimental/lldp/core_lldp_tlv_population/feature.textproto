@@ -1,0 +1,70 @@
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+id {
+  name: "core_lldp_tlv_population"
+  version: 1
+}
+
+config_path {
+  path: "/lldp/config/enabled"
+}
+config_path {
+  path: "/lldp/config/system-name"
+}
+config_path {
+  path: "/lldp/config/system-description"
+}
+config_path {
+  path: "/lldp/config/chassis-id"
+}
+config_path {
+  path: "/lldp/config/chassis-id-type"
+}
+config_path {
+  path: "/lldp/interfaces/interface/name"
+}
+config_path {
+  path: "/lldp/interfaces/interface/config/name"
+}
+config_path {
+  path: "/lldp/interfaces/interface/config/enabled"
+}
+telemetry_path {
+  path: "/lldp/interfaces/interface/neighbors/neighbor/state/chassis-id"
+}
+telemetry_path {
+  path: "/lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-type"
+}
+telemetry_path {
+  path: "/lldp/interfaces/interface/neighbors/neighbor/state/port-id"
+}
+telemetry_path {
+  path: "/lldp/interfaces/interface/neighbors/neighbor/state/port-id-type"
+}
+telemetry_path {
+  path: "/lldp/interfaces/interface/neighbors/neighbor/state/system-name"
+}
+telemetry_path {
+  path: "/lldp/interfaces/interface/state/name"
+}
+telemetry_path {
+  path: "/lldp/state/chassis-id"
+}
+telemetry_path {
+  path: "/lldp/state/chassis-id-type"
+}
+telemetry_path {
+  path: "/lldp/state/system-name"
+}

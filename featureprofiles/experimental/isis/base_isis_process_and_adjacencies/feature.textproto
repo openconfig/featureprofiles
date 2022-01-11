@@ -1,0 +1,157 @@
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+id {
+  name: "base_isis_process_and_adjacencies"
+  version: 1
+}
+
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/config/authentication-check"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/config/net"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/config/level-capability"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/config/level-number"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/config/enabled"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/csnp-authentication"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/psnp-authentication"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/lsp-authentication"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/key/config/auth-password"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/circuit-type"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/csnp-interval"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/lsp-pacing-interval"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/level-number"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-interval"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/config/hello-authentication"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/key/config/auth-password"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/safi-name"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/state/authentication-check"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/state/net"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/state/level-capability"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/state/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/state/level-number"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/state/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/csnp-authentication"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/psnp-authentication"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/lsp-authentication"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/key/state/auth-password"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/interface-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/circuit-type"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/state/csnp-interval"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/state/lsp-pacing-interval"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/state/level-number"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/state/hello-interval"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/state/hello-multiplier"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/state/hello-authentication"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/key/state/auth-password"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/afi-name"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/safi-name"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/enabled"
+}
