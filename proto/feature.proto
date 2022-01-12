@@ -33,7 +33,7 @@
 // }
 syntax = "proto2";
 
-package net.profiles;
+package openconfig.profiles;
 
 message FeatureProfileID {
   // Unique name for the feature profile.
