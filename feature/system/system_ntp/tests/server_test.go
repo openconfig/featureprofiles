@@ -61,36 +61,42 @@ func TestNtpServerConfigurability(t *testing.T) {
 			}
 			config.Server(testCase.address).Replace(t, &ntpServer)
 
-			configGot := config.Server(testCase.address).Get(t)
-			if address := configGot.GetAddress(); address != testCase.address {
-				t.Errorf("Config NTP Server: got %s, want %s", address, testCase.address)
-			}
+			t.Run("Get NTP Server Config", func(t *testing.T) {
+				configGot := config.Server(testCase.address).Get(t)
+				if address := configGot.GetAddress(); address != testCase.address {
+					t.Errorf("Config NTP Server: got %s, want %s", address, testCase.address)
+				}
 
-			if iburst := configGot.GetIburst(); iburst != testCase.iburst {
-				t.Errorf("Config NTP iburst: got %t, want %t", iburst, testCase.iburst)
-			}
+				if iburst := configGot.GetIburst(); iburst != testCase.iburst {
+					t.Errorf("Config NTP iburst: got %t, want %t", iburst, testCase.iburst)
+				}
 
-			if prefer := configGot.GetPrefer(); prefer != testCase.prefer {
-				t.Errorf("Config NTP prefer: got %t, want %t", prefer, testCase.prefer)
-			}
+				if prefer := configGot.GetPrefer(); prefer != testCase.prefer {
+					t.Errorf("Config NTP prefer: got %t, want %t", prefer, testCase.prefer)
+				}
+			})
 
-			stateGot := state.Server(testCase.address).Get(t)
-			if address := stateGot.GetAddress(); address != testCase.address {
-				t.Errorf("Telemetry NTP Server: got %v, want %s", address, testCase.address)
-			}
+			t.Run("Get NTP Server Telemetry", func(t *testing.T) {
+				stateGot := state.Server(testCase.address).Get(t)
+				if address := stateGot.GetAddress(); address != testCase.address {
+					t.Errorf("Telemetry NTP Server: got %s, want %s", address, testCase.address)
+				}
 
-			if iburst := stateGot.GetIburst(); iburst != testCase.iburst {
-				t.Errorf("Config NTP iburst: got %t, want %t", iburst, testCase.iburst)
-			}
+				if iburst := stateGot.GetIburst(); iburst != testCase.iburst {
+					t.Errorf("Telemetry NTP iburst: got %t, want %t", iburst, testCase.iburst)
+				}
 
-			if prefer := stateGot.GetPrefer(); prefer != testCase.prefer {
-				t.Errorf("Config NTP prefer: got %t, want %t", prefer, testCase.prefer)
-			}
+				if prefer := stateGot.GetPrefer(); prefer != testCase.prefer {
+					t.Errorf("Telemetry NTP prefer: got %t, want %t", prefer, testCase.prefer)
+				}
+			})
 
-			config.Server(testCase.address).Delete(t)
-			if qs := config.Server(testCase.address).Lookup(t); qs.IsPresent() == true {
-				t.Errorf("Delete NTP Server fail: got %v", qs)
-			}
+			t.Run("Delete NTP Server", func(t *testing.T) {
+				config.Server(testCase.address).Delete(t)
+				if qs := config.Server(testCase.address).Lookup(t); qs.IsPresent() == true {
+					t.Errorf("Delete NTP Server fail: got %v", qs)
+				}
+			})
 		})
 	}
 }

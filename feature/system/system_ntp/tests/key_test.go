@@ -60,36 +60,43 @@ func TestNtpKeyConfigurability(t *testing.T) {
 			}
 			config.NtpKey(testCase.keyId).Replace(t, &ntpKey)
 
-			configGot := config.NtpKey(testCase.keyId).Get(t)
-			if keyId := configGot.GetKeyId(); keyId != testCase.keyId {
-				t.Errorf("Config NTP Key ID: got %d, want %d", keyId, testCase.keyId)
-			}
+			t.Run("Get NTP Key Config", func(t *testing.T) {
+				configGot := config.NtpKey(testCase.keyId).Get(t)
 
-			if keyType := configGot.GetKeyType(); keyType != testCase.keyType {
-				t.Errorf("Config NTP Key Type: got %s, want %s", keyType.String(), testCase.keyType.String())
-			}
+				if keyId := configGot.GetKeyId(); keyId != testCase.keyId {
+					t.Errorf("Config NTP Key ID: got %d, want %d", keyId, testCase.keyId)
+				}
 
-			if keyValue := configGot.GetKeyValue(); keyValue != testCase.keyValue {
-				t.Errorf("Config NTP Key Value: got %s, want %s", keyValue, testCase.keyValue)
-			}
+				if keyType := configGot.GetKeyType(); keyType != testCase.keyType {
+					t.Errorf("Config NTP Key Type: got %s, want %s", keyType.String(), testCase.keyType.String())
+				}
 
-			stateGot := state.NtpKey(testCase.keyId).Get(t)
-			if keyId := stateGot.GetKeyId(); keyId != testCase.keyId {
-				t.Errorf("Telemetry NTP Server: got %d, want %d", keyId, testCase.keyId)
-			}
+				if keyValue := configGot.GetKeyValue(); keyValue != testCase.keyValue {
+					t.Errorf("Config NTP Key Value: got %s, want %s", keyValue, testCase.keyValue)
+				}
+			})
 
-			if keyType := stateGot.GetKeyType(); keyType != testCase.keyType {
-				t.Errorf("Telemetry NTP Key Type: got %s, want %s", keyType.String(), testCase.keyType.String())
-			}
+			t.Run("Get NTP Key Telemetry", func(t *testing.T) {
+				stateGot := state.NtpKey(testCase.keyId).Get(t)
+				if keyId := stateGot.GetKeyId(); keyId != testCase.keyId {
+					t.Errorf("Telemetry NTP Key ID: got %d, want %d", keyId, testCase.keyId)
+				}
 
-			if keyValue := stateGot.GetKeyValue(); keyValue != testCase.keyValue {
-				t.Errorf("Telemetry NTP Key Value: got %s, want %s", keyValue, testCase.keyValue)
-			}
+				if keyType := stateGot.GetKeyType(); keyType != testCase.keyType {
+					t.Errorf("Telemetry NTP Key Type: got %s, want %s", keyType.String(), testCase.keyType.String())
+				}
 
-			config.NtpKey(testCase.keyId).Delete(t)
-			if qs := config.NtpKey(testCase.keyId).Lookup(t); qs.IsPresent() == true {
-				t.Errorf("Delete NTP Server fail: got %v", qs)
-			}
+				if keyValue := stateGot.GetKeyValue(); keyValue != testCase.keyValue {
+					t.Errorf("Telemetry NTP Key Value: got %s, want %s", keyValue, testCase.keyValue)
+				}
+			})
+
+			t.Run("Delete NTP Key", func(t *testing.T) {
+				config.NtpKey(testCase.keyId).Delete(t)
+				if qs := config.NtpKey(testCase.keyId).Lookup(t); qs.IsPresent() == true {
+					t.Errorf("Delete NTP Server fail: got %v", qs)
+				}
+			})
 		})
 	}
 }

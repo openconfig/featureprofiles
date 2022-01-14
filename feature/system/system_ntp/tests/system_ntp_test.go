@@ -45,7 +45,8 @@ func TestNtpEnable(t *testing.T) {
 	config.Enabled().Delete(t)
 }
 
-// TestNtpEnableAuth validates the NTP enable authenication path responds.
+// TestNtpEnableAuth validates the NTP enable authenication path responds as
+// expected.
 //
 // config_path:/system/ntp/config/enabled
 // config_path:/system/ntp/config/enable-ntp-auth
