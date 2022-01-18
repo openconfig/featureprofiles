@@ -81,20 +81,26 @@ func TestTimeZone(t *testing.T) {
 
 			config.Replace(t, testCase.tz)
 
-			configGot := config.Get(t)
-			if configGot != testCase.tz {
-				t.Errorf("Config timezone: got %s, want %s", configGot, testCase.tz)
-			}
+			t.Run("Get Timezone Config", func(t *testing.T) {
+				configGot := config.Get(t)
+				if configGot != testCase.tz {
+					t.Errorf("Config timezone: got %s, want %s", configGot, testCase.tz)
+				}
+			})
 
-			stateGot := state.Await(t, 5*time.Second, testCase.tz)
-			if stateGot.Val(t) != testCase.tz {
-				t.Errorf("State domainname: got %v, want %s", stateGot, testCase.tz)
-			}
+			t.Run("Get Timezone Telemetry", func(t *testing.T) {
+				stateGot := state.Await(t, 5*time.Second, testCase.tz)
+				if stateGot.Val(t) != testCase.tz {
+					t.Errorf("State domainname: got %v, want %s", stateGot, testCase.tz)
+				}
+			})
 
-			config.Delete(t)
-			if qs := config.Lookup(t); qs.IsPresent() == true {
-				t.Errorf("Delete timezone fail: got %v", qs)
-			}
+			t.Run("Delete Timezone", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.IsPresent() == true {
+					t.Errorf("Delete timezone fail: got %v", qs)
+				}
+			})
 		})
 	}
 }

@@ -49,20 +49,26 @@ func TestMotdBanner(t *testing.T) {
 
 			config.Replace(t, testCase.banner)
 
-			configGot := config.Get(t)
-			if configGot != testCase.banner {
-				t.Errorf("Config MOTD Banner: got %s, want %s", configGot, testCase.banner)
-			}
+			t.Run("Get MOTD Config", func(t *testing.T) {
+				configGot := config.Get(t)
+				if configGot != testCase.banner {
+					t.Errorf("Config MOTD Banner: got %s, want %s", configGot, testCase.banner)
+				}
+			})
 
-			stateGot := state.Get(t)
-			if stateGot != testCase.banner {
-				t.Errorf("Telemetry MOTD Banner: got %v, want %s", stateGot, testCase.banner)
-			}
+			t.Run("Get MOTD Telemetry", func(t *testing.T) {
+				stateGot := state.Get(t)
+				if stateGot != testCase.banner {
+					t.Errorf("Telemetry MOTD Banner: got %v, want %s", stateGot, testCase.banner)
+				}
+			})
 
-			config.Delete(t)
-			if qs := config.Lookup(t); qs.IsPresent() == true {
-				t.Errorf("Delete MOTD Banner fail: got %v", qs)
-			}
+			t.Run("Delete MOTD", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.IsPresent() == true {
+					t.Errorf("Delete MOTD Banner fail: got %v", qs)
+				}
+			})
 		})
 	}
 }
