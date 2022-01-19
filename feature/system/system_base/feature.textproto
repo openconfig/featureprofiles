@@ -53,10 +53,10 @@ telemetry_path {
 }
 
 config_path {
-    path: "/system/config/timezone-name"
+    path: "/system/clock/config/timezone-name"
 }
 telemetry_path {
-    path: "/system/state/timezone-name"
+    path: "/system/clock/state/timezone-name"
 }
 
 gnoi_service {

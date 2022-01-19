@@ -54,8 +54,8 @@ func TestBootTime(t *testing.T) {
 
 // TestTimeZone verifies the timezone-name config values can be read and set
 //
-// config_path:/system/config/timezone-name
-// telemetry_path:/system/state/timezone-name
+// config_path:/system/clock/config/timezone-name
+// telemetry_path:/system/clock/state/timezone-name
 func TestTimeZone(t *testing.T) {
 	t.Skip("Need working implementation to validate against")
 
