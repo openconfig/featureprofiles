@@ -50,20 +50,26 @@ func TestHostname(t *testing.T) {
 
 			config.Replace(t, testCase.hostname)
 
-			configGot := config.Get(t)
-			if configGot != testCase.hostname {
-				t.Errorf("Config hostname: got %s, want %s", configGot, testCase.hostname)
-			}
+			t.Run("Get Hostname Config", func(t *testing.T) {
+				configGot := config.Get(t)
+				if configGot != testCase.hostname {
+					t.Errorf("Config hostname: got %s, want %s", configGot, testCase.hostname)
+				}
+			})
 
-			stateGot := state.Await(t, 5*time.Second, testCase.hostname)
-			if stateGot.Val(t) != testCase.hostname {
-				t.Errorf("Telemetry hostname: got %v, want %s", stateGot, testCase.hostname)
-			}
+			t.Run("Get Hostname Telemetry", func(t *testing.T) {
+				stateGot := state.Await(t, 5*time.Second, testCase.hostname)
+				if stateGot.Val(t) != testCase.hostname {
+					t.Errorf("Telemetry hostname: got %v, want %s", stateGot, testCase.hostname)
+				}
+			})
 
-			config.Delete(t)
-			if qs := config.Lookup(t); qs.IsPresent() == true {
-				t.Errorf("Delete hostname fail: got %v", qs)
-			}
+			t.Run("Delete Hostname", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.IsPresent() == true {
+					t.Errorf("Delete hostname fail: got %v", qs)
+				}
+			})
 		})
 	}
 }
@@ -95,20 +101,26 @@ func TestDomainName(t *testing.T) {
 
 			config.Replace(t, testCase.domainname)
 
-			configGot := config.Get(t)
-			if configGot != testCase.domainname {
-				t.Errorf("Config domainname: got %s, want %s", configGot, testCase.domainname)
-			}
+			t.Run("Get Domainname Config", func(t *testing.T) {
+				configGot := config.Get(t)
+				if configGot != testCase.domainname {
+					t.Errorf("Config domainname: got %s, want %s", configGot, testCase.domainname)
+				}
+			})
 
-			stateGot := state.Await(t, 5*time.Second, testCase.domainname)
-			if stateGot.Val(t) != testCase.domainname {
-				t.Errorf("Telemetry domainname: got %v, want %s", stateGot, testCase.domainname)
-			}
+			t.Run("Get Domainname Telemetry", func(t *testing.T) {
+				stateGot := state.Await(t, 5*time.Second, testCase.domainname)
+				if stateGot.Val(t) != testCase.domainname {
+					t.Errorf("Telemetry domainname: got %v, want %s", stateGot, testCase.domainname)
+				}
+			})
 
-			config.Delete(t)
-			if qs := config.Lookup(t); qs.IsPresent() == true {
-				t.Errorf("Delete domainname fail: got %v", qs)
-			}
+			t.Run("Delete Domainname", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.IsPresent() == true {
+					t.Errorf("Delete domainname fail: got %v", qs)
+				}
+			})
 		})
 	}
 }
