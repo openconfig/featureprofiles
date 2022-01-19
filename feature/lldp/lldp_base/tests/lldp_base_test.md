@@ -2,7 +2,7 @@
 
 ## Summary
 
-Determine LLDP advertisement and reception operates correctly.
+Determine LLDP configuration, advertisement and reception operates correctly.
 
 ## Procedure
 
