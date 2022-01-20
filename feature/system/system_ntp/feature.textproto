@@ -25,47 +25,6 @@ telemetry_path {
 }
 
 config_path {
-    path: "/system/ntp/config/ntp-source-address"
-}
-telemetry_path {
-    path: "/system/ntp/state/ntp-source-address"
-}
-
-config_path {
-    path: "/system/ntp/config/enable-ntp-auth"
-}
-telemetry_path {
-    path: "/system/ntp/state/enable-ntp-auth"
-}
-
-telemetry_path {
-    path: "/system/ntp/state/auth-mismatch"
-}
-
-
-config_path {
-    path: "/system/ntp/ntp-keys/ntp-key/config/key-id"
-}
-telemetry_path {
-    path: "/system/ntp/ntp-keys/ntp-key/state/key-id"
-}
-
-config_path {
-    path: "/system/ntp/ntp-keys/ntp-key/config/key-type"
-}
-telemetry_path {
-    path: "/system/ntp/ntp-keys/ntp-key/state/key-type"
-}
-
-config_path {
-    path: "/system/ntp/ntp-keys/ntp-key/config/key-value"
-}
-telemetry_path {
-    path: "/system/ntp/ntp-keys/ntp-key/state/key-value"
-}
-
-
-config_path {
     path: "/system/ntp/servers/server/config/address"
 }
 telemetry_path {
@@ -77,52 +36,4 @@ config_path {
 }
 telemetry_path {
     path: "/system/ntp/servers/server/state/port"
-}
-
-config_path {
-    path: "/system/ntp/servers/server/config/version"
-}
-telemetry_path {
-    path: "/system/ntp/servers/server/state/version"
-}
-
-config_path {
-    path: "/system/ntp/servers/server/config/association-type"
-}
-telemetry_path {
-    path: "/system/ntp/servers/server/state/association-type"
-}
-
-config_path {
-    path: "/system/ntp/servers/server/config/iburst"
-}
-telemetry_path {
-    path: "/system/ntp/servers/server/state/iburst"
-}
-
-config_path {
-    path: "/system/ntp/servers/server/config/prefer"
-}
-telemetry_path {
-    path: "/system/ntp/servers/server/state/prefer"
-}
-
-telemetry_path {
-    path: "/system/ntp/servers/server/state/stratum"
-}
-
-telemetry_path {
-    path: "/system/ntp/servers/server/state/root-delay"
-}
-
-telemetry_path {
-    path: "/system/ntp/servers/server/state/root-dispersion"
-}
-
-telemetry_path {
-    path: "/system/ntp/servers/server/state/offset"
-}
-
-telemetry_path {
-    path: "/system/ntp/servers/server/state/poll-interval"
 }

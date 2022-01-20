@@ -25,27 +25,17 @@ import (
 
 // TestNtpServerConfigurability tests basic configurability of NTP server paths.
 //
-// TODO(bstoll): port, version, assocation-type are configurable paths not tested.
+// TODO(bstoll): port is a configurable path not tested here.
 //
 // config_path:/system/ntp/servers/server/config/address
-// config_path:/system/ntp/servers/server/config/iburst
-// config_path:/system/ntp/servers/server/config/prefer
 // telemetry_path:/system/ntp/servers/server/state/address
-// telemetry_path:/system/ntp/servers/server/state/iburst
-// telemetry_path:/system/ntp/servers/server/state/prefer
 func TestNtpServerConfigurability(t *testing.T) {
 	testCases := []struct {
 		description string
 		address     string
-		prefer      bool
-		iburst      bool
 	}{
-		{"IPv4 Basic Server", "192.0.2.1", false, false},
-		{"IPv4 Prefer Flag Set", "192.0.2.2", true, false},
-		{"IPv4 Iburst Flag Set", "192.0.2.3", false, true},
-		{"IPv6 Basic Server", "2001:DB8::1", false, false},
-		{"IPv6 Prefer Flag Set", "2001:DB8::2", true, false},
-		{"IPv6 Iburst Flag Set", "2001:DB8::3", false, true},
+		{"IPv4 Basic Server", "192.0.2.1"},
+		{"IPv6 Basic Server", "2001:DB8::1"},
 	}
 
 	dut := ondatra.DUT(t, "dut1")
@@ -56,8 +46,6 @@ func TestNtpServerConfigurability(t *testing.T) {
 
 			ntpServer := oc.System_Ntp_Server{
 				Address: &testCase.address,
-				Iburst:  &testCase.iburst,
-				Prefer:  &testCase.prefer,
 			}
 			config.Server(testCase.address).Replace(t, &ntpServer)
 
@@ -66,28 +54,12 @@ func TestNtpServerConfigurability(t *testing.T) {
 				if address := configGot.GetAddress(); address != testCase.address {
 					t.Errorf("Config NTP Server: got %s, want %s", address, testCase.address)
 				}
-
-				if iburst := configGot.GetIburst(); iburst != testCase.iburst {
-					t.Errorf("Config NTP iburst: got %t, want %t", iburst, testCase.iburst)
-				}
-
-				if prefer := configGot.GetPrefer(); prefer != testCase.prefer {
-					t.Errorf("Config NTP prefer: got %t, want %t", prefer, testCase.prefer)
-				}
 			})
 
 			t.Run("Get NTP Server Telemetry", func(t *testing.T) {
 				stateGot := state.Server(testCase.address).Get(t)
 				if address := stateGot.GetAddress(); address != testCase.address {
 					t.Errorf("Telemetry NTP Server: got %s, want %s", address, testCase.address)
-				}
-
-				if iburst := stateGot.GetIburst(); iburst != testCase.iburst {
-					t.Errorf("Telemetry NTP iburst: got %t, want %t", iburst, testCase.iburst)
-				}
-
-				if prefer := stateGot.GetPrefer(); prefer != testCase.prefer {
-					t.Errorf("Telemetry NTP prefer: got %t, want %t", prefer, testCase.prefer)
 				}
 			})
 
@@ -99,70 +71,4 @@ func TestNtpServerConfigurability(t *testing.T) {
 			})
 		})
 	}
-}
-
-// TestNtpServerTelemetry validates NTP server telemetry data is returned for
-// a configured NTP server.
-//
-// telemetry_path:/system/ntp/servers/server/state/offset
-// telemetry_path:/system/ntp/servers/server/state/poll-interval
-// telemetry_path:/system/ntp/servers/server/state/root-delay
-// telemetry_path:/system/ntp/servers/server/state/root-dispersion
-// telemetry_path:/system/ntp/servers/server/state/stratum
-func TestNtpServerTelemetry(t *testing.T) {
-	t.Skip("Need working implementation to validate against")
-
-	// TODO(bstoll): use a fake NTP server implementation
-	testNtpServer := "216.239.35.0"
-
-	dut := ondatra.DUT(t, "dut1")
-	config := dut.Config().System().Ntp()
-	state := dut.Telemetry().System().Ntp()
-
-	v := oc.System_Ntp_Server{
-		Address: &testNtpServer,
-	}
-	config.Server(testNtpServer).Replace(t, &v)
-
-	ntpServerState := state.Server(testNtpServer).Get(t)
-
-	t.Run("Offset", func(t *testing.T) {
-		if ntpServerState.Offset == nil {
-			t.Fatal("NTP Server Offset Missing")
-		}
-	})
-
-	t.Run("Poll Interval", func(t *testing.T) {
-		if ntpServerState.PollInterval == nil {
-			t.Fatal("NTP Server Poll Interval Missing")
-		}
-
-		if *ntpServerState.PollInterval == 0 {
-			t.Fatalf("NTP Server Poll Interval Invalid: want >0, got 0")
-		}
-	})
-
-	t.Run("Root Delay", func(t *testing.T) {
-		if ntpServerState.RootDelay == nil {
-			t.Fatal("NTP Server Root Delay Missing")
-		}
-	})
-
-	t.Run("Root Dispersion", func(t *testing.T) {
-		if ntpServerState.RootDispersion == nil {
-			t.Fatal("NTP Server Root Dispersion Missing")
-		}
-	})
-
-	t.Run("Stratum", func(t *testing.T) {
-		if ntpServerState.Stratum == nil {
-			t.Fatal("NTP Server Stratum Missing")
-		}
-
-		if *ntpServerState.Stratum < 1 || *ntpServerState.Stratum > 16 {
-			t.Fatalf("NTP Server Stratum Mismatch: want 1-16, got %d", *ntpServerState.Stratum)
-		}
-	})
-
-	config.Server(testNtpServer).Delete(t)
 }
