@@ -116,7 +116,7 @@ func yangFiles(root string) ([]string, error) {
 		return nil, err
 	}
 	res := make([]string, 0, len(ps))
-	for p, _ := range ps {
+	for p := range ps {
 		res = append(res, p)
 	}
 	return res, nil
