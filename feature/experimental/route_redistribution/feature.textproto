@@ -20,49 +20,49 @@ id {
 # https://github.com/openconfig/public/blob/e9e3a82693d1f26c61d7fbf85b3b2d0418d4af9e/doc/network_instance_redistribution.md
 # Protocol tables
 config_path {
-  path: "/network-instances/tables/table/config/protocol"
+  path: "/network-instances/network-instance/tables/table/config/protocol"
 }
 config_path {
-  path: "/network-instances/tables/table/config/address-family"
+  path: "/network-instances/network-instance/tables/table/config/address-family"
 }
 telemetry_path {
-  path: "/network-instances/tables/table/state/protocol"
+  path: "/network-instances/network-instance/tables/table/state/protocol"
 }
 telemetry_path {
-  path: "/network-instances/tables/table/state/address-family"
+  path: "/network-instances/network-instance/tables/table/state/address-family"
 }
 
 
 # Table-connections
 config_path {
-  path: "/network-instances/table-connections/config/src-protocol"
+  path: "/network-instances/network-instance/table-connections/table-connection/config/src-protocol"
 }
 config_path {
-  path: "/network-instances/table-connections/config/dst-protocol"
+  path: "/network-instances/network-instance/table-connections/table-connection/config/dst-protocol"
 }
 config_path {
-  path: "/network-instances/table-connections/config/address-family"
+  path: "/network-instances/network-instance/table-connections/table-connection/config/address-family"
 }
 config_path {
-  path: "/network-instances/table-connections/config/import-policy"
+  path: "/network-instances/network-instance/table-connections/table-connection/config/import-policy"
 }
 config_path {
-  path: "/network-instances/table-connections/config/default-import-policy"
+  path: "/network-instances/network-instance/table-connections/table-connection/config/default-import-policy"
 }
 telemetry_path {
-  path: "/network-instances/table-connections/state/src-protocol"
+  path: "/network-instances/network-instance/table-connections/table-connection/state/src-protocol"
 }
 telemetry_path {
-  path: "/network-instances/table-connections/state/dst-protocol"
+  path: "/network-instances/network-instance/table-connections/table-connection/state/dst-protocol"
 }
 telemetry_path {
-  path: "/network-instances/table-connections/state/address-family"
+  path: "/network-instances/network-instance/table-connections/table-connection/state/address-family"
 }
 telemetry_path {
-  path: "/network-instances/table-connections/state/import-policy"
+  path: "/network-instances/network-instance/table-connections/table-connection/state/import-policy"
 }
 telemetry_path {
-  path: "/network-instances/table-connections/state/default-import-policy"
+  path: "/network-instances/network-instance/table-connections/table-connection/state/default-import-policy"
 }
 
 

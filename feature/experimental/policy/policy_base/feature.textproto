@@ -50,25 +50,25 @@ telemetry_path {
 # Action base
 
 config_path {
-  path: "/network-instances/network-instance/policy-forwarding/policies/policy/actions/action/config/discard"
+  path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/discard"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/policy-forwarding/policies/policy/actions/action/state/discard"
+  path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/state/discard"
 }
 
 # Interface base
 
 config_path {
-  path: "/network-instances/network-instance/policy-forwarding/policies/policy/interfaces/interface/config/interface-id"
+  path: "/network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/policy-forwarding/policies/policy/interfaces/interface/state/interface-id"
+  path: "/network-instances/network-instance/policy-forwarding/interfaces/interface/state/interface-id"
 }
 
 # L2 rules
 
 config_path {
-  path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/l2/config/ether-type"
+  path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/l2/config/ethertype"
 }
 config_path {
   path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/l2/config/source-mac"
@@ -83,7 +83,7 @@ config_path {
   path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/l2/config/destination-mac-mask"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/l2/state/ether-type"
+  path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/l2/state/ethertype"
 }
 telemetry_path {
   path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/l2/state/source-mac"

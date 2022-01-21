@@ -20,19 +20,19 @@ id {
 # Interface
 
 config_path {
-  path: "/network-instances/network-instance/policy-forwarding/policies/policy/interfaces/interface/config/apply-vrf-selection-policy"
+  path: "/network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/policy-forwarding/policies/policy/interfaces/interface/state/apply-vrf-selection-policy"
+  path: "/network-instances/network-instance/policy-forwarding/interfaces/interface/state/apply-vrf-selection-policy"
 }
 
 # VRF actions
 
 config_path {
-  path: "/network-instances/network-instance/policy-forwarding/policies/policy/actions/action/config/network-instance"
+  path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/policy-forwarding/policies/policy/actions/action/state/network-instance"
+  path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/state/network-instance"
 }
 
 
