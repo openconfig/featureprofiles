@@ -1,17 +1,9 @@
 id {
   name: "isis_base"
-  version: 2
+  version: 3
 }
 
 # Global
-
-# Global Authentication
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/global/config/authentication-check"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/global/state/authentication-check"
-}
 
 # Global NET
 config_path {
@@ -28,7 +20,6 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/global/state/level-capability"
 }
-
 
 # AFI-SAFI enabled
 config_path {
@@ -48,46 +39,6 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/state/level-number"
 }
 
-# Level enabled
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/config/enabled"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/state/enabled"
-}
-
-# Level csnp authentication
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/csnp-authentication"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/csnp-authentication"
-}
-
-# Level psnp authentication
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/psnp-authentication"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/psnp-authentication"
-}
-
-# Level lsp authentication
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/lsp-authentication"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/lsp-authentication"
-}
-
-# Level authentication key
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/key/config/auth-password"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/key/state/auth-password"
-}
-
 # Interfaces interface-id
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id"
@@ -103,7 +54,6 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/enabled"
 }
-
 
 # Interfaces circuit-type
 config_path {
@@ -151,22 +101,6 @@ config_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/state/hello-multiplier"
-}
-
-# Interfaces authentication hello authentication
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/config/hello-authentication"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/state/hello-authentication"
-}
-
-# Interfaces authentication key authentication password
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/key/config/auth-password"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/key/state/auth-password"
 }
 
 # Interfaces afi name
