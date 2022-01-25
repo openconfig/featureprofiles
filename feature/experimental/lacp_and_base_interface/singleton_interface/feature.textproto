@@ -147,11 +147,5 @@ telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-pkts"
 }
 telemetry_path {
-  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-multicast-pkts"
-}
-telemetry_path {
-  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-multicast-pkts"
-}
-telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts"
 }
