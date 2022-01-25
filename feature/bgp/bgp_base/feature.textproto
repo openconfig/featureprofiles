@@ -56,6 +56,7 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state"
 }
 
+
 # messages
 
 telemetry_path {
