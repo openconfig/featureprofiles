@@ -1,0 +1,136 @@
+id {
+  name: "isis_base"
+  version: 3
+}
+
+# Global
+
+# Global NET
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/config/net"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/state/net"
+}
+
+# Global Level Capability
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/config/level-capability"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/state/level-capability"
+}
+
+# AFI-SAFI enabled
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/state/enabled"
+}
+
+# Levels
+
+# Level number
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/config/level-number"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/state/level-number"
+}
+
+# Interfaces interface-id
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/interface-id"
+}
+
+# Interfaces enabled
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/enabled"
+}
+
+# Interfaces circuit-type
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/circuit-type"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/circuit-type"
+}
+
+# Interfaces csnp interval
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/csnp-interval"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/state/csnp-interval"
+}
+
+# Interfaces lsp pacing interval
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/lsp-pacing-interval"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/state/lsp-pacing-interval"
+}
+
+# Interfaces level number
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/level-number"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/state/level-number"
+}
+
+# Interfaces hello timers interval
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-interval"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/state/hello-interval"
+}
+
+# Interfaces hello timers multiplier
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/state/hello-multiplier"
+}
+
+# Interfaces afi name
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/afi-name"
+}
+
+# Interfaces safi name
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/safi-name"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/safi-name"
+}
+
+# Interfaces afi-safi metric
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/metric"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/metric"
+}
+
+# Interfaces afi-safi enabled
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/enabled"
+}
