@@ -28,7 +28,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/golang/glog"
+	log "github.com/golang/glog"
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/openconfig/ygot/util"
 	"github.com/protocolbuffers/txtpbfmt/parser"
@@ -53,10 +53,10 @@ var (
 func init() {
 	flag.Parse()
 	if *featuresRootFlag == "" {
-		glog.Fatal("feature_root must be set.")
+		log.Fatal("feature_root must be set.")
 	}
 	if *yangRootsFlag == "" {
-		glog.Fatal("yang_roots must be set.")
+		log.Fatal("yang_roots must be set.")
 	}
 	featuresRoot = *featuresRootFlag
 	yangPaths = strings.Split(*yangRootsFlag, ",")
@@ -150,9 +150,9 @@ func modules() (map[string]*yang.Module, error) {
 	}
 
 	if errs := ms.Process(); len(errs) != 0 {
-		glog.Error("ms.Process errors:")
+		log.Error("ms.Process errors:")
 		for _, e := range errs {
-			glog.Error(" ", e)
+			log.Error(" ", e)
 		}
 		return nil, errors.New("yang module process error")
 	}
@@ -251,7 +251,7 @@ func featureFiles() ([]string, error) {
 func main() {
 	ms, err := modules()
 	if err != nil {
-		glog.Fatal(err)
+		log.Fatal(err)
 	}
 	knownPaths := map[string]pathType{}
 	for _, m := range ms {
@@ -260,12 +260,12 @@ func main() {
 
 	files, err := featureFiles()
 	if err != nil {
-		glog.Fatal(err)
+		log.Fatal(err)
 	}
 
 	unknown, err := unknownPaths(knownPaths, files)
 	if err != nil {
-		glog.Fatal(err)
+		log.Fatal(err)
 	}
 
 	if len(unknown) == 0 {
@@ -278,6 +278,6 @@ func main() {
 			msg = append(msg, fmt.Sprintf("    line %d: %s %s", l.line, l.detail, l.oc))
 		}
 	}
-	glog.Error(strings.Join(msg, "\n"))
+	log.Error(strings.Join(msg, "\n"))
 	os.Exit(1)
 }
