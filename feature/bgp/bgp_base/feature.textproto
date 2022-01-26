@@ -72,12 +72,6 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/NOTIFICATION"
 }
 
-#supported capabilities
-
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities"
-}
-
 # AFI/SAFI - IPv4 unicast, IPv6 unicast
 
 config_path {
