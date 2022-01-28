@@ -2,6 +2,14 @@ package device
 
 import "github.com/openconfig/featureprofiles/yang/oc"
 
+//
+// Create device:
+// d := device.New()
+//
+// Add feature:
+// d.WithFeature(somefeature)
+//
+
 type Device struct {
 	oc *oc.Device
 }
