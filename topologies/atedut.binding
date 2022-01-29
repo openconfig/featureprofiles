@@ -1,0 +1,34 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This binding specifies dial options to be used in conjunction with
+# the atedut_*.testbed testbeds.
+
+# These options are used throughout the entire binding for both the
+# DUT and the ATE.
+options {
+  username: "username"
+  password: "password"
+  skip_verify: true
+}
+
+duts {
+  id: "dut"
+  name: "dut-hostname"  # Change this to the device hostname.
+
+  # These options are used for all protocols on this device.  Remove
+  # if not needed.
+  options {
+    insecure: true
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnmi {
+    target: ":6030"
+  }
+}
+
+ates {
+  id: "ate"
+  name: "ate-hostname"  # Change this to the Ixia web UI hostname.
+}
