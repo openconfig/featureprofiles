@@ -121,10 +121,10 @@ telemetry_path {
 
 # Interfaces afi-safi metric
 config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/metric"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/metric"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric"
 }
 
 # Interfaces afi-safi enabled
