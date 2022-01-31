@@ -1,0 +1,82 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package openconfig.testing;
+
+option go_package = "github.com/openconfig/featureprofiles/topologies/proto/binding";
+
+// A binding configuration.
+message Binding {
+  repeated Device duts = 1;
+  repeated Device ates = 2;
+
+  // Dial options across all devices, unless overridden by the device.
+  Options options = 3;
+}
+
+// A device binding.
+message Device {
+  // Device ID as it appears in the testbed.
+  string id = 1;
+
+  // The actual device hostname to be used for the binding.
+  string name = 2;
+
+  // Dial options across all protocols of this device, unless
+  // overrideen by individual protocols.
+  Options options = 3;
+
+  // Dial options for SSH (DUT only).
+  Options ssh = 11;
+
+  // Dial options for gNMI (DUT only).
+  Options gnmi = 12;
+
+  // Dial options for gNOI (DUT only).
+  Options gnoi = 13;
+
+  // Dial options for gNSI (DUT only).
+  Options gnsi = 14;
+
+  // Dial options for gRIBI (DUT only).
+  Options gribi = 15;
+
+  // Dial options for P4RT (DUT only).
+  Options p4rt = 16;
+
+  // Dial options for IxNetwork (ATE only).
+  Options ixnetwork = 17;
+}
+
+// Dial options.
+message Options {
+  // This is the dial target, typically formatted as "hostname:port".
+  // If not set, it will use the device name and the default port for
+  // the protocol.
+  string target = 1;
+
+  // Use plain HTTP/2 and omit TLS (gRPC only).
+  bool insecure = 2;
+
+  // When using TLS, skip certificate verification (gRPC and HTTP).
+  bool skip_verify = 3;
+
+  // The username for authentication.
+  string username = 4;
+
+  // The password for authentication.
+  string password = 5;
+}
