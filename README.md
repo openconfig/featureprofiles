@@ -21,7 +21,7 @@ EOF
 ```
 Testing
 ```
-go test -v feature/system/system_base/tests/*.go -config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/single_device.textproto
+go test -v feature/system/system_base/tests/*.go -config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
 ```
 
 Cleanup
@@ -45,7 +45,7 @@ EOF
 
 Testing
 ```
-go test -v feature/system/system_base/tests/*.go -config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/single_device.textproto
+go test -v feature/system/system_base/tests/*.go -config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
 ```
 
 Cleanup
