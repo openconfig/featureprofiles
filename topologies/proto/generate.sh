@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script is used to generate the Ondatra proto APIs.
+# This script is used to generate the Feature Profiles topology
+# binding proto APIs.
 
 set -e
 
