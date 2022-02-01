@@ -41,7 +41,7 @@ func TestHostname(t *testing.T) {
 		{"63 Characters", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
 	}
 
-	dut := ondatra.DUT(t, "dut1")
+	dut := ondatra.DUT(t, "dut")
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
@@ -92,7 +92,7 @@ func TestDomainName(t *testing.T) {
 		{"63 Characters", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
 	}
 
-	dut := ondatra.DUT(t, "dut1")
+	dut := ondatra.DUT(t, "dut")
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
