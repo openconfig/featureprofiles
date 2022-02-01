@@ -15,6 +15,6 @@ password: admin
 topology: ${PWD}/topologies/kne/arista_ceos.textproto
 cli: ${HOME}/go/bin/kne_cli
 EOF
-go test -v feature/system/system_base/tests/*.go -config "$PWD"/topologies/kne/testbed.kne.yml -testbed "$PWD"/topologies/single_device.textproto
-go test -v feature/system/system_ntp/tests/*.go -config "$PWD"/topologies/kne/testbed.kne.yml -testbed "$PWD"/topologies/single_device.textproto
+go test -v feature/system/system_base/tests/*.go -config "$PWD"/topologies/kne/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
+go test -v feature/system/system_ntp/tests/*.go -config "$PWD"/topologies/kne/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
 popd
