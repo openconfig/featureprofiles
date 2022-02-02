@@ -3,10 +3,15 @@
 Thank you for your interest in contributing to OpenConfig feature profiles.  
 
 ## Rationale
+<<<<<<< HEAD
 See the [README](README.md) for an explanation of what OpenConfig feature 
 profiles are and why we have them. OpenConfig feature profiles are part 
 of the OpenConfig project and managed by the same policies as the other 
 repositories in the project.
+=======
+See the [README](README.md) for an explanation of what openconfig feature 
+profiles are and why we have them. 
+>>>>>>> 576d2b2 (resolving comments)
 
 ## Contributing to OpenConfig feature profiles
 
@@ -40,16 +45,8 @@ To make a contribution to OpenConfig featureprofiles:
     * Pull requests should be kept small. An ideal change is less than 500 lines. 
      Small changes allow detailed discussions of the additions that are
      being made to the model, whilst also ensuring that course-corrections can be
-     made early in the process. In some cases, changes larger than 500 lines may
-     be unavoidable - these should be rare, and generally only be the case when
-     entirely new modules are being added to the model. In this case, it is very
-     likely an issue should have been created to discuss the addition prior to
-     code review.
-    * When the pull request adds a new feature that is supported across vendors,
-     best practice is to include links to public-facing documentation showing
-     the implementation of the feature within the change description. This
-     simplifies the process of reviewing differences and the chosen abstractions
-     (if any are used).
+     made early in the process. If a test is growing to more than 500 lines, it
+     may need to be broken into multiple smaller tests.
 
 1. The pull request should include both the suggested feature profile textproto 
  additions, as well as any relevant additions to tests. Tests should be written
