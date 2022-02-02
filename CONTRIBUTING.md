@@ -1,6 +1,6 @@
 # Contributing the Openconfig feature profiles
 
-Thank you for your interest in contributing to openconfig feature profiles.  
+Thank you for your interest in contributing to OpenConfig feature profiles.  
 
 ## Rationale
 See the [README](README.md) for an explanation of what openconfig feature 
