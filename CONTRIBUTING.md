@@ -64,5 +64,5 @@ To make a contribution to OpenConfig featureprofiles:
 and approval.  Only a feature repository maintainer can merge a pull request to 
 the main branch.
   
-The aim of this process is maintain the model quality and approach that Openconfig 
+The aim of this process is maintain the model quality and approach that OpenConfig 
 working group has strived for since its inception in 2014. Thank you for your contributions!
