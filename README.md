@@ -3,7 +3,7 @@
 Feature profiles define groups of OpenConfig paths that can be invoked on network 
 devices.  A feature profile may contain configuration, telemetry, operational or 
 any other paths that a device exposes.  Example management plane device APIs are 
-gNMI, and gNOI.Example control plane APIs are gRIBI, and protocols such as BGP, 
+gNMI, and gNOI.  Example control plane APIs are gRIBI, and protocols such as BGP, 
 IS-IS.
 
 Feature profiles also include a suite of tests for validating the network device
