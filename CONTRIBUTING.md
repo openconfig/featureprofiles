@@ -3,15 +3,8 @@
 Thank you for your interest in contributing to OpenConfig feature profiles.  
 
 ## Rationale
-<<<<<<< HEAD
 See the [README](README.md) for an explanation of what OpenConfig feature 
-profiles are and why we have them. OpenConfig feature profiles are part 
-of the OpenConfig project and managed by the same policies as the other 
-repositories in the project.
-=======
-See the [README](README.md) for an explanation of what openconfig feature 
 profiles are and why we have them. 
->>>>>>> 576d2b2 (resolving comments)
 
 ## Contributing to OpenConfig feature profiles
 
