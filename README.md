@@ -18,57 +18,51 @@ Feedback and suggestions to improve OpenConfig Feature Profiles is welcomed on t
 [public mailing list](https://groups.google.com/forum/?hl=en#!forum/netopenconfig),
 or by opening a GitHub [issue](https://github.com/openconfig/featureprofiles/issues).
 
-
 # Examples
 Tests below are implemented using the [ONDATRA](https://github.com/openconfig/ondatra)
 test framework with the [Kubernetes Network Emulation](https://github.com/google/kne) 
 binding.
 
+To set up a local installation on Ubuntu using [kind](https://kind.sigs.k8s.io/),
+you can follow these steps:
+
+1. Install [Docker](https://docs.docker.com/engine/install/ubuntu/) &
+[golang](https://go.dev/doc/install).
+2. Install kind and kubectl.
+```
+go install sigs.k8s.io/kind@latest
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+```
+3. Install KNE.
+```
+git clone https://github.com/google/kne.git
+cd kne/kne_cli
+go install -v
+kne_cli deploy ../deploy/kne/kind.yaml
+```
+4. Install any docker images as needed.
+```
+docker import ceos.tar.xz ceos:latest
+kind load docker-image --name=kne ceos:latest
+```
+
 ### Arista cEOS
 [Arista cEOS](https://www.arista.com/en/products/software-controlled-container-networking) images can be obtained by contacting Arista.
 
-Setup
 ```
-kne_cli create topologies/kne/arista_ceos.textproto
-cat >topologies/kne/testbed.kne.yml << EOF
-username: admin
-password: admin
-topology: $PWD/topologies/kne/arista_ceos.textproto
-cli: $HOME/go/bin/kne_cli
-EOF
-```
-Testing
-```
-go test -v feature/system/system_base/tests/*.go -config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
-```
-
-Cleanup
-```
-kne_cli delete topologies/kne/arista_ceos.textproto
+make kne_arista_setup
+make kne_tests
+make kne_arista_cleanup
 ```
 
 ### Nokia SR-Linux
 SR Linux images can be found [here](https://github.com/nokia/srlinux-container-image/pkgs/container/srlinux) and will require the [SRL Controller](https://github.com/srl-labs/srl-controller) to be installed on the KNE Kubernetes cluster.
 
-Setup
 ```
-kne_cli create topologies/kne/nokia_srl.textproto
-cat >topologies/kne/testbed.kne.yml << EOF
-username: admin
-password: admin
-topology: $PWD/topologies/kne/nokia_srl.textproto
-cli: $HOME/go/bin/kne_cli
-EOF
-```
-
-Testing
-```
-go test -v feature/system/system_base/tests/*.go -config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
-```
-
-Cleanup
-```
-kne_cli delete topologies/kne/nokia_srl.textproto
+make kne_nokia_setup
+make kne_tests
+make kne_nokia_cleanup
 ```
 
 ## Path validation
