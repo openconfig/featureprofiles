@@ -30,4 +30,12 @@ nodes: {
       outside: 6030
     }
   }
+  services: {
+    key: 6040
+    value: {
+      name: "gribi"
+      inside: 6040
+      outside: 6040
+    }
+  }
 }
