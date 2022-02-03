@@ -40,7 +40,7 @@ func TestMotdBanner(t *testing.T) {
 		{"Long String", "WARNING : Unauthorized access to this system is forbidden and will be prosecuted by law. By accessing this system, you agree that your actions may be monitored if unauthorized usage is suspected."},
 	}
 
-	dut := ondatra.DUT(t, "dut1")
+	dut := ondatra.DUT(t, "dut")
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
@@ -91,7 +91,7 @@ func TestLoginBanner(t *testing.T) {
 		{"Long String", "WARNING : Unauthorized access to this system is forbidden and will be prosecuted by law. By accessing this system, you agree that your actions may be monitored if unauthorized usage is suspected."},
 	}
 
-	dut := ondatra.DUT(t, "dut1")
+	dut := ondatra.DUT(t, "dut")
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {

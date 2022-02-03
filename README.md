@@ -1,10 +1,28 @@
 # Feature Profiles
 
-Feature profiles define independent features that can be invoked on network devices.  A feature profile can be a combination or subset of configuration, telemetry, operational commands, or any other interface that the device exposes.  Example management plane device APIs are gNMI, gNOI, and control plane APIs such as gRIBI, BGP, IS-IS.
+Feature profiles define groups of OpenConfig paths that can be invoked on network 
+devices.  A feature profile may contain configuration, telemetry, operational or 
+any other paths that a device exposes.  Example management plane device APIs are 
+gNMI, and gNOI.  Example control plane APIs are gRIBI, and protocols such as BGP, 
+IS-IS.
 
-Feature profiles include a suite of tests for validating each defined feature.
+Feature profiles also include a suite of tests for validating the network device
+behavior for each defined feature.
 
-## Virtualized Testing
+# Contributing
+
+For information about how to contribute to OpenConfig Feature Profiles, please
+see [Contributing to OpenConfig Feature Profiles](CONTRIBUTING.md).
+
+Feedback and suggestions to improve OpenConfig Feature Profiles is welcomed on the
+[public mailing list](https://groups.google.com/forum/?hl=en#!forum/netopenconfig),
+or by opening a GitHub [issue](https://github.com/openconfig/featureprofiles/issues).
+
+
+# Examples
+Tests below are implemented using the [ONDATRA](https://github.com/openconfig/ondatra)
+test framework with the [Kubernetes Network Emulation](https://github.com/google/kne) 
+binding.
 
 ### Arista cEOS
 [Arista cEOS](https://www.arista.com/en/products/software-controlled-container-networking) images can be obtained by contacting Arista.
@@ -21,7 +39,7 @@ EOF
 ```
 Testing
 ```
-go test -v feature/system/system_base/tests/*.go -config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/single_device.textproto
+go test -v feature/system/system_base/tests/*.go -config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
 ```
 
 Cleanup
@@ -45,7 +63,7 @@ EOF
 
 Testing
 ```
-go test -v feature/system/system_base/tests/*.go -config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/single_device.textproto
+go test -v feature/system/system_base/tests/*.go -config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
 ```
 
 Cleanup

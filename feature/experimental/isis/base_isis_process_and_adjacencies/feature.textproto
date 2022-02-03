@@ -36,16 +36,19 @@ config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/config/enabled"
 }
 config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/csnp-authentication"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/enabled"
 }
 config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/psnp-authentication"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/disable-csnp"
 }
 config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/lsp-authentication"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/disable-psnp"
 }
 config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/key/config/auth-password"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/disable-lsp"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/keychain"
 }
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id"
@@ -72,10 +75,10 @@ config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier"
 }
 config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/config/hello-authentication"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/config/enabled"
 }
 config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/key/config/auth-password"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/config/keychain"
 }
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name"
@@ -105,16 +108,19 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/state/enabled"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/csnp-authentication"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/enabled"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/psnp-authentication"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/disable-csnp"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/lsp-authentication"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/disable-psnp"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/key/state/auth-password"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/disable-lsp"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/keychain"
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/interface-id"
@@ -141,10 +147,10 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/state/hello-multiplier"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/state/hello-authentication"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/state/enabled"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/key/state/auth-password"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/state/keychain"
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/afi-name"

@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 func TestNtpEnable(t *testing.T) {
 	t.Skip("Need working implementation to validate against")
 
-	dut := ondatra.DUT(t, "dut1")
+	dut := ondatra.DUT(t, "dut")
 	config := dut.Config().System().Ntp()
 	state := dut.Telemetry().System().Ntp()
 

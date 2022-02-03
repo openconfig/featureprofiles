@@ -38,7 +38,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 		{"IPv6 Basic Server", "2001:DB8::1"},
 	}
 
-	dut := ondatra.DUT(t, "dut1")
+	dut := ondatra.DUT(t, "dut")
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
 			config := dut.Config().System().Ntp()
