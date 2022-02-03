@@ -16,11 +16,3 @@ id {
   name: "device_base"
   version: 1
 }
-
-# Metadata at root
-config_path {
-  path: "/@"
-}
-telemetry_path {
-  path: "/@"
-}

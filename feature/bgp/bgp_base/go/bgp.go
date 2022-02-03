@@ -1,3 +1,4 @@
+// Package bgp implements the Config Library for BGP base feature profile.
 package bgp
 
 import (
@@ -8,64 +9,64 @@ import (
 )
 
 //
-// To enable BGP on NI, follow these steps:
-//
-// Step 1: Create device.
-// d := device.New()
-//
-// Step 2: Create default NI on device.
-// ni := networkinstance.Enabled("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-// d.WithFeature(ni)
-//
-// Step 3: Enable BGP on default NI (with some params)
-// bgp := bgp.AddBGP()
-//              .WithAS(1234)
-//              .WithRouterID("1.2.3.4")
-// ni.WithFeature(bgp)
+// To enable BGP on default NI:
+// device.New()
+//    .WithFeature(networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+//         .WithFeature(bgp.New()
+//              .WithAS(1234)))
 //
 
+// BGP struct stores the OC attributes for BGP base feature profile.
 type BGP struct {
-	as       uint32
-	routerID string
-	oc       *oc.NetworkInstance_Protocol_Bgp
+	oc *oc.NetworkInstance_Protocol
 }
 
-func AddBGP() *BGP {
-	return &BGP{}
+// New returns a new BGP object.
+func New() *BGP {
+	oc := &oc.NetworkInstance_Protocol{
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+		Name:       ygot.String("bgp"),
+	}
+	return &BGP{oc: oc}
 }
 
+// WithAS sets the AS value for BGP global.
 func (b *BGP) WithAS(as uint32) *BGP {
-	b.as = as
+	if b == nil {
+		return nil
+	}
+	b.oc.GetOrCreateBgp().GetOrCreateGlobal().As = ygot.Uint32(as)
 	return b
 }
 
+// WithRouterID sets the router-id value for BGP global.
 func (b *BGP) WithRouterID(rID string) *BGP {
-	b.routerID = rID
+	if b == nil {
+		return nil
+	}
+	b.oc.GetOrCreateBgp().GetOrCreateGlobal().RouterId = ygot.String(rID)
 	return b
 }
 
+// AugmentNetworkInstance augments the provided NI with BGP.
+// Use ni.WithFeature(b) instead of calling this method directly.
 func (b *BGP) AugmentNetworkInstance(ni *oc.NetworkInstance) error {
 	if b == nil || ni == nil {
-		return errors.New("either bgp or network-instance is nil")
+		return errors.New("some args are nil")
 	}
-	b.oc = ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "bgp").GetOrCreateBgp()
-	goc := b.oc.GetOrCreateGlobal()
-	if b.as != 0 {
-		goc.As = ygot.Uint32(b.as)
-	}
-	if b.routerID != "" {
-		goc.RouterId = ygot.String(b.routerID)
-	}
-	return nil
+	return ni.AppendProtocol(b.oc)
 }
 
+// BGPFeature provides interface to augment BGP with additional features.
 type BGPFeature interface {
+	// AugmentBGP augments BGP with additional features.
 	AugmentBGP(oc *oc.NetworkInstance_Protocol_Bgp) error
 }
 
+// WithFeature augments BGP with provided feature.
 func (b *BGP) WithFeature(f BGPFeature) error {
 	if b == nil || f == nil {
-		return nil
+		return errors.New("some args are nil")
 	}
-	return f.AugmentBGP(b.oc)
+	return f.AugmentBGP(b.oc.GetBgp())
 }
