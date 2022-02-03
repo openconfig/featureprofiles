@@ -12,7 +12,7 @@ behavior for each defined feature.
 # Contributing
 
 For information about how to contribute to OpenConfig Feature Profiles, please
-see [Contributing to OpenConfig Feature Profiles](contributions-guide.md).
+see [Contributing to OpenConfig Feature Profiles](CONTRIBUTING.md).
 
 Feedback and suggestions to improve OpenConfig Feature Profiles is welcomed on the
 [public mailing list](https://groups.google.com/forum/?hl=en#!forum/netopenconfig),
