@@ -1,14 +1,15 @@
 name: "nokia-srl"
 nodes: {
     name: "dut"
-    type: NOKIA_SRL
+    vendor: NOKIA
     config: {
         file: "nokia_srl.json"
+        image: "srlinux:latest"
         cert: {
             self_signed: {
-                cert_name: "kne-profile",
-                key_name: "N/A",
-                key_size: 4096,
+                cert_name: "kne-profile"
+                key_name: "N/A"
+                key_size: 4096
             }
         }
     }
@@ -17,6 +18,7 @@ nodes: {
         value: {
             name: "ssh"
             inside: 22
+            outside: 22
         }
     }
     services:{
@@ -24,6 +26,15 @@ nodes: {
         value: {
             name: "gnmi"
             inside: 57400
+            outside: 57400
         }
+    }
+    services:{
+      key: 57401
+      value: {
+        name: "gribi"
+        inside: 57401
+        outside: 57401
+      }
     }
 }
