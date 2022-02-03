@@ -47,4 +47,4 @@ kne_nokia_cleanup:
 
 .PHONY: kne_tests
 kne_tests:
-	go test -v github.com/openconfig/featureprofiles/feature/... -config $(CURDIR)/topologies/kne/testbed.kne.yml -testbed $(CURDIR)/topologies/single_device.textproto
+	go test -v github.com/openconfig/featureprofiles/feature/... -config $(CURDIR)/topologies/kne/testbed.kne.yml -testbed $(CURDIR)/topologies/dut.testbed
