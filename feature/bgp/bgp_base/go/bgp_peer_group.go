@@ -23,16 +23,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-//
-// To configure BGP peer group:
-//
-// device.New()
-//    .WithFeature(networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-//         .WithFeature(bgp.New()
-//              .WithAS(1234)
-//              .WithFeature(bgp.NewPeerGroup("GLOBAL-PEER"))))
-//
-
 // PeerGroup struct to store OC attributes.
 type PeerGroup struct {
 	oc *oc.NetworkInstance_Protocol_Bgp_PeerGroup

@@ -26,24 +26,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-//
-// To enable GracefulRestart on BGP peer, follow these steps:
-//
-// device.New()
-//    .WithFeature(networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-//         .WithFeature(bgp.New()
-//              .WithAS(1234)
-//              .WithFeature(bgp.NewPeerGroup("GLOBAL-PEER")
-//                    .WithFeature(bgpgracefulrestart.New()))))
-// or
-// device.New()
-//    .WithFeature(networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-//         .WithFeature(bgp.New()
-//              .WithAS(1234)
-//              .WithFeature(bgp.NewNeighbor("1.2.3.4")
-//                     .WithFeature(bgpgracefulrestart.New())))
-//
-
 // GracefulRestart struct to store OC attributes.
 type GracefulRestart struct {
 	noc *oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart

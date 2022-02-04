@@ -24,14 +24,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-//
-// To enable BGP on default NI:
-// device.New()
-//    .WithFeature(networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-//         .WithFeature(bgp.New()
-//              .WithAS(1234)))
-//
-
 // BGP struct stores the OC attributes for BGP base feature profile.
 type BGP struct {
 	oc *oc.NetworkInstance_Protocol

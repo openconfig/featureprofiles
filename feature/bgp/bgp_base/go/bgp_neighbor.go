@@ -24,16 +24,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-//
-// To configure BGP neighbor:
-//
-// device.New()
-//    .WithFeature(networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-//         .WithFeature(bgp.New()
-//              .WithAS(1234)
-//              .WithFeature(bgp.NewNeighbor("1.2.3.4"))))
-//
-
 // PrefixLimit struct to hold prefix limit attributes.
 type PrefixLimit struct {
 	MaxPrefixes         uint32

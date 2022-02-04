@@ -24,10 +24,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// To enable LLDP on a device:
-//
-// device.New().WithFeature(lldp.New())
-
 // LLDP struct to store OC attributes.
 type LLDP struct {
 	oc *oc.Lldp

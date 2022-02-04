@@ -25,12 +25,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// To enable default VRF on a device:
-//
-// device.New()
-//     .WithFeature(networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE))
-//
-
 // NetworkInstance struct stores the OC attributes.
 type NetworkInstance struct {
 	oc *oc.NetworkInstance

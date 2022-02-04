@@ -24,14 +24,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-//
-// Create device:
-// d := device.New()
-//
-// Add feature:
-// d.WithFeature(somefeature)
-//
-
 // Device struct to store OC attributes.
 type Device struct {
 	oc *oc.Device
