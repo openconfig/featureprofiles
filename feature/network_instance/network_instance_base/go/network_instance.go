@@ -25,14 +25,10 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// To enable default VRF on a device, follow these steps:
+// To enable default VRF on a device:
 //
-// Step 1: Create device.
-// d := device.New()
-//
-// Step 2: Create default NI on device.
-// ni := networkinstance.Enabled("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-// d.WithFeature(ni)
+// device.New()
+//     .WithFeature(networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE))
 //
 
 // NetworkInstance struct stores the OC attributes.
@@ -50,12 +46,26 @@ func New(name string, niType oc.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE) *N
 	return &NetworkInstance{oc: oc}
 }
 
+// validate method performs some sanity checks.
+func (ni *NetworkInstance) validate() error {
+	if ni.oc.GetName() == "" {
+		return errors.New("NetworkInstance name is empty")
+	}
+	if ni.oc.GetType() == oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET {
+		return errors.New("NetworkInstance type is unset")
+	}
+	return nil
+}
+
 // AugmentDevice method augments the provided device OC with NetworkInstance
 // feature.
 // Use d.WithFeature(ni) instead of calling this method directly.
 func (ni *NetworkInstance) AugmentDevice(d *oc.Device) error {
 	if ni == nil || d == nil {
 		return errors.New("either ni or device is nil")
+	}
+	if err := ni.validate(); err != nil {
+		return err
 	}
 	return d.AppendNetworkInstance(ni.oc)
 }
