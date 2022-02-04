@@ -18,6 +18,7 @@ package device
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/yang/oc"
@@ -66,11 +67,26 @@ func TestWithFeature(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		d := New()
-		ff := &FakeFeature{Err: test.err}
-		gotErr := d.WithFeature(ff)
-		assert.True(t, ff.augmentCalled, "AugmentDevice was not called")
-		assert.Equal(t, ff.d, d.oc, "Device ptr is not equal")
-		assert.ErrorIs(t, gotErr, test.err, "Error strings are not equal")
+		t.Run(test.desc, func(t *testing.T) {
+			d := New()
+			ff := &FakeFeature{Err: test.err}
+			gotErr := d.WithFeature(ff)
+			if !ff.augmentCalled {
+				t.Errorf("AugmentDevice was not called")
+			}
+			if ff.d != d.oc {
+				t.Errorf("Device ptr is not equal")
+			}
+			if test.err != nil {
+				if gotErr != nil {
+					if !strings.Contains(gotErr.Error(), test.err.Error()) {
+						t.Errorf("Error strings are not equal")
+					}
+				}
+				if gotErr == nil {
+					t.Errorf("Expecting error but got none")
+				}
+			}
+		})
 	}
 }

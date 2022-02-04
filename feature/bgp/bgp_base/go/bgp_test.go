@@ -18,12 +18,12 @@ package bgp
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ygot/ygot"
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -36,7 +36,9 @@ func TestNew(t *testing.T) {
 		},
 	}
 	got := New()
-	assert.NotNil(t, got, "New returned nil")
+	if got == nil {
+		t.Fatalf("New returned nil")
+	}
 	if diff := cmp.Diff(want.oc, got.oc, protocmp.Transform()); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
@@ -58,7 +60,9 @@ func TestWithAS(t *testing.T) {
 	(&want).GetOrCreateBgp().GetOrCreateGlobal().As = ygot.Uint32(as)
 
 	res := b.WithAS(as)
-	assert.NotNil(t, res, "WithAS returned nil")
+	if res == nil {
+		t.Fatalf("WithAS returned nil")
+	}
 
 	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
@@ -81,7 +85,9 @@ func TestWithRouterID(t *testing.T) {
 	(&want).GetOrCreateBgp().GetOrCreateGlobal().RouterId = ygot.String(routerID)
 
 	res := b.WithRouterID(routerID)
-	assert.NotNil(t, res, "WithRouterID returned nil")
+	if res == nil {
+		t.Fatalf("WithRouterID returned nil")
+	}
 
 	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
@@ -114,30 +120,36 @@ func TestAugmentNetworkInstance(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		l := &BGP{
-			oc: &oc.NetworkInstance_Protocol{
-				Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-				Name:       ygot.String("bgp"),
-			},
-		}
-		dcopy, err := ygot.DeepCopy(test.ni)
-		if err != nil {
-			t.Fatalf("unexpected error %v", err)
-		}
-		wantNI := dcopy.(*oc.NetworkInstance)
-
-		err = l.AugmentNetworkInstance(test.ni)
-		if test.wantErr {
-			assert.Error(t, err, "error expected")
-		} else {
-			assert.NoError(t, err, "error not expected")
-			if err := wantNI.AppendProtocol(l.oc); err != nil {
+		t.Run(test.desc, func(t *testing.T) {
+			l := &BGP{
+				oc: &oc.NetworkInstance_Protocol{
+					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Name:       ygot.String("bgp"),
+				},
+			}
+			dcopy, err := ygot.DeepCopy(test.ni)
+			if err != nil {
 				t.Fatalf("unexpected error %v", err)
 			}
-			if diff := cmp.Diff(wantNI, test.ni, protocmp.Transform()); diff != "" {
-				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+			wantNI := dcopy.(*oc.NetworkInstance)
+
+			err = l.AugmentNetworkInstance(test.ni)
+			if test.wantErr {
+				if err == nil {
+					t.Fatalf("error expected")
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("error not expected")
+				}
+				if err := wantNI.AppendProtocol(l.oc); err != nil {
+					t.Fatalf("unexpected error %v", err)
+				}
+				if diff := cmp.Diff(wantNI, test.ni, protocmp.Transform()); diff != "" {
+					t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+				}
 			}
-		}
+		})
 	}
 }
 
@@ -169,8 +181,21 @@ func TestWithFeature(t *testing.T) {
 		b := New().WithRouterID("1.2.3.4")
 		ff := &FakeFeature{Err: test.err}
 		gotErr := b.WithFeature(ff)
-		assert.True(t, ff.augmentCalled, "AugmentNetworkInstance was not called")
-		assert.Equal(t, ff.oc, b.oc.GetBgp(), "bgp ptr is not equal")
-		assert.ErrorIs(t, gotErr, test.err, "Error strings are not equal")
+		if !ff.augmentCalled {
+			t.Errorf("AugmentBGP was not called")
+		}
+		if ff.oc != b.oc.GetBgp() {
+			t.Errorf("BGP ptr is not equal")
+		}
+		if test.err != nil {
+			if gotErr != nil {
+				if !strings.Contains(gotErr.Error(), test.err.Error()) {
+					t.Errorf("Error strings are not equal")
+				}
+			}
+			if gotErr == nil {
+				t.Errorf("Expecting error but got none")
+			}
+		}
 	}
 }

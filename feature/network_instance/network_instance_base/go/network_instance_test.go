@@ -18,12 +18,12 @@ package networkinstance
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ygot/ygot"
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -44,16 +44,20 @@ func TestNew(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		want := &oc.NetworkInstance{
-			Name:    ygot.String(test.name),
-			Type:    test.niType,
-			Enabled: ygot.Bool(true),
-		}
-		got := New(test.name, test.niType)
-		assert.NotNil(t, got, "New returned nil")
-		if diff := cmp.Diff(want, got.oc, protocmp.Transform()); diff != "" {
-			t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			want := &oc.NetworkInstance{
+				Name:    ygot.String(test.name),
+				Type:    test.niType,
+				Enabled: ygot.Bool(true),
+			}
+			got := New(test.name, test.niType)
+			if got == nil {
+				t.Errorf("New returned nil")
+			}
+			if diff := cmp.Diff(want, got.oc, protocmp.Transform()); diff != "" {
+				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -81,28 +85,32 @@ func TestAugmentDevice(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		ni := &NetworkInstance{
-			oc: &oc.NetworkInstance{
-				Name:    ygot.String(test.name),
-				Type:    test.niType,
-				Enabled: ygot.Bool(true),
-			},
-		}
-		dcopy, err := ygot.DeepCopy(test.device)
-		if err != nil {
-			t.Fatalf("unexpected error %v", err)
-		}
-		wantDevice := dcopy.(*oc.Device)
+		t.Run(test.desc, func(t *testing.T) {
+			ni := &NetworkInstance{
+				oc: &oc.NetworkInstance{
+					Name:    ygot.String(test.name),
+					Type:    test.niType,
+					Enabled: ygot.Bool(true),
+				},
+			}
+			dcopy, err := ygot.DeepCopy(test.device)
+			if err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			wantDevice := dcopy.(*oc.Device)
 
-		err = ni.AugmentDevice(test.device)
-		assert.NoError(t, err, "error not expected")
+			err = ni.AugmentDevice(test.device)
+			if err != nil {
+				t.Fatalf("error not expected")
+			}
 
-		if err := wantDevice.AppendNetworkInstance(ni.oc); err != nil {
-			t.Fatalf("unexpected error %v", err)
-		}
-		if diff := cmp.Diff(wantDevice, test.device, protocmp.Transform()); diff != "" {
-			t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
-		}
+			if err := wantDevice.AppendNetworkInstance(ni.oc); err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			if diff := cmp.Diff(wantDevice, test.device, protocmp.Transform()); diff != "" {
+				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -139,16 +147,22 @@ func TestAugmentDeviceErrors(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		ni := &NetworkInstance{
-			oc: &oc.NetworkInstance{
-				Name:    ygot.String(test.name),
-				Type:    test.niType,
-				Enabled: ygot.Bool(true),
-			},
-		}
-		err := ni.AugmentDevice(test.device)
-		assert.Error(t, err, "error expected")
-		assert.Contains(t, err.Error(), test.err, "returned error \"%v\" does not match expected \"%s\"", err, test.err)
+		t.Run(test.desc, func(t *testing.T) {
+			ni := &NetworkInstance{
+				oc: &oc.NetworkInstance{
+					Name:    ygot.String(test.name),
+					Type:    test.niType,
+					Enabled: ygot.Bool(true),
+				},
+			}
+			err := ni.AugmentDevice(test.device)
+			if err == nil {
+				t.Fatalf("error expected")
+			}
+			if !strings.Contains(err.Error(), test.err) {
+				t.Errorf("Error strings are not equal")
+			}
+		})
 	}
 }
 
@@ -177,11 +191,26 @@ func TestWithFeature(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		ni := New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-		ff := &FakeFeature{Err: test.err}
-		gotErr := ni.WithFeature(ff)
-		assert.True(t, ff.augmentCalled, "AugmentNetworkInstance was not called")
-		assert.Equal(t, ff.ni, ni.oc, "NI ptr is not equal")
-		assert.ErrorIs(t, gotErr, test.err, "Error strings are not equal")
+		t.Run(test.desc, func(t *testing.T) {
+			ni := New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			ff := &FakeFeature{Err: test.err}
+			gotErr := ni.WithFeature(ff)
+			if !ff.augmentCalled {
+				t.Errorf("AugmentNetworkInstance was not called")
+			}
+			if ff.ni != ni.oc {
+				t.Errorf("NI ptr is not equal")
+			}
+			if test.err != nil {
+				if gotErr != nil {
+					if !strings.Contains(gotErr.Error(), test.err.Error()) {
+						t.Errorf("Error strings are not equal")
+					}
+				}
+				if gotErr == nil {
+					t.Errorf("Expecting error but got none")
+				}
+			}
+		})
 	}
 }

@@ -22,7 +22,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ygot/ygot"
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -34,7 +33,9 @@ func TestNew(t *testing.T) {
 		},
 	}
 	got := New()
-	assert.NotNil(t, got, "New returned nil")
+	if got == nil {
+		t.Fatalf("New returned nil")
+	}
 	if diff := cmp.Diff(want.oc, got.oc, protocmp.Transform()); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
@@ -53,25 +54,29 @@ func TestWithInterface(t *testing.T) {
 		intfs: []string{"Ethernet1.1", "Ethernet1.2"},
 	}}
 	for _, test := range tests {
-		l := &LLDP{
-			oc: &oc.Lldp{
-				Enabled: ygot.Bool(true),
-			},
-		}
-		dcopy, err := ygot.DeepCopy(l.oc)
-		if err != nil {
-			t.Fatalf("unexpected error %v", err)
-		}
-		want := dcopy.(*oc.Lldp)
-		for _, iname := range test.intfs {
-			want.GetOrCreateInterface(iname).Enabled = ygot.Bool(true)
-			got := l.WithInterface(iname)
-			assert.NotNil(t, got, "New returned nil")
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			l := &LLDP{
+				oc: &oc.Lldp{
+					Enabled: ygot.Bool(true),
+				},
+			}
+			dcopy, err := ygot.DeepCopy(l.oc)
+			if err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			want := dcopy.(*oc.Lldp)
+			for _, iname := range test.intfs {
+				want.GetOrCreateInterface(iname).Enabled = ygot.Bool(true)
+				got := l.WithInterface(iname)
+				if got == nil {
+					t.Errorf("WithInterface returned nil")
+				}
+			}
 
-		if diff := cmp.Diff(want, l.oc, protocmp.Transform()); diff != "" {
-			t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
-		}
+			if diff := cmp.Diff(want, l.oc, protocmp.Transform()); diff != "" {
+				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -95,26 +100,32 @@ func TestAugmentDevice(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		l := &LLDP{
-			oc: &oc.Lldp{
-				Enabled: ygot.Bool(true),
-			},
-		}
-		dcopy, err := ygot.DeepCopy(test.device)
-		if err != nil {
-			t.Fatalf("unexpected error %v", err)
-		}
-		wantDevice := dcopy.(*oc.Device)
-
-		err = l.AugmentDevice(test.device)
-		if test.wantErr {
-			assert.Error(t, err, "error expected")
-		} else {
-			assert.NoError(t, err, "error not expected")
-			wantDevice.Lldp = l.oc
-			if diff := cmp.Diff(wantDevice, test.device, protocmp.Transform()); diff != "" {
-				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+		t.Run(test.desc, func(t *testing.T) {
+			l := &LLDP{
+				oc: &oc.Lldp{
+					Enabled: ygot.Bool(true),
+				},
 			}
-		}
+			dcopy, err := ygot.DeepCopy(test.device)
+			if err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			wantDevice := dcopy.(*oc.Device)
+
+			err = l.AugmentDevice(test.device)
+			if test.wantErr {
+				if err == nil {
+					t.Fatalf("error expected")
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("error not expected")
+				}
+				wantDevice.Lldp = l.oc
+				if diff := cmp.Diff(wantDevice, test.device, protocmp.Transform()); diff != "" {
+					t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+				}
+			}
+		})
 	}
 }
