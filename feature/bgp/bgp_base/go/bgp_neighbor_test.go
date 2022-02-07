@@ -25,7 +25,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ygot/ygot"
-	"google.golang.org/protobuf/testing/protocmp"
 )
 
 // TestNewNeighbor tests the NewNeighbor function.
@@ -40,7 +39,7 @@ func TestNewNeighbor(t *testing.T) {
 	if got == nil {
 		t.Errorf("New returned nil")
 	}
-	if diff := cmp.Diff(want.oc, got.oc, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want.oc, got.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -78,7 +77,7 @@ func TestWithAFISAFI(t *testing.T) {
 		t.Fatalf("WithAFISAFI returned nil")
 	}
 
-	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -102,7 +101,7 @@ func TestWithPeerGroup(t *testing.T) {
 		t.Fatalf("WithPeerGroup returned nil")
 	}
 
-	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -125,7 +124,7 @@ func TestWithLogStateChanges(t *testing.T) {
 		t.Fatalf("WithLogStateChanges returned nil")
 	}
 
-	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -149,7 +148,7 @@ func TestWithAuthPassword(t *testing.T) {
 		t.Fatalf("WithAuthPassword returned nil")
 	}
 
-	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -173,7 +172,7 @@ func TestWithDescription(t *testing.T) {
 		t.Fatalf("WithDescription returned nil")
 	}
 
-	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -257,7 +256,7 @@ func TestWithTransport(t *testing.T) {
 				t.Fatalf("WithTransport returned nil")
 			}
 
-			if diff := cmp.Diff(test.want, n.oc, protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(test.want, n.oc); diff != "" {
 				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 			}
 		})
@@ -283,7 +282,7 @@ func TestWithLocalAS(t *testing.T) {
 		t.Fatalf("WithLocalAS returned nil")
 	}
 
-	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -307,7 +306,7 @@ func TestWithPeerAS(t *testing.T) {
 		t.Fatalf("WithPeerAS returned nil")
 	}
 
-	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -331,7 +330,7 @@ func TestWithRemovePrivateAS(t *testing.T) {
 		t.Fatalf("WithRemovePrivateAS returned nil")
 	}
 
-	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -355,7 +354,7 @@ func TestWithSendCommunity(t *testing.T) {
 		t.Fatalf("WithSendCommunity returned nil")
 	}
 
-	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -436,7 +435,7 @@ func TestWithV4PrefixLimit(t *testing.T) {
 				t.Fatalf("WithV4PrefixLimit returned nil")
 			}
 
-			if diff := cmp.Diff(test.want, n.oc, protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(test.want, n.oc); diff != "" {
 				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 			}
 		})
@@ -516,7 +515,7 @@ func TestWithTimers(t *testing.T) {
 				t.Fatalf("WithTimers returned nil")
 			}
 
-			if diff := cmp.Diff(test.want, n.oc, protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(test.want, n.oc); diff != "" {
 				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 			}
 		})
@@ -572,7 +571,7 @@ func TestAugmentBGP(t *testing.T) {
 				if err := wantBGP.AppendNeighbor(l.oc); err != nil {
 					t.Fatalf("unexpected error %v", err)
 				}
-				if diff := cmp.Diff(wantBGP, test.bgp, protocmp.Transform()); diff != "" {
+				if diff := cmp.Diff(wantBGP, test.bgp); diff != "" {
 					t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 				}
 			}

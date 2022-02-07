@@ -19,9 +19,12 @@ package device
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/openconfig/featureprofiles/yang/oc"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygot/ytypes"
 )
 
 // Device struct to store OC attributes.
@@ -41,6 +44,51 @@ func (d *Device) DeepCopy() (*oc.Device, error) {
 		return nil, err
 	}
 	return dcopy.(*oc.Device), nil
+}
+
+// Merge merges the provided Device into this object.
+func (d *Device) Merge(src *Device) error {
+	return ygot.MergeStructInto(d.oc, src.oc)
+}
+
+// EmitJSON returns the config in RFC7951 JSON format.
+func (d *Device) EmitJSON() (string, error) {
+	b, err := ygot.EmitJSON(d.oc, &ygot.EmitJSONConfig{
+		Format: ygot.RFC7951,
+		Indent: "  ",
+		ValidationOpts: []ygot.ValidationOption{
+			&ytypes.LeafrefOptions{
+				IgnoreMissingData: true,
+			},
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("ygot.EmitJSON => error: %v", err)
+	}
+	return string(b), nil
+}
+
+// FullReplace returns gNMI SetRequest with full config replace at root node.
+func (d *Device) FullReplace() (*gnmipb.SetRequest, error) {
+	// gNMI Root path "/"
+	rootPath := gnmipb.Path{
+		Origin: "openconfig",
+		Elem:   []*gnmipb.PathElem{},
+	}
+
+	val, err := ygot.EncodeTypedValue(d.oc, gnmipb.Encoding_JSON_IETF)
+	if err != nil {
+		return nil, err
+	}
+	r := &gnmipb.SetRequest{
+		Replace: []*gnmipb.Update{
+			&gnmipb.Update{
+				Path: &rootPath,
+				Val:  val,
+			},
+		},
+	}
+	return r, nil
 }
 
 // DeviceFeature is a feature on the device.

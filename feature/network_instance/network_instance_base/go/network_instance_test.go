@@ -24,7 +24,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ygot/ygot"
-	"google.golang.org/protobuf/testing/protocmp"
 )
 
 // TestNew tests the New function.
@@ -54,7 +53,7 @@ func TestNew(t *testing.T) {
 			if got == nil {
 				t.Errorf("New returned nil")
 			}
-			if diff := cmp.Diff(want, got.oc, protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(want, got.oc); diff != "" {
 				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 			}
 		})
@@ -107,7 +106,7 @@ func TestAugmentDevice(t *testing.T) {
 			if err := wantDevice.AppendNetworkInstance(ni.oc); err != nil {
 				t.Fatalf("unexpected error %v", err)
 			}
-			if diff := cmp.Diff(wantDevice, test.device, protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(wantDevice, test.device); diff != "" {
 				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 			}
 		})

@@ -24,7 +24,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ygot/ygot"
-	"google.golang.org/protobuf/testing/protocmp"
 )
 
 // TestNew tests the New function.
@@ -39,7 +38,7 @@ func TestNew(t *testing.T) {
 	if got == nil {
 		t.Fatalf("New returned nil")
 	}
-	if diff := cmp.Diff(want.oc, got.oc, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want.oc, got.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -64,7 +63,7 @@ func TestWithAS(t *testing.T) {
 		t.Fatalf("WithAS returned nil")
 	}
 
-	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -89,7 +88,7 @@ func TestWithRouterID(t *testing.T) {
 		t.Fatalf("WithRouterID returned nil")
 	}
 
-	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -145,7 +144,7 @@ func TestAugmentNetworkInstance(t *testing.T) {
 				if err := wantNI.AppendProtocol(l.oc); err != nil {
 					t.Fatalf("unexpected error %v", err)
 				}
-				if diff := cmp.Diff(wantNI, test.ni, protocmp.Transform()); diff != "" {
+				if diff := cmp.Diff(wantNI, test.ni); diff != "" {
 					t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 				}
 			}

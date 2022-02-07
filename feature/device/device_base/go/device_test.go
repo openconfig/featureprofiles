@@ -18,11 +18,20 @@ package device
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	bgp "github.com/openconfig/featureprofiles/feature/bgp/bgp_base/go"
+	lldp "github.com/openconfig/featureprofiles/feature/lldp/lldp_base/go"
+	networkinstance "github.com/openconfig/featureprofiles/feature/network_instance/network_instance_base/go"
 	"github.com/openconfig/featureprofiles/yang/oc"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/ygot/ygot"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 // TestNew tests the New function.
@@ -40,6 +49,130 @@ func TestDeepCopy(t *testing.T) {
 	assert.NotNil(t, dc, "DeepCopy returned nil")
 	// ygot library implements a thorough test for DeepCopy
 	// and hence we don't need to repeat that again.
+}
+
+// TestMerge tests the Merge method.
+func TestMerge(t *testing.T) {
+	// Create destination device with some feature.
+	dstDevice := New()
+	l := lldp.New().WithInterface("Ethernet1.1")
+	if err := dstDevice.WithFeature(l); err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	// Create source device with some feature.
+	srcDevice := New()
+	ni := networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	bgp := bgp.New().WithAS(12345)
+	if err := ni.WithFeature(bgp); err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+	if err := srcDevice.WithFeature(ni); err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	// Merge source device onto destination device.
+	if err := dstDevice.Merge(srcDevice); err != nil {
+		t.Fatalf("Merge failed with error %v", err)
+	}
+
+	// Create wanted device object for comparison.
+	wantDevice := New()
+	if err := wantDevice.WithFeature(l); err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+	if err := wantDevice.WithFeature(ni); err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+	if diff := cmp.Diff(wantDevice.oc, dstDevice.oc); diff != "" {
+		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+	}
+	// ygot library implements a detailed test for MergeStructInto
+	// and hence we don't need to repeat that again.
+}
+
+// TestFullReplace tests the FullReplace method.
+func TestFullReplace(t *testing.T) {
+	// gNMI Root path "/"
+	rootPath := gnmipb.Path{
+		Origin: "openconfig",
+		Elem:   []*gnmipb.PathElem{},
+	}
+	tests := []struct {
+		name   string
+		device *Device
+	}{{
+		name: "empty struct",
+		device: func() *Device {
+			return New()
+		}(),
+	}, {
+		name: "device with basic LLDP and BGP",
+		device: func() *Device {
+			d := New()
+			l := lldp.New().WithInterface("Ethernet1.1")
+			if err := d.WithFeature(l); err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			ni := networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			bgp := bgp.New().WithAS(12345)
+			if err := ni.WithFeature(bgp); err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			if err := d.WithFeature(ni); err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			return d
+		}(),
+	}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.device.FullReplace()
+			if err != nil {
+				t.Fatalf("%s: FullReplace(%v): got unexpected error: %v", tt.name, tt.device, err)
+			}
+
+			val, err := ygot.EncodeTypedValue(tt.device.oc, gnmipb.Encoding_JSON_IETF)
+			if err != nil {
+				t.Fatalf("EncodeTypedValue failed with error %v", err)
+			}
+
+			want := &gnmipb.SetRequest{
+				Replace: []*gnmipb.Update{{
+					Path: &rootPath,
+					Val:  val,
+				}},
+			}
+
+			// Avoid test flakiness by ignoring the update ordering. Required because
+			// there is no order to the map of fields that are returned by the struct
+			// output.
+
+			res, err := setRequestEqual(got, want)
+			if err != nil {
+				t.Fatalf("%s: FullReplace(%v): setRequestEqual returned error %v\n", tt.name, tt.device, err)
+			}
+
+			if !res {
+				diff := cmp.Diff(got, want, protocmp.Transform())
+				t.Errorf("%s: FullReplace(%v): did not get expected Notification, diff(-got,+want):%s\n", tt.name, tt.device, diff)
+			}
+		})
+	}
+}
+
+// setRequestEqual compares the contents of a and b and returns true if
+// they are equal. Only the replace array is expected to be set.
+func setRequestEqual(a, b *gnmipb.SetRequest) (bool, error) {
+	if a.GetPrefix() != nil || a.GetDelete() != nil || a.GetUpdate() != nil || a.GetExtension() != nil {
+		return false, fmt.Errorf("SetRequest %+v unexpected fields", a)
+	}
+
+	if b.GetPrefix() != nil || b.GetDelete() != nil || b.GetUpdate() != nil || b.GetExtension() != nil {
+		return false, fmt.Errorf("SetRequest %+v unexpected fields", b)
+	}
+
+	return cmp.Equal(a.GetReplace(), b.GetReplace(), cmpopts.EquateEmpty(), protocmp.Transform()), nil
 }
 
 type FakeFeature struct {
