@@ -82,7 +82,7 @@ func (d *Device) FullReplace() (*gnmipb.SetRequest, error) {
 	}
 	r := &gnmipb.SetRequest{
 		Replace: []*gnmipb.Update{
-			&gnmipb.Update{
+			{
 				Path: &rootPath,
 				Val:  val,
 			},
