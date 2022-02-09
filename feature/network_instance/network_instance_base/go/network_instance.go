@@ -27,17 +27,18 @@ import (
 
 // NetworkInstance struct stores the OC attributes.
 type NetworkInstance struct {
-	oc *oc.NetworkInstance
+	oc oc.NetworkInstance
 }
 
 // New returns the new NetworkInstance object with specified name and type.
 func New(name string, niType oc.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE) *NetworkInstance {
-	oc := &oc.NetworkInstance{
-		Name:    ygot.String(name),
-		Type:    niType,
-		Enabled: ygot.Bool(true),
+	return &NetworkInstance{
+		oc: oc.NetworkInstance{
+			Name:    ygot.String(name),
+			Type:    niType,
+			Enabled: ygot.Bool(true),
+		},
 	}
-	return &NetworkInstance{oc: oc}
 }
 
 // validate method performs some sanity checks.
@@ -51,8 +52,8 @@ func (ni *NetworkInstance) validate() error {
 	return nil
 }
 
-// AugmentDevice method augments the provided device OC with NetworkInstance
-// feature.
+// AugmentDevice implements the device.Feature interface.
+// This method augments the provided device OC with NetworkInstance feature.
 // Use d.WithFeature(ni) instead of calling this method directly.
 func (ni *NetworkInstance) AugmentDevice(d *oc.Device) error {
 	if ni == nil || d == nil {
@@ -61,7 +62,7 @@ func (ni *NetworkInstance) AugmentDevice(d *oc.Device) error {
 	if err := ni.validate(); err != nil {
 		return err
 	}
-	return d.AppendNetworkInstance(ni.oc)
+	return d.AppendNetworkInstance(&ni.oc)
 }
 
 // Feature provides interface to augment additional features to NI.
@@ -75,5 +76,5 @@ func (ni *NetworkInstance) WithFeature(f Feature) error {
 	if ni == nil || f == nil {
 		return errors.New("some args are nil")
 	}
-	return f.AugmentNetworkInstance(ni.oc)
+	return f.AugmentNetworkInstance(&ni.oc)
 }

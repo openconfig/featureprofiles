@@ -44,7 +44,7 @@ func TestNew(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			want := &oc.NetworkInstance{
+			want := oc.NetworkInstance{
 				Name:    ygot.String(test.name),
 				Type:    test.niType,
 				Enabled: ygot.Bool(true),
@@ -86,7 +86,7 @@ func TestAugmentDevice(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			ni := &NetworkInstance{
-				oc: &oc.NetworkInstance{
+				oc: oc.NetworkInstance{
 					Name:    ygot.String(test.name),
 					Type:    test.niType,
 					Enabled: ygot.Bool(true),
@@ -103,7 +103,7 @@ func TestAugmentDevice(t *testing.T) {
 				t.Fatalf("error not expected")
 			}
 
-			if err := wantDevice.AppendNetworkInstance(ni.oc); err != nil {
+			if err := wantDevice.AppendNetworkInstance(&ni.oc); err != nil {
 				t.Fatalf("unexpected error %v", err)
 			}
 			if diff := cmp.Diff(wantDevice, test.device); diff != "" {
@@ -148,7 +148,7 @@ func TestAugmentDeviceErrors(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			ni := &NetworkInstance{
-				oc: &oc.NetworkInstance{
+				oc: oc.NetworkInstance{
 					Name:    ygot.String(test.name),
 					Type:    test.niType,
 					Enabled: ygot.Bool(true),
@@ -197,7 +197,7 @@ func TestWithFeature(t *testing.T) {
 			if !ff.augmentCalled {
 				t.Errorf("AugmentNetworkInstance was not called")
 			}
-			if ff.ni != ni.oc {
+			if ff.ni != &ni.oc {
 				t.Errorf("NI ptr is not equal")
 			}
 			if test.err != nil {

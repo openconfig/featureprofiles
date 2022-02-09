@@ -27,10 +27,7 @@ import (
 
 // TestNew tests the New function.
 func TestNew(t *testing.T) {
-	want := &GracefulRestart{
-		noc: &oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{},
-		poc: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{},
-	}
+	want := &GracefulRestart{}
 	got := New()
 	if got == nil {
 		t.Fatalf("New returned nil")
@@ -46,28 +43,23 @@ func TestNew(t *testing.T) {
 // TestWithRestartTime tests GR restart time.
 func TestWithRestartTime(t *testing.T) {
 	rt := 5 * time.Second
-	wantnoc := oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{}
-	wantpoc := oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{}
-	gotnoc := wantnoc
-	gotpoc := wantpoc
-
-	gr := &GracefulRestart{
-		noc: &gotnoc,
-		poc: &gotpoc,
+	wantnoc := oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
+		RestartTime: ygot.Uint16(uint16(rt.Seconds())),
+	}
+	wantpoc := oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
+		RestartTime: ygot.Uint16(uint16(rt.Seconds())),
 	}
 
-	(&wantnoc).RestartTime = ygot.Uint16(uint16(rt.Seconds()))
-	(&wantpoc).RestartTime = ygot.Uint16(uint16(rt.Seconds()))
-
+	gr := &GracefulRestart{}
 	res := gr.WithRestartTime(rt)
 	if res == nil {
 		t.Fatalf("WithRestartTime returned nil")
 	}
 
-	if diff := cmp.Diff(wantnoc, gotnoc); diff != "" {
+	if diff := cmp.Diff(wantnoc, res.noc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
-	if diff := cmp.Diff(wantpoc, gotpoc); diff != "" {
+	if diff := cmp.Diff(wantpoc, res.poc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -75,56 +67,46 @@ func TestWithRestartTime(t *testing.T) {
 // TestWithStaleRoutesTime tests GR stale routes time.
 func TestWithStaleRoutesTime(t *testing.T) {
 	rt := 5 * time.Second
-	wantnoc := oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{}
-	wantpoc := oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{}
-	gotnoc := wantnoc
-	gotpoc := wantpoc
-
-	gr := &GracefulRestart{
-		noc: &gotnoc,
-		poc: &gotpoc,
+	wantnoc := oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
+		StaleRoutesTime: ygot.Float64(rt.Seconds()),
+	}
+	wantpoc := oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
+		StaleRoutesTime: ygot.Float64(rt.Seconds()),
 	}
 
-	(&wantnoc).StaleRoutesTime = ygot.Float64(rt.Seconds())
-	(&wantpoc).StaleRoutesTime = ygot.Float64(rt.Seconds())
-
+	gr := &GracefulRestart{}
 	res := gr.WithStaleRoutesTime(rt)
 	if res == nil {
 		t.Fatalf("WithStaleRoutesTime returned nil")
 	}
 
-	if diff := cmp.Diff(wantnoc, gotnoc); diff != "" {
+	if diff := cmp.Diff(wantnoc, res.noc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
-	if diff := cmp.Diff(wantpoc, gotpoc); diff != "" {
+	if diff := cmp.Diff(wantpoc, res.poc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
 
 // TestWithHelperOnly tests GR helper only.
 func TestWithHelperOnly(t *testing.T) {
-	wantnoc := oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{}
-	wantpoc := oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{}
-	gotnoc := wantnoc
-	gotpoc := wantpoc
-
-	gr := &GracefulRestart{
-		noc: &gotnoc,
-		poc: &gotpoc,
+	wantnoc := oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
+		HelperOnly: ygot.Bool(true),
+	}
+	wantpoc := oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
+		HelperOnly: ygot.Bool(true),
 	}
 
-	(&wantnoc).HelperOnly = ygot.Bool(true)
-	(&wantpoc).HelperOnly = ygot.Bool(true)
-
+	gr := &GracefulRestart{}
 	res := gr.WithHelperOnly(true)
 	if res == nil {
 		t.Fatalf("WithHelperOnly returned nil")
 	}
 
-	if diff := cmp.Diff(wantnoc, gotnoc); diff != "" {
+	if diff := cmp.Diff(wantnoc, res.noc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
-	if diff := cmp.Diff(wantpoc, gotpoc); diff != "" {
+	if diff := cmp.Diff(wantpoc, res.poc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -148,17 +130,14 @@ func TestAugmentNeighbor(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			l := &GracefulRestart{
-				noc: &oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{},
-				poc: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{},
-			}
+			gr := &GracefulRestart{}
 			dcopy, err := ygot.DeepCopy(test.bgp)
 			if err != nil {
 				t.Fatalf("unexpected error %v", err)
 			}
 			wantBGP := dcopy.(*oc.NetworkInstance_Protocol_Bgp_Neighbor)
 
-			err = l.AugmentNeighbor(test.bgp)
+			err = gr.AugmentNeighbor(test.bgp)
 			if test.wantErr {
 				if err == nil {
 					t.Fatalf("error expected")
@@ -167,7 +146,7 @@ func TestAugmentNeighbor(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error not expected")
 				}
-				wantBGP.GracefulRestart = l.noc
+				wantBGP.GracefulRestart = &gr.noc
 				if diff := cmp.Diff(wantBGP, test.bgp); diff != "" {
 					t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 				}
@@ -195,17 +174,14 @@ func TestAugmentPeerGroup(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			l := &GracefulRestart{
-				noc: &oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{},
-				poc: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{},
-			}
+			gr := &GracefulRestart{}
 			dcopy, err := ygot.DeepCopy(test.bgp)
 			if err != nil {
 				t.Fatalf("unexpected error %v", err)
 			}
 			wantBGP := dcopy.(*oc.NetworkInstance_Protocol_Bgp_PeerGroup)
 
-			err = l.AugmentPeerGroup(test.bgp)
+			err = gr.AugmentPeerGroup(test.bgp)
 			if test.wantErr {
 				if err == nil {
 					t.Fatalf("error expected")
@@ -214,7 +190,7 @@ func TestAugmentPeerGroup(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error not expected")
 				}
-				wantBGP.GracefulRestart = l.poc
+				wantBGP.GracefulRestart = &gr.poc
 				if diff := cmp.Diff(wantBGP, test.bgp); diff != "" {
 					t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 				}

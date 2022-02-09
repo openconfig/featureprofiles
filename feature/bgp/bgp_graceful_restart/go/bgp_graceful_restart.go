@@ -28,16 +28,13 @@ import (
 
 // GracefulRestart struct to store OC attributes.
 type GracefulRestart struct {
-	noc *oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart
-	poc *oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart
+	noc oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart
+	poc oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart
 }
 
 // New returs a new GracefulRestart object.
 func New() *GracefulRestart {
-	return &GracefulRestart{
-		noc: &oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{},
-		poc: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{},
-	}
+	return &GracefulRestart{}
 }
 
 // WithRestartTime sets the restart-time for graceful restart feature.
@@ -72,7 +69,8 @@ func (gr *GracefulRestart) WithHelperOnly(val bool) *GracefulRestart {
 	return gr
 }
 
-// AugmentNeighbor augments the BGP neighbor with graceful restart feature.
+// AugmentNeighbor implements the bgp.NeighborFeature interface.
+// This method augments the BGP neighbor with graceful restart feature.
 // Use n.WithFeature(gr) instead of calling this method directly.
 func (gr *GracefulRestart) AugmentNeighbor(n *oc.NetworkInstance_Protocol_Bgp_Neighbor) error {
 	if gr == nil || n == nil {
@@ -81,11 +79,12 @@ func (gr *GracefulRestart) AugmentNeighbor(n *oc.NetworkInstance_Protocol_Bgp_Ne
 	if n.GracefulRestart != nil {
 		return errors.New("neighbor GracefulRestart field is not nil")
 	}
-	n.GracefulRestart = gr.noc
+	n.GracefulRestart = &gr.noc
 	return nil
 }
 
-// AugmentPeerGroup augments the BGP peer-group with graceful restart feature.
+// AugmentPeerGroup implements the bgp.PeerGroupFeature interface.
+// This method augments the BGP peer-group with graceful restart feature.
 // Use pg.WithFeature(gr) instead of calling this method directly.
 func (gr *GracefulRestart) AugmentPeerGroup(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup) error {
 	if gr == nil || pg == nil {
@@ -94,6 +93,6 @@ func (gr *GracefulRestart) AugmentPeerGroup(pg *oc.NetworkInstance_Protocol_Bgp_
 	if pg.GracefulRestart != nil {
 		return errors.New("peer-group GracefulRestart field is not nil")
 	}
-	pg.GracefulRestart = gr.poc
+	pg.GracefulRestart = &gr.poc
 	return nil
 }

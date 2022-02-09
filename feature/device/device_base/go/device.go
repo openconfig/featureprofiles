@@ -29,17 +29,17 @@ import (
 
 // Device struct to store OC attributes.
 type Device struct {
-	oc *oc.Device
+	oc oc.Device
 }
 
 // New returns a new Device objct.
 func New() *Device {
-	return &Device{oc: &oc.Device{}}
+	return &Device{}
 }
 
 // DeepCopy returns a deep copy of Device OC struct.
 func (d *Device) DeepCopy() (*oc.Device, error) {
-	dcopy, err := ygot.DeepCopy(d.oc)
+	dcopy, err := ygot.DeepCopy(&d.oc)
 	if err != nil {
 		return nil, err
 	}
@@ -48,12 +48,12 @@ func (d *Device) DeepCopy() (*oc.Device, error) {
 
 // Merge merges the provided Device into this object.
 func (d *Device) Merge(src *Device) error {
-	return ygot.MergeStructInto(d.oc, src.oc)
+	return ygot.MergeStructInto(&d.oc, &src.oc)
 }
 
 // EmitJSON returns the config in RFC7951 JSON format.
 func (d *Device) EmitJSON() (string, error) {
-	b, err := ygot.EmitJSON(d.oc, &ygot.EmitJSONConfig{
+	b, err := ygot.EmitJSON(&d.oc, &ygot.EmitJSONConfig{
 		Format: ygot.RFC7951,
 		Indent: "  ",
 		ValidationOpts: []ygot.ValidationOption{
@@ -76,7 +76,7 @@ func (d *Device) FullReplace() (*gnmipb.SetRequest, error) {
 		Elem:   []*gnmipb.PathElem{},
 	}
 
-	val, err := ygot.EncodeTypedValue(d.oc, gnmipb.Encoding_JSON_IETF)
+	val, err := ygot.EncodeTypedValue(&d.oc, gnmipb.Encoding_JSON_IETF)
 	if err != nil {
 		return nil, err
 	}
@@ -91,16 +91,16 @@ func (d *Device) FullReplace() (*gnmipb.SetRequest, error) {
 	return r, nil
 }
 
-// DeviceFeature is a feature on the device.
-type DeviceFeature interface {
+// Feature is a feature on the device.
+type Feature interface {
 	// AugmentDevice augments the device OC with this feature.
 	AugmentDevice(d *oc.Device) error
 }
 
 // WithFeature augments the device with the provided feature.
-func (d *Device) WithFeature(f DeviceFeature) error {
+func (d *Device) WithFeature(f Feature) error {
 	if f == nil {
 		return errors.New("feature is nil")
 	}
-	return f.AugmentDevice(d.oc)
+	return f.AugmentDevice(&d.oc)
 }

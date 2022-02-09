@@ -30,23 +30,27 @@ import (
 	"github.com/openconfig/featureprofiles/yang/oc"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ygot/ygot"
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
 // TestNew tests the New function.
 func TestNew(t *testing.T) {
 	d := New()
-	assert.NotNil(t, d, "New returned nil")
-	assert.NotNil(t, d.oc, "Device OC is nil")
+	if d == nil {
+		t.Errorf("New returned nil")
+	}
 }
 
 // TestDeepCopy tests the DeepCopy method.
 func TestDeepCopy(t *testing.T) {
 	d := New()
 	dc, err := d.DeepCopy()
-	assert.NoError(t, err, "DeepCopy returned error %v", err)
-	assert.NotNil(t, dc, "DeepCopy returned nil")
+	if err != nil {
+		t.Errorf("DeepCopy returned error %v", err)
+	}
+	if dc == nil {
+		t.Errorf("DeepCopy returned nil")
+	}
 	// ygot library implements a thorough test for DeepCopy
 	// and hence we don't need to repeat that again.
 }
@@ -132,7 +136,7 @@ func TestFullReplace(t *testing.T) {
 				t.Fatalf("%s: FullReplace(%v): got unexpected error: %v", tt.name, tt.device, err)
 			}
 
-			val, err := ygot.EncodeTypedValue(tt.device.oc, gnmipb.Encoding_JSON_IETF)
+			val, err := ygot.EncodeTypedValue(&tt.device.oc, gnmipb.Encoding_JSON_IETF)
 			if err != nil {
 				t.Fatalf("EncodeTypedValue failed with error %v", err)
 			}
@@ -207,7 +211,7 @@ func TestWithFeature(t *testing.T) {
 			if !ff.augmentCalled {
 				t.Errorf("AugmentDevice was not called")
 			}
-			if ff.d != d.oc {
+			if ff.d != &d.oc {
 				t.Errorf("Device ptr is not equal")
 			}
 			if test.err != nil {
