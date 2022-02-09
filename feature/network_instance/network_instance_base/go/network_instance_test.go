@@ -51,7 +51,7 @@ func TestNew(t *testing.T) {
 			}
 			got := New(test.name, test.niType)
 			if got == nil {
-				t.Errorf("New returned nil")
+				t.Fatalf("New returned nil")
 			}
 			if diff := cmp.Diff(want, got.oc); diff != "" {
 				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)

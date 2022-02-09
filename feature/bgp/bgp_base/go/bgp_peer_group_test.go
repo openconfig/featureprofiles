@@ -37,7 +37,7 @@ func TestNewPeerGroup(t *testing.T) {
 	}
 	got := NewPeerGroup(name)
 	if got == nil {
-		t.Errorf("New returned nil")
+		t.Fatalf("NewPeerGroup returned nil")
 	}
 	if diff := cmp.Diff(want.oc, got.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
