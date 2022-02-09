@@ -63,7 +63,7 @@ func TestWithAFISAFI(t *testing.T) {
 	want := oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		NeighborAddress: ygot.String("1.2.3.4"),
 		AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-			afisafi: &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+			afisafi: {
 				AfiSafiName: afisafi,
 				Enabled:     ygot.Bool(true),
 			},

@@ -63,7 +63,7 @@ func TestPGWithAFISAFI(t *testing.T) {
 	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
 		PeerGroupName: ygot.String("GLOBAL-PEER"),
 		AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
-			afisafi: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+			afisafi: {
 				AfiSafiName: afisafi,
 				Enabled:     ygot.Bool(true),
 			},
