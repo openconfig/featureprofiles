@@ -28,6 +28,7 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
 
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
@@ -69,11 +70,14 @@ type options struct {
 	*bindpb.Options
 }
 
+// dialGRPC dials a gRPC connection using the binding options.
+//lint:ignore U1000 will be used by the binding.
 func (o *options) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	if o.Insecure {
-		opts = append(opts, grpc.WithInsecure())
-	}
-	if o.SkipVerify {
+	switch {
+	case o.Insecure:
+		tc := insecure.NewCredentials()
+		opts = append(opts, grpc.WithTransportCredentials(tc))
+	case o.SkipVerify:
 		tc := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 		opts = append(opts, grpc.WithTransportCredentials(tc))
 	}
@@ -89,6 +93,8 @@ var knownHostsFiles = []string{
 	"/etc/ssh/ssh_known_hosts",
 }
 
+// knownHostsCallback checks the user and system SSH known_hosts.
+//lint:ignore U1000 will be used by the binding.
 func knownHostsCallback() (ssh.HostKeyCallback, error) {
 	var files []string
 	for _, file := range knownHostsFiles {
@@ -100,6 +106,8 @@ func knownHostsCallback() (ssh.HostKeyCallback, error) {
 	return knownhosts.New(files...)
 }
 
+// dialSSH dials an SSH client using the binding options.
+//lint:ignore U1000 will be used by the binding.
 func (o *options) dialSSH() (*ssh.Client, error) {
 	c := &ssh.ClientConfig{
 		User: o.Username,
@@ -117,6 +125,8 @@ func (o *options) dialSSH() (*ssh.Client, error) {
 	return ssh.Dial("tcp", o.Target, c)
 }
 
+// newHTTPClient makes an http.Client using the binding options.
+//lint:ignore U1000 will be used by the binding.
 func (o *options) newHTTPClient() *http.Client {
 	tr := &http.Transport{
 		DialContext: (&net.Dialer{
