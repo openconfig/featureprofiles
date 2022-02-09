@@ -29,7 +29,7 @@ import (
 // TestNew tests the New function.
 func TestNew(t *testing.T) {
 	want := &BGP{
-		oc: &oc.NetworkInstance_Protocol{
+		oc: oc.NetworkInstance_Protocol{
 			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 			Name:       ygot.String("bgp"),
 		},
@@ -52,7 +52,7 @@ func TestWithAS(t *testing.T) {
 	got := want
 
 	b := &BGP{
-		oc: &got,
+		oc: got,
 	}
 
 	as := uint32(1234)
@@ -63,7 +63,7 @@ func TestWithAS(t *testing.T) {
 		t.Fatalf("WithAS returned nil")
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, res.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -77,7 +77,7 @@ func TestWithRouterID(t *testing.T) {
 	got := want
 
 	b := &BGP{
-		oc: &got,
+		oc: got,
 	}
 
 	routerID := "1.2.3.4"
@@ -88,7 +88,7 @@ func TestWithRouterID(t *testing.T) {
 		t.Fatalf("WithRouterID returned nil")
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, res.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -121,7 +121,7 @@ func TestAugmentNetworkInstance(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			l := &BGP{
-				oc: &oc.NetworkInstance_Protocol{
+				oc: oc.NetworkInstance_Protocol{
 					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 					Name:       ygot.String("bgp"),
 				},
@@ -141,7 +141,7 @@ func TestAugmentNetworkInstance(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error not expected")
 				}
-				if err := wantNI.AppendProtocol(l.oc); err != nil {
+				if err := wantNI.AppendProtocol(&l.oc); err != nil {
 					t.Fatalf("unexpected error %v", err)
 				}
 				if diff := cmp.Diff(wantNI, test.ni); diff != "" {
@@ -181,7 +181,7 @@ func TestWithFeature(t *testing.T) {
 		ff := &FakeFeature{Err: test.err}
 		gotErr := b.WithFeature(ff)
 		if !ff.augmentCalled {
-			t.Errorf("AugmentBGP was not called")
+			t.Errorf("AugmentGlobal was not called")
 		}
 		if ff.oc != b.oc.GetBgp() {
 			t.Errorf("BGP ptr is not equal")

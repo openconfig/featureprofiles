@@ -26,16 +26,17 @@ import (
 
 // BGP struct stores the OC attributes for BGP base feature profile.
 type BGP struct {
-	oc *oc.NetworkInstance_Protocol
+	oc oc.NetworkInstance_Protocol
 }
 
 // New returns a new BGP object.
 func New() *BGP {
-	oc := &oc.NetworkInstance_Protocol{
-		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-		Name:       ygot.String("bgp"),
+	return &BGP{
+		oc: oc.NetworkInstance_Protocol{
+			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+			Name:       ygot.String("bgp"),
+		},
 	}
-	return &BGP{oc: oc}
 }
 
 // WithAS sets the AS value for BGP global.
@@ -56,23 +57,24 @@ func (b *BGP) WithRouterID(rID string) *BGP {
 	return b
 }
 
-// AugmentNetworkInstance augments the provided NI with BGP.
+// AugmentNetworkInstance implements networkinstance.Feature interface.
+// Augments the provided NI with BGP OC.
 // Use ni.WithFeature(b) instead of calling this method directly.
 func (b *BGP) AugmentNetworkInstance(ni *oc.NetworkInstance) error {
 	if b == nil || ni == nil {
 		return errors.New("some args are nil")
 	}
-	return ni.AppendProtocol(b.oc)
+	return ni.AppendProtocol(&b.oc)
 }
 
-// BGPFeature provides interface to augment BGP with additional features.
-type BGPFeature interface {
+// GlobalFeature provides interface to augment BGP with additional features.
+type GlobalFeature interface {
 	// AugmentBGP augments BGP with additional features.
 	AugmentBGP(oc *oc.NetworkInstance_Protocol_Bgp) error
 }
 
 // WithFeature augments BGP with provided feature.
-func (b *BGP) WithFeature(f BGPFeature) error {
+func (b *BGP) WithFeature(f GlobalFeature) error {
 	if b == nil || f == nil {
 		return errors.New("some args are nil")
 	}

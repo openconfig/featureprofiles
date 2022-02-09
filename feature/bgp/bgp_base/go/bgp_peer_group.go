@@ -25,15 +25,16 @@ import (
 
 // PeerGroup struct to store OC attributes.
 type PeerGroup struct {
-	oc *oc.NetworkInstance_Protocol_Bgp_PeerGroup
+	oc oc.NetworkInstance_Protocol_Bgp_PeerGroup
 }
 
 // NewPeerGroup returns a new peer-group object.
 func NewPeerGroup(name string) *PeerGroup {
-	oc := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-		PeerGroupName: ygot.String(name),
+	return &PeerGroup{
+		oc: oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+			PeerGroupName: ygot.String(name),
+		},
 	}
-	return &PeerGroup{oc: oc}
 }
 
 // Name returns the name of the peer-group.
@@ -41,7 +42,7 @@ func (pg *PeerGroup) Name() string {
 	return pg.oc.GetPeerGroupName()
 }
 
-// WithAfiSafi adds specified AFI-SAFI type to peer-group.
+// WithAFISAFI adds specified AFI-SAFI type to peer-group.
 func (pg *PeerGroup) WithAFISAFI(name oc.E_BgpTypes_AFI_SAFI_TYPE) *PeerGroup {
 	if pg == nil {
 		return nil
@@ -69,8 +70,8 @@ func (pg *PeerGroup) WithDescription(desc string) *PeerGroup {
 }
 
 // WithTransport sets the transport attributes on peer-group.
-func (pg *PeerGroup) WithTransport(t *Transport) *PeerGroup {
-	if pg == nil || t == nil {
+func (pg *PeerGroup) WithTransport(t Transport) *PeerGroup {
+	if pg == nil {
 		return nil
 	}
 	toc := pg.oc.GetOrCreateTransport()
@@ -79,8 +80,8 @@ func (pg *PeerGroup) WithTransport(t *Transport) *PeerGroup {
 		toc.TcpMss = ygot.Uint16(t.TCPMSS)
 	}
 	toc.MtuDiscovery = ygot.Bool(t.MTUDiscovery)
-	if t.LocalAddr != "" {
-		toc.LocalAddress = ygot.String(t.LocalAddr)
+	if t.LocalAddress != "" {
+		toc.LocalAddress = ygot.String(t.LocalAddress)
 	}
 	return pg
 }
@@ -131,8 +132,8 @@ func (pg *PeerGroup) WithSendCommunity(sc oc.E_BgpTypes_CommunityType) *PeerGrou
 }
 
 // WithV4PrefixLimit sets the IPv4 prefix limits on the peer-group.
-func (pg *PeerGroup) WithV4PrefixLimit(pl *PrefixLimit) *PeerGroup {
-	if pg == nil || pl == nil {
+func (pg *PeerGroup) WithV4PrefixLimit(pl PrefixLimit) *PeerGroup {
+	if pg == nil {
 		return nil
 	}
 	ploc := pg.oc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
@@ -150,19 +151,19 @@ func (pg *PeerGroup) WithV4PrefixLimit(pl *PrefixLimit) *PeerGroup {
 }
 
 // WithTimers sets the timers on the peer-group.
-func (pg *PeerGroup) WithTimers(t *Timers) *PeerGroup {
-	if pg == nil || t == nil {
+func (pg *PeerGroup) WithTimers(t Timers) *PeerGroup {
+	if pg == nil {
 		return nil
 	}
 	toc := pg.oc.GetOrCreateTimers()
-	if t.MinAdvertisementIntvl != 0 {
-		toc.MinimumAdvertisementInterval = ygot.Float64(t.MinAdvertisementIntvl.Seconds())
+	if t.MinimumAdvertisementInterval != 0 {
+		toc.MinimumAdvertisementInterval = ygot.Float64(t.MinimumAdvertisementInterval.Seconds())
 	}
 	if t.HoldTime != 0 {
 		toc.HoldTime = ygot.Float64(t.HoldTime.Seconds())
 	}
-	if t.KeepaliveIntvl != 0 {
-		toc.KeepaliveInterval = ygot.Float64(t.KeepaliveIntvl.Seconds())
+	if t.KeepaliveInterval != 0 {
+		toc.KeepaliveInterval = ygot.Float64(t.KeepaliveInterval.Seconds())
 	}
 	if t.ConnectRetry != 0 {
 		toc.ConnectRetry = ygot.Float64(t.ConnectRetry.Seconds())
@@ -170,13 +171,14 @@ func (pg *PeerGroup) WithTimers(t *Timers) *PeerGroup {
 	return pg
 }
 
-// AugmentBGP augments the BGP with peer-group configuration.
+// AugmentGlobal implements the bgp.GlobalFeature interface.
+// This method augments the BGP with peer-group configuration.
 // Use bgp.WithFeature(pg) instead of calling this method directly.
-func (pg *PeerGroup) AugmentBGP(bgp *oc.NetworkInstance_Protocol_Bgp) error {
+func (pg *PeerGroup) AugmentGlobal(bgp *oc.NetworkInstance_Protocol_Bgp) error {
 	if pg == nil || bgp == nil {
 		return errors.New("some args are nil")
 	}
-	return bgp.AppendPeerGroup(pg.oc)
+	return bgp.AppendPeerGroup(&pg.oc)
 }
 
 // PeerGroupFeature provides interface to augment peer-group with
@@ -191,5 +193,5 @@ func (pg *PeerGroup) WithFeature(f PeerGroupFeature) error {
 	if pg == nil || f == nil {
 		return nil
 	}
-	return f.AugmentPeerGroup(pg.oc)
+	return f.AugmentPeerGroup(&pg.oc)
 }

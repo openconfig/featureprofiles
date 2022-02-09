@@ -24,42 +24,17 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// PrefixLimit struct to hold prefix limit attributes.
-type PrefixLimit struct {
-	MaxPrefixes         uint32
-	PreventTeardown     bool
-	RestartTimer        time.Duration
-	WarningThresholdPct uint8
-}
-
-// Timer struct to hold timer attributes.
-type Timers struct {
-	MinAdvertisementIntvl time.Duration
-	HoldTime              time.Duration
-	KeepaliveIntvl        time.Duration
-	ConnectRetry          time.Duration
-}
-
-// Transport struct to hold transport attributes.
-type Transport struct {
-	PassiveMode  bool
-	TCPMSS       uint16
-	MTUDiscovery bool
-	LocalAddr    string
-}
-
 // Neighbor struct to hold BGP neighbor OC attributes.
 type Neighbor struct {
-	oc *oc.NetworkInstance_Protocol_Bgp_Neighbor
+	oc oc.NetworkInstance_Protocol_Bgp_Neighbor
 }
 
 // NewNeighbor returns a new Neighbor object.
 func NewNeighbor(addr string) *Neighbor {
-	oc := &oc.NetworkInstance_Protocol_Bgp_Neighbor{
-		NeighborAddress: ygot.String(addr),
-	}
 	return &Neighbor{
-		oc: oc,
+		oc: oc.NetworkInstance_Protocol_Bgp_Neighbor{
+			NeighborAddress: ygot.String(addr),
+		},
 	}
 }
 
@@ -113,9 +88,17 @@ func (n *Neighbor) WithDescription(desc string) *Neighbor {
 	return n
 }
 
+// Transport struct to hold transport attributes.
+type Transport struct {
+	PassiveMode  bool
+	TCPMSS       uint16
+	MTUDiscovery bool
+	LocalAddress string
+}
+
 // WithTransport sets the transport attributes on neighbor.
-func (n *Neighbor) WithTransport(t *Transport) *Neighbor {
-	if n == nil || t == nil {
+func (n *Neighbor) WithTransport(t Transport) *Neighbor {
+	if n == nil {
 		return nil
 	}
 	toc := n.oc.GetOrCreateTransport()
@@ -124,8 +107,8 @@ func (n *Neighbor) WithTransport(t *Transport) *Neighbor {
 		toc.TcpMss = ygot.Uint16(t.TCPMSS)
 	}
 	toc.MtuDiscovery = ygot.Bool(t.MTUDiscovery)
-	if t.LocalAddr != "" {
-		toc.LocalAddress = ygot.String(t.LocalAddr)
+	if t.LocalAddress != "" {
+		toc.LocalAddress = ygot.String(t.LocalAddress)
 	}
 	return n
 }
@@ -175,9 +158,17 @@ func (n *Neighbor) WithSendCommunity(sc oc.E_BgpTypes_CommunityType) *Neighbor {
 	return n
 }
 
+// PrefixLimit struct to hold prefix limit attributes.
+type PrefixLimit struct {
+	MaxPrefixes         uint32
+	PreventTeardown     bool
+	RestartTimer        time.Duration
+	WarningThresholdPct uint8
+}
+
 // WithV4PrefixLimit sets the IPv4 prefix limits on the neighbor.
-func (n *Neighbor) WithV4PrefixLimit(pl *PrefixLimit) *Neighbor {
-	if n == nil || pl == nil {
+func (n *Neighbor) WithV4PrefixLimit(pl PrefixLimit) *Neighbor {
+	if n == nil {
 		return nil
 	}
 	ploc := n.oc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
@@ -194,20 +185,28 @@ func (n *Neighbor) WithV4PrefixLimit(pl *PrefixLimit) *Neighbor {
 	return n
 }
 
+// Timer struct to hold timer attributes.
+type Timers struct {
+	MinimumAdvertisementInterval time.Duration
+	HoldTime                     time.Duration
+	KeepaliveInterval            time.Duration
+	ConnectRetry                 time.Duration
+}
+
 // WithTimers sets the timers on the neighbor.
-func (n *Neighbor) WithTimers(t *Timers) *Neighbor {
-	if n == nil || t == nil {
+func (n *Neighbor) WithTimers(t Timers) *Neighbor {
+	if n == nil {
 		return nil
 	}
 	toc := n.oc.GetOrCreateTimers()
-	if t.MinAdvertisementIntvl != 0 {
-		toc.MinimumAdvertisementInterval = ygot.Float64(t.MinAdvertisementIntvl.Seconds())
+	if t.MinimumAdvertisementInterval != 0 {
+		toc.MinimumAdvertisementInterval = ygot.Float64(t.MinimumAdvertisementInterval.Seconds())
 	}
 	if t.HoldTime != 0 {
 		toc.HoldTime = ygot.Float64(t.HoldTime.Seconds())
 	}
-	if t.KeepaliveIntvl != 0 {
-		toc.KeepaliveInterval = ygot.Float64(t.KeepaliveIntvl.Seconds())
+	if t.KeepaliveInterval != 0 {
+		toc.KeepaliveInterval = ygot.Float64(t.KeepaliveInterval.Seconds())
 	}
 	if t.ConnectRetry != 0 {
 		toc.ConnectRetry = ygot.Float64(t.ConnectRetry.Seconds())
@@ -215,13 +214,14 @@ func (n *Neighbor) WithTimers(t *Timers) *Neighbor {
 	return n
 }
 
-// AugmentBGP augments the BGP with neighbor configuration.
+// AugmentGlobal implements the bgp.GlobalFeature interface.
+// This method augments the BGP OC with neighbor configuration.
 // Use bgp.WithFeature(n) instead of calling this method directly.
-func (n *Neighbor) AugmentBGP(bgp *oc.NetworkInstance_Protocol_Bgp) error {
+func (n *Neighbor) AugmentGlobal(bgp *oc.NetworkInstance_Protocol_Bgp) error {
 	if n == nil || bgp == nil {
 		return errors.New("some args are nil")
 	}
-	return bgp.AppendNeighbor(n.oc)
+	return bgp.AppendNeighbor(&n.oc)
 }
 
 // NeighborFeature provides interface to augment the neighbor OC with
@@ -236,5 +236,5 @@ func (n *Neighbor) WithFeature(f NeighborFeature) error {
 	if n == nil || f == nil {
 		return nil
 	}
-	return f.AugmentNeighbor(n.oc)
+	return f.AugmentNeighbor(&n.oc)
 }

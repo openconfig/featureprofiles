@@ -64,14 +64,14 @@ func (ni *NetworkInstance) AugmentDevice(d *oc.Device) error {
 	return d.AppendNetworkInstance(ni.oc)
 }
 
-// NetworkInstanceFeature provides interface to augment additional features to NI.
-type NetworkInstanceFeature interface {
-	// AugmentNetworkInstancd augments NI with provided feature.
+// Feature provides interface to augment additional features to NI.
+type Feature interface {
+	// AugmentNetworkInstance augments NI with provided feature.
 	AugmentNetworkInstance(ni *oc.NetworkInstance) error
 }
 
 // WithFeature augments the provided feature to network-instance.
-func (ni *NetworkInstance) WithFeature(f NetworkInstanceFeature) error {
+func (ni *NetworkInstance) WithFeature(f Feature) error {
 	if ni == nil || f == nil {
 		return errors.New("some args are nil")
 	}

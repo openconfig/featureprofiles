@@ -27,15 +27,20 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// TestNewNeighbor tests the NewNeighbor function.
-func TestNewNeighbor(t *testing.T) {
-	addr := "1.2.3.4"
-	want := &Neighbor{
-		oc: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
-			NeighborAddress: ygot.String(addr),
+var neighborAddress = "1.2.3.4"
+
+func newNeighbor() *Neighbor {
+	return &Neighbor{
+		oc: oc.NetworkInstance_Protocol_Bgp_Neighbor{
+			NeighborAddress: ygot.String(neighborAddress),
 		},
 	}
-	got := NewNeighbor(addr)
+}
+
+// TestNewNeighbor tests the NewNeighbor function.
+func TestNewNeighbor(t *testing.T) {
+	want := newNeighbor()
+	got := NewNeighbor(neighborAddress)
 	if got == nil {
 		t.Fatalf("New returned nil")
 	}
@@ -46,62 +51,52 @@ func TestNewNeighbor(t *testing.T) {
 
 // TestAddress tests the Address method.
 func TestAddress(t *testing.T) {
-	want := "1.2.3.4"
-	n := &Neighbor{
-		oc: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
-			NeighborAddress: ygot.String(want),
-		},
-	}
-	got := n.Address()
-	if got != want {
+	n := newNeighbor()
+	if got, want := n.Address(), neighborAddress; got != want {
 		t.Errorf("got %v but expecting %v", got, want)
 	}
 }
 
 // TestWithAFISAFI tests setting AS for BGP global.
 func TestWithAFISAFI(t *testing.T) {
+	afisafi := oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
 	want := oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		NeighborAddress: ygot.String("1.2.3.4"),
+		AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+			afisafi: &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+				AfiSafiName: afisafi,
+				Enabled:     ygot.Bool(true),
+			},
+		},
 	}
-	got := want
 
-	n := &Neighbor{
-		oc: &got,
-	}
-
-	afisafi := oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
-	(&want).GetOrCreateAfiSafi(afisafi).Enabled = ygot.Bool(true)
-
+	n := newNeighbor()
 	res := n.WithAFISAFI(afisafi)
 	if res == nil {
 		t.Fatalf("WithAFISAFI returned nil")
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, res.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
 
 // TestWithPeerGroup tests setting peer-group for BGP global.
 func TestWithPeerGroup(t *testing.T) {
+	pgname := "GLOBAL-PEER"
 	want := oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		NeighborAddress: ygot.String("1.2.3.4"),
-	}
-	got := want
-
-	n := &Neighbor{
-		oc: &got,
+		PeerGroup:       ygot.String(pgname),
 	}
 
-	pgname := "GLOBAL-PEER"
-	(&want).PeerGroup = ygot.String(pgname)
+	n := newNeighbor()
 
 	res := n.WithPeerGroup(pgname)
 	if res == nil {
 		t.Fatalf("WithPeerGroup returned nil")
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, res.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -110,69 +105,56 @@ func TestWithPeerGroup(t *testing.T) {
 func TestWithLogStateChanges(t *testing.T) {
 	want := oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		NeighborAddress: ygot.String("1.2.3.4"),
-	}
-	got := want
-
-	n := &Neighbor{
-		oc: &got,
+		LoggingOptions: &oc.NetworkInstance_Protocol_Bgp_Neighbor_LoggingOptions{
+			LogNeighborStateChanges: ygot.Bool(true),
+		},
 	}
 
-	(&want).GetOrCreateLoggingOptions().LogNeighborStateChanges = ygot.Bool(true)
-
+	n := newNeighbor()
 	res := n.WithLogStateChanges(true)
 	if res == nil {
 		t.Fatalf("WithLogStateChanges returned nil")
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, res.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
 
 // TestWithAuthPassword tests setting auth-password for BGP global.
 func TestWithAuthPassword(t *testing.T) {
+	pwd := "foobar"
 	want := oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		NeighborAddress: ygot.String("1.2.3.4"),
-	}
-	got := want
-
-	n := &Neighbor{
-		oc: &got,
+		AuthPassword:    ygot.String(pwd),
 	}
 
-	pwd := "foobar"
-	(&want).AuthPassword = ygot.String(pwd)
-
+	n := newNeighbor()
 	res := n.WithAuthPassword(pwd)
 	if res == nil {
 		t.Fatalf("WithAuthPassword returned nil")
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, res.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
 
 // TestWithDescription tests setting description for BGP global.
 func TestWithDescription(t *testing.T) {
+	desc := "foobar"
 	want := oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		NeighborAddress: ygot.String("1.2.3.4"),
-	}
-	got := want
-
-	n := &Neighbor{
-		oc: &got,
+		Description:     ygot.String(desc),
 	}
 
-	desc := "foobar"
-	(&want).Description = ygot.String(desc)
-
+	n := newNeighbor()
 	res := n.WithDescription(desc)
 	if res == nil {
 		t.Fatalf("WithDescription returned nil")
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, res.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -181,11 +163,11 @@ func TestWithDescription(t *testing.T) {
 func TestWithTransport(t *testing.T) {
 	tests := []struct {
 		desc      string
-		transport *Transport
+		transport Transport
 		want      *oc.NetworkInstance_Protocol_Bgp_Neighbor
 	}{{
 		desc: "passive mode set",
-		transport: &Transport{
+		transport: Transport{
 			PassiveMode: true,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_Neighbor {
@@ -199,7 +181,7 @@ func TestWithTransport(t *testing.T) {
 		}(),
 	}, {
 		desc: "TCP MSS",
-		transport: &Transport{
+		transport: Transport{
 			TCPMSS: 1234,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_Neighbor {
@@ -214,7 +196,7 @@ func TestWithTransport(t *testing.T) {
 		}(),
 	}, {
 		desc: "MTU Discovery",
-		transport: &Transport{
+		transport: Transport{
 			MTUDiscovery: true,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_Neighbor {
@@ -228,8 +210,8 @@ func TestWithTransport(t *testing.T) {
 		}(),
 	}, {
 		desc: "Local address",
-		transport: &Transport{
-			LocalAddr: "1.2.3.4",
+		transport: Transport{
+			LocalAddress: "1.2.3.4",
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_Neighbor {
 			oc := &oc.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -245,18 +227,13 @@ func TestWithTransport(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			n := &Neighbor{
-				oc: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
-					NeighborAddress: ygot.String("1.2.3.4"),
-				},
-			}
-
+			n := newNeighbor()
 			res := n.WithTransport(test.transport)
 			if res == nil {
 				t.Fatalf("WithTransport returned nil")
 			}
 
-			if diff := cmp.Diff(test.want, n.oc); diff != "" {
+			if diff := cmp.Diff(test.want, &res.oc); diff != "" {
 				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 			}
 		})
@@ -265,96 +242,76 @@ func TestWithTransport(t *testing.T) {
 
 // TestWithLocalAS tests setting local AS for BGP global.
 func TestWithLocalAS(t *testing.T) {
+	as := uint32(1234)
 	want := oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		NeighborAddress: ygot.String("1.2.3.4"),
-	}
-	got := want
-
-	n := &Neighbor{
-		oc: &got,
+		LocalAs:         ygot.Uint32(as),
 	}
 
-	as := uint32(1234)
-	(&want).LocalAs = ygot.Uint32(as)
-
+	n := newNeighbor()
 	res := n.WithLocalAS(as)
 	if res == nil {
 		t.Fatalf("WithLocalAS returned nil")
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, res.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
 
 // TestWithPeerAS tests setting peer AS for BGP global.
 func TestWithPeerAS(t *testing.T) {
+	as := uint32(1234)
 	want := oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		NeighborAddress: ygot.String("1.2.3.4"),
-	}
-	got := want
-
-	n := &Neighbor{
-		oc: &got,
+		PeerAs:          ygot.Uint32(as),
 	}
 
-	as := uint32(1234)
-	(&want).PeerAs = ygot.Uint32(as)
-
+	n := newNeighbor()
 	res := n.WithPeerAS(as)
 	if res == nil {
 		t.Fatalf("WithPeerAS returned nil")
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, res.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
 
 // TestWithRemovePrivateAS tests setting remove private AS for BGP global.
 func TestWithRemovePrivateAS(t *testing.T) {
+	val := oc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL
 	want := oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		NeighborAddress: ygot.String("1.2.3.4"),
-	}
-	got := want
-
-	n := &Neighbor{
-		oc: &got,
+		RemovePrivateAs: val,
 	}
 
-	val := oc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL
-	(&want).RemovePrivateAs = val
-
+	n := newNeighbor()
 	res := n.WithRemovePrivateAS(val)
 	if res == nil {
 		t.Fatalf("WithRemovePrivateAS returned nil")
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, res.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
 
 // TestWithSendCommunity tests setting send-community for BGP global.
 func TestWithSendCommunity(t *testing.T) {
+	val := oc.BgpTypes_CommunityType_BOTH
 	want := oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		NeighborAddress: ygot.String("1.2.3.4"),
-	}
-	got := want
-
-	n := &Neighbor{
-		oc: &got,
+		SendCommunity:   val,
 	}
 
-	val := oc.BgpTypes_CommunityType_BOTH
-	(&want).SendCommunity = val
-
+	n := newNeighbor()
 	res := n.WithSendCommunity(val)
 	if res == nil {
 		t.Fatalf("WithSendCommunity returned nil")
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, res.oc); diff != "" {
 		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
@@ -363,11 +320,11 @@ func TestWithSendCommunity(t *testing.T) {
 func TestWithV4PrefixLimit(t *testing.T) {
 	tests := []struct {
 		desc string
-		pl   *PrefixLimit
+		pl   PrefixLimit
 		want *oc.NetworkInstance_Protocol_Bgp_Neighbor
 	}{{
 		desc: "max prefixes",
-		pl: &PrefixLimit{
+		pl: PrefixLimit{
 			MaxPrefixes: 2000,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_Neighbor {
@@ -381,7 +338,7 @@ func TestWithV4PrefixLimit(t *testing.T) {
 		}(),
 	}, {
 		desc: "Prevent teardown",
-		pl: &PrefixLimit{
+		pl: PrefixLimit{
 			PreventTeardown: true,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_Neighbor {
@@ -394,7 +351,7 @@ func TestWithV4PrefixLimit(t *testing.T) {
 		}(),
 	}, {
 		desc: "Restart timer",
-		pl: &PrefixLimit{
+		pl: PrefixLimit{
 			RestartTimer: 5 * time.Second,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_Neighbor {
@@ -408,7 +365,7 @@ func TestWithV4PrefixLimit(t *testing.T) {
 		}(),
 	}, {
 		desc: "Warning threshold",
-		pl: &PrefixLimit{
+		pl: PrefixLimit{
 			WarningThresholdPct: 90,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_Neighbor {
@@ -424,18 +381,13 @@ func TestWithV4PrefixLimit(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			n := &Neighbor{
-				oc: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
-					NeighborAddress: ygot.String("1.2.3.4"),
-				},
-			}
-
+			n := newNeighbor()
 			res := n.WithV4PrefixLimit(test.pl)
 			if res == nil {
 				t.Fatalf("WithV4PrefixLimit returned nil")
 			}
 
-			if diff := cmp.Diff(test.want, n.oc); diff != "" {
+			if diff := cmp.Diff(test.want, &res.oc); diff != "" {
 				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 			}
 		})
@@ -446,12 +398,12 @@ func TestWithV4PrefixLimit(t *testing.T) {
 func TestWithTimers(t *testing.T) {
 	tests := []struct {
 		desc   string
-		timers *Timers
+		timers Timers
 		want   *oc.NetworkInstance_Protocol_Bgp_Neighbor
 	}{{
 		desc: "min advertisement interval",
-		timers: &Timers{
-			MinAdvertisementIntvl: 5 * time.Second,
+		timers: Timers{
+			MinimumAdvertisementInterval: 5 * time.Second,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_Neighbor {
 			noc := &oc.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -463,7 +415,7 @@ func TestWithTimers(t *testing.T) {
 		}(),
 	}, {
 		desc: "hold time",
-		timers: &Timers{
+		timers: Timers{
 			HoldTime: 5 * time.Second,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_Neighbor {
@@ -476,8 +428,8 @@ func TestWithTimers(t *testing.T) {
 		}(),
 	}, {
 		desc: "Keepalive interval",
-		timers: &Timers{
-			KeepaliveIntvl: 5 * time.Second,
+		timers: Timers{
+			KeepaliveInterval: 5 * time.Second,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_Neighbor {
 			noc := &oc.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -489,7 +441,7 @@ func TestWithTimers(t *testing.T) {
 		}(),
 	}, {
 		desc: "Connect Retry",
-		timers: &Timers{
+		timers: Timers{
 			ConnectRetry: 5 * time.Second,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_Neighbor {
@@ -504,18 +456,13 @@ func TestWithTimers(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			n := &Neighbor{
-				oc: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
-					NeighborAddress: ygot.String("1.2.3.4"),
-				},
-			}
-
+			n := newNeighbor()
 			res := n.WithTimers(test.timers)
 			if res == nil {
 				t.Fatalf("WithTimers returned nil")
 			}
 
-			if diff := cmp.Diff(test.want, n.oc); diff != "" {
+			if diff := cmp.Diff(test.want, &res.oc); diff != "" {
 				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 			}
 		})
@@ -548,18 +495,14 @@ func TestAugmentBGP(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			l := &Neighbor{
-				oc: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
-					NeighborAddress: ygot.String("1.2.3.4"),
-				},
-			}
+			l := newNeighbor()
 			dcopy, err := ygot.DeepCopy(test.bgp)
 			if err != nil {
 				t.Fatalf("unexpected error %v", err)
 			}
 			wantBGP := dcopy.(*oc.NetworkInstance_Protocol_Bgp)
 
-			err = l.AugmentBGP(test.bgp)
+			err = l.AugmentGlobal(test.bgp)
 			if test.wantErr {
 				if err == nil {
 					t.Fatalf("error expected")
@@ -568,7 +511,7 @@ func TestAugmentBGP(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error not expected")
 				}
-				if err := wantBGP.AppendNeighbor(l.oc); err != nil {
+				if err := wantBGP.AppendNeighbor(&l.oc); err != nil {
 					t.Fatalf("unexpected error %v", err)
 				}
 				if diff := cmp.Diff(wantBGP, test.bgp); diff != "" {
@@ -610,7 +553,7 @@ func TestNeighborWithFeature(t *testing.T) {
 		if !ff.augmentCalled {
 			t.Errorf("AugmentNeighbor was not called")
 		}
-		if ff.oc != n.oc {
+		if ff.oc != &n.oc {
 			t.Errorf("neighbor ptr is not equal")
 		}
 		if test.err != nil {
