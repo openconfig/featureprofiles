@@ -73,4 +73,4 @@ kne_cli delete topologies/kne/nokia_srl.textproto
 
 ## Path validation
 
-The `make validate_paths` target will clone the public OpenConfig definitions and report and Feature Profiles which are not valid OpenConfig paths.
+The `make validate_paths` target will clone the public OpenConfig definitions and report Feature Profiles that have invalid OpenConfig paths.
