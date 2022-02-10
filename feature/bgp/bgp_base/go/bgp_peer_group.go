@@ -1,0 +1,156 @@
+/*
+ Copyright 2022 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
+package bgp
+
+import (
+	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/ygot/ygot"
+)
+
+// PeerGroup struct to store OC attributes.
+type PeerGroup struct {
+	oc oc.NetworkInstance_Protocol_Bgp_PeerGroup
+}
+
+// NewPeerGroup returns a new peer-group object.
+func NewPeerGroup(name string) *PeerGroup {
+	return &PeerGroup{
+		oc: oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+			PeerGroupName: ygot.String(name),
+		},
+	}
+}
+
+// Name returns the name of the peer-group.
+func (pg *PeerGroup) Name() string {
+	return pg.oc.GetPeerGroupName()
+}
+
+// WithAFISAFI adds specified AFI-SAFI type to peer-group.
+func (pg *PeerGroup) WithAFISAFI(name oc.E_BgpTypes_AFI_SAFI_TYPE) *PeerGroup {
+	pg.oc.GetOrCreateAfiSafi(name).Enabled = ygot.Bool(true)
+	return pg
+}
+
+// WithAuthPassword sets auth password on peer-group.
+func (pg *PeerGroup) WithAuthPassword(pwd string) *PeerGroup {
+	pg.oc.AuthPassword = ygot.String(pwd)
+	return pg
+}
+
+// WithDescription sets the peer-group descriptiopg.
+func (pg *PeerGroup) WithDescription(desc string) *PeerGroup {
+	pg.oc.Description = ygot.String(desc)
+	return pg
+}
+
+// WithTransport sets the transport attributes on peer-group.
+func (pg *PeerGroup) WithTransport(t Transport) *PeerGroup {
+	toc := pg.oc.GetOrCreateTransport()
+	toc.PassiveMode = ygot.Bool(t.PassiveMode)
+	if t.TCPMSS > 0 {
+		toc.TcpMss = ygot.Uint16(t.TCPMSS)
+	}
+	toc.MtuDiscovery = ygot.Bool(t.MTUDiscovery)
+	if t.LocalAddress != "" {
+		toc.LocalAddress = ygot.String(t.LocalAddress)
+	}
+	return pg
+}
+
+// WithLocalAS sets the local AS on the peer-group.
+func (pg *PeerGroup) WithLocalAS(as uint32) *PeerGroup {
+	pg.oc.LocalAs = ygot.Uint32(as)
+	return pg
+}
+
+// WithPeerAS sets the peer AS on the peer-group.
+func (pg *PeerGroup) WithPeerAS(as uint32) *PeerGroup {
+	pg.oc.PeerAs = ygot.Uint32(as)
+	return pg
+}
+
+// WithPeerType sets the peer type on the peer-group.
+func (pg *PeerGroup) WithPeerType(pt oc.E_BgpTypes_PeerType) *PeerGroup {
+	pg.oc.PeerType = pt
+	return pg
+}
+
+// WithRemovePrivateAS specifies that private AS should be removed.
+func (pg *PeerGroup) WithRemovePrivateAS(val oc.E_BgpTypes_RemovePrivateAsOption) *PeerGroup {
+	pg.oc.RemovePrivateAs = val
+	return pg
+}
+
+// WithSendCommunity sets the send-community on the peer-group.
+func (pg *PeerGroup) WithSendCommunity(sc oc.E_BgpTypes_CommunityType) *PeerGroup {
+	pg.oc.SendCommunity = sc
+	return pg
+}
+
+// WithV4PrefixLimit sets the IPv4 prefix limits on the peer-group.
+func (pg *PeerGroup) WithV4PrefixLimit(pl PrefixLimit) *PeerGroup {
+	ploc := pg.oc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
+	if pl.MaxPrefixes > 0 {
+		ploc.MaxPrefixes = ygot.Uint32(pl.MaxPrefixes)
+	}
+	ploc.PreventTeardown = ygot.Bool(pl.PreventTeardown)
+	if pl.RestartTimer != 0 {
+		ploc.RestartTimer = ygot.Float64(pl.RestartTimer.Seconds())
+	}
+	if pl.WarningThresholdPct > 0 {
+		ploc.WarningThresholdPct = ygot.Uint8(pl.WarningThresholdPct)
+	}
+	return pg
+}
+
+// WithTimers sets the timers on the peer-group.
+func (pg *PeerGroup) WithTimers(t Timers) *PeerGroup {
+	toc := pg.oc.GetOrCreateTimers()
+	if t.MinimumAdvertisementInterval != 0 {
+		toc.MinimumAdvertisementInterval = ygot.Float64(t.MinimumAdvertisementInterval.Seconds())
+	}
+	if t.HoldTime != 0 {
+		toc.HoldTime = ygot.Float64(t.HoldTime.Seconds())
+	}
+	if t.KeepaliveInterval != 0 {
+		toc.KeepaliveInterval = ygot.Float64(t.KeepaliveInterval.Seconds())
+	}
+	if t.ConnectRetry != 0 {
+		toc.ConnectRetry = ygot.Float64(t.ConnectRetry.Seconds())
+	}
+	return pg
+}
+
+// AugmentGlobal implements the bgp.GlobalFeature interface.
+// This method augments the BGP with peer-group configuration.
+// Use bgp.WithFeature(pg) instead of calling this method directly.
+func (pg *PeerGroup) AugmentGlobal(bgp *oc.NetworkInstance_Protocol_Bgp) error {
+	return bgp.AppendPeerGroup(&pg.oc)
+}
+
+// PeerGroupFeature provides interface to augment peer-group with
+// additional features.
+type PeerGroupFeature interface {
+	// AugmentPeerGroup augments peer-group with additional feature.
+	AugmentPeerGroup(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup) error
+}
+
+// WithFeature augments peer-group with provided feature.
+func (pg *PeerGroup) WithFeature(f PeerGroupFeature) error {
+	return f.AugmentPeerGroup(&pg.oc)
+}
