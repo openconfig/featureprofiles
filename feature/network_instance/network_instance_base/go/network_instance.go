@@ -56,9 +56,6 @@ func (ni *NetworkInstance) validate() error {
 // This method augments the provided device OC with NetworkInstance feature.
 // Use d.WithFeature(ni) instead of calling this method directly.
 func (ni *NetworkInstance) AugmentDevice(d *oc.Device) error {
-	if ni == nil || d == nil {
-		return errors.New("either ni or device is nil")
-	}
 	if err := ni.validate(); err != nil {
 		return err
 	}
@@ -73,8 +70,5 @@ type Feature interface {
 
 // WithFeature augments the provided feature to network-instance.
 func (ni *NetworkInstance) WithFeature(f Feature) error {
-	if ni == nil || f == nil {
-		return errors.New("some args are nil")
-	}
 	return f.AugmentNetworkInstance(&ni.oc)
 }

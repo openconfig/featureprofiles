@@ -18,7 +18,6 @@
 package device
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/openconfig/featureprofiles/yang/oc"
@@ -99,8 +98,5 @@ type Feature interface {
 
 // WithFeature augments the device with the provided feature.
 func (d *Device) WithFeature(f Feature) error {
-	if f == nil {
-		return errors.New("feature is nil")
-	}
 	return f.AugmentDevice(&d.oc)
 }

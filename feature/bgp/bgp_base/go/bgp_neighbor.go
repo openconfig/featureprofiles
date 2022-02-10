@@ -17,7 +17,6 @@
 package bgp
 
 import (
-	"errors"
 	"time"
 
 	"github.com/openconfig/featureprofiles/yang/oc"
@@ -45,45 +44,30 @@ func (n *Neighbor) Address() string {
 
 // WithAfiSafi adds specified AFI-SAFI type to neighbor.
 func (n *Neighbor) WithAFISAFI(name oc.E_BgpTypes_AFI_SAFI_TYPE) *Neighbor {
-	if n == nil {
-		return nil
-	}
 	n.oc.GetOrCreateAfiSafi(name).Enabled = ygot.Bool(true)
 	return n
 }
 
 // WithPeerGroup sets the peer-group for neighbor.
 func (n *Neighbor) WithPeerGroup(pg string) *Neighbor {
-	if n == nil {
-		return nil
-	}
 	n.oc.PeerGroup = ygot.String(pg)
 	return n
 }
 
 // WithLogStateChanges enables neighbor state changes logging.
 func (n *Neighbor) WithLogStateChanges(val bool) *Neighbor {
-	if n == nil {
-		return nil
-	}
 	n.oc.GetOrCreateLoggingOptions().LogNeighborStateChanges = ygot.Bool(val)
 	return n
 }
 
 // WithAuthPassword sets auth password on neighbor.
 func (n *Neighbor) WithAuthPassword(pwd string) *Neighbor {
-	if n == nil {
-		return nil
-	}
 	n.oc.AuthPassword = ygot.String(pwd)
 	return n
 }
 
 // WithDescription sets the neighbor description.
 func (n *Neighbor) WithDescription(desc string) *Neighbor {
-	if n == nil {
-		return nil
-	}
 	n.oc.Description = ygot.String(desc)
 	return n
 }
@@ -98,9 +82,6 @@ type Transport struct {
 
 // WithTransport sets the transport attributes on neighbor.
 func (n *Neighbor) WithTransport(t Transport) *Neighbor {
-	if n == nil {
-		return nil
-	}
 	toc := n.oc.GetOrCreateTransport()
 	toc.PassiveMode = ygot.Bool(t.PassiveMode)
 	if t.TCPMSS > 0 {
@@ -115,45 +96,30 @@ func (n *Neighbor) WithTransport(t Transport) *Neighbor {
 
 // WithLocalAS sets the local AS on the neighbor.
 func (n *Neighbor) WithLocalAS(as uint32) *Neighbor {
-	if n == nil {
-		return nil
-	}
 	n.oc.LocalAs = ygot.Uint32(as)
 	return n
 }
 
 // WithPeerAS sets the peer AS on the neighbor.
 func (n *Neighbor) WithPeerAS(as uint32) *Neighbor {
-	if n == nil {
-		return nil
-	}
 	n.oc.PeerAs = ygot.Uint32(as)
 	return n
 }
 
 // WithPeerType sets the peer type on the neighbor.
 func (n *Neighbor) WithPeerType(pt oc.E_BgpTypes_PeerType) *Neighbor {
-	if n == nil {
-		return nil
-	}
 	n.oc.PeerType = pt
 	return n
 }
 
 // WithRemovePrivateAS specifies that private AS should be removed.
 func (n *Neighbor) WithRemovePrivateAS(val oc.E_BgpTypes_RemovePrivateAsOption) *Neighbor {
-	if n == nil {
-		return nil
-	}
 	n.oc.RemovePrivateAs = val
 	return n
 }
 
 // WithSendCommunity sets the send-community on the neighbor.
 func (n *Neighbor) WithSendCommunity(sc oc.E_BgpTypes_CommunityType) *Neighbor {
-	if n == nil {
-		return nil
-	}
 	n.oc.SendCommunity = sc
 	return n
 }
@@ -168,9 +134,6 @@ type PrefixLimit struct {
 
 // WithV4PrefixLimit sets the IPv4 prefix limits on the neighbor.
 func (n *Neighbor) WithV4PrefixLimit(pl PrefixLimit) *Neighbor {
-	if n == nil {
-		return nil
-	}
 	ploc := n.oc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 	if pl.MaxPrefixes > 0 {
 		ploc.MaxPrefixes = ygot.Uint32(pl.MaxPrefixes)
@@ -195,9 +158,6 @@ type Timers struct {
 
 // WithTimers sets the timers on the neighbor.
 func (n *Neighbor) WithTimers(t Timers) *Neighbor {
-	if n == nil {
-		return nil
-	}
 	toc := n.oc.GetOrCreateTimers()
 	if t.MinimumAdvertisementInterval != 0 {
 		toc.MinimumAdvertisementInterval = ygot.Float64(t.MinimumAdvertisementInterval.Seconds())
@@ -218,9 +178,6 @@ func (n *Neighbor) WithTimers(t Timers) *Neighbor {
 // This method augments the BGP OC with neighbor configuration.
 // Use bgp.WithFeature(n) instead of calling this method directly.
 func (n *Neighbor) AugmentGlobal(bgp *oc.NetworkInstance_Protocol_Bgp) error {
-	if n == nil || bgp == nil {
-		return errors.New("some args are nil")
-	}
 	return bgp.AppendNeighbor(&n.oc)
 }
 
@@ -228,13 +185,10 @@ func (n *Neighbor) AugmentGlobal(bgp *oc.NetworkInstance_Protocol_Bgp) error {
 // additional features.
 type NeighborFeature interface {
 	// AugmentNeighbor augments the neighbor OC with additional feature.
-	AugmentNeighbor(oc *oc.NetworkInstance_Protocol_Bgp_Neighbor) error
+	AugmentNeighbor(n *oc.NetworkInstance_Protocol_Bgp_Neighbor) error
 }
 
 // WithFeature augments the neighbor OC with additional feature.
 func (n *Neighbor) WithFeature(f NeighborFeature) error {
-	if n == nil || f == nil {
-		return nil
-	}
 	return f.AugmentNeighbor(&n.oc)
 }

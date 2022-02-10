@@ -17,8 +17,6 @@
 package bgp
 
 import (
-	"errors"
-
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -44,36 +42,24 @@ func (pg *PeerGroup) Name() string {
 
 // WithAFISAFI adds specified AFI-SAFI type to peer-group.
 func (pg *PeerGroup) WithAFISAFI(name oc.E_BgpTypes_AFI_SAFI_TYPE) *PeerGroup {
-	if pg == nil {
-		return nil
-	}
 	pg.oc.GetOrCreateAfiSafi(name).Enabled = ygot.Bool(true)
 	return pg
 }
 
 // WithAuthPassword sets auth password on peer-group.
 func (pg *PeerGroup) WithAuthPassword(pwd string) *PeerGroup {
-	if pg == nil {
-		return nil
-	}
 	pg.oc.AuthPassword = ygot.String(pwd)
 	return pg
 }
 
 // WithDescription sets the peer-group descriptiopg.
 func (pg *PeerGroup) WithDescription(desc string) *PeerGroup {
-	if pg == nil {
-		return nil
-	}
 	pg.oc.Description = ygot.String(desc)
 	return pg
 }
 
 // WithTransport sets the transport attributes on peer-group.
 func (pg *PeerGroup) WithTransport(t Transport) *PeerGroup {
-	if pg == nil {
-		return nil
-	}
 	toc := pg.oc.GetOrCreateTransport()
 	toc.PassiveMode = ygot.Bool(t.PassiveMode)
 	if t.TCPMSS > 0 {
@@ -88,54 +74,36 @@ func (pg *PeerGroup) WithTransport(t Transport) *PeerGroup {
 
 // WithLocalAS sets the local AS on the peer-group.
 func (pg *PeerGroup) WithLocalAS(as uint32) *PeerGroup {
-	if pg == nil {
-		return nil
-	}
 	pg.oc.LocalAs = ygot.Uint32(as)
 	return pg
 }
 
 // WithPeerAS sets the peer AS on the peer-group.
 func (pg *PeerGroup) WithPeerAS(as uint32) *PeerGroup {
-	if pg == nil {
-		return nil
-	}
 	pg.oc.PeerAs = ygot.Uint32(as)
 	return pg
 }
 
 // WithPeerType sets the peer type on the peer-group.
 func (pg *PeerGroup) WithPeerType(pt oc.E_BgpTypes_PeerType) *PeerGroup {
-	if pg == nil {
-		return nil
-	}
 	pg.oc.PeerType = pt
 	return pg
 }
 
 // WithRemovePrivateAS specifies that private AS should be removed.
 func (pg *PeerGroup) WithRemovePrivateAS(val oc.E_BgpTypes_RemovePrivateAsOption) *PeerGroup {
-	if pg == nil {
-		return nil
-	}
 	pg.oc.RemovePrivateAs = val
 	return pg
 }
 
 // WithSendCommunity sets the send-community on the peer-group.
 func (pg *PeerGroup) WithSendCommunity(sc oc.E_BgpTypes_CommunityType) *PeerGroup {
-	if pg == nil {
-		return nil
-	}
 	pg.oc.SendCommunity = sc
 	return pg
 }
 
 // WithV4PrefixLimit sets the IPv4 prefix limits on the peer-group.
 func (pg *PeerGroup) WithV4PrefixLimit(pl PrefixLimit) *PeerGroup {
-	if pg == nil {
-		return nil
-	}
 	ploc := pg.oc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 	if pl.MaxPrefixes > 0 {
 		ploc.MaxPrefixes = ygot.Uint32(pl.MaxPrefixes)
@@ -152,9 +120,6 @@ func (pg *PeerGroup) WithV4PrefixLimit(pl PrefixLimit) *PeerGroup {
 
 // WithTimers sets the timers on the peer-group.
 func (pg *PeerGroup) WithTimers(t Timers) *PeerGroup {
-	if pg == nil {
-		return nil
-	}
 	toc := pg.oc.GetOrCreateTimers()
 	if t.MinimumAdvertisementInterval != 0 {
 		toc.MinimumAdvertisementInterval = ygot.Float64(t.MinimumAdvertisementInterval.Seconds())
@@ -175,9 +140,6 @@ func (pg *PeerGroup) WithTimers(t Timers) *PeerGroup {
 // This method augments the BGP with peer-group configuration.
 // Use bgp.WithFeature(pg) instead of calling this method directly.
 func (pg *PeerGroup) AugmentGlobal(bgp *oc.NetworkInstance_Protocol_Bgp) error {
-	if pg == nil || bgp == nil {
-		return errors.New("some args are nil")
-	}
 	return bgp.AppendPeerGroup(&pg.oc)
 }
 
@@ -185,13 +147,10 @@ func (pg *PeerGroup) AugmentGlobal(bgp *oc.NetworkInstance_Protocol_Bgp) error {
 // additional features.
 type PeerGroupFeature interface {
 	// AugmentPeerGroup augments peer-group with additional feature.
-	AugmentPeerGroup(oc *oc.NetworkInstance_Protocol_Bgp_PeerGroup) error
+	AugmentPeerGroup(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup) error
 }
 
 // WithFeature augments peer-group with provided feature.
 func (pg *PeerGroup) WithFeature(f PeerGroupFeature) error {
-	if pg == nil || f == nil {
-		return nil
-	}
 	return f.AugmentPeerGroup(&pg.oc)
 }

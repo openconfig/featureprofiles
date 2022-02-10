@@ -18,8 +18,6 @@
 package bgp
 
 import (
-	"errors"
-
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -41,18 +39,12 @@ func New() *BGP {
 
 // WithAS sets the AS value for BGP global.
 func (b *BGP) WithAS(as uint32) *BGP {
-	if b == nil {
-		return nil
-	}
 	b.oc.GetOrCreateBgp().GetOrCreateGlobal().As = ygot.Uint32(as)
 	return b
 }
 
 // WithRouterID sets the router-id value for BGP global.
 func (b *BGP) WithRouterID(rID string) *BGP {
-	if b == nil {
-		return nil
-	}
 	b.oc.GetOrCreateBgp().GetOrCreateGlobal().RouterId = ygot.String(rID)
 	return b
 }
@@ -61,9 +53,6 @@ func (b *BGP) WithRouterID(rID string) *BGP {
 // Augments the provided NI with BGP OC.
 // Use ni.WithFeature(b) instead of calling this method directly.
 func (b *BGP) AugmentNetworkInstance(ni *oc.NetworkInstance) error {
-	if b == nil || ni == nil {
-		return errors.New("some args are nil")
-	}
 	return ni.AppendProtocol(&b.oc)
 }
 
@@ -75,8 +64,5 @@ type GlobalFeature interface {
 
 // WithFeature augments BGP with provided feature.
 func (b *BGP) WithFeature(f GlobalFeature) error {
-	if b == nil || f == nil {
-		return errors.New("some args are nil")
-	}
 	return f.AugmentBGP(b.oc.GetBgp())
 }

@@ -27,7 +27,7 @@ import (
 // TestNew tests the New function.
 func TestNew(t *testing.T) {
 	want := &LLDP{
-		oc: &oc.Lldp{
+		oc: oc.Lldp{
 			Enabled: ygot.Bool(true),
 		},
 	}
@@ -55,11 +55,11 @@ func TestWithInterface(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			l := &LLDP{
-				oc: &oc.Lldp{
+				oc: oc.Lldp{
 					Enabled: ygot.Bool(true),
 				},
 			}
-			dcopy, err := ygot.DeepCopy(l.oc)
+			dcopy, err := ygot.DeepCopy(&l.oc)
 			if err != nil {
 				t.Fatalf("unexpected error %v", err)
 			}
@@ -72,7 +72,7 @@ func TestWithInterface(t *testing.T) {
 				}
 			}
 
-			if diff := cmp.Diff(want, l.oc); diff != "" {
+			if diff := cmp.Diff(want, &l.oc); diff != "" {
 				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 			}
 		})
@@ -101,7 +101,7 @@ func TestAugmentDevice(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			l := &LLDP{
-				oc: &oc.Lldp{
+				oc: oc.Lldp{
 					Enabled: ygot.Bool(true),
 				},
 			}
@@ -120,7 +120,7 @@ func TestAugmentDevice(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error not expected")
 				}
-				wantDevice.Lldp = l.oc
+				wantDevice.Lldp = &l.oc
 				if diff := cmp.Diff(wantDevice, test.device); diff != "" {
 					t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 				}
