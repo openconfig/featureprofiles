@@ -51,6 +51,9 @@ func (l *LLDP) AugmentDevice(d *oc.Device) error {
 	if d.Lldp != nil {
 		return errors.New("lldp OC is not nil")
 	}
+	if err := l.oc.Validate(); err != nil {
+		return err
+	}
 	d.Lldp = &l.oc
 	return nil
 }
