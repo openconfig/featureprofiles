@@ -43,7 +43,7 @@ func newCLI(sc *ssh.Client) (*cli, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not create session: %w", err)
 	}
-	if err := sess.RequestPty("ansi", 80, 24, nil); err != nil {
+	if err := sess.RequestPty("ansi", 24, 80, nil); err != nil {
 		return nil, fmt.Errorf("could not request pty: %w", err)
 	}
 	stdin, err := sess.StdinPipe()
