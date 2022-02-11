@@ -27,18 +27,18 @@ import (
 // TestLLDP tests the features of LLDP config.
 func TestLLDP(t *testing.T) {
 	tests := []struct {
-		desc      string
-		lldp      *LLDP
-		inDevice  *oc.Device
-		outDevice *oc.Device
-		wantErr   bool
+		desc       string
+		lldp       *LLDP
+		inDevice   *oc.Device
+		wantDevice *oc.Device
+		wantErr    bool
 	}{{
 		desc: "LLDP globally enabled",
 		lldp: func() *LLDP {
 			return New()
 		}(),
 		inDevice: &oc.Device{},
-		outDevice: &oc.Device{
+		wantDevice: &oc.Device{
 			Lldp: &oc.Lldp{
 				Enabled: ygot.Bool(true),
 			},
@@ -49,7 +49,7 @@ func TestLLDP(t *testing.T) {
 			return New().WithInterface("Ethernet1.1")
 		}(),
 		inDevice: &oc.Device{},
-		outDevice: &oc.Device{
+		wantDevice: &oc.Device{
 			Lldp: &oc.Lldp{
 				Enabled: ygot.Bool(true),
 				Interface: map[string]*oc.Lldp_Interface{
@@ -66,7 +66,7 @@ func TestLLDP(t *testing.T) {
 			return New().WithInterface("Ethernet1.1").WithInterface("Ethernet1.2")
 		}(),
 		inDevice: &oc.Device{},
-		outDevice: &oc.Device{
+		wantDevice: &oc.Device{
 			Lldp: &oc.Lldp{
 				Enabled: ygot.Bool(true),
 				Interface: map[string]*oc.Lldp_Interface{
@@ -105,7 +105,7 @@ func TestLLDP(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error not expected")
 				}
-				if diff := cmp.Diff(test.outDevice, test.inDevice); diff != "" {
+				if diff := cmp.Diff(test.wantDevice, test.inDevice); diff != "" {
 					t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 				}
 			}
