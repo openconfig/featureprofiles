@@ -24,94 +24,79 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// TestNew tests the New function.
-func TestNew(t *testing.T) {
-	want := &LLDP{
-		oc: oc.Lldp{
-			Enabled: ygot.Bool(true),
-		},
-	}
-	got := New()
-	if got == nil {
-		t.Fatalf("New returned nil")
-	}
-	if diff := cmp.Diff(want.oc, got.oc); diff != "" {
-		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
-	}
-}
-
-// TestWithInterface tests the WithInterface function.
-func TestWithInterface(t *testing.T) {
+// TestLLDP tests the features of LLDP config.
+func TestLLDP(t *testing.T) {
 	tests := []struct {
-		desc  string
-		intfs []string
+		desc      string
+		lldp      *LLDP
+		inDevice  *oc.Device
+		outDevice *oc.Device
+		wantErr   bool
 	}{{
-		desc:  "one interface",
-		intfs: []string{"Ethernet1.1"},
-	}, {
-		desc:  "multiple interfaces",
-		intfs: []string{"Ethernet1.1", "Ethernet1.2"},
-	}}
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			l := &LLDP{
-				oc: oc.Lldp{
-					Enabled: ygot.Bool(true),
-				},
-			}
-			dcopy, err := ygot.DeepCopy(&l.oc)
-			if err != nil {
-				t.Fatalf("unexpected error %v", err)
-			}
-			want := dcopy.(*oc.Lldp)
-			for _, iname := range test.intfs {
-				want.GetOrCreateInterface(iname).Enabled = ygot.Bool(true)
-				got := l.WithInterface(iname)
-				if got == nil {
-					t.Errorf("WithInterface returned nil")
-				}
-			}
-
-			if diff := cmp.Diff(want, &l.oc); diff != "" {
-				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
-			}
-		})
-	}
-}
-
-// TestAugmentDevice tests the NI augment to device OC.
-func TestAugmentDevice(t *testing.T) {
-	tests := []struct {
-		desc    string
-		device  *oc.Device
-		wantErr bool
-	}{{
-		desc:   "empty device",
-		device: &oc.Device{},
-	}, {
-		desc: "device contains lldp",
-		device: func() *oc.Device {
-			d := &oc.Device{}
-			d.GetOrCreateLldp().Enabled = ygot.Bool(true)
-			return d
+		desc: "LLDP globally enabled",
+		lldp: func() *LLDP {
+			return New()
 		}(),
+		inDevice: &oc.Device{},
+		outDevice: &oc.Device{
+			Lldp: &oc.Lldp{
+				Enabled: ygot.Bool(true),
+			},
+		},
+	}, {
+		desc: "LLDP with single interface",
+		lldp: func() *LLDP {
+			return New().WithInterface("Ethernet1.1")
+		}(),
+		inDevice: &oc.Device{},
+		outDevice: &oc.Device{
+			Lldp: &oc.Lldp{
+				Enabled: ygot.Bool(true),
+				Interface: map[string]*oc.Lldp_Interface{
+					"Ethernet1.1": &oc.Lldp_Interface{
+						Name:    ygot.String("Ethernet1.1"),
+						Enabled: ygot.Bool(true),
+					},
+				},
+			},
+		},
+	}, {
+		desc: "LLDP with multiple interfaces",
+		lldp: func() *LLDP {
+			return New().WithInterface("Ethernet1.1").WithInterface("Ethernet1.2")
+		}(),
+		inDevice: &oc.Device{},
+		outDevice: &oc.Device{
+			Lldp: &oc.Lldp{
+				Enabled: ygot.Bool(true),
+				Interface: map[string]*oc.Lldp_Interface{
+					"Ethernet1.1": &oc.Lldp_Interface{
+						Name:    ygot.String("Ethernet1.1"),
+						Enabled: ygot.Bool(true),
+					},
+					"Ethernet1.2": &oc.Lldp_Interface{
+						Name:    ygot.String("Ethernet1.2"),
+						Enabled: ygot.Bool(true),
+					},
+				},
+			},
+		},
+	}, {
+		desc: "Negative test: device already contains lldp so should error",
+		lldp: func() *LLDP {
+			return New()
+		}(),
+		inDevice: &oc.Device{
+			Lldp: &oc.Lldp{
+				Enabled: ygot.Bool(true),
+			},
+		},
 		wantErr: true,
 	}}
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			l := &LLDP{
-				oc: oc.Lldp{
-					Enabled: ygot.Bool(true),
-				},
-			}
-			dcopy, err := ygot.DeepCopy(test.device)
-			if err != nil {
-				t.Fatalf("unexpected error %v", err)
-			}
-			wantDevice := dcopy.(*oc.Device)
-
-			err = l.AugmentDevice(test.device)
+			err := test.lldp.AugmentDevice(test.inDevice)
 			if test.wantErr {
 				if err == nil {
 					t.Fatalf("error expected")
@@ -120,8 +105,7 @@ func TestAugmentDevice(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error not expected")
 				}
-				wantDevice.Lldp = &l.oc
-				if diff := cmp.Diff(wantDevice, test.device); diff != "" {
+				if diff := cmp.Diff(test.outDevice, test.inDevice); diff != "" {
 					t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 				}
 			}
