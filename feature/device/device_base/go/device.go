@@ -67,14 +67,8 @@ func (d *Device) EmitJSON() (string, error) {
 	return string(b), nil
 }
 
-// FullReplace returns gNMI SetRequest with full config replace at root node.
-func (d *Device) FullReplace() (*gnmipb.SetRequest, error) {
-	// gNMI Root path "/"
-	rootPath := gnmipb.Path{
-		Origin: "openconfig",
-		Elem:   []*gnmipb.PathElem{},
-	}
-
+// FullReplaceRequest returns gNMI SetRequest with full config replace at root node.
+func (d *Device) FullReplaceRequest() (*gnmipb.SetRequest, error) {
 	val, err := ygot.EncodeTypedValue(&d.oc, gnmipb.Encoding_JSON_IETF)
 	if err != nil {
 		return nil, err
@@ -82,8 +76,11 @@ func (d *Device) FullReplace() (*gnmipb.SetRequest, error) {
 	r := &gnmipb.SetRequest{
 		Replace: []*gnmipb.Update{
 			{
-				Path: &rootPath,
-				Val:  val,
+				Path: &gnmipb.Path{
+					Origin: "openconfig",
+					Elem:   []*gnmipb.PathElem{},
+				},
+				Val: val,
 			},
 		},
 	}

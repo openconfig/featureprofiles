@@ -95,13 +95,8 @@ func TestMerge(t *testing.T) {
 	// and hence we don't need to repeat that again.
 }
 
-// TestFullReplace tests the FullReplace method.
-func TestFullReplace(t *testing.T) {
-	// gNMI Root path "/"
-	rootPath := gnmipb.Path{
-		Origin: "openconfig",
-		Elem:   []*gnmipb.PathElem{},
-	}
+// TestFullReplaceRequest tests the FullReplaceRequest method.
+func TestFullReplaceRequest(t *testing.T) {
 	tests := []struct {
 		name   string
 		device *Device
@@ -131,9 +126,9 @@ func TestFullReplace(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.device.FullReplace()
+			got, err := tt.device.FullReplaceRequest()
 			if err != nil {
-				t.Fatalf("%s: FullReplace(%v): got unexpected error: %v", tt.name, tt.device, err)
+				t.Fatalf("%s: FullReplaceRequest(%v): got unexpected error: %v", tt.name, tt.device, err)
 			}
 
 			val, err := ygot.EncodeTypedValue(&tt.device.oc, gnmipb.Encoding_JSON_IETF)
@@ -143,8 +138,11 @@ func TestFullReplace(t *testing.T) {
 
 			want := &gnmipb.SetRequest{
 				Replace: []*gnmipb.Update{{
-					Path: &rootPath,
-					Val:  val,
+					Path: &gnmipb.Path{
+						Origin: "openconfig",
+						Elem:   []*gnmipb.PathElem{},
+					},
+					Val: val,
 				}},
 			}
 
@@ -154,12 +152,12 @@ func TestFullReplace(t *testing.T) {
 
 			res, err := setRequestEqual(got, want)
 			if err != nil {
-				t.Fatalf("%s: FullReplace(%v): setRequestEqual returned error %v\n", tt.name, tt.device, err)
+				t.Fatalf("%s: FullReplaceRequest(%v): setRequestEqual returned error %v\n", tt.name, tt.device, err)
 			}
 
 			if !res {
 				diff := cmp.Diff(got, want, protocmp.Transform())
-				t.Errorf("%s: FullReplace(%v): did not get expected Notification, diff(-got,+want):%s\n", tt.name, tt.device, diff)
+				t.Errorf("%s: FullReplaceRequest(%v): did not get expected Notification, diff(-got,+want):%s\n", tt.name, tt.device, diff)
 			}
 		})
 	}
