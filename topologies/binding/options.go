@@ -156,8 +156,8 @@ type resolver struct {
 	*bindpb.Binding
 }
 
-// dut looks up the *bindpb.Device with the given dutID.
-func (r *resolver) dut(dutID string) *bindpb.Device {
+// dutByID looks up the *bindpb.Device with the given dutID.
+func (r *resolver) dutByID(dutID string) *bindpb.Device {
 	for _, dut := range r.Duts {
 		if dut.Id == dutID {
 			return dut
@@ -166,8 +166,8 @@ func (r *resolver) dut(dutID string) *bindpb.Device {
 	return nil
 }
 
-// ate looks up the *bindpb.Device with the given ateID.
-func (r *resolver) ate(ateID string) *bindpb.Device {
+// ateByID looks up the *bindpb.Device with the given ateID.
+func (r *resolver) ateByID(ateID string) *bindpb.Device {
 	for _, ate := range r.Ates {
 		if ate.Id == ateID {
 			return ate
@@ -176,11 +176,31 @@ func (r *resolver) ate(ateID string) *bindpb.Device {
 	return nil
 }
 
+// dutByName looks up the *bindpb.Device with the given name.
+func (r *resolver) dutByName(dutName string) *bindpb.Device {
+	for _, dut := range r.Duts {
+		if dut.Name == dutName {
+			return dut
+		}
+	}
+	return nil
+}
+
+// ateByName looks up the *bindpb.Device with the given name.
+func (r *resolver) ateByName(ateName string) *bindpb.Device {
+	for _, ate := range r.Ates {
+		if ate.Name == ateName {
+			return ate
+		}
+	}
+	return nil
+}
+
 // dutDialer reconstructs the dialer for a given dut and protocol.
-func (r *resolver) dutDialer(dutID string, port int, optionsFn func(*bindpb.Device) *bindpb.Options) (dialer, error) {
-	dut := r.dut(dutID)
+func (r *resolver) dutDialer(dutName string, port int, optionsFn func(*bindpb.Device) *bindpb.Options) (dialer, error) {
+	dut := r.dutByName(dutName)
 	if dut == nil {
-		return dialer{nil}, fmt.Errorf("dut %q is missing from the binding", dutID)
+		return dialer{nil}, fmt.Errorf("dut name %q is missing from the binding", dutName)
 	}
 	targetOptions := &bindpb.Options{
 		Target: fmt.Sprintf("%s:%d", dut.Name, port),
@@ -188,44 +208,44 @@ func (r *resolver) dutDialer(dutID string, port int, optionsFn func(*bindpb.Devi
 	return merge(targetOptions, r.Options, dut.Options, optionsFn(dut)), nil
 }
 
-func (r *resolver) gnmi(dutID string) (dialer, error) {
-	return r.dutDialer(dutID, *gnmiPort,
+func (r *resolver) gnmi(dutName string) (dialer, error) {
+	return r.dutDialer(dutName, *gnmiPort,
 		func(dut *bindpb.Device) *bindpb.Options { return dut.Gnmi })
 }
 
-func (r *resolver) gnoi(dutID string) (dialer, error) {
-	return r.dutDialer(dutID, *gnoiPort,
+func (r *resolver) gnoi(dutName string) (dialer, error) {
+	return r.dutDialer(dutName, *gnoiPort,
 		func(dut *bindpb.Device) *bindpb.Options { return dut.Gnoi })
 }
 
-func (r *resolver) gnsi(dutID string) (dialer, error) {
-	return r.dutDialer(dutID, *gnsiPort,
+func (r *resolver) gnsi(dutName string) (dialer, error) {
+	return r.dutDialer(dutName, *gnsiPort,
 		func(dut *bindpb.Device) *bindpb.Options { return dut.Gnsi })
 }
 
-func (r *resolver) gribi(dutID string) (dialer, error) {
-	return r.dutDialer(dutID, *gribiPort,
+func (r *resolver) gribi(dutName string) (dialer, error) {
+	return r.dutDialer(dutName, *gribiPort,
 		func(dut *bindpb.Device) *bindpb.Options { return dut.Gribi })
 }
 
-func (r *resolver) p4rt(dutID string) (dialer, error) {
-	return r.dutDialer(dutID, *p4rtPort,
+func (r *resolver) p4rt(dutName string) (dialer, error) {
+	return r.dutDialer(dutName, *p4rtPort,
 		func(dut *bindpb.Device) *bindpb.Options { return dut.P4Rt })
 }
 
-func (r *resolver) ssh(dutID string) (dialer, error) {
-	dut := r.dut(dutID)
+func (r *resolver) ssh(dutName string) (dialer, error) {
+	dut := r.dutByName(dutName)
 	if dut == nil {
-		return dialer{nil}, fmt.Errorf("dut %q is missing from the binding", dutID)
+		return dialer{nil}, fmt.Errorf("dut name %q is missing from the binding", dutName)
 	}
 	targetOptions := &bindpb.Options{Target: dut.Name}
 	return merge(targetOptions, r.Options, dut.Options, dut.Ssh), nil
 }
 
-func (r *resolver) ixnetwork(ateID string) (dialer, error) {
-	ate := r.ate(ateID)
+func (r *resolver) ixnetwork(ateName string) (dialer, error) {
+	ate := r.ateByName(ateName)
 	if ate == nil {
-		return dialer{nil}, fmt.Errorf("ate %q is missing from the binding", ateID)
+		return dialer{nil}, fmt.Errorf("ate name %q is missing from the binding", ateName)
 	}
 	targetOptions := &bindpb.Options{Target: ate.Name}
 	return merge(targetOptions, r.Options, ate.Options, ate.Ixnetwork), nil
