@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package bgpgracefulrestart
+package bgpgr
 
 import (
 	"testing"
