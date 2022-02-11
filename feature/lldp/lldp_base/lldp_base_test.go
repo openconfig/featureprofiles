@@ -53,7 +53,7 @@ func TestLLDP(t *testing.T) {
 			Lldp: &oc.Lldp{
 				Enabled: ygot.Bool(true),
 				Interface: map[string]*oc.Lldp_Interface{
-					"Ethernet1.1": &oc.Lldp_Interface{
+					"Ethernet1.1": {
 						Name:    ygot.String("Ethernet1.1"),
 						Enabled: ygot.Bool(true),
 					},
@@ -70,11 +70,11 @@ func TestLLDP(t *testing.T) {
 			Lldp: &oc.Lldp{
 				Enabled: ygot.Bool(true),
 				Interface: map[string]*oc.Lldp_Interface{
-					"Ethernet1.1": &oc.Lldp_Interface{
+					"Ethernet1.1": {
 						Name:    ygot.String("Ethernet1.1"),
 						Enabled: ygot.Bool(true),
 					},
-					"Ethernet1.2": &oc.Lldp_Interface{
+					"Ethernet1.2": {
 						Name:    ygot.String("Ethernet1.2"),
 						Enabled: ygot.Bool(true),
 					},
