@@ -42,13 +42,13 @@ type cliFixture struct {
 }
 
 func (f *cliFixture) close(t testing.TB) {
-	if f.cli != nil {
-		if err := f.cli.Close(); err != nil {
-			t.Errorf("Could not close cli: %v", err)
-		}
-		f.cli = nil
+	if f.cli == nil {
+		return
 	}
-	return
+	if err := f.cli.Close(); err != nil {
+		t.Errorf("Could not close cli: %v", err)
+	}
+	f.cli = nil
 }
 
 // serverPrivateKey and serverPublicKey are ed25519 key pairs

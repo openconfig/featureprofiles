@@ -23,6 +23,11 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// cli implements the binding.StreamClient interface using an SSH
+// client (see also the ondatra.StreamClient returned by
+// dut.RawAPIS().CLI()).  It creates a default session with pty and
+// shell to service stdin, stdout, and stderr; each SendCommand will
+// run in its own session but without shell or pty.
 type cli struct {
 	ssh    *ssh.Client
 	sess   *ssh.Session
@@ -30,6 +35,8 @@ type cli struct {
 	stdout io.Reader
 	stderr io.Reader
 }
+
+var _ = binding.StreamClient(&cli{})
 
 func newCLI(sc *ssh.Client) (*cli, error) {
 	sess, err := sc.NewSession()
@@ -92,5 +99,3 @@ func (c *cli) Stderr() io.ReadCloser {
 func (c *cli) Close() error {
 	return c.ssh.Close()
 }
-
-var _ = binding.StreamClient(&cli{})
