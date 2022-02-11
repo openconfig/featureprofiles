@@ -14,8 +14,8 @@
  limitations under the License.
 */
 
-// Package lldp implements the Config Library for LLDP feature profile.
-package lldp
+// Package lldpbase implements the Config Library for LLDP feature profile.
+package lldpbase
 
 import (
 	"errors"
