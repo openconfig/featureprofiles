@@ -14,9 +14,9 @@
  limitations under the License.
 */
 
-// Package networkinstance implements the Config Library for NetworkInstance
+// Package nibase implements the Config Library for NetworkInstance
 // feature.
-package networkinstance
+package nibase
 
 import (
 	"errors"
@@ -49,7 +49,7 @@ func (ni *NetworkInstance) validate() error {
 	if ni.oc.GetType() == oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET {
 		return errors.New("NetworkInstance type is unset")
 	}
-	return nil
+	return ni.oc.Validate()
 }
 
 // AugmentDevice implements the device.Feature interface.
