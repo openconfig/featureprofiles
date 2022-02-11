@@ -17,6 +17,8 @@
 package bgp
 
 import (
+	"time"
+
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -58,17 +60,27 @@ func (pg *PeerGroup) WithDescription(desc string) *PeerGroup {
 	return pg
 }
 
-// WithTransport sets the transport attributes on peer-group.
-func (pg *PeerGroup) WithTransport(t Transport) *PeerGroup {
-	toc := pg.oc.GetOrCreateTransport()
-	toc.PassiveMode = ygot.Bool(t.PassiveMode)
-	if t.TCPMSS > 0 {
-		toc.TcpMss = ygot.Uint16(t.TCPMSS)
-	}
-	toc.MtuDiscovery = ygot.Bool(t.MTUDiscovery)
-	if t.LocalAddress != "" {
-		toc.LocalAddress = ygot.String(t.LocalAddress)
-	}
+// WithTransportPassiveMode sets the transport passive-mode on neighbor.
+func (pg *PeerGroup) WithTransportPassiveMode(pm bool) *PeerGroup {
+	pg.oc.GetOrCreateTransport().PassiveMode = ygot.Bool(pm)
+	return pg
+}
+
+// WithTransportTCPMSS sets the transport tcp-mss on neighbor.
+func (pg *PeerGroup) WithTransportTCPMSS(mss uint16) *PeerGroup {
+	pg.oc.GetOrCreateTransport().TcpMss = ygot.Uint16(mss)
+	return pg
+}
+
+// WithTransportMTUDiscovery sets the transport mtu-discovery on neighbor.
+func (pg *PeerGroup) WithTransportMTUDiscovery(md bool) *PeerGroup {
+	pg.oc.GetOrCreateTransport().MtuDiscovery = ygot.Bool(md)
+	return pg
+}
+
+// WithTransportLocalAddress sets the transport local-address on neighbor.
+func (pg *PeerGroup) WithTransportLocalAddress(la string) *PeerGroup {
+	pg.oc.GetOrCreateTransport().LocalAddress = ygot.String(la)
 	return pg
 }
 
@@ -102,37 +114,37 @@ func (pg *PeerGroup) WithSendCommunity(sc oc.E_BgpTypes_CommunityType) *PeerGrou
 	return pg
 }
 
-// WithV4PrefixLimit sets the IPv4 prefix limits on the peer-group.
-func (pg *PeerGroup) WithV4PrefixLimit(pl PrefixLimit) *PeerGroup {
+// WithV4PrefixLimit sets the IPv4 prefix limits on the neighbor.
+func (pg *PeerGroup) WithV4PrefixLimit(maxPrefixes uint32, opts PrefixLimitOptions) *PeerGroup {
 	ploc := pg.oc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
-	if pl.MaxPrefixes > 0 {
-		ploc.MaxPrefixes = ygot.Uint32(pl.MaxPrefixes)
+	ploc.MaxPrefixes = ygot.Uint32(maxPrefixes)
+	ploc.PreventTeardown = ygot.Bool(opts.PreventTeardown)
+	if opts.RestartTimer != 0 {
+		ploc.RestartTimer = ygot.Float64(opts.RestartTimer.Seconds())
 	}
-	ploc.PreventTeardown = ygot.Bool(pl.PreventTeardown)
-	if pl.RestartTimer != 0 {
-		ploc.RestartTimer = ygot.Float64(pl.RestartTimer.Seconds())
-	}
-	if pl.WarningThresholdPct > 0 {
-		ploc.WarningThresholdPct = ygot.Uint8(pl.WarningThresholdPct)
+	if opts.WarningThresholdPct > 0 {
+		ploc.WarningThresholdPct = ygot.Uint8(opts.WarningThresholdPct)
 	}
 	return pg
 }
 
-// WithTimers sets the timers on the peer-group.
-func (pg *PeerGroup) WithTimers(t Timers) *PeerGroup {
+// WithKeepAliveInterval sets the keep-alive and hold timers on the neighbor.
+func (pg *PeerGroup) WithKeepAliveInterval(keepalive, hold time.Duration) *PeerGroup {
 	toc := pg.oc.GetOrCreateTimers()
-	if t.MinimumAdvertisementInterval != 0 {
-		toc.MinimumAdvertisementInterval = ygot.Float64(t.MinimumAdvertisementInterval.Seconds())
-	}
-	if t.HoldTime != 0 {
-		toc.HoldTime = ygot.Float64(t.HoldTime.Seconds())
-	}
-	if t.KeepaliveInterval != 0 {
-		toc.KeepaliveInterval = ygot.Float64(t.KeepaliveInterval.Seconds())
-	}
-	if t.ConnectRetry != 0 {
-		toc.ConnectRetry = ygot.Float64(t.ConnectRetry.Seconds())
-	}
+	toc.HoldTime = ygot.Float64(hold.Seconds())
+	toc.KeepaliveInterval = ygot.Float64(keepalive.Seconds())
+	return pg
+}
+
+// WithMinimumAdvertisementInterval sets the minimum advertisement interval timer on the neighbor.
+func (pg *PeerGroup) WithMinimumAdvertisementInterval(mdi time.Duration) *PeerGroup {
+	pg.oc.GetOrCreateTimers().MinimumAdvertisementInterval = ygot.Float64(mdi.Seconds())
+	return pg
+}
+
+// WithConnectRetry sets the connect-retry timer on the neighbor.
+func (pg *PeerGroup) WithConnectRetry(cr time.Duration) *PeerGroup {
+	pg.oc.GetOrCreateTimers().ConnectRetry = ygot.Float64(cr.Seconds())
 	return pg
 }
 

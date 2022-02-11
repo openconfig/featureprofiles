@@ -61,7 +61,7 @@ func TestName(t *testing.T) {
 func TestPGWithAFISAFI(t *testing.T) {
 	afisafi := oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
 	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-		PeerGroupName: ygot.String("GLOBAL-PEER"),
+		PeerGroupName: ygot.String(peerGroupName),
 		AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
 			afisafi: {
 				AfiSafiName: afisafi,
@@ -85,7 +85,7 @@ func TestPGWithAFISAFI(t *testing.T) {
 func TestPGWithAuthPassword(t *testing.T) {
 	pwd := "foobar"
 	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-		PeerGroupName: ygot.String("GLOBAL-PEER"),
+		PeerGroupName: ygot.String(peerGroupName),
 		AuthPassword:  ygot.String(pwd),
 	}
 
@@ -104,7 +104,7 @@ func TestPGWithAuthPassword(t *testing.T) {
 func TestPGWithDescription(t *testing.T) {
 	desc := "foobar"
 	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-		PeerGroupName: ygot.String("GLOBAL-PEER"),
+		PeerGroupName: ygot.String(peerGroupName),
 		Description:   ygot.String(desc),
 	}
 
@@ -119,89 +119,85 @@ func TestPGWithDescription(t *testing.T) {
 	}
 }
 
-// TestPGWithTransport tests setting auth-password for BGP global.
-func TestPGWithTransport(t *testing.T) {
-	tests := []struct {
-		desc      string
-		transport Transport
-		want      *oc.NetworkInstance_Protocol_Bgp_PeerGroup
-	}{{
-		desc: "passive mode set",
-		transport: Transport{
-			PassiveMode: true,
+// TestPGWithTransportPassiveMode tests transport passive-mode for BGP neighbor.
+func TestPGWithTransportPassiveMode(t *testing.T) {
+	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		PeerGroupName: ygot.String(peerGroupName),
+		Transport: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Transport{
+			PassiveMode: ygot.Bool(true),
 		},
-		want: func() *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
-			oc := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				PeerGroupName: ygot.String("GLOBAL-PEER"),
-			}
-			toc := oc.GetOrCreateTransport()
-			toc.PassiveMode = ygot.Bool(true)
-			toc.MtuDiscovery = ygot.Bool(false)
-			return oc
-		}(),
-	}, {
-		desc: "TCP MSS",
-		transport: Transport{
-			TCPMSS: 1234,
-		},
-		want: func() *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
-			oc := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				PeerGroupName: ygot.String("GLOBAL-PEER"),
-			}
-			toc := oc.GetOrCreateTransport()
-			toc.TcpMss = ygot.Uint16(1234)
-			toc.PassiveMode = ygot.Bool(false)
-			toc.MtuDiscovery = ygot.Bool(false)
-			return oc
-		}(),
-	}, {
-		desc: "MTU Discovery",
-		transport: Transport{
-			MTUDiscovery: true,
-		},
-		want: func() *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
-			oc := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				PeerGroupName: ygot.String("GLOBAL-PEER"),
-			}
-			toc := oc.GetOrCreateTransport()
-			toc.MtuDiscovery = ygot.Bool(true)
-			toc.PassiveMode = ygot.Bool(false)
-			return oc
-		}(),
-	}, {
-		desc: "Local address",
-		transport: Transport{
-			LocalAddress: "GLOBAL-PEER",
-		},
-		want: func() *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
-			oc := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				PeerGroupName: ygot.String("GLOBAL-PEER"),
-			}
-			toc := oc.GetOrCreateTransport()
-			toc.MtuDiscovery = ygot.Bool(false)
-			toc.PassiveMode = ygot.Bool(false)
-			toc.LocalAddress = ygot.String("GLOBAL-PEER")
-			return oc
-		}(),
-	}}
+	}
 
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			n := &PeerGroup{
-				oc: oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-					PeerGroupName: ygot.String("GLOBAL-PEER"),
-				},
-			}
+	n := newPeerGroup()
+	res := n.WithTransportPassiveMode(true)
+	if res == nil {
+		t.Fatalf("WithTransportPassiveMode returned nil")
+	}
 
-			res := n.WithTransport(test.transport)
-			if res == nil {
-				t.Fatalf("WithTransport returned nil")
-			}
+	if diff := cmp.Diff(want, res.oc); diff != "" {
+		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+	}
+}
 
-			if diff := cmp.Diff(test.want, &res.oc); diff != "" {
-				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
-			}
-		})
+// TestPGWithTransportTCPMSS tests transport tcp-mss for BGP neighbor.
+func TestPGWithTransportTCPMSS(t *testing.T) {
+	tcpmss := uint16(12345)
+	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		PeerGroupName: ygot.String(peerGroupName),
+		Transport: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Transport{
+			TcpMss: ygot.Uint16(tcpmss),
+		},
+	}
+
+	n := newPeerGroup()
+	res := n.WithTransportTCPMSS(tcpmss)
+	if res == nil {
+		t.Fatalf("WithTransportTCPMSS returned nil")
+	}
+
+	if diff := cmp.Diff(want, res.oc); diff != "" {
+		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+	}
+}
+
+// TestPGWithTransportMTUDiscovery tests transport mtu-discovery for BGP neighbor.
+func TestPGWithTransportMTUDiscovery(t *testing.T) {
+	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		PeerGroupName: ygot.String(peerGroupName),
+		Transport: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Transport{
+			MtuDiscovery: ygot.Bool(true),
+		},
+	}
+
+	n := newPeerGroup()
+	res := n.WithTransportMTUDiscovery(true)
+	if res == nil {
+		t.Fatalf("WithTransportMTUDiscovery returned nil")
+	}
+
+	if diff := cmp.Diff(want, res.oc); diff != "" {
+		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+	}
+}
+
+// TestPGWithTransportLocalAddress tests transport mtu-discovery for BGP neighbor.
+func TestPGWithTransportLocalAddress(t *testing.T) {
+	localAddr := "1.2.3.4"
+	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		PeerGroupName: ygot.String(peerGroupName),
+		Transport: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Transport{
+			LocalAddress: ygot.String(localAddr),
+		},
+	}
+
+	n := newPeerGroup()
+	res := n.WithTransportLocalAddress(localAddr)
+	if res == nil {
+		t.Fatalf("WithTransportLocalAddress returned nil")
+	}
+
+	if diff := cmp.Diff(want, res.oc); diff != "" {
+		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
 
@@ -209,7 +205,7 @@ func TestPGWithTransport(t *testing.T) {
 func TestPGWithLocalAS(t *testing.T) {
 	as := uint32(1234)
 	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-		PeerGroupName: ygot.String("GLOBAL-PEER"),
+		PeerGroupName: ygot.String(peerGroupName),
 		LocalAs:       ygot.Uint32(as),
 	}
 
@@ -228,7 +224,7 @@ func TestPGWithLocalAS(t *testing.T) {
 func TestPGWithPeerAS(t *testing.T) {
 	as := uint32(1234)
 	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-		PeerGroupName: ygot.String("GLOBAL-PEER"),
+		PeerGroupName: ygot.String(peerGroupName),
 		PeerAs:        ygot.Uint32(as),
 	}
 
@@ -247,7 +243,7 @@ func TestPGWithPeerAS(t *testing.T) {
 func TestPGWithPeerType(t *testing.T) {
 	pt := oc.BgpTypes_PeerType_EXTERNAL
 	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-		PeerGroupName: ygot.String("GLOBAL-PEER"),
+		PeerGroupName: ygot.String(peerGroupName),
 		PeerType:      pt,
 	}
 
@@ -266,7 +262,7 @@ func TestPGWithPeerType(t *testing.T) {
 func TestPGWithRemovePrivateAS(t *testing.T) {
 	val := oc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL
 	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-		PeerGroupName:   ygot.String("GLOBAL-PEER"),
+		PeerGroupName:   ygot.String(peerGroupName),
 		RemovePrivateAs: val,
 	}
 
@@ -285,7 +281,7 @@ func TestPGWithRemovePrivateAS(t *testing.T) {
 func TestPGWithSendCommunity(t *testing.T) {
 	val := oc.BgpTypes_CommunityType_BOTH
 	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-		PeerGroupName: ygot.String("GLOBAL-PEER"),
+		PeerGroupName: ygot.String(peerGroupName),
 		SendCommunity: val,
 	}
 
@@ -300,73 +296,74 @@ func TestPGWithSendCommunity(t *testing.T) {
 	}
 }
 
-// TestPGWithV4PrefixLimit tests setting auth-password for BGP global.
+// TestPGWithV4PrefixLimit tests setting auth-password for BGP neighbor.
 func TestPGWithV4PrefixLimit(t *testing.T) {
+	maxPrefixes := uint32(2000)
 	tests := []struct {
 		desc string
-		pl   PrefixLimit
+		pl   PrefixLimitOptions
 		want *oc.NetworkInstance_Protocol_Bgp_PeerGroup
 	}{{
-		desc: "max prefixes",
-		pl: PrefixLimit{
-			MaxPrefixes: 2000,
-		},
+		desc: "max prefixes only",
 		want: func() *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
 			noc := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				PeerGroupName: ygot.String("GLOBAL-PEER"),
+				PeerGroupName: ygot.String(peerGroupName),
 			}
 			ploc := noc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
-			ploc.MaxPrefixes = ygot.Uint32(2000)
+			ploc.MaxPrefixes = ygot.Uint32(maxPrefixes)
 			ploc.PreventTeardown = ygot.Bool(false)
 			return noc
 		}(),
 	}, {
 		desc: "Prevent teardown",
-		pl: PrefixLimit{
+		pl: PrefixLimitOptions{
 			PreventTeardown: true,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
 			noc := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				PeerGroupName: ygot.String("GLOBAL-PEER"),
+				PeerGroupName: ygot.String(peerGroupName),
 			}
 			ploc := noc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
+			ploc.MaxPrefixes = ygot.Uint32(maxPrefixes)
 			ploc.PreventTeardown = ygot.Bool(true)
 			return noc
 		}(),
 	}, {
 		desc: "Restart timer",
-		pl: PrefixLimit{
+		pl: PrefixLimitOptions{
 			RestartTimer: 5 * time.Second,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
 			noc := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				PeerGroupName: ygot.String("GLOBAL-PEER"),
+				PeerGroupName: ygot.String(peerGroupName),
 			}
 			ploc := noc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
-			ploc.PreventTeardown = ygot.Bool(false)
+			ploc.MaxPrefixes = ygot.Uint32(maxPrefixes)
 			ploc.RestartTimer = ygot.Float64(float64(5))
+			ploc.PreventTeardown = ygot.Bool(false)
 			return noc
 		}(),
 	}, {
 		desc: "Warning threshold",
-		pl: PrefixLimit{
+		pl: PrefixLimitOptions{
 			WarningThresholdPct: 90,
 		},
 		want: func() *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
 			noc := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				PeerGroupName: ygot.String("GLOBAL-PEER"),
+				PeerGroupName: ygot.String(peerGroupName),
 			}
 			ploc := noc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
-			ploc.PreventTeardown = ygot.Bool(false)
+			ploc.MaxPrefixes = ygot.Uint32(maxPrefixes)
 			ploc.WarningThresholdPct = ygot.Uint8(90)
+			ploc.PreventTeardown = ygot.Bool(false)
 			return noc
 		}(),
 	}}
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			pg := newPeerGroup()
-			res := pg.WithV4PrefixLimit(test.pl)
+			n := newPeerGroup()
+			res := n.WithV4PrefixLimit(maxPrefixes, test.pl)
 			if res == nil {
 				t.Fatalf("WithV4PrefixLimit returned nil")
 			}
@@ -378,78 +375,68 @@ func TestPGWithV4PrefixLimit(t *testing.T) {
 	}
 }
 
-// TestPGWithTimers tests setting auth-password for BGP global.
-func TestPGWithTimers(t *testing.T) {
-	tests := []struct {
-		desc   string
-		timers Timers
-		want   *oc.NetworkInstance_Protocol_Bgp_PeerGroup
-	}{{
-		desc: "min advertisement interval",
-		timers: Timers{
-			MinimumAdvertisementInterval: 5 * time.Second,
+// TestPGWithKeepAliveInterval tests setting keep-alive for BGP neighbor.
+func TestPGWithKeepAliveInterval(t *testing.T) {
+	keepalive := 5 * time.Second
+	hold := 15 * time.Second
+	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		PeerGroupName: ygot.String(peerGroupName),
+		Timers: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
+			HoldTime:          ygot.Float64(hold.Seconds()),
+			KeepaliveInterval: ygot.Float64(keepalive.Seconds()),
 		},
-		want: func() *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
-			noc := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				PeerGroupName: ygot.String("GLOBAL-PEER"),
-			}
-			timersoc := noc.GetOrCreateTimers()
-			timersoc.MinimumAdvertisementInterval = ygot.Float64(float64(5))
-			return noc
-		}(),
-	}, {
-		desc: "hold time",
-		timers: Timers{
-			HoldTime: 5 * time.Second,
-		},
-		want: func() *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
-			noc := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				PeerGroupName: ygot.String("GLOBAL-PEER"),
-			}
-			timersoc := noc.GetOrCreateTimers()
-			timersoc.HoldTime = ygot.Float64(float64(5))
-			return noc
-		}(),
-	}, {
-		desc: "Keepalive interval",
-		timers: Timers{
-			KeepaliveInterval: 5 * time.Second,
-		},
-		want: func() *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
-			noc := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				PeerGroupName: ygot.String("GLOBAL-PEER"),
-			}
-			timersoc := noc.GetOrCreateTimers()
-			timersoc.KeepaliveInterval = ygot.Float64(float64(5))
-			return noc
-		}(),
-	}, {
-		desc: "Connect Retry",
-		timers: Timers{
-			ConnectRetry: 5 * time.Second,
-		},
-		want: func() *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
-			noc := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				PeerGroupName: ygot.String("GLOBAL-PEER"),
-			}
-			timersoc := noc.GetOrCreateTimers()
-			timersoc.ConnectRetry = ygot.Float64(float64(5))
-			return noc
-		}(),
-	}}
+	}
 
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			pg := newPeerGroup()
-			res := pg.WithTimers(test.timers)
-			if res == nil {
-				t.Fatalf("WithTimers returned nil")
-			}
+	n := newPeerGroup()
+	res := n.WithKeepAliveInterval(keepalive, hold)
+	if res == nil {
+		t.Fatalf("WithKeepAliveInterval returned nil")
+	}
 
-			if diff := cmp.Diff(test.want, &res.oc); diff != "" {
-				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
-			}
-		})
+	if diff := cmp.Diff(want, res.oc); diff != "" {
+		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+	}
+}
+
+// TestPGWithMinimumAdvertisementInterval tests setting keep-alive for BGP neighbor.
+func TestPGWithMinimumAdvertisementInterval(t *testing.T) {
+	minAdvIntv := 5 * time.Second
+	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		PeerGroupName: ygot.String(peerGroupName),
+		Timers: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
+			MinimumAdvertisementInterval: ygot.Float64(minAdvIntv.Seconds()),
+		},
+	}
+
+	n := newPeerGroup()
+	res := n.WithMinimumAdvertisementInterval(minAdvIntv)
+	if res == nil {
+		t.Fatalf("WithMinimumAdvertisementInterval returned nil")
+	}
+
+	if diff := cmp.Diff(want, res.oc); diff != "" {
+		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+	}
+}
+
+// TestPGWithConnectRetry tests setting keep-alive for BGP neighbor.
+func TestPGWithConnectRetry(t *testing.T) {
+	connectRetry := 5 * time.Second
+	want := oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		PeerGroupName: ygot.String(peerGroupName),
+		Timers: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
+			ConnectRetry: ygot.Float64(connectRetry.Seconds()),
+		},
+	}
+
+	n := newPeerGroup()
+	res := n.WithConnectRetry(connectRetry)
+	if res == nil {
+		t.Fatalf("WithConnectRetry returned nil")
+	}
+
+	if diff := cmp.Diff(want, res.oc); diff != "" {
+		t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 	}
 }
 
@@ -466,7 +453,7 @@ func TestPGAugmentBGP(t *testing.T) {
 		desc: "BGP contains neighbor",
 		bgp: func() *oc.NetworkInstance_Protocol_Bgp {
 			n := &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				PeerGroupName: ygot.String("GLOBAL-PEER"),
+				PeerGroupName: ygot.String(peerGroupName),
 			}
 			nibgp := &oc.NetworkInstance_Protocol_Bgp{}
 			if err := nibgp.AppendPeerGroup(n); err != nil {
@@ -481,7 +468,7 @@ func TestPGAugmentBGP(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			l := &PeerGroup{
 				oc: oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-					PeerGroupName: ygot.String("GLOBAL-PEER"),
+					PeerGroupName: ygot.String(peerGroupName),
 				},
 			}
 			dcopy, err := ygot.DeepCopy(test.bgp)
@@ -535,7 +522,7 @@ func TestPeerGroupWithFeature(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		n := NewPeerGroup("GLOBAL-PEER")
+		n := NewPeerGroup(peerGroupName)
 		ff := &FakePeerGroupFeature{Err: test.err}
 		gotErr := n.WithFeature(ff)
 		if !ff.augmentCalled {

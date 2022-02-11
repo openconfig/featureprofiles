@@ -72,25 +72,27 @@ func (n *Neighbor) WithDescription(desc string) *Neighbor {
 	return n
 }
 
-// Transport struct to hold transport attributes.
-type Transport struct {
-	PassiveMode  bool
-	TCPMSS       uint16
-	MTUDiscovery bool
-	LocalAddress string
+// WithTransportPassiveMode sets the transport passive-mode on neighbor.
+func (n *Neighbor) WithTransportPassiveMode(pm bool) *Neighbor {
+	n.oc.GetOrCreateTransport().PassiveMode = ygot.Bool(pm)
+	return n
 }
 
-// WithTransport sets the transport attributes on neighbor.
-func (n *Neighbor) WithTransport(t Transport) *Neighbor {
-	toc := n.oc.GetOrCreateTransport()
-	toc.PassiveMode = ygot.Bool(t.PassiveMode)
-	if t.TCPMSS > 0 {
-		toc.TcpMss = ygot.Uint16(t.TCPMSS)
-	}
-	toc.MtuDiscovery = ygot.Bool(t.MTUDiscovery)
-	if t.LocalAddress != "" {
-		toc.LocalAddress = ygot.String(t.LocalAddress)
-	}
+// WithTransportTCPMSS sets the transport tcp-mss on neighbor.
+func (n *Neighbor) WithTransportTCPMSS(mss uint16) *Neighbor {
+	n.oc.GetOrCreateTransport().TcpMss = ygot.Uint16(mss)
+	return n
+}
+
+// WithTransportMTUDiscovery sets the transport mtu-discovery on neighbor.
+func (n *Neighbor) WithTransportMTUDiscovery(md bool) *Neighbor {
+	n.oc.GetOrCreateTransport().MtuDiscovery = ygot.Bool(md)
+	return n
+}
+
+// WithTransportLocalAddress sets the transport local-address on neighbor.
+func (n *Neighbor) WithTransportLocalAddress(la string) *Neighbor {
+	n.oc.GetOrCreateTransport().LocalAddress = ygot.String(la)
 	return n
 }
 
@@ -124,53 +126,44 @@ func (n *Neighbor) WithSendCommunity(sc oc.E_BgpTypes_CommunityType) *Neighbor {
 	return n
 }
 
-// PrefixLimit struct to hold prefix limit attributes.
-type PrefixLimit struct {
-	MaxPrefixes         uint32
+// PrefixLimitOptions struct to hold prefix limit options.
+type PrefixLimitOptions struct {
 	PreventTeardown     bool
 	RestartTimer        time.Duration
 	WarningThresholdPct uint8
 }
 
 // WithV4PrefixLimit sets the IPv4 prefix limits on the neighbor.
-func (n *Neighbor) WithV4PrefixLimit(pl PrefixLimit) *Neighbor {
+func (n *Neighbor) WithV4PrefixLimit(maxPrefixes uint32, opts PrefixLimitOptions) *Neighbor {
 	ploc := n.oc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
-	if pl.MaxPrefixes > 0 {
-		ploc.MaxPrefixes = ygot.Uint32(pl.MaxPrefixes)
+	ploc.MaxPrefixes = ygot.Uint32(maxPrefixes)
+	ploc.PreventTeardown = ygot.Bool(opts.PreventTeardown)
+	if opts.RestartTimer != 0 {
+		ploc.RestartTimer = ygot.Float64(opts.RestartTimer.Seconds())
 	}
-	ploc.PreventTeardown = ygot.Bool(pl.PreventTeardown)
-	if pl.RestartTimer != 0 {
-		ploc.RestartTimer = ygot.Float64(pl.RestartTimer.Seconds())
-	}
-	if pl.WarningThresholdPct > 0 {
-		ploc.WarningThresholdPct = ygot.Uint8(pl.WarningThresholdPct)
+	if opts.WarningThresholdPct > 0 {
+		ploc.WarningThresholdPct = ygot.Uint8(opts.WarningThresholdPct)
 	}
 	return n
 }
 
-// Timer struct to hold timer attributes.
-type Timers struct {
-	MinimumAdvertisementInterval time.Duration
-	HoldTime                     time.Duration
-	KeepaliveInterval            time.Duration
-	ConnectRetry                 time.Duration
+// WithKeepAliveInterval sets the keep-alive and hold timers on the neighbor.
+func (n *Neighbor) WithKeepAliveInterval(keepalive, hold time.Duration) *Neighbor {
+	toc := n.oc.GetOrCreateTimers()
+	toc.HoldTime = ygot.Float64(hold.Seconds())
+	toc.KeepaliveInterval = ygot.Float64(keepalive.Seconds())
+	return n
 }
 
-// WithTimers sets the timers on the neighbor.
-func (n *Neighbor) WithTimers(t Timers) *Neighbor {
-	toc := n.oc.GetOrCreateTimers()
-	if t.MinimumAdvertisementInterval != 0 {
-		toc.MinimumAdvertisementInterval = ygot.Float64(t.MinimumAdvertisementInterval.Seconds())
-	}
-	if t.HoldTime != 0 {
-		toc.HoldTime = ygot.Float64(t.HoldTime.Seconds())
-	}
-	if t.KeepaliveInterval != 0 {
-		toc.KeepaliveInterval = ygot.Float64(t.KeepaliveInterval.Seconds())
-	}
-	if t.ConnectRetry != 0 {
-		toc.ConnectRetry = ygot.Float64(t.ConnectRetry.Seconds())
-	}
+// WithMinimumAdvertisementInterval sets the minimum advertisement interval timer on the neighbor.
+func (n *Neighbor) WithMinimumAdvertisementInterval(mdi time.Duration) *Neighbor {
+	n.oc.GetOrCreateTimers().MinimumAdvertisementInterval = ygot.Float64(mdi.Seconds())
+	return n
+}
+
+// WithConnectRetry sets the connect-retry timer on the neighbor.
+func (n *Neighbor) WithConnectRetry(cr time.Duration) *Neighbor {
+	n.oc.GetOrCreateTimers().ConnectRetry = ygot.Float64(cr.Seconds())
 	return n
 }
 
