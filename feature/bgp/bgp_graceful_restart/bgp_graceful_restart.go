@@ -14,9 +14,9 @@
  limitations under the License.
 */
 
-// Package bgpgracefulrestart implements the Config Library for BGP graceful
+// Package bgpgr implements the Config Library for BGP graceful
 // restart feature profile.
-package bgpgracefulrestart
+package bgpgr
 
 import (
 	"errors"
@@ -67,6 +67,9 @@ func (gr *GracefulRestart) AugmentNeighbor(n *oc.NetworkInstance_Protocol_Bgp_Ne
 	if n.GracefulRestart != nil {
 		return errors.New("neighbor GracefulRestart field is not nil")
 	}
+	if err := gr.noc.Validate(); err != nil {
+		return err
+	}
 	n.GracefulRestart = &gr.noc
 	return nil
 }
@@ -77,6 +80,9 @@ func (gr *GracefulRestart) AugmentNeighbor(n *oc.NetworkInstance_Protocol_Bgp_Ne
 func (gr *GracefulRestart) AugmentPeerGroup(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup) error {
 	if pg.GracefulRestart != nil {
 		return errors.New("peer-group GracefulRestart field is not nil")
+	}
+	if err := gr.poc.Validate(); err != nil {
+		return err
 	}
 	pg.GracefulRestart = &gr.poc
 	return nil
