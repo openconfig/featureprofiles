@@ -17,8 +17,10 @@
 package device
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -29,7 +31,6 @@ import (
 	networkinstance "github.com/openconfig/featureprofiles/feature/network_instance/network_instance_base/go"
 	"github.com/openconfig/featureprofiles/yang/oc"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -98,13 +99,15 @@ func TestMerge(t *testing.T) {
 // TestFullReplaceRequest tests the FullReplaceRequest method.
 func TestFullReplaceRequest(t *testing.T) {
 	tests := []struct {
-		name   string
-		device *Device
+		name     string
+		device   *Device
+		wantJSON string
 	}{{
 		name: "empty struct",
 		device: func() *Device {
 			return New()
 		}(),
+		wantJSON: "{}",
 	}, {
 		name: "device with basic LLDP and BGP",
 		device: func() *Device {
@@ -123,6 +126,13 @@ func TestFullReplaceRequest(t *testing.T) {
 			}
 			return d
 		}(),
+		wantJSON: func() string {
+			replReqData, err := os.ReadFile("testdata/full_replace_request.json")
+			if err != nil {
+				t.Fatalf("file read failed %v", err)
+			}
+			return string(bytes.TrimRight(replReqData, "\n"))
+		}(),
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -131,18 +141,17 @@ func TestFullReplaceRequest(t *testing.T) {
 				t.Fatalf("%s: FullReplaceRequest(%v): got unexpected error: %v", tt.name, tt.device, err)
 			}
 
-			val, err := ygot.EncodeTypedValue(&tt.device.oc, gnmipb.Encoding_JSON_IETF)
-			if err != nil {
-				t.Fatalf("EncodeTypedValue failed with error %v", err)
-			}
-
 			want := &gnmipb.SetRequest{
 				Replace: []*gnmipb.Update{{
 					Path: &gnmipb.Path{
 						Origin: "openconfig",
 						Elem:   []*gnmipb.PathElem{},
 					},
-					Val: val,
+					Val: &gnmipb.TypedValue{
+						Value: &gnmipb.TypedValue_JsonIetfVal{
+							JsonIetfVal: []byte(tt.wantJSON),
+						},
+					},
 				}},
 			}
 
