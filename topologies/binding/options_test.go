@@ -149,14 +149,14 @@ func TestResolver(t *testing.T) {
 	r := resolverBinding
 	cases := []struct {
 		name string
-		fn   func(id string) (options, error)
+		fn   func(id string) (dialer, error)
 		id   string
-		want options
+		want dialer
 	}{{
 		name: "ssh",
 		fn:   r.ssh,
 		id:   "dut",
-		want: options{&bindpb.Options{
+		want: dialer{&bindpb.Options{
 			Target:   "dut.name",
 			Username: "global.username",
 			Password: "ssh.password",
@@ -165,7 +165,7 @@ func TestResolver(t *testing.T) {
 		name: "gnmi",
 		fn:   r.gnmi,
 		id:   "dut",
-		want: options{&bindpb.Options{
+		want: dialer{&bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gnmiPort),
 			Username: "global.username",
 			Password: "gnmi.password",
@@ -174,7 +174,7 @@ func TestResolver(t *testing.T) {
 		name: "gnoi",
 		fn:   r.gnoi,
 		id:   "dut",
-		want: options{&bindpb.Options{
+		want: dialer{&bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gnoiPort),
 			Username: "global.username",
 			Password: "gnoi.password",
@@ -183,7 +183,7 @@ func TestResolver(t *testing.T) {
 		name: "gnsi",
 		fn:   r.gnsi,
 		id:   "dut",
-		want: options{&bindpb.Options{
+		want: dialer{&bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gnsiPort),
 			Username: "global.username",
 			Password: "gnsi.password",
@@ -192,7 +192,7 @@ func TestResolver(t *testing.T) {
 		name: "gribi",
 		fn:   r.gribi,
 		id:   "dut",
-		want: options{&bindpb.Options{
+		want: dialer{&bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gribiPort),
 			Username: "global.username",
 			Password: "gribi.password",
@@ -201,7 +201,7 @@ func TestResolver(t *testing.T) {
 		name: "p4rt",
 		fn:   r.p4rt,
 		id:   "dut",
-		want: options{&bindpb.Options{
+		want: dialer{&bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*p4rtPort),
 			Username: "global.username",
 			Password: "p4rt.password",
@@ -210,7 +210,7 @@ func TestResolver(t *testing.T) {
 		name: "ixnetwork",
 		fn:   r.ixnetwork,
 		id:   "ate",
-		want: options{&bindpb.Options{
+		want: dialer{&bindpb.Options{
 			Target:   "ate.name",
 			Username: "ate.username",
 			Password: "ixnetwork.password",
@@ -219,7 +219,7 @@ func TestResolver(t *testing.T) {
 		name: "anotherdut",
 		fn:   r.ssh,
 		id:   "anotherdut",
-		want: options{&bindpb.Options{
+		want: dialer{&bindpb.Options{
 			Target:   "anotherdut.name",
 			Username: "global.username",
 			Password: "anotherdut.password",
@@ -228,7 +228,7 @@ func TestResolver(t *testing.T) {
 		name: "anotherate",
 		fn:   r.ixnetwork,
 		id:   "anotherate",
-		want: options{&bindpb.Options{
+		want: dialer{&bindpb.Options{
 			Target:   "anotherate.name",
 			Username: "global.username",
 			Password: "anotherate.password",
@@ -252,7 +252,7 @@ func TestResolver_Error(t *testing.T) {
 	r := resolverBinding
 	cases := []struct {
 		name   string
-		fn     func(id string) (options, error)
+		fn     func(id string) (dialer, error)
 		id     string
 		reason string
 	}{{
