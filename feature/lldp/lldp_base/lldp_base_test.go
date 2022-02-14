@@ -17,6 +17,7 @@
 package lldpbase
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -24,19 +25,16 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// TestLLDP tests the features of LLDP config.
-func TestLLDP(t *testing.T) {
+// TestAugmentDevice tests the features of LLDP config.
+func TestAugmentDevice(t *testing.T) {
 	tests := []struct {
 		desc       string
 		lldp       *LLDP
 		inDevice   *oc.Device
 		wantDevice *oc.Device
-		wantErr    bool
 	}{{
-		desc: "LLDP globally enabled",
-		lldp: func() *LLDP {
-			return New()
-		}(),
+		desc:     "LLDP globally enabled",
+		lldp:     New(),
 		inDevice: &oc.Device{},
 		wantDevice: &oc.Device{
 			Lldp: &oc.Lldp{
@@ -44,10 +42,8 @@ func TestLLDP(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "LLDP with single interface",
-		lldp: func() *LLDP {
-			return New().WithInterface("Ethernet1.1")
-		}(),
+		desc:     "LLDP with single interface",
+		lldp:     New().EnableInterface("Ethernet1.1"),
 		inDevice: &oc.Device{},
 		wantDevice: &oc.Device{
 			Lldp: &oc.Lldp{
@@ -61,10 +57,8 @@ func TestLLDP(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "LLDP with multiple interfaces",
-		lldp: func() *LLDP {
-			return New().WithInterface("Ethernet1.1").WithInterface("Ethernet1.2")
-		}(),
+		desc:     "LLDP with multiple interfaces",
+		lldp:     New().EnableInterface("Ethernet1.1").EnableInterface("Ethernet1.2"),
 		inDevice: &oc.Device{},
 		wantDevice: &oc.Device{
 			Lldp: &oc.Lldp{
@@ -82,32 +76,81 @@ func TestLLDP(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "Negative test: device already contains lldp so should error",
-		lldp: func() *LLDP {
-			return New()
-		}(),
+		desc: "Device contains non-overlapping LLDP config",
+		lldp: New().EnableInterface("Ethernet1.2"),
 		inDevice: &oc.Device{
 			Lldp: &oc.Lldp{
 				Enabled: ygot.Bool(true),
+				Interface: map[string]*oc.Lldp_Interface{
+					"Ethernet1.1": {
+						Name:    ygot.String("Ethernet1.1"),
+						Enabled: ygot.Bool(true),
+					},
+				},
 			},
 		},
-		wantErr: true,
+		wantDevice: &oc.Device{
+			Lldp: &oc.Lldp{
+				Enabled: ygot.Bool(true),
+				Interface: map[string]*oc.Lldp_Interface{
+					"Ethernet1.1": {
+						Name:    ygot.String("Ethernet1.1"),
+						Enabled: ygot.Bool(true),
+					},
+					"Ethernet1.2": {
+						Name:    ygot.String("Ethernet1.2"),
+						Enabled: ygot.Bool(true),
+					},
+				},
+			},
+		},
 	}}
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			err := test.lldp.AugmentDevice(test.inDevice)
-			if test.wantErr {
-				if err == nil {
-					t.Fatalf("error expected")
-				}
-			} else {
-				if err != nil {
-					t.Fatalf("error not expected")
-				}
-				if diff := cmp.Diff(test.wantDevice, test.inDevice); diff != "" {
-					t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
-				}
+			if err != nil {
+				t.Fatalf("error not expected")
+			}
+			if diff := cmp.Diff(test.wantDevice, test.inDevice); diff != "" {
+				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestAugmentDevice_Errors tests the error handling of AugmentDevice.
+func TestAugmentDevice_Errors(t *testing.T) {
+	tests := []struct {
+		desc          string
+		lldp          *LLDP
+		inDevice      *oc.Device
+		wantErrSubStr string
+	}{{
+		desc: "device already contains lldp so should error",
+		lldp: New().EnableInterface("Ethernet1.1"),
+		inDevice: &oc.Device{
+			Lldp: &oc.Lldp{
+				Enabled: ygot.Bool(true),
+				Interface: map[string]*oc.Lldp_Interface{
+					"Ethernet1.1": {
+						Name:    ygot.String("Ethernet1.1"),
+						Enabled: ygot.Bool(false),
+					},
+				},
+			},
+		},
+		wantErrSubStr: "destination value was set",
+	}}
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			err := test.lldp.AugmentDevice(test.inDevice)
+			if err == nil {
+				t.Fatalf("error expected")
+			}
+			if !strings.Contains(err.Error(), test.wantErrSubStr) {
+				t.Errorf("Error sub-string does not match: %v", err)
 			}
 		})
 	}

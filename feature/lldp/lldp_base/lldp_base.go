@@ -18,8 +18,6 @@
 package lldpbase
 
 import (
-	"errors"
-
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -38,8 +36,8 @@ func New() *LLDP {
 	}
 }
 
-// WithInterface enables LLDP on the specified interface.
-func (l *LLDP) WithInterface(name string) *LLDP {
+// EnableInterface enables LLDP on the specified interface.
+func (l *LLDP) EnableInterface(name string) *LLDP {
 	l.oc.GetOrCreateInterface(name).Enabled = ygot.Bool(true)
 	return l
 }
@@ -48,12 +46,12 @@ func (l *LLDP) WithInterface(name string) *LLDP {
 // This method augments the device OC with LLDP feature.
 // Use d.WithFeature(l) instead of calling this method directly.
 func (l *LLDP) AugmentDevice(d *oc.Device) error {
-	if d.Lldp != nil {
-		return errors.New("lldp OC is not nil")
-	}
 	if err := l.oc.Validate(); err != nil {
 		return err
 	}
-	d.Lldp = &l.oc
-	return nil
+	if d.Lldp == nil {
+		d.Lldp = &l.oc
+		return nil
+	}
+	return ygot.MergeStructInto(d.Lldp, &l.oc)
 }
