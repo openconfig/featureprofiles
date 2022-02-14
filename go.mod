@@ -27,6 +27,7 @@ require (
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/open-traffic-generator/snappi/gosnappi v0.7.12 // indirect
 	github.com/openconfig/gnoi v0.0.0-20220131192435-7dd3a95a4f1e // indirect
+	github.com/openconfig/gribi v0.1.1-0.20210423184541-ce37eb4ba92f // indirect
 	github.com/p4lang/p4runtime v1.3.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect

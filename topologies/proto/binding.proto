@@ -39,6 +39,9 @@ message Device {
   // overrideen by individual protocols.
   Options options = 3;
 
+  // Port bindings for this device.
+  repeated Port ports = 4;
+
   // Dial options for SSH (DUT only).
   Options ssh = 11;
 
@@ -79,4 +82,13 @@ message Options {
 
   // The password for authentication.
   string password = 5;
+}
+
+// Port binding.
+message Port {
+  // Port ID as it appears in the testbed.
+  string id = 1;
+
+  // The actual port name to be used for the binding.
+  string name = 2;
 }
