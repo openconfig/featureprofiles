@@ -34,7 +34,14 @@ type GracefulRestart struct {
 
 // New returs a new GracefulRestart object.
 func New() *GracefulRestart {
-	return &GracefulRestart{}
+	return &GracefulRestart{
+		noc: oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
+			Enabled: ygot.Bool(true),
+		},
+		poc: oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
+			Enabled: ygot.Bool(true),
+		},
+	}
 }
 
 // WithRestartTime sets the restart-time for graceful restart feature.
