@@ -31,22 +31,21 @@ func TestAugmentNeighbor(t *testing.T) {
 	tests := []struct {
 		desc         string
 		gr           *GracefulRestart
+		inNeighbor   *oc.NetworkInstance_Protocol_Bgp_Neighbor
 		wantNeighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor
 	}{{
-		desc: "No params",
-		gr: func() *GracefulRestart {
-			return New()
-		}(),
+		desc:       "GR enabled with no params",
+		gr:         New(),
+		inNeighbor: &oc.NetworkInstance_Protocol_Bgp_Neighbor{},
 		wantNeighbor: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
 				Enabled: ygot.Bool(true),
 			},
 		},
 	}, {
-		desc: "with restart-time",
-		gr: func() *GracefulRestart {
-			return New().WithRestartTime(5 * time.Second)
-		}(),
+		desc:       "With restart-time",
+		gr:         New().WithRestartTime(5 * time.Second),
+		inNeighbor: &oc.NetworkInstance_Protocol_Bgp_Neighbor{},
 		wantNeighbor: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
 				Enabled:     ygot.Bool(true),
@@ -54,10 +53,9 @@ func TestAugmentNeighbor(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "with stale-routes-time",
-		gr: func() *GracefulRestart {
-			return New().WithStaleRoutesTime(60 * time.Second)
-		}(),
+		desc:       "With stale-routes-time",
+		gr:         New().WithStaleRoutesTime(60 * time.Second),
+		inNeighbor: &oc.NetworkInstance_Protocol_Bgp_Neighbor{},
 		wantNeighbor: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
 				Enabled:         ygot.Bool(true),
@@ -65,10 +63,23 @@ func TestAugmentNeighbor(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "with helper-only",
-		gr: func() *GracefulRestart {
-			return New().WithHelperOnly(true)
-		}(),
+		desc:       "With helper-only",
+		gr:         New().WithHelperOnly(true),
+		inNeighbor: &oc.NetworkInstance_Protocol_Bgp_Neighbor{},
+		wantNeighbor: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
+			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
+				Enabled:    ygot.Bool(true),
+				HelperOnly: ygot.Bool(true),
+			},
+		},
+	}, {
+		desc: "Neighbor contains graceful-restart, no conflicts",
+		gr:   New().WithHelperOnly(true),
+		inNeighbor: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
+			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
+				Enabled: ygot.Bool(true),
+			},
+		},
 		wantNeighbor: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
 				Enabled:    ygot.Bool(true),
@@ -79,12 +90,11 @@ func TestAugmentNeighbor(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			inNeighbor := &oc.NetworkInstance_Protocol_Bgp_Neighbor{}
-			err := test.gr.AugmentNeighbor(inNeighbor)
+			err := test.gr.AugmentNeighbor(test.inNeighbor)
 			if err != nil {
 				t.Fatalf("Error not expected: %v", err)
 			}
-			if diff := cmp.Diff(test.wantNeighbor, inNeighbor); diff != "" {
+			if diff := cmp.Diff(test.wantNeighbor, test.inNeighbor); diff != "" {
 				t.Errorf("Did not get expected state, diff(-want,+got):\n%s", diff)
 			}
 		})
@@ -99,16 +109,14 @@ func TestAugmentNeighbor_Errors(t *testing.T) {
 		inNeighbor    *oc.NetworkInstance_Protocol_Bgp_Neighbor
 		wantErrSubStr string
 	}{{
-		desc: "Neighbor already contains GR",
-		gr: func() *GracefulRestart {
-			return New()
-		}(),
+		desc: "Neighbor contains GR with conflicts",
+		gr:   New(),
 		inNeighbor: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
-				Enabled: ygot.Bool(true),
+				Enabled: ygot.Bool(false),
 			},
 		},
-		wantErrSubStr: "field is not nil",
+		wantErrSubStr: "destination value was set",
 	}}
 
 	for _, test := range tests {
@@ -118,7 +126,7 @@ func TestAugmentNeighbor_Errors(t *testing.T) {
 				t.Fatalf("Error expected")
 			}
 			if !strings.Contains(err.Error(), test.wantErrSubStr) {
-				t.Errorf("Error strings are not equal; got %v", err)
+				t.Errorf("Error strings are not equal: %v", err)
 			}
 		})
 	}
@@ -129,22 +137,21 @@ func TestAugmentPeerGroup(t *testing.T) {
 	tests := []struct {
 		desc   string
 		gr     *GracefulRestart
+		inPG   *oc.NetworkInstance_Protocol_Bgp_PeerGroup
 		wantPG *oc.NetworkInstance_Protocol_Bgp_PeerGroup
 	}{{
-		desc: "No params",
-		gr: func() *GracefulRestart {
-			return New()
-		}(),
+		desc: "GR enabled with no params",
+		gr:   New(),
+		inPG: &oc.NetworkInstance_Protocol_Bgp_PeerGroup{},
 		wantPG: &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
 			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
 				Enabled: ygot.Bool(true),
 			},
 		},
 	}, {
-		desc: "with restart-time",
-		gr: func() *GracefulRestart {
-			return New().WithRestartTime(5 * time.Second)
-		}(),
+		desc: "With restart-time",
+		gr:   New().WithRestartTime(5 * time.Second),
+		inPG: &oc.NetworkInstance_Protocol_Bgp_PeerGroup{},
 		wantPG: &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
 			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
 				Enabled:     ygot.Bool(true),
@@ -152,10 +159,9 @@ func TestAugmentPeerGroup(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "with stale-routes-time",
-		gr: func() *GracefulRestart {
-			return New().WithStaleRoutesTime(60 * time.Second)
-		}(),
+		desc: "With stale-routes-time",
+		gr:   New().WithStaleRoutesTime(60 * time.Second),
+		inPG: &oc.NetworkInstance_Protocol_Bgp_PeerGroup{},
 		wantPG: &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
 			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
 				Enabled:         ygot.Bool(true),
@@ -163,10 +169,23 @@ func TestAugmentPeerGroup(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "with helper-only",
-		gr: func() *GracefulRestart {
-			return New().WithHelperOnly(true)
-		}(),
+		desc: "With helper-only",
+		gr:   New().WithHelperOnly(true),
+		inPG: &oc.NetworkInstance_Protocol_Bgp_PeerGroup{},
+		wantPG: &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
+				Enabled:    ygot.Bool(true),
+				HelperOnly: ygot.Bool(true),
+			},
+		},
+	}, {
+		desc: "Peer-group contains GR, no conflicts",
+		gr:   New().WithHelperOnly(true),
+		inPG: &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
+				Enabled: ygot.Bool(true),
+			},
+		},
 		wantPG: &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
 			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
 				Enabled:    ygot.Bool(true),
@@ -197,16 +216,14 @@ func TestAugmentPeerGroup_Errors(t *testing.T) {
 		inPG          *oc.NetworkInstance_Protocol_Bgp_PeerGroup
 		wantErrSubStr string
 	}{{
-		desc: "PeerGroup already contains GR",
-		gr: func() *GracefulRestart {
-			return New()
-		}(),
+		desc: "PeerGroup contains GR with conflicts",
+		gr:   New(),
 		inPG: &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
 			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
-				Enabled: ygot.Bool(true),
+				Enabled: ygot.Bool(false),
 			},
 		},
-		wantErrSubStr: "field is not nil",
+		wantErrSubStr: "destination value was set",
 	}}
 
 	for _, test := range tests {

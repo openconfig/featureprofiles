@@ -19,7 +19,6 @@
 package bgpgr
 
 import (
-	"errors"
 	"time"
 
 	"github.com/openconfig/featureprofiles/yang/oc"
@@ -71,26 +70,26 @@ func (gr *GracefulRestart) WithHelperOnly(val bool) *GracefulRestart {
 // This method augments the BGP neighbor with graceful restart feature.
 // Use n.WithFeature(gr) instead of calling this method directly.
 func (gr *GracefulRestart) AugmentNeighbor(n *oc.NetworkInstance_Protocol_Bgp_Neighbor) error {
-	if n.GracefulRestart != nil {
-		return errors.New("neighbor GracefulRestart field is not nil")
-	}
 	if err := gr.noc.Validate(); err != nil {
 		return err
 	}
-	n.GracefulRestart = &gr.noc
-	return nil
+	if n.GracefulRestart == nil {
+		n.GracefulRestart = &gr.noc
+		return nil
+	}
+	return ygot.MergeStructInto(n.GracefulRestart, &gr.noc)
 }
 
 // AugmentPeerGroup implements the bgp.PeerGroupFeature interface.
 // This method augments the BGP peer-group with graceful restart feature.
 // Use pg.WithFeature(gr) instead of calling this method directly.
 func (gr *GracefulRestart) AugmentPeerGroup(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup) error {
-	if pg.GracefulRestart != nil {
-		return errors.New("peer-group GracefulRestart field is not nil")
-	}
 	if err := gr.poc.Validate(); err != nil {
 		return err
 	}
-	pg.GracefulRestart = &gr.poc
-	return nil
+	if pg.GracefulRestart == nil {
+		pg.GracefulRestart = &gr.poc
+		return nil
+	}
+	return ygot.MergeStructInto(pg.GracefulRestart, &gr.poc)
 }
