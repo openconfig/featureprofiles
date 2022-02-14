@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package lldpbase
+package lldp
 
 import (
 	"strings"

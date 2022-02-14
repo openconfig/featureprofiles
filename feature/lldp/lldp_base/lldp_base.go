@@ -14,8 +14,8 @@
  limitations under the License.
 */
 
-// Package lldpbase implements the Config Library for LLDP feature profile.
-package lldpbase
+// Package lldp implements the Config Library for LLDP feature profile.
+package lldp
 
 import (
 	"github.com/openconfig/featureprofiles/yang/oc"
