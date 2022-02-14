@@ -207,7 +207,7 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 			duts[tdut.Id] = nil // mark it "found"
 			continue
 		}
-		duts[tdut.Id] = &binding.DUT{d}
+		duts[tdut.Id] = &binding.DUT{Dims: d}
 	}
 	for _, bdut := range r.Duts {
 		if _, ok := duts[bdut.Id]; !ok {
@@ -228,7 +228,7 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 			ates[tate.Id] = nil // mark it "found"
 			continue
 		}
-		ates[tate.Id] = &binding.ATE{d}
+		ates[tate.Id] = &binding.ATE{Dims: d}
 	}
 	for _, bate := range r.Ates {
 		if _, ok := ates[bate.Id]; !ok {

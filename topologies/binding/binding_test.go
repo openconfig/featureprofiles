@@ -108,7 +108,7 @@ func TestReservation(t *testing.T) {
 	want := &binding.Reservation{
 		DUTs: map[string]*binding.DUT{
 			"dut": {
-				&binding.Dims{
+				Dims: &binding.Dims{
 					Name: "dut.name",
 					Ports: map[string]*binding.Port{
 						"port1": {Name: "Ethernet1"},
@@ -119,7 +119,7 @@ func TestReservation(t *testing.T) {
 		},
 		ATEs: map[string]*binding.ATE{
 			"ate": {
-				&binding.Dims{
+				Dims: &binding.Dims{
 					Name: "ate.name",
 					Ports: map[string]*binding.Port{
 						"port1": {Name: "1/1"},
