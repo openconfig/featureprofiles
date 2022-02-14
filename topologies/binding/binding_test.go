@@ -1,0 +1,211 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package binding
+
+import (
+	"context"
+	"strings"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	"github.com/openconfig/ondatra/binding"
+	opb "github.com/openconfig/ondatra/proto"
+)
+
+func TestReserveFetchRelease(t *testing.T) {
+	ctx := context.Background()
+	tb := &opb.Testbed{}
+	b := &staticBind{r: resolver{&bindpb.Binding{}}}
+
+	if _, err := b.FetchReservation(ctx, resvID); err == nil {
+		t.Error("FetchReservation should fail before reservation is made.")
+	}
+	if err := b.Release(ctx); err == nil {
+		t.Error("Release should fail before reservation is made.")
+	}
+
+	resv, err := b.Reserve(ctx, tb, 0, 0)
+	if err != nil {
+		t.Fatalf("Could not reserve testbed: %v", err)
+	}
+	if _, err := b.FetchReservation(ctx, resv.ID); err != nil {
+		t.Errorf("Could not fetch reservation %q: %v", resv.ID, err)
+	}
+	if err := b.Release(ctx); err != nil {
+		t.Errorf("Could not release reservation: %v", err)
+	}
+
+	if _, err := b.FetchReservation(ctx, resvID); err == nil {
+		t.Error("FetchReservation should fail after release.")
+	}
+	if err := b.Release(ctx); err == nil {
+		t.Error("Release should fail after reservation is already released.")
+	}
+}
+
+func TestReservation(t *testing.T) {
+	tb := &opb.Testbed{
+		Duts: []*opb.Device{{
+			Id: "dut",
+			Ports: []*opb.Port{{
+				Id: "port1",
+			}, {
+				Id: "port2",
+			}},
+		}},
+		Ates: []*opb.Device{{
+			Id: "ate",
+			Ports: []*opb.Port{{
+				Id: "port1",
+			}, {
+				Id: "port2",
+			}},
+		}},
+	}
+
+	b := &bindpb.Binding{
+		Duts: []*bindpb.Device{{
+			Id:   "dut",
+			Name: "dut.name",
+			Ports: []*bindpb.Port{{
+				Id:   "port1",
+				Name: "Ethernet1",
+			}, {
+				Id:   "port2",
+				Name: "Ethernet2",
+			}},
+		}},
+		Ates: []*bindpb.Device{{
+			Id:   "ate",
+			Name: "ate.name",
+			Ports: []*bindpb.Port{{
+				Id:   "port1",
+				Name: "1/1",
+			}, {
+				Id:   "port2",
+				Name: "1/2",
+			}},
+		}},
+	}
+
+	got, err := reservation(tb, resolver{b})
+	if err != nil {
+		t.Fatalf("Error building reservation: %v", err)
+	}
+	want := &binding.Reservation{
+		DUTs: map[string]*binding.DUT{
+			"dut": {
+				Dims: &binding.Dims{
+					Name: "dut.name",
+					Ports: map[string]*binding.Port{
+						"port1": {Name: "Ethernet1"},
+						"port2": {Name: "Ethernet2"},
+					},
+				},
+			},
+		},
+		ATEs: map[string]*binding.ATE{
+			"ate": {
+				Dims: &binding.Dims{
+					Name: "ate.name",
+					Ports: map[string]*binding.Port{
+						"port1": {Name: "1/1"},
+						"port2": {Name: "1/2"},
+					},
+				},
+			},
+		},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("Reservation -want, +got:\n%s", diff)
+	}
+}
+
+func TestReservation_Error(t *testing.T) {
+	tb := &opb.Testbed{
+		Duts: []*opb.Device{{
+			Id: "dut.tb", // only in testbed.
+		}, {
+			Id: "dut.both",
+			Ports: []*opb.Port{{
+				Id: "port1",
+			}, {
+				Id: "port2",
+			}},
+		}},
+		Ates: []*opb.Device{{
+			Id: "ate.tb", // only in testbed.
+		}, {
+			Id: "ate.both",
+			Ports: []*opb.Port{{
+				Id: "port1",
+			}, {
+				Id: "port2",
+			}},
+		}},
+	}
+
+	b := &bindpb.Binding{
+		Duts: []*bindpb.Device{{
+			Id:   "dut.b", // only in binding.
+			Name: "dut.b.name",
+		}, {
+			Id:   "dut.both",
+			Name: "dut.both.name",
+			Ports: []*bindpb.Port{{ // port1 missing, port3 extra
+				Id:   "port2",
+				Name: "Ethernet2",
+			}, {
+				Id:   "port3",
+				Name: "Ethernet3",
+			}},
+		}},
+		Ates: []*bindpb.Device{{
+			Id:   "ate.both",
+			Name: "ate.name",
+			Ports: []*bindpb.Port{{ // port1 missing, port3 extra
+				Id:   "port2",
+				Name: "1/2",
+			}, {
+				Id:   "port3",
+				Name: "1/3",
+			}},
+		}},
+	}
+
+	_, err := reservation(tb, resolver{b})
+	if err == nil {
+		t.Fatalf("Error building reservation: %v", err)
+	}
+	t.Logf("Got reservation errors: %v", err)
+
+	wants := []string{
+		`missing binding for DUT "dut.tb"`,
+		`error binding DUT "dut.both"`,
+		`binding DUT "dut.b" not found in testbed`,
+		`missing binding for ATE "ate.tb"`,
+		`error binding ATE "ate.both"`,
+		`binding port "port3" not found in testbed`,
+		`testbed port "port1" is missing in binding`,
+	}
+	errText := err.Error()
+
+	for _, want := range wants {
+		if !strings.Contains(errText, want) {
+			t.Errorf("Want error not found: %s", want)
+		}
+	}
+}

@@ -18,16 +18,19 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"plugin"
 
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/knebind"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 var (
 	pluginFile  = flag.String("plugin", "", "vendor binding as a Go plugin")
 	pluginArgs  = flag.String("plugin-args", "", "arguments for the vendor binding")
-	bindingFile = flag.String("binding", "", "binding configuration file")
+	bindingFile = flag.String("binding", "", "static binding configuration file")
 	kneConfig   = flag.String("kne-config", "", "YAML configuration file")
 )
 
@@ -56,7 +59,7 @@ func New() (binding.Binding, error) {
 		return loadBinding(*pluginFile, *pluginArgs)
 	}
 	if *bindingFile != "" {
-		return nil, errors.New("-binding is not implemented")
+		return staticBinding(*bindingFile)
 	}
 	if *kneConfig != "" {
 		cfg, err := knebind.ParseConfigFile(*kneConfig)
@@ -87,4 +90,20 @@ func loadBinding(path, args string) (binding.Binding, error) {
 		return nil, fmt.Errorf("func New() has the wrong type %T from plugin: %s", newVal, path)
 	}
 	return newFn(args)
+}
+
+// staticBinding makes a static binding from the binding configuration file.
+func staticBinding(bindingFile string) (binding.Binding, error) {
+	in, err := os.ReadFile(bindingFile)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read binding file: %w", err)
+	}
+	b := &bindpb.Binding{}
+	if err := prototext.Unmarshal(in, b); err != nil {
+		return nil, fmt.Errorf("unable to parse binding file: %w", err)
+	}
+	return &staticBind{
+		Binding: nil,
+		r:       resolver{b},
+	}, nil
 }
