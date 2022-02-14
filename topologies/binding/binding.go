@@ -45,15 +45,9 @@ var _ = binding.Binding(&staticBind{})
 
 const resvID = "STATIC"
 
-func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, waitTime time.Duration, partial map[string]string) (*binding.Reservation, error) {
+func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, waitTime time.Duration) (*binding.Reservation, error) {
 	if b.resv != nil {
 		return nil, fmt.Errorf("only one reservation is allowed")
-	}
-	if len(partial) > 0 {
-		// If really needed, we may allow --reserve to supplement the
-		// static binding by updating the resolver.  Please file a feature
-		// request to discuss the use case.
-		return nil, fmt.Errorf("reservation constraint --reserve is not supported by the static binding")
 	}
 	resv, err := reservation(tb, b.r)
 	if err != nil {
