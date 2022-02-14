@@ -76,7 +76,7 @@ func TestAugmentDevice(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "Device contains non-overlapping LLDP config",
+		desc: "Device contains LLDP config, no conflicts",
 		lldp: New().EnableInterface("Ethernet1.2"),
 		inDevice: &oc.Device{
 			Lldp: &oc.Lldp{
@@ -127,7 +127,7 @@ func TestAugmentDevice_Errors(t *testing.T) {
 		inDevice      *oc.Device
 		wantErrSubStr string
 	}{{
-		desc: "device already contains lldp so should error",
+		desc: "Device contains LLDP config with conflict",
 		lldp: New().EnableInterface("Ethernet1.1"),
 		inDevice: &oc.Device{
 			Lldp: &oc.Lldp{
