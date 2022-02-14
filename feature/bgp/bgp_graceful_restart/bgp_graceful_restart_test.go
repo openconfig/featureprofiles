@@ -56,13 +56,12 @@ func TestAugmentNeighbor(t *testing.T) {
 	}, {
 		desc: "with stale-routes-time",
 		gr: func() *GracefulRestart {
-			// TODO: ygot validation bug where only 0 is accepted
-			return New().WithStaleRoutesTime(0 * time.Second)
+			return New().WithStaleRoutesTime(60 * time.Second)
 		}(),
 		wantNeighbor: &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
 				Enabled:         ygot.Bool(true),
-				StaleRoutesTime: ygot.Float64(0),
+				StaleRoutesTime: ygot.Float64(60),
 			},
 		},
 	}, {
@@ -155,13 +154,12 @@ func TestAugmentPeerGroup(t *testing.T) {
 	}, {
 		desc: "with stale-routes-time",
 		gr: func() *GracefulRestart {
-			// TODO: ygot validation bug where only 0 is accepted
-			return New().WithStaleRoutesTime(0 * time.Second)
+			return New().WithStaleRoutesTime(60 * time.Second)
 		}(),
 		wantPG: &oc.NetworkInstance_Protocol_Bgp_PeerGroup{
 			GracefulRestart: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
 				Enabled:         ygot.Bool(true),
-				StaleRoutesTime: ygot.Float64(0),
+				StaleRoutesTime: ygot.Float64(60),
 			},
 		},
 	}, {
