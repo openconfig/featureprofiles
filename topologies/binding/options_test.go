@@ -145,90 +145,150 @@ var resolverBinding = resolver{&bindpb.Binding{
 	}},
 }}
 
-func TestResolver(t *testing.T) {
+func TestResolver_ByID(t *testing.T) {
 	r := resolverBinding
 	cases := []struct {
-		name string
-		fn   func(id string) (options, error)
+		test string
 		id   string
-		want options
+		fn   func(name string) *bindpb.Device
+		want bool
 	}{{
-		name: "ssh",
-		fn:   r.ssh,
+		test: "dutByID(dut)",
 		id:   "dut",
-		want: options{&bindpb.Options{
+		fn:   r.dutByID,
+		want: true,
+	}, {
+		test: "dutByID(anotherdut)",
+		id:   "anotherdut",
+		fn:   r.dutByID,
+		want: true,
+	}, {
+		test: "ateByID(ate)",
+		id:   "ate",
+		fn:   r.ateByID,
+		want: true,
+	}, {
+		test: "ateByID(anotherate)",
+		id:   "anotherate",
+		fn:   r.ateByID,
+		want: true,
+	}, {
+		test: "dutByID(no.such.dut)",
+		id:   "no.such.dut",
+		fn:   r.dutByID,
+		want: false,
+	}, {
+		test: "ateByID(no.such.ate)",
+		id:   "no.such.ate",
+		fn:   r.ateByID,
+		want: false,
+	}, {
+		test: "ateByID(dut)",
+		id:   "dut",
+		fn:   r.ateByID,
+		want: false,
+	}, {
+		test: "dutByID(ate)",
+		id:   "ate",
+		fn:   r.dutByID,
+		want: false,
+	}}
+
+	for _, c := range cases {
+		t.Run(c.test, func(t *testing.T) {
+			d := c.fn(c.id)
+			got := d != nil
+			if got != c.want {
+				t.Errorf("Lookup by ID got %v, want %v", got, c.want)
+			}
+		})
+	}
+}
+
+func TestResolver_ByName_Protocols(t *testing.T) {
+	r := resolverBinding
+	cases := []struct {
+		test string
+		fn   func(name string) (dialer, error)
+		name string
+		want dialer
+	}{{
+		test: "ssh",
+		fn:   r.ssh,
+		name: "dut.name",
+		want: dialer{&bindpb.Options{
 			Target:   "dut.name",
 			Username: "global.username",
 			Password: "ssh.password",
 		}},
 	}, {
-		name: "gnmi",
+		test: "gnmi",
 		fn:   r.gnmi,
-		id:   "dut",
-		want: options{&bindpb.Options{
+		name: "dut.name",
+		want: dialer{&bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gnmiPort),
 			Username: "global.username",
 			Password: "gnmi.password",
 		}},
 	}, {
-		name: "gnoi",
+		test: "gnoi",
 		fn:   r.gnoi,
-		id:   "dut",
-		want: options{&bindpb.Options{
+		name: "dut.name",
+		want: dialer{&bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gnoiPort),
 			Username: "global.username",
 			Password: "gnoi.password",
 		}},
 	}, {
-		name: "gnsi",
+		test: "gnsi",
 		fn:   r.gnsi,
-		id:   "dut",
-		want: options{&bindpb.Options{
+		name: "dut.name",
+		want: dialer{&bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gnsiPort),
 			Username: "global.username",
 			Password: "gnsi.password",
 		}},
 	}, {
-		name: "gribi",
+		test: "gribi",
 		fn:   r.gribi,
-		id:   "dut",
-		want: options{&bindpb.Options{
+		name: "dut.name",
+		want: dialer{&bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gribiPort),
 			Username: "global.username",
 			Password: "gribi.password",
 		}},
 	}, {
-		name: "p4rt",
+		test: "p4rt",
 		fn:   r.p4rt,
-		id:   "dut",
-		want: options{&bindpb.Options{
+		name: "dut.name",
+		want: dialer{&bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*p4rtPort),
 			Username: "global.username",
 			Password: "p4rt.password",
 		}},
 	}, {
-		name: "ixnetwork",
+		test: "ixnetwork",
 		fn:   r.ixnetwork,
-		id:   "ate",
-		want: options{&bindpb.Options{
+		name: "ate.name",
+		want: dialer{&bindpb.Options{
 			Target:   "ate.name",
 			Username: "ate.username",
 			Password: "ixnetwork.password",
 		}},
 	}, {
-		name: "anotherdut",
+		test: "anotherdut",
 		fn:   r.ssh,
-		id:   "anotherdut",
-		want: options{&bindpb.Options{
+		name: "anotherdut.name",
+		want: dialer{&bindpb.Options{
 			Target:   "anotherdut.name",
 			Username: "global.username",
 			Password: "anotherdut.password",
 		}},
 	}, {
-		name: "anotherate",
+		test: "anotherate",
 		fn:   r.ixnetwork,
-		id:   "anotherate",
-		want: options{&bindpb.Options{
+		name: "anotherate.name",
+		want: dialer{&bindpb.Options{
 			Target:   "anotherate.name",
 			Username: "global.username",
 			Password: "anotherate.password",
@@ -236,8 +296,8 @@ func TestResolver(t *testing.T) {
 	}}
 
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			got, err := c.fn(c.id)
+		t.Run(c.test, func(t *testing.T) {
+			got, err := c.fn(c.name)
 			if err != nil {
 				t.Fatalf("Could not get options: %v", err)
 			}
@@ -248,63 +308,63 @@ func TestResolver(t *testing.T) {
 	}
 }
 
-func TestResolver_Error(t *testing.T) {
+func TestResolver_ByName_Protocols_Error(t *testing.T) {
 	r := resolverBinding
 	cases := []struct {
+		test   string
+		fn     func(name string) (dialer, error)
 		name   string
-		fn     func(id string) (options, error)
-		id     string
 		reason string
 	}{{
-		name:   "no.such.dut",
+		test:   "no.such.dut",
 		fn:     r.ssh,
-		id:     "no.such.dut",
-		reason: "id not found",
+		name:   "no.such.dut.name",
+		reason: "name not found",
 	}, {
-		name:   "no.such.ate",
+		test:   "no.such.ate",
 		fn:     r.ixnetwork,
-		id:     "no.such.ate",
-		reason: "id not found",
+		name:   "no.such.ate.name",
+		reason: "name not found",
 	}, {
-		name:   "ate.ssh",
+		test:   "ate.ssh",
 		fn:     r.ssh,
-		id:     "ate",
+		name:   "ate.name",
 		reason: "ssh never looks up ate",
 	}, {
-		name:   "ate.gnmi",
+		test:   "ate.gnmi",
 		fn:     r.gnmi,
-		id:     "ate",
+		name:   "ate.name",
 		reason: "gnmi never looks up ate",
 	}, {
-		name:   "ate.gnoi",
+		test:   "ate.gnoi",
 		fn:     r.gnoi,
-		id:     "ate",
+		name:   "ate.name",
 		reason: "gnoi never looks up ate",
 	}, {
-		name:   "ate.gnsi",
+		test:   "ate.gnsi",
 		fn:     r.gnsi,
-		id:     "ate",
+		name:   "ate.name",
 		reason: "gnsi never looks up ate",
 	}, {
-		name:   "ate.gribi",
+		test:   "ate.gribi",
 		fn:     r.gribi,
-		id:     "ate",
+		name:   "ate.name",
 		reason: "gribi never looks up ate",
 	}, {
-		name:   "ate.p4rt",
+		test:   "ate.p4rt",
 		fn:     r.p4rt,
-		id:     "ate",
+		name:   "ate.name",
 		reason: "p4rt never looks up ate",
 	}, {
-		name:   "dut.ixnetwork",
+		test:   "dut.ixnetwork",
 		fn:     r.ixnetwork,
-		id:     "dut",
+		name:   "dut.name",
 		reason: "ixnetwork never looks up dut",
 	}}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := c.fn(c.id)
+			_, err := c.fn(c.name)
 			t.Logf("Resolve got error: %v", err)
 			if err == nil {
 				t.Errorf("Resolve error got nil, want error because %s", c.reason)

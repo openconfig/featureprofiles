@@ -64,28 +64,28 @@ func (c *creds) RequireTransportSecurity() bool {
 
 var _ = grpc.PerRPCCredentials(&creds{})
 
-// options wraps *bindpb.Options and implements dialers for various
+// dialer wraps *bindpb.Options and implements dialers for various
 // protocols.
-type options struct {
+type dialer struct {
 	*bindpb.Options
 }
 
 // dialGRPC dials a gRPC connection using the binding options.
 //lint:ignore U1000 will be used by the binding.
-func (o *options) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+func (d *dialer) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	switch {
-	case o.Insecure:
+	case d.Insecure:
 		tc := insecure.NewCredentials()
 		opts = append(opts, grpc.WithTransportCredentials(tc))
-	case o.SkipVerify:
+	case d.SkipVerify:
 		tc := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 		opts = append(opts, grpc.WithTransportCredentials(tc))
 	}
-	if o.Username != "" {
-		c := &creds{o.Username, o.Password, !o.Insecure}
+	if d.Username != "" {
+		c := &creds{d.Username, d.Password, !d.Insecure}
 		opts = append(opts, grpc.WithPerRPCCredentials(c))
 	}
-	return grpc.DialContext(ctx, o.Target, opts...)
+	return grpc.DialContext(ctx, d.Target, opts...)
 }
 
 var knownHostsFiles = []string{
@@ -108,12 +108,12 @@ func knownHostsCallback() (ssh.HostKeyCallback, error) {
 
 // dialSSH dials an SSH client using the binding options.
 //lint:ignore U1000 will be used by the binding.
-func (o *options) dialSSH() (*ssh.Client, error) {
+func (d *dialer) dialSSH() (*ssh.Client, error) {
 	c := &ssh.ClientConfig{
-		User: o.Username,
-		Auth: []ssh.AuthMethod{ssh.Password(o.Password)},
+		User: d.Username,
+		Auth: []ssh.AuthMethod{ssh.Password(d.Password)},
 	}
-	if o.SkipVerify {
+	if d.SkipVerify {
 		c.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 	} else {
 		cb, err := knownHostsCallback()
@@ -122,43 +122,42 @@ func (o *options) dialSSH() (*ssh.Client, error) {
 		}
 		c.HostKeyCallback = cb
 	}
-	return ssh.Dial("tcp", o.Target, c)
+	return ssh.Dial("tcp", d.Target, c)
 }
 
 // newHTTPClient makes an http.Client using the binding options.
 //lint:ignore U1000 will be used by the binding.
-func (o *options) newHTTPClient() *http.Client {
+func (d *dialer) newHTTPClient() *http.Client {
 	tr := &http.Transport{
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
 	}
-	if o.SkipVerify {
+	if d.SkipVerify {
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	return &http.Client{Transport: tr}
 }
 
-// merge creates a combined options struct from one or more structs.
-func merge(bopts ...*bindpb.Options) options {
+// merge creates a dialer by combining one or more options.
+func merge(bopts ...*bindpb.Options) dialer {
 	result := &bindpb.Options{}
 	for _, bopt := range bopts {
 		if bopt != nil {
 			proto.Merge(result, bopt)
 		}
 	}
-	return options{result}
+	return dialer{result}
 }
 
-// resolver returns the effective options for specific devices and
-// protocols.
+// resolver returns the dialer for specific devices and protocols.
 type resolver struct {
 	*bindpb.Binding
 }
 
-// dut looks up the *bindpb.Device with the given dutID.
-func (r *resolver) dut(dutID string) *bindpb.Device {
+// dutByID looks up the *bindpb.Device with the given dutID.
+func (r *resolver) dutByID(dutID string) *bindpb.Device {
 	for _, dut := range r.Duts {
 		if dut.Id == dutID {
 			return dut
@@ -167,8 +166,8 @@ func (r *resolver) dut(dutID string) *bindpb.Device {
 	return nil
 }
 
-// ate looks up the *bindpb.Device with the given ateID.
-func (r *resolver) ate(ateID string) *bindpb.Device {
+// ateByID looks up the *bindpb.Device with the given ateID.
+func (r *resolver) ateByID(ateID string) *bindpb.Device {
 	for _, ate := range r.Ates {
 		if ate.Id == ateID {
 			return ate
@@ -177,12 +176,31 @@ func (r *resolver) ate(ateID string) *bindpb.Device {
 	return nil
 }
 
-// dutOptions reconstructs the effective options for a given dut and
-// protocol.
-func (r *resolver) dutOptions(dutID string, port int, optionsFn func(*bindpb.Device) *bindpb.Options) (options, error) {
-	dut := r.dut(dutID)
+// dutByName looks up the *bindpb.Device with the given name.
+func (r *resolver) dutByName(dutName string) *bindpb.Device {
+	for _, dut := range r.Duts {
+		if dut.Name == dutName {
+			return dut
+		}
+	}
+	return nil
+}
+
+// ateByName looks up the *bindpb.Device with the given name.
+func (r *resolver) ateByName(ateName string) *bindpb.Device {
+	for _, ate := range r.Ates {
+		if ate.Name == ateName {
+			return ate
+		}
+	}
+	return nil
+}
+
+// dutDialer reconstructs the dialer for a given dut and protocol.
+func (r *resolver) dutDialer(dutName string, port int, optionsFn func(*bindpb.Device) *bindpb.Options) (dialer, error) {
+	dut := r.dutByName(dutName)
 	if dut == nil {
-		return options{nil}, fmt.Errorf("dut %q is missing from the binding", dutID)
+		return dialer{nil}, fmt.Errorf("dut name %q is missing from the binding", dutName)
 	}
 	targetOptions := &bindpb.Options{
 		Target: fmt.Sprintf("%s:%d", dut.Name, port),
@@ -190,44 +208,44 @@ func (r *resolver) dutOptions(dutID string, port int, optionsFn func(*bindpb.Dev
 	return merge(targetOptions, r.Options, dut.Options, optionsFn(dut)), nil
 }
 
-func (r *resolver) gnmi(dutID string) (options, error) {
-	return r.dutOptions(dutID, *gnmiPort,
+func (r *resolver) gnmi(dutName string) (dialer, error) {
+	return r.dutDialer(dutName, *gnmiPort,
 		func(dut *bindpb.Device) *bindpb.Options { return dut.Gnmi })
 }
 
-func (r *resolver) gnoi(dutID string) (options, error) {
-	return r.dutOptions(dutID, *gnoiPort,
+func (r *resolver) gnoi(dutName string) (dialer, error) {
+	return r.dutDialer(dutName, *gnoiPort,
 		func(dut *bindpb.Device) *bindpb.Options { return dut.Gnoi })
 }
 
-func (r *resolver) gnsi(dutID string) (options, error) {
-	return r.dutOptions(dutID, *gnsiPort,
+func (r *resolver) gnsi(dutName string) (dialer, error) {
+	return r.dutDialer(dutName, *gnsiPort,
 		func(dut *bindpb.Device) *bindpb.Options { return dut.Gnsi })
 }
 
-func (r *resolver) gribi(dutID string) (options, error) {
-	return r.dutOptions(dutID, *gribiPort,
+func (r *resolver) gribi(dutName string) (dialer, error) {
+	return r.dutDialer(dutName, *gribiPort,
 		func(dut *bindpb.Device) *bindpb.Options { return dut.Gribi })
 }
 
-func (r *resolver) p4rt(dutID string) (options, error) {
-	return r.dutOptions(dutID, *p4rtPort,
+func (r *resolver) p4rt(dutName string) (dialer, error) {
+	return r.dutDialer(dutName, *p4rtPort,
 		func(dut *bindpb.Device) *bindpb.Options { return dut.P4Rt })
 }
 
-func (r *resolver) ssh(dutID string) (options, error) {
-	dut := r.dut(dutID)
+func (r *resolver) ssh(dutName string) (dialer, error) {
+	dut := r.dutByName(dutName)
 	if dut == nil {
-		return options{nil}, fmt.Errorf("dut %q is missing from the binding", dutID)
+		return dialer{nil}, fmt.Errorf("dut name %q is missing from the binding", dutName)
 	}
 	targetOptions := &bindpb.Options{Target: dut.Name}
 	return merge(targetOptions, r.Options, dut.Options, dut.Ssh), nil
 }
 
-func (r *resolver) ixnetwork(ateID string) (options, error) {
-	ate := r.ate(ateID)
+func (r *resolver) ixnetwork(ateName string) (dialer, error) {
+	ate := r.ateByName(ateName)
 	if ate == nil {
-		return options{nil}, fmt.Errorf("ate %q is missing from the binding", ateID)
+		return dialer{nil}, fmt.Errorf("ate name %q is missing from the binding", ateName)
 	}
 	targetOptions := &bindpb.Options{Target: ate.Name}
 	return merge(targetOptions, r.Options, ate.Options, ate.Ixnetwork), nil
