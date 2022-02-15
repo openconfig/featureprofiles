@@ -34,10 +34,8 @@ func TestAugment(t *testing.T) {
 		inDevice   *oc.Device
 		wantDevice *oc.Device
 	}{{
-		desc: "default NI",
-		ni: func() *NetworkInstance {
-			return New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-		}(),
+		desc:     "Default NI",
+		ni:       New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
 		inDevice: &oc.Device{},
 		wantDevice: &oc.Device{
 			NetworkInstance: map[string]*oc.NetworkInstance{
@@ -49,10 +47,8 @@ func TestAugment(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "L3VRF",
-		ni: func() *NetworkInstance {
-			return New("vrf-1", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
-		}(),
+		desc:     "L3VRF",
+		ni:       New("vrf-1", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF),
 		inDevice: &oc.Device{},
 		wantDevice: &oc.Device{
 			NetworkInstance: map[string]*oc.NetworkInstance{
@@ -64,10 +60,8 @@ func TestAugment(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "Add another VRF with no conflicts",
-		ni: func() *NetworkInstance {
-			return New("vrf-1", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
-		}(),
+		desc: "Device contains another VRF with no conflicts",
+		ni:   New("vrf-1", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF),
 		inDevice: &oc.Device{
 			NetworkInstance: map[string]*oc.NetworkInstance{
 				"default": {
@@ -88,6 +82,27 @@ func TestAugment(t *testing.T) {
 					Name:    ygot.String("vrf-1"),
 					Enabled: ygot.Bool(true),
 					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+				},
+			},
+		},
+	}, {
+		desc: "Device contains same VRF with no conflicts",
+		ni:   New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
+		inDevice: &oc.Device{
+			NetworkInstance: map[string]*oc.NetworkInstance{
+				"default": {
+					Name:    ygot.String("default"),
+					Enabled: ygot.Bool(true),
+					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+				},
+			},
+		},
+		wantDevice: &oc.Device{
+			NetworkInstance: map[string]*oc.NetworkInstance{
+				"default": {
+					Name:    ygot.String("default"),
+					Enabled: ygot.Bool(true),
+					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 				},
 			},
 		},
@@ -114,34 +129,28 @@ func TestAugmentErrors(t *testing.T) {
 		inDevice      *oc.Device
 		wantErrSubStr string
 	}{{
-		desc: "empty NI name",
-		ni: func() *NetworkInstance {
-			return New("", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
-		}(),
+		desc:          "Empty NI name",
+		ni:            New("", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF),
 		inDevice:      &oc.Device{},
 		wantErrSubStr: "name is empty",
 	}, {
-		desc: "NI type is not set",
-		ni: func() *NetworkInstance {
-			return New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET)
-		}(),
+		desc:          "NI type is not set",
+		ni:            New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET),
 		inDevice:      &oc.Device{},
 		wantErrSubStr: "type is unset",
 	}, {
-		desc: "duplicate NI",
-		ni: func() *NetworkInstance {
-			return New("vrf-1", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
-		}(),
+		desc: "Device contains same VRF with conflicts",
+		ni:   New("vrf-1", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF),
 		inDevice: &oc.Device{
 			NetworkInstance: map[string]*oc.NetworkInstance{
 				"vrf-1": {
 					Name:    ygot.String("vrf-1"),
 					Enabled: ygot.Bool(true),
-					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 				},
 			},
 		},
-		wantErrSubStr: "duplicate key",
+		wantErrSubStr: "destination and source values were set when merging enum field",
 	}}
 
 	for _, test := range tests {
@@ -151,7 +160,7 @@ func TestAugmentErrors(t *testing.T) {
 				t.Fatalf("error expected")
 			}
 			if !strings.Contains(err.Error(), test.wantErrSubStr) {
-				t.Errorf("Error strings are not equal")
+				t.Errorf("Error strings are not equal: %v", err)
 			}
 		})
 	}

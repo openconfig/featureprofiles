@@ -59,7 +59,11 @@ func (ni *NetworkInstance) AugmentDevice(d *oc.Device) error {
 	if err := ni.validate(); err != nil {
 		return err
 	}
-	return d.AppendNetworkInstance(&ni.oc)
+	deviceNI := d.GetNetworkInstance(ni.oc.GetName())
+	if deviceNI == nil {
+		return d.AppendNetworkInstance(&ni.oc)
+	}
+	return ygot.MergeStructInto(deviceNI, &ni.oc)
 }
 
 // Feature provides interface to augment additional features to NI.
