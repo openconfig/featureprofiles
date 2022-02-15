@@ -108,8 +108,7 @@ func TestAugmentDevice(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			err := test.lldp.AugmentDevice(test.inDevice)
-			if err != nil {
+			if err := test.lldp.AugmentDevice(test.inDevice); err != nil {
 				t.Fatalf("error not expected")
 			}
 			if diff := cmp.Diff(test.wantDevice, test.inDevice); diff != "" {
