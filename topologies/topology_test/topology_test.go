@@ -138,7 +138,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, atePorts []*ondatra.Port
 	top.Push(t).StartProtocols(t)
 }
 
-func TestBaseline(t *testing.T) {
+func TestTopology(t *testing.T) {
 	// Configure the DUT
 	dut := ondatra.DUT(t, "dut")
 	dutPorts := fptest.SortPorts(dut.Ports())
