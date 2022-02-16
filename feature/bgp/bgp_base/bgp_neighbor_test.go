@@ -377,18 +377,18 @@ func (f *FakeNeighborFeature) AugmentNeighbor(oc *oc.NetworkInstance_Protocol_Bg
 // TestNeighborWithFeature tests the WithFeature method.
 func TestNeighborWithFeature(t *testing.T) {
 	tests := []struct {
-		desc string
-		err  error
+		desc    string
+		wantErr error
 	}{{
 		desc: "error not expected",
 	}, {
-		desc: "error expected",
-		err:  errors.New("some error"),
+		desc:    "error expected",
+		wantErr: errors.New("some error"),
 	}}
 
 	for _, test := range tests {
 		n := NewNeighbor("1.2.3.4")
-		ff := &FakeNeighborFeature{Err: test.err}
+		ff := &FakeNeighborFeature{Err: test.wantErr}
 		gotErr := n.WithFeature(ff)
 		if !ff.augmentCalled {
 			t.Errorf("AugmentNeighbor was not called")
@@ -396,10 +396,10 @@ func TestNeighborWithFeature(t *testing.T) {
 		if ff.oc != &n.oc {
 			t.Errorf("neighbor ptr is not equal")
 		}
-		if test.err != nil {
+		if test.wantErr != nil {
 			if gotErr != nil {
-				if !strings.Contains(gotErr.Error(), test.err.Error()) {
-					t.Errorf("Error strings are not equal")
+				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+					t.Errorf("Error strings are not equal: %v", gotErr)
 				}
 			}
 			if gotErr == nil {

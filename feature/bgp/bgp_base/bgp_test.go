@@ -26,6 +26,11 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+var protocolKey = oc.NetworkInstance_Protocol_Key{
+	Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+	Name:       "bgp",
+}
+
 // TestAugmentNetworkInstance tests the BGP augment to NI OC.
 func TestAugmentNetworkInstance(t *testing.T) {
 	tests := []struct {
@@ -38,9 +43,11 @@ func TestAugmentNetworkInstance(t *testing.T) {
 		bgp:  New(),
 		inNI: &oc.NetworkInstance{},
 		wantNI: &oc.NetworkInstance{
-			Protocol: &oc.NetworkInstance_Protocol{
-				Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-				Name:       ygot.String("bgp"),
+			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+				protocolKey: {
+					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Name:       ygot.String("bgp"),
+				},
 			},
 		},
 	}, {
@@ -48,12 +55,14 @@ func TestAugmentNetworkInstance(t *testing.T) {
 		bgp:  New().WithAS(1234),
 		inNI: &oc.NetworkInstance{},
 		wantNI: &oc.NetworkInstance{
-			Protocol: &oc.NetworkInstance_Protocol{
-				Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-				Name:       ygot.String("bgp"),
-				Bgp: &oc.NetworkInstance_Protocol_Bgp{
-					Global: &oc.NetworkInstance_Protocol_Bgp_Global{
-						As: ygot.Uint32(1234),
+			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+				protocolKey: {
+					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Name:       ygot.String("bgp"),
+					Bgp: &oc.NetworkInstance_Protocol_Bgp{
+						Global: &oc.NetworkInstance_Protocol_Bgp_Global{
+							As: ygot.Uint32(1234),
+						},
 					},
 				},
 			},
@@ -63,12 +72,14 @@ func TestAugmentNetworkInstance(t *testing.T) {
 		bgp:  New().WithRouterID("1.2.3.4"),
 		inNI: &oc.NetworkInstance{},
 		wantNI: &oc.NetworkInstance{
-			Protocol: &oc.NetworkInstance_Protocol{
-				Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-				Name:       ygot.String("bgp"),
-				Bgp: &oc.NetworkInstance_Protocol_Bgp{
-					Global: &oc.NetworkInstance_Protocol_Bgp_Global{
-						RouterId: ygot.String("1.2.3.4"),
+			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+				protocolKey: {
+					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Name:       ygot.String("bgp"),
+					Bgp: &oc.NetworkInstance_Protocol_Bgp{
+						Global: &oc.NetworkInstance_Protocol_Bgp_Global{
+							RouterId: ygot.String("1.2.3.4"),
+						},
 					},
 				},
 			},
@@ -77,24 +88,28 @@ func TestAugmentNetworkInstance(t *testing.T) {
 		desc: "NI contains BGP OC with no conflicts",
 		bgp:  New().WithRouterID("1.2.3.4"),
 		inNI: &oc.NetworkInstance{
-			Protocol: &oc.NetworkInstance_Protocol{
-				Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-				Name:       ygot.String("bgp"),
-				Bgp: &oc.NetworkInstance_Protocol_Bgp{
-					Global: &oc.NetworkInstance_Protocol_Bgp_Global{
-						As: ygot.Uint32(1234),
+			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+				protocolKey: {
+					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Name:       ygot.String("bgp"),
+					Bgp: &oc.NetworkInstance_Protocol_Bgp{
+						Global: &oc.NetworkInstance_Protocol_Bgp_Global{
+							As: ygot.Uint32(1234),
+						},
 					},
 				},
 			},
 		},
 		wantNI: &oc.NetworkInstance{
-			Protocol: &oc.NetworkInstance_Protocol{
-				Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-				Name:       ygot.String("bgp"),
-				Bgp: &oc.NetworkInstance_Protocol_Bgp{
-					Global: &oc.NetworkInstance_Protocol_Bgp_Global{
-						As:       ygot.Uint32(1234),
-						RouterId: ygot.String("1.2.3.4"),
+			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+				protocolKey: {
+					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Name:       ygot.String("bgp"),
+					Bgp: &oc.NetworkInstance_Protocol_Bgp{
+						Global: &oc.NetworkInstance_Protocol_Bgp_Global{
+							As:       ygot.Uint32(1234),
+							RouterId: ygot.String("1.2.3.4"),
+						},
 					},
 				},
 			},
@@ -124,22 +139,24 @@ func TestAugmentNetworkInstance_Errors(t *testing.T) {
 		desc: "NI contains BGP OC with conflicts",
 		bgp:  New().WithRouterID("1.2.3.4"),
 		inNI: &oc.NetworkInstance{
-			Protocol: &oc.NetworkInstance_Protocol{
-				Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-				Name:       ygot.String("bgp"),
-				Bgp: &oc.NetworkInstance_Protocol_Bgp{
-					Global: &oc.NetworkInstance_Protocol_Bgp_Global{
-						RouterId: ygot.String("1.2.3.5"),
+			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+				protocolKey: {
+					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Name:       ygot.String("bgp"),
+					Bgp: &oc.NetworkInstance_Protocol_Bgp{
+						Global: &oc.NetworkInstance_Protocol_Bgp_Global{
+							RouterId: ygot.String("1.2.3.5"),
+						},
 					},
 				},
 			},
 		},
-		wantErrSubStr: "foobar",
+		wantErrSubStr: "destination value was set, but was not equal to source value",
 	}}
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			err = test.bgp.AugmentNetworkInstance(test.inNI)
+			err := test.bgp.AugmentNetworkInstance(test.inNI)
 			if err == nil {
 				t.Fatalf("error expected")
 			}
