@@ -60,26 +60,26 @@ func (pg *PeerGroup) WithDescription(desc string) *PeerGroup {
 	return pg
 }
 
-// WithTransportPassiveMode sets the transport passive-mode on neighbor.
-func (pg *PeerGroup) WithTransportPassiveMode(pm bool) *PeerGroup {
+// WithPassiveMode sets the transport passive-mode on neighbor.
+func (pg *PeerGroup) WithPassiveMode(pm bool) *PeerGroup {
 	pg.oc.GetOrCreateTransport().PassiveMode = ygot.Bool(pm)
 	return pg
 }
 
-// WithTransportTCPMSS sets the transport tcp-mss on neighbor.
-func (pg *PeerGroup) WithTransportTCPMSS(mss uint16) *PeerGroup {
+// WithTCPMSS sets the transport tcp-mss on neighbor.
+func (pg *PeerGroup) WithTCPMSS(mss uint16) *PeerGroup {
 	pg.oc.GetOrCreateTransport().TcpMss = ygot.Uint16(mss)
 	return pg
 }
 
-// WithTransportMTUDiscovery sets the transport mtu-discovery on neighbor.
-func (pg *PeerGroup) WithTransportMTUDiscovery(md bool) *PeerGroup {
+// WithMTUDiscovery sets the transport mtu-discovery on neighbor.
+func (pg *PeerGroup) WithMTUDiscovery(md bool) *PeerGroup {
 	pg.oc.GetOrCreateTransport().MtuDiscovery = ygot.Bool(md)
 	return pg
 }
 
-// WithTransportLocalAddress sets the transport local-address on neighbor.
-func (pg *PeerGroup) WithTransportLocalAddress(la string) *PeerGroup {
+// WithLocalAddress sets the transport local-address on neighbor.
+func (pg *PeerGroup) WithLocalAddress(la string) *PeerGroup {
 	pg.oc.GetOrCreateTransport().LocalAddress = ygot.String(la)
 	return pg
 }
@@ -128,17 +128,17 @@ func (pg *PeerGroup) WithV4PrefixLimit(maxPrefixes uint32, opts PrefixLimitOptio
 	return pg
 }
 
-// WithKeepAliveInterval sets the keep-alive and hold timers on the neighbor.
-func (pg *PeerGroup) WithKeepAliveInterval(keepalive, hold time.Duration) *PeerGroup {
+// WithKeepaliveInterval sets the keep-alive and hold timers on the neighbor.
+func (pg *PeerGroup) WithKeepaliveInterval(keepalive, hold time.Duration) *PeerGroup {
 	toc := pg.oc.GetOrCreateTimers()
 	toc.HoldTime = ygot.Float64(hold.Seconds())
 	toc.KeepaliveInterval = ygot.Float64(keepalive.Seconds())
 	return pg
 }
 
-// WithMinimumAdvertisementInterval sets the minimum advertisement interval timer on the neighbor.
-func (pg *PeerGroup) WithMinimumAdvertisementInterval(mdi time.Duration) *PeerGroup {
-	pg.oc.GetOrCreateTimers().MinimumAdvertisementInterval = ygot.Float64(mdi.Seconds())
+// WithMRAI sets the minimum route advertisement interval timer on the neighbor.
+func (pg *PeerGroup) WithMRAI(mrai time.Duration) *PeerGroup {
+	pg.oc.GetOrCreateTimers().MinimumAdvertisementInterval = ygot.Float64(mrai.Seconds())
 	return pg
 }
 
@@ -152,7 +152,14 @@ func (pg *PeerGroup) WithConnectRetry(cr time.Duration) *PeerGroup {
 // This method augments the BGP with peer-group configuration.
 // Use bgp.WithFeature(pg) instead of calling this method directly.
 func (pg *PeerGroup) AugmentGlobal(bgp *oc.NetworkInstance_Protocol_Bgp) error {
-	return bgp.AppendPeerGroup(&pg.oc)
+	if err := pg.oc.Validate(); err != nil {
+		return err
+	}
+	bgppg := bgp.GetPeerGroup(pg.oc.GetPeerGroupName())
+	if bgppg == nil {
+		return bgp.AppendPeerGroup(&pg.oc)
+	}
+	return ygot.MergeStructInto(bgppg, &pg.oc)
 }
 
 // PeerGroupFeature provides interface to augment peer-group with

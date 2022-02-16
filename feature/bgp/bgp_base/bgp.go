@@ -22,6 +22,9 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// Name of the BGP protocol.
+const Name = "bgp"
+
 // BGP struct stores the OC attributes for BGP base feature profile.
 type BGP struct {
 	oc oc.NetworkInstance_Protocol
@@ -32,7 +35,7 @@ func New() *BGP {
 	return &BGP{
 		oc: oc.NetworkInstance_Protocol{
 			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-			Name:       ygot.String("bgp"),
+			Name:       ygot.String(Name),
 		},
 	}
 }
@@ -53,7 +56,14 @@ func (b *BGP) WithRouterID(rID string) *BGP {
 // Augments the provided NI with BGP OC.
 // Use ni.WithFeature(b) instead of calling this method directly.
 func (b *BGP) AugmentNetworkInstance(ni *oc.NetworkInstance) error {
-	return ni.AppendProtocol(&b.oc)
+	if err := b.oc.Validate(); err != nil {
+		return err
+	}
+	p := ni.GetProtocol(b.oc.GetIdentifier(), Name)
+	if p == nil {
+		return ni.AppendProtocol(&b.oc)
+	}
+	return ygot.MergeStructInto(p, &b.oc)
 }
 
 // GlobalFeature provides interface to augment BGP with additional features.

@@ -72,26 +72,26 @@ func (n *Neighbor) WithDescription(desc string) *Neighbor {
 	return n
 }
 
-// WithTransportPassiveMode sets the transport passive-mode on neighbor.
-func (n *Neighbor) WithTransportPassiveMode(pm bool) *Neighbor {
+// WithPassiveMode sets the transport passive-mode on neighbor.
+func (n *Neighbor) WithPassiveMode(pm bool) *Neighbor {
 	n.oc.GetOrCreateTransport().PassiveMode = ygot.Bool(pm)
 	return n
 }
 
-// WithTransportTCPMSS sets the transport tcp-mss on neighbor.
-func (n *Neighbor) WithTransportTCPMSS(mss uint16) *Neighbor {
+// WithTCPMSS sets the transport tcp-mss on neighbor.
+func (n *Neighbor) WithTCPMSS(mss uint16) *Neighbor {
 	n.oc.GetOrCreateTransport().TcpMss = ygot.Uint16(mss)
 	return n
 }
 
-// WithTransportMTUDiscovery sets the transport mtu-discovery on neighbor.
-func (n *Neighbor) WithTransportMTUDiscovery(md bool) *Neighbor {
+// WithMTUDiscovery sets the transport mtu-discovery on neighbor.
+func (n *Neighbor) WithMTUDiscovery(md bool) *Neighbor {
 	n.oc.GetOrCreateTransport().MtuDiscovery = ygot.Bool(md)
 	return n
 }
 
-// WithTransportLocalAddress sets the transport local-address on neighbor.
-func (n *Neighbor) WithTransportLocalAddress(la string) *Neighbor {
+// WithLocalAddress sets the transport local-address on neighbor.
+func (n *Neighbor) WithLocalAddress(la string) *Neighbor {
 	n.oc.GetOrCreateTransport().LocalAddress = ygot.String(la)
 	return n
 }
@@ -147,17 +147,17 @@ func (n *Neighbor) WithV4PrefixLimit(maxPrefixes uint32, opts PrefixLimitOptions
 	return n
 }
 
-// WithKeepAliveInterval sets the keep-alive and hold timers on the neighbor.
-func (n *Neighbor) WithKeepAliveInterval(keepalive, hold time.Duration) *Neighbor {
+// WithKeepaliveInterval sets the keep-alive and hold timers on the neighbor.
+func (n *Neighbor) WithKeepaliveInterval(keepalive, hold time.Duration) *Neighbor {
 	toc := n.oc.GetOrCreateTimers()
 	toc.HoldTime = ygot.Float64(hold.Seconds())
 	toc.KeepaliveInterval = ygot.Float64(keepalive.Seconds())
 	return n
 }
 
-// WithMinimumAdvertisementInterval sets the minimum advertisement interval timer on the neighbor.
-func (n *Neighbor) WithMinimumAdvertisementInterval(mdi time.Duration) *Neighbor {
-	n.oc.GetOrCreateTimers().MinimumAdvertisementInterval = ygot.Float64(mdi.Seconds())
+// WithMRAI sets the minimum route advertisement interval timer on the neighbor.
+func (n *Neighbor) WithMRAI(mrai time.Duration) *Neighbor {
+	n.oc.GetOrCreateTimers().MinimumAdvertisementInterval = ygot.Float64(mrai.Seconds())
 	return n
 }
 
@@ -171,7 +171,14 @@ func (n *Neighbor) WithConnectRetry(cr time.Duration) *Neighbor {
 // This method augments the BGP OC with neighbor configuration.
 // Use bgp.WithFeature(n) instead of calling this method directly.
 func (n *Neighbor) AugmentGlobal(bgp *oc.NetworkInstance_Protocol_Bgp) error {
-	return bgp.AppendNeighbor(&n.oc)
+	if err := n.oc.Validate(); err != nil {
+		return err
+	}
+	bgpnoc := bgp.GetNeighbor(n.oc.GetNeighborAddress())
+	if bgpnoc == nil {
+		return bgp.AppendNeighbor(&n.oc)
+	}
+	return ygot.MergeStructInto(bgpnoc, &n.oc)
 }
 
 // NeighborFeature provides interface to augment the neighbor OC with
