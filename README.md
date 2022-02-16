@@ -90,7 +90,7 @@ topology to the actual hardware as well as the dial options.
 Testing:
 
 ```
-go test -v topologies/topology_test \
+go test -v ./topologies/topology_test \
   -testbed topologies/atedut_12.testbed \
   -binding topologies/atedut_12.binding
 ```
