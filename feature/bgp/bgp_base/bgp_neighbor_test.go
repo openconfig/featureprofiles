@@ -261,8 +261,8 @@ func TestAugmentBGP(t *testing.T) {
 				"1.2.3.4": {
 					NeighborAddress: ygot.String("1.2.3.4"),
 					Timers: &oc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-						HoldTime:          ygot.Float64(5),
-						KeepaliveInterval: ygot.Float64(15),
+						HoldTime:          ygot.Float64(15),
+						KeepaliveInterval: ygot.Float64(5),
 					},
 				},
 			},
@@ -346,7 +346,7 @@ func TestAugmentBGP_Errors(t *testing.T) {
 				},
 			},
 		},
-		wantErrSubStr: "foobar",
+		wantErrSubStr: "destination value was set, but was not equal to source value",
 	}}
 
 	for _, test := range tests {
