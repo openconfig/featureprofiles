@@ -90,10 +90,14 @@ topology to the actual hardware as well as the dial options.
 Testing:
 
 ```
-go test -v ./topologies/topology_test \
-  -testbed topologies/atedut_12.testbed \
-  -binding topologies/atedut_12.binding
+cd ./topologies/topology_test
+go test -v . -testbed ../atedut_12.testbed -binding ../atedut_12.binding
 ```
+
+> :exclamation: **NOTE**: when `go test` runs a test, the current working
+> directory is set to the path of the test package, so the testbed and binding
+> files are relative to the test package and not to the source root. It is
+> recommended to just `cd` to the test package to be consistent.
 
 > :warning: **WARNING**: the topology\_test is derived from a similar test used
 > at Google. The test code compiles but is not tested because we have not hooked
