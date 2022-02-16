@@ -61,7 +61,7 @@ func sanitizeFilename(filename string) string {
 // directory, after sanitizing the filename and making it unique.
 func WriteOutput(filename, suffix string, content string) error {
 	if *outputsDir == "" {
-		log.Printf("Test output %q is discarded without -output_dir.  Please specify -output_dir to keep it.", filename)
+		log.Printf("Test output %q is discarded without -outputs_dir.  Please specify -outputs_dir to keep it.", filename)
 		return nil
 	}
 	template := fmt.Sprintf(
