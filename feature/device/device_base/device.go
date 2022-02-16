@@ -14,16 +14,14 @@
  limitations under the License.
 */
 
-// Package device implements the Config Library for device feature profile.
-package device
+// Package devicebase implements the Config Library for device feature profile.
+package devicebase
 
 import (
-	"fmt"
-
 	"github.com/openconfig/featureprofiles/yang/oc"
-	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ygot/ygot"
-	"github.com/openconfig/ygot/ytypes"
+
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 // Device struct to store OC attributes.
@@ -50,25 +48,11 @@ func (d *Device) Merge(src *Device) error {
 	return ygot.MergeStructInto(&d.oc, &src.oc)
 }
 
-// EmitJSON returns the config in RFC7951 JSON format.
-func (d *Device) EmitJSON() (string, error) {
-	b, err := ygot.EmitJSON(&d.oc, &ygot.EmitJSONConfig{
-		Format: ygot.RFC7951,
-		Indent: "  ",
-		ValidationOpts: []ygot.ValidationOption{
-			&ytypes.LeafrefOptions{
-				IgnoreMissingData: true,
-			},
-		},
-	})
-	if err != nil {
-		return "", fmt.Errorf("ygot.EmitJSON => error: %v", err)
-	}
-	return string(b), nil
-}
-
 // FullReplaceRequest returns gNMI SetRequest with full config replace at root node.
 func (d *Device) FullReplaceRequest() (*gnmipb.SetRequest, error) {
+	if err := d.oc.Validate(); err != nil {
+		return nil, err
+	}
 	val, err := ygot.EncodeTypedValue(&d.oc, gnmipb.Encoding_JSON_IETF)
 	if err != nil {
 		return nil, err
