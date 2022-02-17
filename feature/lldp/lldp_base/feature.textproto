@@ -22,13 +22,7 @@ telemetry_path {
   path: "/lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-type"
 }
 telemetry_path {
-  path: "/lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-subtype"
-}
-telemetry_path {
   path: "/lldp/interfaces/interface/neighbors/neighbor/state/port-id"
-}
-telemetry_path {
-  path: "/lldp/interfaces/interface/neighbors/neighbor/state/port-id-subtype"
 }
 telemetry_path {
   path: "/lldp/interfaces/interface/neighbors/neighbor/state/port-id-type"
