@@ -56,3 +56,15 @@ telemetry_path {
 telemetry_path {
   path: "/network-instances/network-instance/afts/next-hops/next-hop/state/mac-address"
 }
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/color"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/state/pushed-mpls-label-stack"
+}
