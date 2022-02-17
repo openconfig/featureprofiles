@@ -14,8 +14,8 @@
  limitations under the License.
 */
 
-// Package devicebase implements the Config Library for device feature profile.
-package devicebase
+// Package device implements the Config Library for device feature profile.
+package device
 
 import (
 	"github.com/openconfig/featureprofiles/yang/oc"

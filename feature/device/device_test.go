@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package devicebase
+package device
 
 import (
 	"bytes"
@@ -26,9 +26,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/openconfig/featureprofiles/feature/bgp/bgp_base/bgpbase"
-	"github.com/openconfig/featureprofiles/feature/lldp/lldp_base/lldpbase"
-	"github.com/openconfig/featureprofiles/feature/network_instance/network_instance_base/nibase"
+	"github.com/openconfig/featureprofiles/feature/bgp"
+	"github.com/openconfig/featureprofiles/feature/lldp"
+	"github.com/openconfig/featureprofiles/feature/networkinstance"
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"google.golang.org/protobuf/testing/protocmp"
 
@@ -61,7 +61,7 @@ func TestDeepCopy(t *testing.T) {
 func TestMerge(t *testing.T) {
 	// Create destination device with some feature.
 	dstDevice := New()
-	l := lldpbase.New().WithInterface("Ethernet1.1")
+	l := lldp.New().WithInterface("Ethernet1.1")
 	if err := dstDevice.WithFeature(l); err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -69,7 +69,7 @@ func TestMerge(t *testing.T) {
 	// Create source device with some feature.
 	srcDevice := New()
 	ni := nibase.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-	bgp := bgpbase.New().WithAS(12345)
+	bgp := bgp.New().WithAS(12345)
 	if err := ni.WithFeature(bgp); err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -113,12 +113,12 @@ func TestFullReplaceRequest(t *testing.T) {
 		name: "device with basic LLDP and BGP",
 		device: func() *Device {
 			d := New()
-			l := lldpbase.New().WithInterface("Ethernet1.1")
+			l := lldp.New().WithInterface("Ethernet1.1")
 			if err := d.WithFeature(l); err != nil {
 				t.Fatalf("unexpected error %v", err)
 			}
 			ni := networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-			bgp := bgpbase.New().WithAS(12345)
+			bgp := bgp.New().WithAS(12345)
 			if err := ni.WithFeature(bgp); err != nil {
 				t.Fatalf("unexpected error %v", err)
 			}
