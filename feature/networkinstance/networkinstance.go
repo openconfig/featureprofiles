@@ -14,9 +14,9 @@
  limitations under the License.
 */
 
-// Package nibase implements the Config Library for NetworkInstance
+// Package networkinstance implements the Config Library for NetworkInstance
 // feature.
-package nibase
+package networkinstance
 
 import (
 	"errors"
