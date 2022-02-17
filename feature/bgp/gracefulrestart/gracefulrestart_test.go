@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package bgpgr
+package gracefulrestart
 
 import (
 	"strings"

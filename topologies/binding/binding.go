@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -160,6 +161,15 @@ func (b *staticBind) DialIxNetwork(ctx context.Context, ate *binding.ATE) (*bind
 		return nil, err
 	}
 	return &binding.IxNetwork{Session: ixs}, nil
+}
+
+func (b *staticBind) HandleInfraFail(err error) error {
+	log.Printf("Infrastructure failure: %v", err)
+	return err
+}
+
+func (b *staticBind) SetTestMetadata(md *binding.TestMetadata) error {
+	return nil // Unimplemented.
 }
 
 // allerrors implements the error interface and will accumulate and

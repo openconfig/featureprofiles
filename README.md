@@ -71,6 +71,39 @@ Cleanup
 kne_cli delete topologies/kne/nokia_srl.textproto
 ```
 
+### Static Binding (Experimental)
+
+The static binding supports ATE based testing with a real hardware device. It
+assumes that there is one ATE hooked up to one DUT in the testbed, and their
+ports are connected pairwise. They are defined in `topologies/atedut_*.testbed`
+with three variants: 2 ports, 4 ports, and 12 ports.
+
+*   The 2 port variant is able to run the vast majority of the control plane
+    tests.
+*   The 4 port variant is required by some VRF based or data plane tests.
+*   The 12 port variant is required by the aggregate interface (static LAG and
+    LACP) tests.
+
+Setup: edit `topologies/atedut_12.binding` to specify the mapping from testbed
+topology to the actual hardware as well as the dial options.
+
+Testing:
+
+```
+cd ./topologies/topology_test
+go test -v . -testbed ../atedut_12.testbed -binding ../atedut_12.binding
+```
+
+> :exclamation: **NOTE**: when `go test` runs a test, the current working
+> directory is set to the path of the test package, so the testbed and binding
+> files are relative to the test package and not to the source root. It is
+> recommended to just `cd` to the test package to be consistent.
+
+> :warning: **WARNING**: the topology\_test is derived from a similar test used
+> at Google. The test code compiles but is not tested because we have not hooked
+> up Google's testing environment to the open-sourced static binding. This is an
+> early preview meant to demonstrate Ondatra API usage.
+
 ## Path validation
 
 The `make validate_paths` target will clone the public OpenConfig definitions and report Feature Profiles that have invalid OpenConfig paths.

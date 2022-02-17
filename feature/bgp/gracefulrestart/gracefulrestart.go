@@ -14,9 +14,9 @@
  limitations under the License.
 */
 
-// Package bgpgr implements the Config Library for BGP graceful
+// Package gracefulrestart implements the Config Library for BGP graceful
 // restart feature profile.
-package bgpgr
+package gracefulrestart
 
 import (
 	"time"
