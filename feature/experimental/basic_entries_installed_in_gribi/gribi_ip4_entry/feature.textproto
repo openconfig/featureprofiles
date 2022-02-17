@@ -56,3 +56,12 @@ telemetry_path {
 telemetry_path {
   path: "/network-instances/network-instance/afts/next-hops/next-hop/state/mac-address"
 }
+telemetry_path {
+  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/decapsulate-header"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/octets-forwarded"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/packets-forwarded"
+}
