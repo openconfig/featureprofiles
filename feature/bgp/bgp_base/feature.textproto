@@ -33,6 +33,23 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/global/state/router-id"
 }
 
+# Notification error parameters
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-code"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-subcode"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-time"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/last-notification-error-code"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/last-notification-error-subcode"
+}
+
 
 # Neighbor Level
 
@@ -54,6 +71,25 @@ telemetry_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/active"
+}
+
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/queues/input"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/queues/output"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/negotiated-hold-time"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/local-port"
 }
 
 

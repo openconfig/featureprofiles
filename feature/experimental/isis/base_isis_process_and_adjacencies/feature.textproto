@@ -36,21 +36,6 @@ config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/config/enabled"
 }
 config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/enabled"
-}
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/disable-csnp"
-}
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/disable-psnp"
-}
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/disable-lsp"
-}
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/keychain"
-}
-config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id"
 }
 config_path {
@@ -73,12 +58,6 @@ config_path {
 }
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier"
-}
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/config/enabled"
-}
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/config/keychain"
 }
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name"
@@ -108,21 +87,6 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/state/enabled"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/enabled"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/disable-csnp"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/disable-psnp"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/disable-lsp"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/keychain"
-}
-telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/interface-id"
 }
 telemetry_path {
@@ -147,12 +111,6 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/state/hello-multiplier"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/state/enabled"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/state/keychain"
-}
-telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/afi-name"
 }
 telemetry_path {
@@ -160,4 +118,25 @@ telemetry_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/enabled"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/transport/config/lsp-mtu-size"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/state/retransmit"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/retransmit"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/metric"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/s-bit"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/up-down"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/subtlvs/subtlv/flags/state/flags"
 }
