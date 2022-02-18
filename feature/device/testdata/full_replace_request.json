@@ -1,20 +1,4 @@
 {
-  "openconfig-lldp:lldp": {
-    "config": {
-      "enabled": true
-    },
-    "interfaces": {
-      "interface": [
-        {
-          "config": {
-            "enabled": true,
-            "name": "Ethernet1.1"
-          },
-          "name": "Ethernet1.1"
-        }
-      ]
-    }
-  },
   "openconfig-network-instance:network-instances": {
     "network-instance": [
       {

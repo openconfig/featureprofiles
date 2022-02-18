@@ -61,14 +61,14 @@ func TestDeepCopy(t *testing.T) {
 func TestMerge(t *testing.T) {
 	// Create destination device with some feature.
 	dstDevice := New()
-	l := lldp.New().WithInterface("Ethernet1.1")
+	l := lldp.New().EnableInterface("Ethernet1.1")
 	if err := dstDevice.WithFeature(l); err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
 
 	// Create source device with some feature.
 	srcDevice := New()
-	ni := nibase.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	ni := networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	bgp := bgp.New().WithAS(12345)
 	if err := ni.WithFeature(bgp); err != nil {
 		t.Fatalf("unexpected error %v", err)
@@ -113,10 +113,6 @@ func TestFullReplaceRequest(t *testing.T) {
 		name: "device with basic LLDP and BGP",
 		device: func() *Device {
 			d := New()
-			l := lldp.New().WithInterface("Ethernet1.1")
-			if err := d.WithFeature(l); err != nil {
-				t.Fatalf("unexpected error %v", err)
-			}
 			ni := networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 			bgp := bgp.New().WithAS(12345)
 			if err := ni.WithFeature(bgp); err != nil {
@@ -168,6 +164,45 @@ func TestFullReplaceRequest(t *testing.T) {
 			if !res {
 				diff := cmp.Diff(got, want, protocmp.Transform())
 				t.Errorf("%s: FullReplaceRequest(%v): did not get expected Notification, diff(-got,+want):%s\n", tt.name, tt.device, diff)
+			}
+		})
+	}
+}
+
+// TestFullReplaceRequest_Errors tests the FullReplaceRequest method.
+func TestFullReplaceRequest_Errors(t *testing.T) {
+	tests := []struct {
+		name          string
+		device        *Device
+		wantErrSubStr string
+	}{{
+		name: "interface reference check",
+		device: func() *Device {
+			d := New()
+			l := lldp.New().EnableInterface("Ethernet1.1")
+			if err := d.WithFeature(l); err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			ni := networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			bgp := bgp.New().WithAS(12345)
+			if err := ni.WithFeature(bgp); err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			if err := d.WithFeature(ni); err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			return d
+		}(),
+		wantErrSubStr: "/device/lldp/interfaces/interface/config/name is empty set",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := tt.device.FullReplaceRequest()
+			if err == nil {
+				t.Fatalf("%s: FullReplaceRequest(%v): error expected but got none", tt.name, tt.device)
+			}
+			if !strings.Contains(err.Error(), tt.wantErrSubStr) {
+				t.Errorf("%s: FullReplaceRequest(%v): error does not match expected: %v", tt.name, tt.device, err)
 			}
 		})
 	}
