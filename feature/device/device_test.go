@@ -150,7 +150,7 @@ func TestFullReplaceRequest(t *testing.T) {
 				}},
 			}
 
-			if diff := cmp.Diff(got, want, protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("%s: FullReplaceRequest(%v): did not get expected Notification, diff(-got,+want):%s\n", tt.name, tt.device, diff)
 			}
 		})
