@@ -57,6 +57,15 @@ telemetry_path {
   path: "/lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts"
 }
 telemetry_path {
+  path: "/lacp/interfaces/interface/members/member/state/counters/lacp-errors"
+}
+telemetry_path {
+  path: "/lacp/interfaces/interface/members/member/state/counters/lacp-timeout-transitions"
+}
+telemetry_path {
+  path: "/lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors"
+}
+telemetry_path {
   path: "/lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts"
 }
 telemetry_path {
@@ -66,6 +75,9 @@ telemetry_path {
   path: "/lacp/interfaces/interface/members/member/state/oper-key"
 }
 telemetry_path {
+  path: "/lacp/interfaces/interface/members/member/state/last-change"
+}
+telemetry_path {
   path: "/lacp/interfaces/interface/members/member/state/partner-id"
 }
 telemetry_path {
@@ -73,4 +85,7 @@ telemetry_path {
 }
 telemetry_path {
   path: "/lacp/interfaces/interface/members/member/state/port-num"
+}
+telemetry_path {
+  path: "/lacp/interfaces/interface/state/system-priority"
 }

@@ -13,13 +13,27 @@
 # limitations under the License.
 
 id {
-  name: "isis_lsp_updates"
+  name: "network_instance_base"
   version: 1
 }
 
+# Enabled
 config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/config/set-bit"
+  path: "/network-instances/network-instance/config/enabled"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/state/set-bit"
+  path: "/network-instances/network-instance/state/enabled"
+}
+
+# Type
+config_path {
+  path: "/network-instances/network-instance/config/type"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/state/type"
+}
+
+feature_profile_dependency {
+  name: "device_base"
+  version: 1
 }

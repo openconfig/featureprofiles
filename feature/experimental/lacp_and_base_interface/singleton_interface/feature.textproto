@@ -114,6 +114,9 @@ telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts"
 }
 telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-discarded-pkts"
+}
+telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts"
 }
 telemetry_path {
