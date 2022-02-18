@@ -19,13 +19,11 @@ package device
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/featureprofiles/feature/bgp"
 	"github.com/openconfig/featureprofiles/feature/lldp"
 	"github.com/openconfig/featureprofiles/feature/networkinstance"
@@ -152,17 +150,7 @@ func TestFullReplaceRequest(t *testing.T) {
 				}},
 			}
 
-			// Avoid test flakiness by ignoring the update ordering. Required because
-			// there is no order to the map of fields that are returned by the struct
-			// output.
-
-			res, err := setRequestEqual(got, want)
-			if err != nil {
-				t.Fatalf("%s: FullReplaceRequest(%v): setRequestEqual returned error %v\n", tt.name, tt.device, err)
-			}
-
-			if !res {
-				diff := cmp.Diff(got, want, protocmp.Transform())
+			if diff := cmp.Diff(got, want, protocmp.Transform()); diff != "" {
 				t.Errorf("%s: FullReplaceRequest(%v): did not get expected Notification, diff(-got,+want):%s\n", tt.name, tt.device, diff)
 			}
 		})
@@ -206,20 +194,6 @@ func TestFullReplaceRequest_Errors(t *testing.T) {
 			}
 		})
 	}
-}
-
-// setRequestEqual compares the contents of a and b and returns true if
-// they are equal. Only the replace array is expected to be set.
-func setRequestEqual(a, b *gnmipb.SetRequest) (bool, error) {
-	if a.GetPrefix() != nil || a.GetDelete() != nil || a.GetUpdate() != nil || a.GetExtension() != nil {
-		return false, fmt.Errorf("SetRequest %+v unexpected fields", a)
-	}
-
-	if b.GetPrefix() != nil || b.GetDelete() != nil || b.GetUpdate() != nil || b.GetExtension() != nil {
-		return false, fmt.Errorf("SetRequest %+v unexpected fields", b)
-	}
-
-	return cmp.Equal(a.GetReplace(), b.GetReplace(), cmpopts.EquateEmpty(), protocmp.Transform()), nil
 }
 
 type FakeFeature struct {
