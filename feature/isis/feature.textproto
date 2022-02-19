@@ -51,8 +51,6 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/subtlvs/subtlv/flags/state/flags"
 }
 
-
-
 # Interfaces interface-id
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id"
@@ -159,4 +157,3 @@ telemetry_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/retransmit"
 }
-
