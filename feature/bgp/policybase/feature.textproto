@@ -272,6 +272,24 @@ telemetry_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent"
 }
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/state/export-policy"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/state/import-policy"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/default-import-policy"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/default-export-policy"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/default-export-policy"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/default-import-policy"
+}
 
 feature_profile_dependency {
   name: "bgp_base"
