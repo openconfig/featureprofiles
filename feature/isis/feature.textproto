@@ -148,7 +148,6 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/enabled"
 }
-
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/global/transport/config/lsp-mtu-size"
 }
