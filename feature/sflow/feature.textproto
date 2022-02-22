@@ -1,0 +1,16 @@
+id {
+  name: "sflow"
+  version: 1
+}
+
+# interfaces
+config_path {
+  path: "/sampling/sflow/config/source-address"
+}
+config_path {
+  path: "/sampling/sflow/interfaces/interface/config/enabled"
+}
+config_path {
+  path: "/sampling/sflow/interfaces/interface/config/name"
+} 
+
