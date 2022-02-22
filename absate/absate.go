@@ -91,8 +91,11 @@ func NewDevice(d *ondatra.ATEDevice) *ATE {
 
 // AddFlow adds a flow to the ATE with the specified name.
 func (a *ATE) AddFlow(name string) *Flow {
-	f := newFlow(a, name)
-	return f
+	return newFlow(a, name)
+}
+
+func (a *ATE) WithBGP() *BGP {
+	return newBGP(a)
 }
 
 // StartTraffic starts traffic flowing for the flow specified.
@@ -109,6 +112,7 @@ func (a *ATE) StartTraffic(t testing.TB) {
 	}
 }
 
+// StopTraffic stops traffic that is running on the abstract ATE.
 func (a *ATE) StopTraffic(t testing.TB) {
 	switch mode {
 	case ClassicATE:
@@ -160,3 +164,32 @@ func (f *Flow) IPinIPTunnel(dscp uint8) *Flow {
 	}
 	return f
 }
+
+/*type BGP struct {
+	parent *ATE
+
+	otg gosnappi.DeviceBgpRouter
+}
+
+func newBGP(a *ATE, devName string) *BGP {
+	b := &BGP{
+		parent: a,
+	}
+	switch mode {
+	case ClassicATE:
+	case OTG:
+		b.otg = a.otg.Devices().Add().SetName(devName).Bgp()
+	}
+	return b
+}
+
+func (b *BGP) ExternalIPv4Peer() *IPv4BGPPeer {
+
+}
+
+
+type IPv4BGPPeer struct {
+	parent *ATE
+
+	otg gosnappi.BgpV4Peer
+}*/
