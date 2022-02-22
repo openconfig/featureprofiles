@@ -146,7 +146,6 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/enabled"
 }
-<<<<<<< HEAD
 
 # IPv6 Reachability
 telemetry_path {
@@ -167,8 +166,6 @@ telemetry_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/part-changes"
 }
-
-=======
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/global/transport/config/lsp-mtu-size"
 }
@@ -180,4 +177,3 @@ telemetry_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/retransmit"
 }
->>>>>>> main
