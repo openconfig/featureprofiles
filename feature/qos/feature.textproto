@@ -53,6 +53,8 @@ config_path {
 config_path {
   path: "/qos/interfaces/interface/output/scheduler-policy/config/name"
 }
+
+# Queues
 telemetry_path {
   path: "/qos/queues/queue/state/name"
 }
