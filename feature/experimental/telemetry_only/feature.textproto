@@ -21,6 +21,15 @@ telemetry_path {
   path: "/components/component/fan/state/speed"
 }
 telemetry_path {
+    path: "/components/component/properties/property/state/value"
+}
+telemetry_path {
+    path: "/components/component/state/parent"
+}
+telemetry_path {
+    path: "/components/component/subcomponents/subcomponent/state/name"
+}
+telemetry_path {
   path: "/components/component/integrated-circuit/state/node-id"
 }
 telemetry_path {

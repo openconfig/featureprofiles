@@ -42,3 +42,9 @@ telemetry_path {
 telemetry_path {
   path: "/lldp/state/system-name"
 }
+config_path {
+    path: "/lldp/config/system-description"
+}
+config_path {
+    path: "/lldp/interfaces/interface/config/name"
+}

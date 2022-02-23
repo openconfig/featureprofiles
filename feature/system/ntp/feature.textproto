@@ -37,3 +37,20 @@ config_path {
 telemetry_path {
     path: "/system/ntp/servers/server/state/port"
 }
+
+# Counters
+telemetry_path {
+    path: "/system/ntp/servers/server/state/offset"
+}
+telemetry_path {
+    path: "/system/ntp/servers/server/state/poll-interval"
+}
+telemetry_path {
+    path: "/system/ntp/servers/server/state/root-delay"
+}
+telemetry_path {
+    path: "/system/ntp/servers/server/state/root-dispersion"
+}
+telemetry_path {
+    path: "/system/ntp/servers/server/state/stratum"
+}
