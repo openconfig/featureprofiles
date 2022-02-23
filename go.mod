@@ -7,7 +7,7 @@ require (
 	github.com/google/go-cmp v0.5.7
 	github.com/openconfig/gnmi v0.0.0-20220131173555-39aa74195f0d
 	github.com/openconfig/goyang v0.4.0
-	github.com/openconfig/ondatra v0.0.0-20220202213352-565fe6df0714
+	github.com/openconfig/ondatra v0.0.0-20220215004306-0347c0155153
 	github.com/openconfig/ygot v0.14.0
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220131092820-39736dd543b4
 	github.com/stretchr/testify v1.7.0
@@ -19,7 +19,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/kne v0.1.0 // indirect
+	github.com/google/kne v0.1.1-0.20220209214853-52a824020cd9 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
