@@ -22,7 +22,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygot/ytypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -37,6 +40,16 @@ func TestMain(m *testing.M) {
 }
 
 func TestGNMIGet(t *testing.T) {
+	shortResponse := func(g *gpb.GetResponse) string {
+		p := proto.Clone(g).(*gpb.GetResponse)
+		for _, n := range p.Notification {
+			for _, u := range n.Update {
+				u.Val = nil
+			}
+		}
+		return prototext.Format(p)
+	}
+
 	tests := []struct {
 		desc            string
 		inGetRequest    *gpb.GetRequest
@@ -65,17 +78,50 @@ func TestGNMIGet(t *testing.T) {
 		cmpOpts: []cmp.Option{
 			protocmp.IgnoreFields(&gpb.GetResponse{}, "notification"),
 		},
-	}}
-
-	shortResponse := func(g *gpb.GetResponse) string {
-		p := proto.Clone(g).(*gpb.GetResponse)
-		for _, n := range p.Notification {
-			for _, u := range n.Update {
-				u.Val = nil
+	}, {
+		desc: "response for / honours encoding",
+		inGetRequest: &gpb.GetRequest{
+			Prefix: &gpb.Path{
+				Origin: "openconfig",
+			},
+			Path:     []*gpb.Path{{}},
+			Encoding: gpb.Encoding_JSON_IETF,
+		},
+		wantGetResponse: &gpb.GetResponse{
+			Notification: []*gpb.Notification{{
+				Update: []*gpb.Update{{
+					Path: &gpb.Path{},
+				}},
+			}},
+		},
+		cmpOpts: []cmp.Option{
+			protocmp.IgnoreFields(&gpb.GetResponse{}, "notification"),
+		},
+		chkFn: func(t *testing.T, res *gpb.GetResponse) {
+			var val *gpb.TypedValue
+			for _, n := range res.Notification {
+				for _, u := range n.Update {
+					// we know notification[0].update[0] is the contents of our Get in JSON.
+					val = u.Val
+					break
+				}
 			}
-		}
-		return prototext.Format(p)
-	}
+
+			if val == nil {
+				t.Fatalf("did not get a valid update, got: %v", shortResponse(res))
+			}
+
+			jv := val.GetJsonIetfVal()
+			if jv == nil {
+				t.Fatalf("did not get JSON IETF value as expected, got:  %v", val)
+			}
+
+			d := &oc.Device{}
+			if err := oc.Unmarshal(jv, d, &ytypes.IgnoreExtraFields{}); err != nil {
+				t.Fatalf("did not get valid JSON IETF value, got err: %v", err)
+			}
+		},
+	}}
 
 	for _, tt := range tests {
 		dut := ondatra.DUT(t, "dut")
@@ -102,10 +148,14 @@ func TestGNMIGet(t *testing.T) {
 				t.Fatalf("did not get expected number of Notification fields, got: %d, want: %d", got, want)
 			}
 
-			found := map[*gpb.Path]bool{}
+			found := map[string]bool{}
 			for _, n := range tt.wantGetResponse.Notification {
 				for _, u := range n.Update {
-					found[u.Path] = false
+					p, err := ygot.PathToString(u.Path)
+					if err != nil {
+						t.Fatalf("cannot convert path %v to string, err: %v", u.Path, err)
+					}
+					found[p] = false
 				}
 			}
 
@@ -117,20 +167,29 @@ func TestGNMIGet(t *testing.T) {
 				}
 				msg := n.Update[0]
 
-				seen, ok := found[msg.Path]
+				p, err := ygot.PathToString(msg.Path)
+				if err != nil {
+					t.Fatalf("cannot convert path %v to string, err: %v", msg.Path, err)
+				}
+
+				seen, ok := found[p]
 				if !ok {
 					t.Errorf("found unexpected path %v in Notifications, got: %v", msg.Path, shortResponse(gotRes))
 				}
 				if seen {
 					t.Errorf("saw repeated path %v in Notifications, got: %v", msg.Path, shortResponse(gotRes))
 				}
-				found[msg.Path] = true
+				found[p] = true
 			}
 
 			for p, ok := range found {
 				if !ok {
 					t.Errorf("did not find path %v in Notifications, got: %v", p, shortResponse(gotRes))
 				}
+			}
+
+			if tt.chkFn != nil {
+				tt.chkFn(t, gotRes)
 			}
 		})
 	}
