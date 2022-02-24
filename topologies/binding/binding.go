@@ -46,7 +46,7 @@ var _ = binding.Binding(&staticBind{})
 
 const resvID = "STATIC"
 
-func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, waitTime time.Duration) (*binding.Reservation, error) {
+func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, waitTime time.Duration, partial map[string]string) (*binding.Reservation, error) {
 	if b.resv != nil {
 		return nil, fmt.Errorf("only one reservation is allowed")
 	}
@@ -74,7 +74,7 @@ func (b *staticBind) FetchReservation(ctx context.Context, id string) (*binding.
 	return b.resv, nil
 }
 
-func (b *staticBind) PushConfig(ctx context.Context, dut *binding.DUT, config string, opts *binding.ConfigOptions) error {
+func (b *staticBind) PushConfig(ctx context.Context, dut *binding.DUT, config string, reset bool) error {
 	// If really needed, implement this using SSH cli.
 	return errors.New("featureprofiles tests should use gNMI, not PushConfig")
 }
