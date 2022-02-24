@@ -152,3 +152,12 @@ telemetry_path {
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts"
 }
+telemetry_path {
+    path: "/interfaces/interface/ethernet/state/negotiated-port-speed"
+}
+telemetry_path {
+    path: "/interfaces/interface/state/forwarding-viable"
+}
+telemetry_path {
+    path: "/interfaces/interface/state/id"
+}

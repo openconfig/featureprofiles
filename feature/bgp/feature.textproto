@@ -417,6 +417,19 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/keepalive-interval"
 }
 
+# Neighbor state
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/last-established"
+}
+
+# Transport
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/remote-address"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/remote-port"
+}
+
 gnoi_service {
   service_name: "gnoi.bgp.BGP"
   method_name: "ClearBGPNeighbor"
