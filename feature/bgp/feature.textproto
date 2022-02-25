@@ -17,6 +17,20 @@ id {
   version: 1
 }
 
+# Network Instance config
+config_path {
+    path: "/network-instances/network-instance/config/enabled"
+}
+config_path {
+    path: "/network-instances/network-instance/config/enabled-address-families"
+}
+config_path {
+    path: "/network-instances/network-instance/config/name"
+}
+config_path {
+    path: "/network-instances/network-instance/config/type"
+}
+
 # BGP Instance
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/global/config/as"
@@ -415,6 +429,19 @@ config_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/keepalive-interval"
+}
+
+# Neighbor state
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/last-established"
+}
+
+# Transport
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/remote-address"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/remote-port"
 }
 
 gnoi_service {
