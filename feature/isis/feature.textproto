@@ -61,6 +61,9 @@ telemetry_path {
 
 # Interfaces enabled
 config_path {
+  path: "/network-instances/network-instance/interfaces/interface/config/id"
+}
+config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled"
 }
 telemetry_path {

@@ -209,3 +209,9 @@ telemetry_path {
 telemetry_path {
   path: "/system/state/hostname"
 }
+config_path {
+    path: "/components/component/config/name"
+}
+config_path {
+    path: "/components/component/integrated-circuit/config/node-id"
+}
