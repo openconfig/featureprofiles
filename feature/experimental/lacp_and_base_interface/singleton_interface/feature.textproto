@@ -152,3 +152,40 @@ telemetry_path {
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts"
 }
+telemetry_path {
+    path: "/interfaces/interface/ethernet/state/negotiated-port-speed"
+}
+telemetry_path {
+    path: "/interfaces/interface/state/forwarding-viable"
+}
+telemetry_path {
+    path: "/interfaces/interface/state/id"
+}
+config_path {
+    path: "/interfaces/interface/config/forwarding-viable"
+}
+config_path {
+    path: "/interfaces/interface/config/type"
+}
+config_path {
+    path: "/interfaces/interface/ethernet/config/enable-flow-control"
+}
+config_path {
+    path: "/interfaces/interface/hold-time/config/down"
+}
+config_path {
+    path: "/interfaces/interface/hold-time/config/up"
+}
+config_path {
+    path: "/interfaces/interface/subinterfaces/subinterface/config/description"
+}
+config_path {
+    path: "/interfaces/interface/subinterfaces/subinterface/config/enabled"
+}
+config_path {
+    path: "/interfaces/interface/subinterfaces/subinterface/config/index"
+}
+config_path {
+    path: "/interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled"
+}
+

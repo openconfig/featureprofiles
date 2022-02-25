@@ -61,6 +61,9 @@ telemetry_path {
 
 # Interfaces enabled
 config_path {
+  path: "/network-instances/network-instance/interfaces/interface/config/id"
+}
+config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled"
 }
 telemetry_path {
@@ -181,3 +184,120 @@ telemetry_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/retransmit"
 }
+
+# Adjacencies
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv4-address"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv6-address"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/system-id"
+}
+
+# AFI-SAFI
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/afi-name"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/safi-name"
+}
+
+# CSNP counters
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/csnp/state/dropped"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/csnp/state/processed"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/csnp/state/received"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/csnp/state/sent"
+}
+
+# IIH counters
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/state/dropped"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/state/received"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/state/sent"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/state/processed"
+}
+
+# LSP Counters
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/state/dropped"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/state/processed"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/state/received"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/state/retransmit"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/state/sent"
+}
+
+# PSNP Counters
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/dropped"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/processed"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/sent"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/received"
+}
+
+# System Level Counters
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-fails"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-type-fails"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/corrupted-lsps"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/database-overloads"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/id-len-mismatch"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/lsp-errors"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/max-area-address-mismatches"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/own-lsp-purges"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/seq-num-skips"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/spf-runs"
+}
+

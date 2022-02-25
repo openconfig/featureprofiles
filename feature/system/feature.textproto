@@ -98,6 +98,13 @@ telemetry_path {
     path: "/system/clock/state/timezone-name"
 }
 
+config_path {
+    path: "/system/aaa/authentication/users/user/config/username"
+}
+config_path {
+    path: "/system/aaa/authentication/users/user/config/ssh-key"
+}
+
 gnoi_service {
   service_name: "gnoi.os.OS"
   method_name: "Install"
