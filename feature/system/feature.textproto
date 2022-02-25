@@ -59,7 +59,6 @@ telemetry_path {
     path: "/system/clock/state/timezone-name"
 }
 
-
 config_path {
     path: "/system/aaa/authentication/users/user/config/username"
 }
