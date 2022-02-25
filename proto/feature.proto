@@ -65,6 +65,25 @@ message GNOIService {
   optional string method_name = 2;
 }
 
+// GNMIService describes compliance with the gNMI service.
+message GNMIService {
+  // method_name specifies the name of the method that is
+  // being tested. The methods are from the gnmi service (e.g., Get).
+  enum Method {
+    MD_INVALID = 0;
+    MD_GET = 1;           // gNMI.Get
+    MD_CAPABILITIES = 2;  // gNMI.Capabilities
+    MD_SUBSCRIBE = 3;     // gNMI.Subscribe
+    MD_SET = 4;           // gNMI.Set
+  }
+
+  // The method that is covered within the gNMI protocol.
+  optional Method method_name = 2;
+  
+  // TODO(robjs): for some RPCs, like Subscribe, we may want
+  // further description of modes (e.g., POLL, STREAM, ONCE).
+}
+
 message FeatureProfile {
   // Unique identifier for the service profile.
   optional FeatureProfileID id = 1;
