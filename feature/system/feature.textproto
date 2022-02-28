@@ -17,13 +17,13 @@ id {
     version: 1
 }
 
+# Name
 config_path {
     path: "/system/config/hostname"
 }
 telemetry_path {
     path: "/system/state/hostname"
 }
-
 config_path {
     path: "/system/config/domain-name"
 }
@@ -31,13 +31,13 @@ telemetry_path {
     path: "/system/state/domain-name"
 }
 
+# Banner
 config_path {
     path: "/system/config/login-banner"
 }
 telemetry_path {
     path: "/system/state/login-banner"
 }
-
 config_path {
     path: "/system/config/motd-banner"
 }
@@ -45,18 +45,64 @@ telemetry_path {
     path: "/system/state/motd-banner"
 }
 
+# Time
 telemetry_path {
     path: "/system/state/current-datetime"
 }
+
+# boot parameters
 telemetry_path {
     path: "/system/state/boot-time"
 }
 
+# CPU
+telemetry_path {
+    path: "/system/cpus/cpu/state/total/avg"
+}
+telemetry_path {
+    path: "/system/cpus/cpu/state/total/interval"
+}
+telemetry_path {
+    path: "/system/cpus/cpu/state/index"
+}
+telemetry_path {
+    path: "/system/cpus/cpu/state/kernel/avg"
+}
+telemetry_path {
+    path: "/system/cpus/cpu/state/nice/avg"
+}
+telemetry_path {
+    path: "/system/cpus/cpu/state/software-interrupt/avg"
+}
+telemetry_path {
+    path: "/system/cpus/cpu/state/user/avg"
+}
+telemetry_path {
+    path: "/system/cpus/cpu/state/wait/avg"
+}
+telemetry_path {
+    path: "/system/cpus/cpu/state/wait/interval"
+}
+
+
+# Memory
+telemetry_path {
+    path: "/system/memory/state/reserved"
+}
+
+# Timezone
 config_path {
     path: "/system/clock/config/timezone-name"
 }
 telemetry_path {
     path: "/system/clock/state/timezone-name"
+}
+
+config_path {
+    path: "/system/aaa/authentication/users/user/config/username"
+}
+config_path {
+    path: "/system/aaa/authentication/users/user/config/ssh-key"
 }
 
 gnoi_service {

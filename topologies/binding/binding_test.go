@@ -37,7 +37,7 @@ func TestReserveFetchRelease(t *testing.T) {
 		t.Error("Release should fail before reservation is made.")
 	}
 
-	resv, err := b.Reserve(ctx, tb, 0, 0)
+	resv, err := b.Reserve(ctx, tb, 0, 0, nil)
 	if err != nil {
 		t.Fatalf("Could not reserve testbed: %v", err)
 	}

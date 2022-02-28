@@ -19,12 +19,12 @@ package system_ntp_test
 import (
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	kinit "github.com/openconfig/ondatra/knebind/init"
 )
 
 func TestMain(m *testing.M) {
-	ondatra.RunTests(m, kinit.Init)
+	fptest.RunTests(m)
 }
 
 // TestNtpEnable validates the NTP enable path does not return an error.
