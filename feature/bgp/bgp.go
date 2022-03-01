@@ -46,6 +46,12 @@ func (b *BGP) WithAS(as uint32) *BGP {
 	return b
 }
 
+// WithAfiSafiGlobal sets the AFI-SAFI type for BGP global.
+func (b *BGP) WithAfiSafiGlobal(name oc.E_BgpTypes_AFI_SAFI_TYPE) *BGP {
+        b.oc.GetOrCreateBgp().GetOrCreateGlobal().GetOrCreateAfiSafi(name).Enabled = ygot.Bool(true)
+        return b
+}
+
 // WithRouterID sets the router-id value for BGP global.
 func (b *BGP) WithRouterID(rID string) *BGP {
 	b.oc.GetOrCreateBgp().GetOrCreateGlobal().RouterId = ygot.String(rID)
