@@ -85,6 +85,24 @@ func TestAugmentNetworkInstance(t *testing.T) {
 			},
 		},
 	}, {
+		desc: "BGP with Global AfiSafi",
+		bgp:  New().WithAFISAFI(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
+		inNI: &oc.NetworkInstance{},
+		wantNI: &oc.NetworkInstance{
+			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+				protocolKey: {
+					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Name:       ygot.String("bgp"),
+					Bgp: &oc.NetworkInstance_Protocol_Bgp{
+						Global: &oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+							Enabled:     ygot.Bool(true),
+						},
+					},
+				},
+			},
+		},
+	}, {
 		desc: "NI contains BGP OC with no conflicts",
 		bgp:  New().WithRouterID("1.2.3.4"),
 		inNI: &oc.NetworkInstance{
