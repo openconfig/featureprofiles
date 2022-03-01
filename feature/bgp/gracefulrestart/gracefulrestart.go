@@ -27,8 +27,8 @@ import (
 
 // GracefulRestart struct to store OC attributes.
 type GracefulRestart struct {
-	noc oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart
-	poc oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart
+	noc    oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart
+	poc    oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart
 	global oc.NetworkInstance_Protocol_Bgp_Global_GracefulRestart
 }
 
@@ -42,8 +42,8 @@ func New() *GracefulRestart {
 			Enabled: ygot.Bool(true),
 		},
 		global: oc.NetworkInstance_Protocol_Bgp_Global_GracefulRestart{
-                        Enabled: ygot.Bool(true),
-                },
+			Enabled: ygot.Bool(true),
+		},
 	}
 }
 
