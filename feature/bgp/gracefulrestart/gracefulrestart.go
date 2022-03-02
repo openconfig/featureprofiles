@@ -111,5 +111,5 @@ func (gr *GracefulRestart) AugmentGlobal(g *oc.NetworkInstance_Protocol_Bgp_Glob
 		g.GracefulRestart = &gr.goc
 		return nil
 	}
-	return ygot.MergeStructInto(g.GracefulRestart, &g.goc)
+	return ygot.MergeStructInto(g.GracefulRestart, &gr.goc)
 }
