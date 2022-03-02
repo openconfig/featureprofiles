@@ -94,7 +94,7 @@ func TestAugmentNetworkInstance(t *testing.T) {
 					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 					Name:       ygot.String("bgp"),
 					Bgp: &oc.NetworkInstance_Protocol_Bgp{
-						Global: &oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+						Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
 							Enabled:     ygot.Bool(true),
 						},
