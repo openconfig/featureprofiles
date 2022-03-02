@@ -103,7 +103,7 @@ func (gr *GracefulRestart) AugmentPeerGroup(pg *oc.NetworkInstance_Protocol_Bgp_
 // AugmentGlobal implements the bgp.GlobalFeature interface.
 // This method augments the BGP Global  with graceful restart feature.
 // Use g.WithFeature(gr) instead of calling this method directly.
-func (gr *GracefulRestart) AugmentPeerGroup(g *oc.NetworkInstance_Protocol_Bgp_PeerGroup) error {
+func (gr *GracefulRestart) AugmentGlobal(g *oc.NetworkInstance_Protocol_Bgp_Global) error {
 	if err := gr.goc.Validate(); err != nil {
 		return err
 	}

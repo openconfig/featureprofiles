@@ -46,8 +46,8 @@ func (b *BGP) WithAS(as uint32) *BGP {
 	return b
 }
 
-// WithAfiSafiGlobal sets the AFI-SAFI type for BGP global.
-func (b *BGP) WithAfiSafiGlobal(name oc.E_BgpTypes_AFI_SAFI_TYPE) *BGP {
+// WithAFISAFI sets the AFI-SAFI type for BGP global.
+func (b *BGP) WithAFISAFI(name oc.E_BgpTypes_AFI_SAFI_TYPE) *BGP {
 	b.oc.GetOrCreateBgp().GetOrCreateGlobal().GetOrCreateAfiSafi(name).Enabled = ygot.Bool(true)
 	return b
 }
