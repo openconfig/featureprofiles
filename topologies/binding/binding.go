@@ -28,9 +28,9 @@ import (
 
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	grpb "github.com/openconfig/gribi/v1/proto/service"
+	gribipb "github.com/openconfig/gribi/v1/proto/service"
+	fluentgribi "github.com/openconfig/gribigo/fluent"
 	opb "github.com/openconfig/ondatra/proto"
-	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 // staticBind implements the binding.Binding interface by creating a
@@ -46,7 +46,7 @@ var _ = binding.Binding(&staticBind{})
 
 const resvID = "STATIC"
 
-func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, waitTime time.Duration, partial map[string]string) (*binding.Reservation, error) {
+func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, waitTime time.Duration) (*binding.Reservation, error) {
 	if b.resv != nil {
 		return nil, fmt.Errorf("only one reservation is allowed")
 	}
@@ -74,7 +74,7 @@ func (b *staticBind) FetchReservation(ctx context.Context, id string) (*binding.
 	return b.resv, nil
 }
 
-func (b *staticBind) PushConfig(ctx context.Context, dut *binding.DUT, config string, reset bool) error {
+func (b *staticBind) PushConfig(ctx context.Context, dut *binding.DUT, config string, opts *binding.ConfigOptions) error {
 	// If really needed, implement this using SSH cli.
 	return errors.New("featureprofiles tests should use gNMI, not PushConfig")
 }
@@ -103,28 +103,17 @@ func (b *staticBind) DialGNOI(ctx context.Context, dut *binding.DUT, opts ...grp
 	return gnoiConn{conn}, nil
 }
 
-func (b *staticBind) DialGRIBI(ctx context.Context, dut *binding.DUT, opts ...grpc.DialOption) (grpb.GRIBIClient, error) {
+func (b *staticBind) DialGRIBI(ctx context.Context, dut *binding.DUT, opts ...grpc.DialOption) (*binding.GRIBIClient, error) {
+	// Todo: For now, we assume that gribi server use that same port as gribi
 	dialer, err := b.r.gribi(dut.Name)
-	if err != nil {
-		return nil, err
-	}
 	conn, err := dialer.dialGRPC(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return grpb.NewGRIBIClient(conn), nil
-}
-
-func (b *staticBind) DialP4RT(ctx context.Context, dut *binding.DUT, opts ...grpc.DialOption) (p4pb.P4RuntimeClient, error) {
-	dialer, err := b.r.p4rt(dut.Name)
-	if err != nil {
-		return nil, err
-	}
-	conn, err := dialer.dialGRPC(ctx, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return p4pb.NewP4RuntimeClient(conn), nil
+	stub := gribipb.NewGRIBIClient(conn)
+	fluentCli := fluentgribi.NewClient()
+	fluentCli.Connection().WithStub(stub)
+	return &binding.GRIBIClient{GRPCClient: conn, FluentAPIHandle: fluentCli}, nil
 }
 
 func (b *staticBind) DialConsole(ctx context.Context, dut *binding.DUT, opts ...grpc.DialOption) (binding.StreamClient, error) {
