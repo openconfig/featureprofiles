@@ -26,6 +26,11 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+var protocolKey = oc.NetworkInstance_Protocol_Key{
+	Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+	Name:       "static",
+}
+
 // TestAugment tests the NI augment to device OC.
 func TestAugment(t *testing.T) {
 	tests := []struct {
@@ -82,6 +87,30 @@ func TestAugment(t *testing.T) {
 					Name:    ygot.String("vrf-1"),
 					Enabled: ygot.Bool(true),
 					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+				},
+			},
+		},
+	}, {
+		desc:     "Static route",
+		ni:       New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE).WithStaticRoute("1.1.1.1"),
+		inDevice: &oc.Device{},
+		wantDevice: &oc.Device{
+			NetworkInstance: map[string]*oc.NetworkInstance{
+				"default": {
+					Name:    ygot.String("default"),
+					Enabled: ygot.Bool(true),
+					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+					Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+						protocolKey: {
+							Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+							Name:       ygot.String("static"),
+							Static: map[string]*oc.NetworkInstance_Protocol_Static{
+								"primary": {
+									Prefix: ygot.String("1.1.1.1"),
+								},
+							},
+						},
+					},
 				},
 			},
 		},

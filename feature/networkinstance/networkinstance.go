@@ -29,6 +29,7 @@ import (
 type NetworkInstance struct {
 	oc oc.NetworkInstance
 }
+type UnionString string
 
 // New returns the new NetworkInstance object with specified name and type.
 func New(name string, niType oc.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE) *NetworkInstance {
@@ -50,6 +51,12 @@ func (ni *NetworkInstance) validate() error {
 		return errors.New("NetworkInstance type is unset")
 	}
 	return ni.oc.Validate()
+}
+
+// WithStaticRoute sets the prefix value for static route.
+func (ni *NetworkInstance) WithStaticRoute(prefix string) *NetworkInstance {
+	ni.oc.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").GetOrCreateStatic("prefix").Prefix = ygot.String(prefix)
+	return ni
 }
 
 // AugmentDevice implements the device.Feature interface.

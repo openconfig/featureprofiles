@@ -138,11 +138,11 @@ telemetry_path {
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric"
 }
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric"
-}
 config_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric"
 }
 
 # Interfaces afi-safi enabled
@@ -195,6 +195,12 @@ config_path {
 config_path {
     path: "/network-instances/network-instance/protocols/protocol/config/name"
 }
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/state/identifier"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/state/name"
+}
 
 # Global counters
 config_path {
@@ -208,7 +214,19 @@ config_path {
 }
 config_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/spf/config/spf-hold-interval"
-
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/state/lsp-lifetime-interval"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/state/lsp-refresh-interval"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/spf/state/spf-first-interval"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/spf/state/spf-hold-interval"
+  }
 # Adjacencies
 telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state"

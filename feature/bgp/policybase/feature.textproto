@@ -245,9 +245,12 @@ config_path {
 telemetry_path {
   path: "/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-as-path-set/state/match-set-options"
 }
-##policy-result
+#policy-result
 config_path {
     path: "/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result"
+}
+telemetry_path {
+    path: "/routing-policy/policy-definitions/policy-definition/statements/statement/actions/state/policy-result"
 }
 
 # Per neighbor policy telemetry paths
