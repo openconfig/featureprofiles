@@ -12,5 +12,4 @@ config_path {
 }
 config_path {
   path: "/sampling/sflow/interfaces/interface/config/name"
-} 
-
+}
