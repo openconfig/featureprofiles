@@ -160,7 +160,7 @@ func TestAugment(t *testing.T) {
 								"primary": {
 									NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
 										"0": {
-											NextHop: oc.UnionString(""),
+											NextHop: nil,
 										},
 									},
 								},
