@@ -12,7 +12,7 @@ config_path {
 }
 config_path {
   path: "/qos/classifiers/classifier/terms/term/actions/config/target-group"
-} 
+}
 telemetry_path {
   path: "/qos/classifiers/classifier/terms/term/actions/state/target-group"
 }
