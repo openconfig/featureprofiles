@@ -51,8 +51,8 @@ func (ni *NetworkInstance) validate() error {
 	if ni.oc.GetType() == oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET {
 		return errors.New("NetworkInstance type is unset")
 	}
-	if ni.oc.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").GetOrCreateStatic("prefix").GetOrCreateNextHop("0").NextHop == nil {
-		return errors.New("Nexthop is empty")
+	if ni.oc.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").GetOrCreateStatic("prefix").GetOrCreateNextHop("0").NextHop == oc.UnionString("") {
+		return errors.New("NetworkInstance nexthop is unset")
 	}
 	return ni.oc.Validate()
 }
