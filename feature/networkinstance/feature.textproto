@@ -33,26 +33,6 @@ telemetry_path {
   path: "/network-instances/network-instance/state/type"
 }
 
-# Static routes
-config_path {
-    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix"
-}
-config_path {
-    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index"
-}
-config_path {
-    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop"
-}
-telemetry_path {
-    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix"
-}
-telemetry_path {
-    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/index"
-}
-telemetry_path {
-    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop"
-}
-
 feature_profile_dependency {
   name: "device_base"
   version: 1

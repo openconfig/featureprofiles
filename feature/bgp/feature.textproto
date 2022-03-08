@@ -436,6 +436,12 @@ config_path {
 config_path {
     path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled"
 }
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/state/afi-safi-name"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/state/enabled"
+}
 
 # Neighbor state
 telemetry_path {

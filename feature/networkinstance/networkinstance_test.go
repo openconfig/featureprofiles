@@ -92,7 +92,7 @@ func TestAugment(t *testing.T) {
 		},
 	}, {
 		desc:     "Static route",
-		ni:       New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE).WithStaticRoute("1.1.1.1"),
+		ni:       New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
 		inDevice: &oc.Device{},
 		wantDevice: &oc.Device{
 			NetworkInstance: map[string]*oc.NetworkInstance{
@@ -107,6 +107,93 @@ func TestAugment(t *testing.T) {
 							Static: map[string]*oc.NetworkInstance_Protocol_Static{
 								"primary": {
 									Prefix: ygot.String("1.1.1.1"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}, {
+		desc:     "One Next Hop",
+		ni:       New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
+		inDevice: &oc.Device{},
+		wantDevice: &oc.Device{
+			NetworkInstance: map[string]*oc.NetworkInstance{
+				"default": {
+					Name:    ygot.String("default"),
+					Enabled: ygot.Bool(true),
+					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+					Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+						protocolKey: {
+							Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+							Name:       ygot.String("static"),
+							Static: map[string]*oc.NetworkInstance_Protocol_Static{
+								"primary": {
+									NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+										"0": {
+											NextHop: oc.UnionString("1.2.3.44"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}, {
+		desc:     "Zero Next Hop",
+		ni:       New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
+		inDevice: &oc.Device{},
+		wantDevice: &oc.Device{
+			NetworkInstance: map[string]*oc.NetworkInstance{
+				"default": {
+					Name:    ygot.String("default"),
+					Enabled: ygot.Bool(true),
+					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+					Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+						protocolKey: {
+							Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+							Name:       ygot.String("static"),
+							Static: map[string]*oc.NetworkInstance_Protocol_Static{
+								"primary": {
+									NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+										"0": {
+											NextHop: oc.UnionString(""),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}, {
+		desc:     "Multiple Next Hops",
+		ni:       New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
+		inDevice: &oc.Device{},
+		wantDevice: &oc.Device{
+			NetworkInstance: map[string]*oc.NetworkInstance{
+				"default": {
+					Name:    ygot.String("default"),
+					Enabled: ygot.Bool(true),
+					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+					Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+						protocolKey: {
+							Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+							Name:       ygot.String("static"),
+							Static: map[string]*oc.NetworkInstance_Protocol_Static{
+								"primary": {
+									NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+										"0": {
+											NextHop: oc.UnionString("1.2.3.44"),
+										},
+										"1": {
+											NextHop: oc.UnionString("1.2.3.45"),
+										},
+									},
 								},
 							},
 						},

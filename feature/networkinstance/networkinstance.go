@@ -23,6 +23,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ygot/ygot"
+	"strconv"
 )
 
 // NetworkInstance struct stores the OC attributes.
@@ -50,12 +51,21 @@ func (ni *NetworkInstance) validate() error {
 	if ni.oc.GetType() == oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET {
 		return errors.New("NetworkInstance type is unset")
 	}
+	if ni.oc.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").GetOrCreateStatic("prefix").GetOrCreateNextHop("0").NextHop == oc.UnionString("") {
+		return errors.New("Nexthop is empty")
+	}
 	return ni.oc.Validate()
 }
 
 // WithStaticRoute sets the prefix value for static route.
-func (ni *NetworkInstance) WithStaticRoute(prefix string) *NetworkInstance {
+func (ni *NetworkInstance) WithStaticRoute(prefix string, nextHops []string) *NetworkInstance {
 	ni.oc.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").GetOrCreateStatic("prefix").Prefix = ygot.String(prefix)
+	static := ni.oc.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").GetOrCreateStatic(prefix)
+	for i, nh := range nextHops {
+		str := strconv.Itoa(i + 1)
+		n := static.GetOrCreateNextHop(str)
+		n.NextHop = oc.UnionString(nh)
+	}
 	return ni
 }
 

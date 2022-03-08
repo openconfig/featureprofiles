@@ -30,6 +30,18 @@ config_path {
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/helper-only"
 }
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/state/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/state/restart-time"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/state/stale-routes-time"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/state/helper-only"
+}
 
 # Per neighbor graceful restart leafs.
 config_path {
@@ -43,6 +55,18 @@ config_path {
 }
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/config/helper-only"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/restart-time"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/stale-routes-time"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/helper-only"
 }
 
 # Per neighbor telemetry paths
@@ -62,6 +86,12 @@ config_path {
 }
 config_path {
     path: "/network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/stale-routes-time"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/state/restart-time"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/state/stale-routes-time"
 }
 
 feature_profile_dependency {
