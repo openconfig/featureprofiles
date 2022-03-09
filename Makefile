@@ -15,8 +15,12 @@ openconfig_public:
 	git clone https://github.com/openconfig/public.git openconfig_public
 
 .PHONY: validate_paths
-validate_paths: openconfig_public
+validate_paths: openconfig_public proto/feature_go_proto/feature.pb.go
 	go run -v tools/validate_paths.go \
 		--feature_root=$(CURDIR)/feature/ \
 		--yang_roots=$(CURDIR)/openconfig_public/release/models/,$(CURDIR)/openconfig_public/third_party/ \
 		--yang_skip_roots=$(CURDIR)/openconfig_public/release/models/wifi
+
+proto/feature_go_proto/feature.pb.go: proto/feature.proto
+	mkdir -p proto/feature_go_proto
+	protoc --proto_path=proto --go_out=./ --go_opt=Mfeature.proto=proto/feature_go_proto feature.proto
