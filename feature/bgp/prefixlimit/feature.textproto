@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "bgp_prefixlimit"
+  name: "bgp_prefix_limit"
   version: 1
 }
 

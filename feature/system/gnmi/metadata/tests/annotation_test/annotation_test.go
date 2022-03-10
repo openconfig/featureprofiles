@@ -21,9 +21,10 @@ import (
 	"fmt"
 	"testing"
 
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"

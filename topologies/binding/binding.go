@@ -38,10 +38,8 @@ import (
 // testbed topology.
 type staticBind struct {
 	binding.Binding
-	r            resolver
-	resv         *binding.Reservation
-	ateIxWeb     map[string]*ixweb.IxWeb
-	ateIxSession map[string]*ixweb.Session
+	r    resolver
+	resv *binding.Reservation
 }
 
 var _ = binding.Binding(&staticBind{})
@@ -58,19 +56,12 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	}
 	resv.ID = resvID
 	b.resv = resv
-
-	if err := b.reserveATE(ctx); err != nil {
-		return nil, err
-	}
 	return resv, nil
 }
 
 func (b *staticBind) Release(ctx context.Context) error {
 	if b.resv == nil {
 		return errors.New("no reservation")
-	}
-	if err := b.releaseATE(ctx); err != nil {
-		return err
 	}
 	b.resv = nil
 	return nil
@@ -160,7 +151,18 @@ func (b *staticBind) DialIxNetwork(ctx context.Context, ate *binding.ATE) (*bind
 	if err != nil {
 		return nil, err
 	}
-	ixs, err := b.ixSessionForATE(ctx, ate.Name, dialer)
+	hc := dialer.newHTTPClient()
+	password := dialer.GetPassword()
+	username := dialer.GetUsername()
+	if len(password) == 0 || len(username) == 0 {
+		password = "admin"
+		username = "admin"
+	}
+	ixw, err := ixweb.Connect(ctx, dialer.Target, ixweb.WithHTTPClient(hc), ixweb.WithLogin(username, password))
+	if err != nil {
+		return nil, err
+	}
+	ixs, err := ixw.IxNetwork().NewSession(ctx, ate.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -296,76 +298,4 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 		return nil, errs
 	}
 	return portmap, nil
-}
-
-func (b *staticBind) reserveATE(ctx context.Context) error {
-	ates := b.resv.ATEs
-	for _, ate := range ates {
-		dialer, err := b.r.ixnetwork(ate.Name)
-		if err != nil {
-			return err
-		}
-		if _, err := b.ixSessionForATE(ctx, ate.Name, dialer); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (b *staticBind) releaseATE(ctx context.Context) error {
-	for ateName, ixw := range b.ateIxWeb {
-		dialer, err := b.r.ixnetwork(ateName)
-		if err != nil {
-			return err
-		}
-		ixs, ok := b.ateIxSession[ateName]
-		if ok && dialer.SessionId == 0 {
-			if err := ixw.IxNetwork().DeleteSession(ctx, ixs.ID()); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (b *staticBind) ixWebForATE(ctx context.Context, ateName string, d dialer) (*ixweb.IxWeb, error) {
-	if b.ateIxWeb == nil {
-		b.ateIxWeb = make(map[string]*ixweb.IxWeb)
-	}
-
-	var err error
-	ixw, ok := b.ateIxWeb[ateName]
-	if !ok {
-		ixw, err = d.newIxWebClient(ctx)
-		if err != nil {
-			return nil, err
-		}
-		b.ateIxWeb[ateName] = ixw
-	}
-	return ixw, nil
-}
-
-func (b *staticBind) ixSessionForATE(ctx context.Context, ateName string, d dialer) (*ixweb.Session, error) {
-	if b.ateIxSession == nil {
-		b.ateIxSession = make(map[string]*ixweb.Session)
-	}
-
-	ixw, err := b.ixWebForATE(ctx, ateName, d)
-	if err != nil {
-		return nil, err
-	}
-	ixs, ok := b.ateIxSession[ateName]
-	if !ok {
-		var ixs_err error
-		if d.SessionId > 0 {
-			ixs, ixs_err = ixw.IxNetwork().FetchSession(ctx, int(d.SessionId))
-		} else {
-			ixs, ixs_err = ixw.IxNetwork().NewSession(ctx, ateName)
-		}
-		if ixs_err != nil {
-			return nil, ixs_err
-		}
-		b.ateIxSession[ateName] = ixs
-	}
-	return ixs, nil
 }

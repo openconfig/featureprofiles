@@ -48,6 +48,6 @@ telemetry_path {
 }
 
 feature_profile_dependency {
-  name: "bgp"
+  name: "bgp_base"
   version: 1
 }

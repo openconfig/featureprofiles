@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "experimental_hierarchical_gribi_entries_traffic_balancing_according_to_weights"
+  name: "traffic_balancing_according_to_weights"
   version: 1
 }
 

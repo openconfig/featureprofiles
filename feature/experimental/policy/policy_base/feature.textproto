@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "experimental_policy_policy_base"
+  name: "policy_base"
   version: 1
 }
 

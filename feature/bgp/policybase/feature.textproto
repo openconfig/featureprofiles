@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "bgp_policybase"
+  name: "bgp_policy_base"
   version: 1
 }
 
@@ -335,7 +335,7 @@ telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/state/import-policy"
 }
 feature_profile_dependency {
-  name: "bgp"
+  name: "bgp_base"
   version: 1
 }
 
