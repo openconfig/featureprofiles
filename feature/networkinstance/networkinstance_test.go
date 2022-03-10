@@ -26,13 +26,12 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-var protocolKey = oc.NetworkInstance_Protocol_Key{
-	Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
-	Name:       "static",
-}
-
 // TestAugment tests the NI augment to device OC.
 func TestAugment(t *testing.T) {
+	var protocolKey = oc.NetworkInstance_Protocol_Key{
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		Name:       "static",
+	}
 	tests := []struct {
 		desc       string
 		ni         *NetworkInstance
@@ -107,6 +106,36 @@ func TestAugment(t *testing.T) {
 							Static: map[string]*oc.NetworkInstance_Protocol_Static{
 								"primary": {
 									Prefix: ygot.String("1.1.1.1"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}, {
+		desc:     "Static route with nil next-hop",
+		ni:       New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE).WithStaticRoute("1.1.1.1", nil),
+		inDevice: &oc.Device{},
+		wantDevice: &oc.Device{
+			NetworkInstance: map[string]*oc.NetworkInstance{
+				"default": {
+					Name:    ygot.String("default"),
+					Enabled: ygot.Bool(true),
+					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+					Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+						protocolKey: {
+							Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+							Name:       ygot.String("static"),
+							Static: map[string]*oc.NetworkInstance_Protocol_Static{
+								"primary": {
+									Prefix: ygot.String("1.1.1.1"),
+									NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+										"0": {
+											Index:   ygot.String("0"),
+											NextHop: nil,
+										},
+									},
 								},
 							},
 						},

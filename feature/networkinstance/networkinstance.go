@@ -30,7 +30,8 @@ import (
 type NetworkInstance struct {
 	oc oc.NetworkInstance
 }
-type UnionString string
+
+var prefix string
 
 // New returns the new NetworkInstance object with specified name and type.
 func New(name string, niType oc.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE) *NetworkInstance {
@@ -51,7 +52,7 @@ func (ni *NetworkInstance) validate() error {
 	if ni.oc.GetType() == oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET {
 		return errors.New("NetworkInstance type is unset")
 	}
-	if ni.oc.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").GetOrCreateStatic("prefix").GetOrCreateNextHop("0").NextHop == oc.UnionString("") {
+	if ni.oc.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").GetOrCreateStatic(prefix).GetOrCreateNextHop("0").NextHop == oc.UnionString("") {
 		return errors.New("NetworkInstance nexthop is unset")
 	}
 	return ni.oc.Validate()
@@ -59,8 +60,8 @@ func (ni *NetworkInstance) validate() error {
 
 // WithStaticRoute sets the prefix value for static route.
 func (ni *NetworkInstance) WithStaticRoute(prefix string, nextHops []string) *NetworkInstance {
-	ni.oc.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").GetOrCreateStatic("prefix").Prefix = ygot.String(prefix)
 	static := ni.oc.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").GetOrCreateStatic(prefix)
+	static.Prefix = ygot.String(prefix)
 	for i, nh := range nextHops {
 		str := strconv.Itoa(i + 1)
 		n := static.GetOrCreateNextHop(str)

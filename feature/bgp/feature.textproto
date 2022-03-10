@@ -460,3 +460,7 @@ gnoi_service {
   service_name: "gnoi.bgp.BGP"
   method_name: "ClearBGPNeighbor"
 }
+feature_profile_dependency {
+  name: "network_instance_base"
+  version: 1
+}
