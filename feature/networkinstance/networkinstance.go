@@ -31,8 +31,6 @@ type NetworkInstance struct {
 	oc oc.NetworkInstance
 }
 
-var prefix string
-
 // New returns the new NetworkInstance object with specified name and type.
 func New(name string, niType oc.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE) *NetworkInstance {
 	return &NetworkInstance{
@@ -52,9 +50,14 @@ func (ni *NetworkInstance) validate() error {
 	if ni.oc.GetType() == oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET {
 		return errors.New("NetworkInstance type is unset")
 	}
-	if ni.oc.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").GetOrCreateStatic(prefix).GetOrCreateNextHop("0").NextHop == oc.UnionString("") {
-		return errors.New("NetworkInstance nexthop is unset")
-	}
+	p := ni.oc.GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
+		for _, v := p.Static {
+			for _, nh := v.NextHop {
+				if nh == "" {
+					return errors.New("NetworkInstance nexthop is unset")
+				}
+			}
+		}
 	return ni.oc.Validate()
 }
 
