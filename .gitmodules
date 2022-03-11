@@ -1,0 +1,4 @@
+[submodule "ondatra"]
+	path = ondatra
+	url = git@github.com:open-traffic-generator/ondatra.git
+	branch = ate_otg
