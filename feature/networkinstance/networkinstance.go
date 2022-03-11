@@ -23,7 +23,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ygot/ygot"
-	"strconv"
 )
 
 // NetworkInstance struct stores the OC attributes.
