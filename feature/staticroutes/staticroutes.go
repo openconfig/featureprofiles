@@ -31,10 +31,10 @@ type NetworkInstance struct {
 // validate method performs some sanity checks.
 func (ni *NetworkInstance) validate() error {
 	p := ni.oc.GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
-		for _, v := p.Static {
-			for _, nh := v.NextHop {
-				if nh == "" {
-					return errors.New("NetworkInstance nexthop is unset")
+	for _, v := p.Static {
+		for _, nh := v.NextHop {
+			if nh == "" {
+				return errors.New("NetworkInstance nexthop is unset")
 				}
 			}
 		}
