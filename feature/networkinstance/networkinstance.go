@@ -50,27 +50,7 @@ func (ni *NetworkInstance) validate() error {
 	if ni.oc.GetType() == oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET {
 		return errors.New("NetworkInstance type is unset")
 	}
-	p := ni.oc.GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
-		for _, v := p.Static {
-			for _, nh := v.NextHop {
-				if nh == "" {
-					return errors.New("NetworkInstance nexthop is unset")
-				}
-			}
-		}
 	return ni.oc.Validate()
-}
-
-// WithStaticRoute sets the prefix value for static route.
-func (ni *NetworkInstance) WithStaticRoute(prefix string, nextHops []string) *NetworkInstance {
-	static := ni.oc.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").GetOrCreateStatic(prefix)
-	static.Prefix = ygot.String(prefix)
-	for i, nh := range nextHops {
-		str := strconv.Itoa(i + 1)
-		n := static.GetOrCreateNextHop(str)
-		n.NextHop = oc.UnionString(nh)
-	}
-	return ni
 }
 
 // AugmentDevice implements the device.Feature interface.
