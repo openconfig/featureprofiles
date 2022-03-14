@@ -152,7 +152,13 @@ func (b *staticBind) DialIxNetwork(ctx context.Context, ate *binding.ATE) (*bind
 		return nil, err
 	}
 	hc := dialer.newHTTPClient()
-	ixw, err := ixweb.Connect(ctx, dialer.Target, ixweb.WithHTTPClient(hc))
+	password := dialer.GetPassword()
+	username := dialer.GetUsername()
+	if len(password) == 0 || len(username) == 0 {
+		password = "admin"
+		username = "admin"
+	}
+	ixw, err := ixweb.Connect(ctx, dialer.Target, ixweb.WithHTTPClient(hc), ixweb.WithLogin(username, password))
 	if err != nil {
 		return nil, err
 	}
