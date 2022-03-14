@@ -1,5 +1,5 @@
 id {
-  name: "static_routes"
+  name: "static_route"
   version: 1
 }
 
@@ -23,6 +23,6 @@ telemetry_path {
 }
 
 feature_profile_dependency {
-  name: "device_base"
+  name: "network_instance_base"
   version: 1
 }
