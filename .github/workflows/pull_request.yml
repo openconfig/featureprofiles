@@ -1,5 +1,5 @@
 name: Pull Request
-on: [push]
+on: [pull_request]
 jobs:
   validate_protobufs:
     name: Validate Protobufs
