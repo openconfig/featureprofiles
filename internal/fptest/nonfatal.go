@@ -17,12 +17,12 @@ package fptest
 import (
 	"testing"
 
-	"github.com/openconfig/ondatra/negtest"
+	"github.com/openconfig/testt"
 )
 
 // NonFatal converts fatal to an error so the test could continue.
 func NonFatal(t testing.TB, f func(t testing.TB)) (ok bool) {
-	msg := negtest.ExpectFatal(t, func(t testing.TB) {
+	msg := testt.ExpectFatal(t, func(t testing.TB) {
 		f(t)
 		ok = true
 		t.FailNow()
