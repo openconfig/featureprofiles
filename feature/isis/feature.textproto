@@ -138,6 +138,9 @@ telemetry_path {
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric"
 }
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric"
+}
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric"
 }
@@ -185,6 +188,45 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/retransmit"
 }
 
+# Network instance 
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/config/identifier"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/config/name"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/state/identifier"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/state/name"
+}
+
+# Global counters
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/config/lsp-lifetime-interval"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/config/lsp-refresh-interval"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/spf/config/spf-first-interval"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/spf/config/spf-hold-interval"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/state/lsp-lifetime-interval"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/state/lsp-refresh-interval"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/spf/state/spf-first-interval"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/spf/state/spf-hold-interval"
+  }
 # Adjacencies
 telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state"
