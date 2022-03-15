@@ -17,8 +17,67 @@ id {
   version: 1
 }
 
+# Fan
 telemetry_path {
   path: "/components/component/fan/state/speed"
+}
+
+# Port
+telemetry_path {
+    path: "/components/component/port/breakout-mode/groups/group/state/breakout-speed"
+}
+telemetry_path {
+    path: "/components/component/port/breakout-mode/groups/group/state/index"
+}
+telemetry_path {
+    path: "/components/component/port/breakout-mode/groups/group/state/num-breakouts"
+}
+telemetry_path {
+    path: "/components/component/port/breakout-mode/groups/group/state/num-physical-channels"
+}
+config_path {
+    path: "/components/component/port/breakout-mode/groups/group/config/breakout-speed"
+}
+config_path {
+    path: "/components/component/port/breakout-mode/groups/group/config/index"
+}
+config_path {
+    path: "/components/component/port/breakout-mode/groups/group/config/num-breakouts"
+}
+config_path {
+    path: "/components/component/port/breakout-mode/groups/group/config/num-physical-channels"
+}
+
+# Power supply
+telemetry_path {
+    path: "/components/component/power-supply/state/input-current"
+}
+telemetry_path {
+    path: "/components/component/power-supply/state/output-current"
+}
+telemetry_path {
+    path: "/components/component/power-supply/state/output-voltage"
+}
+
+# integrated circuit
+telemetry_path {
+    path: "/components/component/integrated-circuit/backplane-facing-capacity/state/total"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/backplane-facing-capacity/state/available-pct"
+}
+
+telemetry_path {
+    path: "/components/component/properties/property/state/value"
+}
+telemetry_path {
+    path: "/components/component/subcomponents/subcomponent/state/name"
+}
+telemetry_path {
+    path: "/components/component/state/description"
 }
 telemetry_path {
     path: "/components/component/properties/property/state/value"
