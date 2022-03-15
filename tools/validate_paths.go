@@ -29,9 +29,11 @@ import (
 	"strings"
 
 	log "github.com/golang/glog"
+	fppb "github.com/openconfig/featureprofiles/proto/feature_go_proto"
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/openconfig/ygot/util"
 	"github.com/protocolbuffers/txtpbfmt/parser"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 var (
@@ -168,20 +170,32 @@ type line struct {
 type file struct {
 	name  string
 	lines []line
+	// Errors which are not correlated with a line.
+	errors []string
 }
 
-// unknownPaths parses all `path:` lines in the input `files`, reporting any paths which are not in
-// the `knownOC` set.
-func unknownPaths(knownOC map[string]pathType, files []string) ([]file, error) {
-	unknown := []file{}
+// checkFiles parses all `path:` lines in the input `files`, reporting any syntax errors and paths
+// which are not in the `knownOC` set.
+func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
+	report := []file{}
+	tmp := fppb.FeatureProfile{}
 
 	for _, f := range files {
 		bs, err := ioutil.ReadFile(f)
 		if err != nil {
-			return nil, err
+			// Just accumulate the file error since we can't do anything else.
+			report = append(report, file{name: f, errors: []string{err.Error()}})
+			continue
 		}
 
-		// Using the parser.Parse rather than an Unmarshal so I can get line numbers.
+		var errs []string
+
+		// Unmarshal will report syntax errors (although generally without line numbers).
+		if err := prototext.Unmarshal(bs, &tmp); err != nil {
+			errs = append(errs, err.Error())
+		}
+
+		// Use parser.Parse so I can get line numbers for OC paths we don't recognize.
 		lines := []line{}
 		ast, err := parser.Parse(bs)
 		if err != nil {
@@ -216,12 +230,12 @@ func unknownPaths(knownOC map[string]pathType, files []string) ([]file, error) {
 			}
 		}
 
-		if len(lines) == 0 {
+		if len(lines) == 0 && len(errs) == 0 {
 			continue
 		}
-		unknown = append(unknown, file{name: f, lines: lines})
+		report = append(report, file{name: f, lines: lines, errors: errs})
 	}
-	return unknown, nil
+	return report, nil
 }
 
 // featureFiles lists the file paths containing features data.
@@ -263,17 +277,24 @@ func main() {
 		log.Fatal(err)
 	}
 
-	unknown, err := unknownPaths(knownPaths, files)
+	reports, err := checkFiles(knownPaths, files)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if len(unknown) == 0 {
+	if len(reports) == 0 {
 		return
 	}
+
 	msg := []string{"Feature paths inconsistent with YANG schema:"}
-	for _, f := range unknown {
+	for _, f := range reports {
 		msg = append(msg, "  file: "+f.name)
+		if len(f.errors) != 0 {
+			msg = append(msg, "  toplevel errors:")
+			for _, e := range f.errors {
+				msg = append(msg, "   "+e)
+			}
+		}
 		for _, l := range f.lines {
 			msg = append(msg, fmt.Sprintf("    line %d: %s %s", l.line, l.detail, l.oc))
 		}
