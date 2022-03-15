@@ -31,6 +31,9 @@
 //   openconfig_path:
 //   '/network-instance/<name>/protocols/INSTALL_PROTOCOL_TYPE_BGP/...'
 // }
+
+//Comment for Staticcheck linter:
+//lint:file-ignore U1000 Ignore all unused code, it's generated
 syntax = "proto2";
 
 package openconfig.profiles;
@@ -79,7 +82,7 @@ message GNMIService {
 
   // The method that is covered within the gNMI protocol.
   optional Method method_name = 2;
-  
+
   // TODO(robjs): for some RPCs, like Subscribe, we may want
   // further description of modes (e.g., POLL, STREAM, ONCE).
 }
