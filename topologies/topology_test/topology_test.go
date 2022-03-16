@@ -20,8 +20,10 @@ package topology_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -47,6 +49,10 @@ func dutPortIP(i int) string {
 // i is the index of the port slices returned by ate.Ports().
 func atePortCIDR(i int) string {
 	return fmt.Sprintf("192.0.2.%d/30", i*4+2)
+}
+
+func atePortMac(i int) string {
+	return fmt.Sprintf("00:00:0%d:01:01:01", i*4+2)
 }
 
 func configInterface(name, desc, ipv4 string, prefixlen uint8) *telemetry.Interface {
@@ -118,24 +124,30 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port
 	t.Logf("Telemetry Get error on interfaces: %v", badTelem)
 }
 
-func configureATE(t *testing.T, ate *ondatra.ATEDevice, atePorts []*ondatra.Port) {
-	top := ate.Topology().New()
-
+func configureATE(t *testing.T, otg *ondatra.OTG, atePorts []*ondatra.Port) gosnappi.Config {
+	top := otg.NewConfig()
 	for i, ap := range atePorts {
-		t.Logf("ATE AddInterface: ports[%d] = %v", i, ap)
-		in := top.AddInterface(ap.Name()).WithPort(ap)
-		in.IPv4().WithAddress(atePortCIDR(i)).WithDefaultGateway(dutPortIP(i))
-		// TODO(liulk): disable FEC for 100G-FR ports when Ondatra is able
-		// to specify the optics type.  Ixia Novus 100G does not support
-		// RS-FEC(544,514) used by 100G-FR/100G-DR; it only supports
-		// RS-FEC(528,514).
-		if false {
-			t.Logf("Disabling FEC on port %v", ap)
-			in.Ethernet().FEC().WithEnabled(false)
-		}
+		t.Logf("OTG AddInterface: ports[%d] = %v", i, ap)
+		in := top.Ports().Add().SetName(ap.Name())
+		dev := top.Devices().Add().SetName(ap.Name() + ".dev")
+		eth := dev.Ethernets().Add().SetName(ap.Name() + ".eth").
+			SetPortName(in.Name()).SetMac(atePortMac(i))
+		ipv4Addr := strings.Split(atePortCIDR(i), "/")[0]
+		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".ipv4").
+			SetAddress(ipv4Addr).SetGateway(dutPortIP(i)).
+			SetPrefix(int32(plen))
+		// in := top.AddInterface(ap.Name()).WithPort(ap)
+		// in.IPv4().WithAddress(atePortCIDR(i)).WithDefaultGateway(dutPortIP(i))
+		// // TODO(liulk): disable FEC for 100G-FR ports when Ondatra is able
+		// // to specify the optics type.  Ixia Novus 100G does not support
+		// // RS-FEC(544,514) used by 100G-FR/100G-DR; it only supports
+		// // RS-FEC(528,514).
+		// if false {
+		// 	t.Logf("Disabling FEC on port %v", ap)
+		// 	in.Ethernet().FEC().WithEnabled(false)
+		// }
 	}
-
-	top.Push(t).StartProtocols(t)
+	return top
 }
 
 func TestTopology(t *testing.T) {
@@ -145,10 +157,13 @@ func TestTopology(t *testing.T) {
 	configureDUT(t, dut, dutPorts)
 
 	// Configure the ATE
-	ate := ondatra.ATE(t, "ate")
+	ate := ondatra.ATE(t, "otg")
 	otg := ate.OTG(t)
 	atePorts := fptest.SortPorts(ate.Ports())
-	configureATE(t, ate, atePorts)
+	config := configureATE(t, otg, atePorts)
+	otg.PushConfig(t, ate, config)
+	t.Logf("Start ATE Protocols")
+	otg.StartProtocols(t)
 
 	// Query Telemetry
 	t.Run("Telemetry", func(t *testing.T) {
