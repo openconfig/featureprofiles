@@ -1,11 +1,6 @@
-# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
-# proto-message: ondatra.Testbed
-
-# This testbed provides 2 links between a DUT and an ATE connected
-# pairwise.
-
 duts {
   id: "dut"
+  vendor: ARISTA
   ports {
     id: "port1"
   }
@@ -15,21 +10,22 @@ duts {
 }
 
 ates {
-  id: "ate"
+  id: "otg"
+  vendor: IXIA
   ports {
-    id: "port1"
+    id: "port1"    
   }
   ports {
-    id: "port2"
+    id: "port2"    
   }
 }
 
 links {
   a: "dut:port1"
-  b: "ate:port1"
+  b: "otg:port1"
 }
 
 links {
   a: "dut:port2"
-  b: "ate:port2"
+  b: "otg:port2"
 }
