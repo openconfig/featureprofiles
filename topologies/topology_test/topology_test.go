@@ -146,6 +146,7 @@ func TestTopology(t *testing.T) {
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG(t)
 	atePorts := fptest.SortPorts(ate.Ports())
 	configureATE(t, ate, atePorts)
 
