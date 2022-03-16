@@ -62,8 +62,8 @@ func (sr *Static) WithStaticRoute(prefix string, nextHops []string) *Static {
 
 // AugmentStatic implements networkinstance.Feature interface.
 // Augments the provided NI with Static OC.
-func (sr *Static) AugmentStaticRoute(ni *oc.NetworkInstance) error {
-	if err := sr.oc.Validate(); err != nil {
+func (sr *Static) AugmentStaticRoute(ni *oc.NetworkInstance, prefix string) error {
+	if err := sr.validate(prefix); err != nil {
 		return err
 	}
 	p := ni.GetProtocol(sr.oc.GetIdentifier(), Name)

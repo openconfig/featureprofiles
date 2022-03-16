@@ -112,7 +112,7 @@ func TestAugment(t *testing.T) {
 	}}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			if err := test.static.AugmentStaticRoute(test.inNI); err != nil {
+			if err := test.static.AugmentStaticRoute(test.inNI, "1.1.1.1"); err != nil {
 				t.Fatalf("error not expected: %v", err)
 			}
 
