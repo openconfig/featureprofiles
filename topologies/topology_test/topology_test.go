@@ -77,7 +77,7 @@ func configInterface(name, desc, ipv4 string, prefixlen uint8) *telemetry.Interf
 	return i
 }
 
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port) {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	var (
 		badReplace []string
 		badConfig  []string
@@ -89,7 +89,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port
 	// TODO(liulk): configure breakout ports when Ondatra is able to
 	// specify them in the testbed for reservation.
 
-	for i, dp := range dutPorts {
+	sortedDutPorts := fptest.SortPorts(dut.Ports())
+	for i, dp := range sortedDutPorts {
 		di := d.Interface(dp.Name())
 		in := configInterface(dp.Name(), dp.String(), dutPortIP(i), plen)
 		fptest.LogYgot(t, fmt.Sprintf("%s to Replace()", dp), di, in)
@@ -98,7 +99,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port
 		}
 	}
 
-	for _, dp := range dutPorts {
+	for _, dp := range dut.Ports() {
 		di := d.Interface(dp.Name())
 		if q := di.Lookup(t); q.IsPresent() {
 			fptest.LogYgot(t, fmt.Sprintf("%s from Get()", dp), di, q.Val(t))
@@ -109,7 +110,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port
 	}
 
 	dt := dut.Telemetry()
-	for _, dp := range dutPorts {
+	for _, dp := range dut.Ports() {
 		di := dt.Interface(dp.Name())
 		if q := di.Lookup(t); q.IsPresent() {
 			fptest.LogYgot(t, fmt.Sprintf("%s from Get()", dp), di, q.Val(t))
@@ -119,16 +120,27 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port
 		}
 	}
 
-	t.Logf("Replace error on interfaces: %v", badReplace)
-	t.Logf("Config Get error on interfaces: %v", badConfig)
-	t.Logf("Telemetry Get error on interfaces: %v", badTelem)
+	t.Logf("Replace issues on interfaces: %v", badReplace)
+	t.Logf("Config Get issues on interfaces: %v", badConfig)
+	t.Logf("Telemetry Get issues on interfaces: %v", badTelem)
 }
 
-func configureATE(t *testing.T, otg *ondatra.OTG, atePorts []*ondatra.Port) gosnappi.Config {
+func deconfigureDut(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Logf("Unsetting DUT Interface Config")
+	dc := dut.Config()
+	for _, port := range dut.Ports() {
+		intf := &telemetry.Interface{Name: ygot.String(port.Name())}
+		intf.DeleteSubinterface(0)
+		dc.Interface(intf.GetName()).Replace(t, intf)
+	}
+}
+
+func configureATE(t *testing.T, ate *ondatra.ATEDevice, otg *ondatra.OTG) gosnappi.Config {
+	sortedAtePorts := fptest.SortPorts(ate.Ports())
 	top := otg.NewConfig()
-	for i, ap := range atePorts {
+	for i, ap := range sortedAtePorts {
 		t.Logf("OTG AddInterface: ports[%d] = %v", i, ap)
-		in := top.Ports().Add().SetName(ap.Name())
+		in := top.Ports().Add().SetName(ap.ID())
 		dev := top.Devices().Add().SetName(ap.Name() + ".dev")
 		eth := dev.Ethernets().Add().SetName(ap.Name() + ".eth").
 			SetPortName(in.Name()).SetMac(atePortMac(i))
@@ -147,25 +159,36 @@ func configureATE(t *testing.T, otg *ondatra.OTG, atePorts []*ondatra.Port) gosn
 		// 	in.Ethernet().FEC().WithEnabled(false)
 		// }
 	}
+	otg.PushConfig(t, ate, top)
+	t.Logf("Start ATE Protocols")
+	otg.StartProtocols(t)
 	return top
+}
+
+func deconfigureATE(t *testing.T, ate *ondatra.ATEDevice, otg *ondatra.OTG, stopProtocols bool, stopTraffic bool) {
+	if stopTraffic {
+		otg.StopTraffic(t)
+	}
+	if stopProtocols {
+		otg.StopProtocols(t)
+	}
+	otg.PushConfig(t, ate, otg.NewConfig())
 }
 
 func TestTopology(t *testing.T) {
 	// Configure the DUT
 	dut := ondatra.DUT(t, "dut")
-	dutPorts := fptest.SortPorts(dut.Ports())
-	configureDUT(t, dut, dutPorts)
+	configureDUT(t, dut)
+	defer deconfigureDut(t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "otg")
 	otg := ate.OTG(t)
-	atePorts := fptest.SortPorts(ate.Ports())
-	config := configureATE(t, otg, atePorts)
-	otg.PushConfig(t, ate, config)
-	t.Logf("Start ATE Protocols")
-	otg.StartProtocols(t)
+	configureATE(t, ate, otg)
+	defer deconfigureATE(t, ate, otg, true, false)
 
 	// Query Telemetry
+	dutPorts := fptest.SortPorts(dut.Ports())
 	t.Run("Telemetry", func(t *testing.T) {
 		const want = telemetry.Interface_OperStatus_UP
 
@@ -176,11 +199,5 @@ func TestTopology(t *testing.T) {
 			}
 		}
 
-		at := ate.Telemetry()
-		for _, ap := range atePorts {
-			if got := at.Interface(ap.Name()).OperStatus().Get(t); got != want {
-				t.Errorf("%s oper-status got %v, want %v", ap, got, want)
-			}
-		}
 	})
 }
