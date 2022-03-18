@@ -29,6 +29,7 @@ import (
 type GracefulRestart struct {
 	noc oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart
 	poc oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart
+	goc oc.NetworkInstance_Protocol_Bgp_Global_GracefulRestart
 }
 
 // New returs a new GracefulRestart object.
@@ -40,6 +41,9 @@ func New() *GracefulRestart {
 		poc: oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
 			Enabled: ygot.Bool(true),
 		},
+		goc: oc.NetworkInstance_Protocol_Bgp_Global_GracefulRestart{
+			Enabled: ygot.Bool(true),
+		},
 	}
 }
 
@@ -48,6 +52,7 @@ func (gr *GracefulRestart) WithRestartTime(secs time.Duration) *GracefulRestart 
 	rt := ygot.Uint16(uint16(secs.Seconds()))
 	gr.noc.RestartTime = rt
 	gr.poc.RestartTime = rt
+	gr.goc.RestartTime = rt
 	return gr
 }
 
@@ -56,6 +61,7 @@ func (gr *GracefulRestart) WithStaleRoutesTime(secs time.Duration) *GracefulRest
 	rt := ygot.Float64(secs.Seconds())
 	gr.noc.StaleRoutesTime = rt
 	gr.poc.StaleRoutesTime = rt
+	gr.goc.StaleRoutesTime = rt
 	return gr
 }
 
@@ -92,4 +98,18 @@ func (gr *GracefulRestart) AugmentPeerGroup(pg *oc.NetworkInstance_Protocol_Bgp_
 		return nil
 	}
 	return ygot.MergeStructInto(pg.GracefulRestart, &gr.poc)
+}
+
+// AugmentGlobal implements the bgp.GlobalFeature interface.
+// This method augments the BGP Global  with graceful restart feature.
+// Use g.WithFeature(gr) instead of calling this method directly.
+func (gr *GracefulRestart) AugmentGlobal(g *oc.NetworkInstance_Protocol_Bgp_Global) error {
+	if err := gr.goc.Validate(); err != nil {
+		return err
+	}
+	if g.GracefulRestart == nil {
+		g.GracefulRestart = &gr.goc
+		return nil
+	}
+	return ygot.MergeStructInto(g.GracefulRestart, &gr.goc)
 }
