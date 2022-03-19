@@ -77,26 +77,25 @@ The directory tree is organized as follows:
 
 ### Test Suite Organization
 
-Under `feature/<featurename>/[<sub-feature>/]tests`, each feature group has its own
-subdirectory. For example:
+Test suites should be placed in subdirectories formatted like `feature/<featurename>/[<sub-feature>/]tests/<testname>/main_test.go`, for example:
 
+* `feature/interfaces/` contains feature profiles for interfaces.
+* `feature/interfaces/README.md` - documents the interface feature profile.
+* `feature/interfaces/tests/` contains the interfaces test suite.
 * `feature/bgp/` container for BGP feature profiles and test suites.
-* `feature/bgp/addpath` contains feature profiles  related to BGP.
-* `feature/bgp/addpath/tests` contains test code related to BGP Add Path
-    features.
-* `feature/lldp/` contains feature profiles for ISIS.
-* `feature/lldp/tests` contains test suite related to LLDP.
+* `feature/bgp/addpath` contains feature profiles related to BGP.
+* `feature/bgp/addpath/README.md` documents the BGP feature profile.
+* `feature/bgp/addpath/tests` contains test code related to BGP Add Path features.
 * `internal/deviations` contains code which overrides standard tests where
-    there are known bugs.
+    there are known issues in a DUT.
 
-Under each feature group, the `*.go` file should be named after an appropriate
+Within each test directory, a README.md should document the test suite.  The `*.go` files should be named after an appropriate
 [github featureprofiles project](https://github.com/orgs/openconfig/projects/2/views/1?filterQuery=)
 item. For example:
 
-* `tests/interfaces/rt_5_1_singleton_test.go` implements issue **RT-5.1
-  Singleton Interface**.
-* `tests/interfaces/rt_5_2_aggregate_test.go` implements issue **RT-5.2
-    Aggregate Interface**.
+* `feature/interfaces/tests/rt_5_1_singleton_test/README.md` - documentation for the test suite
+* `tests/interfaces/tests/rt_5_1_singleton_test/singleton_test.go` implements issue **RT-5.1 Singleton Interface**.
+* `tests/interfaces/tests/rt_5_2_aggregate_test/aggregate_test.go` implements issue **RT-5.2 Aggregate Interface**.
 
 ## Pull Request Title
 
@@ -138,17 +137,19 @@ Documentation ([RFC 3849]). In particular:
 [RFC 5737]: https://datatracker.ietf.org/doc/html/rfc5737
 [RFC 3849]: https://datatracker.ietf.org/doc/html/rfc3849
 
-IPv4:
+### IPv4
 
-* `TEST-NET-1`: 192.0.2.0/24
-* `TEST-NET-2`: 198.51.100.0/24
-* `TEST-NET-3`: 203.0.113.0/24
+* `TEST-NET-1`: (192.0.2.0/24): control plane addresses split into /30 subnets for each ATE/DUT port pair.
+* `TEST-NET-2`: (198.51.100.0/24): data plane source network addresses used for traffic testing; split as needed.
+* `TEST-NET-3`: (203.0.113.0/24): data plane destination network addresses used for traffic testing; split as needed.
 
-IPv6:
+### IPv6
 
-* 2001:DB8::/32
-  * This is a very large space, so it is typical that a test will have to
-    subdivide it into /64 or smaller subnets.
+2001:DB8::/32 is a very large space, so we divide them as follows.
+
+* 2001:DB8:0::/64: control plane addresses split into /126 subnets for each ATE/DUT port pair.
+* 2001:DB8:1::/64: data plane addresses used for traffic testing as the source address; split as needed.
+* 2001:DB8:2::/64: data plane addresses used for traffic testing as the destination address; split as needed.
 
 ## ASN assignment
 
@@ -165,4 +166,5 @@ obvious where the range starts and stops.
 
 ## Code Style
 
-All code should follow [Go language style guide](https://github.com/golang/go/wiki/CodeReviewComments) for writing readable Go code.
+All code should follow [Go language style guide](https://github.com/golang/go/wiki/CodeReviewComments) 
+and [Effective Go](https://go.dev/doc/effective_go) for writing readable Go code.
