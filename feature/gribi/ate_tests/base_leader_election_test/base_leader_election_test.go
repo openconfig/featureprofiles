@@ -283,8 +283,7 @@ func configureIPv4ViaClientA(t *testing.T, args *testArgs) {
 func configureIPv4ViaClientAInstalled(t *testing.T, args *testArgs) {
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via clientA with election ID of 12.", ateDstNetCIDR)
 
-	// TODO (deepgajjar): Remove WithElectionID and reuse helperAddEntry
-	// once gribi/gribigo in google3 is updated.
+	// TODO: Remove WithElectionID and reuse helperAddEntry
 	args.clientA.Modify().AddEntry(t,
 		fluent.NextHopEntry().
 			WithNetworkInstance(instance).
