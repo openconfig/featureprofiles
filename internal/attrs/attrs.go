@@ -15,8 +15,8 @@
 // Package attrs bundles some common interface attributes and provides
 // helpers to generate the appropriate OpenConfig and ATETopology.
 //
-// Deprecated: tests using this package will be migrated to use
-// testbed topology helpers.
+// The use of this package in new tests is discouraged.  Legacy tests using this package
+// will be migrated to use testbed topology helpers.
 package attrs
 
 import (
