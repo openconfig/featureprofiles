@@ -262,14 +262,8 @@ telemetry_path {
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/minimum-advertisement-interval"
 }
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/restart-time"
-}
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/minimum-advertisement-interval"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/restart-time"
 }
 
 ##Hold Time
