@@ -11,7 +11,7 @@
  limitations under the License.
 */
 
-// Package networkinstance implements the Config Library for NetworkInstance
+// Package staticroute implements the Config Library for StaticRoute
 // feature.
 package staticroute
 
@@ -23,13 +23,15 @@ import (
 	"strconv"
 )
 
+// Name of the protocol
 const Name = "static"
 
+// Static struct stores the OC attributes for the  base feature profile.
 type Static struct {
 	oc oc.NetworkInstance_Protocol
 }
 
-// New returns a new BGP object.
+// New returns a new Static object.
 func New() *Static {
 	return &Static{
 		oc: oc.NetworkInstance_Protocol{
