@@ -6,7 +6,6 @@ replace github.com/openconfig/ondatra => github.com/open-traffic-generator/ondat
 
 require (
 	github.com/golang/glog v1.0.0
-	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.7
 	github.com/open-traffic-generator/snappi/gosnappi v0.7.13
 	github.com/openconfig/gnmi v0.0.0-20220131173555-39aa74195f0d
@@ -26,6 +25,7 @@ require (
 require (
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/kne v0.1.1-0.20220209214853-52a824020cd9 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
@@ -35,10 +35,12 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/genproto v0.0.0-20220203182621-f4ae394cde3f // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	lukechampine.com/uint128 v1.1.1 // indirect
 )
