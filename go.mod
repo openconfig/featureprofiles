@@ -6,12 +6,14 @@ replace github.com/openconfig/ondatra => github.com/open-traffic-generator/ondat
 
 require (
 	github.com/golang/glog v1.0.0
+	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.7
 	github.com/open-traffic-generator/snappi/gosnappi v0.7.13
 	github.com/openconfig/gnmi v0.0.0-20220131173555-39aa74195f0d
 	github.com/openconfig/gnoi v0.0.0-20220131192435-7dd3a95a4f1e
 	github.com/openconfig/goyang v1.0.0
-	github.com/openconfig/gribi v0.1.1-0.20210423184541-ce37eb4ba92f
+	github.com/openconfig/gribi v0.1.1-0.20220126144445-1634932f9fd8
+	github.com/openconfig/gribigo v0.0.0-20220323152256-fa8a7bdc1f62
 	github.com/openconfig/ondatra v0.0.0-00010101000000-000000000000
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygot v0.15.1
@@ -25,7 +27,6 @@ require (
 require (
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/kne v0.1.1-0.20220209214853-52a824020cd9 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
