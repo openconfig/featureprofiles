@@ -2,7 +2,7 @@ module github.com/openconfig/featureprofiles
 
 go 1.17
 
-replace github.com/openconfig/ondatra => ./ondatra
+replace github.com/openconfig/ondatra => github.com/open-traffic-generator/ondatra v0.0.0-20220323130041-d99d5a8a6c83
 
 require (
 	github.com/golang/glog v1.0.0
@@ -13,7 +13,7 @@ require (
 	github.com/openconfig/gnoi v0.0.0-20220131192435-7dd3a95a4f1e
 	github.com/openconfig/goyang v1.0.0
 	github.com/openconfig/gribi v0.1.1-0.20210423184541-ce37eb4ba92f
-	github.com/openconfig/ondatra v0.0.0-20220215004306-0347c0155153
+	github.com/openconfig/ondatra v0.0.0-00010101000000-000000000000
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygot v0.15.1
 	github.com/p4lang/p4runtime v1.3.0
