@@ -140,9 +140,9 @@ func modules() (map[string]*yang.Module, error) {
 		files = append(files, fs...)
 	}
 
-	yang.AddPath(dirs...)
-
 	ms := yang.NewModules()
+
+	ms.AddPath(dirs...)
 
 	for _, p := range files {
 		p = path.Base(p)
