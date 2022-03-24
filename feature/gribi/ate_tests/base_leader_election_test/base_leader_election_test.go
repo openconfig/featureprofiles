@@ -66,7 +66,7 @@ var (
 	}
 
 	atePort1 = attrs.Attributes{
-		Name:    "atePort1",
+		Name:    "port1",
 		MAC:     "00:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
@@ -79,7 +79,7 @@ var (
 	}
 
 	atePort2 = attrs.Attributes{
-		Name:    "atePort2",
+		Name:    "port2",
 		MAC:     "00:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
@@ -92,7 +92,7 @@ var (
 	}
 
 	atePort3 = attrs.Attributes{
-		Name:    "atePort3",
+		Name:    "port3",
 		MAC:     "00:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: ipv4PrefixLen,
@@ -154,8 +154,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		atePort3: dutPort3,
 	}
 	for ateInput, dutInput := range inputMap {
+		t.Logf("OTG AddInterface: %v", ateInput)
 		top.Ports().Add().SetName(ateInput.Name)
-		dev := top.Devices().Add().SetName(ateInput.Name + ".dev")
+		dev := top.Devices().Add().SetName(ateInput.Name)
 		eth := dev.Ethernets().Add().SetName(ateInput.Name + ".eth").
 			SetPortName(dev.Name()).SetMac(ateInput.MAC)
 		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".ipv4").
@@ -412,7 +413,7 @@ func TestElectionIDChange(t *testing.T) {
 	configureDUT(t, dut)
 
 	// Configure the ATE
-	ate := ondatra.ATE(t, "ate")
+	ate := ondatra.ATE(t, "otg")
 
 	top := configureATE(t, ate)
 

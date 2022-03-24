@@ -1,4 +1,4 @@
 username: admin
 password: admin
-topology: /home/opetre/featureprofiles/topologies/kne/ixia-arista-ixia.textproto
+topology: /home/opetre/featureprofiles/topologies/kne/ixia-arista-3ports.textproto
 cli: kne_cli

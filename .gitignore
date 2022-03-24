@@ -2,3 +2,5 @@
 .vscode/
 # used by `make validate_paths`
 openconfig_public/
+launch.json
+settings.json
