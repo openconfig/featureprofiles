@@ -77,20 +77,22 @@ The directory tree is organized as follows:
 
 ### Test Suite Organization
 
-Test suites should be placed in subdirectories formatted like `feature/<featurename>/[<sub-feature>/]tests/<testname>/main_test.go`, for example:
+Test suites should be placed in subdirectories formatted like `feature/<featurename>/[<sub-feature>/]<tests|ate_tests|otg_tests>/<testname>/main_test.go`, for example:
 
 * `feature/interfaces/` contains feature profiles for interfaces.
 * `feature/interfaces/README.md` - documents the interface feature profile.
-* `feature/interfaces/tests/` contains the interfaces test suite.
+* `feature/interfaces/ate_tests/` contains the interfaces test suite using ATE traffic generation.
+* `feature/interfaces/otg_tests/` contains the interfaces test suite using OTG traffic generation.
+* `feature/interfaces/tests/` contains the interfaces test suite without traffic generation.
 * `feature/bgp/` container for BGP feature profiles and test suites.
 * `feature/bgp/addpath` contains feature profiles related to BGP.
 * `feature/bgp/addpath/README.md` documents the BGP feature profile.
-* `feature/bgp/addpath/tests` contains test code related to BGP Add Path features.
+* `feature/bgp/addpath/ate_tests` contains test code related to BGP Add Path features.
 * `internal/deviations` contains code which overrides standard tests where
     there are known issues in a DUT.
 
-Within each test directory, a README.md should document the test suite.  The `*.go` files should be named after an appropriate
-[github featureprofiles project](https://github.com/orgs/openconfig/projects/2/views/1?filterQuery=)
+Within each test directory, a README.md should document the test suite.  The
+`*.go` files should be named after an appropriate [github featureprofiles project](https://github.com/orgs/openconfig/projects/2/views/1?filterQuery=)
 item. For example:
 
 * `feature/interfaces/tests/rt_5_1_singleton_test/README.md` - documentation for the test suite
@@ -166,5 +168,5 @@ obvious where the range starts and stops.
 
 ## Code Style
 
-All code should follow [Go language style guide](https://github.com/golang/go/wiki/CodeReviewComments) 
+All code should follow [Go language style guide](https://github.com/golang/go/wiki/CodeReviewComments)
 and [Effective Go](https://go.dev/doc/effective_go) for writing readable Go code.
