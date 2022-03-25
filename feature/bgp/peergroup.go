@@ -119,8 +119,8 @@ func (pg *PeerGroup) WithV4PrefixLimit(maxPrefixes uint32, opts PrefixLimitOptio
 	ploc := pg.oc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 	ploc.MaxPrefixes = ygot.Uint32(maxPrefixes)
 	ploc.PreventTeardown = ygot.Bool(opts.PreventTeardown)
-	if opts.RestartTimer != 0 {
-		ploc.RestartTimer = ygot.Float64(opts.RestartTimer.Seconds())
+	if opts.RestartTime != 0 {
+		pg.oc.GetOrCreateTimers().RestartTime = ygot.Uint16(uint16(opts.RestartTime.Round(time.Second).Seconds()))
 	}
 	if opts.WarningThresholdPct > 0 {
 		ploc.WarningThresholdPct = ygot.Uint8(opts.WarningThresholdPct)
