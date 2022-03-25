@@ -39,8 +39,8 @@ func New() *Static {
 	}
 }
 
-// WithStaticRoute sets the prefix value for static route.
-func (sr *Static) WithStaticRoute(prefix string, nextHops []string) *Static {
+// WithRoute sets the prefix value for static route.
+func (sr *Static) WithRoute(prefix string, nextHops []string) *Static {
 	static := sr.oc.GetOrCreateStatic(prefix)
 	static.Prefix = ygot.String(prefix)
 	for i, nh := range nextHops {

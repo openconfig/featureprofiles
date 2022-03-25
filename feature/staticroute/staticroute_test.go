@@ -23,7 +23,7 @@ func TestAugment(t *testing.T) {
 		wantNI *oc.NetworkInstance
 	}{{
 		desc:   "Static route with no next-hops",
-		static: New().WithStaticRoute("1.1.1.1", []string{""}),
+		static: New().WithRoute("1.1.1.1", []string{""}),
 		inNI:   &oc.NetworkInstance{},
 		wantNI: &oc.NetworkInstance{
 			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
@@ -40,7 +40,7 @@ func TestAugment(t *testing.T) {
 		},
 	}, {
 		desc:   "Static route with nil next-hop",
-		static: New().WithStaticRoute("1.1.1.1", nil),
+		static: New().WithRoute("1.1.1.1", nil),
 		inNI:   &oc.NetworkInstance{},
 		wantNI: &oc.NetworkInstance{
 			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
@@ -63,7 +63,7 @@ func TestAugment(t *testing.T) {
 		},
 	}, {
 		desc:   "Static route with one next-hop",
-		static: New().WithStaticRoute("1.1.1.1", []string{"1.2.3.44"}),
+		static: New().WithRoute("1.1.1.1", []string{"1.2.3.44"}),
 		inNI:   &oc.NetworkInstance{},
 		wantNI: &oc.NetworkInstance{
 			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
@@ -86,7 +86,7 @@ func TestAugment(t *testing.T) {
 		},
 	}, {
 		desc:   "Static route Multiple Next Hops",
-		static: New().WithStaticRoute("1.1.1.1", []string{"1.2.3.44", "1.2.3.45"}),
+		static: New().WithRoute("1.1.1.1", []string{"1.2.3.44", "1.2.3.45"}),
 		inNI:   &oc.NetworkInstance{},
 		wantNI: &oc.NetworkInstance{
 			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
@@ -150,7 +150,7 @@ func TestWithFeature(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		s := New().WithStaticRoute("1.1.1.1", []string{"1.2.3.44"})
+		s := New().WithRoute("1.1.1.1", []string{"1.2.3.44"})
 		ff := &FakeFeature{Err: test.wantErr}
 		gotErr := s.WithFeature(ff, "1.1.1.1")
 		if !ff.augmentCalled {
