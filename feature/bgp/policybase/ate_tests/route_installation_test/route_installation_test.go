@@ -296,9 +296,9 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled
 	}
 }
 
-// verifyPrefixesTelemetryv6 confirms that the dut shows the correct numbers of installed, sent and
+// verifyPrefixesTelemetryV6 confirms that the dut shows the correct numbers of installed, sent and
 // received IPv6 prefixes
-func verifyPrefixesTelemetryv6(t *testing.T, dut *ondatra.DUTDevice, wantInstalledv6, wantRxv6, wantSentv6 uint32) {
+func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, wantInstalledv6, wantRxv6, wantSentv6 uint32) {
 	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv6 := statePath.Neighbor(ateDst.IPv6).AfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 
@@ -311,7 +311,6 @@ func verifyPrefixesTelemetryv6(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 	if gotSentv6 := prefixesv6.Sent().Get(t); gotSentv6 != wantSentv6 {
 		t.Errorf("IPv6 Sent prefixes mismatch: got %v, want %v", gotSentv6, wantSentv6)
 	}
-
 }
 
 // verifyPolicyTelemetry confirms that the dut policy is set as expected.
@@ -486,7 +485,8 @@ func TestEstablish(t *testing.T) {
 
 	// Verify Traffic Flows and packet loss
 	verifyTraffic(t, ate, allFlows, false)
-	verifyPrefixesTelemetry(t, dut, 254, 254, 0)
+	verifyPrefixesTelemetry(t, dut, routeCount, routeCount, 0)
+	verifyPrefixesTelemetryV6(t, dut, routeCount, routeCount, 0)
 
 	t.Run("RoutesWithdrawn", func(t *testing.T) {
 		t.Log("Breaking BGP config and confirming that forwarding stops working.")
@@ -565,6 +565,7 @@ func TestBGPPolicy(t *testing.T) {
 			verifyTraffic(t, ate, allFlows, tc.wantLoss)
 			// Verify traffic and telemetry.
 			verifyPrefixesTelemetry(t, dut, tc.installed, tc.received, tc.sent)
+			verifyPrefixesTelemetryV6(t, dut, tc.installed, tc.received, tc.sent)
 			verifyPolicyTelemetry(t, dut, tc.policy)
 		})
 	}
