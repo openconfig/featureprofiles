@@ -78,20 +78,15 @@ jobs:
           ~/.cache/go-build
         key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
     - name: Go vet
-      run: |
-        for d in */ ; do
-          if [ $d != "yang" ]; then
-            go vet $d
-          fi
-        done
+      run: go vet $(go list ./... | grep -v github.com/openconfig/featureprofiles/yang)
     - name: Gofmt
       run: diff -u <(echo -n) <(gofmt -d -s .)
     - name: Get staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
-      run: |
+      run: staticcheck $(go list ./... | grep -v github.com/openconfig/featureprofiles/yang)
         for d in */ ; do
-          if [ $d != "yang" ]; then
-            staticcheck $d
+          if [ "$d" != "yang" ]; then
+            staticcheck "$d"
           fi
         done
