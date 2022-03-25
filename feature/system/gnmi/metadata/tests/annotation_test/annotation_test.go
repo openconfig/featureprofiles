@@ -158,7 +158,7 @@ func buildMetadataAnnotation(m proto.Message) (*gpb.SetRequest, error) {
 				Elem: []*gpb.PathElem{},
 			},
 			Val: &gpb.TypedValue{
-				Value: &gpb.TypedValue_JsonIetfVal{v},
+				Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: v},
 			},
 		}},
 	}
