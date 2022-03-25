@@ -89,4 +89,10 @@ jobs:
         for i in `go list ./... | grep -v github.com/openconfig/featureprofiles/yang`; do
           checkstr="$checkstr $i"
         done
+        echo $checkstr
+        echo TESTTESTTEST
+        pwd
+        ls
+        ls -R
+        echo TESTTESTTEST
         staticcheck $checkstr
