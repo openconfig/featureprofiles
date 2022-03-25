@@ -78,7 +78,13 @@ jobs:
           ~/.cache/go-build
         key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
     - name: Go vet
-      run: go vet ./...
+      run: |
+        go vet .
+        for d in */ ; do
+          if [ $d != "yang" ]; then
+            go vet $d
+          fi
+        done
     - name: Gofmt
       run: diff -u <(echo -n) <(gofmt -d -s .)
     - name: Get staticcheck
