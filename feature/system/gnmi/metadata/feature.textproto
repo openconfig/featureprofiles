@@ -24,7 +24,3 @@ gnmi_service {
 gnmi_service {
   method_name: MD_SET
 }
-
-config_path {
-  path: "/@"
-}
