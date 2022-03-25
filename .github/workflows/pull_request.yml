@@ -85,8 +85,3 @@ jobs:
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
       run: staticcheck $(go list ./... | grep -v github.com/openconfig/featureprofiles/yang)
-        for d in */ ; do
-          if [ "$d" != "yang" ]; then
-            staticcheck "$d"
-          fi
-        done
