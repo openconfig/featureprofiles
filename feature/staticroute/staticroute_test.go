@@ -1,6 +1,8 @@
 package staticroute
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -112,7 +114,7 @@ func TestAugment(t *testing.T) {
 	}}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			if err := test.static.AugmentStaticRoute(test.inNI, "1.1.1.1"); err != nil {
+			if err := test.static.AugmentNetworkInstance(test.inNI); err != nil {
 				t.Fatalf("error not expected: %v", err)
 			}
 
@@ -120,5 +122,52 @@ func TestAugment(t *testing.T) {
 				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
 			}
 		})
+	}
+}
+
+type FakeFeature struct {
+	Err           error
+	augmentCalled bool
+	oc            *oc.NetworkInstance_Protocol_Static
+}
+
+func (f *FakeFeature) AugmentStatic(oc *oc.NetworkInstance_Protocol_Static) error {
+	f.oc = oc
+	f.augmentCalled = true
+	return f.Err
+}
+
+// TestWithFeature tests the WithFeature method.
+func TestWithFeature(t *testing.T) {
+	tests := []struct {
+		desc    string
+		wantErr error
+	}{{
+		desc: "error not expected",
+	}, {
+		desc:    "error expected",
+		wantErr: errors.New("some error"),
+	}}
+
+	for _, test := range tests {
+		s := New().WithStaticRoute("1.1.1.1", []string{"1.2.3.44"})
+		ff := &FakeFeature{Err: test.wantErr}
+		gotErr := s.WithFeature(ff, "1.1.1.1")
+		if !ff.augmentCalled {
+			t.Errorf("AugmentGlobal was not called")
+		}
+		if ff.oc != s.oc.GetStatic("1.1.1.1") {
+			t.Errorf("Static ptr is not equal")
+		}
+		if test.wantErr != nil {
+			if gotErr != nil {
+				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+					t.Errorf("Error strings are not equal: %v", gotErr)
+				}
+			}
+			if gotErr == nil {
+				t.Errorf("Expecting error but got none")
+			}
+		}
 	}
 }

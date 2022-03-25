@@ -16,8 +16,6 @@
 package staticroute
 
 import (
-	"errors"
-
 	"github.com/openconfig/featureprofiles/yang/oc"
 	"github.com/openconfig/ygot/ygot"
 	"strconv"
@@ -41,15 +39,6 @@ func New() *Static {
 	}
 }
 
-// validate method performs some sanity checks.
-func (sr *Static) validate(prefix string) error {
-	p := sr.oc.GetOrCreateStatic(prefix)
-	if p.GetOrCreateNextHop("0").NextHop == oc.UnionString("") {
-		return errors.New("NextHope is empty for this prefix")
-	}
-	return sr.oc.Validate()
-}
-
 // WithStaticRoute sets the prefix value for static route.
 func (sr *Static) WithStaticRoute(prefix string, nextHops []string) *Static {
 	static := sr.oc.GetOrCreateStatic(prefix)
@@ -62,10 +51,10 @@ func (sr *Static) WithStaticRoute(prefix string, nextHops []string) *Static {
 	return sr
 }
 
-// AugmentStatic implements networkinstance.Feature interface.
+// AugmentNetworkInstance implements networkinstance.Feature interface.
 // Augments the provided NI with Static OC.
-func (sr *Static) AugmentStaticRoute(ni *oc.NetworkInstance, prefix string) error {
-	if err := sr.validate(prefix); err != nil {
+func (sr *Static) AugmentNetworkInstance(ni *oc.NetworkInstance) error {
+	if err := sr.oc.Validate(); err != nil {
 		return err
 	}
 	p := ni.GetProtocol(sr.oc.GetIdentifier(), Name)
@@ -73,4 +62,15 @@ func (sr *Static) AugmentStaticRoute(ni *oc.NetworkInstance, prefix string) erro
 		return ni.AppendProtocol(&sr.oc)
 	}
 	return ygot.MergeStructInto(p, &sr.oc)
+}
+
+// GlobalFeature provides interface to augment Static  with additional features.
+type GlobalFeature interface {
+	// AugmentStatuc augments Static with additional features.
+	AugmentStatic(oc *oc.NetworkInstance_Protocol_Static) error
+}
+
+// WithFeature augments Static with provided feature.
+func (sr *Static) WithFeature(f GlobalFeature, prefix string) error {
+	return f.AugmentStatic(sr.oc.GetStatic(prefix))
 }
