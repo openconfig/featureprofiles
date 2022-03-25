@@ -8,6 +8,7 @@ import (
 
 	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
+	"github.com/openconfig/ondatra/telemetry"
 )
 
 func getIPPrefix(IPAddr string, i int, prefixLen string) string {
@@ -42,4 +43,19 @@ func GetNextElectionIdviaStub(stub spb.GRIBIClient, t testing.TB) uint64 {
 		}
 	}
 	return uint64(1)
+}
+
+func CheckTrafficPassViaPortPktCounter(pktCounters []*telemetry.Interface_Counters, threshold ...float64) bool {
+	thresholdValue := float64(0.99)
+	if len(threshold) > 0 {
+		thresholdValue = threshold[0]
+	}
+	totalIn := uint64(0)
+	totalOut := uint64(0)
+
+	for _, s := range pktCounters {
+		totalIn = s.GetInPkts() + totalIn
+		totalOut = s.GetOutPkts() + totalOut
+	}
+	return float64(totalIn)/float64(totalOut) >= thresholdValue
 }

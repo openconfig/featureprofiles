@@ -211,14 +211,20 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 
 	ate.Traffic().Start(t, flow)
 	time.Sleep(15 * time.Second)
+
+	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	if got := CheckTrafficPassViaPortPktCounter(stats); !got {
+		t.Errorf("LossPct for flow %s", flow.Name())
+	}
+
 	ate.Traffic().Stop(t)
 
 	time.Sleep(time.Minute)
 
-	flowPath := ate.Telemetry().Flow(flow.Name())
-	if got := flowPath.LossPct().Get(t); got > 0 {
-		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
-	}
+	// flowPath := ate.Telemetry().Flow(flow.Name())
+	// if got := flowPath.LossPct().Get(t); got > 0 {
+	// 	t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
+	// }
 }
 
 func flushSever(t *testing.T, args *testArgs) {
