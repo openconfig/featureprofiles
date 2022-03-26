@@ -58,7 +58,7 @@ func NewGRIBIFluent(t testing.TB, dut *ondatra.DUTDevice, persistance, fibAck bo
 	}
 	fluentClient.Start(context.Background(), t)
 	fluentClient.StartSending(context.Background(), t)
-	err := g.awaitTimeout(context.Background(), t, timeout)
+	err := g.AwaitTimeout(context.Background(), t, timeout)
 	if err != nil {
 		t.Fatalf("can not establish the session: %v", err)
 	}
@@ -78,7 +78,7 @@ func (g *GRIBIHandler) Close(t testing.TB) {
 	}
 }
 
-func (g *GRIBIHandler) awaitTimeout(ctx context.Context, t testing.TB, timeout time.Duration) error {
+func (g *GRIBIHandler) AwaitTimeout(ctx context.Context, t testing.TB, timeout time.Duration) error {
 	subctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return g.fluentC.Await(subctx, t)
@@ -88,8 +88,8 @@ func (g *GRIBIHandler) awaitTimeout(ctx context.Context, t testing.TB, timeout t
 func (g *GRIBIHandler) LearnElectionID(t testing.TB) (low, high uint64) {
 	t.Helper()
 	t.Logf("learn GRIBI Election ID from dut: %s", g.dut.Name())
-	g.fluentC.Modify().UpdateElectionID(t, 1, 0)
-	err := g.awaitTimeout(context.Background(), t, timeout)
+	g.fluentC.Modify().UpdateElectionID(t, g.lastElectionID.Low, g.lastElectionID.High)
+	err := g.AwaitTimeout(context.Background(), t, timeout)
 	if err != nil {
 		t.Fatalf("learnElectionID Error: %v", err)
 	}
@@ -105,7 +105,7 @@ func (g *GRIBIHandler) UpdateElectionID(t *testing.T, lowElecId, highElecId uint
 	t.Helper()
 	t.Logf("setting GRIBI Election ID for dut: %s to low=%d,high=%d", g.dut.Name(), lowElecId, highElecId)
 	g.fluentC.Modify().UpdateElectionID(t, lowElecId, highElecId)
-	err := g.awaitTimeout(context.Background(), t, timeout)
+	err := g.AwaitTimeout(context.Background(), t, timeout)
 	if err != nil {
 		t.Fatalf("learnElectionID Error: %v", err)
 	}
@@ -124,7 +124,7 @@ func (g *GRIBIHandler) GetLastElectionID(t *testing.T) (low, high uint64) {
 	return g.lastElectionID.Low, g.lastElectionID.High
 }
 
-func (g *GRIBIHandler) BeMaster(t *testing.T) {
+func (g *GRIBIHandler) BecomeLeader(t *testing.T) {
 	t.Logf("trying to be a master with increasing the election id by one on dut: %s", g.dut.Name())
 	lowElecId, highElecId := g.LearnElectionID(t)
 	if lowElecId == maxUint64 {
@@ -135,31 +135,32 @@ func (g *GRIBIHandler) BeMaster(t *testing.T) {
 	g.UpdateElectionID(t, lowElecId, highElecId)
 }
 
-func (g *GRIBIHandler) AddNHG(t *testing.T, nhgIndex uint64, nhs map[uint64]uint64, instance string) {
+func (g *GRIBIHandler) AddNHG(t *testing.T, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, failuerExpected bool) {
 	NGH := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
-	for nhIndex, weight := range nhs {
+	for nhIndex, weight := range nhWeights {
 		NGH.AddNextHop(nhIndex, weight)
 	}
 	g.fluentC.Modify().AddEntry(t, NGH.WithElectionID(g.GetLastElectionID(t)))
-	if err := g.awaitTimeout(context.Background(), t, timeout); err != nil {
+	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("got unexpected error from server adding NGH, got: %v, want: nil", err)
 	}
-	ackType := fluent.InstalledInRIB
-	if g.fibAck {
-		ackType = fluent.InstalledInFIB
-	}
+	progResult := fluent.InstalledInRIB
+	if failuerExpected {
+		progResult = fluent.ProgrammingFailed
+	} else if g.fibAck {
+		progResult = fluent.InstalledInFIB
+	} 
 	chk.HasResult(t, g.fluentC.Results(t),
 		fluent.OperationResult().
 			WithNextHopGroupOperation(nhgIndex).
 			WithOperationType(constants.Add).
-			WithProgrammingResult(ackType).
+			WithProgrammingResult(progResult).
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
-
 }
 
-func (g *GRIBIHandler) AddNH(t *testing.T, nhIndex uint64, address, instance string) {
+func (g *GRIBIHandler) AddNH(t *testing.T, nhIndex uint64, address, instance string, failuerExpected bool) {
 	g.fluentC.Modify().AddEntry(t,
 		fluent.NextHopEntry().
 			WithNetworkInstance(instance).
@@ -167,43 +168,54 @@ func (g *GRIBIHandler) AddNH(t *testing.T, nhIndex uint64, address, instance str
 			WithIPAddress(address).
 			WithElectionID(g.GetLastElectionID(t)))
 
-	if err := g.awaitTimeout(context.Background(), t, timeout); err != nil {
+	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("got unexpected error from server adding NH, got: %v, want: nil", err)
 	}
-	ackType := fluent.InstalledInRIB
-	if g.fibAck {
-		ackType = fluent.InstalledInFIB
-	}
+	progResult := fluent.InstalledInRIB
+	if failuerExpected {
+		progResult = fluent.ProgrammingFailed
+	} else if g.fibAck {
+		progResult = fluent.InstalledInFIB
+	} 
 	chk.HasResult(t, g.fluentC.Results(t),
 		fluent.OperationResult().
 			WithNextHopOperation(nhIndex).
 			WithOperationType(constants.Add).
-			WithProgrammingResult(ackType).
+			WithProgrammingResult(progResult).
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
 }
 
-func (g *GRIBIHandler) AddIPV4Entry(t *testing.T, nhgIndex uint64, prefix, instance string) {
+func (g *GRIBIHandler) AddIPV4Entry(t *testing.T, nhgIndex uint64, prefix, instance string, failuerExpected bool) {
 	g.fluentC.Modify().AddEntry(t,
 		fluent.IPv4Entry().WithPrefix(prefix).
 			WithNetworkInstance(instance).
 			WithNextHopGroup(nhgIndex).
 			WithElectionID(g.GetLastElectionID(t)))
 
-	if err := g.awaitTimeout(context.Background(), t, timeout); err != nil {
+	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("got unexpected error from server adding NH, got: %v, want: nil", err)
 	}
-	ackType := fluent.InstalledInRIB
-	if g.fibAck {
-		ackType = fluent.InstalledInFIB
-	}
+	progResult := fluent.InstalledInRIB
+	if failuerExpected {
+		progResult = fluent.ProgrammingFailed
+	} else if g.fibAck {
+		progResult = fluent.InstalledInFIB
+	} 
+	
 	chk.HasResult(t, g.fluentC.Results(t),
 		fluent.OperationResult().
 			WithIPv4Operation(prefix).
 			WithOperationType(constants.Add).
-			WithProgrammingResult(ackType).
+			WithProgrammingResult(progResult).
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
+	if !failuerExpected {
+		ipv4Path := g.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix)
+		if got, want := ipv4Path.Prefix().Get(t), prefix; got != want {
+			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+		}
+	}
 }
