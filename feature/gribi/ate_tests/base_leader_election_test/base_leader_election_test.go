@@ -300,7 +300,7 @@ func TestElectionIDChange(t *testing.T) {
 
 			// Configure the gRIBI client clientB
 			clientB := gribi.NewGRIBIFluent(t, dut, tt.persistance, tt.wantFibAck)
-			defer clientA.Close(t)
+			defer clientB.Close(t)
 
 			args := &testArgs{
 				ctx:     ctx,
