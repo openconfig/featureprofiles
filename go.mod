@@ -2,8 +2,6 @@ module github.com/openconfig/featureprofiles
 
 go 1.17
 
-replace github.com/openconfig/ondatra => ../../openconfig/ondatra/
-
 require (
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.7
@@ -29,7 +27,6 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
-	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/open-traffic-generator/snappi/gosnappi v0.7.12 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
