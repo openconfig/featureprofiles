@@ -202,7 +202,7 @@ func TestPGAugmentBGP(t *testing.T) {
 		desc: "PeerGroup with max-prefixes",
 		pg: NewPeerGroup("GLOBAL-PEER").WithV4PrefixLimit(2000, PrefixLimitOptions{
 			PreventTeardown:     true,
-			RestartTimer:        5 * time.Second,
+			RestartTime:         5 * time.Second,
 			WarningThresholdPct: 90,
 		}),
 		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
@@ -217,11 +217,13 @@ func TestPGAugmentBGP(t *testing.T) {
 								PrefixLimit: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_Ipv4Unicast_PrefixLimit{
 									MaxPrefixes:         ygot.Uint32(2000),
 									PreventTeardown:     ygot.Bool(true),
-									RestartTimer:        ygot.Float64(float64(5)),
 									WarningThresholdPct: ygot.Uint8(90),
 								},
 							},
 						},
+					},
+					Timers: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
+						RestartTime: ygot.Uint16(5),
 					},
 				},
 			},

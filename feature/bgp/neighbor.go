@@ -129,7 +129,7 @@ func (n *Neighbor) WithSendCommunity(sc oc.E_BgpTypes_CommunityType) *Neighbor {
 // PrefixLimitOptions struct to hold prefix limit options.
 type PrefixLimitOptions struct {
 	PreventTeardown     bool
-	RestartTimer        time.Duration
+	RestartTime         time.Duration
 	WarningThresholdPct uint8
 }
 
@@ -138,8 +138,8 @@ func (n *Neighbor) WithV4PrefixLimit(maxPrefixes uint32, opts PrefixLimitOptions
 	ploc := n.oc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 	ploc.MaxPrefixes = ygot.Uint32(maxPrefixes)
 	ploc.PreventTeardown = ygot.Bool(opts.PreventTeardown)
-	if opts.RestartTimer != 0 {
-		ploc.RestartTimer = ygot.Float64(opts.RestartTimer.Seconds())
+	if opts.RestartTime != 0 {
+		n.oc.GetOrCreateTimers().RestartTime = ygot.Uint16(uint16(opts.RestartTime.Round(time.Second).Seconds()))
 	}
 	if opts.WarningThresholdPct > 0 {
 		ploc.WarningThresholdPct = ygot.Uint8(opts.WarningThresholdPct)
