@@ -5,3 +5,4 @@ openconfig_public/
 launch.json
 settings.json
 topologies/kne/*.yml
+logs/

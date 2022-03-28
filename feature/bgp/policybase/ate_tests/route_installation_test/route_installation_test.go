@@ -713,9 +713,6 @@ func TestEstablish(t *testing.T) {
 			t.Fatal(err)
 		}
 		sendTrafficOTG(t, otg, gnmiClient)
-		if err != nil {
-			t.Fatal(err)
-		}
 		verifyTrafficOTG(t, gnmiClient, false)
 		gnmiClient.Close()
 	}
@@ -739,9 +736,6 @@ func TestEstablish(t *testing.T) {
 				t.Fatal(err)
 			}
 			sendTrafficOTG(t, otg, gnmiClient)
-			if err != nil {
-				t.Fatal(err)
-			}
 			verifyTrafficOTG(t, gnmiClient, true)
 			gnmiClient.Close()
 		}
@@ -760,7 +754,6 @@ func TestBGPPolicy(t *testing.T) {
 	cases := []struct {
 		desc                      string
 		policy                    string
-		ateType                   string
 		installed, received, sent uint32
 		wantLoss                  bool
 	}{{
@@ -806,11 +799,31 @@ func TestBGPPolicy(t *testing.T) {
 			dut.Config().RoutingPolicy().Replace(t, rpl)
 			bgp := bgpCreateNbr(dutAS, ateAS, tc.policy)
 			// Configure ATE to setup traffic.
-			allFlows := configureATE(t, ate)
+			var allFlows []*ondatra.Flow
+			var otgConfig gosnappi.Config
+			var otg *ondatra.OTG
+			switch {
+			case ateType == "hardware":
+				allFlows = configureATE(t, ate)
+			case ateType == "software":
+				otg = ate.OTG(t)
+				otgConfig, _ = configureOTG(t, ate, otg)
+			}
 			dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
 			// Send and verify traffic.
-			sendTrafficATE(t, ate, allFlows)
-			verifyTrafficATE(t, ate, allFlows, tc.wantLoss)
+			switch {
+			case ateType == "hardware":
+				sendTrafficATE(t, ate, allFlows)
+				verifyTrafficATE(t, ate, allFlows, tc.wantLoss)
+			case ateType == "software":
+				gnmiClient, err := helpers.NewGnmiClient(otg.NewGnmiQuery(t), otgConfig)
+				if err != nil {
+					t.Fatal(err)
+				}
+				sendTrafficOTG(t, otg, gnmiClient)
+				verifyTrafficOTG(t, gnmiClient, tc.wantLoss)
+				gnmiClient.Close()
+			}
 			// Verify traffic and telemetry.
 			verifyPrefixesTelemetry(t, dut, tc.installed, tc.received, tc.sent)
 			verifyPrefixesTelemetryV6(t, dut, tc.installed, tc.received, tc.sent)
