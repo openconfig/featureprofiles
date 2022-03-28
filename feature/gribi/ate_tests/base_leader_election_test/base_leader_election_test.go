@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -194,18 +195,18 @@ type testArgs struct {
 // 11. Ensure that the entry via ClientA is ignored and not installed.
 func configureIPv4ViaNonLeaderClient(t *testing.T, args *testArgs, nonleader *gribi.GRIBIHandler) {
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via clientA that is not leader.", ateDstNetCIDR)
-	nonleader.AddNH(t, nhIndex, "192.0.2.10", instance, true)
-	nonleader.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, true)
-	nonleader.AddIPV4Entry(t, nhgIndex, ateDstNetCIDR, instance, true)
+	nonleader.AddNH(t, nhIndex, "192.0.2.10", instance, fluent.ProgrammingFailed)
+	nonleader.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.ProgrammingFailed)
+	nonleader.AddIPV4Entry(t, nhgIndex, "", ateDstNetCIDR, instance, fluent.ProgrammingFailed)
 }
 
 // configureIPv4ViaClientAInstalled configures a IPv4 Entry via ClientA with an
 // Election ID of 12. Ensure that the entry via ClientA is installed.
 func configureIPv4ViaLeaderClientInstalled(t *testing.T, args *testArgs, leader *gribi.GRIBIHandler, nh string) {
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via clientA as leader.", ateDstNetCIDR)
-	leader.AddNH(t, nhIndex, nh, instance, false)
-	leader.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, false)
-	leader.AddIPV4Entry(t, nhgIndex, ateDstNetCIDR, instance, false)
+	leader.AddNH(t, nhIndex, nh, instance, fluent.InstalledInRIB)
+	leader.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.InstalledInRIB)
+	leader.AddIPV4Entry(t, nhgIndex, "", ateDstNetCIDR, instance, fluent.InstalledInRIB)
 }
 
 // testIPv4LeaderActiveChange modifies election ID of ClientA with an Election ID of 12
@@ -267,36 +268,13 @@ func TestElectionIDChange(t *testing.T) {
 		name        string
 		desc        string
 		fn          func(ctx context.Context, t *testing.T, args *testArgs)
-		wantFibAck  bool
 		persistance bool
 	}{
 		{
 			name:        "IPv4EntryWithLeaderChange",
-			desc:        "Connect gRIBI-A and B to DUT specifying SINGLE_PRIMARY client redundancy without persistance and FibAck",
+			desc:        "Connect gRIBI-A and B to DUT specifying SINGLE_PRIMARY client redundancy without persistance and FibACK",
 			fn:          testIPv4LeaderActiveChange,
-			wantFibAck:  false,
-			persistance: false,
-		},
-		{
-			name:        "IPv4EntryWithLeaderChangeWithPersistance",
-			desc:        "Connect gRIBI-A and B to DUT specifying SINGLE_PRIMARY client redundancy with persistance and RibAck",
-			fn:          testIPv4LeaderActiveChange,
-			wantFibAck:  false,
 			persistance: true,
-		},
-		{
-			name:        "IPv4EntryWithLeaderChangeWithPersistanceandFiback",
-			desc:        "Connect gRIBI-A and B to DUT specifying SINGLE_PRIMARY redundancy mode with persistance and FibAck",
-			fn:          testIPv4LeaderActiveChange,
-			wantFibAck:  true,
-			persistance: true,
-		},
-		{
-			name:        "IPv4EntryWithLeaderChangeandFibackWithoutPersistance",
-			desc:        "Connect gRIBI-A and B to DUT specifying SINGLE_PRIMARY client redundancy with persistance and RibAck",
-			fn:          testIPv4LeaderActiveChange,
-			wantFibAck:  true,
-			persistance: false,
 		},
 	}
 
@@ -307,11 +285,11 @@ func TestElectionIDChange(t *testing.T) {
 			t.Logf("Description: %s", tt.desc)
 
 			// Configure the gRIBI client clientA
-			clientA := gribi.NewGRIBIFluent(t, dut, tt.persistance, tt.wantFibAck)
+			clientA := gribi.NewGRIBIFluent(t, dut, tt.persistance, false)
 			defer clientA.Close(t)
 
 			// Configure the gRIBI client clientB
-			clientB := gribi.NewGRIBIFluent(t, dut, tt.persistance, tt.wantFibAck)
+			clientB := gribi.NewGRIBIFluent(t, dut, tt.persistance, false)
 			defer clientB.Close(t)
 
 			args := &testArgs{
