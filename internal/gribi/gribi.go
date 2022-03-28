@@ -8,7 +8,7 @@ import (
 	"time"
 	"unsafe"
 
-	grbp "github.com/openconfig/gribi/v1/proto/service"
+	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -21,30 +21,35 @@ const (
 	maxUint64 = 1<<64 - 1
 )
 
-// GRIBI provides access to GRIBI APIs of the DUT.
+// GRIBIHandler provides access to GRIBI APIs of the DUT.
 type GRIBIHandler struct {
 	dut            *ondatra.DUTDevice
-	gribiC         grbp.GRIBIClient
+	gribiC         spb.GRIBIClient
 	fluentC        *fluent.GRIBIClient
-	fibAck         bool
+	fibACK         bool
 	persistence    bool
 	redundancyMode fluent.RedundancyMode
-	lastElectionID *grbp.Uint128
+	lastElectionID *spb.Uint128
 }
 
 var mu sync.Mutex
 
-func NewGRIBIFluent(t testing.TB, dut *ondatra.DUTDevice, persistance, fibAck bool) *GRIBIHandler {
+/*
+ NewGRIBIFluent establishes a gribi client session with the dut. Persistance and fibACK specify how the session to be established.
+ The client connection hanldes (grigo  and fluent clients) and session parameters are cached.
+ The client is not the leader by default and for that function BecomeLeader needs to be called.
+*/
+func NewGRIBIFluent(t testing.TB, dut *ondatra.DUTDevice, persistance, fibACK bool) *GRIBIHandler {
 	fluentClient := fluent.NewClient()
 	gribiC := dut.RawAPIs().GRIBI().New(t)
 	fluentClient.Connection().WithStub(gribiC)
 	g := &GRIBIHandler{dut: dut,
 		gribiC:         gribiC,
 		fluentC:        fluentClient,
-		fibAck:         fibAck,
+		fibACK:         fibACK,
 		persistence:    persistance,
 		redundancyMode: fluent.ElectedPrimaryClient, // all of test cases use ElectedPrimaryClient
-		lastElectionID: &grbp.Uint128{Low: 1,
+		lastElectionID: &spb.Uint128{Low: 1,
 			High: 0,
 		},
 	}
@@ -53,7 +58,7 @@ func NewGRIBIFluent(t testing.TB, dut *ondatra.DUTDevice, persistance, fibAck bo
 	} else {
 		fluentClient.Connection().WithInitialElectionID(g.lastElectionID.Low, g.lastElectionID.High).WithRedundancyMode(fluent.ElectedPrimaryClient)
 	}
-	if fibAck {
+	if fibACK {
 		fluentClient.Connection().WithFIBACK()
 	}
 	fluentClient.Start(context.Background(), t)
@@ -65,6 +70,7 @@ func NewGRIBIFluent(t testing.TB, dut *ondatra.DUTDevice, persistance, fibAck bo
 	return g
 }
 
+// Close function closes the gribi session with the dut by closing stopping the fluent client
 func (g *GRIBIHandler) Close(t testing.TB) {
 	t.Helper()
 	t.Logf("closing GRIBI connection for dut: %s", g.dut.Name())
@@ -78,13 +84,14 @@ func (g *GRIBIHandler) Close(t testing.TB) {
 	}
 }
 
+// AwaitTimeout calls a fluent client Await by adding a timeout to the context.
 func (g *GRIBIHandler) AwaitTimeout(ctx context.Context, t testing.TB, timeout time.Duration) error {
 	subctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return g.fluentC.Await(subctx, t)
 }
 
-// get the election id (last known election id) from a dut
+// LearnElectionID learns the current server election id of the dut by sending a dummy update. The function caches the election id.
 func (g *GRIBIHandler) LearnElectionID(t testing.TB) (low, high uint64) {
 	t.Helper()
 	t.Logf("learn GRIBI Election ID from dut: %s", g.dut.Name())
@@ -100,8 +107,8 @@ func (g *GRIBIHandler) LearnElectionID(t testing.TB) (low, high uint64) {
 	return g.lastElectionID.Low, g.lastElectionID.High
 }
 
-// set the election id
-func (g *GRIBIHandler) UpdateElectionID(t *testing.T, lowElecId, highElecId uint64) {
+// UpdateElectionID updates the election id of the dut. The function fails if the requsted election id is less than the server election id
+func (g *GRIBIHandler) UpdateElectionID(t testing.TB, lowElecId, highElecId uint64) {
 	t.Helper()
 	t.Logf("setting GRIBI Election ID for dut: %s to low=%d,high=%d", g.dut.Name(), lowElecId, highElecId)
 	g.fluentC.Modify().UpdateElectionID(t, lowElecId, highElecId)
@@ -120,11 +127,13 @@ func (g *GRIBIHandler) UpdateElectionID(t *testing.T, lowElecId, highElecId uint
 	g.lastElectionID = results[len(results)-1].CurrentServerElectionID
 }
 
-func (g *GRIBIHandler) GetLastElectionID(t *testing.T) (low, high uint64) {
+// GetLastElectionID returnes the latest election id that is cached, without querying dut.
+func (g *GRIBIHandler) GetLastElectionID(t testing.TB) (low, high uint64) {
 	return g.lastElectionID.Low, g.lastElectionID.High
 }
 
-func (g *GRIBIHandler) BecomeLeader(t *testing.T) {
+// BecomeLeader learns the latest election id and the make the client leader by increasing the election id by one.
+func (g *GRIBIHandler) BecomeLeader(t testing.TB) {
 	t.Logf("trying to be a master with increasing the election id by one on dut: %s", g.dut.Name())
 	lowElecId, highElecId := g.LearnElectionID(t)
 	if lowElecId == maxUint64 {
@@ -135,87 +144,66 @@ func (g *GRIBIHandler) BecomeLeader(t *testing.T) {
 	g.UpdateElectionID(t, lowElecId, highElecId)
 }
 
-func (g *GRIBIHandler) AddNHG(t *testing.T, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, failuerExpected bool) {
+// AddNHG adds a NextHOP group
+func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {
 	NGH := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	for nhIndex, weight := range nhWeights {
 		NGH.AddNextHop(nhIndex, weight)
 	}
-	g.fluentC.Modify().AddEntry(t, NGH.WithElectionID(g.GetLastElectionID(t)))
+	g.fluentC.Modify().AddEntry(t, NGH)
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("got unexpected error from server adding NGH, got: %v, want: nil", err)
 	}
-	progResult := fluent.InstalledInRIB
-	if failuerExpected {
-		progResult = fluent.ProgrammingFailed
-	} else if g.fibAck {
-		progResult = fluent.InstalledInFIB
-	} 
+
 	chk.HasResult(t, g.fluentC.Results(t),
 		fluent.OperationResult().
 			WithNextHopGroupOperation(nhgIndex).
 			WithOperationType(constants.Add).
-			WithProgrammingResult(progResult).
+			WithProgrammingResult(expectedResult).
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
 }
 
-func (g *GRIBIHandler) AddNH(t *testing.T, nhIndex uint64, address, instance string, failuerExpected bool) {
+// AddNH adds a NextHOP entry
+func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult) {
 	g.fluentC.Modify().AddEntry(t,
 		fluent.NextHopEntry().
 			WithNetworkInstance(instance).
 			WithIndex(nhIndex).
-			WithIPAddress(address).
-			WithElectionID(g.GetLastElectionID(t)))
+			WithIPAddress(address))
 
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("got unexpected error from server adding NH, got: %v, want: nil", err)
 	}
-	progResult := fluent.InstalledInRIB
-	if failuerExpected {
-		progResult = fluent.ProgrammingFailed
-	} else if g.fibAck {
-		progResult = fluent.InstalledInFIB
-	} 
 	chk.HasResult(t, g.fluentC.Results(t),
 		fluent.OperationResult().
 			WithNextHopOperation(nhIndex).
 			WithOperationType(constants.Add).
-			WithProgrammingResult(progResult).
+			WithProgrammingResult(expectedResult).
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
 }
 
-func (g *GRIBIHandler) AddIPV4Entry(t *testing.T, nhgIndex uint64, prefix, instance string, failuerExpected bool) {
+// AddNH adds an IPV4 entry
+func (g *GRIBIHandler) AddIPV4Entry(t testing.TB, nhgIndex uint64, nhgInstance, prefix, instance string, expectedResult fluent.ProgrammingResult) {
 	g.fluentC.Modify().AddEntry(t,
 		fluent.IPv4Entry().WithPrefix(prefix).
 			WithNetworkInstance(instance).
 			WithNextHopGroup(nhgIndex).
-			WithElectionID(g.GetLastElectionID(t)))
+			WithNextHopGroupNetworkInstance(nhgInstance))
 
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("got unexpected error from server adding NH, got: %v, want: nil", err)
 	}
-	progResult := fluent.InstalledInRIB
-	if failuerExpected {
-		progResult = fluent.ProgrammingFailed
-	} else if g.fibAck {
-		progResult = fluent.InstalledInFIB
-	} 
-	
+
 	chk.HasResult(t, g.fluentC.Results(t),
 		fluent.OperationResult().
 			WithIPv4Operation(prefix).
 			WithOperationType(constants.Add).
-			WithProgrammingResult(progResult).
+			WithProgrammingResult(expectedResult).
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
-	if !failuerExpected {
-		ipv4Path := g.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix)
-		if got, want := ipv4Path.Prefix().Get(t), prefix; got != want {
-			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
-		}
-	}
 }
