@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 )
 
@@ -226,11 +227,11 @@ func configureBaseDoubleRecusionVip1Entry(t *testing.T, args *testArgs) {
 		args.prefix.vip1NhIndex + 3: 20,
 		args.prefix.vip1NhIndex + 4: 30,
 	}
-	args.clientA.AddNH(t, args.prefix.vip1NhIndex+2, atePort2.IPv4, instance, false)
-	args.clientA.AddNH(t, args.prefix.vip1NhIndex+3, atePort3.IPv4, instance, false)
-	args.clientA.AddNH(t, args.prefix.vip1NhIndex+4, atePort4.IPv4, instance, false)
-	args.clientA.AddNHG(t, args.prefix.vip1NhgIndex+1, weights, instance, false)
-	args.clientA.AddIPV4Entry(t, args.prefix.vip1NhgIndex+1, getIPPrefix(args.prefix.vip1Ip, 0, args.prefix.vipPrefixLength), instance, false)
+	args.clientA.AddNH(t, args.prefix.vip1NhIndex+2, atePort2.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, args.prefix.vip1NhIndex+3, atePort3.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, args.prefix.vip1NhIndex+4, atePort4.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, args.prefix.vip1NhgIndex+1, weights, instance, fluent.InstalledInRIB)
+	args.clientA.AddIPV4Entry(t, args.prefix.vip1NhgIndex+1, instance, getIPPrefix(args.prefix.vip1Ip, 0, args.prefix.vipPrefixLength), instance, fluent.InstalledInRIB)
 }
 
 func configureBaseDoubleRecusionVip2Entry(t *testing.T, args *testArgs) {
@@ -242,13 +243,13 @@ func configureBaseDoubleRecusionVip2Entry(t *testing.T, args *testArgs) {
 		args.prefix.vip2NhIndex + 7: 30,
 		args.prefix.vip2NhIndex + 8: 40,
 	}
-	args.clientA.AddNH(t, args.prefix.vip2NhIndex+5, atePort5.IPv4, instance, false)
-	args.clientA.AddNH(t, args.prefix.vip2NhIndex+6, atePort6.IPv4, instance, false)
-	args.clientA.AddNH(t, args.prefix.vip2NhIndex+7, atePort7.IPv4, instance, false)
-	args.clientA.AddNH(t, args.prefix.vip2NhIndex+8, atePort8.IPv4, instance, false)
+	args.clientA.AddNH(t, args.prefix.vip2NhIndex+5, atePort5.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, args.prefix.vip2NhIndex+6, atePort6.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, args.prefix.vip2NhIndex+7, atePort7.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, args.prefix.vip2NhIndex+8, atePort8.IPv4, instance, fluent.InstalledInRIB)
 
-	args.clientA.AddNHG(t, args.prefix.vip2NhgIndex+1, weights, instance, false)
-	args.clientA.AddIPV4Entry(t, args.prefix.vip2NhgIndex+1, getIPPrefix(args.prefix.vip2Ip, 0, args.prefix.vipPrefixLength), instance, false)
+	args.clientA.AddNHG(t, args.prefix.vip2NhgIndex+1, weights, instance, fluent.InstalledInRIB)
+	args.clientA.AddIPV4Entry(t, args.prefix.vip2NhgIndex+1, instance, getIPPrefix(args.prefix.vip2Ip, 0, args.prefix.vipPrefixLength), instance, fluent.InstalledInRIB)
 
 }
 
@@ -259,11 +260,11 @@ func configureBaseDoubleRecusionVrfEntry(t *testing.T, scale int, hostIp, prefix
 		args.prefix.vrfNhIndex + 1: 15,
 		args.prefix.vrfNhIndex + 2: 85,
 	}
-	args.clientA.AddNH(t, args.prefix.vrfNhIndex+1, args.prefix.vip1Ip, instance, false)
-	args.clientA.AddNH(t, args.prefix.vrfNhIndex+2, args.prefix.vip2Ip, instance, false)
-	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, weights, instance, false)
+	args.clientA.AddNH(t, args.prefix.vrfNhIndex+1, args.prefix.vip1Ip, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, args.prefix.vrfNhIndex+2, args.prefix.vip2Ip, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, weights, instance, fluent.InstalledInRIB)
 	for i := 0; i < scale; i++ {
-		args.clientA.AddIPV4Entry(t, args.prefix.vrfNhgIndex+1, getIPPrefix(hostIp, i, prefixLength), instance, false)
+		args.clientA.AddIPV4Entry(t, args.prefix.vrfNhgIndex+1, instance, getIPPrefix(hostIp, i, prefixLength), args.prefix.vrfName, fluent.InstalledInRIB)
 	}
 }
 

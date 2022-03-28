@@ -83,6 +83,7 @@ func TestCD2(t *testing.T) {
 			t.Logf("Description: %s", tt.desc)
 
 			clientA := gribi.NewGRIBIFluent(t, dut, true, false)
+			clientA.BecomeLeader(t)
 			defer clientA.Close(t)
 
 			interfaceList := []string{}

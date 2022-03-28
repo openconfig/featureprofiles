@@ -8,7 +8,7 @@
 # These options are inherited throughout the entire binding for both the
 # DUT and the ATE, unless overridden by a specific device or protocol.
 options {
-  username: "cisco "
+  username: "cisco"
   password: "cisco123"
 }
 
