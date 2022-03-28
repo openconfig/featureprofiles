@@ -70,6 +70,12 @@ func NewGRIBIFluent(t testing.TB, dut *ondatra.DUTDevice, persistance, fibACK bo
 	return g
 }
 
+// Fluent resturns the fluent client that can be used to directly call the gribi fluent apis 
+func (g *GRIBIHandler) Fluent(t testing.TB) *fluent.GRIBIClient{
+	return g.fluentC
+}
+
+
 // Close function closes the gribi session with the dut by closing stopping the fluent client
 func (g *GRIBIHandler) Close(t testing.TB) {
 	t.Helper()
@@ -188,12 +194,13 @@ func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, address, instance str
 
 // AddNH adds an IPV4 entry
 func (g *GRIBIHandler) AddIPV4Entry(t testing.TB, nhgIndex uint64, nhgInstance, prefix, instance string, expectedResult fluent.ProgrammingResult) {
-	g.fluentC.Modify().AddEntry(t,
-		fluent.IPv4Entry().WithPrefix(prefix).
-			WithNetworkInstance(instance).
-			WithNextHopGroup(nhgIndex).
-			WithNextHopGroupNetworkInstance(nhgInstance))
-
+	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
+				WithNetworkInstance(instance).
+				WithNextHopGroup(nhgIndex)
+	if nhgInstance!="" && nhgInstance!=instance {
+		ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+	}
+	g.fluentC.Modify().AddEntry(t,ipv4Entry)
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("got unexpected error from server adding NH, got: %v, want: nil", err)
 	}
