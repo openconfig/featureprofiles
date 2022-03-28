@@ -182,13 +182,12 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx        context.Context
-	clientA    *gribi.GRIBIHandler
-	clientB    *gribi.GRIBIHandler
-	dut        *ondatra.DUTDevice
-	ate        *ondatra.ATEDevice
-	top        *ondatra.ATETopology
-	wantFibACK bool
+	ctx     context.Context
+	clientA *gribi.GRIBIHandler
+	clientB *gribi.GRIBIHandler
+	dut     *ondatra.DUTDevice
+	ate     *ondatra.ATEDevice
+	top     *ondatra.ATETopology
 }
 
 // configureIPv4ViaClientA configures a IPv4 Entry via ClientA with an Election
@@ -198,20 +197,16 @@ func configureIPv4ViaNonLeaderClient(t *testing.T, args *testArgs, nonleader *gr
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via clientA that is not leader.", ateDstNetCIDR)
 	nonleader.AddNH(t, nhIndex, "192.0.2.10", instance, fluent.ProgrammingFailed)
 	nonleader.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.ProgrammingFailed)
-	nonleader.AddIPV4Entry(t, nhgIndex, instance, ateDstNetCIDR, instance, fluent.ProgrammingFailed)
+	nonleader.AddIPV4Entry(t, nhgIndex, "", ateDstNetCIDR, instance, fluent.ProgrammingFailed)
 }
 
 // configureIPv4ViaClientAInstalled configures a IPv4 Entry via ClientA with an
 // Election ID of 12. Ensure that the entry via ClientA is installed.
 func configureIPv4ViaLeaderClientInstalled(t *testing.T, args *testArgs, leader *gribi.GRIBIHandler, nh string) {
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via clientA as leader.", ateDstNetCIDR)
-	progResult := fluent.InstalledInRIB
-	if args.wantFibACK {
-		progResult = fluent.InstalledInFIB
-	}
-	leader.AddNH(t, nhIndex, nh, instance, progResult)
-	leader.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, progResult)
-	leader.AddIPV4Entry(t, nhgIndex, instance, ateDstNetCIDR, instance, progResult)
+	leader.AddNH(t, nhIndex, nh, instance, fluent.InstalledInRIB)
+	leader.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.InstalledInRIB)
+	leader.AddIPV4Entry(t, nhgIndex, "", ateDstNetCIDR, instance, fluent.InstalledInRIB)
 }
 
 // testIPv4LeaderActiveChange modifies election ID of ClientA with an Election ID of 12
@@ -273,36 +268,13 @@ func TestElectionIDChange(t *testing.T) {
 		name        string
 		desc        string
 		fn          func(ctx context.Context, t *testing.T, args *testArgs)
-		wantFibACK  bool
 		persistance bool
 	}{
 		{
 			name:        "IPv4EntryWithLeaderChange",
 			desc:        "Connect gRIBI-A and B to DUT specifying SINGLE_PRIMARY client redundancy without persistance and FibACK",
 			fn:          testIPv4LeaderActiveChange,
-			wantFibACK:  false,
-			persistance: false,
-		},
-		{
-			name:        "IPv4EntryWithLeaderChangeWithPersistance",
-			desc:        "Connect gRIBI-A and B to DUT specifying SINGLE_PRIMARY client redundancy with persistance and RibACK",
-			fn:          testIPv4LeaderActiveChange,
-			wantFibACK:  false,
 			persistance: true,
-		},
-		{
-			name:        "IPv4EntryWithLeaderChangeWithPersistanceandFiback",
-			desc:        "Connect gRIBI-A and B to DUT specifying SINGLE_PRIMARY redundancy mode with persistance and FibACK",
-			fn:          testIPv4LeaderActiveChange,
-			wantFibACK:  true,
-			persistance: true,
-		},
-		{
-			name:        "IPv4EntryWithLeaderChangeandFibackWithoutPersistance",
-			desc:        "Connect gRIBI-A and B to DUT specifying SINGLE_PRIMARY client redundancy with persistance and RibACK",
-			fn:          testIPv4LeaderActiveChange,
-			wantFibACK:  true,
-			persistance: false,
 		},
 	}
 
@@ -313,21 +285,20 @@ func TestElectionIDChange(t *testing.T) {
 			t.Logf("Description: %s", tt.desc)
 
 			// Configure the gRIBI client clientA
-			clientA := gribi.NewGRIBIFluent(t, dut, tt.persistance, tt.wantFibACK)
+			clientA := gribi.NewGRIBIFluent(t, dut, tt.persistance, false)
 			defer clientA.Close(t)
 
 			// Configure the gRIBI client clientB
-			clientB := gribi.NewGRIBIFluent(t, dut, tt.persistance, tt.wantFibACK)
+			clientB := gribi.NewGRIBIFluent(t, dut, tt.persistance, false)
 			defer clientB.Close(t)
 
 			args := &testArgs{
-				ctx:        ctx,
-				clientA:    clientA,
-				clientB:    clientB,
-				dut:        dut,
-				ate:        ate,
-				top:        top,
-				wantFibACK: tt.wantFibACK,
+				ctx:     ctx,
+				clientA: clientA,
+				clientB: clientB,
+				dut:     dut,
+				ate:     ate,
+				top:     top,
 			}
 
 			tt.fn(ctx, t, args)
