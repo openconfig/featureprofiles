@@ -295,8 +295,8 @@ func TestElectionIDChange(t *testing.T) {
 			name:        "IPv4EntryWithLeaderChangeandFibackWithoutPersistance",
 			desc:        "Connect gRIBI-A and B to DUT specifying SINGLE_PRIMARY client redundancy with persistance and RibAck",
 			fn:          testIPv4LeaderActiveChange,
-			wantFibAck:  false,
-			persistance: true,
+			wantFibAck:  true,
+			persistance: false,
 		},
 	}
 
