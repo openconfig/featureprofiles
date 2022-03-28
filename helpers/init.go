@@ -8,7 +8,7 @@ var kneBindConfig *knebind.Config
 
 func init() {
 	var err error
-	kneBindConfig, err = knebind.ParseConfigFile("../resources/global/knebind-config.yaml")
+	kneBindConfig, err = knebind.ParseConfigFile("/home/opetre/featureprofiles/topologies/kne/testbed.kne.yml")
 	if err != nil {
 		panic(err)
 	}
