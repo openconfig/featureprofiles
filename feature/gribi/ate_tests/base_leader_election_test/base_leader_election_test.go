@@ -201,9 +201,9 @@ func configureIPv4ViaNonLeaderClient(t *testing.T, args *testArgs, nonleader *gr
 
 // configureIPv4ViaClientAInstalled configures a IPv4 Entry via ClientA with an
 // Election ID of 12. Ensure that the entry via ClientA is installed.
-func configureIPv4ViaLeaderClientInstalled(t *testing.T, args *testArgs, leader *gribi.GRIBIHandler) {
+func configureIPv4ViaLeaderClientInstalled(t *testing.T, args *testArgs, leader *gribi.GRIBIHandler, nh string) {
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via clientA as leader.", ateDstNetCIDR)
-	leader.AddNH(t, nhIndex, "192.0.2.6", instance, false)
+	leader.AddNH(t, nhIndex, nh, instance, false)
 	leader.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, false)
 	leader.AddIPV4Entry(t, nhgIndex, ateDstNetCIDR, instance, false)
 }
@@ -214,7 +214,13 @@ func configureIPv4ViaLeaderClientInstalled(t *testing.T, args *testArgs, leader 
 func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArgs) {
 	// Configure IPv4 route for 198.51.100.0/24 pointing to ATE port-3 via clientB as the leader.
 	args.clientB.BecomeLeader(t)
-	configureIPv4ViaLeaderClientInstalled(t, args, args.clientB)
+	configureIPv4ViaLeaderClientInstalled(t, args, args.clientB, atePort3.IPv4)
+
+	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
+	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
+		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+	}
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -229,7 +235,13 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	args.clientA.BecomeLeader(t)
 
 	// Configure IPv4 route for 198.51.100.0/24 pointing to ATE port-2 via clientA with election ID of 12.
-	configureIPv4ViaLeaderClientInstalled(t, args, args.clientA)
+	configureIPv4ViaLeaderClientInstalled(t, args, args.clientA, atePort2.IPv4)
+
+	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
+	ipv4Path = args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
+		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+	}
 
 	// Verify with traffic that the entry is installed through the ATE port-2.
 	srcEndPoint = args.top.Interfaces()[atePort1.Name]
@@ -283,8 +295,8 @@ func TestElectionIDChange(t *testing.T) {
 			name:        "IPv4EntryWithLeaderChangeandFibackWithoutPersistance",
 			desc:        "Connect gRIBI-A and B to DUT specifying SINGLE_PRIMARY client redundancy with persistance and RibAck",
 			fn:          testIPv4LeaderActiveChange,
-			wantFibAck:  false,
-			persistance: true,
+			wantFibAck:  true,
+			persistance: false,
 		},
 	}
 
