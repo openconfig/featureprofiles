@@ -245,7 +245,13 @@ config_path {
 telemetry_path {
   path: "/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-as-path-set/state/match-set-options"
 }
-
+#policy-result
+config_path {
+    path: "/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result"
+}
+telemetry_path {
+    path: "/routing-policy/policy-definitions/policy-definition/statements/statement/actions/state/policy-result"
+}
 
 # Per neighbor policy telemetry paths
 config_path {
@@ -290,7 +296,44 @@ config_path {
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/default-import-policy"
 }
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/state/default-import-policy"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/state/default-export-policy"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/state/default-export-policy"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/state/default-import-policy"
+}
 
+# Apply policy telemetry paths
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/export-policy"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/import-policy"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/state/export-policy"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/state/import-policy"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/state/export-policy"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/state/import-policy"
+}
 feature_profile_dependency {
   name: "bgp_base"
   version: 1

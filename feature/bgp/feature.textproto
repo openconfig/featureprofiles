@@ -247,9 +247,6 @@ config_path {
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/warning-threshold-pct"
 }
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/restart-timer"
-}
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/max-prefixes"
 }
@@ -259,17 +256,20 @@ telemetry_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/warning-threshold-pct"
 }
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/restart-timer"
-}
 
 #Basic BGP Timers
 ## MRAI
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/minimum-advertisement-interval"
 }
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/restart-time"
+}
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/minimum-advertisement-interval"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/restart-time"
 }
 
 ##Hold Time
@@ -430,6 +430,18 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/keepalive-interval"
 }
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/afi-safi-name"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/state/afi-safi-name"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/state/enabled"
+}
 
 # Neighbor state
 telemetry_path {
@@ -447,4 +459,8 @@ telemetry_path {
 gnoi_service {
   service_name: "gnoi.bgp.BGP"
   method_name: "ClearBGPNeighbor"
+}
+feature_profile_dependency {
+  name: "network_instance_base"
+  version: 1
 }

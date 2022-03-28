@@ -31,6 +31,9 @@
 //   openconfig_path:
 //   '/network-instance/<name>/protocols/INSTALL_PROTOCOL_TYPE_BGP/...'
 // }
+
+//Comment for Staticcheck linter:
+//lint:file-ignore U1000 Ignore all unused code, it's generated
 syntax = "proto2";
 
 package openconfig.profiles;
@@ -79,7 +82,7 @@ message GNMIService {
 
   // The method that is covered within the gNMI protocol.
   optional Method method_name = 2;
-  
+
   // TODO(robjs): for some RPCs, like Subscribe, we may want
   // further description of modes (e.g., POLL, STREAM, ONCE).
 }
@@ -94,10 +97,13 @@ message FeatureProfile {
   // A list of configuration and state paths that compose the feature profile.
   repeated TelemetryPath telemetry_path = 3;
 
-  // A list of GNOI operational commands that compose the feature profile.
-  repeated GNOIService gnoi_service = 5;
-
   // A list of feature profiles this feature profile depends on.  For example,
   // A iBGP feature profile might depend on the BGP base feature profile.
   repeated FeatureProfileID feature_profile_dependency = 4;
+
+  // A list of GNOI operational commands that compose the feature profile.
+  repeated GNOIService gnoi_service = 5;
+
+  // A list of GNMI methods that compose the feature profile.
+  repeated GNMIService gnmi_service = 6;
 }
