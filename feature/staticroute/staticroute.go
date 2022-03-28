@@ -39,7 +39,7 @@ func New() *Static {
 	}
 }
 
-// WithRoute sets the prefix value for static route.
+// WithRoute sets the prefix with next-hops for static route.
 func (sr *Static) WithRoute(prefix string, nextHops []string) *Static {
 	static := sr.oc.GetOrCreateStatic(prefix)
 	static.Prefix = ygot.String(prefix)
@@ -62,15 +62,4 @@ func (sr *Static) AugmentNetworkInstance(ni *oc.NetworkInstance) error {
 		return ni.AppendProtocol(&sr.oc)
 	}
 	return ygot.MergeStructInto(p, &sr.oc)
-}
-
-// GlobalFeature provides interface to augment Static  with additional features.
-type GlobalFeature interface {
-	// AugmentStatuc augments Static with additional features.
-	AugmentStatic(oc *oc.NetworkInstance_Protocol_Static) error
-}
-
-// WithFeature augments Static with provided feature.
-func (sr *Static) WithFeature(f GlobalFeature, prefix string) error {
-	return f.AugmentStatic(sr.oc.GetStatic(prefix))
 }
