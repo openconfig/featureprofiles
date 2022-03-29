@@ -22,6 +22,177 @@ telemetry_path {
   path: "/components/component/fan/state/speed"
 }
 
+# Pipeline-counters lookup block
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/lookup-block/state/nexthop-memory"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/lookup-block/state/nexthop-memory-used"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/lookup-block/state/acl-memory-total-entries"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/lookup-block/state/acl-memory-used-entries"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/lookup-block/state/acl-memory-total-bytes"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/lookup-block/state/acl-memory-used-bytes"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/lookup-block/state/lookup-memory"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/lookup-block/state/lookup-memory-used"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/oversubscription"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/no-route"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/no-label"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/no-nexthop"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/invalid-packet"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/forwarding-policy"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/incorrect-software-state"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/rate-limit"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/fragment-total-drops"
+}
+
+# Pipeline counters queueing block
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/queueing-block/state/in-bytes"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/queueing-block/state/out-bytes"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/queueing-block/state/queue-memory"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/queueing-block/state/queue-memory-used"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/queueing-block/state/loopback-packets"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/queueing-block/state/loopback-bytes"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/queueing-block/state/oversubscription"
+}
+
+# Pipeline counters fabric block
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/fabric-block/state/in-bytes"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/fabric-block/state/out-bytes"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/fabric-block/state/in-packets"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/fabric-block/state/out-packets"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/fabric-block/state/in-low-priority-cells"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/fabric-block/state/out-low-priority-cells"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/fabric-block/state/in-high-priority-packets"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/fabric-block/state/out-high-priority-packets"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/fabric-block/state/in-low-priority-packets"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/fabric-block/state/out-low-priority-packets"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/oversubscription"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/lost-packets"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/out-high-priority"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/fabric-aggregate"
+}
+
+# Pipeline counters host interface block
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/host-interface-block/state/out-packets"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/host-interface-block/state/in-bytes"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/host-interface-block/state/out-bytes"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/host-interface-block/state/fragment-punt-pkts"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/host-interface-block/state/in-high-priority-packets"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/host-interface-block/state/out-high-priority-packets"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/host-interface-block/state/in-low-priority-packets"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/packet/host-interface-block/state/out-low-priority-packets"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/oversubscription"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/rate-limit"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/in-high-priority"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/out-high-priority"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/in-low-priority"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/out-low-priority"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/fragment-punt"
+}
+telemetry_path {
+    path: "/components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/host-aggregate"
+}
+
+
 # Port
 telemetry_path {
     path: "/components/component/port/breakout-mode/groups/group/state/breakout-speed"
@@ -59,7 +230,7 @@ telemetry_path {
     path: "/components/component/power-supply/state/output-voltage"
 }
 
-# integrated circuit
+# integrated circuit backplane
 telemetry_path {
     path: "/components/component/integrated-circuit/backplane-facing-capacity/state/total"
 }
