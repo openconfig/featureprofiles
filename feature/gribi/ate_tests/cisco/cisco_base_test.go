@@ -24,9 +24,14 @@ type testArgs struct {
 	dut        *ondatra.DUTDevice
 	ate        *ondatra.ATEDevice
 	top        *ondatra.ATETopology
-	interfaces []string
+	interfaces *interfaces
 	usecase    int
 	prefix     *gribiPrefix
+}
+
+type interfaces struct {
+	in  []string
+	out []string
 }
 
 type gribiPrefix struct {
@@ -91,6 +96,11 @@ func TestCD2(t *testing.T) {
 				interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
 			}
 
+			interfaces := interfaces{
+				in:  []string{"Bundle-Ether120"},
+				out: interfaceList,
+			}
+
 			args := &testArgs{
 				ctx:        ctx,
 				clientA:    clientA,
@@ -98,7 +108,7 @@ func TestCD2(t *testing.T) {
 				ate:        ate,
 				top:        top,
 				usecase:    0,
-				interfaces: interfaceList,
+				interfaces: &interfaces,
 				prefix: &gribiPrefix{
 					vrfName:         "TE",
 					vipPrefixLength: "32",

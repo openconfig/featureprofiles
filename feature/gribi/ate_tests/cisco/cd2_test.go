@@ -162,7 +162,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string) {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, weights ...float64) {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress("00:11:01:00:00:01")
 	ethHeader.WithDstAddress("00:01:00:02:00:00")
@@ -176,7 +176,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 
 	innerIpv4Header := ondatra.NewIPv4Header()
 	innerIpv4Header.WithSrcAddress("200.1.0.2")
-	innerIpv4Header.DstAddressRange().WithMin("201.1.0.2").WithCount(1000).WithStep("0.0.0.1")
+	innerIpv4Header.DstAddressRange().WithMin("201.1.0.2").WithCount(10000).WithStep("0.0.0.1")
 	dstEndPoint := []ondatra.Endpoint{}
 
 	for _, v := range allPorts {
@@ -198,6 +198,12 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	if got := CheckTrafficPassViaPortPktCounter(stats); !got {
 		t.Errorf("LossPct for flow %s", flow.Name())
 	}
+
+	//
+
+	tolerance := float64(0.02)
+	interval := 60 * time.Second
+	CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out, weights, interval, tolerance)
 
 	ate.Traffic().Stop(t)
 
@@ -271,7 +277,8 @@ func configureBaseDoubleRecusionVrfEntry(t *testing.T, scale int, hostIp, prefix
 func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testArgs) {
 	// defer flushSever(t, args)
 	hostIp := "11.11.11.0"
-	scale := 1000
+	scale := 1
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(t, args)
 	configureBaseDoubleRecusionVip2Entry(t, args)
@@ -280,5 +287,5 @@ func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testAr
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), scale, hostIp)
+	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), scale, hostIp, args, weights...)
 }
