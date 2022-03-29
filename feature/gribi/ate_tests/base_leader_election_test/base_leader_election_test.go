@@ -200,7 +200,7 @@ func configureIPv4ViaNonLeaderClient(t *testing.T, args *testArgs, nonleader *gr
 	nonleader.AddIPV4Entry(t, nhgIndex, "", ateDstNetCIDR, instance, fluent.ProgrammingFailed)
 }
 
-// configureIPv4ViaLeaderClientInstalled configures a IPv4 Entry via the lader ClientA.
+// configureIPv4ViaLeaderClientInstalled configures a IPv4 Entry via the leader ClientA.
 //  Ensure that the entry via ClientA is installed.
 func configureIPv4ViaLeaderClientInstalled(t *testing.T, args *testArgs, leader *gribi.GRIBIHandler, nh string) {
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via a client as leader.", ateDstNetCIDR)
@@ -210,12 +210,12 @@ func configureIPv4ViaLeaderClientInstalled(t *testing.T, args *testArgs, leader 
 }
 
 // testIPv4LeaderActiveChange first makes the cleintB leader.
-// Second tt configures an IPV4 through clinetB and ensures
+// Second it configures an IPV4 through clinetB and ensures
 // that the entry is avtive through through AFT Telemetry and traffic.
 // Thrid, it configures a IPv4 entry through clientA without
 // making it the leader and ensures that the installation fails..
 // Forth, it makes the ClientA master, configures an IPV4 through clinetB
-// and ensures that the entry is avtive through through AFT Telemetry and traffic.
+// and ensures that the entry is active through through AFT Telemetry and traffic.
 func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArgs) {
 	// Configure IPv4 route for 198.51.100.0/24 pointing to ATE port-3 via clientB as the leader.
 	args.clientB.BecomeLeader(t)
