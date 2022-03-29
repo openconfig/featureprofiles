@@ -2,18 +2,15 @@ package gribi
 
 import (
 	"context"
-	"reflect"
 	"sync"
 	"testing"
 	"time"
-	"unsafe"
 
 	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"google.golang.org/grpc"
 )
 
 const (
@@ -24,7 +21,6 @@ const (
 // GRIBIHandler provides access to GRIBI APIs of the DUT.
 type GRIBIHandler struct {
 	dut            *ondatra.DUTDevice
-	gribiC         spb.GRIBIClient
 	fluentC        *fluent.GRIBIClient
 	fibACK         bool
 	persistence    bool
@@ -40,10 +36,9 @@ var mu sync.Mutex
 // The client is not the leader by default and for that function BecomeLeader needs to be called.
 func NewGRIBIFluent(t testing.TB, dut *ondatra.DUTDevice, persistence, fibACK bool) *GRIBIHandler {
 	fluentClient := fluent.NewClient()
-	gribiC := dut.RawAPIs().GRIBI().New(t)
+	gribiC := dut.RawAPIs().GRIBI().Default(t)
 	fluentClient.Connection().WithStub(gribiC)
 	g := &GRIBIHandler{dut: dut,
-		gribiC:      gribiC,
 		fluentC:     fluentClient,
 		fibACK:      fibACK,
 		persistence: persistence,
@@ -81,13 +76,6 @@ func (g *GRIBIHandler) Close(t testing.TB) {
 	t.Helper()
 	t.Logf("closing GRIBI connection for dut: %s", g.dut.Name())
 	g.fluentC.Stop(t)
-	v := reflect.Indirect(reflect.ValueOf(g.gribiC)).FieldByName("cc")
-	clientConn, ok := (reflect.NewAt(v.Type(), unsafe.Pointer(v.UnsafeAddr())).Elem().Interface()).(*grpc.ClientConn)
-	if ok {
-		clientConn.Close()
-	} else {
-		t.Fatalf("can not close gribi connection")
-	}
 }
 
 // AwaitTimeout calls a fluent client Await by adding a timeout to the context.
