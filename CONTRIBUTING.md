@@ -95,9 +95,9 @@ Within each test directory, a README.md should document the test suite.  The
 `*.go` files should be named after an appropriate [github featureprofiles project](https://github.com/orgs/openconfig/projects/2/views/1?filterQuery=)
 item. For example:
 
-* `feature/interfaces/tests/rt_5_1_singleton_test/README.md` - documentation for the test suite
-* `tests/interfaces/tests/rt_5_1_singleton_test/singleton_test.go` implements issue **RT-5.1 Singleton Interface**.
-* `tests/interfaces/tests/rt_5_2_aggregate_test/aggregate_test.go` implements issue **RT-5.2 Aggregate Interface**.
+* `feature/interfaces/tests/singleton_test/README.md` - documentation for the test suite
+* `feature/interfaces/tests/singleton_test/singleton_test.go` implements issue [RT-5.1 Singleton Interface](https://github.com/openconfig/featureprofiles/issues/111).
+* `feature/interfaces/tests/aggregate_test/aggregate_test.go` implements issue [RT-5.2 Aggregate Interface](https://github.com/openconfig/featureprofiles/issues/112).
 
 ## Pull Request Title
 
