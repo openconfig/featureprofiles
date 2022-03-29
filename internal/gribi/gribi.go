@@ -32,7 +32,7 @@ var mu sync.Mutex
 
 // NewGRIBIFluent establishes a gribi client session with the dut.
 // persistence and fibACK specify how the session to be established.
-// The client connection handles (grigo  and fluent clients) and session parameters are cached.
+// The client connection handles (fluent client) and session parameters are cached.
 // The client is not the leader by default and for that function BecomeLeader needs to be called.
 func NewGRIBIFluent(t testing.TB, dut *ondatra.DUTDevice, persistence, fibACK bool) *GRIBIHandler {
 	fluentClient := fluent.NewClient()
@@ -70,8 +70,7 @@ func (g *GRIBIHandler) Fluent(t testing.TB) *fluent.GRIBIClient {
 	return g.fluentC
 }
 
-// Close function closes the gribi session with the dut by
-// stopping the fluent client and closing the grpc clinet.
+// Close function closes the gribi session with the dut by stopping the fluent client.
 func (g *GRIBIHandler) Close(t testing.TB) {
 	t.Helper()
 	t.Logf("closing GRIBI connection for dut: %s", g.dut.Name())
