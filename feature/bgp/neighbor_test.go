@@ -228,7 +228,7 @@ func TestAugmentBGP(t *testing.T) {
 		desc: "Neighbor with max-prefixes",
 		neighbor: NewNeighbor("1.2.3.4").WithV4PrefixLimit(2000, PrefixLimitOptions{
 			PreventTeardown:     true,
-			RestartTimer:        5 * time.Second,
+			RestartTime:         5 * time.Second,
 			WarningThresholdPct: 90,
 		}),
 		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
@@ -243,11 +243,13 @@ func TestAugmentBGP(t *testing.T) {
 								PrefixLimit: &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimit{
 									MaxPrefixes:         ygot.Uint32(2000),
 									PreventTeardown:     ygot.Bool(true),
-									RestartTimer:        ygot.Float64(float64(5)),
 									WarningThresholdPct: ygot.Uint8(90),
 								},
 							},
 						},
+					},
+					Timers: &oc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
+						RestartTime: ygot.Uint16(5),
 					},
 				},
 			},
