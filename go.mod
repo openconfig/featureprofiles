@@ -31,13 +31,8 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
-<<<<<<< HEAD
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b // indirect
 	github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d // indirect
-=======
-	github.com/open-traffic-generator/snappi/gosnappi v0.7.12 // indirect
-	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b // indirect
->>>>>>> 4bc9192faee10d1c5f42a00ab0e79ddef6309b69
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

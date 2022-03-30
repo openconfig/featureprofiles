@@ -573,12 +573,10 @@ github.com/openconfig/goyang v1.0.0/go.mod h1:vX61x01Q46AzbZUzG617vWqh/cB+aisc+R
 github.com/openconfig/gribi v0.1.1-0.20210423184541-ce37eb4ba92f/go.mod h1:OoH46A2kV42cIXGyviYmAlGmn6cHjGduyC2+I9d/iVs=
 github.com/openconfig/gribi v0.1.1-0.20220126144445-1634932f9fd8 h1:V6QU1cocKPRP1yEfxg0cleaIh95d4yRY572UwKu/W+0=
 github.com/openconfig/gribi v0.1.1-0.20220126144445-1634932f9fd8/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
-github.com/openconfig/gribigo v0.0.0-20220323152256-fa8a7bdc1f62 h1:UsULrHaG3m9gwjPhR2HSHGjY8p7uJVY8T6VdMLa7G50=
-github.com/openconfig/gribigo v0.0.0-20220323152256-fa8a7bdc1f62/go.mod h1:9d5MoDDYNmdcpoGfZwI+9OV2gCYXUnp0q5QkdIUbOGc=
+github.com/openconfig/gribigo v0.0.0-20220315144647-df51e0795a27 h1:oK6B7SR4+MvfFw3m55XJ1ZfI7YlDsMwP9CgmMPaUuW0=
+github.com/openconfig/gribigo v0.0.0-20220315144647-df51e0795a27/go.mod h1:9d5MoDDYNmdcpoGfZwI+9OV2gCYXUnp0q5QkdIUbOGc=
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d h1:zrs4U92QEAadFotQyidT4U8iZDJO67pXsS4r64uAHik=
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d/go.mod h1:x9tAZ4EwqCQ0jI8D6S8Yhw9Z0ee7/BxWQX0k0Uib5Q8=
-github.com/openconfig/ondatra v0.0.0-20220315133935-f6ce307a9c86 h1:RVD6rhypH9MW+oPZIfz8eI6/dCgNz/FMipa27NSX8Aw=
-github.com/openconfig/ondatra v0.0.0-20220315133935-f6ce307a9c86/go.mod h1:d+tEEdL+N4uueeRRG/R6+jYDP4t3quJoRmaIVz1TZGQ=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=
