@@ -202,7 +202,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	//
 
 	tolerance := float64(0.02)
-	interval := 60 * time.Second
+	interval := 45 * time.Second
 	if len(weights) > 0 {
 		CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out[:len(weights)], weights, interval, tolerance)
 	}
