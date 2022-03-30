@@ -75,7 +75,7 @@ const (
 	plenIPv4               = 30
 	plenIPv6               = 126
 	tolerance              = 50
-	tolerancePct           = 2
+	tolerancePct           = 1
 	ipPrefixSet            = "203.0.113.0/29"
 	prefixSubnetRange      = "29..32"
 	allowConnected         = "ALLOW-CONNECTED"
@@ -585,9 +585,13 @@ func verifyTrafficOTG(t *testing.T, gnmiClient *helpers.GnmiClient, wantLoss boo
 	})
 
 	for _, f := range fMetrics.Items() {
-		lossPct := (f.FramesTx() - f.FramesRx()) * 100 / f.FramesTx()
+		lostPackets := f.FramesTx() - f.FramesRx()
+		lossPct := lostPackets * 100 / f.FramesTx()
 		if !wantLoss {
-			if lossPct > tolerance && f.FramesTx() > 0 {
+			if lostPackets > tolerance {
+				t.Logf("Packets received not matching packets sent. Sent: %v, Received: %d", f.FramesTx(), f.FramesRx())
+			}
+			if lossPct > tolerancePct && f.FramesTx() > 0 {
 				t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0%% failure", f.Name(), lossPct)
 			} else {
 				t.Logf("Traffic Test Passed! for flow %s", f.Name())
