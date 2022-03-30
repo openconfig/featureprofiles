@@ -577,13 +577,16 @@ github.com/openconfig/gribigo v0.0.0-20220323152256-fa8a7bdc1f62 h1:UsULrHaG3m9g
 github.com/openconfig/gribigo v0.0.0-20220323152256-fa8a7bdc1f62/go.mod h1:9d5MoDDYNmdcpoGfZwI+9OV2gCYXUnp0q5QkdIUbOGc=
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d h1:zrs4U92QEAadFotQyidT4U8iZDJO67pXsS4r64uAHik=
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d/go.mod h1:x9tAZ4EwqCQ0jI8D6S8Yhw9Z0ee7/BxWQX0k0Uib5Q8=
+github.com/openconfig/ondatra v0.0.0-20220315133935-f6ce307a9c86 h1:RVD6rhypH9MW+oPZIfz8eI6/dCgNz/FMipa27NSX8Aw=
+github.com/openconfig/ondatra v0.0.0-20220315133935-f6ce307a9c86/go.mod h1:d+tEEdL+N4uueeRRG/R6+jYDP4t3quJoRmaIVz1TZGQ=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=
 github.com/openconfig/ygot v0.10.4/go.mod h1:oCQNdXnv7dWc8scTDgoFkauv1wwplJn5HspHcjlxSAQ=
 github.com/openconfig/ygot v0.13.2/go.mod h1:kJN0yCXIH07dOXvNBEFm3XxXdnDD5NI6K99tnD5x49c=
-github.com/openconfig/ygot v0.15.1 h1:mkouquSR1HGdSjW4WW6rB6KuApDaRr7a/ZQfFwe2REU=
 github.com/openconfig/ygot v0.15.1/go.mod h1:7ZiBFNc4n/1Hkv2v2dAEpxisqDznp0JVpLR13Toe4AY=
+github.com/openconfig/ygot v0.16.2 h1:G6y/k7JmsSzLA+/ACfFNPQ7whUbbN3HIuhxO29barSs=
+github.com/openconfig/ygot v0.16.2/go.mod h1:7ZiBFNc4n/1Hkv2v2dAEpxisqDznp0JVpLR13Toe4AY=
 github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
 github.com/opencontainers/go-digest v0.0.0-20180430190053-c9281466c8b2/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
 github.com/opencontainers/go-digest v1.0.0-rc1/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=

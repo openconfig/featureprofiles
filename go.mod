@@ -13,10 +13,10 @@ require (
 	github.com/openconfig/gnoi v0.0.0-20220131192435-7dd3a95a4f1e
 	github.com/openconfig/goyang v1.0.0
 	github.com/openconfig/gribi v0.1.1-0.20220126144445-1634932f9fd8
-	github.com/openconfig/gribigo v0.0.0-20220323152256-fa8a7bdc1f62
-	github.com/openconfig/ondatra v0.0.0-00010101000000-000000000000
+	github.com/openconfig/gribigo v0.0.0-20220315144647-df51e0795a27
+	github.com/openconfig/ondatra v0.0.0-20220315133935-f6ce307a9c86
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
-	github.com/openconfig/ygot v0.15.1
+	github.com/openconfig/ygot v0.16.2
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220131092820-39736dd543b4
 	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
@@ -31,8 +31,13 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
+<<<<<<< HEAD
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b // indirect
 	github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d // indirect
+=======
+	github.com/open-traffic-generator/snappi/gosnappi v0.7.12 // indirect
+	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b // indirect
+>>>>>>> 4bc9192faee10d1c5f42a00ab0e79ddef6309b69
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
