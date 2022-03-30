@@ -180,7 +180,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	dstEndPoint := []ondatra.Endpoint{}
 
 	for _, v := range allPorts {
-		if v != srcEndPoint {
+		if *v != *srcEndPoint {
 			dstEndPoint = append(dstEndPoint, v)
 		}
 	}
@@ -215,15 +215,15 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	// }
 }
 
-// func flushSever(t *testing.T, args *testArgs) {
-// 	c := args.clientA
-// 	if _, err := c.Flush().
-// 		WithElectionOverride().
-// 		WithAllNetworkInstances().
-// 		Send(); err != nil {
-// 		t.Fatalf("could not remove all entries from server, got: %v", err)
-// 	}
-// }
+func flushSever(t *testing.T, args *testArgs) {
+	c := args.clientA.Fluent(t)
+	if _, err := c.Flush().
+		WithElectionOverride().
+		WithAllNetworkInstances().
+		Send(); err != nil {
+		t.Fatalf("could not remove all entries from server, got: %v", err)
+	}
+}
 
 func configureBaseDoubleRecusionVip1Entry(t *testing.T, args *testArgs) {
 	t.Helper()
@@ -275,6 +275,7 @@ func configureBaseDoubleRecusionVrfEntry(t *testing.T, scale int, hostIp, prefix
 }
 
 func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testArgs) {
+	defer flushSever(t, args)
 	// defer flushSever(t, args)
 	hostIp := "11.11.11.0"
 	scale := 1
