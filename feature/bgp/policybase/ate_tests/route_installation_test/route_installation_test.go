@@ -592,13 +592,13 @@ func verifyTrafficOTG(t *testing.T, gnmiClient *helpers.GnmiClient, wantLoss boo
 				t.Logf("Packets received not matching packets sent. Sent: %v, Received: %d", f.FramesTx(), f.FramesRx())
 			}
 			if lossPct > tolerancePct && f.FramesTx() > 0 {
-				t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0%% failure", f.Name(), lossPct)
+				t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want max %v pct failure", f.Name(), lossPct, tolerancePct)
 			} else {
 				t.Logf("Traffic Test Passed! for flow %s", f.Name())
 			}
 		} else {
 			if lossPct < 100-tolerancePct && f.FramesTx() > 0 {
-				t.Errorf("Traffic is expected to fail %s\n got %v, want 100%% failure", f.Name(), lossPct)
+				t.Errorf("Traffic is expected to fail %s\n got %v, want max %v pct failure", f.Name(), lossPct, 100-tolerancePct)
 			} else {
 				t.Logf("Traffic Loss Test Passed! for flow %s", f.Name())
 			}
