@@ -203,8 +203,9 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 
 	tolerance := float64(0.02)
 	interval := 60 * time.Second
-	CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out, weights, interval, tolerance)
-
+	if len(weights) > 0 {
+		CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out[:len(weights)], weights, interval, tolerance)
+	}
 	ate.Traffic().Stop(t)
 
 	time.Sleep(time.Minute)
@@ -276,17 +277,36 @@ func configureBaseDoubleRecusionVrfEntry(t *testing.T, scale int, hostIp, prefix
 
 func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testArgs) {
 	defer flushSever(t, args)
-	// defer flushSever(t, args)
-	hostIp := "11.11.11.0"
-	scale := 1
+
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(t, args)
 	configureBaseDoubleRecusionVip2Entry(t, args)
-	configureBaseDoubleRecusionVrfEntry(t, scale, hostIp, "32", args)
+	configureBaseDoubleRecusionVrfEntry(t, args.prefix.scale, args.prefix.host, "32", args)
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), scale, hostIp, args, weights...)
+	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, weights...)
+}
+
+func testDeleteAndAddUCMP(ctx context.Context, t *testing.T, args *testArgs) {
+	defer flushSever(t, args)
+
+	// Programm the base double recursion entry
+	configureBaseDoubleRecusionVip1Entry(t, args)
+	configureBaseDoubleRecusionVip2Entry(t, args)
+	configureBaseDoubleRecusionVrfEntry(t, args.prefix.scale, args.prefix.host, "32", args)
+
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Delete UCMP at VRF Level by changing current NHG to single PATH
+	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vrfNhIndex + 1: 1}, instance, fluent.InstalledInRIB)
+	weights := []float64{10, 20, 30}
+	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, weights...)
+
+	// Add back UCMP at VRF Level by changing NHG back to UCMP
+	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vrfNhIndex + 1: 15, args.prefix.vrfNhIndex + 2: 85}, instance, fluent.InstalledInRIB)
+	weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, weights...)
 }

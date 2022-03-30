@@ -35,6 +35,10 @@ type interfaces struct {
 }
 
 type gribiPrefix struct {
+	scale int
+
+	host string
+
 	vrfName         string
 	vipPrefixLength string
 
@@ -62,11 +66,11 @@ var (
 			desc: "Programm double recursion transit with WCMP",
 			fn:   testDoubleRecursionWithUCMP,
 		},
-		// {
-		// 	name: "Change VIP1 to from UCMP to ECMP",
-		// 	desc: "Programm double recursion transit with WCMP and change VIP1 to ECMP",
-		// 	fn:   testChangeVip1UCMP,
-		// },
+		{
+			name: "Change VRF to non-UCMP and change back",
+			desc: "Programm double recursion transit with WCMP and change VIP1 to ECMP",
+			fn:   testDeleteAndAddUCMP,
+		},
 	}
 )
 
@@ -110,6 +114,8 @@ func TestCD2(t *testing.T) {
 				usecase:    0,
 				interfaces: &interfaces,
 				prefix: &gribiPrefix{
+					scale:           1,
+					host:            "11.11.11.0",
 					vrfName:         "TE",
 					vipPrefixLength: "32",
 
