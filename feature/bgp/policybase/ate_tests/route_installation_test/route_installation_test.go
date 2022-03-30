@@ -831,3 +831,8 @@ func TestBGPPolicy(t *testing.T) {
 		})
 	}
 }
+
+func TestUnsetDut(t *testing.T) {
+	t.Logf("Start Unsetting DUT Config")
+	helpers.ConfigDUTs(map[string]string{"arista": "unset_dut.txt"})
+}

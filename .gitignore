@@ -6,3 +6,4 @@ launch.json
 settings.json
 topologies/kne/*.yml
 logs/
+topologies/kne/kubecfg
