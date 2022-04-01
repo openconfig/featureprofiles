@@ -403,7 +403,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
 
 // configureOTG configures the interfaces and BGP protocols on an OTG, including advertising some
 // (faked) networks over BGP.
-func configureOTG(t *testing.T, ate *ondatra.ATEDevice, otg *ondatra.OTG) (gosnappi.Config, helpers.ExpectedState) {
+func configureOTG(t *testing.T, ate *ondatra.ATEDevice, otg *ondatra.OTG, expectedRoutes int32) (gosnappi.Config, helpers.ExpectedState) {
 
 	config := otg.NewConfig()
 	srcPort := config.Ports().Add().SetName("port1")
@@ -532,11 +532,11 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, otg *ondatra.OTG) (gosna
 
 	expected := helpers.ExpectedState{
 		Bgp4: map[string]helpers.ExpectedBgpMetrics{
-			srcBgp4Peer.Name(): {Advertised: 0, Received: routeCount},
+			srcBgp4Peer.Name(): {Advertised: 0, Received: expectedRoutes},
 			dstBgp4Peer.Name(): {Advertised: routeCount, Received: 0},
 		},
 		Bgp6: map[string]helpers.ExpectedBgpMetrics{
-			srcBgp6Peer.Name(): {Advertised: 0, Received: routeCount},
+			srcBgp6Peer.Name(): {Advertised: 0, Received: expectedRoutes},
 			dstBgp6Peer.Name(): {Advertised: routeCount, Received: 0},
 		},
 		Flow: map[string]helpers.ExpectedFlowMetrics{
@@ -685,7 +685,7 @@ func TestEstablish(t *testing.T) {
 		allFlows = configureATE(t, ate)
 	case ateType == "software":
 		otg = ate.OTG(t)
-		otgConfig, otgExpected = configureOTG(t, ate, otg)
+		otgConfig, otgExpected = configureOTG(t, ate, otg, routeCount)
 	}
 	// Verify Port Status
 	t.Logf("Verifying port status")
@@ -729,6 +729,8 @@ func TestEstablish(t *testing.T) {
 		dutConfPath.Replace(t, bgpCreateNbr(dutAS, badAS, defaultPolicy))
 
 		// Resend traffic
+		// A pause is needed for DUT to completely withdraw routes
+		time.Sleep(5 * time.Second)
 		switch {
 		case ateType == "hardware":
 			sendTrafficATE(t, ate, allFlows)
@@ -806,12 +808,13 @@ func TestBGPPolicy(t *testing.T) {
 			var allFlows []*ondatra.Flow
 			var otgConfig gosnappi.Config
 			var otg *ondatra.OTG
+			var otgExpected helpers.ExpectedState
 			switch {
 			case ateType == "hardware":
 				allFlows = configureATE(t, ate)
 			case ateType == "software":
 				otg = ate.OTG(t)
-				otgConfig, _ = configureOTG(t, ate, otg)
+				otgConfig, otgExpected = configureOTG(t, ate, otg, int32(tc.installed))
 			}
 			dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
 			// Send and verify traffic.
@@ -824,6 +827,8 @@ func TestBGPPolicy(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				helpers.WaitFor(t, func() (bool, error) { return gnmiClient.AllBgp4SessionUp(otgExpected) }, nil)
+				helpers.WaitFor(t, func() (bool, error) { return gnmiClient.AllBgp6SessionUp(otgExpected) }, nil)
 				sendTrafficOTG(t, otg, gnmiClient)
 				verifyTrafficOTG(t, gnmiClient, tc.wantLoss)
 				gnmiClient.Close()
