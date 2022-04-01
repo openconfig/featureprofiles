@@ -21,7 +21,7 @@ func TestAugment(t *testing.T) {
 		wantNI *fpoc.NetworkInstance
 	}{{
 		desc:   "Static route with nil next-hop",
-		static: New().WithRoute("1.1.1.1", nil),
+		static: New().WithRoute("1.1.1.1/32", nil),
 		inNI:   &fpoc.NetworkInstance{},
 		wantNI: &fpoc.NetworkInstance{
 			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
@@ -29,8 +29,8 @@ func TestAugment(t *testing.T) {
 					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 					Name:       ygot.String("static"),
 					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
-						"1.1.1.1": {
-							Prefix: ygot.String("1.1.1.1"),
+						"1.1.1.1/32": {
+							Prefix: ygot.String("1.1.1.1/32"),
 						},
 					},
 				},
@@ -38,7 +38,7 @@ func TestAugment(t *testing.T) {
 		},
 	}, {
 		desc:   "Static route with one next-hop",
-		static: New().WithRoute("1.1.1.1", []string{"1.2.3.44"}),
+		static: New().WithRoute("1.1.1.1/32", []string{"1.2.3.44"}),
 		inNI:   &fpoc.NetworkInstance{},
 		wantNI: &fpoc.NetworkInstance{
 			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
@@ -46,8 +46,8 @@ func TestAugment(t *testing.T) {
 					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 					Name:       ygot.String("static"),
 					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
-						"1.1.1.1": {
-							Prefix: ygot.String("1.1.1.1"),
+						"1.1.1.1/32": {
+							Prefix: ygot.String("1.1.1.1/32"),
 							NextHop: map[string]*fpoc.NetworkInstance_Protocol_Static_NextHop{
 								"1": {
 									Index:   ygot.String("1"),
@@ -61,7 +61,7 @@ func TestAugment(t *testing.T) {
 		},
 	}, {
 		desc:   "Static route Multiple Next Hops",
-		static: New().WithRoute("1.1.1.1", []string{"1.2.3.44", "1.2.3.45"}),
+		static: New().WithRoute("1.1.1.1/32", []string{"1.2.3.44", "1.2.3.45"}),
 		inNI:   &fpoc.NetworkInstance{},
 		wantNI: &fpoc.NetworkInstance{
 			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
@@ -69,8 +69,8 @@ func TestAugment(t *testing.T) {
 					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 					Name:       ygot.String("static"),
 					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
-						"1.1.1.1": {
-							Prefix: ygot.String("1.1.1.1"),
+						"1.1.1.1/32": {
+							Prefix: ygot.String("1.1.1.1/32"),
 							NextHop: map[string]*fpoc.NetworkInstance_Protocol_Static_NextHop{
 								"1": {
 									Index:   ygot.String("1"),

@@ -54,11 +54,9 @@ func (sr *Static) WithRoute(prefix string, nextHops []string) *Static {
 // AugmentNetworkInstance implements networkinstance.Feature interface.
 // Augments the provided NI with Static OC.
 func (sr *Static) AugmentNetworkInstance(ni *fpoc.NetworkInstance) error {
-	/* TODO: Fails due to a likely ygot bug
 	if err := sr.oc.Validate(); err != nil {
 		return err
 	}
-	*/
 	p := ni.GetProtocol(sr.oc.GetIdentifier(), Name)
 	if p == nil {
 		return ni.AppendProtocol(&sr.oc)
