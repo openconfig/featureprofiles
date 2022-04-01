@@ -413,7 +413,7 @@ func TestElectionIDChange(t *testing.T) {
 	configureDUT(t, dut)
 
 	// Configure the ATE
-	ate := ondatra.ATE(t, "otg")
+	ate := ondatra.ATE(t, "ate")
 
 	top := configureATE(t, ate)
 
