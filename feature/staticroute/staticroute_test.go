@@ -1,6 +1,7 @@
 package staticroute
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -86,6 +87,55 @@ func TestAugment(t *testing.T) {
 				},
 			},
 		},
+	}, {
+		desc:   "NI already contains static route so no change",
+		static: New().WithRoute("1.1.1.1/32", []string{"1.2.3.44", "1.2.3.45"}),
+		inNI: &fpoc.NetworkInstance{
+			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
+				protocolKey: {
+					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+					Name:       ygot.String("static"),
+					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
+						"1.1.1.1/32": {
+							Prefix: ygot.String("1.1.1.1/32"),
+							NextHop: map[string]*fpoc.NetworkInstance_Protocol_Static_NextHop{
+								"1": {
+									Index:   ygot.String("1"),
+									NextHop: fpoc.UnionString("1.2.3.44"),
+								},
+								"2": {
+									Index:   ygot.String("2"),
+									NextHop: fpoc.UnionString("1.2.3.45"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		wantNI: &fpoc.NetworkInstance{
+			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
+				protocolKey: {
+					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+					Name:       ygot.String("static"),
+					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
+						"1.1.1.1/32": {
+							Prefix: ygot.String("1.1.1.1/32"),
+							NextHop: map[string]*fpoc.NetworkInstance_Protocol_Static_NextHop{
+								"1": {
+									Index:   ygot.String("1"),
+									NextHop: fpoc.UnionString("1.2.3.44"),
+								},
+								"2": {
+									Index:   ygot.String("2"),
+									NextHop: fpoc.UnionString("1.2.3.45"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
@@ -95,6 +145,59 @@ func TestAugment(t *testing.T) {
 
 			if diff := cmp.Diff(test.wantNI, test.inNI); diff != "" {
 				t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestAugment_Errors tests the NI augment to device OC errors.
+func TestAugment_Errors(t *testing.T) {
+	var protocolKey = fpoc.NetworkInstance_Protocol_Key{
+		Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		Name:       "static",
+	}
+	tests := []struct {
+		desc          string
+		static        *Static
+		inNI          *fpoc.NetworkInstance
+		wantErrSubStr string
+	}{{
+		desc:          "Prefix not in CIDR format",
+		static:        New().WithRoute("1.1.1.1", nil),
+		inNI:          &fpoc.NetworkInstance{},
+		wantErrSubStr: "does not match regular expression pattern",
+	}, {
+		desc:   "Same prefix with different next-hop",
+		static: New().WithRoute("1.1.1.1/32", []string{"1.2.3.44"}),
+		inNI: &fpoc.NetworkInstance{
+			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
+				protocolKey: {
+					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+					Name:       ygot.String("static"),
+					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
+						"1.1.1.1/32": {
+							Prefix: ygot.String("1.1.1.1/32"),
+							NextHop: map[string]*fpoc.NetworkInstance_Protocol_Static_NextHop{
+								"1": {
+									Index:   ygot.String("1"),
+									NextHop: fpoc.UnionString("1.2.3.45"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		wantErrSubStr: "field was set in both src and dst and was not equal",
+	}}
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			err := test.static.AugmentNetworkInstance(test.inNI)
+			if err == nil {
+				t.Fatalf("error expected")
+			}
+			if !strings.Contains(err.Error(), test.wantErrSubStr) {
+				t.Errorf("Error strings are not equal: %v", err)
 			}
 		})
 	}
