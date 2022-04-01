@@ -20,23 +20,6 @@ func TestAugment(t *testing.T) {
 		inNI   *fpoc.NetworkInstance
 		wantNI *fpoc.NetworkInstance
 	}{{
-		desc:   "Static route with no next-hops",
-		static: New().WithRoute("1.1.1.1", []string{""}),
-		inNI:   &fpoc.NetworkInstance{},
-		wantNI: &fpoc.NetworkInstance{
-			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
-				protocolKey: {
-					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
-					Name:       ygot.String("static"),
-					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
-						"primary": {
-							Prefix: ygot.String("1.1.1.1"),
-						},
-					},
-				},
-			},
-		},
-	}, {
 		desc:   "Static route with nil next-hop",
 		static: New().WithRoute("1.1.1.1", nil),
 		inNI:   &fpoc.NetworkInstance{},
@@ -46,14 +29,8 @@ func TestAugment(t *testing.T) {
 					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 					Name:       ygot.String("static"),
 					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
-						"primary": {
+						"1.1.1.1": {
 							Prefix: ygot.String("1.1.1.1"),
-							NextHop: map[string]*fpoc.NetworkInstance_Protocol_Static_NextHop{
-								"0": {
-									Index:   ygot.String("0"),
-									NextHop: nil,
-								},
-							},
 						},
 					},
 				},
@@ -72,8 +49,8 @@ func TestAugment(t *testing.T) {
 						"1.1.1.1": {
 							Prefix: ygot.String("1.1.1.1"),
 							NextHop: map[string]*fpoc.NetworkInstance_Protocol_Static_NextHop{
-								"0": {
-									Index:   ygot.String("0"),
+								"1": {
+									Index:   ygot.String("1"),
 									NextHop: fpoc.UnionString("1.2.3.44"),
 								},
 							},
@@ -92,15 +69,15 @@ func TestAugment(t *testing.T) {
 					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 					Name:       ygot.String("static"),
 					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
-						"primary": {
+						"1.1.1.1": {
 							Prefix: ygot.String("1.1.1.1"),
 							NextHop: map[string]*fpoc.NetworkInstance_Protocol_Static_NextHop{
-								"0": {
-									Index:   ygot.String("0"),
-									NextHop: fpoc.UnionString("1.2.3.44"),
-								},
 								"1": {
 									Index:   ygot.String("1"),
+									NextHop: fpoc.UnionString("1.2.3.44"),
+								},
+								"2": {
+									Index:   ygot.String("2"),
 									NextHop: fpoc.UnionString("1.2.3.45"),
 								},
 							},

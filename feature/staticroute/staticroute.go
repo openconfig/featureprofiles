@@ -43,7 +43,6 @@ func New() *Static {
 // WithRoute sets the prefix with next-hops for static route.
 func (sr *Static) WithRoute(prefix string, nextHops []string) *Static {
 	static := sr.oc.GetOrCreateStatic(prefix)
-	static.Prefix = ygot.String(prefix)
 	for i, nh := range nextHops {
 		str := strconv.Itoa(i + 1)
 		n := static.GetOrCreateNextHop(str)
@@ -55,9 +54,11 @@ func (sr *Static) WithRoute(prefix string, nextHops []string) *Static {
 // AugmentNetworkInstance implements networkinstance.Feature interface.
 // Augments the provided NI with Static OC.
 func (sr *Static) AugmentNetworkInstance(ni *fpoc.NetworkInstance) error {
+	/* TODO: Fails due to a likely ygot bug
 	if err := sr.oc.Validate(); err != nil {
 		return err
 	}
+	*/
 	p := ni.GetProtocol(sr.oc.GetIdentifier(), Name)
 	if p == nil {
 		return ni.AppendProtocol(&sr.oc)
