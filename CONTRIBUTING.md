@@ -79,11 +79,11 @@ The directory tree is organized as follows:
 
 Test suites should be placed in subdirectories formatted like `feature/<featurename>/[<sub-feature>/]<tests|ate_tests|otg_tests>/<testname>/main_test.go`, for example:
 
-* `feature/interfaces/` contains feature profiles for interfaces.
-* `feature/interfaces/README.md` - documents the interface feature profile.
-* `feature/interfaces/ate_tests/` contains the interfaces test suite using ATE traffic generation.
-* `feature/interfaces/otg_tests/` contains the interfaces test suite using OTG traffic generation.
-* `feature/interfaces/tests/` contains the interfaces test suite without traffic generation.
+* `feature/interface/` contains feature profiles for interfaces.
+* `feature/interface/README.md` - documents the interface feature profile.
+* `feature/interface/ate_tests/` contains the interfaces test suite using ATE traffic generation.
+* `feature/interface/otg_tests/` contains the interfaces test suite using OTG traffic generation.
+* `feature/interface/tests/` contains the interfaces test suite without traffic generation.
 * `feature/bgp/` container for BGP feature profiles and test suites.
 * `feature/bgp/addpath` contains feature profiles related to BGP.
 * `feature/bgp/addpath/README.md` documents the BGP feature profile.
@@ -91,13 +91,13 @@ Test suites should be placed in subdirectories formatted like `feature/<featuren
 * `internal/deviations` contains code which overrides standard tests where
     there are known issues in a DUT.
 
-Within each test directory, a README.md should document the test suite.  The
+Within each test directory `<test>_test.md` should document the test suite.  The
 `*.go` files should be named after an appropriate [github featureprofiles project](https://github.com/orgs/openconfig/projects/2/views/1?filterQuery=)
 item. For example:
 
-* `feature/interfaces/tests/singleton_test/README.md` - documentation for the test suite
-* `feature/interfaces/tests/singleton_test/singleton_test.go` implements issue [RT-5.1 Singleton Interface](https://github.com/openconfig/featureprofiles/issues/111).
-* `feature/interfaces/tests/aggregate_test/aggregate_test.go` implements issue [RT-5.2 Aggregate Interface](https://github.com/openconfig/featureprofiles/issues/112).
+* `feature/interface/tests/singleton_test/singleton_test.md` - documentation for the test suite
+* `feature/interface/tests/singleton_test/singleton_test.go` implements issue [RT-5.1 Singleton Interface](https://github.com/openconfig/featureprofiles/issues/111).
+* `feature/interface/tests/aggregate_test/aggregate_test.go` implements issue [RT-5.2 Aggregate Interface](https://github.com/openconfig/featureprofiles/issues/112).
 
 ## Pull Request Title
 
