@@ -18,7 +18,7 @@
 package device
 
 import (
-	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
@@ -26,7 +26,7 @@ import (
 
 // Device struct to store OC attributes.
 type Device struct {
-	oc oc.Device
+	oc fpoc.Device
 }
 
 // New returns a new Device objct.
@@ -35,12 +35,12 @@ func New() *Device {
 }
 
 // DeepCopy returns a deep copy of Device OC struct.
-func (d *Device) DeepCopy() (*oc.Device, error) {
+func (d *Device) DeepCopy() (*fpoc.Device, error) {
 	dcopy, err := ygot.DeepCopy(&d.oc)
 	if err != nil {
 		return nil, err
 	}
-	return dcopy.(*oc.Device), nil
+	return dcopy.(*fpoc.Device), nil
 }
 
 // Merge merges the provided Device into this object.
@@ -74,7 +74,7 @@ func (d *Device) FullReplaceRequest() (*gnmipb.SetRequest, error) {
 // Feature is a feature on the device.
 type Feature interface {
 	// AugmentDevice augments the device OC with this feature.
-	AugmentDevice(d *oc.Device) error
+	AugmentDevice(d *fpoc.Device) error
 }
 
 // WithFeature augments the device with the provided feature.
