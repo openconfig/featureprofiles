@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ygot/ytypes"
@@ -116,8 +116,8 @@ func TestGNMIGet(t *testing.T) {
 				t.Fatalf("did not get JSON IETF value as expected, got:  %v", val)
 			}
 
-			d := &oc.Device{}
-			if err := oc.Unmarshal(jv, d, &ytypes.IgnoreExtraFields{}); err != nil {
+			d := &fpoc.Device{}
+			if err := fpoc.Unmarshal(jv, d, &ytypes.IgnoreExtraFields{}); err != nil {
 				t.Fatalf("did not get valid JSON IETF value, got err: %v", err)
 			}
 		},

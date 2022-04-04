@@ -21,19 +21,19 @@ package networkinstance
 import (
 	"errors"
 
-	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
 )
 
 // NetworkInstance struct stores the OC attributes.
 type NetworkInstance struct {
-	oc oc.NetworkInstance
+	oc fpoc.NetworkInstance
 }
 
 // New returns the new NetworkInstance object with specified name and type.
-func New(name string, niType oc.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE) *NetworkInstance {
+func New(name string, niType fpoc.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE) *NetworkInstance {
 	return &NetworkInstance{
-		oc: oc.NetworkInstance{
+		oc: fpoc.NetworkInstance{
 			Name:    ygot.String(name),
 			Type:    niType,
 			Enabled: ygot.Bool(true),
@@ -46,7 +46,7 @@ func (ni *NetworkInstance) validate() error {
 	if ni.oc.GetName() == "" {
 		return errors.New("NetworkInstance name is empty")
 	}
-	if ni.oc.GetType() == oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET {
+	if ni.oc.GetType() == fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET {
 		return errors.New("NetworkInstance type is unset")
 	}
 	return ni.oc.Validate()
@@ -55,7 +55,7 @@ func (ni *NetworkInstance) validate() error {
 // AugmentDevice implements the device.Feature interface.
 // This method augments the provided device OC with NetworkInstance feature.
 // Use d.WithFeature(ni) instead of calling this method directly.
-func (ni *NetworkInstance) AugmentDevice(d *oc.Device) error {
+func (ni *NetworkInstance) AugmentDevice(d *fpoc.Device) error {
 	if err := ni.validate(); err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func (ni *NetworkInstance) AugmentDevice(d *oc.Device) error {
 // Feature provides interface to augment additional features to NI.
 type Feature interface {
 	// AugmentNetworkInstance augments NI with provided feature.
-	AugmentNetworkInstance(ni *oc.NetworkInstance) error
+	AugmentNetworkInstance(ni *fpoc.NetworkInstance) error
 }
 
 // WithFeature augments the provided feature to network-instance.

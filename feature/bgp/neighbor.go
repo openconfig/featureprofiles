@@ -19,19 +19,19 @@ package bgp
 import (
 	"time"
 
-	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
 )
 
 // Neighbor struct to hold BGP neighbor OC attributes.
 type Neighbor struct {
-	oc oc.NetworkInstance_Protocol_Bgp_Neighbor
+	oc fpoc.NetworkInstance_Protocol_Bgp_Neighbor
 }
 
 // NewNeighbor returns a new Neighbor object.
 func NewNeighbor(addr string) *Neighbor {
 	return &Neighbor{
-		oc: oc.NetworkInstance_Protocol_Bgp_Neighbor{
+		oc: fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
 			NeighborAddress: ygot.String(addr),
 		},
 	}
@@ -43,7 +43,7 @@ func (n *Neighbor) Address() string {
 }
 
 // WithAfiSafi adds specified AFI-SAFI type to neighbor.
-func (n *Neighbor) WithAFISAFI(name oc.E_BgpTypes_AFI_SAFI_TYPE) *Neighbor {
+func (n *Neighbor) WithAFISAFI(name fpoc.E_BgpTypes_AFI_SAFI_TYPE) *Neighbor {
 	n.oc.GetOrCreateAfiSafi(name).Enabled = ygot.Bool(true)
 	return n
 }
@@ -109,19 +109,19 @@ func (n *Neighbor) WithPeerAS(as uint32) *Neighbor {
 }
 
 // WithPeerType sets the peer type on the neighbor.
-func (n *Neighbor) WithPeerType(pt oc.E_BgpTypes_PeerType) *Neighbor {
+func (n *Neighbor) WithPeerType(pt fpoc.E_BgpTypes_PeerType) *Neighbor {
 	n.oc.PeerType = pt
 	return n
 }
 
 // WithRemovePrivateAS specifies that private AS should be removed.
-func (n *Neighbor) WithRemovePrivateAS(val oc.E_BgpTypes_RemovePrivateAsOption) *Neighbor {
+func (n *Neighbor) WithRemovePrivateAS(val fpoc.E_BgpTypes_RemovePrivateAsOption) *Neighbor {
 	n.oc.RemovePrivateAs = val
 	return n
 }
 
 // WithSendCommunity sets the send-community on the neighbor.
-func (n *Neighbor) WithSendCommunity(sc oc.E_BgpTypes_CommunityType) *Neighbor {
+func (n *Neighbor) WithSendCommunity(sc fpoc.E_BgpTypes_CommunityType) *Neighbor {
 	n.oc.SendCommunity = sc
 	return n
 }
@@ -135,7 +135,7 @@ type PrefixLimitOptions struct {
 
 // WithV4PrefixLimit sets the IPv4 prefix limits on the neighbor.
 func (n *Neighbor) WithV4PrefixLimit(maxPrefixes uint32, opts PrefixLimitOptions) *Neighbor {
-	ploc := n.oc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
+	ploc := n.oc.GetOrCreateAfiSafi(fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 	ploc.MaxPrefixes = ygot.Uint32(maxPrefixes)
 	ploc.PreventTeardown = ygot.Bool(opts.PreventTeardown)
 	if opts.RestartTime != 0 {
@@ -170,7 +170,7 @@ func (n *Neighbor) WithConnectRetry(cr time.Duration) *Neighbor {
 // AugmentGlobal implements the bgp.GlobalFeature interface.
 // This method augments the BGP OC with neighbor configuration.
 // Use bgp.WithFeature(n) instead of calling this method directly.
-func (n *Neighbor) AugmentGlobal(bgp *oc.NetworkInstance_Protocol_Bgp) error {
+func (n *Neighbor) AugmentGlobal(bgp *fpoc.NetworkInstance_Protocol_Bgp) error {
 	if err := n.oc.Validate(); err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func (n *Neighbor) AugmentGlobal(bgp *oc.NetworkInstance_Protocol_Bgp) error {
 // additional features.
 type NeighborFeature interface {
 	// AugmentNeighbor augments the neighbor OC with additional feature.
-	AugmentNeighbor(n *oc.NetworkInstance_Protocol_Bgp_Neighbor) error
+	AugmentNeighbor(n *fpoc.NetworkInstance_Protocol_Bgp_Neighbor) error
 }
 
 // WithFeature augments the neighbor OC with additional feature.

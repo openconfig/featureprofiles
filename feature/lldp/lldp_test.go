@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -30,25 +30,25 @@ func TestAugmentDevice(t *testing.T) {
 	tests := []struct {
 		desc       string
 		lldp       *LLDP
-		inDevice   *oc.Device
-		wantDevice *oc.Device
+		inDevice   *fpoc.Device
+		wantDevice *fpoc.Device
 	}{{
 		desc:     "LLDP globally enabled",
 		lldp:     New(),
-		inDevice: &oc.Device{},
-		wantDevice: &oc.Device{
-			Lldp: &oc.Lldp{
+		inDevice: &fpoc.Device{},
+		wantDevice: &fpoc.Device{
+			Lldp: &fpoc.Lldp{
 				Enabled: ygot.Bool(true),
 			},
 		},
 	}, {
 		desc:     "LLDP with single interface",
 		lldp:     New().EnableInterface("Ethernet1.1"),
-		inDevice: &oc.Device{},
-		wantDevice: &oc.Device{
-			Lldp: &oc.Lldp{
+		inDevice: &fpoc.Device{},
+		wantDevice: &fpoc.Device{
+			Lldp: &fpoc.Lldp{
 				Enabled: ygot.Bool(true),
-				Interface: map[string]*oc.Lldp_Interface{
+				Interface: map[string]*fpoc.Lldp_Interface{
 					"Ethernet1.1": {
 						Name:    ygot.String("Ethernet1.1"),
 						Enabled: ygot.Bool(true),
@@ -59,11 +59,11 @@ func TestAugmentDevice(t *testing.T) {
 	}, {
 		desc:     "LLDP with multiple interfaces",
 		lldp:     New().EnableInterface("Ethernet1.1").EnableInterface("Ethernet1.2"),
-		inDevice: &oc.Device{},
-		wantDevice: &oc.Device{
-			Lldp: &oc.Lldp{
+		inDevice: &fpoc.Device{},
+		wantDevice: &fpoc.Device{
+			Lldp: &fpoc.Lldp{
 				Enabled: ygot.Bool(true),
-				Interface: map[string]*oc.Lldp_Interface{
+				Interface: map[string]*fpoc.Lldp_Interface{
 					"Ethernet1.1": {
 						Name:    ygot.String("Ethernet1.1"),
 						Enabled: ygot.Bool(true),
@@ -78,10 +78,10 @@ func TestAugmentDevice(t *testing.T) {
 	}, {
 		desc: "Device contains LLDP config, no conflicts",
 		lldp: New().EnableInterface("Ethernet1.2"),
-		inDevice: &oc.Device{
-			Lldp: &oc.Lldp{
+		inDevice: &fpoc.Device{
+			Lldp: &fpoc.Lldp{
 				Enabled: ygot.Bool(true),
-				Interface: map[string]*oc.Lldp_Interface{
+				Interface: map[string]*fpoc.Lldp_Interface{
 					"Ethernet1.1": {
 						Name:    ygot.String("Ethernet1.1"),
 						Enabled: ygot.Bool(true),
@@ -89,10 +89,10 @@ func TestAugmentDevice(t *testing.T) {
 				},
 			},
 		},
-		wantDevice: &oc.Device{
-			Lldp: &oc.Lldp{
+		wantDevice: &fpoc.Device{
+			Lldp: &fpoc.Lldp{
 				Enabled: ygot.Bool(true),
-				Interface: map[string]*oc.Lldp_Interface{
+				Interface: map[string]*fpoc.Lldp_Interface{
 					"Ethernet1.1": {
 						Name:    ygot.String("Ethernet1.1"),
 						Enabled: ygot.Bool(true),
@@ -123,15 +123,15 @@ func TestAugmentDevice_Errors(t *testing.T) {
 	tests := []struct {
 		desc          string
 		lldp          *LLDP
-		inDevice      *oc.Device
+		inDevice      *fpoc.Device
 		wantErrSubStr string
 	}{{
 		desc: "Device contains LLDP config with conflict",
 		lldp: New().EnableInterface("Ethernet1.1"),
-		inDevice: &oc.Device{
-			Lldp: &oc.Lldp{
+		inDevice: &fpoc.Device{
+			Lldp: &fpoc.Lldp{
 				Enabled: ygot.Bool(true),
-				Interface: map[string]*oc.Lldp_Interface{
+				Interface: map[string]*fpoc.Lldp_Interface{
 					"Ethernet1.1": {
 						Name:    ygot.String("Ethernet1.1"),
 						Enabled: ygot.Bool(false),
