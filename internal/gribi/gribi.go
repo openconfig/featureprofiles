@@ -31,8 +31,7 @@ import (
 )
 
 const (
-	timeout   = time.Minute
-	maxUint64 = 1<<64 - 1
+	timeout = time.Minute
 )
 
 // GRIBIHandler provides access to GRIBI APIs of the DUT.
