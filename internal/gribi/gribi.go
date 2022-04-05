@@ -35,7 +35,10 @@ func (g *GRIBIHandler) Fluent(t testing.TB) *fluent.GRIBIClient {
 	return g.fluentC
 }
 
-//
+// Start function start establish a client connection with the gribi server.
+// By default the client is not the leader and for that function BecomeLeader
+// needs to be called.
+
 func (g *GRIBIHandler) Start(t testing.TB) error {
 	t.Helper()
 	gribiC := g.DUT.RawAPIs().GRIBI().Default(t)
