@@ -1,9 +1,22 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Package gribi provides helper APIs to simplify writing gribi test cases.
-// It uses fluent APIs and provides wrapper functions to manage sessions and change clients? role
-// roles easily without a need to keep track of the server election id.
+// It uses fluent APIs and provides wrapper functions to manage sessions and
+// change clients roles easily without keep tracking of the server election id.
 // It also packs modify operations with the corresponding verifications to
 // prevent code duplications and increase the test code readability.
-
 package gribi
 
 import (
@@ -23,11 +36,24 @@ const (
 )
 
 // GRIBIHandler provides access to GRIBI APIs of the DUT.
+// Usage:
+//
+//   g := &GRIBIHandler{
+//     DUT: ondatra.DUT(t, "dut"),
+//     FibACK: true,
+//     Persistence: true,
+//   }
+//   defer g.Close(t)
+//   if err := g.Start(t); err != nil {
+//     t.Fatalf("Could not initialize gRIBI: %v", err)
+//   }
 type GRIBIHandler struct {
 	DUT         *ondatra.DUTDevice
 	FibACK      bool
 	Persistence bool
-	fluentC     *fluent.GRIBIClient
+
+	// Unexport fields below.
+	fluentC *fluent.GRIBIClient
 }
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
@@ -38,7 +64,6 @@ func (g *GRIBIHandler) Fluent(t testing.TB) *fluent.GRIBIClient {
 // Start function start establish a client connection with the gribi server.
 // By default the client is not the leader and for that function BecomeLeader
 // needs to be called.
-
 func (g *GRIBIHandler) Start(t testing.TB) error {
 	t.Helper()
 	gribiC := g.DUT.RawAPIs().GRIBI().Default(t)
@@ -112,28 +137,25 @@ func (g *GRIBIHandler) UpdateElectionID(t testing.TB, lowElecId, highElecId uint
 // BecomeLeader learns the latest election id and the make the client leader by increasing the election id by one.
 func (g *GRIBIHandler) BecomeLeader(t testing.TB) {
 	t.Logf("trying to be a master with increasing the election id by one on dut: %s", g.DUT.Name())
-	lowElecId, highElecId := g.learnElectionID(t)
-	if lowElecId == maxUint64 {
-		highElecId = highElecId + 1
-	} else {
-		lowElecId = lowElecId + 1
+	low, high := g.learnElectionID(t)
+	newLow := low + 1
+	if newLow < low {
+		high += 1 // Carry to high.
 	}
-	g.UpdateElectionID(t, lowElecId, highElecId)
+	g.UpdateElectionID(t, newLow, high)
 }
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
-func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string,
-	expectedResult fluent.ProgrammingResult) {
+func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
 	}
 	g.fluentC.Modify().AddEntry(t, nhg)
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
-		t.Fatalf("got unexpected error from server adding a NHG, got: %v, want: nil", err)
+		t.Fatalf("Error waiting to add NHG: %v", err)
 	}
-
 	chk.HasResult(t, g.fluentC.Results(t),
 		fluent.OperationResult().
 			WithNextHopGroupOperation(nhgIndex).
@@ -145,8 +167,7 @@ func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint6
 }
 
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
-func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, address, instance string,
-	expectedResult fluent.ProgrammingResult) {
+func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult) {
 	g.fluentC.Modify().AddEntry(t,
 		fluent.NextHopEntry().
 			WithNetworkInstance(instance).
@@ -154,7 +175,7 @@ func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, address, instance str
 			WithIPAddress(address))
 
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
-		t.Fatalf("got unexpected error from server adding NH, got: %v, want: nil", err)
+		t.Fatalf("Error waiting to add NH: %v", err)
 	}
 	chk.HasResult(t, g.fluentC.Results(t),
 		fluent.OperationResult().
@@ -167,8 +188,7 @@ func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, address, instance str
 }
 
 // AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
-func (g *GRIBIHandler) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string,
-	expectedResult fluent.ProgrammingResult) {
+func (g *GRIBIHandler) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
 	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
 		WithNetworkInstance(instance).
 		WithNextHopGroup(nhgIndex)
@@ -177,9 +197,8 @@ func (g *GRIBIHandler) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, ins
 	}
 	g.fluentC.Modify().AddEntry(t, ipv4Entry)
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
-		t.Fatalf("got unexpected error from server adding NH, got: %v, want: nil", err)
+		t.Fatalf("Error waiting to add IPv4: %v", err)
 	}
-
 	chk.HasResult(t, g.fluentC.Results(t),
 		fluent.OperationResult().
 			WithIPv4Operation(prefix).
