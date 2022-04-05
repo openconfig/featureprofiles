@@ -13,7 +13,7 @@ duts {
 }
 
 ates {
-  id: "otg"
+  id: "ate"
   vendor: IXIA
   ports {
     id: "port1"    
@@ -28,14 +28,14 @@ ates {
 
 links {
   a: "dut:port1"
-  b: "otg:port1"
+  b: "ate:port1"
 }
 
 links {
   a: "dut:port2"
-  b: "otg:port2"
+  b: "ate:port2"
 }
 links {
   a: "dut:port3"
-  b: "otg:port3"
+  b: "ate:port3"
 }
