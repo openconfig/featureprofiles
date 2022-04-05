@@ -195,8 +195,8 @@ func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG(t)
 	config := otg.NewConfig()
-	srcPort := config.Ports().Add().SetName("port1")
-	dstPort := config.Ports().Add().SetName("port2")
+	srcPort := config.Ports().Add().SetName(ateSrc.Name)
+	dstPort := config.Ports().Add().SetName(ateDst.Name)
 
 	srcDev := config.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().
@@ -294,11 +294,12 @@ func testFlow(
 		otg := ate.OTG(t)
 		i1 := ateSrc.Name
 		i2 := ateDst.Name
+		config.Flows().Clear().Items()
 		flowipv4 := config.Flows().Add().SetName("Flow")
 		flowipv4.Metrics().SetEnable(true)
-		flowipv4.TxRx().Port().
-			SetTxName(i1).
-			SetRxName(i2)
+		flowipv4.TxRx().Device().
+			SetTxNames([]string{i1 + ".ipv4"}).
+			SetRxNames([]string{i2 + ".ipv4"})
 		flowipv4.Size().SetFixed(512)
 		flowipv4.Rate().SetPps(100)
 		flowipv4.Duration().SetChoice("continuous")
@@ -315,7 +316,7 @@ func testFlow(
 			t.Fatal(err)
 		}
 		otg.StartTraffic(t)
-		err = gnmiClient.WatchFlowMetrics(&helpers.WaitForOpts{Interval: 2 * time.Second, Timeout: 15 * time.Second})
+		err = gnmiClient.WatchFlowMetrics(&helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 5 * time.Second})
 		if err != nil {
 			log.Println(err)
 		}
