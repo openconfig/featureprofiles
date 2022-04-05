@@ -166,7 +166,7 @@ func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, address, instance str
 	)
 }
 
-// // AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
+// AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
 func (g *GRIBIHandler) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string,
 	expectedResult fluent.ProgrammingResult) {
 	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
