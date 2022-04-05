@@ -1,7 +1,7 @@
 // Package gribi provides helper APIs to simplify writing gribi test cases.
-// It uses fluent APIs and provides wrapper functions to manage sessions and change clients? role  
-// roles easily without a need to keep track of the server election id. 
-// It also packs modify operations with the corresponding verifications to 
+// It uses fluent APIs and provides wrapper functions to manage sessions and change clients? role
+// roles easily without a need to keep track of the server election id.
+// It also packs modify operations with the corresponding verifications to
 // prevent code duplications and increase the test code readability.
 
 package gribi
@@ -24,20 +24,19 @@ const (
 
 // GRIBIHandler provides access to GRIBI APIs of the DUT.
 type GRIBIHandler struct {
-	DUT            *ondatra.DUTDevice
-	FibACK         bool
-	Persistence    bool
-	fluentC        *fluent.GRIBIClient
+	DUT         *ondatra.DUTDevice
+	FibACK      bool
+	Persistence bool
+	fluentC     *fluent.GRIBIClient
 }
-
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
 func (g *GRIBIHandler) Fluent(t testing.TB) *fluent.GRIBIClient {
 	return g.fluentC
 }
 
-// 
-func (g *GRIBIHandler) Start(t testing.TB) error{
+//
+func (g *GRIBIHandler) Start(t testing.TB) error {
 	t.Helper()
 	gribiC := g.DUT.RawAPIs().GRIBI().Default(t)
 	g.fluentC = fluent.NewClient()
@@ -64,7 +63,7 @@ func (g *GRIBIHandler) Close(t testing.TB) {
 	t.Logf("closing GRIBI connection for dut: %s", g.DUT.Name())
 	if g.fluentC != nil {
 		g.fluentC.Stop(t)
-		g.fluentC=nil
+		g.fluentC = nil
 	}
 }
 
@@ -75,8 +74,8 @@ func (g *GRIBIHandler) AwaitTimeout(ctx context.Context, t testing.TB, timeout t
 	return g.fluentC.Await(subctx, t)
 }
 
-// learnElectionID learns the current server election id by sending 
-// a dummy modify request with election id 1. 
+// learnElectionID learns the current server election id by sending
+// a dummy modify request with election id 1.
 func (g *GRIBIHandler) learnElectionID(t testing.TB) (low, high uint64) {
 	t.Helper()
 	t.Logf("learn GRIBI Election ID from dut: %s", g.DUT.Name())
@@ -90,7 +89,7 @@ func (g *GRIBIHandler) learnElectionID(t testing.TB) (low, high uint64) {
 	return electionID.Low, electionID.High
 }
 
-// UpdateElectionID updates the election id of the dut. 
+// UpdateElectionID updates the election id of the dut.
 // The function fails if the requsted election id is less than the server election id.
 func (g *GRIBIHandler) UpdateElectionID(t testing.TB, lowElecId, highElecId uint64) {
 	t.Helper()
@@ -107,8 +106,6 @@ func (g *GRIBIHandler) UpdateElectionID(t testing.TB, lowElecId, highElecId uint
 	)
 }
 
-
-
 // BecomeLeader learns the latest election id and the make the client leader by increasing the election id by one.
 func (g *GRIBIHandler) BecomeLeader(t testing.TB) {
 	t.Logf("trying to be a master with increasing the election id by one on dut: %s", g.DUT.Name())
@@ -123,8 +120,8 @@ func (g *GRIBIHandler) BecomeLeader(t testing.TB) {
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
-func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, 
-		expectedResult fluent.ProgrammingResult) {
+func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string,
+	expectedResult fluent.ProgrammingResult) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
@@ -145,8 +142,8 @@ func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint6
 }
 
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
-func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, address, instance string, 
-		expectedResult fluent.ProgrammingResult) {
+func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, address, instance string,
+	expectedResult fluent.ProgrammingResult) {
 	g.fluentC.Modify().AddEntry(t,
 		fluent.NextHopEntry().
 			WithNetworkInstance(instance).
@@ -168,7 +165,7 @@ func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, address, instance str
 
 // // AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
 func (g *GRIBIHandler) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string,
-		expectedResult fluent.ProgrammingResult) {
+	expectedResult fluent.ProgrammingResult) {
 	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
 		WithNetworkInstance(instance).
 		WithNextHopGroup(nhgIndex)
