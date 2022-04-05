@@ -162,9 +162,15 @@ func (b *staticBind) DialIxNetwork(ctx context.Context, ate *binding.ATE) (*bind
 	if err != nil {
 		return nil, err
 	}
-	ixs, err := ixw.IxNetwork().NewSession(ctx, ate.Name)
-	if err != nil {
-		return nil, err
+	var ixs *ixweb.Session
+	var ixs_err error
+	if dialer.SessionId > 0 {
+		ixs, ixs_err = ixw.IxNetwork().FetchSession(ctx, int(dialer.SessionId))
+	} else {
+		ixs, ixs_err = ixw.IxNetwork().NewSession(ctx, ate.Name)
+	}
+	if ixs_err != nil {
+		return nil, ixs_err
 	}
 	return &binding.IxNetwork{Session: ixs}, nil
 }
