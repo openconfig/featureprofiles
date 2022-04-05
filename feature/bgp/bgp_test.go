@@ -22,12 +22,12 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
 )
 
-var protocolKey = oc.NetworkInstance_Protocol_Key{
-	Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+var protocolKey = fpoc.NetworkInstance_Protocol_Key{
+	Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 	Name:       "bgp",
 }
 
@@ -36,16 +36,16 @@ func TestAugmentNetworkInstance(t *testing.T) {
 	tests := []struct {
 		desc   string
 		bgp    *BGP
-		inNI   *oc.NetworkInstance
-		wantNI *oc.NetworkInstance
+		inNI   *fpoc.NetworkInstance
+		wantNI *fpoc.NetworkInstance
 	}{{
 		desc: "BGP with no params",
 		bgp:  New(),
-		inNI: &oc.NetworkInstance{},
-		wantNI: &oc.NetworkInstance{
-			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+		inNI: &fpoc.NetworkInstance{},
+		wantNI: &fpoc.NetworkInstance{
+			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
 				protocolKey: {
-					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 					Name:       ygot.String("bgp"),
 				},
 			},
@@ -53,14 +53,14 @@ func TestAugmentNetworkInstance(t *testing.T) {
 	}, {
 		desc: "BGP with AS",
 		bgp:  New().WithAS(1234),
-		inNI: &oc.NetworkInstance{},
-		wantNI: &oc.NetworkInstance{
-			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+		inNI: &fpoc.NetworkInstance{},
+		wantNI: &fpoc.NetworkInstance{
+			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
 				protocolKey: {
-					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 					Name:       ygot.String("bgp"),
-					Bgp: &oc.NetworkInstance_Protocol_Bgp{
-						Global: &oc.NetworkInstance_Protocol_Bgp_Global{
+					Bgp: &fpoc.NetworkInstance_Protocol_Bgp{
+						Global: &fpoc.NetworkInstance_Protocol_Bgp_Global{
 							As: ygot.Uint32(1234),
 						},
 					},
@@ -70,14 +70,14 @@ func TestAugmentNetworkInstance(t *testing.T) {
 	}, {
 		desc: "BGP with router-id",
 		bgp:  New().WithRouterID("1.2.3.4"),
-		inNI: &oc.NetworkInstance{},
-		wantNI: &oc.NetworkInstance{
-			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+		inNI: &fpoc.NetworkInstance{},
+		wantNI: &fpoc.NetworkInstance{
+			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
 				protocolKey: {
-					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 					Name:       ygot.String("bgp"),
-					Bgp: &oc.NetworkInstance_Protocol_Bgp{
-						Global: &oc.NetworkInstance_Protocol_Bgp_Global{
+					Bgp: &fpoc.NetworkInstance_Protocol_Bgp{
+						Global: &fpoc.NetworkInstance_Protocol_Bgp_Global{
 							RouterId: ygot.String("1.2.3.4"),
 						},
 					},
@@ -86,18 +86,18 @@ func TestAugmentNetworkInstance(t *testing.T) {
 		},
 	}, {
 		desc: "BGP with Global AfiSafi",
-		bgp:  New().WithAFISAFI(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
-		inNI: &oc.NetworkInstance{},
-		wantNI: &oc.NetworkInstance{
-			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+		bgp:  New().WithAFISAFI(fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
+		inNI: &fpoc.NetworkInstance{},
+		wantNI: &fpoc.NetworkInstance{
+			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
 				protocolKey: {
-					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 					Name:       ygot.String("bgp"),
-					Bgp: &oc.NetworkInstance_Protocol_Bgp{
-						Global: &oc.NetworkInstance_Protocol_Bgp_Global{
-							AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
-								oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
-									AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+					Bgp: &fpoc.NetworkInstance_Protocol_Bgp{
+						Global: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+							AfiSafi: map[fpoc.E_BgpTypes_AFI_SAFI_TYPE]*fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+								fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+									AfiSafiName: fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
 									Enabled:     ygot.Bool(true),
 								},
 							},
@@ -109,26 +109,26 @@ func TestAugmentNetworkInstance(t *testing.T) {
 	}, {
 		desc: "NI contains BGP OC with no conflicts",
 		bgp:  New().WithRouterID("1.2.3.4"),
-		inNI: &oc.NetworkInstance{
-			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+		inNI: &fpoc.NetworkInstance{
+			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
 				protocolKey: {
-					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 					Name:       ygot.String("bgp"),
-					Bgp: &oc.NetworkInstance_Protocol_Bgp{
-						Global: &oc.NetworkInstance_Protocol_Bgp_Global{
+					Bgp: &fpoc.NetworkInstance_Protocol_Bgp{
+						Global: &fpoc.NetworkInstance_Protocol_Bgp_Global{
 							As: ygot.Uint32(1234),
 						},
 					},
 				},
 			},
 		},
-		wantNI: &oc.NetworkInstance{
-			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+		wantNI: &fpoc.NetworkInstance{
+			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
 				protocolKey: {
-					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 					Name:       ygot.String("bgp"),
-					Bgp: &oc.NetworkInstance_Protocol_Bgp{
-						Global: &oc.NetworkInstance_Protocol_Bgp_Global{
+					Bgp: &fpoc.NetworkInstance_Protocol_Bgp{
+						Global: &fpoc.NetworkInstance_Protocol_Bgp_Global{
 							As:       ygot.Uint32(1234),
 							RouterId: ygot.String("1.2.3.4"),
 						},
@@ -155,18 +155,18 @@ func TestAugmentNetworkInstance_Errors(t *testing.T) {
 	tests := []struct {
 		desc          string
 		bgp           *BGP
-		inNI          *oc.NetworkInstance
+		inNI          *fpoc.NetworkInstance
 		wantErrSubStr string
 	}{{
 		desc: "NI contains BGP OC with conflicts",
 		bgp:  New().WithRouterID("1.2.3.4"),
-		inNI: &oc.NetworkInstance{
-			Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+		inNI: &fpoc.NetworkInstance{
+			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
 				protocolKey: {
-					Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 					Name:       ygot.String("bgp"),
-					Bgp: &oc.NetworkInstance_Protocol_Bgp{
-						Global: &oc.NetworkInstance_Protocol_Bgp_Global{
+					Bgp: &fpoc.NetworkInstance_Protocol_Bgp{
+						Global: &fpoc.NetworkInstance_Protocol_Bgp_Global{
 							RouterId: ygot.String("1.2.3.5"),
 						},
 					},
@@ -192,10 +192,10 @@ func TestAugmentNetworkInstance_Errors(t *testing.T) {
 type FakeFeature struct {
 	Err           error
 	augmentCalled bool
-	oc            *oc.NetworkInstance_Protocol_Bgp
+	oc            *fpoc.NetworkInstance_Protocol_Bgp
 }
 
-func (f *FakeFeature) AugmentBGP(oc *oc.NetworkInstance_Protocol_Bgp) error {
+func (f *FakeFeature) AugmentBGP(oc *fpoc.NetworkInstance_Protocol_Bgp) error {
 	f.oc = oc
 	f.augmentCalled = true
 	return f.Err

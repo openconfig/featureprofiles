@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -40,14 +40,14 @@ func TestPGAugmentBGP(t *testing.T) {
 	tests := []struct {
 		desc    string
 		pg      *PeerGroup
-		inBGP   *oc.NetworkInstance_Protocol_Bgp
-		wantBGP *oc.NetworkInstance_Protocol_Bgp
+		inBGP   *fpoc.NetworkInstance_Protocol_Bgp
+		wantBGP *fpoc.NetworkInstance_Protocol_Bgp
 	}{{
 		desc:  "PeerGroup with no params",
 		pg:    NewPeerGroup("GLOBAL-PEER"),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
 				},
@@ -55,15 +55,15 @@ func TestPGAugmentBGP(t *testing.T) {
 		},
 	}, {
 		desc:  "PeerGroup with AFI-SAFI",
-		pg:    NewPeerGroup("GLOBAL-PEER").WithAFISAFI(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		pg:    NewPeerGroup("GLOBAL-PEER").WithAFISAFI(fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
-					AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
-						oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
-							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+					AfiSafi: map[fpoc.E_BgpTypes_AFI_SAFI_TYPE]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+						fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+							AfiSafiName: fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
 							Enabled:     ygot.Bool(true),
 						},
 					},
@@ -73,9 +73,9 @@ func TestPGAugmentBGP(t *testing.T) {
 	}, {
 		desc:  "PeerGroup with auth-password",
 		pg:    NewPeerGroup("GLOBAL-PEER").WithAuthPassword("password"),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
 					AuthPassword:  ygot.String("password"),
@@ -85,9 +85,9 @@ func TestPGAugmentBGP(t *testing.T) {
 	}, {
 		desc:  "PeerGroup with description",
 		pg:    NewPeerGroup("GLOBAL-PEER").WithDescription("description"),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
 					Description:   ygot.String("description"),
@@ -97,12 +97,12 @@ func TestPGAugmentBGP(t *testing.T) {
 	}, {
 		desc:  "PeerGroup with passive-mode",
 		pg:    NewPeerGroup("GLOBAL-PEER").WithPassiveMode(true),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
-					Transport: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Transport{
+					Transport: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Transport{
 						PassiveMode: ygot.Bool(true),
 					},
 				},
@@ -111,12 +111,12 @@ func TestPGAugmentBGP(t *testing.T) {
 	}, {
 		desc:  "PeerGroup with tcp-mss",
 		pg:    NewPeerGroup("GLOBAL-PEER").WithTCPMSS(12345),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
-					Transport: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Transport{
+					Transport: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Transport{
 						TcpMss: ygot.Uint16(12345),
 					},
 				},
@@ -125,12 +125,12 @@ func TestPGAugmentBGP(t *testing.T) {
 	}, {
 		desc:  "PeerGroup with mtu-discovery",
 		pg:    NewPeerGroup("GLOBAL-PEER").WithMTUDiscovery(true),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
-					Transport: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Transport{
+					Transport: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Transport{
 						MtuDiscovery: ygot.Bool(true),
 					},
 				},
@@ -139,12 +139,12 @@ func TestPGAugmentBGP(t *testing.T) {
 	}, {
 		desc:  "PeerGroup with local-address",
 		pg:    NewPeerGroup("GLOBAL-PEER").WithLocalAddress("1.2.3.5"),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
-					Transport: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Transport{
+					Transport: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Transport{
 						LocalAddress: ygot.String("1.2.3.5"),
 					},
 				},
@@ -153,9 +153,9 @@ func TestPGAugmentBGP(t *testing.T) {
 	}, {
 		desc:  "PeerGroup with local-as",
 		pg:    NewPeerGroup("GLOBAL-PEER").WithLocalAS(1234),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
 					LocalAs:       ygot.Uint32(1234),
@@ -165,9 +165,9 @@ func TestPGAugmentBGP(t *testing.T) {
 	}, {
 		desc:  "PeerGroup with peer-as",
 		pg:    NewPeerGroup("GLOBAL-PEER").WithPeerAS(1234),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
 					PeerAs:        ygot.Uint32(1234),
@@ -176,25 +176,25 @@ func TestPGAugmentBGP(t *testing.T) {
 		},
 	}, {
 		desc:  "PeerGroup with renmove-private-as",
-		pg:    NewPeerGroup("GLOBAL-PEER").WithRemovePrivateAS(oc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		pg:    NewPeerGroup("GLOBAL-PEER").WithRemovePrivateAS(fpoc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL),
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName:   ygot.String("GLOBAL-PEER"),
-					RemovePrivateAs: oc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL,
+					RemovePrivateAs: fpoc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL,
 				},
 			},
 		},
 	}, {
 		desc:  "PeerGroup with send-community",
-		pg:    NewPeerGroup("GLOBAL-PEER").WithSendCommunity(oc.BgpTypes_CommunityType_BOTH),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		pg:    NewPeerGroup("GLOBAL-PEER").WithSendCommunity(fpoc.BgpTypes_CommunityType_BOTH),
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
-					SendCommunity: oc.BgpTypes_CommunityType_BOTH,
+					SendCommunity: fpoc.BgpTypes_CommunityType_BOTH,
 				},
 			},
 		},
@@ -205,16 +205,16 @@ func TestPGAugmentBGP(t *testing.T) {
 			RestartTime:         5 * time.Second,
 			WarningThresholdPct: 90,
 		}),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
-					AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
-						oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
-							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
-							Ipv4Unicast: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_Ipv4Unicast{
-								PrefixLimit: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_Ipv4Unicast_PrefixLimit{
+					AfiSafi: map[fpoc.E_BgpTypes_AFI_SAFI_TYPE]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+						fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+							AfiSafiName: fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+							Ipv4Unicast: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_Ipv4Unicast{
+								PrefixLimit: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_Ipv4Unicast_PrefixLimit{
 									MaxPrefixes:         ygot.Uint32(2000),
 									PreventTeardown:     ygot.Bool(true),
 									WarningThresholdPct: ygot.Uint8(90),
@@ -222,7 +222,7 @@ func TestPGAugmentBGP(t *testing.T) {
 							},
 						},
 					},
-					Timers: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
+					Timers: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
 						RestartTime: ygot.Uint16(5),
 					},
 				},
@@ -231,12 +231,12 @@ func TestPGAugmentBGP(t *testing.T) {
 	}, {
 		desc:  "PeerGroup with keepalive-interval",
 		pg:    NewPeerGroup("GLOBAL-PEER").WithKeepaliveInterval(5*time.Second, 15*time.Second),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
-					Timers: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
+					Timers: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
 						HoldTime:          ygot.Float64(15),
 						KeepaliveInterval: ygot.Float64(5),
 					},
@@ -246,12 +246,12 @@ func TestPGAugmentBGP(t *testing.T) {
 	}, {
 		desc:  "PeerGroup with MRAI",
 		pg:    NewPeerGroup("GLOBAL-PEER").WithMRAI(5 * time.Second),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
-					Timers: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
+					Timers: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
 						MinimumAdvertisementInterval: ygot.Float64(5),
 					},
 				},
@@ -260,12 +260,12 @@ func TestPGAugmentBGP(t *testing.T) {
 	}, {
 		desc:  "PeerGroup with connect-retry",
 		pg:    NewPeerGroup("GLOBAL-PEER").WithConnectRetry(5 * time.Second),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
-					Timers: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
+					Timers: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
 						ConnectRetry: ygot.Float64(5),
 					},
 				},
@@ -274,15 +274,15 @@ func TestPGAugmentBGP(t *testing.T) {
 	}, {
 		desc: "BGP already contains pg with no conflicts",
 		pg:   NewPeerGroup("GLOBAL-PEER"),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
 				},
 			},
 		},
-		wantBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
 				},
@@ -307,16 +307,16 @@ func TestPGAugmentBGP_Errors(t *testing.T) {
 	tests := []struct {
 		desc          string
 		pg            *PeerGroup
-		inBGP         *oc.NetworkInstance_Protocol_Bgp
+		inBGP         *fpoc.NetworkInstance_Protocol_Bgp
 		wantErrSubStr string
 	}{{
 		desc: "PeerGroup already exists but with conflicts",
 		pg:   NewPeerGroup("GLOBAL-PEER").WithMRAI(6 * time.Second),
-		inBGP: &oc.NetworkInstance_Protocol_Bgp{
-			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
-					Timers: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
+					Timers: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
 						MinimumAdvertisementInterval: ygot.Float64(5),
 					},
 				},
@@ -341,10 +341,10 @@ func TestPGAugmentBGP_Errors(t *testing.T) {
 type FakePeerGroupFeature struct {
 	Err           error
 	augmentCalled bool
-	oc            *oc.NetworkInstance_Protocol_Bgp_PeerGroup
+	oc            *fpoc.NetworkInstance_Protocol_Bgp_PeerGroup
 }
 
-func (f *FakePeerGroupFeature) AugmentPeerGroup(oc *oc.NetworkInstance_Protocol_Bgp_PeerGroup) error {
+func (f *FakePeerGroupFeature) AugmentPeerGroup(oc *fpoc.NetworkInstance_Protocol_Bgp_PeerGroup) error {
 	f.oc = oc
 	f.augmentCalled = true
 	return f.Err
