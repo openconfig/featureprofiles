@@ -65,6 +65,7 @@ func (g *GRIBIHandler) Fluent(t testing.TB) *fluent.GRIBIClient {
 // needs to be called.
 func (g *GRIBIHandler) Start(t testing.TB) error {
 	t.Helper()
+	t.Logf("Starting GRIBI connection for dut: %s", g.DUT.Name())
 	gribiC := g.DUT.RawAPIs().GRIBI().Default(t)
 	g.fluentC = fluent.NewClient()
 	g.fluentC.Connection().WithStub(gribiC)
@@ -78,16 +79,17 @@ func (g *GRIBIHandler) Start(t testing.TB) error {
 	if g.FibACK {
 		g.fluentC.Connection().WithFIBACK()
 	}
-	g.fluentC.Start(context.Background(), t)
-	g.fluentC.StartSending(context.Background(), t)
-	err := g.AwaitTimeout(context.Background(), t, timeout)
+	ctx := context.Background()
+	g.fluentC.Start(ctx, t)
+	g.fluentC.StartSending(ctx, t)
+	err := g.AwaitTimeout(ctx, t, timeout)
 	return err
 }
 
 // Close function closes the gribi session with the dut by stopping the fluent client.
 func (g *GRIBIHandler) Close(t testing.TB) {
 	t.Helper()
-	t.Logf("closing GRIBI connection for dut: %s", g.DUT.Name())
+	t.Logf("Closing GRIBI connection for dut: %s", g.DUT.Name())
 	if g.fluentC != nil {
 		g.fluentC.Stop(t)
 		g.fluentC = nil
@@ -105,11 +107,10 @@ func (g *GRIBIHandler) AwaitTimeout(ctx context.Context, t testing.TB, timeout t
 // a dummy modify request with election id 1.
 func (g *GRIBIHandler) learnElectionID(t testing.TB) (low, high uint64) {
 	t.Helper()
-	t.Logf("learn GRIBI Election ID from dut: %s", g.DUT.Name())
+	t.Logf("Learn GRIBI Election ID from dut: %s", g.DUT.Name())
 	g.fluentC.Modify().UpdateElectionID(t, 1, 0)
-	err := g.AwaitTimeout(context.Background(), t, timeout)
-	if err != nil {
-		t.Fatalf("learnElectionID Error: %v", err)
+	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to update Election ID: %v", err)
 	}
 	results := g.fluentC.Results(t)
 	electionID := results[len(results)-1].CurrentServerElectionID
@@ -120,11 +121,10 @@ func (g *GRIBIHandler) learnElectionID(t testing.TB) (low, high uint64) {
 // The function fails if the requsted election id is less than the server election id.
 func (g *GRIBIHandler) UpdateElectionID(t testing.TB, lowElecId, highElecId uint64) {
 	t.Helper()
-	t.Logf("setting GRIBI Election ID for dut: %s to low=%d,high=%d", g.DUT.Name(), lowElecId, highElecId)
+	t.Logf("Setting GRIBI Election ID for dut: %s to low=%d,high=%d", g.DUT.Name(), lowElecId, highElecId)
 	g.fluentC.Modify().UpdateElectionID(t, lowElecId, highElecId)
-	err := g.AwaitTimeout(context.Background(), t, timeout)
-	if err != nil {
-		t.Fatalf("learnElectionID Error: %v", err)
+	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to update Election ID: %v", err)
 	}
 	chk.HasResult(t, g.fluentC.Results(t),
 		fluent.OperationResult().
@@ -135,7 +135,7 @@ func (g *GRIBIHandler) UpdateElectionID(t testing.TB, lowElecId, highElecId uint
 
 // BecomeLeader learns the latest election id and the make the client leader by increasing the election id by one.
 func (g *GRIBIHandler) BecomeLeader(t testing.TB) {
-	t.Logf("trying to be a master with increasing the election id by one on dut: %s", g.DUT.Name())
+	t.Logf("Trying to be a master with increasing the election id by one on dut: %s", g.DUT.Name())
 	low, high := g.learnElectionID(t)
 	newLow := low + 1
 	if newLow < low {
@@ -172,7 +172,6 @@ func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, address, instance str
 			WithNetworkInstance(instance).
 			WithIndex(nhIndex).
 			WithIPAddress(address))
-
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NH: %v", err)
 	}
