@@ -191,31 +191,30 @@ type testArgs struct {
 }
 
 // configureIPv4ViaNonLeaderClient configures a IPv4 Entry via a Client
-// that is not leader.
-// Ensure that the entry via the Client is ignored and not installed.
+// that is not leader. It ensure that the entry is ignored and not installed.
 func configureIPv4ViaNonLeaderClient(t *testing.T, args *testArgs, nonleader *gribi.GRIBIHandler) {
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via a client that is not leader.", ateDstNetCIDR)
 	nonleader.AddNH(t, nhIndex, "192.0.2.10", instance, fluent.ProgrammingFailed)
 	nonleader.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.ProgrammingFailed)
-	nonleader.AddIPV4Entry(t, nhgIndex, "", ateDstNetCIDR, instance, fluent.ProgrammingFailed)
+	nonleader.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.ProgrammingFailed)
 }
 
-// configureIPv4ViaLeaderClientInstalled configures a IPv4 Entry via the leader ClientA.
-//  Ensure that the entry via ClientA is installed.
+// configureIPv4ViaLeaderClientInstalled configures a IPv4 Entry via the leader Client.
+// It ensures that the entry is installed.
 func configureIPv4ViaLeaderClientInstalled(t *testing.T, args *testArgs, leader *gribi.GRIBIHandler, nh string) {
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via a client as leader.", ateDstNetCIDR)
 	leader.AddNH(t, nhIndex, nh, instance, fluent.InstalledInRIB)
 	leader.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.InstalledInRIB)
-	leader.AddIPV4Entry(t, nhgIndex, "", ateDstNetCIDR, instance, fluent.InstalledInRIB)
+	leader.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.InstalledInRIB)
 }
 
 // testIPv4LeaderActiveChange first makes the cleintB leader.
-// Second it configures an IPV4 through clinetB and ensures
-// that the entry is avtive through through AFT Telemetry and traffic.
-// Thrid, it configures a IPv4 entry through clientA without
-// making it the leader and ensures that the installation fails..
-// Forth, it makes the ClientA master, configures an IPV4 through clinetB
-// and ensures that the entry is active through through AFT Telemetry and traffic.
+// Second it configures an IPV4 Entry through clinetB and ensures
+// that the entry is avtive by checking AFT Telemetry and traffic.
+// Thrid, it configures an IPv4 entry through clientA without
+// making it the leader and ensures that the installation fails.
+// Forth, it makes the ClientA master, configures an IPV4 through clinetA
+// and ensures that the entry is active by checking AFT Telemetry and traffic.
 func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArgs) {
 	// Configure IPv4 route for 198.51.100.0/24 pointing to ATE port-3 via clientB as the leader.
 	args.clientB.BecomeLeader(t)
@@ -232,7 +231,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	dstEndPoint := args.top.Interfaces()[atePort3.Name]
 	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
 
-	// Configure IPv4 route for 198.51.100.0/24 pointing to ATE port-3 via clientA without being the leader.
+	// Configure IPv4 route for 198.51.100.0/24 pointing to ATE port-3 via clientA without making it the leader.
 	// The entry should not be installed since clientA is not the leader.
 	configureIPv4ViaNonLeaderClient(t, args, args.clientA)
 
@@ -276,7 +275,7 @@ func TestElectionIDChange(t *testing.T) {
 	}{
 		{
 			name:        "IPv4EntryWithLeaderChange",
-			desc:        "Connect gRIBI-A and B to DUT specifying SINGLE_PRIMARY client redundancy without persistance and FibACK",
+			desc:        "Connect gRIBI clientA and B to DUT using SINGLE_PRIMARY client redundancy with persistance and RibACK",
 			fn:          testIPv4LeaderActiveChange,
 			persistance: true,
 		},
@@ -289,17 +288,33 @@ func TestElectionIDChange(t *testing.T) {
 			t.Logf("Description: %s", tt.desc)
 
 			// Configure the gRIBI client clientA
-			clientA := gribi.NewGRIBIFluent(t, dut, tt.persistance, false)
+			clientA := gribi.GRIBIHandler{
+				DUT:         dut,
+				FibACK:      false,
+				Persistence: tt.persistance,
+			}
 			defer clientA.Close(t)
+			err := clientA.Start(t)
+			if err != nil {
+				t.Fatalf("gRIBI Connection can not be established")
+			}
 
 			// Configure the gRIBI client clientB
-			clientB := gribi.NewGRIBIFluent(t, dut, tt.persistance, false)
+			clientB := gribi.GRIBIHandler{
+				DUT:         dut,
+				FibACK:      false,
+				Persistence: tt.persistance,
+			}
 			defer clientB.Close(t)
+			err = clientB.Start(t)
+			if err != nil {
+				t.Fatalf("gRIBI Connection can not be established")
+			}
 
 			args := &testArgs{
 				ctx:     ctx,
-				clientA: clientA,
-				clientB: clientB,
+				clientA: &clientA,
+				clientB: &clientB,
 				dut:     dut,
 				ate:     ate,
 				top:     top,
