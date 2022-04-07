@@ -177,4 +177,3 @@ func TestChassisReboot(t *testing.T) {
 		})
 	}
 }
-
