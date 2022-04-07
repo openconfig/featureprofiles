@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "complete_chassis_reboot"
+  name: "gnoi"
   version: 1
 }
 
