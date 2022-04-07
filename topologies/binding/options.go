@@ -32,6 +32,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	"github.com/openconfig/ondatra/binding/ixweb"
 )
 
 // IANA assigns 9339 for gNxI, and 9559 for P4RT.  There hasn't been a
@@ -138,6 +139,21 @@ func (d *dialer) newHTTPClient() *http.Client {
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	return &http.Client{Transport: tr}
+}
+
+func (d *dialer) newIxWebClient(ctx context.Context) (*ixweb.IxWeb, error) {
+	hc := d.newHTTPClient()
+	password := d.GetPassword()
+	username := d.GetUsername()
+	if len(password) == 0 || len(username) == 0 {
+		password = "admin"
+		username = "admin"
+	}
+	ixw, err := ixweb.Connect(ctx, d.Target, ixweb.WithHTTPClient(hc), ixweb.WithLogin(username, password))
+	if err != nil {
+		return nil, err
+	}
+	return ixw, nil
 }
 
 // merge creates a dialer by combining one or more options.
