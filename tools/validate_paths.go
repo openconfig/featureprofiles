@@ -195,6 +195,12 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 			errs = append(errs, err.Error())
 		}
 
+		errMsg := validateFeatureProfileName(f, tmp)
+
+		if len(errMsg) != 0 {
+			errs = append(errs, errMsg)
+		}
+
 		// Use parser.Parse so I can get line numbers for OC paths we don't recognize.
 		lines := []line{}
 		ast, err := parser.Parse(bs)
@@ -236,6 +242,19 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 		report = append(report, file{name: f, lines: lines, errors: errs})
 	}
 	return report, nil
+}
+
+// validateFeatureProfileName checks feature profile id.name with path
+func validateFeatureProfileName(file string, fp fppb.FeatureProfile) string {
+	featureProfileName := fp.GetId().GetName()
+	featureProfileFilePath := strings.Split(strings.SplitAfter(file, featuresRoot)[1], "/")
+	featureProfileFilePath = featureProfileFilePath[1 : len(featureProfileFilePath)-1]
+	targetFeatureProfileFileName := strings.Join(featureProfileFilePath, "_")
+	if featureProfileName != targetFeatureProfileFileName {
+		return fmt.Sprintf("FeatureProfileID name %s is inconsistent with path %s", featureProfileName, targetFeatureProfileFileName)
+	}
+
+	return ""
 }
 
 // featureFiles lists the file paths containing features data.
