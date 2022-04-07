@@ -195,10 +195,19 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 			errs = append(errs, err.Error())
 		}
 
-		errMsg := validateFeatureProfileName(f, tmp)
+		targetFeatureProfileName := getFeatureProfileNameFromPath(f, tmp)
 
-		if len(errMsg) != 0 {
-			errs = append(errs, errMsg)
+		featureProfileIDName := tmp.GetId().GetName()
+		dependencyList[featureProfileIDName] = make(map[int][]string)
+
+		if targetFeatureProfileName != featureProfileIDName {
+			errs = append(errs, featureProfileIDName+" is inconsistent with path")
+		}
+
+		for _, dependency := range tmp.FeatureProfileDependency {
+			if dependency != nil || dependency.GetName() == "" {
+				dependencyList[featureProfileIDName][len(report)] = append(dependencyList[featureProfileIDName][len(report)], dependency.GetName())
+			}
 		}
 
 		// Use parser.Parse so I can get line numbers for OC paths we don't recognize.
@@ -241,20 +250,34 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 		}
 		report = append(report, file{name: f, lines: lines, errors: errs})
 	}
+	validateDependency(dependencyList, report)
 	return report, nil
 }
 
-// validateFeatureProfileName checks feature profile id.name with path
-func validateFeatureProfileName(file string, fp fppb.FeatureProfile) string {
-	featureProfileName := fp.GetId().GetName()
+// getFeatureProfileNameFromPath gets feature profile id.name from path
+func getFeatureProfileNameFromPath(file string, fp fppb.FeatureProfile) string {
 	featureProfileFilePath := strings.Split(strings.SplitAfter(file, featuresRoot)[1], "/")
 	featureProfileFilePath = featureProfileFilePath[1 : len(featureProfileFilePath)-1]
 	targetFeatureProfileFileName := strings.Join(featureProfileFilePath, "_")
-	if featureProfileName != targetFeatureProfileFileName {
-		return fmt.Sprintf("FeatureProfileID name %s is inconsistent with path %s", featureProfileName, targetFeatureProfileFileName)
-	}
+	return targetFeatureProfileFileName
+}
 
-	return ""
+// validateDependency validates dependency from existing feature profile ID lists
+func validateDependency(dependencyList map[string]map[int][]string, report []file) {
+
+	for _, reportWithDependencies := range dependencyList {
+		for reportIndex, dependencies := range reportWithDependencies {
+			check := false
+			for _, dependency := range dependencies {
+				if dependencyList[dependency] != nil {
+					check = true
+				}
+			}
+			if check {
+				report[reportIndex].errors = append(report[reportIndex].errors, "feature profile dependency of the given id does not exist")
+			}
+		}
+	}
 }
 
 // featureFiles lists the file paths containing features data.
