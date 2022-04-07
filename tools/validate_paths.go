@@ -179,6 +179,7 @@ type file struct {
 func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 	report := []file{}
 	tmp := fppb.FeatureProfile{}
+	dependencyList := make(map[string]map[int][]string)
 
 	for _, f := range files {
 		bs, err := ioutil.ReadFile(f)
