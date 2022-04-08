@@ -156,31 +156,7 @@ func (b *staticBind) DialCLI(ctx context.Context, dut *binding.DUT, opts ...grpc
 }
 
 func (b *staticBind) DialIxNetwork(ctx context.Context, ate *binding.ATE) (*binding.IxNetwork, error) {
-	dialer, err := b.r.ixnetwork(ate.Name)
-	if err != nil {
-		return nil, err
-	}
-	hc := dialer.newHTTPClient()
-	password := dialer.GetPassword()
-	username := dialer.GetUsername()
-	if len(password) == 0 || len(username) == 0 {
-		password = "admin"
-		username = "admin"
-	}
-	ixw, err := ixweb.Connect(ctx, dialer.Target, ixweb.WithHTTPClient(hc), ixweb.WithLogin(username, password))
-	if err != nil {
-		return nil, err
-	}
-	var ixs *ixweb.Session
-	var ixs_err error
-	if dialer.SessionId > 0 {
-		ixs, ixs_err = ixw.IxNetwork().FetchSession(ctx, int(dialer.SessionId))
-	} else {
-		ixs, ixs_err = ixw.IxNetwork().NewSession(ctx, ate.Name)
-	}
-	if ixs_err != nil {
-		return nil, ixs_err
-	}
+	ixs := b.ateIxSess[ate.Name]
 	return &binding.IxNetwork{Session: ixs}, nil
 }
 
