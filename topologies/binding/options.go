@@ -146,7 +146,7 @@ func (d *dialer) newIxWebClient(ctx context.Context) (*ixweb.IxWeb, error) {
 	hc := d.newHTTPClient()
 	password := d.GetPassword()
 	username := d.GetUsername()
-	if len(password) == 0 || len(username) == 0 {
+	if password == "" && username == "" {
 		password = "admin"
 		username = "admin"
 	}
