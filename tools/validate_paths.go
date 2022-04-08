@@ -170,6 +170,7 @@ type line struct {
 type file struct {
 	name  string
 	lines []line
+	dependencies []string
 	// Errors which are not correlated with a line.
 	errors []string
 }
@@ -179,7 +180,7 @@ type file struct {
 func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 	report := []file{}
 	tmp := fppb.FeatureProfile{}
-	dependencyList := make(map[string]map[int][]string)
+	validProfile := make(map[string]bool)
 
 	for _, f := range files {
 		bs, err := ioutil.ReadFile(f)
@@ -196,18 +197,18 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 			errs = append(errs, err.Error())
 		}
 
+		// Validate feature profile ID name by checking path 
 		targetFeatureProfileName := getFeatureProfileNameFromPath(f, tmp)
-
 		featureProfileIDName := tmp.GetId().GetName()
-		dependencyList[featureProfileIDName] = make(map[int][]string)
-
+		validProfile[featureProfileIDName] = true
 		if targetFeatureProfileName != featureProfileIDName {
 			errs = append(errs, featureProfileIDName+" is inconsistent with path")
+			validProfile[featureProfileIDName] = false
 		}
 
 		for _, dependency := range tmp.FeatureProfileDependency {
-			if dependency != nil || dependency.GetName() == "" {
-				dependencyList[featureProfileIDName][len(report)] = append(dependencyList[featureProfileIDName][len(report)], dependency.GetName())
+			if dependency.GetName() != "" {
+				dependencies = append(dependencies, dependency.GetName())
 			}
 		}
 
@@ -251,7 +252,7 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 		}
 		report = append(report, file{name: f, lines: lines, errors: errs})
 	}
-	validateDependency(dependencyList, report)
+	report = validateDependency(validProfile, report)
 	return report, nil
 }
 
@@ -259,26 +260,19 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 func getFeatureProfileNameFromPath(file string, fp fppb.FeatureProfile) string {
 	featureProfileFilePath := strings.Split(strings.SplitAfter(file, featuresRoot)[1], "/")
 	featureProfileFilePath = featureProfileFilePath[1 : len(featureProfileFilePath)-1]
-	targetFeatureProfileFileName := strings.Join(featureProfileFilePath, "_")
-	return targetFeatureProfileFileName
+	return strings.Join(featureProfileFilePath, "_")
 }
 
 // validateDependency validates dependency from existing feature profile ID lists
-func validateDependency(dependencyList map[string]map[int][]string, report []file) {
-
-	for _, reportWithDependencies := range dependencyList {
-		for reportIndex, dependencies := range reportWithDependencies {
-			check := false
-			for _, dependency := range dependencies {
-				if dependencyList[dependency] != nil {
-					check = true
-				}
-			}
-			if check {
-				report[reportIndex].errors = append(report[reportIndex].errors, "feature profile dependency of the given id does not exist")
+func validateDependency(validProfile map[string]bool, reports []file) []file {
+	for index, report := range reports {
+		for _, dependency := range report.dependencies {
+			if !validProfile[dependency] {
+				reports[index].errors = append(reports[index].errors, "can not find feature profile dependency "+dependency)
 			}
 		}
 	}
+	return reports
 }
 
 // featureFiles lists the file paths containing features data.
