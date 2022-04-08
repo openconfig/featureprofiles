@@ -16,6 +16,7 @@ package te_1_1_static_arp_test
 
 import (
 	"log"
+	"sort"
 	"testing"
 	"time"
 
@@ -62,8 +63,10 @@ func TestMain(m *testing.M) {
 // where WW:XX:YY:ZZ are the four octets of the IPv4 in hex.  The 0x02
 // means the MAC address is locally administered.
 const (
-	plen4 = 30
-	plen6 = 126
+	trafficDuration   = 5 * time.Second
+	trafficPacketRate = 1
+	plen4             = 30
+	plen6             = 126
 
 	poisonedMAC = "12:34:56:78:7a:69" // 0x7a69 = 31337
 	noStaticMAC = ""
@@ -149,27 +152,44 @@ func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peer
 	return i
 }
 
-func configureDUT(t *testing.T, peermac string) {
+func configureDUT(t *testing.T, peermac string) (interfaceOrder bool) {
+	interfaceOrder = true
 	dut := ondatra.DUT(t, "dut")
 	d := dut.Config()
-
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t,
-		configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
-
 	p2 := dut.Port(t, "port2")
+	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
 	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t,
-		configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
+	portList := []string{*i1.Name, *i2.Name}
+	if sort.StringsAreSorted(portList) {
+		d.Interface(p1.Name()).Replace(t,
+			configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
+		d.Interface(p2.Name()).Replace(t,
+			configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
+	} else {
+		interfaceOrder = false
+		d.Interface(p1.Name()).Replace(t,
+			configInterfaceDUT(i1, &dutDst, &ateDst, peermac))
+		d.Interface(p2.Name()).Replace(t,
+			configInterfaceDUT(i2, &dutSrc, &ateSrc, peermac))
+
+	}
+	return interfaceOrder
 }
 
-func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
+func configureOTG(t *testing.T, interfaceOrder bool) (*ondatra.ATEDevice, gosnappi.Config) {
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG(t)
 	config := otg.NewConfig()
-	srcPort := config.Ports().Add().SetName(ateSrc.Name)
-	dstPort := config.Ports().Add().SetName(ateDst.Name)
+	var srcPort gosnappi.Port
+	var dstPort gosnappi.Port
+	if interfaceOrder {
+		srcPort = config.Ports().Add().SetName(ateSrc.Name)
+		dstPort = config.Ports().Add().SetName(ateDst.Name)
+	} else {
+		srcPort = config.Ports().Add().SetName(ateDst.Name)
+		dstPort = config.Ports().Add().SetName(ateSrc.Name)
+	}
 
 	srcDev := config.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().
@@ -211,6 +231,7 @@ func testFlow(
 	want string,
 	ate *ondatra.ATEDevice,
 	config gosnappi.Config,
+	gnmiClient *helpers.GnmiClient,
 	ipType string,
 ) {
 
@@ -236,7 +257,7 @@ func testFlow(
 			SetTxNames([]string{i1 + ".ipv4"}).
 			SetRxNames([]string{i2 + ".ipv4"})
 		flowipv4.Size().SetFixed(512)
-		flowipv4.Rate().SetPps(2)
+		flowipv4.Rate().SetPps(trafficPacketRate)
 		flowipv4.Duration().SetChoice("continuous")
 		e1 := flowipv4.Packet().Add().Ethernet()
 		e1.Src().SetValue(ateSrc.MAC)
@@ -261,12 +282,8 @@ func testFlow(
 	otg.PushConfig(t, ate, config)
 
 	// Starting the traffic
-	gnmiClient, err := helpers.NewGnmiClient(otg.NewGnmiQuery(t), config)
-	if err != nil {
-		t.Fatal(err)
-	}
 	otg.StartTraffic(t)
-	err = gnmiClient.WatchFlowMetrics(&helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 5 * time.Second})
+	err := gnmiClient.WatchFlowMetrics(&helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: trafficDuration})
 	if err != nil {
 		log.Println(err)
 	}
@@ -295,11 +312,15 @@ func testFlow(
 
 func TestStaticARP(t *testing.T) {
 	// First configure the DUT with dynamic ARP.
-	configureDUT(t, noStaticMAC)
-	var ate *ondatra.ATEDevice
-	ate, config := configureOTG(t)
+	interfaceOrder := configureDUT(t, noStaticMAC)
+	// var ate *ondatra.ATEDevice
+	ate, config := configureOTG(t, interfaceOrder)
 	ate.OTG(t).PushConfig(t, ate, config)
 	ate.OTG(t).StartProtocols(t)
+	gnmiClient, err := helpers.NewGnmiClient(ate.OTG(t).NewGnmiQuery(t), config)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Default MAC addresses on Ixia are assigned incrementally as:
 	//   - 00:11:01:00:00:01
@@ -309,10 +330,10 @@ func TestStaticARP(t *testing.T) {
 	// The last 15-bits therefore resolve to "1".
 	t.Run("NotPoisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testFlow(t, "1" /* want */, ate, config, "ipv4")
+			testFlow(t, "1" /* want */, ate, config, gnmiClient, "ipv4")
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testFlow(t, "1" /* want */, ate, config, "ipv6")
+			testFlow(t, "1" /* want */, ate, config, gnmiClient, "ipv6")
 		})
 	})
 
@@ -322,12 +343,13 @@ func TestStaticARP(t *testing.T) {
 	// Poisoned MAC address ends with 7a:69, so 0x7a69 = 31337.
 	t.Run("Poisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testFlow(t, "31337" /* want */, ate, config, "ipv4")
+			testFlow(t, "31337" /* want */, ate, config, gnmiClient, "ipv4")
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testFlow(t, "31337" /* want */, ate, config, "ipv6")
+			testFlow(t, "31337" /* want */, ate, config, gnmiClient, "ipv6")
 		})
 	})
+	gnmiClient.Close()
 }
 
 func TestUnsetDut(t *testing.T) {
