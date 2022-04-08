@@ -141,6 +141,7 @@ func (d *dialer) newHTTPClient() *http.Client {
 	return &http.Client{Transport: tr}
 }
 
+// newIxWebClient makes an IxWeb session using the binding options.
 func (d *dialer) newIxWebClient(ctx context.Context) (*ixweb.IxWeb, error) {
 	hc := d.newHTTPClient()
 	password := d.GetPassword()
