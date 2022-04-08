@@ -38,8 +38,10 @@ import (
 // testbed topology.
 type staticBind struct {
 	binding.Binding
-	r    resolver
-	resv *binding.Reservation
+	r         resolver
+	resv      *binding.Reservation
+	ateIxWeb  map[string]*ixweb.IxWeb
+	ateIxSess map[string]*ixweb.Session
 }
 
 var _ = binding.Binding(&staticBind{})
@@ -56,12 +58,19 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	}
 	resv.ID = resvID
 	b.resv = resv
+
+	if err := b.reserveATE(ctx); err != nil {
+		return nil, err
+	}
 	return resv, nil
 }
 
 func (b *staticBind) Release(ctx context.Context) error {
 	if b.resv == nil {
 		return errors.New("no reservation")
+	}
+	if err := b.releaseATE(ctx); err != nil {
+		return err
 	}
 	b.resv = nil
 	return nil
@@ -182,6 +191,57 @@ func (b *staticBind) HandleInfraFail(err error) error {
 
 func (b *staticBind) SetTestMetadata(md *binding.TestMetadata) error {
 	return nil // Unimplemented.
+}
+
+func (b *staticBind) reserveATE(ctx context.Context) error {
+	if b.ateIxWeb == nil {
+		b.ateIxWeb = make(map[string]*ixweb.IxWeb)
+	}
+	if b.ateIxSess == nil {
+		b.ateIxSess = make(map[string]*ixweb.Session)
+	}
+	for ate := range b.resv.ATEs {
+		ateName := b.resv.ATEs[ate].Name
+		dialer, err := b.r.ixnetwork(ateName)
+		if err != nil {
+			return err
+		}
+		ixw, ok := b.ateIxWeb[ateName]
+		if !ok {
+			ixw, err = dialer.newIxWebClient(ctx)
+			if err != nil {
+				return err
+			}
+			b.ateIxWeb[ateName] = ixw
+		}
+		var ixs *ixweb.Session
+		var ixs_err error
+		if dialer.SessionId > 0 {
+			ixs, ixs_err = ixw.IxNetwork().FetchSession(ctx, int(dialer.SessionId))
+		} else {
+			ixs, ixs_err = ixw.IxNetwork().NewSession(ctx, ateName)
+		}
+		if ixs_err != nil {
+			return ixs_err
+		}
+		b.ateIxSess[ateName] = ixs
+	}
+	return nil
+}
+
+func (b *staticBind) releaseATE(ctx context.Context) error {
+	for ateName, ixWeb := range b.ateIxWeb {
+		dialer, err := b.r.ixnetwork(ateName)
+		if err != nil {
+			return err
+		}
+		if dialer.SessionId == 0 {
+			if err := ixWeb.IxNetwork().DeleteSession(ctx, b.ateIxSess[ateName].ID()); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // allerrors implements the error interface and will accumulate and
