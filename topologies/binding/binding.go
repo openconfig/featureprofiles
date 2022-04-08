@@ -39,20 +39,17 @@ import (
 // testbed topology.
 type staticBind struct {
 	binding.Binding
-	r    resolver
-	resv *binding.Reservation
+	r            resolver
+	resv         *binding.Reservation
+	muIxWeb      sync.Mutex
+	muIxSession  sync.Mutex
+	ateIxWeb     map[string]*ixweb.IxWeb
+	ateIxSession map[string]*ixweb.Session
 }
 
 var _ = binding.Binding(&staticBind{})
 
 const resvID = "STATIC"
-
-var (
-	muIxWeb      sync.Mutex
-	muIxSession  sync.Mutex
-	ateIxWeb     = make(map[string]*ixweb.IxWeb)
-	ateIxSession = make(map[string]*ixweb.Session)
-)
 
 func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, waitTime time.Duration, partial map[string]string) (*binding.Reservation, error) {
 	if b.resv != nil {
@@ -65,7 +62,7 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	resv.ID = resvID
 	b.resv = resv
 
-	if err := reserveATE(ctx, b.r, b.resv.ATEs); err != nil {
+	if err := b.reserveATE(ctx); err != nil {
 		return nil, err
 	}
 	return resv, nil
@@ -75,7 +72,7 @@ func (b *staticBind) Release(ctx context.Context) error {
 	if b.resv == nil {
 		return errors.New("no reservation")
 	}
-	if err := releaseATE(ctx, b.r); err != nil {
+	if err := b.releaseATE(ctx); err != nil {
 		return err
 	}
 	b.resv = nil
@@ -166,7 +163,7 @@ func (b *staticBind) DialIxNetwork(ctx context.Context, ate *binding.ATE) (*bind
 	if err != nil {
 		return nil, err
 	}
-	ixs, err := ixSessionForATE(ctx, ate.Name, dialer)
+	ixs, err := b.ixSessionForATE(ctx, ate.Name, dialer)
 	if err != nil {
 		return nil, err
 	}
@@ -304,26 +301,27 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 	return portmap, nil
 }
 
-func reserveATE(ctx context.Context, r resolver, ates map[string]*binding.ATE) error {
+func (b *staticBind) reserveATE(ctx context.Context) error {
+	ates := b.resv.ATEs
 	for _, ate := range ates {
-		dialer, err := r.ixnetwork(ate.Name)
+		dialer, err := b.r.ixnetwork(ate.Name)
 		if err != nil {
 			return err
 		}
-		if _, err := ixSessionForATE(ctx, ate.Name, dialer); err != nil {
+		if _, err := b.ixSessionForATE(ctx, ate.Name, dialer); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func releaseATE(ctx context.Context, r resolver) error {
-	for ateName, ixw := range ateIxWeb {
-		dialer, err := r.ixnetwork(ateName)
+func (b *staticBind) releaseATE(ctx context.Context) error {
+	for ateName, ixw := range b.ateIxWeb {
+		dialer, err := b.r.ixnetwork(ateName)
 		if err != nil {
 			return err
 		}
-		ixs, ok := ateIxSession[ateName]
+		ixs, ok := b.ateIxSession[ateName]
 		if ok && dialer.SessionId == 0 {
 			if err := ixw.IxNetwork().DeleteSession(ctx, ixs.ID()); err != nil {
 				return err
@@ -333,29 +331,39 @@ func releaseATE(ctx context.Context, r resolver) error {
 	return nil
 }
 
-func ixWebForATE(ctx context.Context, ateName string, d dialer) (*ixweb.IxWeb, error) {
-	muIxWeb.Lock()
-	defer muIxWeb.Unlock()
+func (b *staticBind) ixWebForATE(ctx context.Context, ateName string, d dialer) (*ixweb.IxWeb, error) {
+	b.muIxWeb.Lock()
+	defer b.muIxWeb.Unlock()
+
+	if b.ateIxWeb == nil {
+		b.ateIxWeb = make(map[string]*ixweb.IxWeb)
+	}
+
 	var err error
-	ixw, ok := ateIxWeb[ateName]
+	ixw, ok := b.ateIxWeb[ateName]
 	if !ok {
 		ixw, err = d.newIxWebClient(ctx)
 		if err != nil {
 			return nil, err
 		}
-		ateIxWeb[ateName] = ixw
+		b.ateIxWeb[ateName] = ixw
 	}
 	return ixw, nil
 }
 
-func ixSessionForATE(ctx context.Context, ateName string, d dialer) (*ixweb.Session, error) {
-	muIxSession.Lock()
-	defer muIxSession.Unlock()
-	ixw, err := ixWebForATE(ctx, ateName, d)
+func (b *staticBind) ixSessionForATE(ctx context.Context, ateName string, d dialer) (*ixweb.Session, error) {
+	b.muIxSession.Lock()
+	defer b.muIxSession.Unlock()
+
+	if b.ateIxSession == nil {
+		b.ateIxSession = make(map[string]*ixweb.Session)
+	}
+
+	ixw, err := b.ixWebForATE(ctx, ateName, d)
 	if err != nil {
 		return nil, err
 	}
-	ixs, ok := ateIxSession[ateName]
+	ixs, ok := b.ateIxSession[ateName]
 	if !ok {
 		var ixs_err error
 		if d.SessionId > 0 {
@@ -366,7 +374,7 @@ func ixSessionForATE(ctx context.Context, ateName string, d dialer) (*ixweb.Sess
 		if ixs_err != nil {
 			return nil, ixs_err
 		}
-		ateIxSession[ateName] = ixs
+		b.ateIxSession[ateName] = ixs
 	}
 	return ixs, nil
 }
