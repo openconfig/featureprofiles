@@ -267,13 +267,16 @@ func getFeatureProfileNameFromPath(file string, fp fppb.FeatureProfile) string {
 // validateDependency validates dependency from existing feature profile ID lists
 func validateDependency(validProfile map[string]bool, reports []file) []file {
 	newReports := []file{}
-	for index, report := range reports {
+	for _, report := range reports {
 		for _, dependency := range report.dependencies {
+			fmt.Println("dependency is %d", dependency)
+			fmt.Println("validProfile[dependency] is %d", validProfile[dependency])
 			if !validProfile[dependency] {
-				reports[index].errors = append(reports[index].errors, "can not find feature profile dependency "+dependency)
+				report.errors = append(report.errors, "can not find feature profile dependency "+dependency)
+				fmt.Println("can not find feature profile dependency " + dependency)
 			}
 		}
-		if len(report.lines) != 0 && len(report.errors) != 0 {
+		if len(report.lines) != 0 || len(report.errors) != 0 {
 			newReports = append(newReports, file{name: report.name, lines: report.lines, errors: report.errors})
 		}
 	}
