@@ -144,11 +144,11 @@ func (d *dialer) newHTTPClient() *http.Client {
 // newIxWebClient makes an IxWeb session using the binding options.
 func (d *dialer) newIxWebClient(ctx context.Context) (*ixweb.IxWeb, error) {
 	hc := d.newHTTPClient()
-	password := d.GetPassword()
 	username := d.GetUsername()
-	if password == "" && username == "" {
-		password = "admin"
+	password := d.GetPassword()
+	if username == "" && password == "" {
 		username = "admin"
+		password = "admin"
 	}
 	ixw, err := ixweb.Connect(ctx, d.Target, ixweb.WithHTTPClient(hc), ixweb.WithLogin(username, password))
 	if err != nil {
