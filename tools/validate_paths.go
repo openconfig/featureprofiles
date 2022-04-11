@@ -191,6 +191,7 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 		}
 
 		var errs []string
+		var dependencies []string
 
 		// Unmarshal will report syntax errors (although generally without line numbers).
 		if err := prototext.Unmarshal(bs, &tmp); err != nil {
@@ -247,10 +248,10 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 			}
 		}
 
-		if len(lines) == 0 && len(errs) == 0 {
+		if len(lines) == 0 && len(errs) == 0 && len(dependencies) == 0 {
 			continue
 		}
-		report = append(report, file{name: f, lines: lines, errors: errs})
+		report = append(report, file{name: f, lines: lines, dependencies: dependencies, errors: errs})
 	}
 	report = validateDependency(validProfile, report)
 	return report, nil
@@ -265,14 +266,18 @@ func getFeatureProfileNameFromPath(file string, fp fppb.FeatureProfile) string {
 
 // validateDependency validates dependency from existing feature profile ID lists
 func validateDependency(validProfile map[string]bool, reports []file) []file {
+	newReports := []file{}
 	for index, report := range reports {
 		for _, dependency := range report.dependencies {
 			if !validProfile[dependency] {
 				reports[index].errors = append(reports[index].errors, "can not find feature profile dependency "+dependency)
 			}
 		}
+		if len(report.lines) != 0 && len(report.errors) != 0 {
+			newReports = append(newReports, file{name: report.name, lines: report.lines, errors: report.errors})
+		}
 	}
-	return reports
+	return newReports
 }
 
 // featureFiles lists the file paths containing features data.
