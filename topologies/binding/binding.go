@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/openconfig/ondatra/binding"
@@ -41,8 +40,6 @@ type staticBind struct {
 	binding.Binding
 	r            resolver
 	resv         *binding.Reservation
-	muIxWeb      sync.Mutex
-	muIxSession  sync.Mutex
 	ateIxWeb     map[string]*ixweb.IxWeb
 	ateIxSession map[string]*ixweb.Session
 }
@@ -332,9 +329,6 @@ func (b *staticBind) releaseATE(ctx context.Context) error {
 }
 
 func (b *staticBind) ixWebForATE(ctx context.Context, ateName string, d dialer) (*ixweb.IxWeb, error) {
-	b.muIxWeb.Lock()
-	defer b.muIxWeb.Unlock()
-
 	if b.ateIxWeb == nil {
 		b.ateIxWeb = make(map[string]*ixweb.IxWeb)
 	}
@@ -352,9 +346,6 @@ func (b *staticBind) ixWebForATE(ctx context.Context, ateName string, d dialer) 
 }
 
 func (b *staticBind) ixSessionForATE(ctx context.Context, ateName string, d dialer) (*ixweb.Session, error) {
-	b.muIxSession.Lock()
-	defer b.muIxSession.Unlock()
-
 	if b.ateIxSession == nil {
 		b.ateIxSession = make(map[string]*ixweb.Session)
 	}
