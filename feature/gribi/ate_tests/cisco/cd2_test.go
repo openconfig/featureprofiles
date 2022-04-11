@@ -2,10 +2,13 @@ package cisco_gribi
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/gribigo/chk"
+	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 )
@@ -226,52 +229,168 @@ func flushSever(t *testing.T, args *testArgs) {
 	}
 }
 
-func configureBaseDoubleRecusionVip1Entry(t *testing.T, args *testArgs) {
+func configureBaseDoubleRecusionVip1Entry(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Helper()
-	// Vip1
-	weights := map[uint64]uint64{
-		args.prefix.vip1NhIndex + 2: 10,
-		args.prefix.vip1NhIndex + 3: 20,
-		args.prefix.vip1NhIndex + 4: 30,
+	c := args.clientA.Fluent(t)
+	c.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip1NhIndex+2).WithIPAddress(atePort2.IPv4),
+		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip1NhIndex+3).WithIPAddress(atePort3.IPv4),
+		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip1NhIndex+4).WithIPAddress(atePort4.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(args.prefix.vip1NhgIndex+1).
+			AddNextHop(args.prefix.vip1NhIndex+2, 10).
+			AddNextHop(args.prefix.vip1NhIndex+3, 20).
+			AddNextHop(args.prefix.vip1NhIndex+4, 30),
+		fluent.IPv4Entry().WithNetworkInstance(instance).WithPrefix(getIPPrefix(args.prefix.vip1Ip, 0, args.prefix.vipPrefixLength)).WithNextHopGroup(args.prefix.vip1NhgIndex+1),
+	)
+
+	if err := args.clientA.AwaitTimeout(ctx, t, time.Minute); err != nil {
+		t.Fatalf("Could not program entries via %v, got err: %v", c, err)
 	}
-	args.clientA.AddNH(t, args.prefix.vip1NhIndex+2, atePort2.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, args.prefix.vip1NhIndex+3, atePort3.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, args.prefix.vip1NhIndex+4, atePort4.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, args.prefix.vip1NhgIndex+1, weights, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPV4Entry(t, args.prefix.vip1NhgIndex+1, instance, getIPPrefix(args.prefix.vip1Ip, 0, args.prefix.vipPrefixLength), instance, fluent.InstalledInRIB)
+
+	// Verification part
+	// NH Verification
+	for _, nhIndex := range []uint64{args.prefix.vip1NhIndex + 2, args.prefix.vip1NhIndex + 3, args.prefix.vip1NhIndex + 4} {
+		chk.HasResult(t, c.Results(t),
+			fluent.OperationResult().
+				WithNextHopOperation(nhIndex).
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInRIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+
+	// NHG Verification
+	chk.HasResult(t, c.Results(t),
+		fluent.OperationResult().
+			WithNextHopGroupOperation(args.prefix.vip1NhgIndex+1).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+
+	// IPv4
+	chk.HasResult(t, c.Results(t),
+		fluent.OperationResult().WithIPv4Operation(getIPPrefix(args.prefix.vip1Ip, 0, args.prefix.vipPrefixLength)).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+
 }
 
-func configureBaseDoubleRecusionVip2Entry(t *testing.T, args *testArgs) {
+func configureBaseDoubleRecusionVip2Entry(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Helper()
-	// Vip2
-	weights := map[uint64]uint64{
-		args.prefix.vip2NhIndex + 5: 10,
-		args.prefix.vip2NhIndex + 6: 20,
-		args.prefix.vip2NhIndex + 7: 30,
-		args.prefix.vip2NhIndex + 8: 40,
+	c := args.clientA.Fluent(t)
+	c.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip2NhIndex+5).WithIPAddress(atePort5.IPv4),
+		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip2NhIndex+6).WithIPAddress(atePort6.IPv4),
+		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip2NhIndex+7).WithIPAddress(atePort7.IPv4),
+		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip2NhIndex+8).WithIPAddress(atePort8.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(args.prefix.vip2NhgIndex+1).
+			AddNextHop(args.prefix.vip2NhIndex+5, 10).
+			AddNextHop(args.prefix.vip2NhIndex+6, 20).
+			AddNextHop(args.prefix.vip2NhIndex+7, 30).
+			AddNextHop(args.prefix.vip2NhIndex+8, 40),
+		fluent.IPv4Entry().WithNetworkInstance(instance).WithPrefix(getIPPrefix(args.prefix.vip2Ip, 0, args.prefix.vipPrefixLength)).WithNextHopGroup(args.prefix.vip2NhgIndex+1),
+	)
+
+	if err := args.clientA.AwaitTimeout(ctx, t, time.Minute); err != nil {
+		t.Fatalf("Could not program entries via %v, got err: %v", c, err)
 	}
-	args.clientA.AddNH(t, args.prefix.vip2NhIndex+5, atePort5.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, args.prefix.vip2NhIndex+6, atePort6.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, args.prefix.vip2NhIndex+7, atePort7.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, args.prefix.vip2NhIndex+8, atePort8.IPv4, instance, fluent.InstalledInRIB)
 
-	args.clientA.AddNHG(t, args.prefix.vip2NhgIndex+1, weights, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPV4Entry(t, args.prefix.vip2NhgIndex+1, instance, getIPPrefix(args.prefix.vip2Ip, 0, args.prefix.vipPrefixLength), instance, fluent.InstalledInRIB)
+	// Verification part
+	// NH Verification
+	for _, nhIndex := range []uint64{args.prefix.vip2NhIndex + 5, args.prefix.vip2NhIndex + 6, args.prefix.vip2NhIndex + 7, args.prefix.vip2NhIndex + 8} {
+		chk.HasResult(t, c.Results(t),
+			fluent.OperationResult().
+				WithNextHopOperation(nhIndex).
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInRIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
 
+	// NHG Verification
+	chk.HasResult(t, c.Results(t),
+		fluent.OperationResult().
+			WithNextHopGroupOperation(args.prefix.vip2NhgIndex+1).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+
+	// IPv4
+	chk.HasResult(t, c.Results(t),
+		fluent.OperationResult().WithIPv4Operation(getIPPrefix(args.prefix.vip2Ip, 0, args.prefix.vipPrefixLength)).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
 }
 
-func configureBaseDoubleRecusionVrfEntry(t *testing.T, scale int, hostIp, prefixLength string, args *testArgs) {
+func configureBaseDoubleRecusionVrfEntry(ctx context.Context, t *testing.T, scale int, hostIp, prefixLength string, args *testArgs) {
 	t.Helper()
-	// VRF
-	weights := map[uint64]uint64{
-		args.prefix.vrfNhIndex + 1: 15,
-		args.prefix.vrfNhIndex + 2: 85,
-	}
-	args.clientA.AddNH(t, args.prefix.vrfNhIndex+1, args.prefix.vip1Ip, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, args.prefix.vrfNhIndex+2, args.prefix.vip2Ip, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, weights, instance, fluent.InstalledInRIB)
+	c := args.clientA.Fluent(t)
+	c.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vrfNhIndex+1).WithIPAddress(args.prefix.vip1Ip),
+		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vrfNhIndex+2).WithIPAddress(args.prefix.vip2Ip),
+		fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(args.prefix.vrfNhgIndex+1).
+			AddNextHop(args.prefix.vrfNhIndex+1, 15).
+			AddNextHop(args.prefix.vrfNhIndex+2, 85),
+	)
+	entries := []fluent.GRIBIEntry{}
 	for i := 0; i < scale; i++ {
-		args.clientA.AddIPV4Entry(t, args.prefix.vrfNhgIndex+1, instance, getIPPrefix(hostIp, i, prefixLength), args.prefix.vrfName, fluent.InstalledInRIB)
+		entries = append(entries,
+			fluent.IPv4Entry().
+				WithNetworkInstance(args.prefix.vrfName).
+				WithPrefix(getIPPrefix(hostIp, i, prefixLength)).
+				WithNextHopGroup(args.prefix.vrfNhgIndex+1).
+				WithNextHopGroupNetworkInstance(instance))
+	}
+	c.Modify().AddEntry(t, entries...)
+
+	if err := args.clientA.AwaitTimeout(ctx, t, time.Minute); err != nil {
+		t.Fatalf("Could not program entries via %v, got err: %v", c, err)
+	}
+
+	// Verification part
+	// NH Verification
+	for _, nhIndex := range []uint64{args.prefix.vrfNhIndex + 1, args.prefix.vrfNhIndex + 2} {
+		chk.HasResult(t, c.Results(t),
+			fluent.OperationResult().
+				WithNextHopOperation(nhIndex).
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInRIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+
+	// NHG Verification
+	chk.HasResult(t, c.Results(t),
+		fluent.OperationResult().
+			WithNextHopGroupOperation(args.prefix.vrfNhgIndex+1).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+
+	// IPv4
+	for i := 0; i < scale; i++ {
+		chk.HasResult(t, c.Results(t),
+			fluent.OperationResult().WithIPv4Operation(getIPPrefix(hostIp, i, prefixLength)).
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInRIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
 	}
 }
 
@@ -280,9 +399,9 @@ func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testAr
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
-	configureBaseDoubleRecusionVip1Entry(t, args)
-	configureBaseDoubleRecusionVip2Entry(t, args)
-	configureBaseDoubleRecusionVrfEntry(t, args.prefix.scale, args.prefix.host, "32", args)
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
@@ -293,10 +412,15 @@ func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testAr
 func testDeleteAndAddUCMP(ctx context.Context, t *testing.T, args *testArgs) {
 	defer flushSever(t, args)
 
+	t1 := time.Now()
 	// Programm the base double recursion entry
-	configureBaseDoubleRecusionVip1Entry(t, args)
-	configureBaseDoubleRecusionVip2Entry(t, args)
-	configureBaseDoubleRecusionVrfEntry(t, args.prefix.scale, args.prefix.host, "32", args)
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+	t2 := time.Now()
+	diff := t2.Sub(t1)
+	fmt.Println("TIME DIFFERENCE:")
+	fmt.Println(diff)
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
