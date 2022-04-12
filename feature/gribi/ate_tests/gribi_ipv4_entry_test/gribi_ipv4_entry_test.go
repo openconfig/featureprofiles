@@ -200,6 +200,22 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
 	time.Sleep(time.Minute)
 	t.Logf("Stop traffic")
 }
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow, wantLoss bool) {
+	flowPath := ate.Telemetry().Flow(flow.Name())
+	if !wantLoss {
+		if got := flowPath.LossPct().Get(t); got != 0 {
+			t.Errorf("FAIL:LossPct for flow %s got %g, want 0", flow.Name(), got)
+		} else {
+			t.Logf("PASS: LossPct for flow %s got %g, want 0", flow.Name(), got)
+		}
+	} else {
+		if got := flowPath.LossPct().Get(t); got != 100 {
+			t.Errorf("FAIL:LossPct for flow %s got %g, want 100", flow.Name(), got)
+		} else {
+			t.Logf("PASS: LossPct for flow %s got %g, want 100", flow.Name(), got)
+		}
+	}
+}
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
 func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, timeout time.Duration) error {
@@ -323,13 +339,7 @@ func testSingleIPv4EntrySingleNHG(ctx context.Context, t *testing.T, args *testA
 		WithDstEndpoints(dstEndPoint).WithHeaders(ethHeader, ipv4Header).WithFrameRateFPS(50)
 
 	sendTraffic(t, args.ate, flow)
-
-	flowPath := args.ate.Telemetry().Flow(flow.Name())
-	if got := flowPath.LossPct().Get(t); got != 0 {
-		t.Errorf("FAIL:LossPct for flow %s got %g, want 0", flow.Name(), got)
-	} else {
-		t.Logf("PASS: LossPct for flow %s got %g, want 0", flow.Name(), got)
-	}
+	verifyTraffic(t, args.ate, flow, false)
 }
 
 //Single IPV4 Entry Multiple NHs. Client A and Client B
@@ -356,14 +366,7 @@ func testSingleIPv4EntryMultipleNHs(ctx context.Context, t *testing.T, args *tes
 		WithDstEndpoints(dstEndPoint1, dstEndPoint2).WithHeaders(ethHeader, ipv4Header).WithFrameRateFPS(50)
 
 	sendTraffic(t, args.ate, flow)
-
-	flowPath := args.ate.Telemetry().Flow(flow.Name())
-	if got := flowPath.LossPct().Get(t); got != 0 {
-		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
-	} else {
-		t.Logf("PASS: LossPct for flow %s got %g, want 0", flow.Name(), got)
-	}
-
+	verifyTraffic(t, args.ate, flow, false)
 	captureTrafficStats(t, args.ate)
 }
 
@@ -371,11 +374,6 @@ func testSingleIPv4EntryMultipleNHs(ctx context.Context, t *testing.T, args *tes
 func testSingleIPv4EntryInvalidNH(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Configure IPv4 route for 1.0.0.0/8 pointing to invalid NH 192.0.2.60")
 	ConfigureIPv4Entry(ctx, t, args.clientA, "192.0.2.60", nhIndexA, nhgIndexA)
-
-	//ipv4Path := args.dut.Telemetry().NetworkInstance("default").Afts().Ipv4Entry(ateDstNetCIDR)
-	/*if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
-		t.Logf("1.0.0.0/8 with invalid nexthop 192.0.2.60 is not active state")
-	}*/
 
 	t.Logf("Verify with traffic that the entry is installed through the ATE port-2.")
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -388,31 +386,12 @@ func testSingleIPv4EntryInvalidNH(ctx context.Context, t *testing.T, args *testA
 		WithDstEndpoints(dstEndPoint).WithHeaders(ethHeader, ipv4Header).WithFrameRateFPS(50)
 
 	sendTraffic(t, args.ate, flow)
+	verifyTraffic(t, args.ate, flow, true)
 
-	flowPath := args.ate.Telemetry().Flow(flow.Name())
-	if got := flowPath.LossPct().Get(t); got != 100.0 {
-		t.Errorf("FAIL: LossPct for flow %s got %g, want 0", flow.Name(), got)
-	} else {
-		t.Logf("PASS: LossPct for flow %s got %g, want 100", flow.Name(), got)
-	}
-	//Update nexthop to down interface
-	//Bringdown interface dut - ate port3
-	//portJuniper := args.dut.Port(t, "port3")
-	//fmt.Printf("args.dut.Vendor(): %v\n", args.dut.Vendor())
-	//op := args.dut.Operations().NewSetInterfaceState().WithPhysicalInterface(portJuniper).WithStateEnabled(false)
-	//op.Operate(t)
-	/*t.Logf("Make dutAte Port-3 down")
-	portAte := args.ate.Port(t, "port3")
-	op := args.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(portAte).WithStateEnabled(false)
-	op.Operate(t)*/
 	interfaceStateChange(t, args.ate, false)
+
 	t.Logf("Add IPv4 entry with down interface as nexthop")
 	ConfigureIPv4Entry(ctx, t, args.clientA, "192.0.2.10", nhIndexA, nhgIndexA)
-
-	/*ipv4Path = args.dut.Telemetry().NetworkInstance("default").Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
-		t.Logf("1.0.0.0/8 with invalid nexthop 192.0.2.10 is not in active state")
-	}*/
 
 	t.Logf("Verify with traffic to destination added when down interface as nexthop")
 	srcEndPoint = args.top.Interfaces()[atePort1.Name]
@@ -423,20 +402,9 @@ func testSingleIPv4EntryInvalidNH(ctx context.Context, t *testing.T, args *testA
 		WithDstEndpoints(dstEndPoint).WithHeaders(ethHeader, ipv4Header).WithFrameRateFPS(50)
 
 	sendTraffic(t, args.ate, flow)
-
-	flowPath = args.ate.Telemetry().Flow(flow.Name())
-	if got := flowPath.LossPct().Get(t); got != 100.0 {
-		t.Errorf("FAIL: LossPct for flow %s got %g, want 0", flow.Name(), got)
-	} else {
-		t.Logf("PASS: LossPct for flow %s got %g, want 100", flow.Name(), got)
-	}
+	verifyTraffic(t, args.ate, flow, true)
 
 	interfaceStateChange(t, args.ate, true)
-	//op = args.dut.Operations().NewSetInterfaceState().WithPhysicalInterface(portJuniper).WithStateEnabled(true)
-	//op.Operate(t)
-	//t.Logf("Bringup dutAte port-3 back online ")
-	//op = args.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(portAte).WithStateEnabled(true)
-	//op.Operate(t)
 
 }
 func interfaceStateChange(t *testing.T, ate *ondatra.ATEDevice, intfstate bool) {
@@ -517,88 +485,8 @@ func TestSingleIPv4EntrySingleNH(t *testing.T) {
 				ate:     ate,
 				top:     top,
 			}
+			clientA.Flush().WithAllNetworkInstances()
 			tc.fn(ctx, t, args)
 		})
 	}
-}
-
-func tTestSingleIPv4EntryMultiNHs(t *testing.T) {
-	t.Logf("Test Single IPv4 Entry with Multiple  NextHops")
-	dut := ondatra.DUT(t, "dut")
-
-	// Dial gRIBI
-	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
-
-	// Configure the DUT
-	t.Logf("Configure DUT")
-	configureDUT(t, dut)
-
-	// Configure the ATE
-	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate)
-	t.Logf("Configure ATE, startprotocols")
-	top.Push(t).StartProtocols(t)
-
-	// Configure the gRIBI client clientA .
-	t.Logf("Configure the gRIBI clientA with SINGLE_PRIMARY, Election id 10")
-	clientA := fluent.NewClient()
-	clientA.Connection().WithStub(gribic).WithInitialElectionID(10, 0).
-		WithRedundancyMode(fluent.ElectedPrimaryClient)
-
-	clientA.Start(ctx, t)
-	defer clientA.Stop(t)
-	clientA.StartSending(ctx, t)
-	if err := awaitTimeout(ctx, clientA, t, time.Minute); err != nil {
-		t.Fatalf("Await got error during session negotiation for clientA: %v", err)
-	}
-
-	args := &testArgs{
-		ctx:     ctx,
-		clientA: clientA,
-		dut:     dut,
-		ate:     ate,
-		top:     top,
-	}
-	clientA.Flush().WithAllNetworkInstances().WithElectionOverride()
-
-	testSingleIPv4EntryMultipleNHs(ctx, t, args)
-}
-
-func tTestSingleIPv4EntryInvalidNHs(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-
-	// Dial gRIBI
-	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
-
-	// Configure the DUT
-	configureDUT(t, dut)
-
-	// Configure the ATE
-	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
-
-	// Configure the gRIBI client clientA with election ID of 10.
-	clientA := fluent.NewClient()
-	clientA.Connection().WithStub(gribic).WithInitialElectionID(10, 0).
-		WithRedundancyMode(fluent.ElectedPrimaryClient)
-	clientA.Start(ctx, t)
-	defer clientA.Stop(t)
-	clientA.StartSending(ctx, t)
-	if err := awaitTimeout(ctx, clientA, t, time.Minute); err != nil {
-		t.Fatalf("Await got error during session negotiation for clientA: %v", err)
-	}
-
-	args := &testArgs{
-		ctx:     ctx,
-		clientA: clientA,
-		dut:     dut,
-		ate:     ate,
-		top:     top,
-	}
-	clientA.Flush().WithAllNetworkInstances()
-
-	testSingleIPv4EntryInvalidNH(ctx, t, args)
 }

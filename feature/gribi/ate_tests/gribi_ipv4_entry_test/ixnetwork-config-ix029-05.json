@@ -311,6 +311,7 @@
             {
                "xpath": "/traffic/trafficItem[1]/endpointSet[1]",
                "destinations": [
+                  "/vport[2]/protocols",
                   "/vport[3]/protocols"
                ],
                "fullyMeshedEndpoints": [],
