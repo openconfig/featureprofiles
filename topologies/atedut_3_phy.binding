@@ -8,13 +8,13 @@
 # These options are inherited throughout the entire binding for both the
 # DUT and the ATE, unless overridden by a specific device or protocol.
 options {
-  username: "username"
-  password: "password"
+  username: "root"
+  password: "Embe1mpls"
 }
 
 duts {
   id: "dut"
-  name: "dut-hostname"  # Change this to the device hostname.
+  name: "scapa-18"  # Change this to the device hostname.
 
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
@@ -24,35 +24,59 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnmi {
-    target: "dut-proxy-hostname:6030"
+    target: "scapa-18:6030"
   }
+  gribi {
+     target: "scapa-18:6030"
+  }
+
 
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
-  #
-  # ports {
-  #   id: "port1"
-  #   name: "Ethernet1/1"  # Change this to the actual port name.
-  # }
+  ports {
+    id: "port1"
+    name: "et-0/0/0"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "et-0/0/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "et-0/0/2"  # Change this to the actual port name.
+  }
 }
 
 ates {
   id: "ate"
-  name: "ate-hostname"  # Change this to the Ixia chassis name.
+  name: "ix029"  # Change this to the Ixia chassis name.
+   
+  options {
+    username: "admin"
+    password: "admin"
+  }
 
   # Options specific to the IxNetwork API.  Remove if not needed.
   ixnetwork {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
-    target: "ixia-hostname"
+    target: "ix029-ix-web"
+    #licensingServers: "sv8-pod1-ixlic1.englab.juniper.net" 
     skip_verify: true
   }
 
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
-  #
-  # ports {
-  #   id: "port1"
-  #   name: "1/1"  # Change this to the actual port name.
-  # }
+  ports {
+    id: "port1"
+    name: "1/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "1/2"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "1/3"  # Change this to the actual port name.
+  }
 }

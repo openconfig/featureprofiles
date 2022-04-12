@@ -1,11 +1,12 @@
 # proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
 # proto-message: ondatra.Testbed
 
-# This testbed provides 4 links between a DUT and an ATE connected
+# This testbed provides 2 links between a DUT and an ATE connected
 # pairwise.
 
 duts {
   id: "dut"
+  vendor: JUNIPER 
   ports {
     id: "port1"
   }
@@ -14,9 +15,6 @@ duts {
   }
   ports {
     id: "port3"
-  }
-  ports {
-    id: "port4"
   }
 }
 
@@ -30,9 +28,6 @@ ates {
   }
   ports {
     id: "port3"
-  }
-  ports {
-    id: "port4"
   }
 }
 
@@ -49,9 +44,4 @@ links {
 links {
   a: "dut:port3"
   b: "ate:port3"
-}
-
-links {
-  a: "dut:port4"
-  b: "ate:port4"
 }
