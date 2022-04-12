@@ -32,8 +32,3 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/state/type"
 }
-
-feature_profile_dependency {
-  name: "device_base"
-  version: 1
-}
