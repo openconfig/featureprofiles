@@ -1,0 +1,337 @@
+{
+   "xpath": "/traffic",
+   "useRfc5952": true,
+   "trafficItem": [
+      {
+         "xpath": "/traffic/trafficItem[1]",
+         "name": "Flow",
+         "rawTrafficRxPortsBehavior": "loadBalanced",
+         "routeMesh": "fullMesh",
+         "trafficType": "raw",
+         "configElement": [
+            {
+               "xpath": "/traffic/trafficItem[1]/configElement[1]",
+               "frameRate": {
+                  "xpath": "/traffic/trafficItem[1]/configElement[1]/frameRate",
+                  "rate": 50,
+                  "type": "framesPerSecond"
+               },
+               "stack": [
+                  {
+                     "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ethernet-1']",
+                     "field": [
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ethernet-1']/field[@alias = 'ethernet.header.destinationAddress-1']",
+                           "auto": false,
+                           "singleValue": "68:f3:8e:64:f3:fc",
+                           "valueList": [],
+                           "valueType": "singleValue"
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ethernet-1']/field[@alias = 'ethernet.header.sourceAddress-2']",
+                           "auto": false,
+                           "singleValue": "00:11:01:00:00:01",
+                           "valueList": [],
+                           "valueType": "singleValue"
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ethernet-1']/field[@alias = 'ethernet.header.etherType-3']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ethernet-1']/field[@alias = 'ethernet.header.pfcQueue-4']",
+                           "valueList": []
+                        }
+                     ]
+                  },
+                  {
+                     "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']",
+                     "field": [
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.version-1']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.headerLength-2']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.raw-3']",
+                           "activeFieldChoice": true,
+                           "auto": false,
+                           "singleValue": "0",
+                           "valueList": [],
+                           "valueType": "singleValue"
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.tos.precedence-4']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.tos.delay-5']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.tos.throughput-6']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.tos.reliability-7']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.tos.monetary-8']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.tos.unused-9']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.ds.phb.defaultPHB.defaultPHB-10']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.ds.phb.defaultPHB.unused-11']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.ds.phb.classSelectorPHB.classSelectorPHB-12']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.ds.phb.classSelectorPHB.unused-13']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB-14']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.ds.phb.assuredForwardingPHB.unused-15']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.ds.phb.expeditedForwardingPHB.expeditedForwardingPHB-16']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.priority.ds.phb.expeditedForwardingPHB.unused-17']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.totalLength-18']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.identification-19']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.flags.reserved-20']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.flags.fragment-21']",
+                           "auto": false,
+                           "singleValue": "0",
+                           "valueList": [],
+                           "valueType": "singleValue"
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.flags.lastFragment-22']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.fragmentOffset-23']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.ttl-24']",
+                           "auto": false,
+                           "singleValue": "64",
+                           "valueList": [],
+                           "valueType": "singleValue"
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.protocol-25']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.checksum-26']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.srcIp-27']",
+                           "auto": false,
+                           "singleValue": "192.0.2.2",
+                           "valueList": [],
+                           "valueType": "singleValue"
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.dstIp-28']",
+                           "auto": false,
+                           "countValue": "250",
+                           "fullMesh": false,
+                           "startValue": "1.0.0.0",
+                           "stepValue": "0.0.0.1",
+                           "valueList": [],
+                           "valueType": "increment"
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.nop-29']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.security.type-30']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.security.length-31']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.security.security-32']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.security.compartments-33']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.security.handling-34']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.security.tcc-35']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.lsrr.type-36']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.lsrr.length-37']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.pointer-38']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.routeData-39']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.ssrr.type-40']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.ssrr.length-41']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.recordRoute.type-42']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.recordRoute.length-43']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.streamId.type-44']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.streamId.length-45']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.streamId.id-46']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.timestamp.type-47']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.timestamp.length-48']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.timestamp.pointer-49']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.timestamp.overflow-50']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.timestamp.flags-51']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.timestamp.pair.address-52']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.timestamp.pair.timestamp-53']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.last-54']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.routerAlert.type-55']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.routerAlert.length-56']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.nextOption.option.routerAlert.value-57']",
+                           "valueList": []
+                        },
+                        {
+                           "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.options.pad-58']",
+                           "valueList": []
+                        }
+                     ]
+                  }
+               ],
+               "stackLink": null,
+               "transmissionDistribution": null
+            }
+         ],
+         "dynamicUpdate": null,
+         "egressTracking": null,
+         "endpointSet": [
+            {
+               "xpath": "/traffic/trafficItem[1]/endpointSet[1]",
+               "destinations": [
+                  "/vport[3]/protocols"
+               ],
+               "fullyMeshedEndpoints": [],
+               "name": "Flow",
+               "sources": [
+                  "/vport[1]/protocols"
+               ],
+               "trafficGroups": []
+            }
+         ],
+         "highLevelStream": null,
+         "tracking": [
+            {
+               "xpath": "/traffic/trafficItem[1]/tracking",
+               "trackBy": [
+                  "trackingenabled0"
+               ],
+               "values": []
+            }
+         ],
+         "transmissionDistribution": null
+      }
+   ]
+}
