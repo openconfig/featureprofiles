@@ -13,3 +13,52 @@ config_path {
 config_path {
   path: "/sampling/sflow/interfaces/interface/config/name"
 }
+telemetry_path {
+  path: "/sampling/sflow/state/source-address"
+}
+telemetry_path {
+  path: "/sampling/sflow/interfaces/interface/state/enabled"
+}
+telemetry_path {
+  path: "/sampling/sflow/interfaces/interface/state/name"
+}
+
+# Collectors
+config_path {
+    path: "/sampling/sflow/collectors/collector/config/address"
+}
+config_path {
+    path: "/sampling/sflow/collectors/collector/config/network-instance"
+}
+config_path {
+    path: "/sampling/sflow/collectors/collector/config/port"
+}
+telemetry_path {
+    path: "/sampling/sflow/collectors/collector/state/address"
+}
+telemetry_path {
+    path: "/sampling/sflow/collectors/collector/state/network-instance"
+}
+telemetry_path {
+    path: "/sampling/sflow/collectors/collector/state/port"
+}
+
+# Sample
+config_path {
+    path: "/sampling/sflow/config/enabled"
+}
+config_path {
+    path: "/sampling/sflow/config/sample-size"
+}
+config_path {
+    path: "/sampling/sflow/config/sampling-rate"
+}
+telemetry_path {
+    path: "/sampling/sflow/state/enabled"
+}
+telemetry_path {
+    path: "/sampling/sflow/state/sample-size"
+}
+telemetry_path {
+    path: "/sampling/sflow/state/sampling-rate"
+}

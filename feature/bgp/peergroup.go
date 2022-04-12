@@ -19,19 +19,19 @@ package bgp
 import (
 	"time"
 
-	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
 )
 
 // PeerGroup struct to store OC attributes.
 type PeerGroup struct {
-	oc oc.NetworkInstance_Protocol_Bgp_PeerGroup
+	oc fpoc.NetworkInstance_Protocol_Bgp_PeerGroup
 }
 
 // NewPeerGroup returns a new peer-group object.
 func NewPeerGroup(name string) *PeerGroup {
 	return &PeerGroup{
-		oc: oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+		oc: fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 			PeerGroupName: ygot.String(name),
 		},
 	}
@@ -43,7 +43,7 @@ func (pg *PeerGroup) Name() string {
 }
 
 // WithAFISAFI adds specified AFI-SAFI type to peer-group.
-func (pg *PeerGroup) WithAFISAFI(name oc.E_BgpTypes_AFI_SAFI_TYPE) *PeerGroup {
+func (pg *PeerGroup) WithAFISAFI(name fpoc.E_BgpTypes_AFI_SAFI_TYPE) *PeerGroup {
 	pg.oc.GetOrCreateAfiSafi(name).Enabled = ygot.Bool(true)
 	return pg
 }
@@ -97,26 +97,26 @@ func (pg *PeerGroup) WithPeerAS(as uint32) *PeerGroup {
 }
 
 // WithPeerType sets the peer type on the peer-group.
-func (pg *PeerGroup) WithPeerType(pt oc.E_BgpTypes_PeerType) *PeerGroup {
+func (pg *PeerGroup) WithPeerType(pt fpoc.E_BgpTypes_PeerType) *PeerGroup {
 	pg.oc.PeerType = pt
 	return pg
 }
 
 // WithRemovePrivateAS specifies that private AS should be removed.
-func (pg *PeerGroup) WithRemovePrivateAS(val oc.E_BgpTypes_RemovePrivateAsOption) *PeerGroup {
+func (pg *PeerGroup) WithRemovePrivateAS(val fpoc.E_BgpTypes_RemovePrivateAsOption) *PeerGroup {
 	pg.oc.RemovePrivateAs = val
 	return pg
 }
 
 // WithSendCommunity sets the send-community on the peer-group.
-func (pg *PeerGroup) WithSendCommunity(sc oc.E_BgpTypes_CommunityType) *PeerGroup {
+func (pg *PeerGroup) WithSendCommunity(sc fpoc.E_BgpTypes_CommunityType) *PeerGroup {
 	pg.oc.SendCommunity = sc
 	return pg
 }
 
 // WithV4PrefixLimit sets the IPv4 prefix limits on the neighbor.
 func (pg *PeerGroup) WithV4PrefixLimit(maxPrefixes uint32, opts PrefixLimitOptions) *PeerGroup {
-	ploc := pg.oc.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
+	ploc := pg.oc.GetOrCreateAfiSafi(fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 	ploc.MaxPrefixes = ygot.Uint32(maxPrefixes)
 	ploc.PreventTeardown = ygot.Bool(opts.PreventTeardown)
 	if opts.RestartTime != 0 {
@@ -151,7 +151,7 @@ func (pg *PeerGroup) WithConnectRetry(cr time.Duration) *PeerGroup {
 // AugmentGlobal implements the bgp.GlobalFeature interface.
 // This method augments the BGP with peer-group configuration.
 // Use bgp.WithFeature(pg) instead of calling this method directly.
-func (pg *PeerGroup) AugmentGlobal(bgp *oc.NetworkInstance_Protocol_Bgp) error {
+func (pg *PeerGroup) AugmentGlobal(bgp *fpoc.NetworkInstance_Protocol_Bgp) error {
 	if err := pg.oc.Validate(); err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (pg *PeerGroup) AugmentGlobal(bgp *oc.NetworkInstance_Protocol_Bgp) error {
 // additional features.
 type PeerGroupFeature interface {
 	// AugmentPeerGroup augments peer-group with additional feature.
-	AugmentPeerGroup(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup) error
+	AugmentPeerGroup(pg *fpoc.NetworkInstance_Protocol_Bgp_PeerGroup) error
 }
 
 // WithFeature augments peer-group with provided feature.

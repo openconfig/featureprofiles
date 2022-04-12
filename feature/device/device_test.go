@@ -27,7 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/feature/bgp"
 	"github.com/openconfig/featureprofiles/feature/lldp"
 	"github.com/openconfig/featureprofiles/feature/networkinstance"
-	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
@@ -66,7 +66,7 @@ func TestMerge(t *testing.T) {
 
 	// Create source device with some feature.
 	srcDevice := New()
-	ni := networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	ni := networkinstance.New("default", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	bgp := bgp.New().WithAS(12345)
 	if err := ni.WithFeature(bgp); err != nil {
 		t.Fatalf("unexpected error %v", err)
@@ -111,7 +111,7 @@ func TestFullReplaceRequest(t *testing.T) {
 		name: "device with basic LLDP and BGP",
 		device: func() *Device {
 			d := New()
-			ni := networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			ni := networkinstance.New("default", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 			bgp := bgp.New().WithAS(12345)
 			if err := ni.WithFeature(bgp); err != nil {
 				t.Fatalf("unexpected error %v", err)
@@ -171,7 +171,7 @@ func TestFullReplaceRequest_Errors(t *testing.T) {
 			if err := d.WithFeature(l); err != nil {
 				t.Fatalf("unexpected error %v", err)
 			}
-			ni := networkinstance.New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			ni := networkinstance.New("default", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 			bgp := bgp.New().WithAS(12345)
 			if err := ni.WithFeature(bgp); err != nil {
 				t.Fatalf("unexpected error %v", err)
@@ -199,10 +199,10 @@ func TestFullReplaceRequest_Errors(t *testing.T) {
 type FakeFeature struct {
 	Err           error
 	augmentCalled bool
-	d             *oc.Device
+	d             *fpoc.Device
 }
 
-func (f *FakeFeature) AugmentDevice(d *oc.Device) error {
+func (f *FakeFeature) AugmentDevice(d *fpoc.Device) error {
 	f.d = d
 	f.augmentCalled = true
 	return f.Err

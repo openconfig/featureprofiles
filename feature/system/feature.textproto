@@ -105,6 +105,26 @@ config_path {
     path: "/system/aaa/authentication/users/user/config/ssh-key"
 }
 
+# Alarms
+telemetry_path {
+    path: "/system/alarms/alarm/state/id"
+}
+telemetry_path {
+    path: "/system/alarms/alarm/state/resource"
+}
+telemetry_path {
+    path: "/system/alarms/alarm/state/severity"
+}
+telemetry_path {
+    path: "/system/alarms/alarm/state/text"
+}
+telemetry_path {
+    path: "/system/alarms/alarm/state/time-created"
+}
+telemetry_path {
+    path: "/system/alarms/alarm/state/type-id"
+}
+
 gnoi_service {
   service_name: "gnoi.os.OS"
   method_name: "Install"

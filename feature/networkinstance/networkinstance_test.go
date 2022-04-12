@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -31,78 +31,78 @@ func TestAugment(t *testing.T) {
 	tests := []struct {
 		desc       string
 		ni         *NetworkInstance
-		inDevice   *oc.Device
-		wantDevice *oc.Device
+		inDevice   *fpoc.Device
+		wantDevice *fpoc.Device
 	}{{
 		desc:     "Default NI",
-		ni:       New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
-		inDevice: &oc.Device{},
-		wantDevice: &oc.Device{
-			NetworkInstance: map[string]*oc.NetworkInstance{
+		ni:       New("default", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
+		inDevice: &fpoc.Device{},
+		wantDevice: &fpoc.Device{
+			NetworkInstance: map[string]*fpoc.NetworkInstance{
 				"default": {
 					Name:    ygot.String("default"),
 					Enabled: ygot.Bool(true),
-					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+					Type:    fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 				},
 			},
 		},
 	}, {
 		desc:     "L3VRF",
-		ni:       New("vrf-1", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF),
-		inDevice: &oc.Device{},
-		wantDevice: &oc.Device{
-			NetworkInstance: map[string]*oc.NetworkInstance{
+		ni:       New("vrf-1", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF),
+		inDevice: &fpoc.Device{},
+		wantDevice: &fpoc.Device{
+			NetworkInstance: map[string]*fpoc.NetworkInstance{
 				"vrf-1": {
 					Name:    ygot.String("vrf-1"),
 					Enabled: ygot.Bool(true),
-					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+					Type:    fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 				},
 			},
 		},
 	}, {
 		desc: "Device contains another VRF with no conflicts",
-		ni:   New("vrf-1", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF),
-		inDevice: &oc.Device{
-			NetworkInstance: map[string]*oc.NetworkInstance{
+		ni:   New("vrf-1", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF),
+		inDevice: &fpoc.Device{
+			NetworkInstance: map[string]*fpoc.NetworkInstance{
 				"default": {
 					Name:    ygot.String("default"),
 					Enabled: ygot.Bool(true),
-					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+					Type:    fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 				},
 			},
 		},
-		wantDevice: &oc.Device{
-			NetworkInstance: map[string]*oc.NetworkInstance{
+		wantDevice: &fpoc.Device{
+			NetworkInstance: map[string]*fpoc.NetworkInstance{
 				"default": {
 					Name:    ygot.String("default"),
 					Enabled: ygot.Bool(true),
-					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+					Type:    fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 				},
 				"vrf-1": {
 					Name:    ygot.String("vrf-1"),
 					Enabled: ygot.Bool(true),
-					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+					Type:    fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 				},
 			},
 		},
 	}, {
 		desc: "Device contains same VRF with no conflicts",
-		ni:   New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
-		inDevice: &oc.Device{
-			NetworkInstance: map[string]*oc.NetworkInstance{
+		ni:   New("default", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
+		inDevice: &fpoc.Device{
+			NetworkInstance: map[string]*fpoc.NetworkInstance{
 				"default": {
 					Name:    ygot.String("default"),
 					Enabled: ygot.Bool(true),
-					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+					Type:    fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 				},
 			},
 		},
-		wantDevice: &oc.Device{
-			NetworkInstance: map[string]*oc.NetworkInstance{
+		wantDevice: &fpoc.Device{
+			NetworkInstance: map[string]*fpoc.NetworkInstance{
 				"default": {
 					Name:    ygot.String("default"),
 					Enabled: ygot.Bool(true),
-					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+					Type:    fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 				},
 			},
 		},
@@ -126,27 +126,27 @@ func TestAugmentErrors(t *testing.T) {
 	tests := []struct {
 		desc          string
 		ni            *NetworkInstance
-		inDevice      *oc.Device
+		inDevice      *fpoc.Device
 		wantErrSubStr string
 	}{{
 		desc:          "Empty NI name",
-		ni:            New("", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF),
-		inDevice:      &oc.Device{},
+		ni:            New("", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF),
+		inDevice:      &fpoc.Device{},
 		wantErrSubStr: "name is empty",
 	}, {
 		desc:          "NI type is not set",
-		ni:            New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET),
-		inDevice:      &oc.Device{},
+		ni:            New("default", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET),
+		inDevice:      &fpoc.Device{},
 		wantErrSubStr: "type is unset",
 	}, {
 		desc: "Device contains same VRF with conflicts",
-		ni:   New("vrf-1", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF),
-		inDevice: &oc.Device{
-			NetworkInstance: map[string]*oc.NetworkInstance{
+		ni:   New("vrf-1", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF),
+		inDevice: &fpoc.Device{
+			NetworkInstance: map[string]*fpoc.NetworkInstance{
 				"vrf-1": {
 					Name:    ygot.String("vrf-1"),
 					Enabled: ygot.Bool(true),
-					Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+					Type:    fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 				},
 			},
 		},
@@ -169,10 +169,10 @@ func TestAugmentErrors(t *testing.T) {
 type FakeFeature struct {
 	Err           error
 	augmentCalled bool
-	ni            *oc.NetworkInstance
+	ni            *fpoc.NetworkInstance
 }
 
-func (f *FakeFeature) AugmentNetworkInstance(ni *oc.NetworkInstance) error {
+func (f *FakeFeature) AugmentNetworkInstance(ni *fpoc.NetworkInstance) error {
 	f.ni = ni
 	f.augmentCalled = true
 	return f.Err
@@ -192,7 +192,7 @@ func TestWithFeature(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			ni := New("default", oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			ni := New("default", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 			ff := &FakeFeature{Err: test.wantErrSubStr}
 			gotErr := ni.WithFeature(ff)
 			if !ff.augmentCalled {

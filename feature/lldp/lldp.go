@@ -18,19 +18,19 @@
 package lldp
 
 import (
-	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
 )
 
 // LLDP struct to store OC attributes.
 type LLDP struct {
-	oc oc.Lldp
+	oc fpoc.Lldp
 }
 
 // New returns a new LLDP object with the feature enabled.
 func New() *LLDP {
 	return &LLDP{
-		oc: oc.Lldp{
+		oc: fpoc.Lldp{
 			Enabled: ygot.Bool(true),
 		},
 	}
@@ -45,7 +45,7 @@ func (l *LLDP) EnableInterface(name string) *LLDP {
 // AugmentDevice implements the device.Feature interface.
 // This method augments the device OC with LLDP feature.
 // Use d.WithFeature(l) instead of calling this method directly.
-func (l *LLDP) AugmentDevice(d *oc.Device) error {
+func (l *LLDP) AugmentDevice(d *fpoc.Device) error {
 	if err := l.oc.Validate(); err != nil {
 		return err
 	}

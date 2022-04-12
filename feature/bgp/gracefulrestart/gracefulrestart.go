@@ -21,27 +21,27 @@ package gracefulrestart
 import (
 	"time"
 
-	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
 )
 
 // GracefulRestart struct to store OC attributes.
 type GracefulRestart struct {
-	noc oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart
-	poc oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart
-	goc oc.NetworkInstance_Protocol_Bgp_Global_GracefulRestart
+	noc fpoc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart
+	poc fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart
+	goc fpoc.NetworkInstance_Protocol_Bgp_Global_GracefulRestart
 }
 
 // New returs a new GracefulRestart object.
 func New() *GracefulRestart {
 	return &GracefulRestart{
-		noc: oc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
+		noc: fpoc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
 			Enabled: ygot.Bool(true),
 		},
-		poc: oc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
+		poc: fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
 			Enabled: ygot.Bool(true),
 		},
-		goc: oc.NetworkInstance_Protocol_Bgp_Global_GracefulRestart{
+		goc: fpoc.NetworkInstance_Protocol_Bgp_Global_GracefulRestart{
 			Enabled: ygot.Bool(true),
 		},
 	}
@@ -75,7 +75,7 @@ func (gr *GracefulRestart) WithHelperOnly(val bool) *GracefulRestart {
 // AugmentNeighbor implements the bgp.NeighborFeature interface.
 // This method augments the BGP neighbor with graceful restart feature.
 // Use n.WithFeature(gr) instead of calling this method directly.
-func (gr *GracefulRestart) AugmentNeighbor(n *oc.NetworkInstance_Protocol_Bgp_Neighbor) error {
+func (gr *GracefulRestart) AugmentNeighbor(n *fpoc.NetworkInstance_Protocol_Bgp_Neighbor) error {
 	if err := gr.noc.Validate(); err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func (gr *GracefulRestart) AugmentNeighbor(n *oc.NetworkInstance_Protocol_Bgp_Ne
 // AugmentPeerGroup implements the bgp.PeerGroupFeature interface.
 // This method augments the BGP peer-group with graceful restart feature.
 // Use pg.WithFeature(gr) instead of calling this method directly.
-func (gr *GracefulRestart) AugmentPeerGroup(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup) error {
+func (gr *GracefulRestart) AugmentPeerGroup(pg *fpoc.NetworkInstance_Protocol_Bgp_PeerGroup) error {
 	if err := gr.poc.Validate(); err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (gr *GracefulRestart) AugmentPeerGroup(pg *oc.NetworkInstance_Protocol_Bgp_
 // AugmentGlobal implements the bgp.GlobalFeature interface.
 // This method augments the BGP Global  with graceful restart feature.
 // Use g.WithFeature(gr) instead of calling this method directly.
-func (gr *GracefulRestart) AugmentGlobal(g *oc.NetworkInstance_Protocol_Bgp_Global) error {
+func (gr *GracefulRestart) AugmentGlobal(g *fpoc.NetworkInstance_Protocol_Bgp_Global) error {
 	if err := gr.goc.Validate(); err != nil {
 		return err
 	}
