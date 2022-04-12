@@ -311,7 +311,7 @@
             {
                "xpath": "/traffic/trafficItem[1]/endpointSet[1]",
                "destinations": [
-                  "/vport[3]/protocols"
+                  "/vport[2]/protocols"
                ],
                "fullyMeshedEndpoints": [],
                "name": "Flow",
