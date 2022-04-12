@@ -16,9 +16,10 @@
 package staticroute
 
 import (
-	"github.com/openconfig/featureprofiles/yang/oc"
-	"github.com/openconfig/ygot/ygot"
 	"strconv"
+
+	"github.com/openconfig/featureprofiles/yang/fpoc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // Name of the protocol
@@ -26,14 +27,14 @@ const Name = "static"
 
 // Static struct stores the OC attributes for the  base feature profile.
 type Static struct {
-	oc oc.NetworkInstance_Protocol
+	oc fpoc.NetworkInstance_Protocol
 }
 
 // New returns a new Static object.
 func New() *Static {
 	return &Static{
-		oc: oc.NetworkInstance_Protocol{
-			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		oc: fpoc.NetworkInstance_Protocol{
+			Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 			Name:       ygot.String(Name),
 		},
 	}
@@ -42,18 +43,17 @@ func New() *Static {
 // WithRoute sets the prefix with next-hops for static route.
 func (sr *Static) WithRoute(prefix string, nextHops []string) *Static {
 	static := sr.oc.GetOrCreateStatic(prefix)
-	static.Prefix = ygot.String(prefix)
 	for i, nh := range nextHops {
 		str := strconv.Itoa(i + 1)
 		n := static.GetOrCreateNextHop(str)
-		n.NextHop = oc.UnionString(nh)
+		n.NextHop = fpoc.UnionString(nh)
 	}
 	return sr
 }
 
 // AugmentNetworkInstance implements networkinstance.Feature interface.
 // Augments the provided NI with Static OC.
-func (sr *Static) AugmentNetworkInstance(ni *oc.NetworkInstance) error {
+func (sr *Static) AugmentNetworkInstance(ni *fpoc.NetworkInstance) error {
 	if err := sr.oc.Validate(); err != nil {
 		return err
 	}
