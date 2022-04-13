@@ -529,6 +529,27 @@ func sendTraffic(t *testing.T, otg *ondatra.OTG, gnmiClient *helpers.GnmiClient)
 	otg.StopTraffic(t)
 }
 
+func verifyOtgBgpDown(t *testing.T, gnmiClient helpers.GnmiClient) {
+	exit := true
+	for exit {
+		dMetrics, err := gnmiClient.GetBgpv4Metrics([]string{})
+		if err != nil {
+			t.Errorf("Failed to retrieve OTG BGP stats")
+			exit = false
+		}
+		helpers.PrintMetricsTable(&helpers.MetricsTableOpts{
+			ClearPrevious: false,
+			Bgpv4Metrics:  dMetrics,
+		})
+		for _, d := range dMetrics.Items() {
+			if d.SessionState() != gosnappi.Bgpv4MetricSessionState.UP {
+				exit = false
+			}
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
+
 type bgpNeighbor struct {
 	as         uint32
 	neighborip string
@@ -588,11 +609,8 @@ func TestEstablish(t *testing.T) {
 
 		// Resend traffic
 		// A pause is needed for DUT to completely withdraw routes
-		time.Sleep(5 * time.Second)
-		// gnmiClient, err := helpers.NewGnmiClient(otg.NewGnmiQuery(t), otgConfig)
-		// if err != nil {
-		// 	t.Fatal(err)
-		// }
+		// time.Sleep(5 * time.Second)
+		verifyOtgBgpDown(t, *gnmiClient)
 		sendTraffic(t, otg, gnmiClient)
 		verifyTraffic(t, gnmiClient, true)
 		// gnmiClient.Close()
