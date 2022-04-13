@@ -16,11 +16,13 @@ package base_leader_election_test
 
 import (
 	"context"
+	"log"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/helpers"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -50,12 +52,12 @@ func TestMain(m *testing.M) {
 //   * Destination network: 198.51.100.0/24
 
 const (
-	ipv4PrefixLen = 30
-	instance      = "default"
-	ateDstNetCIDR = "198.51.100.0/24"
-	nhIndex       = 1
-	nhgIndex      = 42
-	ateType       = "otg"
+	ipv4PrefixLen   = 30
+	instance        = "default"
+	ateDstNetCIDR   = "198.51.100.0/24"
+	nhIndex         = 1
+	nhgIndex        = 42
+	trafficDuration = 30 * time.Second
 )
 
 var (
@@ -177,26 +179,53 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, srcEndPoint, dstEndPoint trafficEndpoint) {
 
-	// ethHeader := ()
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.DstAddressRange().
-		WithMin("198.51.100.0").
-		WithMax("198.51.100.254").
-		WithCount(250)
-
-	flowipv4 := config.Flows().Add().SetName("ipv4Flow")
+	otg := ate.OTG(t)
+	config.Flows().Clear().Items()
+	flowipv4 := config.Flows().Add().SetName("Flow")
 	flowipv4.Metrics().SetEnable(true)
 	flowipv4.TxRx().Port().
 		SetTxName(srcEndPoint.endpointName).
 		SetRxName(dstEndPoint.endpointName)
 	flowipv4.Size().SetFixed(512)
-	flowipv4.Rate().SetPps(100)
+	flowipv4.Rate().SetPps(2)
 	flowipv4.Duration().SetChoice("continuous")
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(srcEndPoint.mac)
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(srcEndPoint.ip)
 	v4.Dst().Increment().SetStart(strings.Split(ateDstNetCIDR, "/")[0]).SetCount(250)
+	otg.PushConfig(t, ate, config)
+
+	gnmiClient, err := helpers.NewGnmiClient(otg.NewGnmiQuery(t), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Starting traffic")
+	otg.StartTraffic(t)
+	err = gnmiClient.WatchFlowMetrics(&helpers.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
+	if err != nil {
+		log.Println(err)
+	}
+	t.Logf("Stop traffic")
+	otg.StopTraffic(t)
+
+	fMetrics, err := gnmiClient.GetFlowMetrics([]string{})
+	if err != nil {
+		t.Fatal("Error while getting the flow metrics")
+	}
+
+	helpers.PrintMetricsTable(&helpers.MetricsTableOpts{
+		ClearPrevious: false,
+		FlowMetrics:   fMetrics,
+	})
+
+	for _, f := range fMetrics.Items() {
+		lostPackets := f.FramesTx() - f.FramesRx()
+		lossPct := lostPackets * 100 / f.FramesTx()
+		if lossPct > 0 && f.FramesTx() > 0 {
+			t.Errorf("Loss Pct for Flow: %s got %v, want 0", f.Name(), lossPct)
+		}
+	}
 }
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
@@ -444,7 +473,6 @@ func TestElectionIDChange(t *testing.T) {
 		if err := awaitTimeout(ctx, clientA, t, time.Minute); err != nil {
 			t.Fatalf("Await got error during session negotiation for clientA: %v", err)
 		}
-
 		// Configure the gRIBI client clientB with election ID of 11.
 		clientB := fluent.NewClient()
 
@@ -457,7 +485,6 @@ func TestElectionIDChange(t *testing.T) {
 		if err := awaitTimeout(ctx, clientB, t, time.Minute); err != nil {
 			t.Fatalf("Await got error during session negotiation for clientB: %v", err)
 		}
-
 		args := &testArgs{
 			ctx:     ctx,
 			clientA: clientA,
@@ -469,4 +496,9 @@ func TestElectionIDChange(t *testing.T) {
 
 		tt.fn(ctx, t, args)
 	})
+}
+
+func TestUnsetDut(t *testing.T) {
+	t.Logf("Start Unsetting DUT Config")
+	helpers.ConfigDUTs(map[string]string{"arista": "unset_dut.txt"})
 }
