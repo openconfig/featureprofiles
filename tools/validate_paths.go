@@ -269,11 +269,8 @@ func validateDependency(validProfile map[string]bool, reports []file) []file {
 	newReports := []file{}
 	for _, report := range reports {
 		for _, dependency := range report.dependencies {
-			fmt.Println("dependency is %d", dependency)
-			fmt.Println("validProfile[dependency] is %d", validProfile[dependency])
 			if !validProfile[dependency] {
 				report.errors = append(report.errors, "can not find feature profile dependency "+dependency)
-				fmt.Println("can not find feature profile dependency " + dependency)
 			}
 		}
 		if len(report.lines) != 0 || len(report.errors) != 0 {
