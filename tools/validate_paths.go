@@ -199,11 +199,11 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 		}
 
 		// Validate feature profile ID name by checking path 
-		targetFeatureProfileName := getFeatureProfileNameFromPath(f, tmp)
+		targetFeatureProfileName := getFeatureProfileNameFromPath(f, &tmp)
 		featureProfileIDName := tmp.GetId().GetName()
 		validProfile[featureProfileIDName] = true
 		if targetFeatureProfileName != featureProfileIDName {
-			errs = append(errs, featureProfileIDName+" is inconsistent with path")
+			errs = append(errs, featureProfileIDName+" is inconsistent with path, want "+targetFeatureProfileName)
 			validProfile[featureProfileIDName] = false
 		}
 
@@ -258,7 +258,7 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 }
 
 // getFeatureProfileNameFromPath gets feature profile id.name from path
-func getFeatureProfileNameFromPath(file string, fp fppb.FeatureProfile) string {
+func getFeatureProfileNameFromPath(file string, *fp fppb.FeatureProfile) string {
 	featureProfileFilePath := strings.Split(strings.SplitAfter(file, featuresRoot)[1], "/")
 	featureProfileFilePath = featureProfileFilePath[1 : len(featureProfileFilePath)-1]
 	return strings.Join(featureProfileFilePath, "_")
