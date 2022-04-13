@@ -259,7 +259,7 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 
 // getFeatureProfileNameFromPath gets feature profile id.name from path
 func getFeatureProfileNameFromPath(file string, *fp fppb.FeatureProfile) string {
-	featureProfileFilePath := strings.Split(strings.SplitAfter(file, featuresRoot)[1], "/")
+	featureProfileFilePath := strings.Split(strings.TrimPrefix(file, featuresRoot), "/")
 	featureProfileFilePath = featureProfileFilePath[1 : len(featureProfileFilePath)-1]
 	return strings.Join(featureProfileFilePath, "_")
 }
