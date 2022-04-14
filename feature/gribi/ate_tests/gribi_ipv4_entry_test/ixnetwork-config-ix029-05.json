@@ -11,11 +11,6 @@
          "configElement": [
             {
                "xpath": "/traffic/trafficItem[1]/configElement[1]",
-               "frameRate": {
-                  "xpath": "/traffic/trafficItem[1]/configElement[1]/frameRate",
-                  "rate": 50,
-                  "type": "framesPerSecond"
-               },
                "stack": [
                   {
                      "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ethernet-1']",
