@@ -73,11 +73,11 @@ feature_profile_dependency {
 }
 
 feature_profile_dependency {
-  name: "experimental_route_redistribution"
+  name: "localaggregates"
   version: 1
 }
 
 feature_profile_dependency {
-  name: "experimental_policy_policy_base"
+  name: "bgp_policybase"
   version: 1
 }

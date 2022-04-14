@@ -37,6 +37,6 @@ telemetry_path {
 
 
 feature_profile_dependency {
-  name: "experimental_policy_policy_base"
+  name: "bgp_policybase"
   version: 1
 }
