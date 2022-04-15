@@ -198,7 +198,7 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 			errs = append(errs, err.Error())
 		}
 
-		// Validate feature profile ID name by checking path 
+		// Validate feature profile ID name by checking path.
 		targetFeatureProfileName := getFeatureProfileNameFromPath(f, &tmp)
 		featureProfileIDName := tmp.GetId().GetName()
 		validProfile[featureProfileIDName] = true
@@ -257,7 +257,7 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 	return report, nil
 }
 
-// getFeatureProfileNameFromPath gets feature profile id.name from path
+// getFeatureProfileNameFromPath gets feature profile id.name from path.
 func getFeatureProfileNameFromPath(file string, fp *fppb.FeatureProfile) string {
 	featureProfileFilePath := strings.ReplaceAll(strings.TrimPrefix(file, featuresRoot), "/", " ")
 	featureProfileFilePathArray := strings.Fields(featureProfileFilePath)
@@ -265,7 +265,7 @@ func getFeatureProfileNameFromPath(file string, fp *fppb.FeatureProfile) string 
 	return strings.Join(featureProfileFilePathArray, "_")
 }
 
-// validateDependency validates dependency from existing feature profile ID lists
+// validateDependency validates dependency from existing feature profile ID lists.
 func validateDependency(validProfile map[string]bool, reports []file) []file {
 	newReports := []file{}
 	for _, report := range reports {
