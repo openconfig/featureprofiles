@@ -170,9 +170,9 @@ type line struct {
 type file struct {
 	name  string
 	lines []line
-	dependencies []string
 	// Errors which are not correlated with a line.
-	errors []string
+	errors       []string
+	dependencies []string
 }
 
 // checkFiles parses all `path:` lines in the input `files`, reporting any syntax errors and paths
