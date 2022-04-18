@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "telemetry_port_speed"
+  name: "experimental_gnmi_service_telemetry_port_speed"
   version: 1
 }
 

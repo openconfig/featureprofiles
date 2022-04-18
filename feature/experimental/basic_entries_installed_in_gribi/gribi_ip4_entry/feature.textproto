@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "gribi_ip4_entry"
+  name: "experimental_basic_entries_installed_in_gribi_gribi_ip4_entry"
   version: 1
 }
 

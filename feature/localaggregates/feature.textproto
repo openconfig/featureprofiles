@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "local_aggregates"
+  name: "localaggregates"
   version: 1
 }
 
@@ -35,6 +35,6 @@ telemetry_path {
 
 # BGP aggregates dependency
 feature_profile_dependency {
-  name: "bgp_base"
+  name: "bgp"
   version: 1
 }
