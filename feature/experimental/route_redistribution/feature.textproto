@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "local_aggregates"
+  name: "experimental_route_redistribution"
   version: 1
 }
 
@@ -68,16 +68,16 @@ telemetry_path {
 
 
 feature_profile_dependency {
-  name: "bgp_base"
+  name: "bgp"
   version: 1
 }
 
 feature_profile_dependency {
-  name: "local_aggregates"
+  name: "localaggregates"
   version: 1
 }
 
 feature_profile_dependency {
-  name: "bgp_policy_base"
+  name: "bgp_policybase"
   version: 1
 }

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "bgp_base"
+  name: "bgp"
   version: 1
 }
 
@@ -461,6 +461,6 @@ gnoi_service {
   method_name: "ClearBGPNeighbor"
 }
 feature_profile_dependency {
-  name: "network_instance_base"
+  name: "networkinstance"
   version: 1
 }
