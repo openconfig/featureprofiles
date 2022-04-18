@@ -1,0 +1,15 @@
+interface Ethernet1
+   no description
+   no ip address
+   no switchport
+!
+interface Ethernet2
+   no description
+   no ip address
+   no switchport
+!
+interface Ethernet3
+   no description
+   no ip address
+   no switchport
+!

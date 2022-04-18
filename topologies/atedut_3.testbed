@@ -7,6 +7,9 @@ duts {
   ports {
     id: "port2"
   }
+  ports {
+    id: "port3"
+  }
 }
 
 ates {
@@ -18,6 +21,9 @@ ates {
   ports {
     id: "port2"    
   }
+  ports {
+    id: "port3"    
+  }
 }
 
 links {
@@ -28,4 +34,8 @@ links {
 links {
   a: "dut:port2"
   b: "ate:port2"
+}
+links {
+  a: "dut:port3"
+  b: "ate:port3"
 }

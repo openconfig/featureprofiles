@@ -549,9 +549,10 @@ github.com/onsi/gomega v1.7.1/go.mod h1:XdKZgCCFLUoM/7CFJVPcG8C1xQ1AJ0vpAezJrB7J
 github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1ybHNo=
 github.com/onsi/gomega v1.10.3/go.mod h1:V9xEwhxec5O8UDM77eCW8vLymOMltsqPVYWrpDsH8xc=
 github.com/onsi/gomega v1.13.0/go.mod h1:lRk9szgn8TxENtWd0Tp4c3wjlRfMTMH27I+3Je41yGY=
-github.com/open-traffic-generator/snappi/gosnappi v0.7.6/go.mod h1:yy1mdBicujeM24qLEEz+DDqCazoeg4yXTJjOKeiSUr4=
-github.com/open-traffic-generator/snappi/gosnappi v0.7.12 h1:CQyICo1uz2XCaC5Co9Dj/NSqpwSTGmgn7dh2KrHJ2V4=
-github.com/open-traffic-generator/snappi/gosnappi v0.7.12/go.mod h1:yy1mdBicujeM24qLEEz+DDqCazoeg4yXTJjOKeiSUr4=
+github.com/open-traffic-generator/ondatra v0.0.0-20220323130041-d99d5a8a6c83 h1:nKKsSYduPkS5CbkEAjgXFJcYCgc3euiDfl+kVvIxIFg=
+github.com/open-traffic-generator/ondatra v0.0.0-20220323130041-d99d5a8a6c83/go.mod h1:rgPJp9U12vLZdteRIdf+PMt0j4v8m1QqGl6xm+SXpJE=
+github.com/open-traffic-generator/snappi/gosnappi v0.7.13 h1:kDbu85j1K0Qmw2HBdouiTdl38nIA1hzpkw7Q/Q2MzQQ=
+github.com/open-traffic-generator/snappi/gosnappi v0.7.13/go.mod h1:yy1mdBicujeM24qLEEz+DDqCazoeg4yXTJjOKeiSUr4=
 github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20200508230933-d19cebf5e7be/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20210527163611-d3a3e30199da/go.mod h1:H/20NXlnWbCPFC593nxpiKJ+OU//7mW7s7Qk7uVdg3Q=
@@ -576,8 +577,6 @@ github.com/openconfig/gribigo v0.0.0-20220315144647-df51e0795a27 h1:oK6B7SR4+Mvf
 github.com/openconfig/gribigo v0.0.0-20220315144647-df51e0795a27/go.mod h1:9d5MoDDYNmdcpoGfZwI+9OV2gCYXUnp0q5QkdIUbOGc=
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d h1:zrs4U92QEAadFotQyidT4U8iZDJO67pXsS4r64uAHik=
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d/go.mod h1:x9tAZ4EwqCQ0jI8D6S8Yhw9Z0ee7/BxWQX0k0Uib5Q8=
-github.com/openconfig/ondatra v0.0.0-20220315133935-f6ce307a9c86 h1:RVD6rhypH9MW+oPZIfz8eI6/dCgNz/FMipa27NSX8Aw=
-github.com/openconfig/ondatra v0.0.0-20220315133935-f6ce307a9c86/go.mod h1:d+tEEdL+N4uueeRRG/R6+jYDP4t3quJoRmaIVz1TZGQ=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=

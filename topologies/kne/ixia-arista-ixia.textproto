@@ -1,0 +1,70 @@
+name: "ixia-c"
+nodes: {
+    name: "otg"
+    type: IXIA_TG
+    version: "0.0.1-2755-local"
+    services: {
+        key: 443
+        value: {
+            name: "https"
+            inside: 443
+        }
+    }
+    services: {
+        key: 40051
+        value: {
+            name: "grpc"
+            inside: 40051
+        }
+    }
+    services: {
+        key: 50051
+        value: {
+            name: "gnmi"
+            inside: 50051
+        }
+    }
+}
+nodes: {
+    name: "arista"
+    type: ARISTA_CEOS
+    config: {
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "init_arista.config"
+    	image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/ceos:4.28.0F-26265162"
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services:{
+        key: 6030 
+        value: {
+            name: "gnmi"
+            inside: 6030
+        }
+    }
+}
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "arista"
+    z_int: "eth1"
+}
+links: {
+    a_node: "arista"
+    a_int: "eth2"
+    z_node: "otg"
+    z_int: "eth2"
+}
