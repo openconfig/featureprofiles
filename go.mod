@@ -2,13 +2,13 @@ module github.com/openconfig/featureprofiles
 
 go 1.17
 
-replace github.com/openconfig/ondatra => github.com/open-traffic-generator/ondatra v0.0.0-20220323130041-d99d5a8a6c83
+replace github.com/openconfig/ondatra => github.com/open-traffic-generator/ondatra v0.0.0-20220418122930-732609338a4c
 
 require (
 	github.com/golang/glog v1.0.0
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.7
-	github.com/open-traffic-generator/snappi/gosnappi v0.7.13
+	github.com/open-traffic-generator/snappi/gosnappi v0.7.18
 	github.com/openconfig/gnmi v0.0.0-20220131173555-39aa74195f0d
 	github.com/openconfig/gnoi v0.0.0-20220131192435-7dd3a95a4f1e
 	github.com/openconfig/goyang v1.0.0

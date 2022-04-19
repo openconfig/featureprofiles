@@ -119,7 +119,7 @@ func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
 		opts.Interval = 500 * time.Millisecond
 	}
 	if opts.Timeout == 0 {
-		opts.Timeout = 30 * time.Second
+		opts.Timeout = 120 * time.Second
 	}
 
 	start := time.Now()
@@ -406,10 +406,10 @@ func CleanupTest(t *testing.T, ate *ondatra.ATEDevice, otg *ondatra.OTG, stopPro
 	otg.PushConfig(t, ate, otg.NewConfig())
 }
 
-func (client *GnmiClient) WatchFlowMetrics(opts *WaitForOpts) error {
+func WatchFlowMetrics(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, opts *WaitForOpts) error {
 	start := time.Now()
 	for {
-		fMetrics, err := client.GetFlowMetrics([]string{})
+		fMetrics, err := GetFlowMetrics(t, ate, c)
 		if err != nil {
 			return err
 		}
