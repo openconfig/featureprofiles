@@ -190,10 +190,10 @@ type testArgs struct {
 	top     *ondatra.ATETopology
 }
 
-// testIPv4LeaderActiveChange first configures an IPV4 Entry through clientB 
+// testIPv4LeaderActiveChange first configures an IPV4 Entry through clientB
 // and ensures that the entry is active by checking AFT Telemetry and traffic.
-// It then configures an IPv4 entry through clientA without updating the election 
-// and ensures that the installation fails. Finally, it updated the ClientA election 
+// It then configures an IPv4 entry through clientA without updating the election
+// and ensures that the installation fails. Finally, it updated the ClientA election
 // id to 12, configures an IPV4 through clinetA and ensures that the entry is active
 // by checking AFT Telemetry and traffic.
 func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArgs) {
@@ -225,7 +225,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	// Send a ModifyRequest from gRIBI-A specifying election_id 12,
 	// followed by a ModifyRequest updating 198.51.100.0/24 pointing to ATE port-2,
 	// ensure that routing is updated to receive packets for 198.51.100.0/24 at ATE port-2.
-	args.clientA.UpdateElectionID(t,12,0)
+	args.clientA.UpdateElectionID(t, 12, 0)
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via client gRIBI-A", ateDstNetCIDR)
 	args.clientA.AddNH(t, nhIndex, atePort2.IPv4, instance, fluent.InstalledInRIB)
 	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.InstalledInRIB)
@@ -257,9 +257,9 @@ func TestElectionIDChange(t *testing.T) {
 
 	// Configure the gRIBI client clientA
 	clientA := gribi.GRIBIHandler{
-		DUT:         dut,
-		FibACK:      false,
-		Persistence: true,
+		DUT:                  dut,
+		FibACK:               false,
+		Persistence:          true,
 		InitialElectionIDLow: 10,
 	}
 	defer clientA.Close(t)
@@ -269,9 +269,9 @@ func TestElectionIDChange(t *testing.T) {
 
 	// Configure the gRIBI client clientB
 	clientB := gribi.GRIBIHandler{
-		DUT:         dut,
-		FibACK:      false,
-		Persistence: true,
+		DUT:                  dut,
+		FibACK:               false,
+		Persistence:          true,
 		InitialElectionIDLow: 11,
 	}
 	defer clientB.Close(t)

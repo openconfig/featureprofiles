@@ -47,10 +47,10 @@ const (
 //     t.Fatalf("Could not initialize gRIBI: %v", err)
 //   }
 type GRIBIHandler struct {
-	DUT         *ondatra.DUTDevice
-	FibACK      bool
-	Persistence bool
-	InitialElectionIDLow uint64
+	DUT                   *ondatra.DUTDevice
+	FibACK                bool
+	Persistence           bool
+	InitialElectionIDLow  uint64
 	InitialElectionIDHigh uint64
 
 	// Unexport fields below.
