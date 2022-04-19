@@ -63,8 +63,8 @@ func TestMain(m *testing.M) {
 // where WW:XX:YY:ZZ are the four octets of the IPv4 in hex.  The 0x02
 // means the MAC address is locally administered.
 const (
-	trafficDuration   = 5 * time.Second
-	trafficPacketRate = 1
+	trafficDuration   = 10 * time.Second
+	trafficPacketRate = 10
 	plen4             = 30
 	plen6             = 126
 
@@ -226,6 +226,32 @@ func configureOTG(t *testing.T, interfaceOrder bool) (*ondatra.ATEDevice, gosnap
 	return ate, config
 }
 
+func checkArpEntry(t *testing.T, ipType string, poisoned bool) {
+	dut := ondatra.DUT(t, "dut")
+	var expectedMac string
+	if poisoned {
+		expectedMac = poisonedMAC
+	} else {
+		expectedMac = ateDst.MAC
+	}
+	switch ipType {
+	case "IPv4":
+		macAddress := dut.Telemetry().Interface("Ethernet2").Subinterface(0).Ipv4().Neighbor(ateDst.IPv4).Get(t).LinkLayerAddress
+		if *macAddress != expectedMac {
+			t.Errorf("ARP entry for %v is %v and expected was %v", ateDst.IPv4, *macAddress, expectedMac)
+		} else {
+			t.Logf("ARP entry for %v is %v", ateDst.IPv4, *macAddress)
+		}
+	case "IPv6":
+		macAddress := dut.Telemetry().Interface("Ethernet2").Subinterface(0).Ipv6().Neighbor(ateDst.IPv6).Get(t).LinkLayerAddress
+		if *macAddress != expectedMac {
+			t.Errorf("ARP entry for %v is %v and expected was %v", ateDst.IPv6, *macAddress, expectedMac)
+		} else {
+			t.Logf("ARP entry for %v is %v", ateDst.IPv6, *macAddress)
+		}
+	}
+}
+
 func testFlow(
 	t *testing.T,
 	want string,
@@ -312,6 +338,7 @@ func testFlow(
 
 func TestStaticARP(t *testing.T) {
 	// First configure the DUT with dynamic ARP.
+
 	interfaceOrder := configureDUT(t, noStaticMAC)
 	// var ate *ondatra.ATEDevice
 	ate, config := configureOTG(t, interfaceOrder)
@@ -331,9 +358,11 @@ func TestStaticARP(t *testing.T) {
 	t.Run("NotPoisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
 			testFlow(t, "1" /* want */, ate, config, gnmiClient, "ipv4")
+			checkArpEntry(t, "IPv4", false)
 		})
 		t.Run("IPv6", func(t *testing.T) {
 			testFlow(t, "1" /* want */, ate, config, gnmiClient, "ipv6")
+			checkArpEntry(t, "IPv6", false)
 		})
 	})
 
@@ -344,9 +373,11 @@ func TestStaticARP(t *testing.T) {
 	t.Run("Poisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
 			testFlow(t, "31337" /* want */, ate, config, gnmiClient, "ipv4")
+			checkArpEntry(t, "IPv4", true)
 		})
 		t.Run("IPv6", func(t *testing.T) {
 			testFlow(t, "31337" /* want */, ate, config, gnmiClient, "ipv6")
+			checkArpEntry(t, "IPv6", true)
 		})
 	})
 	gnmiClient.Close()
