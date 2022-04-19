@@ -50,6 +50,8 @@ type GRIBIHandler struct {
 	DUT         *ondatra.DUTDevice
 	FibACK      bool
 	Persistence bool
+	InitialElectionIDLow uint64
+	InitialElectionIDHigh uint64
 
 	// Unexport fields below.
 	fluentC *fluent.GRIBIClient
@@ -70,10 +72,10 @@ func (g *GRIBIHandler) Start(t testing.TB) error {
 	g.fluentC = fluent.NewClient()
 	g.fluentC.Connection().WithStub(gribiC)
 	if g.Persistence {
-		g.fluentC.Connection().WithInitialElectionID(1, 0).
+		g.fluentC.Connection().WithInitialElectionID(g.InitialElectionIDLow, g.InitialElectionIDHigh).
 			WithRedundancyMode(fluent.ElectedPrimaryClient).WithPersistence()
 	} else {
-		g.fluentC.Connection().WithInitialElectionID(1, 0).
+		g.fluentC.Connection().WithInitialElectionID(g.InitialElectionIDLow, g.InitialElectionIDHigh).
 			WithRedundancyMode(fluent.ElectedPrimaryClient)
 	}
 	if g.FibACK {
