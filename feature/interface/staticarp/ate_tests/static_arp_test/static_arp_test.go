@@ -311,12 +311,8 @@ func testFlow(
 		otg.PushConfig(t, ate, config)
 
 		// Starting the traffic
-		gnmiClient, err := helpers.NewGnmiClient(otg.NewGnmiQuery(t), config)
-		if err != nil {
-			t.Fatal(err)
-		}
 		otg.StartTraffic(t)
-		err = gnmiClient.WatchFlowMetrics(&helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 5 * time.Second})
+		err := helpers.WatchFlowMetrics(t, ate, config, &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 5 * time.Second})
 		if err != nil {
 			log.Println(err)
 		}
@@ -324,7 +320,7 @@ func testFlow(
 		otg.StopTraffic(t)
 
 		// Get the flow statistics
-		fMetrics, err := gnmiClient.GetFlowMetrics([]string{})
+		fMetrics, err := helpers.GetFlowMetrics(t, ate, config)
 		if err != nil {
 			t.Fatal("Error while getting the flow metrics")
 		}
