@@ -252,6 +252,38 @@ func checkArpEntry(t *testing.T, ipType string, poisoned bool) {
 	}
 }
 
+func GetInterfaceMacs(t *testing.T, dev *ondatra.Device) map[string]string {
+	t.Helper()
+	dutMacDetails := make(map[string]string)
+	for _, p := range dev.Ports() {
+		eth := dev.Telemetry().Interface(p.Name()).Ethernet().Get(t)
+		t.Logf("Mac address of Interface %s in DUT: %s", p.Name(), eth.GetMacAddress())
+		dutMacDetails[p.Name()] = eth.GetMacAddress()
+	}
+	return dutMacDetails
+}
+
+func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned bool) {
+	ate := ondatra.ATE(t, "ate")
+	dut := ondatra.DUT(t, "dut")
+	dutInterfaceMac := GetInterfaceMacs(t, dut.Device)
+	t.Logf("Mac Addresses of DUT: %v", dutInterfaceMac)
+	switch ipType {
+	case "IPv4":
+		ipv4Neighbors, err := helpers.GetIPv4NeighborStates(t, ate, c)
+		if err != nil {
+			t.Errorf("Error while fetching IPv4 Neighbor states: %v", err)
+		}
+		t.Logf("IPv4 Neighbor states of OTG: %v", ipv4Neighbors)
+	case "IPv6":
+		ipv6Neighbors, err := helpers.GetIPv6NeighborStates(t, ate, c)
+		if err != nil {
+			t.Errorf("Error while fetching IPv6 Neighbor states: %v", err)
+		}
+		t.Logf("IPv6 Neighbor states of OTG: %v", ipv6Neighbors)
+	}
+}
+
 func testFlow(
 	t *testing.T,
 	want string,
