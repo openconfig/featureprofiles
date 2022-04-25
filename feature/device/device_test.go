@@ -17,9 +17,7 @@
 package device
 
 import (
-	"bytes"
 	"errors"
-	"os"
 	"strings"
 	"testing"
 
@@ -121,13 +119,39 @@ func TestFullReplaceRequest(t *testing.T) {
 			}
 			return d
 		}(),
-		wantJSON: func() string {
-			replReqData, err := os.ReadFile("testdata/full_replace_request.json")
-			if err != nil {
-				t.Fatalf("file read failed %v", err)
-			}
-			return string(bytes.TrimRight(replReqData, "\n"))
-		}(),
+		wantJSON: `{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "enabled": true,
+          "name": "default",
+          "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
+        },
+        "name": "default",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "global": {
+                  "config": {
+                    "as": 12345
+                  }
+                }
+              },
+              "config": {
+                "identifier": "openconfig-policy-types:BGP",
+                "name": "bgp"
+              },
+              "identifier": "openconfig-policy-types:BGP",
+              "name": "bgp"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}`,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
