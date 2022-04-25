@@ -150,10 +150,31 @@ func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint6
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
+		g.fluentC.Modify().AddEntry(t, nhg)
+		if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
+			t.Fatalf("Error waiting to add NHG: %v", err)
+		}
 	}
-	g.fluentC.Modify().AddEntry(t, nhg)
-	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
-		t.Fatalf("Error waiting to add NHG: %v", err)
+	chk.HasResult(t, g.fluentC.Results(t),
+		fluent.OperationResult().
+			WithNextHopGroupOperation(nhgIndex).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+}
+
+// AddBKNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
+// in a given network instance.
+func (g *GRIBIHandler) AddBKNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {
+	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex).WithBackupNHG(bkhgIndex)
+	for nhIndex, weight := range nhWeights {
+		nhg.AddNextHop(nhIndex, weight)
+		g.fluentC.Modify().AddEntry(t, nhg)
+		if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
+			t.Fatalf("Error waiting to add NHG: %v", err)
+		}
 	}
 	chk.HasResult(t, g.fluentC.Results(t),
 		fluent.OperationResult().

@@ -42,11 +42,6 @@ func TestMain(m *testing.M) {
 //   * ate:port1 -> dut:port1 subnet 192.0.2.0/30
 //   * ate:port2 -> dut:port2 subnet 192.0.2.4/30
 //   * ate:port3 -> dut:port3 subnet 192.0.2.8/30
-//   * ate:port4 -> dut:port3 subnet 192.0.2.12/30
-//   * ate:port5 -> dut:port3 subnet 192.0.2.16/30
-//   * ate:port6 -> dut:port3 subnet 192.0.2.20/30
-//   * ate:port7 -> dut:port3 subnet 192.0.2.24/30
-//   * ate:port8 -> dut:port3 subnet 192.0.2.28/30
 //
 //   * Destination network: 198.51.100.0/24
 
@@ -54,16 +49,8 @@ const (
 	ipv4PrefixLen = 30
 	instance      = "default"
 	ateDstNetCIDR = "198.51.100.0/24"
-	nhgIndex      = 100
-	bkhgIndex     = 200
-	nhIndex_1     = iota + 100
-	nhIndex_2
-	nhIndex_3
-	nhIndex_4
-	nhIndex_5
-	nhIndex_6
-	nhIndex_7
-	nhIndex_8
+	nhIndex       = 1
+	nhgIndex      = 42
 )
 
 var (
@@ -102,65 +89,6 @@ var (
 		IPv4:    "192.0.2.10",
 		IPv4Len: ipv4PrefixLen,
 	}
-
-	dutPort4 = attrs.Attributes{
-		Desc:    "dutPort4",
-		IPv4:    "192.0.2.13",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort4 = attrs.Attributes{
-		Name:    "atePort4",
-		IPv4:    "192.0.2.14",
-		IPv4Len: ipv4PrefixLen,
-	}
-	dutPort5 = attrs.Attributes{
-		Desc:    "dutPort5",
-		IPv4:    "192.0.2.17",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort5 = attrs.Attributes{
-		Name:    "atePort5",
-		IPv4:    "192.0.2.18",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	dutPort6 = attrs.Attributes{
-		Desc:    "dutPort6",
-		IPv4:    "192.0.2.21",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort6 = attrs.Attributes{
-		Name:    "atePort6",
-		IPv4:    "192.0.2.22",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	dutPort7 = attrs.Attributes{
-		Desc:    "dutPort7",
-		IPv4:    "192.0.2.25",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort7 = attrs.Attributes{
-		Name:    "atePort7",
-		IPv4:    "192.0.2.26",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	dutPort8 = attrs.Attributes{
-		Desc:    "dutPort8",
-		IPv4:    "192.0.2.29",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort8 = attrs.Attributes{
-		Name:    "atePort8",
-		IPv4:    "192.0.2.30",
-		IPv4Len: ipv4PrefixLen,
-	}
 )
 
 // configInterfaceDUT configures the interface with the Addrs.
@@ -197,26 +125,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p3 := dut.Port(t, "port3")
 	i3 := &telemetry.Interface{Name: ygot.String(p3.Name())}
 	d.Interface(p3.Name()).Replace(t, configInterfaceDUT(i3, &dutPort3))
-
-	p4 := dut.Port(t, "port4")
-	i4 := &telemetry.Interface{Name: ygot.String(p4.Name())}
-	d.Interface(p4.Name()).Replace(t, configInterfaceDUT(i4, &dutPort4))
-
-	p5 := dut.Port(t, "port5")
-	i5 := &telemetry.Interface{Name: ygot.String(p5.Name())}
-	d.Interface(p5.Name()).Replace(t, configInterfaceDUT(i5, &dutPort5))
-
-	p6 := dut.Port(t, "port6")
-	i6 := &telemetry.Interface{Name: ygot.String(p6.Name())}
-	d.Interface(p6.Name()).Replace(t, configInterfaceDUT(i6, &dutPort6))
-
-	p7 := dut.Port(t, "port7")
-	i7 := &telemetry.Interface{Name: ygot.String(p7.Name())}
-	d.Interface(p7.Name()).Replace(t, configInterfaceDUT(i7, &dutPort7))
-
-	p8 := dut.Port(t, "port8")
-	i8 := &telemetry.Interface{Name: ygot.String(p8.Name())}
-	d.Interface(p8.Name()).Replace(t, configInterfaceDUT(i8, &dutPort8))
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -241,42 +149,13 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 		WithAddress(atePort3.IPv4CIDR()).
 		WithDefaultGateway(dutPort3.IPv4)
 
-	p4 := ate.Port(t, "port4")
-	i4 := top.AddInterface(atePort4.Name).WithPort(p4)
-	i4.IPv4().
-		WithAddress(atePort4.IPv4CIDR()).
-		WithDefaultGateway(dutPort4.IPv4)
-
-	p5 := ate.Port(t, "port5")
-	i5 := top.AddInterface(atePort5.Name).WithPort(p5)
-	i5.IPv4().
-		WithAddress(atePort5.IPv4CIDR()).
-		WithDefaultGateway(dutPort5.IPv4)
-
-	p6 := ate.Port(t, "port6")
-	i6 := top.AddInterface(atePort6.Name).WithPort(p6)
-	i6.IPv4().
-		WithAddress(atePort6.IPv4CIDR()).
-		WithDefaultGateway(dutPort6.IPv4)
-
-	p7 := ate.Port(t, "port7")
-	i7 := top.AddInterface(atePort7.Name).WithPort(p7)
-	i7.IPv4().
-		WithAddress(atePort7.IPv4CIDR()).
-		WithDefaultGateway(dutPort7.IPv4)
-
-	p8 := ate.Port(t, "port8")
-	i8 := top.AddInterface(atePort8.Name).WithPort(p8)
-	i8.IPv4().
-		WithAddress(atePort8.IPv4CIDR()).
-		WithDefaultGateway(dutPort8.IPv4)
 	return top
 }
 
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, dstEndPoint []ondatra.Endpoint) {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface) {
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.DstAddressRange().
@@ -286,7 +165,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 
 	flow := ate.Traffic().NewFlow("Flow").
 		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint...).
+		WithDstEndpoints(dstEndPoint).
 		WithHeaders(ethHeader, ipv4Header).WithFrameRateFPS(100)
 
 	ate.Traffic().Start(t, flow)
@@ -305,30 +184,28 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 type testArgs struct {
 	ctx     context.Context
 	clientA *gribi.GRIBIHandler
+	clientB *gribi.GRIBIHandler
 	dut     *ondatra.DUTDevice
 	ate     *ondatra.ATEDevice
 	top     *ondatra.ATETopology
 }
 
+// testIPv4LeaderActiveChange first makes the clientB leader.
+// Second it configures an IPV4 Entry through clientB and ensures
 // that the entry is active by checking AFT Telemetry and traffic.
 // Thrid, it configures an IPv4 entry through clientA without
 // making it the leader and ensures that the installation fails.
 // Forth, it makes the ClientA master, configures an IPV4 through clinetA
 // and ensures that the entry is active by checking AFT Telemetry and traffic.
-func testIPv4BackUpSwitchMoji(ctx context.Context, t *testing.T, args *testArgs) {
+func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
 	// ensure that the entry is active through AFT telemetry and traffic.
-
-	t.Logf("an IPv4Entry for %s pointing via gRIBI-B", ateDstNetCIDR)
-	args.clientA.BecomeLeader(t)
-	args.clientA.AddNH(t, nhIndex_1, atePort2.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_2, atePort3.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_3, atePort4.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_4, atePort5.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex_1: 20, nhIndex_2: 35, nhIndex_3: 30, nhIndex_4: 15}, instance, fluent.InstalledInRIB)
-	args.clientA.AddBKNHG(t, nhgIndex, bkhgIndex, map[uint64]uint64{nhIndex_1: 20, nhIndex_2: 35, nhIndex_3: 30, nhIndex_4: 15}, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.InstalledInRIB)
+	args.clientB.BecomeLeader(t)
+	t.Logf("an IPv4Entry for %s pointing to ATE port-3 via gRIBI-B", ateDstNetCIDR)
+	args.clientB.AddNH(t, nhIndex, atePort3.IPv4, instance, fluent.InstalledInRIB)
+	args.clientB.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.InstalledInRIB)
+	args.clientB.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
 	/*ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
@@ -338,17 +215,36 @@ func testIPv4BackUpSwitchMoji(ctx context.Context, t *testing.T, args *testArgs)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-	testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
+	dstEndPoint := args.top.Interfaces()[atePort3.Name]
+	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
 
-	//shutdown primary path
+	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-2 via gRIBI-A,
+	// ensure that the entry is ignored by the DUT.
+	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via gRIBI-A", ateDstNetCIDR)
+	args.clientA.AddNH(t, nhIndex, atePort3.IPv4, instance, fluent.ProgrammingFailed)
+	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.ProgrammingFailed)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.ProgrammingFailed)
 
+	// Send a ModifyRequest from gRIBI-A specifying election_id 12,
+	// followed by a ModifyRequest updating 198.51.100.0/24 pointing to ATE port-2,
+	// ensure that routing is updated to receive packets for 198.51.100.0/24 at ATE port-2.
+	args.clientA.BecomeLeader(t)
+
+	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via client gRIBI-A", ateDstNetCIDR)
+	args.clientA.AddNH(t, nhIndex, atePort2.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.InstalledInRIB)
+
+	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
+	/*ipv4Path = args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
+		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+	}*/
+
+	// Verify with traffic that the entry for 198.51.100.0/24 is installed through the ATE port-2.
+	srcEndPoint = args.top.Interfaces()[atePort1.Name]
+	dstEndPoint = args.top.Interfaces()[atePort2.Name]
+	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
 }
 
 func TestElectionIDChange(t *testing.T) {
@@ -367,7 +263,7 @@ func TestElectionIDChange(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	// top.Push(t).StartProtocols(t)
+	top.Push(t).StartProtocols(t)
 
 	// Configure the gRIBI client clientA
 	clientA := gribi.GRIBIHandler{
@@ -380,14 +276,26 @@ func TestElectionIDChange(t *testing.T) {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
 
+	// Configure the gRIBI client clientB
+	clientB := gribi.GRIBIHandler{
+		DUT:         dut,
+		FibACK:      false,
+		Persistence: true,
+	}
+	defer clientB.Close(t)
+	if err := clientB.Start(t); err != nil {
+		t.Fatalf("gRIBI Connection can not be established")
+	}
+
 	args := &testArgs{
 		ctx:     ctx,
 		clientA: &clientA,
+		clientB: &clientB,
 		dut:     dut,
 		ate:     ate,
 		top:     top,
 	}
 
-	testIPv4BackUpSwitchMoji(ctx, t, args)
+	testIPv4LeaderActiveChange(ctx, t, args)
 
 }
