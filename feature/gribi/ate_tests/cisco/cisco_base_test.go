@@ -71,6 +71,11 @@ var (
 			desc: "Programm double recursion transit with WCMP and change VIP1 to ECMP",
 			fn:   testDeleteAndAddUCMP,
 		},
+		{
+			name: "Change VRF to non-recursive and change back",
+			desc: "Programm double recursion transit with WCMP and change VRF prefix to non-recursion and change it back",
+			fn:   testVRFnonRecursion,
+		},
 	}
 )
 
@@ -91,9 +96,16 @@ func TestCD2(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
 
-			clientA := gribi.NewGRIBIFluent(t, dut, true, false)
-			clientA.BecomeLeader(t)
+			clientA := gribi.GRIBIHandler{
+				DUT:         ondatra.DUT(t, "dut"),
+				FibACK:      false,
+				Persistence: true,
+			}
 			defer clientA.Close(t)
+			if err := clientA.Start(t); err != nil {
+				t.Fatalf("Could not initialize gRIBI: %v", err)
+			}
+			clientA.BecomeLeader(t)
 
 			interfaceList := []string{}
 			for i := 121; i < 128; i++ {
@@ -107,7 +119,7 @@ func TestCD2(t *testing.T) {
 
 			args := &testArgs{
 				ctx:        ctx,
-				clientA:    clientA,
+				clientA:    &clientA,
 				dut:        dut,
 				ate:        ate,
 				top:        top,

@@ -2,7 +2,6 @@ package cisco_gribi
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -412,15 +411,10 @@ func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testAr
 func testDeleteAndAddUCMP(ctx context.Context, t *testing.T, args *testArgs) {
 	defer flushSever(t, args)
 
-	t1 := time.Now()
 	// Programm the base double recursion entry
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-	t2 := time.Now()
-	diff := t2.Sub(t1)
-	fmt.Println("TIME DIFFERENCE:")
-	fmt.Println(diff)
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
@@ -430,6 +424,27 @@ func testDeleteAndAddUCMP(ctx context.Context, t *testing.T, args *testArgs) {
 	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, weights...)
 
 	// Add back UCMP at VRF Level by changing NHG back to UCMP
+	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vrfNhIndex + 1: 15, args.prefix.vrfNhIndex + 2: 85}, instance, fluent.InstalledInRIB)
+	weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, weights...)
+}
+
+func testVRFnonRecursion(ctx context.Context, t *testing.T, args *testArgs) {
+	defer flushSever(t, args)
+
+	// Programm the base double recursion entry
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Change VRF Level NHG to single recursion which is same as the VIP1
+	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vip1NhIndex + 2: 10, args.prefix.vip1NhIndex + 3: 20, args.prefix.vip1NhIndex + 4: 30}, instance, fluent.InstalledInRIB)
+	weights := []float64{10, 20, 30}
+	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, weights...)
+
+	// Change VRF Level NHG to back to double recursion
 	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vrfNhIndex + 1: 15, args.prefix.vrfNhIndex + 2: 85}, instance, fluent.InstalledInRIB)
 	weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, weights...)
