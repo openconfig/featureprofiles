@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "base_hierarchical_route_installation"
+  name: "experimental_hierarchical_gribi_entries_base_hierarchical_route_installation"
   version: 1
 }
 

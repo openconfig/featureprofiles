@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "telemetry_only"
+  name: "experimental_telemetry_only"
   version: 1
 }
 

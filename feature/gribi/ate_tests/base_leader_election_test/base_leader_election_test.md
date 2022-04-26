@@ -23,7 +23,7 @@ Validate Election ID is accepted from a gRIBI client.
     `gRIBI-B`, ensure that the entry is active through AFT telemetry and
     traffic.
 
-*   TODO: Add an `IPv4Entry` for `198.51.100.0/24` pointing to ATE port-2 via
+*   Add an `IPv4Entry` for `198.51.100.0/24` pointing to ATE port-2 via
     `gRIBI-A`, ensure that the entry is ignored by the DUT.
 
 *   Send a `ModifyRequest` from `gRIBI-A` specifying `election_id` 12, followed

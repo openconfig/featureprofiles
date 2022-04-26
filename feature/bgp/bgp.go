@@ -18,7 +18,7 @@
 package bgp
 
 import (
-	"github.com/openconfig/featureprofiles/yang/oc"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -27,14 +27,14 @@ const Name = "bgp"
 
 // BGP struct stores the OC attributes for BGP base feature profile.
 type BGP struct {
-	oc oc.NetworkInstance_Protocol
+	oc fpoc.NetworkInstance_Protocol
 }
 
 // New returns a new BGP object.
 func New() *BGP {
 	return &BGP{
-		oc: oc.NetworkInstance_Protocol{
-			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+		oc: fpoc.NetworkInstance_Protocol{
+			Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 			Name:       ygot.String(Name),
 		},
 	}
@@ -47,7 +47,7 @@ func (b *BGP) WithAS(as uint32) *BGP {
 }
 
 // WithAFISAFI sets the AFI-SAFI type for BGP global.
-func (b *BGP) WithAFISAFI(name oc.E_BgpTypes_AFI_SAFI_TYPE) *BGP {
+func (b *BGP) WithAFISAFI(name fpoc.E_BgpTypes_AFI_SAFI_TYPE) *BGP {
 	b.oc.GetOrCreateBgp().GetOrCreateGlobal().GetOrCreateAfiSafi(name).Enabled = ygot.Bool(true)
 	return b
 }
@@ -61,7 +61,7 @@ func (b *BGP) WithRouterID(rID string) *BGP {
 // AugmentNetworkInstance implements networkinstance.Feature interface.
 // Augments the provided NI with BGP OC.
 // Use ni.WithFeature(b) instead of calling this method directly.
-func (b *BGP) AugmentNetworkInstance(ni *oc.NetworkInstance) error {
+func (b *BGP) AugmentNetworkInstance(ni *fpoc.NetworkInstance) error {
 	if err := b.oc.Validate(); err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (b *BGP) AugmentNetworkInstance(ni *oc.NetworkInstance) error {
 // GlobalFeature provides interface to augment BGP with additional features.
 type GlobalFeature interface {
 	// AugmentBGP augments BGP with additional features.
-	AugmentBGP(oc *oc.NetworkInstance_Protocol_Bgp) error
+	AugmentBGP(oc *fpoc.NetworkInstance_Protocol_Bgp) error
 }
 
 // WithFeature augments BGP with provided feature.

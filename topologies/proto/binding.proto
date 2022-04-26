@@ -82,6 +82,9 @@ message Options {
 
   // The password for authentication.
   string password = 5;
+
+  // The session_id for ATE REST API session id
+  int32 session_id = 6;
 }
 
 // Port binding.
