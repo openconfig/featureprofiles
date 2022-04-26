@@ -485,8 +485,8 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, otg *ondatra.OTG, expect
 
 // verifyTraffic confirms that every traffic flow has the expected amount of loss (0% or 100%
 // depending on wantLoss, +- 2%)
-func verifyTraffic(t *testing.T, gnmiClient *helpers.GnmiClient, wantLoss bool) {
-	fMetrics, err := gnmiClient.GetFlowMetrics([]string{})
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, wantLoss bool) {
+	fMetrics, err := helpers.GetFlowMetrics(t, ate, c)
 	if err != nil {
 		t.Fatal("Error while getting the flow metrics")
 	}
@@ -518,10 +518,10 @@ func verifyTraffic(t *testing.T, gnmiClient *helpers.GnmiClient, wantLoss bool) 
 	}
 }
 
-func sendTraffic(t *testing.T, otg *ondatra.OTG, gnmiClient *helpers.GnmiClient) {
+func sendTraffic(t *testing.T, otg *ondatra.OTG, ate *ondatra.ATEDevice, c gosnappi.Config) {
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
-	err := gnmiClient.WatchFlowMetrics(&helpers.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
+	err := helpers.WatchFlowMetrics(t, ate, c, &helpers.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
 	if err != nil {
 		log.Println(err)
 	}
@@ -529,10 +529,10 @@ func sendTraffic(t *testing.T, otg *ondatra.OTG, gnmiClient *helpers.GnmiClient)
 	otg.StopTraffic(t)
 }
 
-func verifyOtgBgpDown(t *testing.T, gnmiClient helpers.GnmiClient) {
+func verifyOtgBgpDown(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) {
 	exit := true
 	for exit {
-		dMetrics, err := gnmiClient.GetBgpv4Metrics([]string{})
+		dMetrics, err := helpers.GetBgpv4Metrics(t, ate, c)
 		if err != nil {
 			t.Errorf("Failed to retrieve OTG BGP stats")
 			exit = false
@@ -589,16 +589,12 @@ func TestEstablish(t *testing.T) {
 	verifyBgpTelemetry(t, dut)
 
 	t.Logf("Check BGP sessions on OTG")
-	gnmiClient, err := helpers.NewGnmiClient(otg.NewGnmiQuery(t), otgConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
-	helpers.WaitFor(t, func() (bool, error) { return gnmiClient.AllBgp4SessionUp(otgExpected) }, nil)
-	helpers.WaitFor(t, func() (bool, error) { return gnmiClient.AllBgp6SessionUp(otgExpected) }, nil)
+	helpers.WaitFor(t, func() (bool, error) { return helpers.AllBgp4SessionUp(t, ate, otgConfig, otgExpected) }, nil)
+	helpers.WaitFor(t, func() (bool, error) { return helpers.AllBgp6SessionUp(t, ate, otgConfig, otgExpected) }, nil)
 
 	// Starting ATE Traffic and verify Traffic Flows and packet loss
-	sendTraffic(t, otg, gnmiClient)
-	verifyTraffic(t, gnmiClient, false)
+	sendTraffic(t, otg, ate, otgConfig)
+	verifyTraffic(t, ate, otgConfig, false)
 	verifyPrefixesTelemetry(t, dut, routeCount, routeCount, 0)
 	verifyPrefixesTelemetryV6(t, dut, routeCount, routeCount, 0)
 
@@ -610,10 +606,9 @@ func TestEstablish(t *testing.T) {
 		// Resend traffic
 		// A pause is needed for DUT to completely withdraw routes
 		// time.Sleep(5 * time.Second)
-		verifyOtgBgpDown(t, *gnmiClient)
-		sendTraffic(t, otg, gnmiClient)
-		verifyTraffic(t, gnmiClient, true)
-		// gnmiClient.Close()
+		verifyOtgBgpDown(t, ate, otgConfig)
+		sendTraffic(t, otg, ate, otgConfig)
+		verifyTraffic(t, ate, otgConfig, true)
 	})
 }
 
@@ -678,15 +673,12 @@ func TestBGPPolicy(t *testing.T) {
 			otgConfig, otgExpected := configureOTG(t, ate, otg, int32(tc.installed))
 			dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
 			// Send and verify traffic.
-			gnmiClient, err := helpers.NewGnmiClient(otg.NewGnmiQuery(t), otgConfig)
-			if err != nil {
-				t.Fatal(err)
-			}
-			helpers.WaitFor(t, func() (bool, error) { return gnmiClient.AllBgp4SessionUp(otgExpected) }, nil)
-			helpers.WaitFor(t, func() (bool, error) { return gnmiClient.AllBgp6SessionUp(otgExpected) }, nil)
-			sendTraffic(t, otg, gnmiClient)
-			verifyTraffic(t, gnmiClient, tc.wantLoss)
-			gnmiClient.Close()
+
+			helpers.WaitFor(t, func() (bool, error) { return helpers.AllBgp4SessionUp(t, ate, otgConfig, otgExpected) }, nil)
+			helpers.WaitFor(t, func() (bool, error) { return helpers.AllBgp6SessionUp(t, ate, otgConfig, otgExpected) }, nil)
+			sendTraffic(t, otg, ate, otgConfig)
+			verifyTraffic(t, ate, otgConfig, tc.wantLoss)
+
 			// Verify traffic and telemetry.
 			verifyPrefixesTelemetry(t, dut, tc.installed, tc.received, tc.sent)
 			verifyPrefixesTelemetryV6(t, dut, tc.installed, tc.received, tc.sent)

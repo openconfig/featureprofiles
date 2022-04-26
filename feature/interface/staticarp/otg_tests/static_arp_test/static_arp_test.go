@@ -252,12 +252,43 @@ func checkArpEntry(t *testing.T, ipType string, poisoned bool) {
 	}
 }
 
+func GetInterfaceMacs(t *testing.T, dev *ondatra.Device) map[string]string {
+	t.Helper()
+	dutMacDetails := make(map[string]string)
+	for _, p := range dev.Ports() {
+		eth := dev.Telemetry().Interface(p.Name()).Ethernet().Get(t)
+		t.Logf("Mac address of Interface %s in DUT: %s", p.Name(), eth.GetMacAddress())
+		dutMacDetails[p.Name()] = eth.GetMacAddress()
+	}
+	return dutMacDetails
+}
+
+func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned bool) {
+	ate := ondatra.ATE(t, "ate")
+	dut := ondatra.DUT(t, "dut")
+	dutInterfaceMac := GetInterfaceMacs(t, dut.Device)
+	t.Logf("Mac Addresses of DUT: %v", dutInterfaceMac)
+	switch ipType {
+	case "IPv4":
+		ipv4Neighbors, err := helpers.GetIPv4NeighborStates(t, ate, c)
+		if err != nil {
+			t.Errorf("Error while fetching IPv4 Neighbor states: %v", err)
+		}
+		t.Logf("IPv4 Neighbor states of OTG: %v", ipv4Neighbors)
+	case "IPv6":
+		ipv6Neighbors, err := helpers.GetIPv6NeighborStates(t, ate, c)
+		if err != nil {
+			t.Errorf("Error while fetching IPv6 Neighbor states: %v", err)
+		}
+		t.Logf("IPv6 Neighbor states of OTG: %v", ipv6Neighbors)
+	}
+}
+
 func testFlow(
 	t *testing.T,
 	want string,
 	ate *ondatra.ATEDevice,
 	config gosnappi.Config,
-	gnmiClient *helpers.GnmiClient,
 	ipType string,
 ) {
 
@@ -309,7 +340,7 @@ func testFlow(
 
 	// Starting the traffic
 	otg.StartTraffic(t)
-	err := gnmiClient.WatchFlowMetrics(&helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: trafficDuration})
+	err := helpers.WatchFlowMetrics(t, ate, config, &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: trafficDuration})
 	if err != nil {
 		log.Println(err)
 	}
@@ -317,7 +348,7 @@ func testFlow(
 	otg.StopTraffic(t)
 
 	// Get the flow statistics
-	fMetrics, err := gnmiClient.GetFlowMetrics([]string{})
+	fMetrics, err := helpers.GetFlowMetrics(t, ate, config)
 	if err != nil {
 		t.Fatal("Error while getting the flow metrics")
 	}
@@ -344,10 +375,6 @@ func TestStaticARP(t *testing.T) {
 	ate, config := configureOTG(t, interfaceOrder)
 	ate.OTG(t).PushConfig(t, ate, config)
 	ate.OTG(t).StartProtocols(t)
-	gnmiClient, err := helpers.NewGnmiClient(ate.OTG(t).NewGnmiQuery(t), config)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	// Default MAC addresses on Ixia are assigned incrementally as:
 	//   - 00:11:01:00:00:01
@@ -357,11 +384,11 @@ func TestStaticARP(t *testing.T) {
 	// The last 15-bits therefore resolve to "1".
 	t.Run("NotPoisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testFlow(t, "1" /* want */, ate, config, gnmiClient, "ipv4")
+			testFlow(t, "1" /* want */, ate, config, "ipv4")
 			checkArpEntry(t, "IPv4", false)
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testFlow(t, "1" /* want */, ate, config, gnmiClient, "ipv6")
+			testFlow(t, "1" /* want */, ate, config, "ipv6")
 			checkArpEntry(t, "IPv6", false)
 		})
 	})
@@ -372,15 +399,14 @@ func TestStaticARP(t *testing.T) {
 	// Poisoned MAC address ends with 7a:69, so 0x7a69 = 31337.
 	t.Run("Poisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testFlow(t, "31337" /* want */, ate, config, gnmiClient, "ipv4")
+			testFlow(t, "31337" /* want */, ate, config, "ipv4")
 			checkArpEntry(t, "IPv4", true)
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testFlow(t, "31337" /* want */, ate, config, gnmiClient, "ipv6")
+			testFlow(t, "31337" /* want */, ate, config, "ipv6")
 			checkArpEntry(t, "IPv6", true)
 		})
 	})
-	gnmiClient.Close()
 }
 
 func TestUnsetDut(t *testing.T) {

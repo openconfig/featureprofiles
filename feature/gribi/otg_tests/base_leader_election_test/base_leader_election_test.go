@@ -196,20 +196,16 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	v4.Dst().Increment().SetStart(strings.Split(ateDstNetCIDR, "/")[0]).SetCount(250)
 	otg.PushConfig(t, ate, config)
 
-	gnmiClient, err := helpers.NewGnmiClient(otg.NewGnmiQuery(t), config)
-	if err != nil {
-		t.Fatal(err)
-	}
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
-	err = gnmiClient.WatchFlowMetrics(&helpers.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
+	err := helpers.WatchFlowMetrics(t, ate, config, &helpers.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
 	if err != nil {
 		log.Println(err)
 	}
 	t.Logf("Stop traffic")
 	otg.StopTraffic(t)
 
-	fMetrics, err := gnmiClient.GetFlowMetrics([]string{})
+	fMetrics, err := helpers.GetFlowMetrics(t, ate, config)
 	if err != nil {
 		t.Fatal("Error while getting the flow metrics")
 	}
