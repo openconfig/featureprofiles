@@ -81,6 +81,10 @@ jobs:
       run: go vet ./...
     - name: Gofmt
       run: diff -u <(echo -n) <(gofmt -d -s .)
+    - name: Get revive
+      run: go install github.com/mgechev/revive@latest
+    - name: Run revive
+      run: revive -exclude yang/fpoc ./...
     - name: Get staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
