@@ -43,6 +43,7 @@ To make a contribution to OpenConfig featureprofiles:
      being made to the model, whilst also ensuring that course-corrections can be
      made early in the process. If a test is growing to more than 500 lines, it
      may need to be broken into multiple smaller tests.
+    * New contributions should be in the feature/experimental directory.
 
 1. The pull request should include both the suggested feature profile textproto
  additions, as well as any relevant additions to tests. Tests should be written
