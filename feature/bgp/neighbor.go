@@ -42,7 +42,7 @@ func (n *Neighbor) Address() string {
 	return n.oc.GetNeighborAddress()
 }
 
-// WithAfiSafi adds specified AFI-SAFI type to neighbor.
+// WithAFISAFI adds specified AFI-SAFI type to neighbor.
 func (n *Neighbor) WithAFISAFI(name fpoc.E_BgpTypes_AFI_SAFI_TYPE) *Neighbor {
 	n.oc.GetOrCreateAfiSafi(name).Enabled = ygot.Bool(true)
 	return n
