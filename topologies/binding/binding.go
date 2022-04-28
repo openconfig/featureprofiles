@@ -356,14 +356,14 @@ func (b *staticBind) ixSessionForATE(ctx context.Context, ateName string, d dial
 	}
 	ixs, ok := b.ateIxSession[ateName]
 	if !ok {
-		var ixs_err error
+		var ixsErr error
 		if d.SessionId > 0 {
-			ixs, ixs_err = ixw.IxNetwork().FetchSession(ctx, int(d.SessionId))
+			ixs, ixsErr = ixw.IxNetwork().FetchSession(ctx, int(d.SessionId))
 		} else {
-			ixs, ixs_err = ixw.IxNetwork().NewSession(ctx, ateName)
+			ixs, ixsErr = ixw.IxNetwork().NewSession(ctx, ateName)
 		}
-		if ixs_err != nil {
-			return nil, ixs_err
+		if ixsErr != nil {
+			return nil, ixsErr
 		}
 		b.ateIxSession[ateName] = ixs
 	}
