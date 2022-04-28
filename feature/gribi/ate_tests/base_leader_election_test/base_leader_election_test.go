@@ -183,8 +183,8 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	ctx     context.Context
-	clientA *gribi.GRIBIHandler
-	clientB *gribi.GRIBIHandler
+	clientA *gribi.Client
+	clientB *gribi.Client
 	dut     *ondatra.DUTDevice
 	ate     *ondatra.ATEDevice
 	top     *ondatra.ATETopology
@@ -256,7 +256,7 @@ func TestElectionIDChange(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	// Configure the gRIBI client clientA
-	clientA := gribi.GRIBIHandler{
+	clientA := gribi.Client{
 		DUT:                  dut,
 		FibACK:               false,
 		Persistence:          true,
@@ -268,7 +268,7 @@ func TestElectionIDChange(t *testing.T) {
 	}
 
 	// Configure the gRIBI client clientB
-	clientB := gribi.GRIBIHandler{
+	clientB := gribi.Client{
 		DUT:                  dut,
 		FibACK:               false,
 		Persistence:          true,
