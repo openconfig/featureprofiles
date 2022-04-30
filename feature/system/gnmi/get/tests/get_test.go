@@ -18,6 +18,7 @@ package system_gnmi_get_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -36,10 +37,12 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	fmt.Printf("running test...")
 	fptest.RunTests(m)
 }
 
 func TestGNMIGet(t *testing.T) {
+
 	shortResponse := func(g *gpb.GetResponse) string {
 		p := proto.Clone(g).(*gpb.GetResponse)
 		for _, n := range p.Notification {
@@ -99,19 +102,16 @@ func TestGNMIGet(t *testing.T) {
 		},
 		chkFn: func(t *testing.T, res *gpb.GetResponse) {
 
-
 			d := &fpoc.Device{}
-			s, err := fpoc.Schema()
-			if err != nil {
-				t.Fatalf("cannot get schema for fpoc root, got err: %v", err)
-			}
-
 			for _, n := range res.Notification {
 				for _, u := range n.Update {
 					// The updates here are all TypedValue JSON_IETF fields that should be
 					// unmarshallable using SetNode to the root (since the get is for /.
-					if err := ytypes.SetNode(s, d, u.Path, u.Val, &ytypes.IgnoreExtraFields{}); err != nil {
-						t.Fatalf("cannot call SetNode for path %s, err: %v", u.Path, err)
+					if u.GetVal().GetJsonIetfVal() == nil {
+						t.Fatalf("got an update with a non JSON_IETF schema, got: %s", u)
+					}
+					if err := fpoc.Unmarshal(u.Val.GetJsonIetfVal(), d, &ytypes.IgnoreExtraFields{}); err != nil {
+						t.Fatalf("cannot call Unmarshal for path %s, err: %v", u.Path, err)
 					}
 				}
 			}
@@ -153,12 +153,12 @@ func TestGNMIGet(t *testing.T) {
 						p = u.Path
 					}
 					if !proto.Equal(p, u.Path) {
-						t.Fatalf("got mixed paths within a single Notification, want: %v, got: %v", prototext.Marshal(p), prototext.Marshal(u.Path), shortRes(gotRes))
+						t.Fatalf("got mixed paths within a single Notification, want: %s, got: %s (%s)", p, u.Path, shortResponse(gotRes))
 					}
 
 					ps, err := ygot.PathToString(u.Path)
 					if err != nil {
-						t.Fatalf("got invalid path within an Update, got: %v, err: %v", prototext.Marshal(u.Path), err)
+						t.Fatalf("got invalid path within an Update, got: %s, err: %v", u.Path, err)
 					}
 					foundPaths[ps] = true
 				}
