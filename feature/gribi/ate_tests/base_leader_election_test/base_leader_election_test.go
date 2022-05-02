@@ -322,12 +322,15 @@ func testIPv4BackUpSwitchMoji(ctx context.Context, t *testing.T, args *testArgs)
 
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-B", ateDstNetCIDR)
 	args.clientA.BecomeLeader(t)
-	args.clientA.AddNH(t, nhIndex_1, atePort2.IPv4, instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_2, atePort3.IPv4, instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_3, atePort4.IPv4, instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_4, atePort5.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex_1: 20, nhIndex_2: 35, nhIndex_3: 30, nhIndex_4: 15}, instance, fluent.InstalledInRIB)
-	args.clientA.AddBKNHG(t, nhgIndex, bkhgIndex, map[uint64]uint64{nhIndex_1: 20, nhIndex_2: 35, nhIndex_3: 30, nhIndex_4: 15}, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex_5, atePort2.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex_2: 20, nhIndex_3: 35, nhIndex_4: 30, nhIndex_5: 15}, instance, fluent.InstalledInRIB)
+	args.clientA.AddBKNHG(t, nhgIndex, bkhgIndex, map[uint64]uint64{nhIndex_6: 20, nhIndex_7: 35, nhIndex_8: 45}, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex_6, atePort3.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex_7, atePort4.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex_8, atePort5.IPv4, instance, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
