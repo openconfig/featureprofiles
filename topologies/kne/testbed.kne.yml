@@ -1,5 +1,5 @@
 username: admin
 password: admin
-topology: /home/athena/featureprofiles/topologies/kne/ixia-arista-ixia.textproto
+topology: /home/opetre/featureprofiles/topologies/kne/ixia-arista-ixia.textproto
 cli: kne_cli
-kubecfg: /home/athena/featureprofiles/topologies/kne/kubecfg
+kubecfg: /home/opetre/featureprofiles/topologies/kne/kubecfg

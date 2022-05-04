@@ -1,4 +1,4 @@
-name: "ixia-c"
+name: "ixia-c-2"
 nodes: {
     name: "otg"
     type: IXIA_TG
@@ -26,20 +26,19 @@ nodes: {
     }
 }
 nodes: {
-    name: "arista"
-    type: ARISTA_CEOS
+    name: "vxr"
+    type: CISCO_E8000
+    vendor: CISCO
+    model:"8201"
+    os: "ios-xr"
     config: {
-        cert: {
-            self_signed: {
-                cert_name: "gnmiCert.pem",
-                key_name: "gnmiCertKey.pem",
-                key_size: 4096,
-            }
-        }
-        config_path: "/mnt/flash"
-        config_file: "startup-config"
-        file: "init_arista.config"
-    	image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/ceos:4.28.0F-26265162"
+        file: "init_cisco.config"
+        image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/cisco:c8201"
+        init_image: "networkop/init-wait:latest"
+    }
+    constraints:{
+        key: "memory"
+        value: "4Gi"
     }
     services:{
         key: 22
@@ -49,21 +48,33 @@ nodes: {
         }
     }
     services:{
-        key: 6030 
+        key: 57400 
         value: {
             name: "gnmi"
-            inside: 6030
+            inside: 57400
+        }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+          name: "GigabitEthernet0/0/0/0"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+          name: "GigabitEthernet0/0/0/1"
         }
     }
 }
 links: {
     a_node: "otg"
     a_int: "eth1"
-    z_node: "arista"
+    z_node: "vxr"
     z_int: "eth1"
 }
 links: {
-    a_node: "arista"
+    a_node: "vxr"
     a_int: "eth2"
     z_node: "otg"
     z_int: "eth2"

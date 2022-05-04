@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 // means the MAC address is locally administered.
 const (
 	trafficDuration   = 10 * time.Second
-	trafficPacketRate = 10
+	trafficPacketRate = 2
 	plen4             = 30
 	plen6             = 126
 
@@ -162,14 +162,18 @@ func configureDUT(t *testing.T, peermac string) (interfaceOrder bool) {
 	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
 	portList := []string{*i1.Name, *i2.Name}
 	if sort.StringsAreSorted(portList) {
-		d.Interface(p1.Name()).Replace(t,
-			configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
+		if peermac == "" {
+			d.Interface(p1.Name()).Replace(t,
+				configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
+		}
 		d.Interface(p2.Name()).Replace(t,
 			configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
 	} else {
 		interfaceOrder = false
-		d.Interface(p1.Name()).Replace(t,
-			configInterfaceDUT(i1, &dutDst, &ateDst, peermac))
+		if peermac == "" {
+			d.Interface(p1.Name()).Replace(t,
+				configInterfaceDUT(i1, &dutDst, &ateDst, peermac))
+		}
 		d.Interface(p2.Name()).Replace(t,
 			configInterfaceDUT(i2, &dutSrc, &ateSrc, peermac))
 
@@ -328,7 +332,7 @@ func testFlow(
 			SetTxNames([]string{i1 + ".ipv6"}).
 			SetRxNames([]string{i2 + ".ipv6"})
 		flowipv6.Size().SetFixed(512)
-		flowipv6.Rate().SetPps(2)
+		flowipv6.Rate().SetPps(trafficPacketRate)
 		flowipv6.Duration().SetChoice("continuous")
 		e1 := flowipv6.Packet().Add().Ethernet()
 		e1.Src().SetValue(ateSrc.MAC)
