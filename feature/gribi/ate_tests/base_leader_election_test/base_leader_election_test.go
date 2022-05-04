@@ -53,8 +53,8 @@ func TestMain(m *testing.M) {
 
 const (
 	ipv4PrefixLen = 30
-	instance      = "default"
-	ateDstNetCIDR = "198.51.100.0/24"
+	instance      = "DEFAULT"
+	ateDstNetCIDR = "198.51.100.1/32"
 	nhgIndex_2_1  = 100
 	nhIndex_2_1   = 100
 	nhIndex_2_2   = 200
