@@ -19,11 +19,11 @@ import (
 	"strings"
 	"testing"
 
-	"google3/third_party/golang/cmp/cmp"
-	"google3/third_party/golang/protobuf/v2/testing/protocmp/protocmp"
-	bindpb "google3/third_party/openconfig/featureprofiles/topologies/proto/binding_go_proto"
-	"google3/third_party/openconfig/ondatra/binding/binding"
-	opb "google3/third_party/openconfig/ondatra/proto/ondatra_go_proto"
+	"github.com/google/go-cmp/cmp"
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	"github.com/openconfig/ondatra/binding"
+	opb "github.com/openconfig/ondatra/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestReserveFetchRelease(t *testing.T) {
