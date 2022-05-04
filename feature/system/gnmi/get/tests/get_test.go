@@ -18,7 +18,6 @@ package system_gnmi_get_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
