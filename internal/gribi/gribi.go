@@ -146,42 +146,25 @@ func (g *GRIBIHandler) BecomeLeader(t testing.TB) {
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
-func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {
+func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult, bkhgIndex ...uint64) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
+
+	// checking if backup provided
+	if len(bkhgIndex) > 0 {
+		nhg.WithBackupNHG(bkhgIndex[0])
+	}
+
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
+		g.fluentC.Modify().AddEntry(t, nhg)
+		if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
+			t.Fatalf("Error waiting to add NHG: %v", err)
+		}
 	}
-	g.fluentC.Modify().AddEntry(t, nhg)
-	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
-		t.Fatalf("Error waiting to add NHG: %v", err)
-	}
+
 	chk.HasResult(t, g.fluentC.Results(t),
 		fluent.OperationResult().
 			WithNextHopGroupOperation(nhgIndex).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
-}
-
-// AddBKNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
-// in a given network instance.
-func (g *GRIBIHandler) AddBKNHG(t testing.TB, nhIndex_1_11 uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {
-	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhIndex_1_11)
-	nhg.WithBackupNHG(bkhgIndex)
-
-	for nhIndex, weight := range nhWeights {
-		nhg.AddNextHop(nhIndex, weight)
-	}
-	g.fluentC.Modify().AddEntry(t, nhg)
-	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
-		t.Fatalf("Error waiting to add NHG: %v", err)
-	}
-
-	chk.HasResult(t, g.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopGroupOperation(nhIndex_1_11).
 			WithOperationType(constants.Add).
 			WithProgrammingResult(expectedResult).
 			AsResult(),

@@ -16,6 +16,7 @@ package base_leader_election_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -67,7 +68,8 @@ const (
 	nhIndex_1_22  = 2100
 	nhIndex_1_23  = 2200
 	bkhgIndex_2   = 101
-	nhbIndex_2_1  = 101
+	nhbIndex_2_1  = 10
+	hw            = true
 )
 
 var (
@@ -186,9 +188,8 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 	return i
 }
 
-func shutdownInterface(i *telemetry.Interface, action int64) *telemetry.Interface {
-	//i.Enabled = ygot.Bool(false)
-	i.AdminStatus = telemetry.E_Interface_AdminStatus(action)
+func shutdownInterface(i *telemetry.Interface, state bool) *telemetry.Interface {
+	i.Enabled = ygot.Bool(state)
 	return i
 }
 
@@ -283,31 +284,68 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
+// func addIpv4Network(t *testing.T, topo *ondatra.ATETopology, port, network_name, address_CIDR string, count uint32) {
+// 	intfs := topo.Interfaces()
+// 	if len(intfs) == 0 {
+// 		t.Fatal("There are no interfaces in the Topology")
+// 	}
+// 	intfs[port].AddNetwork(network_name).IPv4().WithAddress(address_CIDR).WithCount(count)
+// }
+func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, network_name string, metric uint32, prefix string, count uint32) {
+
+	intfs := topo.Interfaces()
+	if len(intfs) == 0 {
+		t.Fatal("There are no interfaces in the Topology")
+	}
+	network := intfs[atePort].AddNetwork(network_name)
+	//IPReachabilityConfig :=
+	network.ISIS().WithIPReachabilityMetric(metric + 1)
+	network.IPv4().WithAddress(prefix).WithCount(count)
+	intfs[atePort].ISIS().WithAreaID(areaId).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
+}
+func addNetworkAndProtocolsToAte(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopology) {
+	//Add prefixes/networks on ports
+	scale := uint32(100)
+	// addIpv4Network(t, topo, "atePort8", "network102", "192.0.2.29/30", 1)
+	//Configure ISIS, BGP on TGN
+	addAteISISL2(t, topo, "atePort8", "B4", "testing", 20, "201.1.0.2/32", scale)
+}
+
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, dstEndPoint []ondatra.Endpoint) {
 	ethHeader := ondatra.NewEthernetHeader()
+	ethHeader.WithSrcAddress("00:11:01:00:00:01")
+	ethHeader.WithDstAddress("00:01:00:02:00:00")
+
+	flow := []*ondatra.Flow{}
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.DstAddressRange().
 		WithMin("198.51.100.0").
 		WithMax("198.51.100.254").
 		WithCount(250)
 
-	flow := ate.Traffic().NewFlow("Flow").
+	innerIpv4Header := ondatra.NewIPv4Header()
+	innerIpv4Header.WithSrcAddress("200.1.0.2")
+	innerIpv4Header.DstAddressRange().WithMin("201.1.0.2").WithCount(1000).WithStep("0.0.0.1")
+
+	flow = append(flow, ate.Traffic().NewFlow(fmt.Sprintf("Flow")).
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...).
-		WithHeaders(ethHeader, ipv4Header).WithFrameRateFPS(100)
+		WithHeaders(ethHeader, ipv4Header, innerIpv4Header).WithFrameRateFPS(10).WithFrameSize(300))
 
-	ate.Traffic().Start(t, flow)
+	ate.Traffic().Start(t, flow...)
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
 	time.Sleep(time.Minute)
 
-	flowPath := ate.Telemetry().Flow(flow.Name())
-	if got := flowPath.LossPct().Get(t); got > 0 {
-		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
+	for _, f := range flow {
+		flowPath := ate.Telemetry().Flow(f.Name())
+		if got := flowPath.LossPct().Get(t); got > 0 {
+			t.Errorf("LossPct for flow %s got %g, want 0", f.Name(), got)
+		}
 	}
 }
 
@@ -320,72 +358,80 @@ type testArgs struct {
 	top     *ondatra.ATETopology
 }
 
-// that the entry is active by checking AFT Telemetry and traffic.
-// Thrid, it configures an IPv4 entry through clientA without
-// making it the leader and ensures that the installation fails.
-// Forth, it makes the ClientA master, configures an IPV4 through clinetA
-// and ensures that the entry is active by checking AFT Telemetry and traffic.
-func testIPv4BackUpSwitchMoji(ctx context.Context, t *testing.T, args *testArgs) {
+func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
 	// ensure that the entry is active through AFT telemetry and traffic.
 
-	t.Logf("an IPv4Entry for %s pointing via gRIBI-B", ateDstNetCIDR)
+	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", ateDstNetCIDR)
 	args.clientA.BecomeLeader(t)
+	if _, err := args.clientA.Fluent(t).Flush().
+		WithElectionOverride().
+		WithAllNetworkInstances().
+		Send(); err != nil {
+		t.Fatalf("could not remove all entries from server, got: %v", err)
+	}
 
 	// LEVEL 2
-	// args.clientA.AddNH(t, nhIndex_2_1, "192.0.2.40", instance, fluent.InstalledInRIB)
-	// args.clientA.AddNHG(t, nhgIndex_2_1, map[uint64]uint64{nhIndex_2_1: 85}, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_2_2, "192.0.2.42", instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_2_1, map[uint64]uint64{nhIndex_2_2: 15}, instance, fluent.InstalledInRIB)
+
+	// Creating a backup NHG with ID 101 (bkhgIndex_2)
+	// NH ID 10 (nhbIndex_2_1)
 
 	args.clientA.AddNH(t, nhbIndex_2_1, "decap", instance, fluent.InstalledInRIB)
-	args.clientA.AddBKNHG(t, nhIndex_1_11, bkhgIndex_2, map[uint64]uint64{nhIndex_2_2: 15}, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, bkhgIndex_2, map[uint64]uint64{nhbIndex_2_1: 100}, instance, fluent.InstalledInRIB)
+
+	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
+	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
+	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
+
+	args.clientA.AddNH(t, nhIndex_2_1, "192.0.2.40", instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex_2_2, "192.0.2.42", instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex_2_1, map[uint64]uint64{nhIndex_2_1: 85, nhIndex_2_2: 15}, instance, fluent.InstalledInRIB, bkhgIndex_2)
 	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex_2_1, instance, "", fluent.InstalledInRIB)
 
 	// LEVEL 1
+
+	// VIP1: NHG ID 1000 (nhgIndex_1_1)
+	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
+	// VIP2: NHG ID 2000 (nhgIndex_1_2)
+	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
+
 	args.clientA.AddNH(t, nhIndex_1_11, atePort2.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_1, map[uint64]uint64{nhIndex_1_11: 50}, instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_1_12, atePort3.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_1, map[uint64]uint64{nhIndex_1_12: 30}, instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_1_13, atePort4.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_1, map[uint64]uint64{nhIndex_1_13: 15}, instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_1_14, atePort5.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_1, map[uint64]uint64{nhIndex_1_14: 5}, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex_1_1, map[uint64]uint64{nhIndex_1_11: 50, nhIndex_1_12: 30, nhIndex_1_13: 15, nhIndex_1_14: 5}, instance, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, "192.0.2.40/32", nhgIndex_1_1, instance, "", fluent.InstalledInRIB)
 
 	args.clientA.AddNH(t, nhIndex_1_21, atePort6.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_2, map[uint64]uint64{nhIndex_1_21: 60}, instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_1_22, atePort7.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_2, map[uint64]uint64{nhIndex_1_22: 35}, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_1_23, atePort8.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_2, map[uint64]uint64{nhIndex_1_23: 5}, instance, fluent.InstalledInRIB)
+	// args.clientA.AddNH(t, nhIndex_1_23, atePort8.IPv4, instance, fluent.InstalledInRIB)
+	// args.clientA.AddNHG(t, nhgIndex_1_2, map[uint64]uint64{nhIndex_1_21: 60, nhIndex_1_22: 35, nhIndex_1_23: 5}, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex_1_2, map[uint64]uint64{nhIndex_1_21: 60, nhIndex_1_22: 40}, instance, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, "192.0.2.42/32", nhgIndex_1_2, instance, "", fluent.InstalledInRIB)
-
-	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
-	/*ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
-	}*/
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if "atePort1" != intf && "atePort8" != intf {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
-	testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
 
-	//shutdown primary path one by one and validate traffic switching to backup
+	//shutdown primary path one by one (destination end) and validate traffic switching to backup
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	d := args.dut.Config()
 	for _, intf := range interface_names {
 		p := args.dut.Port(t, intf)
 		i := &telemetry.Interface{Name: ygot.String(p.Name())}
-		d.Interface(p.Name()).Replace(t, shutdownInterface(i, 2))
+		d.Interface(p.Name()).Replace(t, shutdownInterface(i, false))
 		testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
 	}
 	// checking traffic on backup
@@ -409,27 +455,40 @@ func TestElectionIDChange(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	// top.Push(t).StartProtocols(t)
+	addNetworkAndProtocolsToAte(t, ate, top)
+	top.Push(t).StartProtocols(t)
 
-	// Configure the gRIBI client clientA
-	clientA := gribi.GRIBIHandler{
-		DUT:         dut,
-		FibACK:      false,
-		Persistence: true,
-	}
-	defer clientA.Close(t)
-	if err := clientA.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection can not be established")
-	}
-
-	args := &testArgs{
-		ctx:     ctx,
-		clientA: &clientA,
-		dut:     dut,
-		ate:     ate,
-		top:     top,
+	tt := struct {
+		name string
+		desc string
+		fn   func(ctx context.Context, t *testing.T, args *testArgs)
+	}{
+		name: "IPv4BackUpSwitch",
+		desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over back path ",
+		fn:   testIPv4BackUpSwitch,
 	}
 
-	testIPv4BackUpSwitchMoji(ctx, t, args)
+	t.Run(tt.name, func(t *testing.T) {
+		t.Logf("Name: %s", tt.name)
+		t.Logf("Description: %s", tt.desc)
 
+		// Configure the gRIBI client clientA
+		clientA := gribi.GRIBIHandler{
+			DUT:         dut,
+			FibACK:      false,
+			Persistence: true,
+		}
+		defer clientA.Close(t)
+		if err := clientA.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection can not be established")
+		}
+		args := &testArgs{
+			ctx:     ctx,
+			clientA: &clientA,
+			dut:     dut,
+			ate:     ate,
+			top:     top,
+		}
+		tt.fn(ctx, t, args)
+	})
 }
