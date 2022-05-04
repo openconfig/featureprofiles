@@ -10,7 +10,7 @@ require (
 	github.com/openconfig/goyang v1.0.0
 	github.com/openconfig/gribi v0.1.1-0.20220126144445-1634932f9fd8
 	github.com/openconfig/gribigo v0.0.0-20220315144647-df51e0795a27
-	github.com/openconfig/ondatra v0.0.0-20220504153954-83b9b09ef939
+	github.com/openconfig/ondatra v0.0.0-20220504185232-2b3a55f47082
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygot v0.18.0
 	github.com/p4lang/p4runtime v1.3.0

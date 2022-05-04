@@ -576,8 +576,8 @@ github.com/openconfig/gribigo v0.0.0-20220315144647-df51e0795a27/go.mod h1:9d5Mo
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d h1:zrs4U92QEAadFotQyidT4U8iZDJO67pXsS4r64uAHik=
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d/go.mod h1:x9tAZ4EwqCQ0jI8D6S8Yhw9Z0ee7/BxWQX0k0Uib5Q8=
 github.com/openconfig/lemming v0.0.0-20220404232244-1dbc2b4c6179/go.mod h1:PzwucDxeWVfLHl75AfRyzI2FawaWV1IbaGzRRIKayF4=
-github.com/openconfig/ondatra v0.0.0-20220504153954-83b9b09ef939 h1:Dg1Xe0N/LzD8M6vfO19sA+53H1+3j5i7NzxcbO/J+6w=
-github.com/openconfig/ondatra v0.0.0-20220504153954-83b9b09ef939/go.mod h1:5Lk3YmsQtalt8goffN5tPkSiUErXm9vL8foHw99FI7c=
+github.com/openconfig/ondatra v0.0.0-20220504185232-2b3a55f47082 h1:dAz8CEj1KqEdtJzps+ExAqR15BWilhAuJtliZMvYueA=
+github.com/openconfig/ondatra v0.0.0-20220504185232-2b3a55f47082/go.mod h1:5Lk3YmsQtalt8goffN5tPkSiUErXm9vL8foHw99FI7c=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=
