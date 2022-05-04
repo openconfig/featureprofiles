@@ -37,12 +37,10 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	fmt.Printf("running test...")
 	fptest.RunTests(m)
 }
 
 func TestGNMIGet(t *testing.T) {
-
 	shortResponse := func(g *gpb.GetResponse) string {
 		p := proto.Clone(g).(*gpb.GetResponse)
 		for _, n := range p.Notification {
@@ -101,7 +99,6 @@ func TestGNMIGet(t *testing.T) {
 			protocmp.IgnoreFields(&gpb.GetResponse{}, "notification"),
 		},
 		chkFn: func(t *testing.T, res *gpb.GetResponse) {
-
 			d := &fpoc.Device{}
 			for _, n := range res.Notification {
 				for _, u := range n.Update {
