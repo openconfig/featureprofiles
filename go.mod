@@ -14,7 +14,7 @@ require (
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygot v0.16.2
 	github.com/p4lang/p4runtime v1.3.0
-	github.com/protocolbuffers/txtpbfmt v0.0.0-20220428173112-74888fd59c2b
+	github.com/protocolbuffers/txtpbfmt v0.0.0-20220131092820-39736dd543b4
 	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
 	google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
