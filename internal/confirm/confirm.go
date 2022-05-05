@@ -28,7 +28,7 @@ import (
 )
 
 // getSchema looks up a struct's schema by reflected name
-func getSchema(s ygot.GoStruct) (*yang.Entry, error) {
+func getSchema(s ygot.ValidatedGoStruct) (*yang.Entry, error) {
 	typ := reflect.TypeOf(s)
 	if typ.Kind() == reflect.Ptr {
 		typ = typ.Elem()
@@ -53,7 +53,7 @@ func PathLabel(pth *gnmipb.Path) string {
 
 // getSingleValue is ytypes.GetNode, except it returns the Data of the single
 // node found, or an error if the number of matching nodes is not exactly 1.
-func getSingleValue(schema *yang.Entry, root ygot.GoStruct, pth *gnmipb.Path) (interface{}, error) {
+func getSingleValue(schema *yang.Entry, root ygot.ValidatedGoStruct, pth *gnmipb.Path) (interface{}, error) {
 	vals, err := ytypes.GetNode(schema, root, pth)
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func Readable(v interface{}) string {
 }
 
 // ExtractChanges turns a Notification into a collection of Change objects.
-func ExtractChanges(diff *gnmipb.Notification, want, got ygot.GoStruct) ([]*Change, error) {
+func ExtractChanges(diff *gnmipb.Notification, want, got ygot.ValidatedGoStruct) ([]*Change, error) {
 	schema, err := getSchema(want)
 	if err != nil {
 		return nil, fmt.Errorf("schema lookup failure: %v", err)
@@ -115,7 +115,7 @@ func ExtractChanges(diff *gnmipb.Notification, want, got ygot.GoStruct) ([]*Chan
 // (typically the state contains many more keys than just the ones we're setting).
 //
 // DEPRECATED: experimental function
-func State(t testing.TB, want, got ygot.GoStruct) {
+func State(t testing.TB, want, got ygot.ValidatedGoStruct) {
 	t.Helper()
 	diff, err := ygot.Diff(want, got, &ygot.IgnoreAdditions{})
 	if err != nil {
