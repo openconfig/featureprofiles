@@ -17,8 +17,8 @@ jobs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
-        key: validateprotos-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-        restore-keys: validateprotos-${{ runner.os }}-go-build-
+        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Install protobuf
       uses: arduino/setup-protoc@v1
       with:
@@ -63,8 +63,8 @@ jobs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
-        key: ocpaths-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-        restore-keys: ocpaths-${{ runner.os }}-go-build-
+        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Fetch Openconfig Models
       run: make openconfig_public
     - name: Validate Paths
@@ -86,8 +86,8 @@ jobs:
           ~/go/pkg/mod
           ~/.cache/go-build
           ~/.cache/staticcheck
-        key: staticanalysis-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-        restore-keys: staticanalysis-${{ runner.os }}-go-build-
+        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Go vet
       run: go vet ./...
     - name: Gofmt
