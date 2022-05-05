@@ -9,6 +9,8 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: '1.18'
+    - name: Checkout code
+      uses: actions/checkout@v2
     - name: Cache
       uses: actions/cache@v2
       with:
@@ -20,8 +22,6 @@ jobs:
       uses: arduino/setup-protoc@v1
       with:
         version: '3.x'
-    - name: Checkout code
-      uses: actions/checkout@v2
     - name: Lint protobufs
       run: |
         go install github.com/googleapis/api-linter/cmd/api-linter@latest
