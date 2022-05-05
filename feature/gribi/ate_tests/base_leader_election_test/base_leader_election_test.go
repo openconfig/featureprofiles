@@ -417,7 +417,7 @@ func testIPv4BackUpSwitchDrop(ctx context.Context, t *testing.T, args *testArgs)
 		}
 	}
 
-	//shutdown primary path one by one (destination end) and validate traffic switching to backup
+	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	d := args.dut.Config()
 	for _, intf := range interface_names {
@@ -425,7 +425,6 @@ func testIPv4BackUpSwitchDrop(ctx context.Context, t *testing.T, args *testArgs)
 		i := &telemetry.Interface{Name: ygot.String(p.Name())}
 		d.Interface(p.Name()).Replace(t, shutdownInterface(i, false))
 		testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
-		configureDUT(t, args.dut)
 	}
 	// checking traffic on backup
 	time.Sleep(time.Minute)
@@ -519,7 +518,7 @@ func testIPv4BackUpSwitchDefault(ctx context.Context, t *testing.T, args *testAr
 	configureDUT(t, args.dut)
 }
 
-func TestElectionIDChange(t *testing.T) {
+func TestBackUp(t *testing.T) {
 	deviations.InterfaceEnabled = &[]bool{false}[0]
 	t.Log("Name: IPv4EntryWithLeaderChange")
 	t.Log("Description: Connect gRIBI clientA and B to DUT using SINGLE_PRIMARY client redundancy with persistance and RibACK")
