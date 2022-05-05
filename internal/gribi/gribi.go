@@ -146,12 +146,12 @@ func (g *GRIBIHandler) BecomeLeader(t testing.TB) {
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
-func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult, bkhgIndex ...uint64) {
+func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 
 	// checking if backup provided
-	if len(bkhgIndex) > 0 {
-		nhg.WithBackupNHG(bkhgIndex[0])
+	if bkhgIndex != 0 {
+		nhg.WithBackupNHG(bkhgIndex)
 	}
 
 	for nhIndex, weight := range nhWeights {

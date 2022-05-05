@@ -296,12 +296,6 @@ func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, netw
 	network.IPv4().WithAddress(prefix).WithCount(count)
 	intfs[atePort].ISIS().WithAreaID(areaId).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
 }
-func addNetworkAndProtocolsToAte(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopology) {
-	//Add prefixes/networks on ports
-	scale := uint32(100)
-	//Configure ISIS, BGP on TGN
-	addAteISISL2(t, topo, "atePort8", "B4", "testing", 20, "201.1.0.2/32", scale)
-}
 
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
@@ -370,7 +364,7 @@ func testIPv4BackUpSwitchDrop(ctx context.Context, t *testing.T, args *testArgs)
 	// NH ID 10 (nhbIndex_2_1)
 
 	args.clientA.AddNH(t, nhbIndex_2_1, "192.0.2.100", instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, bkhgIndex_2, map[uint64]uint64{nhbIndex_2_1: 100}, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, bkhgIndex_2, 0, map[uint64]uint64{nhbIndex_2_1: 100}, instance, fluent.InstalledInRIB)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
@@ -378,7 +372,7 @@ func testIPv4BackUpSwitchDrop(ctx context.Context, t *testing.T, args *testArgs)
 
 	args.clientA.AddNH(t, nhIndex_2_1, "192.0.2.40", instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_2_2, "192.0.2.42", instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_2_1, map[uint64]uint64{nhIndex_2_1: 85, nhIndex_2_2: 15}, instance, fluent.InstalledInRIB, bkhgIndex_2)
+	args.clientA.AddNHG(t, nhgIndex_2_1, bkhgIndex_2, map[uint64]uint64{nhIndex_2_1: 85, nhIndex_2_2: 15}, instance, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex_2_1, "TE", instance, fluent.InstalledInRIB)
 
 	// LEVEL 1
@@ -397,14 +391,14 @@ func testIPv4BackUpSwitchDrop(ctx context.Context, t *testing.T, args *testArgs)
 	args.clientA.AddNH(t, nhIndex_1_12, atePort3.IPv4, instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_1_13, atePort4.IPv4, instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_1_14, atePort5.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_1, map[uint64]uint64{nhIndex_1_11: 50, nhIndex_1_12: 30, nhIndex_1_13: 15, nhIndex_1_14: 5}, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex_1_1, 0, map[uint64]uint64{nhIndex_1_11: 50, nhIndex_1_12: 30, nhIndex_1_13: 15, nhIndex_1_14: 5}, instance, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, "192.0.2.40/32", nhgIndex_1_1, instance, "", fluent.InstalledInRIB)
 
 	args.clientA.AddNH(t, nhIndex_1_21, atePort6.IPv4, instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_1_22, atePort7.IPv4, instance, fluent.InstalledInRIB)
 	// args.clientA.AddNH(t, nhIndex_1_23, atePort8.IPv4, instance, fluent.InstalledInRIB)
 	// args.clientA.AddNHG(t, nhgIndex_1_2, map[uint64]uint64{nhIndex_1_21: 60, nhIndex_1_22: 35, nhIndex_1_23: 5}, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_2, map[uint64]uint64{nhIndex_1_21: 60, nhIndex_1_22: 40}, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex_1_2, 0, map[uint64]uint64{nhIndex_1_21: 60, nhIndex_1_22: 40}, instance, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, "192.0.2.42/32", nhgIndex_1_2, instance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
@@ -454,7 +448,7 @@ func testIPv4BackUpSwitchDefault(ctx context.Context, t *testing.T, args *testAr
 	// NH ID 10 (nhbIndex_2_1)
 
 	args.clientA.AddNH(t, nhbIndex_2_1, "decap", instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, bkhgIndex_2, map[uint64]uint64{nhbIndex_2_1: 100}, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, bkhgIndex_2, 0, map[uint64]uint64{nhbIndex_2_1: 100}, instance, fluent.InstalledInRIB)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
@@ -462,7 +456,7 @@ func testIPv4BackUpSwitchDefault(ctx context.Context, t *testing.T, args *testAr
 
 	args.clientA.AddNH(t, nhIndex_2_1, "192.0.2.40", instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_2_2, "192.0.2.42", instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_2_1, map[uint64]uint64{nhIndex_2_1: 85, nhIndex_2_2: 15}, instance, fluent.InstalledInRIB, bkhgIndex_2)
+	args.clientA.AddNHG(t, nhgIndex_2_1, bkhgIndex_2, map[uint64]uint64{nhIndex_2_1: 85, nhIndex_2_2: 15}, instance, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex_2_1, "TE", instance, fluent.InstalledInRIB)
 
 	// LEVEL 1
@@ -481,14 +475,14 @@ func testIPv4BackUpSwitchDefault(ctx context.Context, t *testing.T, args *testAr
 	args.clientA.AddNH(t, nhIndex_1_12, atePort3.IPv4, instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_1_13, atePort4.IPv4, instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_1_14, atePort5.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_1, map[uint64]uint64{nhIndex_1_11: 50, nhIndex_1_12: 30, nhIndex_1_13: 15, nhIndex_1_14: 5}, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex_1_1, 0, map[uint64]uint64{nhIndex_1_11: 50, nhIndex_1_12: 30, nhIndex_1_13: 15, nhIndex_1_14: 5}, instance, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, "192.0.2.40/32", nhgIndex_1_1, instance, "", fluent.InstalledInRIB)
 
 	args.clientA.AddNH(t, nhIndex_1_21, atePort6.IPv4, instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_1_22, atePort7.IPv4, instance, fluent.InstalledInRIB)
 	// args.clientA.AddNH(t, nhIndex_1_23, atePort8.IPv4, instance, fluent.InstalledInRIB)
 	// args.clientA.AddNHG(t, nhgIndex_1_2, map[uint64]uint64{nhIndex_1_21: 60, nhIndex_1_22: 35, nhIndex_1_23: 5}, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_2, map[uint64]uint64{nhIndex_1_21: 60, nhIndex_1_22: 40}, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex_1_2, 0, map[uint64]uint64{nhIndex_1_21: 60, nhIndex_1_22: 40}, instance, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, "192.0.2.42/32", nhgIndex_1_2, instance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
@@ -520,7 +514,7 @@ func testIPv4BackUpSwitchDefault(ctx context.Context, t *testing.T, args *testAr
 
 func TestBackUp(t *testing.T) {
 	deviations.InterfaceEnabled = &[]bool{false}[0]
-	t.Log("Name: IPv4EntryWithLeaderChange")
+	t.Log("Name: BackUp")
 	t.Log("Description: Connect gRIBI clientA and B to DUT using SINGLE_PRIMARY client redundancy with persistance and RibACK")
 
 	dut := ondatra.DUT(t, "dut")
@@ -534,18 +528,19 @@ func TestBackUp(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	addNetworkAndProtocolsToAte(t, ate, top)
+	addAteISISL2(t, top, "atePort8", "B4", "testing", 20, "201.1.0.2/32", uint32(1000))
 	top.Push(t).StartProtocols(t)
 
 	test := []struct {
 		name string
 		desc string
 		fn   func(ctx context.Context, t *testing.T, args *testArgs)
-	}{{
-		name: "IPv4BackUpSwitchDrop",
-		desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path and dropping",
-		fn:   testIPv4BackUpSwitchDrop,
-	},
+	}{
+		{
+			name: "IPv4BackUpSwitchDrop",
+			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path and dropping",
+			fn:   testIPv4BackUpSwitchDrop,
+		},
 		{
 			name: "IPv4BackUpSwitchDefault",
 			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over default backup path ",
