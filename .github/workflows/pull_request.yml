@@ -9,6 +9,13 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: '1.18'
+    - name: Cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: validateprotos-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
     - name: Install protobuf
       uses: arduino/setup-protoc@v1
       with:
@@ -55,8 +62,7 @@ jobs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
-          ~/.cache/staticcheck
-        key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        key: ocpaths-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
     - name: Fetch Openconfig Models
       run: make openconfig_public
     - name: Validate Paths
@@ -78,7 +84,7 @@ jobs:
           ~/go/pkg/mod
           ~/.cache/go-build
           ~/.cache/staticcheck
-        key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        key: staticanalysis-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
     - name: Go vet
       run: go vet ./...
     - name: Gofmt
