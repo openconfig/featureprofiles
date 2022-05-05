@@ -128,7 +128,7 @@ func GetIsisMetrics(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) (go
 }
 
 func GetIPv4NeighborStates(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) (gosnappi.StatesResponseNeighborsv4StateIter, error) {
-	defer Timer(time.Now(), "GetIsisMetrics GNMI")
+	defer Timer(time.Now(), "Getting IPv4 Neighbor states GNMI")
 	ethNeighborMap := make(map[string][]string)
 	ethernetNames := []string{}
 	for _, d := range c.Devices().Items() {
@@ -157,7 +157,7 @@ func GetIPv4NeighborStates(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Conf
 }
 
 func GetIPv6NeighborStates(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) (gosnappi.StatesResponseNeighborsv6StateIter, error) {
-	defer Timer(time.Now(), "GetIsisMetrics GNMI")
+	defer Timer(time.Now(), "Getting IPv6 Neighbor states GNMI")
 	ethNeighborMap := make(map[string][]string)
 	ethernetNames := []string{}
 	for _, d := range c.Devices().Items() {

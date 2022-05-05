@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 // means the MAC address is locally administered.
 const (
 	trafficDuration   = 10 * time.Second
-	trafficPacketRate = 2
+	trafficPacketRate = 200
 	plen4             = 30
 	plen6             = 126
 
@@ -170,13 +170,12 @@ func configureDUT(t *testing.T, peermac string) (interfaceOrder bool) {
 			configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
 	} else {
 		interfaceOrder = false
+		d.Interface(p1.Name()).Replace(t,
+			configInterfaceDUT(i1, &dutDst, &ateDst, peermac))
 		if peermac == "" {
-			d.Interface(p1.Name()).Replace(t,
-				configInterfaceDUT(i1, &dutDst, &ateDst, peermac))
+			d.Interface(p2.Name()).Replace(t,
+				configInterfaceDUT(i2, &dutSrc, &ateSrc, peermac))
 		}
-		d.Interface(p2.Name()).Replace(t,
-			configInterfaceDUT(i2, &dutSrc, &ateSrc, peermac))
-
 	}
 	return interfaceOrder
 }
@@ -294,6 +293,7 @@ func testFlow(
 	ate *ondatra.ATEDevice,
 	config gosnappi.Config,
 	ipType string,
+	poisoned bool,
 ) {
 
 	// Egress tracking inspects packets from DUT and key the flow
@@ -311,7 +311,7 @@ func testFlow(
 	i2 := ateDst.Name
 	config.Flows().Clear().Items()
 	switch ipType {
-	case "ipv4":
+	case "IPv4":
 		flowipv4 := config.Flows().Add().SetName("FlowIpv4")
 		flowipv4.Metrics().SetEnable(true)
 		flowipv4.TxRx().Device().
@@ -325,7 +325,10 @@ func testFlow(
 		v4 := flowipv4.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
-	case "ipv6":
+		otg.PushConfig(t, ate, config)
+		time.Sleep(2 * time.Second)
+		// checkOTGArpEntry(t, config, "IPv4", poisoned)
+	case "IPv6":
 		flowipv6 := config.Flows().Add().SetName("FlowIpv6")
 		flowipv6.Metrics().SetEnable(true)
 		flowipv6.TxRx().Device().
@@ -339,8 +342,10 @@ func testFlow(
 		v4 := flowipv6.Packet().Add().Ipv6()
 		v4.Src().SetValue(ateSrc.IPv6)
 		v4.Dst().SetValue(ateDst.IPv6)
+		otg.PushConfig(t, ate, config)
+		time.Sleep(2 * time.Second)
+		// checkOTGArpEntry(t, config, "IPv6", poisoned)
 	}
-	otg.PushConfig(t, ate, config)
 
 	// Starting the traffic
 	otg.StartTraffic(t)
@@ -377,8 +382,6 @@ func TestStaticARP(t *testing.T) {
 	interfaceOrder := configureDUT(t, noStaticMAC)
 	// var ate *ondatra.ATEDevice
 	ate, config := configureOTG(t, interfaceOrder)
-	ate.OTG(t).PushConfig(t, ate, config)
-	ate.OTG(t).StartProtocols(t)
 
 	// Default MAC addresses on Ixia are assigned incrementally as:
 	//   - 00:11:01:00:00:01
@@ -388,11 +391,11 @@ func TestStaticARP(t *testing.T) {
 	// The last 15-bits therefore resolve to "1".
 	t.Run("NotPoisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testFlow(t, "1" /* want */, ate, config, "ipv4")
+			testFlow(t, "1" /* want */, ate, config, "IPv4", false)
 			checkArpEntry(t, "IPv4", false)
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testFlow(t, "1" /* want */, ate, config, "ipv6")
+			testFlow(t, "1" /* want */, ate, config, "IPv6", false)
 			checkArpEntry(t, "IPv6", false)
 		})
 	})
@@ -403,11 +406,11 @@ func TestStaticARP(t *testing.T) {
 	// Poisoned MAC address ends with 7a:69, so 0x7a69 = 31337.
 	t.Run("Poisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testFlow(t, "31337" /* want */, ate, config, "ipv4")
+			testFlow(t, "31337" /* want */, ate, config, "IPv4", true)
 			checkArpEntry(t, "IPv4", true)
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testFlow(t, "31337" /* want */, ate, config, "ipv6")
+			testFlow(t, "31337" /* want */, ate, config, "IPv6", true)
 			checkArpEntry(t, "IPv6", true)
 		})
 	})
@@ -415,5 +418,6 @@ func TestStaticARP(t *testing.T) {
 
 func TestUnsetDut(t *testing.T) {
 	t.Logf("Start Unsetting DUT Config")
-	helpers.ConfigDUTs(map[string]string{"arista": "unset_dut.txt"})
+	dut := ondatra.DUT(t, "dut")
+	helpers.ConfigDUTs(map[string]string{dut.Name(): "unset_" + dut.Name() + ".txt"})
 }
