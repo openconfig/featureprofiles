@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "aggregate_interfaces"
+  name: "experimental_lacp_and_base_interface_aggregate_interfaces"
   version: 1
 }
 

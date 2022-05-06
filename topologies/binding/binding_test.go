@@ -23,6 +23,7 @@ import (
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra/binding"
 	opb "github.com/openconfig/ondatra/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestReserveFetchRelease(t *testing.T) {
@@ -106,30 +107,48 @@ func TestReservation(t *testing.T) {
 		t.Fatalf("Error building reservation: %v", err)
 	}
 	want := &binding.Reservation{
-		DUTs: map[string]*binding.DUT{
-			"dut": {
-				Dims: &binding.Dims{
+		DUTs: map[string]binding.DUT{
+			"dut": &staticDUT{
+				AbstractDUT: &binding.AbstractDUT{Dims: &binding.Dims{
 					Name: "dut.name",
 					Ports: map[string]*binding.Port{
 						"port1": {Name: "Ethernet1"},
 						"port2": {Name: "Ethernet2"},
 					},
+				}},
+				r: resolver{b},
+				dev: &bindpb.Device{
+					Id:   "dut",
+					Name: "dut.name",
+					Ports: []*bindpb.Port{
+						{Id: "port1", Name: "Ethernet1"},
+						{Id: "port2", Name: "Ethernet2"},
+					},
 				},
 			},
 		},
-		ATEs: map[string]*binding.ATE{
-			"ate": {
-				Dims: &binding.Dims{
+		ATEs: map[string]binding.ATE{
+			"ate": &staticATE{
+				AbstractATE: &binding.AbstractATE{Dims: &binding.Dims{
 					Name: "ate.name",
 					Ports: map[string]*binding.Port{
 						"port1": {Name: "1/1"},
 						"port2": {Name: "1/2"},
 					},
+				}},
+				r: resolver{b},
+				dev: &bindpb.Device{
+					Id:   "ate",
+					Name: "ate.name",
+					Ports: []*bindpb.Port{
+						{Id: "port1", Name: "1/1"},
+						{Id: "port2", Name: "1/2"},
+					},
 				},
 			},
 		},
 	}
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, got, cmp.AllowUnexported(staticDUT{}, staticATE{}), protocmp.Transform()); diff != "" {
 		t.Errorf("Reservation -want, +got:\n%s", diff)
 	}
 }

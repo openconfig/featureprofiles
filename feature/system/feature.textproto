@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-    name: "system_base"
+    name: "system"
     version: 1
 }
 
