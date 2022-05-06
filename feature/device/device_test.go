@@ -129,10 +129,10 @@ func TestFullReplaceRequest(t *testing.T) {
       {
         "config": {
           "enabled": true,
-          "name": defaultNIName,
+          "name": "default",
           "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
         },
-        "name": defaultNIName,
+        "name": "default",
         "protocols": {
           "protocol": [
             {
