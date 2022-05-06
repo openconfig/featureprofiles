@@ -26,6 +26,10 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+const (
+	defaultNIName = "default"
+)
+
 // TestAugment tests the NI augment to device OC.
 func TestAugment(t *testing.T) {
 	tests := []struct {
@@ -35,12 +39,12 @@ func TestAugment(t *testing.T) {
 		wantDevice *fpoc.Device
 	}{{
 		desc:     "Default NI",
-		ni:       New("default", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
+		ni:       New(defaultNIName, fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
 		inDevice: &fpoc.Device{},
 		wantDevice: &fpoc.Device{
 			NetworkInstance: map[string]*fpoc.NetworkInstance{
-				"default": {
-					Name:    ygot.String("default"),
+				defaultNIName: {
+					Name:    ygot.String(defaultNIName),
 					Enabled: ygot.Bool(true),
 					Type:    fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 				},
@@ -64,8 +68,8 @@ func TestAugment(t *testing.T) {
 		ni:   New("vrf-1", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF),
 		inDevice: &fpoc.Device{
 			NetworkInstance: map[string]*fpoc.NetworkInstance{
-				"default": {
-					Name:    ygot.String("default"),
+				defaultNIName: {
+					Name:    ygot.String(defaultNIName),
 					Enabled: ygot.Bool(true),
 					Type:    fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 				},
@@ -73,8 +77,8 @@ func TestAugment(t *testing.T) {
 		},
 		wantDevice: &fpoc.Device{
 			NetworkInstance: map[string]*fpoc.NetworkInstance{
-				"default": {
-					Name:    ygot.String("default"),
+				defaultNIName: {
+					Name:    ygot.String(defaultNIName),
 					Enabled: ygot.Bool(true),
 					Type:    fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 				},
@@ -87,11 +91,11 @@ func TestAugment(t *testing.T) {
 		},
 	}, {
 		desc: "Device contains same VRF with no conflicts",
-		ni:   New("default", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
+		ni:   New(defaultNIName, fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE),
 		inDevice: &fpoc.Device{
 			NetworkInstance: map[string]*fpoc.NetworkInstance{
-				"default": {
-					Name:    ygot.String("default"),
+				defaultNIName: {
+					Name:    ygot.String(defaultNIName),
 					Enabled: ygot.Bool(true),
 					Type:    fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 				},
@@ -99,8 +103,8 @@ func TestAugment(t *testing.T) {
 		},
 		wantDevice: &fpoc.Device{
 			NetworkInstance: map[string]*fpoc.NetworkInstance{
-				"default": {
-					Name:    ygot.String("default"),
+				defaultNIName: {
+					Name:    ygot.String(defaultNIName),
 					Enabled: ygot.Bool(true),
 					Type:    fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 				},
@@ -135,7 +139,7 @@ func TestAugmentErrors(t *testing.T) {
 		wantErrSubStr: "name is empty",
 	}, {
 		desc:          "NI type is not set",
-		ni:            New("default", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET),
+		ni:            New(defaultNIName, fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_UNSET),
 		inDevice:      &fpoc.Device{},
 		wantErrSubStr: "type is unset",
 	}, {
@@ -192,7 +196,7 @@ func TestWithFeature(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			ni := New("default", fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			ni := New(defaultNIName, fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 			ff := &FakeFeature{Err: test.wantErrSubStr}
 			gotErr := ni.WithFeature(ff)
 			if !ff.augmentCalled {
