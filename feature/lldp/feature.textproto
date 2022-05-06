@@ -1,5 +1,5 @@
 id {
-  name: "lldp_base"
+  name: "lldp"
   version: 1
 }
 
