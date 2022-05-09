@@ -15,10 +15,32 @@
 package fptest
 
 import (
+	"fmt"
 	"sort"
+	"testing"
 
 	"github.com/openconfig/ondatra"
 )
+
+// PortChannelName returns the port channel interface name which is
+// vendor specific.
+func PortChannelName(t testing.TB, dut *ondatra.DUTDevice, i int) string {
+	t.Helper()
+	if i <= 0 {
+		t.Fatalf("port-channel index must be >= 1: %d", i)
+	}
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		return fmt.Sprintf("Port-Channel%d", i)
+	case ondatra.CISCO:
+		return fmt.Sprintf("Port-channel%d", i)
+	case ondatra.JUNIPER:
+		// Juniper technically allows 0, but the other vendors start with 1.
+		return fmt.Sprintf("ae%d", i)
+	}
+	t.Fatalf("unsupported vendor: %s", dut.Vendor())
+	return "" // Should be unreachable.
+}
 
 // SortPorts sorts the ports by their ID in the testbed.  Otherwise
 // Ondatra returns the ports in arbitrary order.
