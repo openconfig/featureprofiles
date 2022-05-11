@@ -17,7 +17,6 @@
 package system_base_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/openconfig/ondatra"
@@ -27,7 +26,7 @@ import (
 // /system/cpus/cpu/state/index
 func TestCPUIndex(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/index"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/index", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_index := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Index().Get(t)
 			if cpu_index == telemetry.Cpu_Index_Enum_ALL {
@@ -42,7 +41,7 @@ func TestCPUIndex(t *testing.T) {
 // /system/cpus/cpu/state/total
 func TestCPUTotalInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/total/instant"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/total/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Total().Instant().Get(t)
 			if cpu_value > uint8(0) {
@@ -56,7 +55,7 @@ func TestCPUTotalInstant(t *testing.T) {
 
 func TestCPUTotalAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/total/avg"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/total/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Total().Avg().Get(t)
 			if cpu_value > uint8(0) {
@@ -70,7 +69,7 @@ func TestCPUTotalAvg(t *testing.T) {
 
 func TestCPUTotalMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/total/min"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/total/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Total().Min().Get(t)
 			if cpu_value == uint8(0) {
@@ -84,7 +83,7 @@ func TestCPUTotalMin(t *testing.T) {
 
 func TestCPUTotalMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/total/max"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/total/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Total().Max().Get(t)
 			if cpu_value > uint8(0) {
@@ -98,7 +97,7 @@ func TestCPUTotalMax(t *testing.T) {
 
 func TestCPUTotalInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/total/interval"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/total/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Total().Interval().Get(t)
 			if cpu_value > uint64(0) {
@@ -112,7 +111,7 @@ func TestCPUTotalInterval(t *testing.T) {
 
 func TestCPUTotalMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/total/mintime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/total/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Total().MinTime().Get(t)
 			if cpu_value > uint64(0) {
@@ -126,7 +125,7 @@ func TestCPUTotalMinTime(t *testing.T) {
 
 func TestCPUTotalMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/total/maxtime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/total/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Total().MaxTime().Get(t)
 			if cpu_value > uint64(0) {
@@ -141,7 +140,7 @@ func TestCPUTotalMaxTime(t *testing.T) {
 // /system/cpus/cpu/state/user
 func TestCPUUserInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/user/instant"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/user/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).User().Instant().Get(t)
 			if cpu_value > uint8(0) {
@@ -155,7 +154,7 @@ func TestCPUUserInstant(t *testing.T) {
 
 func TestCPUUserAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/user/avg"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/user/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).User().Avg().Get(t)
 			if cpu_value > uint8(0) {
@@ -169,7 +168,7 @@ func TestCPUUserAvg(t *testing.T) {
 
 func TestCPUUserMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/user/min"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/user/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).User().Min().Get(t)
 			if cpu_value == uint8(0) {
@@ -183,7 +182,7 @@ func TestCPUUserMin(t *testing.T) {
 
 func TestCPUUserMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/user/max"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/user/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).User().Max().Get(t)
 			if cpu_value > uint8(0) {
@@ -197,7 +196,7 @@ func TestCPUUserMax(t *testing.T) {
 
 func TestCPUUserInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/user/interval"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/user/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).User().Interval().Get(t)
 			if cpu_value > uint64(0) {
@@ -211,7 +210,7 @@ func TestCPUUserInterval(t *testing.T) {
 
 func TestCPUUserMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/user/mintime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/user/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).User().MinTime().Get(t)
 			if cpu_value > uint64(0) {
@@ -225,7 +224,7 @@ func TestCPUUserMinTime(t *testing.T) {
 
 func TestCPUUserMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/user/maxtime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/user/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).User().MaxTime().Get(t)
 			if cpu_value > uint64(0) {
@@ -240,7 +239,7 @@ func TestCPUUserMaxTime(t *testing.T) {
 // /system/cpus/cpu/state/kernel
 func TestCPUKernelInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/kernel/instant"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/kernel/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Kernel().Instant().Get(t)
 			if cpu_value > uint8(0) {
@@ -254,7 +253,7 @@ func TestCPUKernelInstant(t *testing.T) {
 
 func TestCPUKernelAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/kernel/avg"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/kernel/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Kernel().Avg().Get(t)
 			if cpu_value > uint8(0) {
@@ -268,7 +267,7 @@ func TestCPUKernelAvg(t *testing.T) {
 
 func TestCPUKernelMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/kernel/min"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/kernel/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Kernel().Min().Get(t)
 			if cpu_value == uint8(0) {
@@ -282,7 +281,7 @@ func TestCPUKernelMin(t *testing.T) {
 
 func TestCPUKernelMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/kernel/max"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/kernel/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Kernel().Max().Get(t)
 			if cpu_value > uint8(0) {
@@ -296,7 +295,7 @@ func TestCPUKernelMax(t *testing.T) {
 
 func TestCPUKernelInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/kernel/interval"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/kernel/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Kernel().Interval().Get(t)
 			if cpu_value > uint64(0) {
@@ -310,7 +309,7 @@ func TestCPUKernelInterval(t *testing.T) {
 
 func TestCPUKernelMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/kernel/mintime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/kernel/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Kernel().MinTime().Get(t)
 			if cpu_value > uint64(0) {
@@ -324,7 +323,7 @@ func TestCPUKernelMinTime(t *testing.T) {
 
 func TestCPUKernelMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/kernel/maxtime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/kernel/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Kernel().MaxTime().Get(t)
 			if cpu_value > uint64(0) {
@@ -339,7 +338,7 @@ func TestCPUKernelMaxTime(t *testing.T) {
 // /system/cpus/cpu/state/nice
 func TestCPUNiceInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/nice/instant"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/nice/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Nice().Instant().Get(t)
 			if cpu_value >= uint8(0) {
@@ -353,7 +352,7 @@ func TestCPUNiceInstant(t *testing.T) {
 
 func TestCPUNiceAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/nice/avg"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/nice/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Nice().Avg().Get(t)
 			if cpu_value >= uint8(0) {
@@ -367,7 +366,7 @@ func TestCPUNiceAvg(t *testing.T) {
 
 func TestCPUNiceMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/nice/min"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/nice/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Nice().Min().Get(t)
 			if cpu_value == uint8(0) {
@@ -381,7 +380,7 @@ func TestCPUNiceMin(t *testing.T) {
 
 func TestCPUNiceMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/nice/max"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/nice/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Nice().Max().Get(t)
 			if cpu_value >= uint8(0) {
@@ -395,7 +394,7 @@ func TestCPUNiceMax(t *testing.T) {
 
 func TestCPUNiceInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/nice/interval"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/nice/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Nice().Interval().Get(t)
 			if cpu_value > uint64(0) {
@@ -409,7 +408,7 @@ func TestCPUNiceInterval(t *testing.T) {
 
 func TestCPUNiceMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/nice/mintime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/nice/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Nice().MinTime().Get(t)
 			if cpu_value > uint64(0) {
@@ -423,7 +422,7 @@ func TestCPUNiceMinTime(t *testing.T) {
 
 func TestCPUNiceMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/nice/maxtime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/nice/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_value := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Nice().MaxTime().Get(t)
 			if cpu_value > uint64(0) {
@@ -438,7 +437,7 @@ func TestCPUNiceMaxTime(t *testing.T) {
 // /system/cpus/cpu/state/idle
 func TestCPUIdleInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/idle/instant"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/idle/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Idle().Instant().Get(t)
 			if cpu_idle > uint8(0) {
@@ -452,7 +451,7 @@ func TestCPUIdleInstant(t *testing.T) {
 
 func TestCPUIdleAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/idle/avg"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/idle/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Idle().Avg().Get(t)
 			if cpu_idle > uint8(0) {
@@ -466,7 +465,7 @@ func TestCPUIdleAvg(t *testing.T) {
 
 func TestCPUIdleMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/idle/min"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/idle/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Idle().Min().Get(t)
 			if cpu_idle == uint8(0) {
@@ -480,7 +479,7 @@ func TestCPUIdleMin(t *testing.T) {
 
 func TestCPUIdleMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/idle/max"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/idle/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Idle().Max().Get(t)
 			if cpu_idle > uint8(0) {
@@ -494,7 +493,7 @@ func TestCPUIdleMax(t *testing.T) {
 
 func TestCPUIdleInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/idle/interval"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/idle/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Idle().Interval().Get(t)
 			if cpu_idle > uint64(0) {
@@ -508,7 +507,7 @@ func TestCPUIdleInterval(t *testing.T) {
 
 func TestCPUIdleMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/idle/mintime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/idle/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Idle().MinTime().Get(t)
 			if cpu_idle > uint64(0) {
@@ -522,7 +521,7 @@ func TestCPUIdleMinTime(t *testing.T) {
 
 func TestCPUIdleMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/idle/maxtime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/idle/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Idle().MaxTime().Get(t)
 			if cpu_idle > uint64(0) {
@@ -537,7 +536,7 @@ func TestCPUIdleMaxTime(t *testing.T) {
 // /system/cpus/cpu/state/wait
 func TestCPUWaitInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/wait/instant"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/wait/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Wait().Instant().Get(t)
 			if cpu_idle >= uint8(0) {
@@ -551,7 +550,7 @@ func TestCPUWaitInstant(t *testing.T) {
 
 func TestCPUWaitAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/wait/avg"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/wait/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Wait().Avg().Get(t)
 			if cpu_idle >= uint8(0) {
@@ -565,7 +564,7 @@ func TestCPUWaitAvg(t *testing.T) {
 
 func TestCPUWaitMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/wait/min"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/wait/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Wait().Min().Get(t)
 			if cpu_idle == uint8(0) {
@@ -579,7 +578,7 @@ func TestCPUWaitMin(t *testing.T) {
 
 func TestCPUWaitMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/wait/max"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/wait/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Wait().Max().Get(t)
 			if cpu_idle >= uint8(0) {
@@ -593,7 +592,7 @@ func TestCPUWaitMax(t *testing.T) {
 
 func TestCPUWaitInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/wait/interval"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/wait/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Wait().Interval().Get(t)
 			if cpu_idle > uint64(0) {
@@ -607,7 +606,7 @@ func TestCPUWaitInterval(t *testing.T) {
 
 func TestCPUWaitMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/wait/mintime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/wait/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Wait().MinTime().Get(t)
 			if cpu_idle > uint64(0) {
@@ -621,7 +620,7 @@ func TestCPUWaitMinTime(t *testing.T) {
 
 func TestCPUWaitMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/wait/maxtime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/wait/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).Wait().MaxTime().Get(t)
 			if cpu_idle > uint64(0) {
@@ -636,7 +635,7 @@ func TestCPUWaitMaxTime(t *testing.T) {
 // /system/cpus/cpu/state/hardware-interrupt
 func TestCPUHardwareInterruptInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/hardware-interrupt/instant"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).HardwareInterrupt().Instant().Get(t)
 			if cpu_idle >= uint8(0) {
@@ -650,7 +649,7 @@ func TestCPUHardwareInterruptInstant(t *testing.T) {
 
 func TestCPUHardwareInterruptAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/hardware-interrupt/avg"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).HardwareInterrupt().Avg().Get(t)
 			if cpu_idle >= uint8(0) {
@@ -664,7 +663,7 @@ func TestCPUHardwareInterruptAvg(t *testing.T) {
 
 func TestCPUHardwareInterruptMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/hardware-interrupt/min"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).HardwareInterrupt().Min().Get(t)
 			if cpu_idle == uint8(0) {
@@ -678,7 +677,7 @@ func TestCPUHardwareInterruptMin(t *testing.T) {
 
 func TestCPUHardwareInterruptMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/hardware-interrupt/max"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).HardwareInterrupt().Max().Get(t)
 			if cpu_idle >= uint8(0) {
@@ -692,7 +691,7 @@ func TestCPUHardwareInterruptMax(t *testing.T) {
 
 func TestCPUHardwareInterruptInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/hardware-interrupt/interval"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).HardwareInterrupt().Interval().Get(t)
 			if cpu_idle > uint64(0) {
@@ -706,7 +705,7 @@ func TestCPUHardwareInterruptInterval(t *testing.T) {
 
 func TestCPUHardwareInterruptMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/hardware-interrupt/mintime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).HardwareInterrupt().MinTime().Get(t)
 			if cpu_idle > uint64(0) {
@@ -720,7 +719,7 @@ func TestCPUHardwareInterruptMinTime(t *testing.T) {
 
 func TestCPUHardwareInterruptMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/hardware-interrupt/maxtime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).HardwareInterrupt().MaxTime().Get(t)
 			if cpu_idle > uint64(0) {
@@ -735,7 +734,7 @@ func TestCPUHardwareInterruptMaxTime(t *testing.T) {
 // /system/cpus/cpu/state/software-interrupt
 func TestCPUSoftwareInterruptInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/software-interrupt/instant"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/software-interrupt/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).SoftwareInterrupt().Instant().Get(t)
 			if cpu_idle >= uint8(0) {
@@ -749,7 +748,7 @@ func TestCPUSoftwareInterruptInstant(t *testing.T) {
 
 func TestCPUSoftwareInterruptAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/software-interrupt/avg"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/software-interrupt/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).SoftwareInterrupt().Avg().Get(t)
 			if cpu_idle >= uint8(0) {
@@ -763,7 +762,7 @@ func TestCPUSoftwareInterruptAvg(t *testing.T) {
 
 func TestCPUSoftwareInterruptMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/software-interrupt/min"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/software-interrupt/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).SoftwareInterrupt().Min().Get(t)
 			if cpu_idle == uint8(0) {
@@ -777,7 +776,7 @@ func TestCPUSoftwareInterruptMin(t *testing.T) {
 
 func TestCPUSoftwareInterruptMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/software-interrupt/max"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/software-interrupt/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).SoftwareInterrupt().Max().Get(t)
 			if cpu_idle >= uint8(0) {
@@ -791,7 +790,7 @@ func TestCPUSoftwareInterruptMax(t *testing.T) {
 
 func TestCPUSoftwareInterruptInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/software-interrupt/interval"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/software-interrupt/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).SoftwareInterrupt().Interval().Get(t)
 			if cpu_idle > uint64(0) {
@@ -805,7 +804,7 @@ func TestCPUSoftwareInterruptInterval(t *testing.T) {
 
 func TestCPUSoftwareInterruptMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/software-interrupt/mintime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/software-interrupt/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).SoftwareInterrupt().MinTime().Get(t)
 			if cpu_idle > uint64(0) {
@@ -819,7 +818,7 @@ func TestCPUSoftwareInterruptMinTime(t *testing.T) {
 
 func TestCPUSoftwareInterruptMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/cpus/cpu/state/software-interrupt/maxtime"), func(t *testing.T) {
+	t.Run("Testing /system/cpus/cpu/state/software-interrupt/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			cpu_idle := dut.Telemetry().System().Cpu(telemetry.Cpu_Index_Enum_ALL).SoftwareInterrupt().MaxTime().Get(t)
 			if cpu_idle > uint64(0) {

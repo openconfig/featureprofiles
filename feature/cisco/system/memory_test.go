@@ -17,7 +17,6 @@
 package system_base_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/openconfig/ondatra"
@@ -26,7 +25,7 @@ import (
 // /system/memory/state/reserved
 func TestMemoryReserved(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/memory/state/reserved"), func(t *testing.T) {
+	t.Run("Testing /system/memory/state/reserved", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			memory_reserved := dut.Telemetry().System().Memory().Reserved().Get(t)
 			if memory_reserved == uint64(0) {
@@ -41,7 +40,7 @@ func TestMemoryReserved(t *testing.T) {
 // /system/memory/state/physical
 func TestMemoryPhysical(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	t.Run(fmt.Sprintf("Testing /system/memory/state/physical"), func(t *testing.T) {
+	t.Run("Testing /system/memory/state/physical", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			memory_reserved := dut.Telemetry().System().Memory().Physical().Get(t)
 			if memory_reserved > uint64(0) {
