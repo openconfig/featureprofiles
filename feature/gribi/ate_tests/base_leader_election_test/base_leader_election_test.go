@@ -428,7 +428,7 @@ func testIPv4BackUpSwitchDrop(ctx context.Context, t *testing.T, args *testArgs)
 	configureDUT(t, args.dut)
 }
 
-func testIPv4BackUpSwitchDefault(ctx context.Context, t *testing.T, args *testArgs) {
+func testIPv4BackUpSwitchDecap(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
 	// ensure that the entry is active through AFT telemetry and traffic.
@@ -542,9 +542,9 @@ func TestBackUp(t *testing.T) {
 			fn:   testIPv4BackUpSwitchDrop,
 		},
 		{
-			name: "IPv4BackUpSwitchDefault",
+			name: "IPv4BackUpSwitchDecap",
 			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over default backup path ",
-			fn:   testIPv4BackUpSwitchDefault,
+			fn:   testIPv4BackUpSwitchDecap,
 		},
 	}
 	for _, tt := range test {
