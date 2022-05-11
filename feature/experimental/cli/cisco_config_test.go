@@ -117,14 +117,16 @@ func TestMain(m *testing.M) {
 
 func TestCLIConfigViaSSH(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	_, err := config.ConfigWithSSH(context.Background(), t, dut, "config \n hostname test \n commit \n", 30*time.Second); if err != nil {
+	_, err := config.WithSSH(context.Background(), t, dut, "config \n hostname test \n commit \n", 30*time.Second)
+	if err != nil {
 		t.Fatalf("TestCLIConfigViaSSH is failed: %v", err)
 	}
 }
 
 func TestGNMIFullCommitReplace(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	_, err := config.GNMICommitReplace(context.Background(), t, dut, fullConfig); if err != nil {
+	_, err := config.GNMICommitReplace(context.Background(), t, dut, fullConfig)
+	if err != nil {
 		t.Fatalf("TestGNMIFullCommitReplace is failed: %v", err)
 	}
 }
