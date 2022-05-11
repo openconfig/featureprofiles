@@ -33,7 +33,7 @@ func PortChannelName(t testing.TB, dut *ondatra.DUTDevice, i int) string {
 	case ondatra.ARISTA:
 		return fmt.Sprintf("Port-Channel%d", i)
 	case ondatra.CISCO:
-		return fmt.Sprintf("Port-channel%d", i)
+		return fmt.Sprintf("Bundle-Ether%d", i)
 	case ondatra.JUNIPER:
 		// Juniper technically allows 0, but the other vendors start with 1.
 		return fmt.Sprintf("ae%d", i)
