@@ -8,13 +8,21 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v2
       with:
-        go-version: '1.17'
+        go-version: '1.18'
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Install protobuf
       uses: arduino/setup-protoc@v1
       with:
         version: '3.x'
-    - name: Checkout code
-      uses: actions/checkout@v2
     - name: Lint protobufs
       run: |
         go install github.com/googleapis/api-linter/cmd/api-linter@latest
@@ -46,7 +54,7 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v2
       with:
-        go-version: '1.17'
+        go-version: '1.18'
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Cache
@@ -55,7 +63,8 @@ jobs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
-        key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Fetch Openconfig Models
       run: make openconfig_public
     - name: Validate Paths
@@ -67,7 +76,7 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v2
       with:
-        go-version: '1.17'
+        go-version: '1.18'
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Cache
@@ -76,17 +85,18 @@ jobs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
-        key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+          ~/.cache/staticcheck
+        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Go vet
       run: go vet ./...
     - name: Gofmt
       run: diff -u <(echo -n) <(gofmt -d -s .)
+    - name: Get revive
+      run: go install github.com/mgechev/revive@latest
+    - name: Run revive
+      run: revive -exclude yang/fpoc ./...
     - name: Get staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
-      run: |
-        checkstr=""
-        for i in `go list ./... | grep -v github.com/openconfig/featureprofiles/yang`; do
-          checkstr="$checkstr $i"
-        done
-        staticcheck $checkstr
+      run: GOGC=30 staticcheck ./...
