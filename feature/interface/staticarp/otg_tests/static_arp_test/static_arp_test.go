@@ -273,13 +273,13 @@ func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned b
 	t.Logf("Mac Addresses of DUT: %v", dutInterfaceMac)
 	switch ipType {
 	case "IPv4":
-		ipv4Neighbors, err := helpers.GetIPv4NeighborStates(t, ate, c)
+		ipv4Neighbors, err := helpers.GetAllIPv4NeighborMacEntries(t, ate, c)
 		if err != nil {
 			t.Errorf("Error while fetching IPv4 Neighbor states: %v", err)
 		}
 		t.Logf("IPv4 Neighbor states of OTG: %v", ipv4Neighbors)
 	case "IPv6":
-		ipv6Neighbors, err := helpers.GetIPv6NeighborStates(t, ate, c)
+		ipv6Neighbors, err := helpers.GetAllIPv6NeighborMacEntries(t, ate, c)
 		if err != nil {
 			t.Errorf("Error while fetching IPv6 Neighbor states: %v", err)
 		}

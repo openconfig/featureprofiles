@@ -184,3 +184,71 @@ func GetIPv6NeighborStates(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Conf
 	}
 	return states, nil
 }
+
+func GetAllIPv4NeighborStates(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) (gosnappi.StatesResponseNeighborsv4StateIter, error) {
+	defer Timer(time.Now(), "Getting IPv4 Neighbor states GNMI")
+	ethernetNames := []string{}
+	for _, d := range c.Devices().Items() {
+		for _, eth := range d.Ethernets().Items() {
+			ethernetNames = append(ethernetNames, eth.Name())
+		}
+	}
+
+	states := gosnappi.NewApi().NewGetStatesResponse().StatusCode200().Ipv4Neighbors()
+	for _, ethernetName := range ethernetNames {
+		log.Printf("Fetching IPv4 Neighbor states for ethernet: %v", ethernetName)
+		ipv4Addresses := ate.OTGTelemetry().Interface(ethernetName).Ipv4NeighborAny().Ipv4Address().Get(t)
+		for _, ipv4Address := range ipv4Addresses {
+			linkLayeraddress := ate.OTGTelemetry().Interface(ethernetName).Ipv4Neighbor(ipv4Address).LinkLayerAddress().Get(t)
+			states.Add().
+				SetEthernetName(ethernetName).
+				SetIpv4Address(ipv4Address).
+				SetLinkLayerAddress(linkLayeraddress)
+
+		}
+	}
+	PrintStatesTable(&StatesTableOpts{
+		ClearPrevious:       false,
+		Ipv4NeighborsStates: states,
+	})
+	return states, nil
+}
+
+func GetAllIPv6NeighborStates(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) (gosnappi.StatesResponseNeighborsv6StateIter, error) {
+	defer Timer(time.Now(), "Getting IPv6 Neighbor states GNMI")
+	ethernetNames := []string{}
+	for _, d := range c.Devices().Items() {
+		for _, eth := range d.Ethernets().Items() {
+			ethernetNames = append(ethernetNames, eth.Name())
+		}
+	}
+
+	states := gosnappi.NewApi().NewGetStatesResponse().StatusCode200().Ipv6Neighbors()
+	for _, ethernetName := range ethernetNames {
+		log.Printf("Fetching IPv6 Neighbor states for ethernet: %v", ethernetName)
+		ipv6Addresses := ate.OTGTelemetry().Interface(ethernetName).Ipv6NeighborAny().Ipv6Address().Get(t)
+		for _, ipv6Address := range ipv6Addresses {
+			linkLayeraddress := ate.OTGTelemetry().Interface(ethernetName).Ipv4Neighbor(ipv6Address).LinkLayerAddress().Get(t)
+			states.Add().
+				SetEthernetName(ethernetName).
+				SetIpv6Address(ipv6Address).
+				SetLinkLayerAddress(linkLayeraddress)
+
+		}
+	}
+	PrintStatesTable(&StatesTableOpts{
+		ClearPrevious:       false,
+		Ipv6NeighborsStates: states,
+	})
+	return states, nil
+}
+
+func GetAllIPv4NeighborMacEntries(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) ([]string, error) {
+	macEntries := ate.OTGTelemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Get(t)
+	return macEntries, nil
+}
+
+func GetAllIPv6NeighborMacEntries(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) ([]string, error) {
+	macEntries := ate.OTGTelemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Get(t)
+	return macEntries, nil
+}
