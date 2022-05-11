@@ -14,8 +14,8 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-// ConfigWithSSH applies the cli confguration via ssh on the device
-func ConfigWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) (string, error) {
+// WithSSH applies the cli confguration via ssh on the device
+func WithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) (string, error) {
 	sshClient := dut.RawAPIs().CLI(t)
 	cliOut := sshClient.Stdout()
 	cliIn := sshClient.Stdin()
@@ -58,10 +58,9 @@ func ConfigWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cf
 		if resp {
 			// add logging here
 			return response, nil
-		} else {
-			// add logging here
-			return response, fmt.Errorf("response message for ssh command is not as expected")
 		}
+		// add logging here
+		return response, fmt.Errorf("response message for ssh command is not as expected")
 	case <-time.After(timeout):
 		// add logging here
 		return response, fmt.Errorf("did not recieve the expected response (timeout)")
