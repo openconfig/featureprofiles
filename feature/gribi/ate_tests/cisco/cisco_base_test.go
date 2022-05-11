@@ -79,7 +79,17 @@ var (
 	}
 )
 
-func TestCD2(t *testing.T) {
+var (
+	CD5Testcases = []Testcase{
+		{
+			name: "Move physical to bundle with same policy",
+			desc: "Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy",
+			fn:   testMovePhysicalToBundle,
+		},
+	}
+)
+
+func TestTransitWCMPFlush(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// Dial gRIBI
@@ -97,9 +107,82 @@ func TestCD2(t *testing.T) {
 			t.Logf("Description: %s", tt.desc)
 
 			clientA := gribi.GRIBIHandler{
-				DUT:         ondatra.DUT(t, "dut"),
-				FibACK:      false,
-				Persistence: true,
+				DUT:                  ondatra.DUT(t, "dut"),
+				FibACK:               false,
+				Persistence:          true,
+				InitialElectionIDLow: 1,
+			}
+			defer clientA.Close(t)
+			if err := clientA.Start(t); err != nil {
+				t.Fatalf("Could not initialize gRIBI: %v", err)
+			}
+			clientA.BecomeLeader(t)
+
+			interfaceList := []string{}
+			for i := 121; i < 128; i++ {
+				interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
+			}
+
+			interfaces := interfaces{
+				in:  []string{"Bundle-Ether120"},
+				out: interfaceList,
+			}
+
+			args := &testArgs{
+				ctx:        ctx,
+				clientA:    &clientA,
+				dut:        dut,
+				ate:        ate,
+				top:        top,
+				usecase:    0,
+				interfaces: &interfaces,
+				prefix: &gribiPrefix{
+					scale:           1,
+					host:            "11.11.11.0",
+					vrfName:         "TE",
+					vipPrefixLength: "32",
+
+					vip1Ip: "192.0.2.40",
+					vip2Ip: "192.0.2.42",
+
+					vip1NhIndex:  uint64(100),
+					vip1NhgIndex: uint64(100),
+
+					vip2NhIndex:  uint64(200),
+					vip2NhgIndex: uint64(200),
+
+					vrfNhIndex:  uint64(1000),
+					vrfNhgIndex: uint64(1000),
+				},
+			}
+
+			tt.fn(ctx, t, args)
+		})
+	}
+}
+
+func TestCD5PBR(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	// Dial gRIBI
+	ctx := context.Background()
+
+	// Configure the ATE
+	ate := ondatra.ATE(t, "ate")
+	top := configureATE(t, ate)
+	top.Push(t).StartProtocols(t)
+
+	for _, tt := range CD5Testcases {
+		// Each case will run with its own gRIBI fluent client.
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Name: %s", tt.name)
+			t.Logf("Description: %s", tt.desc)
+
+			clientA := gribi.GRIBIHandler{
+				DUT:                  ondatra.DUT(t, "dut"),
+				FibACK:               false,
+				Persistence:          true,
+				InitialElectionIDLow: 10,
 			}
 			defer clientA.Close(t)
 			if err := clientA.Start(t); err != nil {

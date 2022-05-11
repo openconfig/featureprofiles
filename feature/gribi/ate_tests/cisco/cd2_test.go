@@ -14,7 +14,7 @@ import (
 
 const (
 	ipv4PrefixLen = 24
-	instance      = "DEFAULT"
+	instance      = "default"
 )
 
 var (
