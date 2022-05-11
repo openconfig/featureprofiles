@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "bgp_graceful_restart"
+  name: "bgp_gracefulrestart"
   version: 1
 }
 
@@ -95,6 +95,6 @@ telemetry_path {
 }
 
 feature_profile_dependency {
-  name: "bgp_base"
+  name: "bgp"
   version: 1
 }

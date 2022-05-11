@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "policy_vrf_selection"
+  name: "experimental_policy_policy_vrf_selection"
   version: 1
 }
 
@@ -37,6 +37,6 @@ telemetry_path {
 
 
 feature_profile_dependency {
-  name: "policy_base"
+  name: "bgp_policybase"
   version: 1
 }
