@@ -492,3 +492,16 @@ func PrintStatesTable(opts *StatesTableOpts) {
 	}
 	log.Println(out)
 }
+
+func expectedElementsPresent(expected, actual []string) bool {
+	exists := make(map[string]bool)
+	for _, value := range actual {
+		exists[value] = true
+	}
+	for _, value := range expected {
+		if !exists[value] {
+			return false
+		}
+	}
+	return true
+}

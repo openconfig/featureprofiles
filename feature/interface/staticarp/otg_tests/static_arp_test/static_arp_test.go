@@ -271,19 +271,21 @@ func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned b
 	dut := ondatra.DUT(t, "dut")
 	dutInterfaceMac := GetInterfaceMacs(t, dut.Device)
 	t.Logf("Mac Addresses of DUT: %v", dutInterfaceMac)
-	switch ipType {
-	case "IPv4":
-		ipv4Neighbors, err := helpers.GetAllIPv4NeighborMacEntries(t, ate, c)
-		if err != nil {
-			t.Errorf("Error while fetching IPv4 Neighbor states: %v", err)
+	expectedMacEntries := []string{}
+	if poisoned == true {
+		expectedMacEntries = append(expectedMacEntries, dutInterfaceMac["Ethernet1"])
+	} else {
+		for _, macValue := range dutInterfaceMac {
+			expectedMacEntries = append(expectedMacEntries, macValue)
 		}
-		t.Logf("IPv4 Neighbor states of OTG: %v", ipv4Neighbors)
-	case "IPv6":
-		ipv6Neighbors, err := helpers.GetAllIPv6NeighborMacEntries(t, ate, c)
-		if err != nil {
-			t.Errorf("Error while fetching IPv6 Neighbor states: %v", err)
-		}
-		t.Logf("IPv6 Neighbor states of OTG: %v", ipv6Neighbors)
+	}
+
+	err := helpers.WaitFor(
+		t,
+		func() (bool, error) { return helpers.ArpEntriesOk(t, ate, ipType, expectedMacEntries) }, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -326,8 +328,7 @@ func testFlow(
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
 		otg.PushConfig(t, ate, config)
-		time.Sleep(2 * time.Second)
-		// checkOTGArpEntry(t, config, "IPv4", poisoned)
+		checkOTGArpEntry(t, config, "IPv4", poisoned)
 	case "IPv6":
 		flowipv6 := config.Flows().Add().SetName("FlowIpv6")
 		flowipv6.Metrics().SetEnable(true)
@@ -343,8 +344,7 @@ func testFlow(
 		v4.Src().SetValue(ateSrc.IPv6)
 		v4.Dst().SetValue(ateDst.IPv6)
 		otg.PushConfig(t, ate, config)
-		time.Sleep(2 * time.Second)
-		// checkOTGArpEntry(t, config, "IPv6", poisoned)
+		checkOTGArpEntry(t, config, "IPv6", poisoned)
 	}
 
 	// Starting the traffic

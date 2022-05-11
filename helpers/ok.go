@@ -136,3 +136,27 @@ func FlowMetricsOk(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, expe
 
 	return expected, nil
 }
+
+func ArpEntriesOk(t *testing.T, ate *ondatra.ATEDevice, ipType string, expectedMacEntries []string) (bool, error) {
+	actualMacEntries := []string{}
+	var err error
+	switch ipType {
+	case "IPv4":
+		actualMacEntries, err = GetAllIPv4NeighborMacEntries(t, ate)
+		if err != nil {
+			return false, err
+		}
+	case "IPv6":
+		actualMacEntries, err = GetAllIPv6NeighborMacEntries(t, ate)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	t.Logf("Expected Mac Entries: %v", expectedMacEntries)
+	t.Logf("OTG Mac Entries: %v", actualMacEntries)
+
+	expected := true
+	expected = expectedElementsPresent(expectedMacEntries, actualMacEntries)
+	return expected, nil
+}
