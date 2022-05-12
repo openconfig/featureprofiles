@@ -416,6 +416,10 @@ func TestNegotiation(t *testing.T) {
 
 	for _, lagType := range lagTypes {
 		top := ate.Topology().New()
+		aggID, err := fptest.LAGName(dut.Vendor(), 1001)
+		if err != nil {
+			t.Fatalf("LAGName for vendor %s: %s", dut.Vendor(), err)
+		}
 
 		tc := &testCase{
 			minlinks: uint16(len(dut.Ports()) / 2),
@@ -427,7 +431,7 @@ func TestNegotiation(t *testing.T) {
 
 			dutPorts: sortPorts(dut.Ports()),
 			atePorts: sortPorts(ate.Ports()),
-			aggID:    fptest.PortChannelName(t, dut, 1001),
+			aggID:    aggID,
 			l3header: []ondatra.Header{ondatra.NewIPv4Header()},
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
