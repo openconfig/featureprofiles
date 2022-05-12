@@ -2,4 +2,3 @@ username: admin
 password: admin
 topology: /home/athena/featureprofiles/topologies/kne/ixia-arista-ixia.textproto
 cli: kne_cli
-kubecfg: /home/athena/featureprofiles/topologies/kne/kubecfg
