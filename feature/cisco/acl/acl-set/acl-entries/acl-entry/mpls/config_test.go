@@ -1,19 +1,18 @@
-
 package acl_test
-import (
-	"testing"
-	"fmt"
 
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	oc "github.com/openconfig/ondatra/telemetry"
+import (
+	"fmt"
+	"testing"
+
 	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
@@ -32,25 +31,24 @@ func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 }
 func TestTrafficClass(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []uint8 {
-		3, 
-		3, 
+	inputs := []uint8{
+		3,
+		3,
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryMpls := baseConfigAclSetAclEntry.Mpls
-			*baseConfigAclSetAclEntryMpls.TrafficClass = input 
+			*baseConfigAclSetAclEntryMpls.TrafficClass = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryMpls)
@@ -82,25 +80,24 @@ func TestTrafficClass(t *testing.T) {
 }
 func TestEndLabelValue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []oc.Acl_AclSet_AclEntry_Mpls_EndLabelValue_Union {
-		oc.UnionUint32(215451), 
-		oc.UnionUint32(186944), 
+	inputs := []oc.Acl_AclSet_AclEntry_Mpls_EndLabelValue_Union{
+		oc.UnionUint32(215451),
+		oc.UnionUint32(186944),
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/end-label-value using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/end-label-value using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryMpls := baseConfigAclSetAclEntry.Mpls
-			baseConfigAclSetAclEntryMpls.EndLabelValue = input 
+			baseConfigAclSetAclEntryMpls.EndLabelValue = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryMpls)
@@ -132,25 +129,24 @@ func TestEndLabelValue(t *testing.T) {
 }
 func TestStartLabelValue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []oc.Acl_AclSet_AclEntry_Mpls_StartLabelValue_Union {
-		oc.UnionUint32(907017), 
-		oc.UnionUint32(988413), 
+	inputs := []oc.Acl_AclSet_AclEntry_Mpls_StartLabelValue_Union{
+		oc.UnionUint32(907017),
+		oc.UnionUint32(988413),
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/start-label-value using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/start-label-value using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryMpls := baseConfigAclSetAclEntry.Mpls
-			baseConfigAclSetAclEntryMpls.StartLabelValue = input 
+			baseConfigAclSetAclEntryMpls.StartLabelValue = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryMpls)
@@ -182,25 +178,24 @@ func TestStartLabelValue(t *testing.T) {
 }
 func TestTtlValue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []uint8 {
-		102, 
-		1, 
+	inputs := []uint8{
+		102,
+		1,
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryMpls := baseConfigAclSetAclEntry.Mpls
-			*baseConfigAclSetAclEntryMpls.TtlValue = input 
+			*baseConfigAclSetAclEntryMpls.TtlValue = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryMpls)

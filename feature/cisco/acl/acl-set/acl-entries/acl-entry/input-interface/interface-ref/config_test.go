@@ -1,19 +1,18 @@
-
 package acl_test
-import (
-	"testing"
-	"fmt"
 
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	oc "github.com/openconfig/ondatra/telemetry"
+import (
+	"fmt"
+	"testing"
+
 	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
@@ -34,26 +33,25 @@ func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 }
 func TestInterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []string {
-		"cca", 
-		"c", 
+	inputs := []string{
+		"cca",
+		"c",
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/interface using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/interface using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryInputInterface := baseConfigAclSetAclEntry.InputInterface
 			baseConfigAclSetAclEntryInputInterfaceInterfaceRef := baseConfigAclSetAclEntryInputInterface.InterfaceRef
-			*baseConfigAclSetAclEntryInputInterfaceInterfaceRef.Interface = input 
+			*baseConfigAclSetAclEntryInputInterfaceInterfaceRef.Interface = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).InputInterface().InterfaceRef()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).InputInterface().InterfaceRef()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).InputInterface().InterfaceRef()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).InputInterface().InterfaceRef()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryInputInterfaceInterfaceRef)
@@ -85,26 +83,25 @@ func TestInterface(t *testing.T) {
 }
 func TestSubinterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []uint32 {
-		652656135, 
-		1867539980, 
+	inputs := []uint32{
+		652656135,
+		1867539980,
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/subinterface using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/subinterface using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryInputInterface := baseConfigAclSetAclEntry.InputInterface
 			baseConfigAclSetAclEntryInputInterfaceInterfaceRef := baseConfigAclSetAclEntryInputInterface.InterfaceRef
-			*baseConfigAclSetAclEntryInputInterfaceInterfaceRef.Subinterface = input 
+			*baseConfigAclSetAclEntryInputInterfaceInterfaceRef.Subinterface = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).InputInterface().InterfaceRef()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).InputInterface().InterfaceRef()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).InputInterface().InterfaceRef()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).InputInterface().InterfaceRef()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryInputInterfaceInterfaceRef)

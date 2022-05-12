@@ -1,19 +1,18 @@
-
 package acl_test
-import (
-	"testing"
-	"fmt"
 
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	oc "github.com/openconfig/ondatra/telemetry"
+import (
+	"fmt"
+	"testing"
+
 	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
@@ -32,25 +31,24 @@ func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 }
 func TestSourcePort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []oc.Acl_AclSet_AclEntry_Transport_SourcePort_Union {
-		oc.UnionString("46991..65532"), 
-		oc.UnionString("066..94"), 
+	inputs := []oc.Acl_AclSet_AclEntry_Transport_SourcePort_Union{
+		oc.UnionString("46991..65532"),
+		oc.UnionString("066..94"),
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryTransport := baseConfigAclSetAclEntry.Transport
-			baseConfigAclSetAclEntryTransport.SourcePort = input 
+			baseConfigAclSetAclEntryTransport.SourcePort = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Transport()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Transport()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Transport()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Transport()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryTransport)
@@ -82,12 +80,12 @@ func TestSourcePort(t *testing.T) {
 }
 func TestTcpFlags(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := [][]oc.E_PacketMatchTypes_TCP_FLAGS {
-		[]oc.E_PacketMatchTypes_TCP_FLAGS {
+	inputs := [][]oc.E_PacketMatchTypes_TCP_FLAGS{
+		{
 			oc.E_PacketMatchTypes_TCP_FLAGS(3), //TCP_ECE
 			oc.E_PacketMatchTypes_TCP_FLAGS(1), //TCP_ACK
 			oc.E_PacketMatchTypes_TCP_FLAGS(4), //TCP_FIN
@@ -97,20 +95,18 @@ func TestTcpFlags(t *testing.T) {
 			oc.E_PacketMatchTypes_TCP_FLAGS(8), //TCP_URG
 			oc.E_PacketMatchTypes_TCP_FLAGS(5), //TCP_PSH
 		},
-		[]oc.E_PacketMatchTypes_TCP_FLAGS {
-		},
+		{},
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/tcp-flags using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/tcp-flags using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryTransport := baseConfigAclSetAclEntry.Transport
-			baseConfigAclSetAclEntryTransport.TcpFlags = input 
+			baseConfigAclSetAclEntryTransport.TcpFlags = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Transport()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Transport()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Transport()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Transport()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryTransport)
@@ -146,25 +142,24 @@ func TestTcpFlags(t *testing.T) {
 }
 func TestDestinationPort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []oc.Acl_AclSet_AclEntry_Transport_DestinationPort_Union {
-		oc.UnionUint16(37442), 
-		oc.UnionString("0006..090"), 
+	inputs := []oc.Acl_AclSet_AclEntry_Transport_DestinationPort_Union{
+		oc.UnionUint16(37442),
+		oc.UnionString("0006..090"),
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/destination-port using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/destination-port using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryTransport := baseConfigAclSetAclEntry.Transport
-			baseConfigAclSetAclEntryTransport.DestinationPort = input 
+			baseConfigAclSetAclEntryTransport.DestinationPort = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Transport()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Transport()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Transport()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Transport()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryTransport)

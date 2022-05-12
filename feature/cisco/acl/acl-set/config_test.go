@@ -1,19 +1,18 @@
-
 package acl_test
-import (
-	"testing"
-	"fmt"
 
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	oc "github.com/openconfig/ondatra/telemetry"
+import (
+	"fmt"
+	"testing"
+
 	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
@@ -28,23 +27,22 @@ func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 }
 func TestType(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []oc.E_Acl_ACL_TYPE {
+	inputs := []oc.E_Acl_ACL_TYPE{
 		oc.E_Acl_ACL_TYPE(3), //ACL_L2
 		oc.E_Acl_ACL_TYPE(1), //ACL_IPV4
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/config/type using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/config/type using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
-			baseConfigAclSet.Type = input 
+			baseConfigAclSet.Type = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,)
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,)
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type)
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type)
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSet)
@@ -76,23 +74,22 @@ func TestType(t *testing.T) {
 }
 func TestName(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []string {
-		"as", 
-		"ai", 
+	inputs := []string{
+		"as",
+		"ai",
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/config/name using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/config/name using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
-			*baseConfigAclSet.Name = input 
+			*baseConfigAclSet.Name = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,)
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,)
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type)
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type)
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSet)
@@ -124,23 +121,22 @@ func TestName(t *testing.T) {
 }
 func TestDescription(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []string {
-		":ia", 
-		"cs", 
+	inputs := []string{
+		":ia",
+		"cs",
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/config/description using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/config/description using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
-			*baseConfigAclSet.Description = input 
+			*baseConfigAclSet.Description = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,)
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,)
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type)
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type)
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSet)

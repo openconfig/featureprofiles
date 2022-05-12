@@ -1,19 +1,18 @@
-
 package acl_test
-import (
-	"testing"
-	"fmt"
 
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	oc "github.com/openconfig/ondatra/telemetry"
+import (
+	"fmt"
+	"testing"
+
 	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
@@ -32,25 +31,24 @@ func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 }
 func TestDscp(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []uint8 {
-		39, 
-		19, 
+	inputs := []uint8{
+		39,
+		19,
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryIpv4 := baseConfigAclSetAclEntry.Ipv4
-			*baseConfigAclSetAclEntryIpv4.Dscp = input 
+			*baseConfigAclSetAclEntryIpv4.Dscp = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Ipv4()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Ipv4()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryIpv4)
@@ -82,25 +80,24 @@ func TestDscp(t *testing.T) {
 }
 func TestSourceAddress(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []string {
-		"186.175.128.250/20", 
-		"3.152.2.2/4", 
+	inputs := []string{
+		"186.175.128.250/20",
+		"3.152.2.2/4",
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/source-address using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/source-address using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryIpv4 := baseConfigAclSetAclEntry.Ipv4
-			*baseConfigAclSetAclEntryIpv4.SourceAddress = input 
+			*baseConfigAclSetAclEntryIpv4.SourceAddress = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Ipv4()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Ipv4()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryIpv4)
@@ -132,25 +129,24 @@ func TestSourceAddress(t *testing.T) {
 }
 func TestDestinationAddress(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []string {
-		"253.253.22.82/30", 
-		"62.33.2.6/3", 
+	inputs := []string{
+		"253.253.22.82/30",
+		"62.33.2.6/3",
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/destination-address using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/destination-address using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryIpv4 := baseConfigAclSetAclEntry.Ipv4
-			*baseConfigAclSetAclEntryIpv4.DestinationAddress = input 
+			*baseConfigAclSetAclEntryIpv4.DestinationAddress = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Ipv4()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Ipv4()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryIpv4)
@@ -182,52 +178,51 @@ func TestDestinationAddress(t *testing.T) {
 }
 func TestDscpSet(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := [][]uint8 {
-		[]uint8 {
-			36, 
-			9, 
-			29, 
-			16, 
-			8, 
+	inputs := [][]uint8{
+		{
+			36,
+			9,
+			29,
+			16,
+			8,
 		},
-		[]uint8 {
-			14, 
-			46, 
-			17, 
-			6, 
-			36, 
-			45, 
-			47, 
-			27, 
-			9, 
-			5, 
-			13, 
-			49, 
-			56, 
-			61, 
-			6, 
-			27, 
-			51, 
-			44, 
-			31, 
-			1, 
+		{
+			14,
+			46,
+			17,
+			6,
+			36,
+			45,
+			47,
+			27,
+			9,
+			5,
+			13,
+			49,
+			56,
+			61,
+			6,
+			27,
+			51,
+			44,
+			31,
+			1,
 		},
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp-set using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp-set using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryIpv4 := baseConfigAclSetAclEntry.Ipv4
-			baseConfigAclSetAclEntryIpv4.DscpSet = input 
+			baseConfigAclSetAclEntryIpv4.DscpSet = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Ipv4()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Ipv4()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryIpv4)
@@ -263,25 +258,24 @@ func TestDscpSet(t *testing.T) {
 }
 func TestHopLimit(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []uint8 {
-		35, 
-		91, 
+	inputs := []uint8{
+		35,
+		91,
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/hop-limit using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/hop-limit using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryIpv4 := baseConfigAclSetAclEntry.Ipv4
-			*baseConfigAclSetAclEntryIpv4.HopLimit = input 
+			*baseConfigAclSetAclEntryIpv4.HopLimit = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Ipv4()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Ipv4()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryIpv4)
@@ -313,25 +307,24 @@ func TestHopLimit(t *testing.T) {
 }
 func TestProtocol(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []oc.Acl_AclSet_AclEntry_Ipv4_Protocol_Union {
-		oc.UnionUint8(252), 
-		oc.UnionUint8(163), 
+	inputs := []oc.Acl_AclSet_AclEntry_Ipv4_Protocol_Union{
+		oc.UnionUint8(252),
+		oc.UnionUint8(163),
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/protocol using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/protocol using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryIpv4 := baseConfigAclSetAclEntry.Ipv4
-			baseConfigAclSetAclEntryIpv4.Protocol = input 
+			baseConfigAclSetAclEntryIpv4.Protocol = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Ipv4()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Ipv4()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryIpv4)
