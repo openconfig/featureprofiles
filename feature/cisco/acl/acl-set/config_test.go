@@ -1,0 +1,172 @@
+
+package acl_test
+import (
+	"testing"
+	"fmt"
+
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
+)
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
+
+func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
+	bc := new(oc.Acl)
+	*bc = setup.BaseConfig
+	setup.ResetStruct(bc, []string{"AclSet"})
+	dut.Config().Acl().Replace(t, bc)
+	return bc
+}
+
+func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
+	dut.Config().Acl().Delete(t)
+}
+func TestName(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	
+	baseConfig := setupAcl(t, dut)
+	defer teardownAcl(t, dut, baseConfig)
+
+	inputs := []string {
+		"accc", 
+		"i", 
+	}
+	
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/config/name using value %v", input) , func(t *testing.T) {
+			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
+			*baseConfigAclSet.Name = input 
+
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,)
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,)
+
+			t.Run("Replace", func(t *testing.T) {
+				config.Replace(t, baseConfigAclSet)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.Name != input {
+						t.Errorf("Config /acl/acl-sets/acl-set/config/name: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.Name != input {
+						t.Errorf("State /acl/acl-sets/acl-set/config/name: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.Val(t).Name != nil {
+					t.Errorf("Delete /acl/acl-sets/acl-set/config/name fail: got %v", qs)
+				}
+			})
+		})
+	}
+}
+func TestType(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	
+	baseConfig := setupAcl(t, dut)
+	defer teardownAcl(t, dut, baseConfig)
+
+	inputs := []oc.E_Acl_ACL_TYPE {
+		oc.E_Acl_ACL_TYPE(3), //ACL_L2
+		oc.E_Acl_ACL_TYPE(2), //ACL_IPV6
+	}
+	
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/config/type using value %v", input) , func(t *testing.T) {
+			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
+			baseConfigAclSet.Type = input 
+
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,)
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,)
+
+			t.Run("Replace", func(t *testing.T) {
+				config.Replace(t, baseConfigAclSet)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get", func(t *testing.T) {
+					configGot := config.Get(t)
+					if configGot.Type != input {
+						t.Errorf("Config /acl/acl-sets/acl-set/config/type: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if stateGot.Type != input {
+						t.Errorf("State /acl/acl-sets/acl-set/config/type: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.Val(t).Type != 0 {
+					t.Errorf("Delete /acl/acl-sets/acl-set/config/type fail: got %v", qs)
+				}
+			})
+		})
+	}
+}
+func TestDescription(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	
+	baseConfig := setupAcl(t, dut)
+	defer teardownAcl(t, dut, baseConfig)
+
+	inputs := []string {
+		":", 
+		"c", 
+	}
+	
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/config/description using value %v", input) , func(t *testing.T) {
+			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
+			*baseConfigAclSet.Description = input 
+
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,)
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,)
+
+			t.Run("Replace", func(t *testing.T) {
+				config.Replace(t, baseConfigAclSet)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.Description != input {
+						t.Errorf("Config /acl/acl-sets/acl-set/config/description: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.Description != input {
+						t.Errorf("State /acl/acl-sets/acl-set/config/description: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.Val(t).Description != nil {
+					t.Errorf("Delete /acl/acl-sets/acl-set/config/description fail: got %v", qs)
+				}
+			})
+		})
+	}
+}

@@ -1,0 +1,142 @@
+{
+  "openconfig-acl:acl-sets": {
+    "acl-set": [
+      {
+        "acl-entries": {
+          "acl-entry": [
+            {
+              "actions": {
+                "state": {
+                  "forwarding-action": "openconfig-acl:DROP",
+                  "log-action": "openconfig-acl:LOG_NONE"
+                }
+              },
+              "input-interface": {
+                "interface-ref": {
+                  "state": {
+                    "interface": "aca",
+                    "subinterface": 2070146909
+                  }
+                }
+              },
+              "ipv4": {
+                "state": {
+                  "destination-address": "38.227.233.111/20",
+                  "dscp": 50,
+                  "dscp-set": [
+                    57,
+                    17,
+                    2,
+                    40,
+                    29,
+                    63,
+                    35,
+                    60
+                  ],
+                  "hop-limit": 235,
+                  "protocol": 196,
+                  "source-address": "116.112.116.4/10"
+                }
+              },
+              "ipv6": {
+                "state": {
+                  "destination-address": "3e::D:F:F/121",
+                  "destination-flow-label": 530948,
+                  "dscp": 32,
+                  "dscp-set": [
+                    20
+                  ],
+                  "hop-limit": 132,
+                  "protocol": 123,
+                  "source-address": "101E::a7:3c17/48",
+                  "source-flow-label": 295506
+                }
+              },
+              "l2": {
+                "state": {
+                  "destination-mac": "F1:51:8c:bD:8C:39",
+                  "destination-mac-mask": "Ab:cd:3b:8B:C3:A4",
+                  "ethertype": 51092,
+                  "source-mac": "8D:fe:fE:61:ED:aB",
+                  "source-mac-mask": "E0:39:2a:1a:6F:56"
+                }
+              },
+              "mpls": {
+                "state": {
+                  "end-label-value": 756866,
+                  "start-label-value": 740042,
+                  "traffic-class": 2,
+                  "ttl-value": 113
+                }
+              },
+              "sequence-id": 3795633615,
+              "state": {
+                "description": "is:",
+                "sequence-id": 3795633615
+              },
+              "transport": {
+                "state": {
+                  "destination-port": 45373,
+                  "source-port": "5..03055",
+                  "tcp-flags": [
+                    "openconfig-packet-match-types:TCP_PSH",
+                    "openconfig-packet-match-types:TCP_CWR",
+                    "openconfig-packet-match-types:TCP_ACK",
+                    "openconfig-packet-match-types:TCP_ACK"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "name": "a",
+        "state": {
+          "description": "ia",
+          "name": "a",
+          "type": "openconfig-acl:ACL_IPV6"
+        },
+        "type": "openconfig-acl:ACL_IPV6"
+      }
+    ]
+  },
+  "openconfig-acl:interfaces": {
+    "interface": [
+      {
+        "egress-acl-sets": {
+          "egress-acl-set": [
+            {
+              "set-name": "a",
+              "state": {
+                "set-name": "a",
+                "type": "openconfig-acl:ACL_IPV6"
+              },
+              "type": "openconfig-acl:ACL_IPV6"
+            }
+          ]
+        },
+        "id": "sisa",
+        "ingress-acl-sets": {
+          "ingress-acl-set": [
+            {
+              "set-name": "a",
+              "state": {
+                "set-name": "a",
+                "type": "openconfig-acl:ACL_IPV6"
+              },
+              "type": "openconfig-acl:ACL_IPV6"
+            }
+          ]
+        },
+        "interface-ref": {
+          "state": {
+            "interface": "asc",
+            "subinterface": 4156621416
+          }
+        },
+        "state": {
+          "id": "sisa"
+        }
+      }
+    ]
+  }
+}
