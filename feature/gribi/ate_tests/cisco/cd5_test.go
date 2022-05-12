@@ -5,22 +5,25 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	pbrName = "Transit"
+	pbrName = "PBR"
 )
 
-func configbasePBR(t *testing.T, args *testArgs) {
+func configbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r1.SequenceId = ygot.Uint32(1)
 	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(16)},
 	}
 	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
 
 	r2 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r2.SequenceId = ygot.Uint32(2)
 	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 	}
@@ -29,9 +32,12 @@ func configbasePBR(t *testing.T, args *testArgs) {
 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
 	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
-	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2}
+	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 
-	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Replace(t, &p)
+	policy := telemetry.NetworkInstance_PolicyForwarding{}
+	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+
+	dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
 }
 
 func generatePhysicalInterfaceConfig(t *testing.T, name, ipv4 string, prefixlen uint8) *telemetry.Interface {
@@ -57,6 +63,21 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleId string) *t
 
 func configPBRunderInterface(t *testing.T, args *testArgs, interfaceName, policyName string) {
 	args.dut.Config().NetworkInstance(instance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Update(t, policyName)
+}
+
+// Remove flowspec and add as pbr
+func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	t.Log("Remove Flowspec Config and add HW Module Config")
+	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
+	gnmiWithText(ctx, t, dut, configToChange)
+
+	t.Log("Configure PBR policy and Apply it under interface")
+	configbasePBR(t, dut)
+	dut.Config().NetworkInstance(instance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
+
+	t.Log("Reload the router to activate hw module config")
+	reloadDUT(t, dut)
+
 }
 
 // Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy

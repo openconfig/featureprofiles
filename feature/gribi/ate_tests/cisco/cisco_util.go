@@ -47,13 +47,16 @@ func reloadDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	time.Sleep(600 * time.Second)
 }
 
-func gnmiWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+func gnmiWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, config string) {
 	r := &gnmipb.SetRequest{
 		Update: []*gnmipb.Update{
 			{
-				Val: &gnmipb.TypedValue{Value: &gnmipb.TypedValue_AsciiVal{AsciiVal: "no flowspec \nhw-module profile pbr vrf-redirect\n"}},
+				Val: &gnmipb.TypedValue{Value: &gnmipb.TypedValue_AsciiVal{AsciiVal: config}},
 			},
 		},
 	}
-	dut.RawAPIs().GNMI().Default(t).Set(ctx, r)
+	_, err := dut.RawAPIs().GNMI().Default(t).Set(ctx, r)
+	if err != nil {
+		t.Errorf("there is error when applying the config")
+	}
 }
