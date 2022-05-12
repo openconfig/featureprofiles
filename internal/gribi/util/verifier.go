@@ -1,4 +1,4 @@
-package cisco_gribi
+package util
 
 import (
 	"errors"
@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	// Default verifier tolerance value
+	// DefaultVerifierTolerance defines the acceptable loss threshold for the verification.
 	DefaultVerifierTolerance = float64(0.01)
-	// Default telemetry interval
+	// DefaultTelemtryInterval defines the duration based on which the telemetry data will be read.
 	DefaultTelemtryInterval = time.Duration(5 * time.Second)
 )
 
@@ -135,8 +135,9 @@ func GetAllInterfaceIpv4Counters(t *testing.T, dut *ondatra.DUTDevice) map[strin
 	return data
 }
 
-// InterfaceRate Struct to construct interface statistics
+// InterfaceRates Struct to construct interface statistics
 type InterfaceRates struct {
+	
 	SampleInterval     float64
 	InPktsRate         float64
 	InUnicastPktsRate  float64

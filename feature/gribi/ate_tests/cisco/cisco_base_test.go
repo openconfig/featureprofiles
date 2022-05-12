@@ -1,4 +1,4 @@
-package cisco_gribi
+package cisco_gribi_test
 
 import (
 	"context"

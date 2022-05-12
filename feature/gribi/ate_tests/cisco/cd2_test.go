@@ -1,4 +1,4 @@
-package cisco_gribi
+package cisco_gribi_test
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/gribi/util"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -197,7 +198,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	time.Sleep(15 * time.Second)
 
 	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	if got := CheckTrafficPassViaPortPktCounter(stats); !got {
+	if got := util.CheckTrafficPassViaPortPktCounter(stats); !got {
 		t.Errorf("LossPct for flow %s", flow.Name())
 	}
 
@@ -239,7 +240,7 @@ func configureBaseDoubleRecusionVip1Entry(ctx context.Context, t *testing.T, arg
 			AddNextHop(args.prefix.vip1NhIndex+2, 10).
 			AddNextHop(args.prefix.vip1NhIndex+3, 20).
 			AddNextHop(args.prefix.vip1NhIndex+4, 30),
-		fluent.IPv4Entry().WithNetworkInstance(instance).WithPrefix(getIPPrefix(args.prefix.vip1Ip, 0, args.prefix.vipPrefixLength)).WithNextHopGroup(args.prefix.vip1NhgIndex+1),
+		fluent.IPv4Entry().WithNetworkInstance(instance).WithPrefix(util.GetIPPrefix(args.prefix.vip1Ip, 0, args.prefix.vipPrefixLength)).WithNextHopGroup(args.prefix.vip1NhgIndex+1),
 	)
 
 	if err := args.clientA.AwaitTimeout(ctx, t, time.Minute); err != nil {
@@ -271,7 +272,7 @@ func configureBaseDoubleRecusionVip1Entry(ctx context.Context, t *testing.T, arg
 
 	// IPv4
 	chk.HasResult(t, c.Results(t),
-		fluent.OperationResult().WithIPv4Operation(getIPPrefix(args.prefix.vip1Ip, 0, args.prefix.vipPrefixLength)).
+		fluent.OperationResult().WithIPv4Operation(util.GetIPPrefix(args.prefix.vip1Ip, 0, args.prefix.vipPrefixLength)).
 			WithOperationType(constants.Add).
 			WithProgrammingResult(fluent.InstalledInRIB).
 			AsResult(),
@@ -293,7 +294,7 @@ func configureBaseDoubleRecusionVip2Entry(ctx context.Context, t *testing.T, arg
 			AddNextHop(args.prefix.vip2NhIndex+6, 20).
 			AddNextHop(args.prefix.vip2NhIndex+7, 30).
 			AddNextHop(args.prefix.vip2NhIndex+8, 40),
-		fluent.IPv4Entry().WithNetworkInstance(instance).WithPrefix(getIPPrefix(args.prefix.vip2Ip, 0, args.prefix.vipPrefixLength)).WithNextHopGroup(args.prefix.vip2NhgIndex+1),
+		fluent.IPv4Entry().WithNetworkInstance(instance).WithPrefix(util.GetIPPrefix(args.prefix.vip2Ip, 0, args.prefix.vipPrefixLength)).WithNextHopGroup(args.prefix.vip2NhgIndex+1),
 	)
 
 	if err := args.clientA.AwaitTimeout(ctx, t, time.Minute); err != nil {
@@ -325,7 +326,7 @@ func configureBaseDoubleRecusionVip2Entry(ctx context.Context, t *testing.T, arg
 
 	// IPv4
 	chk.HasResult(t, c.Results(t),
-		fluent.OperationResult().WithIPv4Operation(getIPPrefix(args.prefix.vip2Ip, 0, args.prefix.vipPrefixLength)).
+		fluent.OperationResult().WithIPv4Operation(util.GetIPPrefix(args.prefix.vip2Ip, 0, args.prefix.vipPrefixLength)).
 			WithOperationType(constants.Add).
 			WithProgrammingResult(fluent.InstalledInRIB).
 			AsResult(),
@@ -348,7 +349,7 @@ func configureBaseDoubleRecusionVrfEntry(ctx context.Context, t *testing.T, scal
 		entries = append(entries,
 			fluent.IPv4Entry().
 				WithNetworkInstance(args.prefix.vrfName).
-				WithPrefix(getIPPrefix(hostIP, i, prefixLength)).
+				WithPrefix(util.GetIPPrefix(hostIP, i, prefixLength)).
 				WithNextHopGroup(args.prefix.vrfNhgIndex+1).
 				WithNextHopGroupNetworkInstance(instance))
 	}
@@ -384,7 +385,7 @@ func configureBaseDoubleRecusionVrfEntry(ctx context.Context, t *testing.T, scal
 	// IPv4
 	for i := 0; i < scale; i++ {
 		chk.HasResult(t, c.Results(t),
-			fluent.OperationResult().WithIPv4Operation(getIPPrefix(hostIP, i, prefixLength)).
+			fluent.OperationResult().WithIPv4Operation(util.GetIPPrefix(hostIP, i, prefixLength)).
 				WithOperationType(constants.Add).
 				WithProgrammingResult(fluent.InstalledInRIB).
 				AsResult(),

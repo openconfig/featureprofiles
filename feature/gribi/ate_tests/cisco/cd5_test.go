@@ -1,10 +1,11 @@
-package cisco_gribi
+package cisco_gribi_test
 
 import (
 	"context"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi/util"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -68,14 +69,14 @@ func configPBRunderInterface(t *testing.T, args *testArgs, interfaceName, policy
 func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Remove Flowspec Config and add HW Module Config")
 	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
-	gnmiWithText(ctx, t, dut, configToChange)
+	util.GNMIWithText(ctx, t, dut, configToChange)
 
 	t.Log("Configure PBR policy and Apply it under interface")
 	configbasePBR(t, dut)
 	dut.Config().NetworkInstance(instance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
 
 	t.Log("Reload the router to activate hw module config")
-	reloadDUT(t, dut)
+	util.ReloadDUT(t, dut)
 
 }
 

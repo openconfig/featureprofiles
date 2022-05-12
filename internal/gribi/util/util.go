@@ -1,4 +1,4 @@
-package cisco_gribi
+package util
 
 import (
 	"context"
@@ -12,7 +12,8 @@ import (
 	"github.com/openconfig/ondatra/telemetry"
 )
 
-func getIPPrefix(IPAddr string, i int, prefixLen string) string {
+// GetIPPrefix returns the ip range with prefix
+func GetIPPrefix(IPAddr string, i int, prefixLen string) string {
 	ip := net.ParseIP(IPAddr)
 	ip = ip.To4()
 	ip[3] = ip[3] + byte(i%256)
@@ -21,7 +22,7 @@ func getIPPrefix(IPAddr string, i int, prefixLen string) string {
 	return ip.String() + "/" + prefixLen
 }
 
-// check traffic stats via port statistics
+// CheckTrafficPassViaPortPktCounter checks traffic stats via port statistics
 func CheckTrafficPassViaPortPktCounter(pktCounters []*telemetry.Interface_Counters, threshold ...float64) bool {
 	thresholdValue := float64(0.99)
 	if len(threshold) > 0 {
@@ -37,7 +38,8 @@ func CheckTrafficPassViaPortPktCounter(pktCounters []*telemetry.Interface_Counte
 	return float64(totalIn)/float64(totalOut) >= thresholdValue
 }
 
-func reloadDUT(t *testing.T, dut *ondatra.DUTDevice) {
+// ReloadDUT reloads the router using GNMI APIs
+func ReloadDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
@@ -48,7 +50,8 @@ func reloadDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	time.Sleep(600 * time.Second)
 }
 
-func gnmiWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, config string) {
+// GNMIWithText applies the cisco text config using gnmi
+func GNMIWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, config string) {
 	r := &gnmipb.SetRequest{
 		Update: []*gnmipb.Update{
 			{
@@ -58,6 +61,6 @@ func gnmiWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, con
 	}
 	_, err := dut.RawAPIs().GNMI().Default(t).Set(ctx, r)
 	if err != nil {
-		t.Errorf("there is error when applying the config")
+		t.Errorf("There is error when applying the config")
 	}
 }
