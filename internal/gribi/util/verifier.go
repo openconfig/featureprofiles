@@ -137,7 +137,6 @@ func GetAllInterfaceIpv4Counters(t *testing.T, dut *ondatra.DUTDevice) map[strin
 
 // InterfaceRates Struct to construct interface statistics
 type InterfaceRates struct {
-	
 	SampleInterval     float64
 	InPktsRate         float64
 	InUnicastPktsRate  float64
