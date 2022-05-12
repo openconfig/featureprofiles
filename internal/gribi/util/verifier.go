@@ -1,4 +1,4 @@
-package util
+package cisco_gribi_test
 
 import (
 	"errors"
@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	// DefaultVerifierTolerance defines the acceptable loss threshold for the verification.
+	// DefaultVerifierTolerance is for default tolerance value
 	DefaultVerifierTolerance = float64(0.01)
-	// DefaultTelemtryInterval defines the duration based on which the telemetry data will be read.
+	// DefaultTelemtryInterval is for default telemetry interval
 	DefaultTelemtryInterval = time.Duration(5 * time.Second)
 )
 
