@@ -52,7 +52,7 @@ func TestLAGName(t *testing.T) {
 		desc:    "Unsupported vendor",
 		v:       ondatra.IXIA,
 		id:      1,
-		wantErr: "unsupported vendor",
+		wantErr: "unsupported vendor: IXIA",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {

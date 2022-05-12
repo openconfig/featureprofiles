@@ -37,7 +37,7 @@ func LAGName(vendor ondatra.Vendor, i int) (string, error) {
 		return fmt.Sprintf("ae%d", i), nil
 	}
 
-	return "", fmt.Errorf("unsupported vendor: %d", vendor)
+	return "", fmt.Errorf("unsupported vendor: %s", vendor)
 }
 
 // SortPorts sorts the ports by their ID in the testbed.  Otherwise
