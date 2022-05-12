@@ -20,7 +20,7 @@ type Testcase struct {
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	ctx        context.Context
-	clientA    *gribi.GRIBIHandler
+	clientA    *gribi.Client
 	dut        *ondatra.DUTDevice
 	ate        *ondatra.ATEDevice
 	top        *ondatra.ATETopology
@@ -106,7 +106,7 @@ func TestTransitWCMPFlush(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
 
-			clientA := gribi.GRIBIHandler{
+			clientA := gribi.Client{
 				DUT:                  ondatra.DUT(t, "dut"),
 				FibACK:               false,
 				Persistence:          true,
@@ -181,7 +181,7 @@ func TestCD5PBR(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
 
-			clientA := gribi.GRIBIHandler{
+			clientA := gribi.Client{
 				DUT:                  ondatra.DUT(t, "dut"),
 				FibACK:               false,
 				Persistence:          true,
