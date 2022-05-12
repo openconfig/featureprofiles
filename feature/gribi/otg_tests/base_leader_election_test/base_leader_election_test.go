@@ -496,5 +496,6 @@ func TestElectionIDChange(t *testing.T) {
 
 func TestUnsetDut(t *testing.T) {
 	t.Logf("Start Unsetting DUT Config")
-	helpers.ConfigDUTs(map[string]string{"arista": "unset_dut.txt"})
+	dut := ondatra.DUT(t, "dut")
+	dut.Config().New().WithAristaFile("unset_dut.txt").Push(t)
 }

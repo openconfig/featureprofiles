@@ -690,5 +690,5 @@ func TestBGPPolicy(t *testing.T) {
 func TestUnsetDut(t *testing.T) {
 	t.Logf("Start Unsetting DUT Config")
 	dut := ondatra.DUT(t, "dut")
-	helpers.ConfigDUTs(map[string]string{dut.Name(): "unset_" + dut.Name() + ".txt"})
+	dut.Config().New().WithAristaFile("unset_" + dut.Name() + ".txt").Push(t)
 }
