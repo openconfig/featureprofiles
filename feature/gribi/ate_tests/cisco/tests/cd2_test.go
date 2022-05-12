@@ -333,7 +333,7 @@ func configureBaseDoubleRecusionVip2Entry(ctx context.Context, t *testing.T, arg
 	)
 }
 
-func configureBaseDoubleRecusionVrfEntry(ctx context.Context, t *testing.T, scale int, hostIp, prefixLength string, args *testArgs) {
+func configureBaseDoubleRecusionVrfEntry(ctx context.Context, t *testing.T, scale int, hostIP, prefixLength string, args *testArgs) {
 	t.Helper()
 	c := args.clientA.Fluent(t)
 	c.Modify().AddEntry(t,
@@ -348,7 +348,7 @@ func configureBaseDoubleRecusionVrfEntry(ctx context.Context, t *testing.T, scal
 		entries = append(entries,
 			fluent.IPv4Entry().
 				WithNetworkInstance(args.prefix.vrfName).
-				WithPrefix(getIPPrefix(hostIp, i, prefixLength)).
+				WithPrefix(getIPPrefix(hostIP, i, prefixLength)).
 				WithNextHopGroup(args.prefix.vrfNhgIndex+1).
 				WithNextHopGroupNetworkInstance(instance))
 	}
@@ -384,7 +384,7 @@ func configureBaseDoubleRecusionVrfEntry(ctx context.Context, t *testing.T, scal
 	// IPv4
 	for i := 0; i < scale; i++ {
 		chk.HasResult(t, c.Results(t),
-			fluent.OperationResult().WithIPv4Operation(getIPPrefix(hostIp, i, prefixLength)).
+			fluent.OperationResult().WithIPv4Operation(getIPPrefix(hostIP, i, prefixLength)).
 				WithOperationType(constants.Add).
 				WithProgrammingResult(fluent.InstalledInRIB).
 				AsResult(),

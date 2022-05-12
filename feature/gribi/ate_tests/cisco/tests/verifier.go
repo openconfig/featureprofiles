@@ -12,8 +12,10 @@ import (
 )
 
 var (
-	DefaultVerifierTolerance float64       = 0.01
-	DefaultTelemtryInterval  time.Duration = 5 * time.Second
+	// Default verifier tolerance value
+	DefaultVerifierTolerance = float64(0.01)
+	// Default telemetry interval
+	DefaultTelemtryInterval = time.Duration(5 * time.Second)
 )
 
 // CalculateDistribution computes the fraction of each input out of the total sum.
@@ -133,6 +135,7 @@ func GetAllInterfaceIpv4Counters(t *testing.T, dut *ondatra.DUTDevice) map[strin
 	return data
 }
 
+// InterfaceRate Struct to construct interface statistics
 type InterfaceRates struct {
 	SampleInterval     float64
 	InPktsRate         float64
@@ -188,6 +191,7 @@ func GetDUTInterfaceRates(t *testing.T, dut *ondatra.DUTDevice, intfs []string, 
 	return rates
 }
 
+// InterfaceIpv4Rates Struct to construct interface IPv4 statistics
 type InterfaceIpv4Rates struct {
 	SampleInterval float64
 	InPktsRate     float64

@@ -21,6 +21,7 @@ func getIPPrefix(IPAddr string, i int, prefixLen string) string {
 	return ip.String() + "/" + prefixLen
 }
 
+// check traffic stats via port statistics
 func CheckTrafficPassViaPortPktCounter(pktCounters []*telemetry.Interface_Counters, threshold ...float64) bool {
 	thresholdValue := float64(0.99)
 	if len(threshold) > 0 {

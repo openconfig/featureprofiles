@@ -51,13 +51,12 @@ func generatePhysicalInterfaceConfig(t *testing.T, name, ipv4 string, prefixlen 
 	return i
 }
 
-func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleId string) *telemetry.Interface {
+func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *telemetry.Interface {
 	i := &telemetry.Interface{Name: ygot.String(name)}
-	// i.Name = ygot.String(name)
 	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
 	e := i.GetOrCreateEthernet()
 	e.AutoNegotiate = ygot.Bool(false)
-	e.AggregateId = ygot.String(bundleId)
+	e.AggregateId = ygot.String(bundleID)
 	return i
 }
 
@@ -98,10 +97,9 @@ func testMovePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs)
 	// Remove the interface from physical to bundle interface
 	memberConfig := generateBundleMemberInterfaceConfig(t, physicalInterface, args.interfaces.in[0])
 	physicalInterfaceConfig.Replace(t, memberConfig)
-	// physicalInterfaceConfig.Aggregation().Delete(t)
 
 	// Program GRIBI entry on the router
-	// defer flushSever(t, args)
+	defer flushSever(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
