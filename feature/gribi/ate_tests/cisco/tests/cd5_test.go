@@ -32,7 +32,7 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
 	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
-	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
+	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2}
 
 	policy := telemetry.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
@@ -52,8 +52,8 @@ func generatePhysicalInterfaceConfig(t *testing.T, name, ipv4 string, prefixlen 
 }
 
 func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleId string) *telemetry.Interface {
-	i := &telemetry.Interface{}
-	i.Name = ygot.String(name)
+	i := &telemetry.Interface{Name: ygot.String(name)}
+	// i.Name = ygot.String(name)
 	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
 	e := i.GetOrCreateEthernet()
 	e.AutoNegotiate = ygot.Bool(false)
@@ -82,6 +82,8 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 
 // Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy
 func testMovePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs) {
+	configbasePBR(t, args.dut)
+
 	physicalInterface := fptest.SortPorts(args.dut.Ports())[0].Name()
 	physicalInterfaceConfig := args.dut.Config().Interface(physicalInterface)
 
@@ -99,7 +101,7 @@ func testMovePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs)
 	// physicalInterfaceConfig.Aggregation().Delete(t)
 
 	// Program GRIBI entry on the router
-	defer flushSever(t, args)
+	// defer flushSever(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 

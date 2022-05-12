@@ -168,7 +168,7 @@ func TestCD5PBR(t *testing.T) {
 	ctx := context.Background()
 
 	// Disable Flowspec and Enable PBR
-	convertFlowspecToPBR(ctx, t, dut)
+	// convertFlowspecToPBR(ctx, t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
