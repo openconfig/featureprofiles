@@ -28,55 +28,6 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 	dut.Config().Acl().Delete(t)
 }
-func TestInterface(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	
-	baseConfig := setupAcl(t, dut)
-	defer teardownAcl(t, dut, baseConfig)
-
-	inputs := []string {
-		"a", 
-		":s", 
-	}
-	
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/interface-ref/config/interface using value %v", input) , func(t *testing.T) {
-			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
-			baseConfigInterfaceInterfaceRef := baseConfigInterface.InterfaceRef
-			*baseConfigInterfaceInterfaceRef.Interface = input 
-
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id,).InterfaceRef()
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id,).InterfaceRef()
-
-			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigInterfaceInterfaceRef)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.Interface != input {
-						t.Errorf("Config /acl/interfaces/interface/interface-ref/config/interface: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.Interface != input {
-						t.Errorf("State /acl/interfaces/interface/interface-ref/config/interface: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).Interface != nil {
-					t.Errorf("Delete /acl/interfaces/interface/interface-ref/config/interface fail: got %v", qs)
-				}
-			})
-		})
-	}
-}
 func TestSubinterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	
@@ -84,8 +35,8 @@ func TestSubinterface(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []uint32 {
-		497518575, 
-		13291671, 
+		384142783, 
+		107926354, 
 	}
 	
 
@@ -121,6 +72,55 @@ func TestSubinterface(t *testing.T) {
 				config.Delete(t)
 				if qs := config.Lookup(t); qs.Val(t).Subinterface != nil {
 					t.Errorf("Delete /acl/interfaces/interface/interface-ref/config/subinterface fail: got %v", qs)
+				}
+			})
+		})
+	}
+}
+func TestInterface(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	
+	baseConfig := setupAcl(t, dut)
+	defer teardownAcl(t, dut, baseConfig)
+
+	inputs := []string {
+		"c", 
+		"cia", 
+	}
+	
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/interface-ref/config/interface using value %v", input) , func(t *testing.T) {
+			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
+			baseConfigInterfaceInterfaceRef := baseConfigInterface.InterfaceRef
+			*baseConfigInterfaceInterfaceRef.Interface = input 
+
+			config := dut.Config().Acl().Interface(*baseConfigInterface.Id,).InterfaceRef()
+			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id,).InterfaceRef()
+
+			t.Run("Replace", func(t *testing.T) {
+				config.Replace(t, baseConfigInterfaceInterfaceRef)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.Interface != input {
+						t.Errorf("Config /acl/interfaces/interface/interface-ref/config/interface: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.Interface != input {
+						t.Errorf("State /acl/interfaces/interface/interface-ref/config/interface: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.Val(t).Interface != nil {
+					t.Errorf("Delete /acl/interfaces/interface/interface-ref/config/interface fail: got %v", qs)
 				}
 			})
 		})

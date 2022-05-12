@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
 	*bc = setup.BaseConfig
-	setup.ResetStruct(bc, []string{"Interface", "AclSet"})
+	setup.ResetStruct(bc, []string{"AclSet", "Interface"})
 	dut.Config().Acl().Replace(t, bc)
 	return bc
 }
@@ -33,8 +33,8 @@ func TestId(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string {
-		"a", 
-		"cc:", 
+		":cc", 
+		":", 
 	}
 	
 

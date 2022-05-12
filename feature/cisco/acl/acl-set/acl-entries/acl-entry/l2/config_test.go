@@ -37,8 +37,8 @@ func TestSourceMacMask(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string {
-		"83:8F:e0:cb:c7:5D", 
-		"a8:81:EC:Bc:9e:04", 
+		"E6:15:f8:65:f4:eA", 
+		"3D:d9:Ea:00:54:1D", 
 	}
 	
 
@@ -80,106 +80,6 @@ func TestSourceMacMask(t *testing.T) {
 		})
 	}
 }
-func TestDestinationMac(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	
-	baseConfig := setupAcl(t, dut)
-	defer teardownAcl(t, dut, baseConfig)
-
-	inputs := []string {
-		"4A:bD:44:62:45:c8", 
-		"ed:eE:8D:e9:81:CA", 
-	}
-	
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac using value %v", input) , func(t *testing.T) {
-			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
-			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
-			baseConfigAclSetAclEntryL2 := baseConfigAclSetAclEntry.L2
-			*baseConfigAclSetAclEntryL2.DestinationMac = input 
-
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).L2()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).L2()
-
-			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryL2)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.DestinationMac != input {
-						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.DestinationMac != input {
-						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).DestinationMac != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac fail: got %v", qs)
-				}
-			})
-		})
-	}
-}
-func TestEthertype(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	
-	baseConfig := setupAcl(t, dut)
-	defer teardownAcl(t, dut, baseConfig)
-
-	inputs := []oc.Acl_AclSet_AclEntry_L2_Ethertype_Union {
-		oc.UnionUint16(59629), 
-		oc.UnionUint16(53744), 
-	}
-	
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype using value %v", input) , func(t *testing.T) {
-			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
-			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
-			baseConfigAclSetAclEntryL2 := baseConfigAclSetAclEntry.L2
-			baseConfigAclSetAclEntryL2.Ethertype = input 
-
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).L2()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).L2()
-
-			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryL2)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
-					if configGot.Ethertype != input {
-						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if stateGot.Ethertype != input {
-						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).Ethertype != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype fail: got %v", qs)
-				}
-			})
-		})
-	}
-}
 func TestSourceMac(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	
@@ -187,8 +87,8 @@ func TestSourceMac(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string {
-		"E1:75:DB:61:ee:b8", 
-		"9a:b9:E4:EE:d4:c8", 
+		"b1:6c:65:59:1E:2e", 
+		"Ad:02:35:D6:a3:b4", 
 	}
 	
 
@@ -237,8 +137,8 @@ func TestDestinationMacMask(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string {
-		"e3:6e:D3:8d:a3:de", 
-		"2C:DA:c5:20:3C:48", 
+		"f2:f5:f5:E7:db:9c", 
+		"94:6f:E8:Ac:AF:a3", 
 	}
 	
 
@@ -275,6 +175,106 @@ func TestDestinationMacMask(t *testing.T) {
 				config.Delete(t)
 				if qs := config.Lookup(t); qs.Val(t).DestinationMacMask != nil {
 					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac-mask fail: got %v", qs)
+				}
+			})
+		})
+	}
+}
+func TestEthertype(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	
+	baseConfig := setupAcl(t, dut)
+	defer teardownAcl(t, dut, baseConfig)
+
+	inputs := []oc.Acl_AclSet_AclEntry_L2_Ethertype_Union {
+		oc.UnionUint16(42111), 
+		oc.UnionUint16(35668), 
+	}
+	
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype using value %v", input) , func(t *testing.T) {
+			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
+			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
+			baseConfigAclSetAclEntryL2 := baseConfigAclSetAclEntry.L2
+			baseConfigAclSetAclEntryL2.Ethertype = input 
+
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).L2()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).L2()
+
+			t.Run("Replace", func(t *testing.T) {
+				config.Replace(t, baseConfigAclSetAclEntryL2)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get", func(t *testing.T) {
+					configGot := config.Get(t)
+					if configGot.Ethertype != input {
+						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if stateGot.Ethertype != input {
+						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.Val(t).Ethertype != nil {
+					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype fail: got %v", qs)
+				}
+			})
+		})
+	}
+}
+func TestDestinationMac(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	
+	baseConfig := setupAcl(t, dut)
+	defer teardownAcl(t, dut, baseConfig)
+
+	inputs := []string {
+		"Ce:04:f7:8C:cC:BC", 
+		"c8:da:b8:F8:64:6b", 
+	}
+	
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac using value %v", input) , func(t *testing.T) {
+			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
+			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
+			baseConfigAclSetAclEntryL2 := baseConfigAclSetAclEntry.L2
+			*baseConfigAclSetAclEntryL2.DestinationMac = input 
+
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).L2()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).L2()
+
+			t.Run("Replace", func(t *testing.T) {
+				config.Replace(t, baseConfigAclSetAclEntryL2)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.DestinationMac != input {
+						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.DestinationMac != input {
+						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.Val(t).DestinationMac != nil {
+					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac fail: got %v", qs)
 				}
 			})
 		})

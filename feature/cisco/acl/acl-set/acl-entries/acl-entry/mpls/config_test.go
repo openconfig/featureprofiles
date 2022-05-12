@@ -30,6 +30,56 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 	dut.Config().Acl().Delete(t)
 }
+func TestTrafficClass(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	
+	baseConfig := setupAcl(t, dut)
+	defer teardownAcl(t, dut, baseConfig)
+
+	inputs := []uint8 {
+		3, 
+		3, 
+	}
+	
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class using value %v", input) , func(t *testing.T) {
+			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
+			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
+			baseConfigAclSetAclEntryMpls := baseConfigAclSetAclEntry.Mpls
+			*baseConfigAclSetAclEntryMpls.TrafficClass = input 
+
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
+
+			t.Run("Replace", func(t *testing.T) {
+				config.Replace(t, baseConfigAclSetAclEntryMpls)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.TrafficClass != input {
+						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.TrafficClass != input {
+						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.Val(t).TrafficClass != nil {
+					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class fail: got %v", qs)
+				}
+			})
+		})
+	}
+}
 func TestEndLabelValue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	
@@ -37,8 +87,8 @@ func TestEndLabelValue(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.Acl_AclSet_AclEntry_Mpls_EndLabelValue_Union {
-		oc.UnionUint32(62975), 
-		oc.UnionUint32(105672), 
+		oc.UnionUint32(215451), 
+		oc.UnionUint32(186944), 
 	}
 	
 
@@ -80,56 +130,6 @@ func TestEndLabelValue(t *testing.T) {
 		})
 	}
 }
-func TestTtlValue(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	
-	baseConfig := setupAcl(t, dut)
-	defer teardownAcl(t, dut, baseConfig)
-
-	inputs := []uint8 {
-		13, 
-		27, 
-	}
-	
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value using value %v", input) , func(t *testing.T) {
-			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
-			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
-			baseConfigAclSetAclEntryMpls := baseConfigAclSetAclEntry.Mpls
-			*baseConfigAclSetAclEntryMpls.TtlValue = input 
-
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
-
-			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryMpls)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.TtlValue != input {
-						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.TtlValue != input {
-						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).TtlValue != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value fail: got %v", qs)
-				}
-			})
-		})
-	}
-}
 func TestStartLabelValue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	
@@ -137,8 +137,8 @@ func TestStartLabelValue(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.Acl_AclSet_AclEntry_Mpls_StartLabelValue_Union {
-		oc.UnionUint32(126529), 
-		oc.UnionUint32(271954), 
+		oc.UnionUint32(907017), 
+		oc.UnionUint32(988413), 
 	}
 	
 
@@ -180,24 +180,24 @@ func TestStartLabelValue(t *testing.T) {
 		})
 	}
 }
-func TestTrafficClass(t *testing.T) {
+func TestTtlValue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []uint8 {
-		7, 
-		2, 
+		102, 
+		1, 
 	}
 	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value using value %v", input) , func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryMpls := baseConfigAclSetAclEntry.Mpls
-			*baseConfigAclSetAclEntryMpls.TrafficClass = input 
+			*baseConfigAclSetAclEntryMpls.TtlValue = input 
 
 			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
 			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Mpls()
@@ -208,23 +208,23 @@ func TestTrafficClass(t *testing.T) {
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
 					configGot := config.Get(t)
-					if *configGot.TrafficClass != input {
-						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class: got %v, want %v", configGot, input)
+					if *configGot.TtlValue != input {
+						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value: got %v, want %v", configGot, input)
 					}
 				})
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
 					stateGot := state.Get(t)
-					if *stateGot.TrafficClass != input {
-						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class: got %v, want %v", stateGot, input)
+					if *stateGot.TtlValue != input {
+						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).TrafficClass != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class fail: got %v", qs)
+				if qs := config.Lookup(t); qs.Val(t).TtlValue != nil {
+					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value fail: got %v", qs)
 				}
 			})
 		})

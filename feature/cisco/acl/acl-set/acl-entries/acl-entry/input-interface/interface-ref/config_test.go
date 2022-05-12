@@ -22,7 +22,7 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bcAclSet := setup.GetAnyValue(bc.AclSet)
 	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
 	bcAclSetAclEntry := setup.GetAnyValue(bcAclSet.AclEntry)
-	setup.ResetStruct(bcAclSetAclEntry, []string{"InputInterface", "Actions"})
+	setup.ResetStruct(bcAclSetAclEntry, []string{"Actions", "InputInterface"})
 	bcAclSetAclEntryInputInterface := bcAclSetAclEntry.InputInterface
 	setup.ResetStruct(bcAclSetAclEntryInputInterface, []string{"InterfaceRef"})
 	dut.Config().Acl().Replace(t, bc)
@@ -32,57 +32,6 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 	dut.Config().Acl().Delete(t)
 }
-func TestSubinterface(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	
-	baseConfig := setupAcl(t, dut)
-	defer teardownAcl(t, dut, baseConfig)
-
-	inputs := []uint32 {
-		2837928390, 
-		2097117925, 
-	}
-	
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/subinterface using value %v", input) , func(t *testing.T) {
-			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
-			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
-			baseConfigAclSetAclEntryInputInterface := baseConfigAclSetAclEntry.InputInterface
-			baseConfigAclSetAclEntryInputInterfaceInterfaceRef := baseConfigAclSetAclEntryInputInterface.InterfaceRef
-			*baseConfigAclSetAclEntryInputInterfaceInterfaceRef.Subinterface = input 
-
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).InputInterface().InterfaceRef()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).InputInterface().InterfaceRef()
-
-			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryInputInterfaceInterfaceRef)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.Subinterface != input {
-						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/subinterface: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.Subinterface != input {
-						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/subinterface: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).Subinterface != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/subinterface fail: got %v", qs)
-				}
-			})
-		})
-	}
-}
 func TestInterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	
@@ -90,7 +39,7 @@ func TestInterface(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string {
-		"a", 
+		"cca", 
 		"c", 
 	}
 	
@@ -129,6 +78,57 @@ func TestInterface(t *testing.T) {
 				config.Delete(t)
 				if qs := config.Lookup(t); qs.Val(t).Interface != nil {
 					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/interface fail: got %v", qs)
+				}
+			})
+		})
+	}
+}
+func TestSubinterface(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	
+	baseConfig := setupAcl(t, dut)
+	defer teardownAcl(t, dut, baseConfig)
+
+	inputs := []uint32 {
+		652656135, 
+		1867539980, 
+	}
+	
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/subinterface using value %v", input) , func(t *testing.T) {
+			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
+			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
+			baseConfigAclSetAclEntryInputInterface := baseConfigAclSetAclEntry.InputInterface
+			baseConfigAclSetAclEntryInputInterfaceInterfaceRef := baseConfigAclSetAclEntryInputInterface.InterfaceRef
+			*baseConfigAclSetAclEntryInputInterfaceInterfaceRef.Subinterface = input 
+
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).InputInterface().InterfaceRef()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).InputInterface().InterfaceRef()
+
+			t.Run("Replace", func(t *testing.T) {
+				config.Replace(t, baseConfigAclSetAclEntryInputInterfaceInterfaceRef)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.Subinterface != input {
+						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/subinterface: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.Subinterface != input {
+						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/subinterface: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.Val(t).Subinterface != nil {
+					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/subinterface fail: got %v", qs)
 				}
 			})
 		})

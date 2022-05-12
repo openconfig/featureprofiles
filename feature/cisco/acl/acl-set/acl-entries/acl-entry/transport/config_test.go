@@ -30,6 +30,56 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 	dut.Config().Acl().Delete(t)
 }
+func TestSourcePort(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	
+	baseConfig := setupAcl(t, dut)
+	defer teardownAcl(t, dut, baseConfig)
+
+	inputs := []oc.Acl_AclSet_AclEntry_Transport_SourcePort_Union {
+		oc.UnionString("46991..65532"), 
+		oc.UnionString("066..94"), 
+	}
+	
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port using value %v", input) , func(t *testing.T) {
+			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
+			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
+			baseConfigAclSetAclEntryTransport := baseConfigAclSetAclEntry.Transport
+			baseConfigAclSetAclEntryTransport.SourcePort = input 
+
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Transport()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Transport()
+
+			t.Run("Replace", func(t *testing.T) {
+				config.Replace(t, baseConfigAclSetAclEntryTransport)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get", func(t *testing.T) {
+					configGot := config.Get(t)
+					if configGot.SourcePort != input {
+						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if stateGot.SourcePort != input {
+						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.Val(t).SourcePort != nil {
+					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port fail: got %v", qs)
+				}
+			})
+		})
+	}
+}
 func TestTcpFlags(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	
@@ -38,14 +88,14 @@ func TestTcpFlags(t *testing.T) {
 
 	inputs := [][]oc.E_PacketMatchTypes_TCP_FLAGS {
 		[]oc.E_PacketMatchTypes_TCP_FLAGS {
-			oc.E_PacketMatchTypes_TCP_FLAGS(5), //TCP_PSH
-			oc.E_PacketMatchTypes_TCP_FLAGS(8), //TCP_URG
-			oc.E_PacketMatchTypes_TCP_FLAGS(2), //TCP_CWR
 			oc.E_PacketMatchTypes_TCP_FLAGS(3), //TCP_ECE
-			oc.E_PacketMatchTypes_TCP_FLAGS(7), //TCP_SYN
 			oc.E_PacketMatchTypes_TCP_FLAGS(1), //TCP_ACK
-			oc.E_PacketMatchTypes_TCP_FLAGS(6), //TCP_RST
 			oc.E_PacketMatchTypes_TCP_FLAGS(4), //TCP_FIN
+			oc.E_PacketMatchTypes_TCP_FLAGS(6), //TCP_RST
+			oc.E_PacketMatchTypes_TCP_FLAGS(2), //TCP_CWR
+			oc.E_PacketMatchTypes_TCP_FLAGS(7), //TCP_SYN
+			oc.E_PacketMatchTypes_TCP_FLAGS(8), //TCP_URG
+			oc.E_PacketMatchTypes_TCP_FLAGS(5), //TCP_PSH
 		},
 		[]oc.E_PacketMatchTypes_TCP_FLAGS {
 		},
@@ -101,8 +151,8 @@ func TestDestinationPort(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.Acl_AclSet_AclEntry_Transport_DestinationPort_Union {
-		oc.UnionString("17568..0765"), 
-		oc.UnionUint16(43097), 
+		oc.UnionUint16(37442), 
+		oc.UnionString("0006..090"), 
 	}
 	
 
@@ -139,56 +189,6 @@ func TestDestinationPort(t *testing.T) {
 				config.Delete(t)
 				if qs := config.Lookup(t); qs.Val(t).DestinationPort != nil {
 					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/destination-port fail: got %v", qs)
-				}
-			})
-		})
-	}
-}
-func TestSourcePort(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	
-	baseConfig := setupAcl(t, dut)
-	defer teardownAcl(t, dut, baseConfig)
-
-	inputs := []oc.Acl_AclSet_AclEntry_Transport_SourcePort_Union {
-		oc.UnionString("65532..62160"), 
-		oc.UnionString("61031..38337"), 
-	}
-	
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port using value %v", input) , func(t *testing.T) {
-			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
-			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
-			baseConfigAclSetAclEntryTransport := baseConfigAclSetAclEntry.Transport
-			baseConfigAclSetAclEntryTransport.SourcePort = input 
-
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Transport()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Transport()
-
-			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryTransport)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
-					if configGot.SourcePort != input {
-						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if stateGot.SourcePort != input {
-						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).SourcePort != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port fail: got %v", qs)
 				}
 			})
 		})

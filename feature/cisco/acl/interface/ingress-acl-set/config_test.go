@@ -28,55 +28,6 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 	dut.Config().Acl().Delete(t)
 }
-func TestSetName(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	
-	baseConfig := setupAcl(t, dut)
-	defer teardownAcl(t, dut, baseConfig)
-
-	inputs := []string {
-		"c:s", 
-		"scsiai", 
-	}
-	
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name using value %v", input) , func(t *testing.T) {
-			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
-			baseConfigInterfaceIngressAclSet := setup.GetAnyValue(baseConfigInterface.IngressAclSet)
-			*baseConfigInterfaceIngressAclSet.SetName = input 
-
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id,).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName,baseConfigInterfaceIngressAclSet.Type,)
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id,).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName,baseConfigInterfaceIngressAclSet.Type,)
-
-			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigInterfaceIngressAclSet)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.SetName != input {
-						t.Errorf("Config /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.SetName != input {
-						t.Errorf("State /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).SetName != nil {
-					t.Errorf("Delete /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name fail: got %v", qs)
-				}
-			})
-		})
-	}
-}
 func TestType(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	
@@ -84,8 +35,8 @@ func TestType(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.E_Acl_ACL_TYPE {
-		oc.E_Acl_ACL_TYPE(1), //ACL_IPV4
-		oc.E_Acl_ACL_TYPE(2), //ACL_IPV6
+		oc.E_Acl_ACL_TYPE(3), //ACL_L2
+		oc.E_Acl_ACL_TYPE(4), //ACL_MIXED
 	}
 	
 
@@ -121,6 +72,55 @@ func TestType(t *testing.T) {
 				config.Delete(t)
 				if qs := config.Lookup(t); qs.Val(t).Type != 0 {
 					t.Errorf("Delete /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/type fail: got %v", qs)
+				}
+			})
+		})
+	}
+}
+func TestSetName(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	
+	baseConfig := setupAcl(t, dut)
+	defer teardownAcl(t, dut, baseConfig)
+
+	inputs := []string {
+		"cia", 
+		":c:", 
+	}
+	
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name using value %v", input) , func(t *testing.T) {
+			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
+			baseConfigInterfaceIngressAclSet := setup.GetAnyValue(baseConfigInterface.IngressAclSet)
+			*baseConfigInterfaceIngressAclSet.SetName = input 
+
+			config := dut.Config().Acl().Interface(*baseConfigInterface.Id,).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName,baseConfigInterfaceIngressAclSet.Type,)
+			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id,).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName,baseConfigInterfaceIngressAclSet.Type,)
+
+			t.Run("Replace", func(t *testing.T) {
+				config.Replace(t, baseConfigInterfaceIngressAclSet)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.SetName != input {
+						t.Errorf("Config /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.SetName != input {
+						t.Errorf("State /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete", func(t *testing.T) {
+				config.Delete(t)
+				if qs := config.Lookup(t); qs.Val(t).SetName != nil {
+					t.Errorf("Delete /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name fail: got %v", qs)
 				}
 			})
 		})

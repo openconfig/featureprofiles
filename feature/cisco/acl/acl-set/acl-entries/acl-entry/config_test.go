@@ -35,8 +35,8 @@ func TestDescription(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string {
-		"sc", 
-		"s", 
+		"aac", 
+		"ssasia", 
 	}
 	
 
@@ -84,8 +84,8 @@ func TestSequenceId(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []uint32 {
-		2010605759, 
-		295141787, 
+		134776507, 
+		318177126, 
 	}
 	
 
