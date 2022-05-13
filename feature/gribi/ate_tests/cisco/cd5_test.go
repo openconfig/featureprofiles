@@ -3,6 +3,7 @@ package cisco_gribi_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi/util"
@@ -71,7 +72,7 @@ func configNewPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string, ds
 	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
 	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 
-	dut.Config().NetworkInstance("default").PolicyForwarding().Policy(policyName).Replace(t, &p)
+	dut.Config().NetworkInstance("default").PolicyForwarding().Policy(policyName).Update(t, &p)
 }
 
 func generatePhysicalInterfaceConfig(t *testing.T, name, ipv4 string, prefixlen uint8) *telemetry.Interface {
@@ -95,7 +96,11 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *t
 }
 
 func configPBRunderInterface(t *testing.T, args *testArgs, interfaceName, policyName string) {
-	args.dut.Config().NetworkInstance(instance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Update(t, policyName)
+	args.dut.Config().NetworkInstance(instance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Replace(t, policyName)
+}
+
+func unconfigPBRunderInterface(t *testing.T, args *testArgs, interfaceName string) {
+	args.dut.Config().NetworkInstance(instance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Delete(t)
 }
 
 // Remove flowspec and add as pbr
@@ -111,6 +116,63 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	t.Log("Reload the router to activate hw module config")
 	util.ReloadDUT(t, dut)
 
+}
+
+func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
+	ethHeader := ondatra.NewEthernetHeader()
+	ethHeader.WithSrcAddress("00:11:01:00:00:01")
+	ethHeader.WithDstAddress("00:01:00:02:00:00")
+
+	ipv4Header := ondatra.NewIPv4Header()
+	ipv4Header.SrcAddressRange().
+		WithMin("198.51.100.0").
+		WithMax("198.51.100.254").
+		WithCount(250)
+	ipv4Header.WithDSCP(dscp)
+	ipv4Header.DstAddressRange().WithMin(hostIP).WithCount(uint32(scale)).WithStep("0.0.0.1")
+
+	innerIpv6Header := ondatra.NewIPv6Header()
+	innerIpv6Header.WithSrcAddress("1::1")
+	innerIpv6Header.DstAddressRange().WithMin("2::2").WithCount(10000).WithStep("::1")
+	dstEndPoint := []ondatra.Endpoint{}
+
+	for _, v := range allPorts {
+		if *v != *srcEndPoint {
+			dstEndPoint = append(dstEndPoint, v)
+		}
+	}
+
+	flow := ate.Traffic().NewFlow("Flow").
+		WithSrcEndpoints(srcEndPoint).
+		WithDstEndpoints(dstEndPoint...)
+
+	flow.WithFrameSize(300).WithFrameRateFPS(1000).WithHeaders(ethHeader, ipv4Header, innerIpv6Header)
+
+	ate.Traffic().Start(t, flow)
+	time.Sleep(15 * time.Second)
+
+	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	if got := util.CheckTrafficPassViaPortPktCounter(stats); !got {
+		if expectPass {
+			t.Errorf("LossPct for flow %s", flow.Name())
+		}
+	}
+
+	//
+
+	// tolerance := float64(0.03)
+	// interval := 45 * time.Second
+	// if len(weights) > 0 {
+	// 	CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out[:len(weights)], weights, interval, tolerance)
+	// }
+	ate.Traffic().Stop(t)
+
+	time.Sleep(time.Minute)
+
+	// flowPath := ate.Telemetry().Flow(flow.Name())
+	// if got := flowPath.LossPct().Get(t); got > 0 {
+	// 	t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
+	// }
 }
 
 // Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy
@@ -167,6 +229,7 @@ func testChangePBRUnderInterface(ctx context.Context, t *testing.T, args *testAr
 	defer args.dut.Config().NetworkInstance(instance).PolicyForwarding().Policy(newPbrName).Delete(t)
 
 	// Change policy on the bunlde interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 	configPBRunderInterface(t, args, args.interfaces.in[0], newPbrName)
 	defer configPBRunderInterface(t, args, args.interfaces.in[0], pbrName)
 
@@ -175,4 +238,22 @@ func testChangePBRUnderInterface(ctx context.Context, t *testing.T, args *testAr
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
 	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, weights...)
+}
+
+// testIPv6InIPv4Traffic tests sending IPv6inIPv4 and verify it is not matched by IPinIP
+func testIPv6InIPv4Traffic(ctx context.Context, t *testing.T, args *testArgs) {
+	// Program GRIBI entry on the router
+	defer flushSever(t, args)
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	// Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
+
+	testTrafficWithInnerIPv6(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }

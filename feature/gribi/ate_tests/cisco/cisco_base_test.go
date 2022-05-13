@@ -86,6 +86,16 @@ var (
 			desc: "Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy",
 			fn:   testMovePhysicalToBundle,
 		},
+		{
+			name: "Change policy under interface",
+			desc: "Change existing policy under the interface to a new one and verify gribi traffic",
+			fn:   testChangePBRUnderInterface,
+		},
+		{
+			name: "match IPinIP with IPv6inIPv4 traffic",
+			desc: "Configure with policy matching protocol IPinIP and send IPv6 in IPv4 and verify traffic drop",
+			fn:   testIPv6InIPv4Traffic,
+		},
 	}
 )
 
@@ -168,7 +178,7 @@ func TestCD5PBR(t *testing.T) {
 	ctx := context.Background()
 
 	// Disable Flowspec and Enable PBR
-	convertFlowspecToPBR(ctx, t, dut)
+	// convertFlowspecToPBR(ctx, t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
