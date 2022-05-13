@@ -1,4 +1,4 @@
-package cisco_gribi_test
+package util
 
 import (
 	"errors"

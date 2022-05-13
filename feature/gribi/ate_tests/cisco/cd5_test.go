@@ -19,26 +19,59 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r1.SequenceId = ygot.Uint32(1)
 	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		DscpSet: []uint8{*ygot.Uint8(16)},
+		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 	}
 	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
 
 	r2 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r2.SequenceId = ygot.Uint32(2)
 	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+		DscpSet: []uint8{*ygot.Uint8(16)},
 	}
 	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+
+	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r3.SequenceId = ygot.Uint32(3)
+	r3.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		DscpSet: []uint8{*ygot.Uint8(18)},
+	}
+	r3.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("VRF1")}
+
+	r4 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r4.SequenceId = ygot.Uint32(4)
+	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		DscpSet: []uint8{*ygot.Uint8(48)},
+	}
+	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
 
 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
 	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
-	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2}
+	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2, 3: &r3, 4: &r4}
 
 	policy := telemetry.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 	dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+}
+
+func configNewPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string, dscp uint8) {
+	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r1.SequenceId = ygot.Uint32(1)
+	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+		DscpSet: []uint8{
+			*ygot.Uint8(dscp),
+		},
+	}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+
+	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
+	p.PolicyId = ygot.String(policyName)
+	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
+	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
+
+	dut.Config().NetworkInstance("default").PolicyForwarding().Policy(policyName).Replace(t, &p)
 }
 
 func generatePhysicalInterfaceConfig(t *testing.T, name, ipv4 string, prefixlen uint8) *telemetry.Interface {
@@ -112,5 +145,34 @@ func testMovePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs)
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, weights...)
+	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+}
+
+// testChangePBRUnderInterface tests changing the PBR policy under the interface
+func testChangePBRUnderInterface(ctx context.Context, t *testing.T, args *testArgs) {
+	// Program GRIBI entry on the router
+	defer flushSever(t, args)
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	newPbrName := "new-PBR"
+	dscpVal := uint8(10)
+
+	// Configure new policy that matches the dscp and protocol IPinIP
+	configNewPolicy(t, args.dut, newPbrName, dscpVal)
+	defer args.dut.Config().NetworkInstance(instance).PolicyForwarding().Policy(newPbrName).Delete(t)
+
+	// Change policy on the bunlde interface
+	configPBRunderInterface(t, args, args.interfaces.in[0], newPbrName)
+	defer configPBRunderInterface(t, args, args.interfaces.in[0], pbrName)
+
+	// Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
+
+	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, weights...)
 }
