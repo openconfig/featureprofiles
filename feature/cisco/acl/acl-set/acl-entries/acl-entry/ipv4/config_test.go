@@ -29,55 +29,6 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 	dut.Config().Acl().Delete(t)
 }
-func TestDscp(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-
-	baseConfig := setupAcl(t, dut)
-	defer teardownAcl(t, dut, baseConfig)
-
-	inputs := []uint8{
-		39,
-		19,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp using value %v", input), func(t *testing.T) {
-			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
-			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
-			baseConfigAclSetAclEntryIpv4 := baseConfigAclSetAclEntry.Ipv4
-			*baseConfigAclSetAclEntryIpv4.Dscp = input
-
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
-
-			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryIpv4)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.Dscp != input {
-						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.Dscp != input {
-						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).Dscp != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp fail: got %v", qs)
-				}
-			})
-		})
-	}
-}
 func TestSourceAddress(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -85,8 +36,7 @@ func TestSourceAddress(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		"186.175.128.250/20",
-		"3.152.2.2/4",
+		"8.180.93.95/6",
 	}
 
 	for _, input := range inputs {
@@ -120,8 +70,10 @@ func TestSourceAddress(t *testing.T) {
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).SourceAddress != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/source-address fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).SourceAddress != nil {
+						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/source-address fail: got %v", qs)
+					}
 				}
 			})
 		})
@@ -134,8 +86,7 @@ func TestDestinationAddress(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		"253.253.22.82/30",
-		"62.33.2.6/3",
+		"7.192.203.84/5",
 	}
 
 	for _, input := range inputs {
@@ -169,8 +120,10 @@ func TestDestinationAddress(t *testing.T) {
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).DestinationAddress != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/destination-address fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).DestinationAddress != nil {
+						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/destination-address fail: got %v", qs)
+					}
 				}
 			})
 		})
@@ -184,33 +137,56 @@ func TestDscpSet(t *testing.T) {
 
 	inputs := [][]uint8{
 		{
-			36,
-			9,
-			29,
-			16,
-			8,
-		},
-		{
-			14,
-			46,
-			17,
-			6,
-			36,
-			45,
 			47,
-			27,
-			9,
 			5,
-			13,
-			49,
-			56,
-			61,
-			6,
-			27,
-			51,
-			44,
+			42,
+			0,
+			37,
+			8,
 			31,
+			49,
+			10,
+			20,
+			49,
+			7,
+			12,
+			16,
+			2,
+			33,
+			23,
+			5,
+			44,
+			6,
+			9,
+			12,
+			58,
+			15,
+			55,
+			58,
+			29,
+			40,
+			2,
+			6,
+			44,
+			38,
+			27,
+			19,
+			41,
+			45,
+			39,
+			43,
+			58,
+			13,
+			52,
+			28,
+			40,
+			47,
+			56,
+			9,
+			59,
 			1,
+			56,
+			33,
 		},
 	}
 
@@ -249,30 +225,31 @@ func TestDscpSet(t *testing.T) {
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).DscpSet != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp-set fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).DscpSet != nil {
+						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp-set fail: got %v", qs)
+					}
 				}
 			})
 		})
 	}
 }
-func TestHopLimit(t *testing.T) {
+func TestDscp(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []uint8{
-		35,
-		91,
+		15,
 	}
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/hop-limit using value %v", input), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp using value %v", input), func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryIpv4 := baseConfigAclSetAclEntry.Ipv4
-			*baseConfigAclSetAclEntryIpv4.HopLimit = input
+			*baseConfigAclSetAclEntryIpv4.Dscp = input
 
 			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
 			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
@@ -283,23 +260,25 @@ func TestHopLimit(t *testing.T) {
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
 					configGot := config.Get(t)
-					if *configGot.HopLimit != input {
-						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/hop-limit: got %v, want %v", configGot, input)
+					if *configGot.Dscp != input {
+						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp: got %v, want %v", configGot, input)
 					}
 				})
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
 					stateGot := state.Get(t)
-					if *stateGot.HopLimit != input {
-						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/hop-limit: got %v, want %v", stateGot, input)
+					if *stateGot.Dscp != input {
+						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).HopLimit != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/hop-limit fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).Dscp != nil {
+						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp fail: got %v", qs)
+					}
 				}
 			})
 		})
@@ -312,8 +291,7 @@ func TestProtocol(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.Acl_AclSet_AclEntry_Ipv4_Protocol_Union{
-		oc.UnionUint8(252),
-		oc.UnionUint8(163),
+		oc.UnionUint8(28),
 	}
 
 	for _, input := range inputs {
@@ -347,8 +325,60 @@ func TestProtocol(t *testing.T) {
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).Protocol != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/protocol fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).Protocol != nil {
+						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/protocol fail: got %v", qs)
+					}
+				}
+			})
+		})
+	}
+}
+func TestHopLimit(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	baseConfig := setupAcl(t, dut)
+	defer teardownAcl(t, dut, baseConfig)
+
+	inputs := []uint8{
+		150,
+	}
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/hop-limit using value %v", input), func(t *testing.T) {
+			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
+			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
+			baseConfigAclSetAclEntryIpv4 := baseConfigAclSetAclEntry.Ipv4
+			*baseConfigAclSetAclEntryIpv4.HopLimit = input
+
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
+
+			t.Run("Replace", func(t *testing.T) {
+				config.Replace(t, baseConfigAclSetAclEntryIpv4)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.HopLimit != input {
+						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/hop-limit: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.HopLimit != input {
+						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/hop-limit: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete", func(t *testing.T) {
+				config.Delete(t)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).HopLimit != nil {
+						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/hop-limit fail: got %v", qs)
+					}
 				}
 			})
 		})

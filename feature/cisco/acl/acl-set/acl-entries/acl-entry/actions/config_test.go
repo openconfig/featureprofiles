@@ -36,7 +36,6 @@ func TestLogAction(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.E_Acl_LOG_ACTION{
-		oc.E_Acl_LOG_ACTION(1), //LOG_NONE
 		oc.E_Acl_LOG_ACTION(2), //LOG_SYSLOG
 	}
 
@@ -71,8 +70,10 @@ func TestLogAction(t *testing.T) {
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).LogAction != 0 {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/log-action fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).LogAction != 0 {
+						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/log-action fail: got %v", qs)
+					}
 				}
 			})
 		})
@@ -85,7 +86,6 @@ func TestForwardingAction(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.E_Acl_FORWARDING_ACTION{
-		oc.E_Acl_FORWARDING_ACTION(3), //REJECT
 		oc.E_Acl_FORWARDING_ACTION(1), //ACCEPT
 	}
 

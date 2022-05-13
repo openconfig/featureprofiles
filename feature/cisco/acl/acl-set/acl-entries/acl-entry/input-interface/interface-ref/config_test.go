@@ -21,7 +21,7 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bcAclSet := setup.GetAnyValue(bc.AclSet)
 	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
 	bcAclSetAclEntry := setup.GetAnyValue(bcAclSet.AclEntry)
-	setup.ResetStruct(bcAclSetAclEntry, []string{"Actions", "InputInterface"})
+	setup.ResetStruct(bcAclSetAclEntry, []string{"InputInterface", "Actions"})
 	bcAclSetAclEntryInputInterface := bcAclSetAclEntry.InputInterface
 	setup.ResetStruct(bcAclSetAclEntryInputInterface, []string{"InterfaceRef"})
 	dut.Config().Acl().Replace(t, bc)
@@ -38,8 +38,7 @@ func TestInterface(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		"cca",
-		"c",
+		"a",
 	}
 
 	for _, input := range inputs {
@@ -74,8 +73,10 @@ func TestInterface(t *testing.T) {
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).Interface != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/interface fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).Interface != nil {
+						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/interface fail: got %v", qs)
+					}
 				}
 			})
 		})
@@ -88,8 +89,7 @@ func TestSubinterface(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []uint32{
-		652656135,
-		1867539980,
+		1738970453,
 	}
 
 	for _, input := range inputs {
@@ -124,8 +124,10 @@ func TestSubinterface(t *testing.T) {
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).Subinterface != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/subinterface fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).Subinterface != nil {
+						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/subinterface fail: got %v", qs)
+					}
 				}
 			})
 		})

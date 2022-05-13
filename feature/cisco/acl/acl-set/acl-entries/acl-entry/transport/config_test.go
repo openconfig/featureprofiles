@@ -36,8 +36,7 @@ func TestSourcePort(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.Acl_AclSet_AclEntry_Transport_SourcePort_Union{
-		oc.UnionString("46991..65532"),
-		oc.UnionString("066..94"),
+		oc.UnionString("37..00757"),
 	}
 
 	for _, input := range inputs {
@@ -71,8 +70,10 @@ func TestSourcePort(t *testing.T) {
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).SourcePort != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).SourcePort != nil {
+						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port fail: got %v", qs)
+					}
 				}
 			})
 		})
@@ -86,16 +87,15 @@ func TestTcpFlags(t *testing.T) {
 
 	inputs := [][]oc.E_PacketMatchTypes_TCP_FLAGS{
 		{
-			oc.E_PacketMatchTypes_TCP_FLAGS(3), //TCP_ECE
 			oc.E_PacketMatchTypes_TCP_FLAGS(1), //TCP_ACK
-			oc.E_PacketMatchTypes_TCP_FLAGS(4), //TCP_FIN
 			oc.E_PacketMatchTypes_TCP_FLAGS(6), //TCP_RST
+			oc.E_PacketMatchTypes_TCP_FLAGS(4), //TCP_FIN
+			oc.E_PacketMatchTypes_TCP_FLAGS(3), //TCP_ECE
+			oc.E_PacketMatchTypes_TCP_FLAGS(8), //TCP_URG
 			oc.E_PacketMatchTypes_TCP_FLAGS(2), //TCP_CWR
 			oc.E_PacketMatchTypes_TCP_FLAGS(7), //TCP_SYN
-			oc.E_PacketMatchTypes_TCP_FLAGS(8), //TCP_URG
 			oc.E_PacketMatchTypes_TCP_FLAGS(5), //TCP_PSH
 		},
-		{},
 	}
 
 	for _, input := range inputs {
@@ -133,8 +133,10 @@ func TestTcpFlags(t *testing.T) {
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).TcpFlags != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/tcp-flags fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).TcpFlags != nil {
+						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/tcp-flags fail: got %v", qs)
+					}
 				}
 			})
 		})
@@ -147,8 +149,7 @@ func TestDestinationPort(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.Acl_AclSet_AclEntry_Transport_DestinationPort_Union{
-		oc.UnionUint16(37442),
-		oc.UnionString("0006..090"),
+		oc.UnionString("00633..06727"),
 	}
 
 	for _, input := range inputs {
@@ -182,8 +183,10 @@ func TestDestinationPort(t *testing.T) {
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).DestinationPort != nil {
-					t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/destination-port fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).DestinationPort != nil {
+						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/destination-port fail: got %v", qs)
+					}
 				}
 			})
 		})

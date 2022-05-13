@@ -34,8 +34,7 @@ func TestType(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.E_Acl_ACL_TYPE{
-		oc.E_Acl_ACL_TYPE(3), //ACL_L2
-		oc.E_Acl_ACL_TYPE(4), //ACL_MIXED
+		oc.E_Acl_ACL_TYPE(1), //ACL_IPV4
 	}
 
 	for _, input := range inputs {
@@ -68,8 +67,10 @@ func TestType(t *testing.T) {
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).Type != 0 {
-					t.Errorf("Delete /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/type fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).Type != 0 {
+						t.Errorf("Delete /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/type fail: got %v", qs)
+					}
 				}
 			})
 		})
@@ -82,8 +83,7 @@ func TestSetName(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		"cia",
-		":c:",
+		"is:a:",
 	}
 
 	for _, input := range inputs {
@@ -116,8 +116,10 @@ func TestSetName(t *testing.T) {
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).SetName != nil {
-					t.Errorf("Delete /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).SetName != nil {
+						t.Errorf("Delete /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name fail: got %v", qs)
+					}
 				}
 			})
 		})

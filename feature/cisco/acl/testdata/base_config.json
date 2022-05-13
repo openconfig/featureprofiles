@@ -7,7 +7,7 @@
             {
               "actions": {
                 "state": {
-                  "forwarding-action": "openconfig-acl:ACCEPT",
+                  "forwarding-action": "openconfig-acl:REJECT",
                   "log-action": "openconfig-acl:LOG_NONE"
                 }
               },
@@ -15,97 +15,98 @@
                 "interface-ref": {
                   "state": {
                     "interface": "a",
-                    "subinterface": 1566907921
+                    "subinterface": 1504551022
                   }
                 }
               },
               "ipv4": {
                 "state": {
-                  "destination-address": "251.176.5.11/21",
-                  "dscp": 24,
+                  "destination-address": "28.106.213.9/16",
+                  "dscp": 21,
                   "dscp-set": [
-                    62,
-                    25,
-                    20,
-                    6,
-                    58,
-                    4,
-                    10,
-                    61,
-                    55
+                    5,
+                    30,
+                    57,
+                    42,
+                    12,
+                    19
                   ],
-                  "hop-limit": 100,
-                  "protocol": 221,
-                  "source-address": "3.4.8.206/0"
+                  "hop-limit": 199,
+                  "protocol": 83,
+                  "source-address": "9.151.0.253/27"
                 }
               },
               "ipv6": {
                 "state": {
-                  "destination-address": "b::1:FB:B94c/121",
-                  "destination-flow-label": 148638,
-                  "dscp": 19,
+                  "destination-address": "Fbf:d:2::47:0/107",
+                  "destination-flow-label": 1170,
+                  "dscp": 33,
                   "dscp-set": [
-                    28,
-                    29,
-                    38,
-                    60,
-                    35,
-                    42,
-                    6,
+                    32,
+                    1,
+                    37,
+                    25,
                     17,
-                    58,
-                    34
+                    32,
+                    8,
+                    21
                   ],
-                  "hop-limit": 173,
-                  "protocol": 189,
-                  "source-address": "E::a/14",
-                  "source-flow-label": 341331
+                  "hop-limit": 81,
+                  "protocol": 199,
+                  "source-address": "F0:E::A3f/40",
+                  "source-flow-label": 980698
                 }
               },
               "l2": {
                 "state": {
-                  "destination-mac": "A6:EE:E5:7A:fD:E7",
-                  "destination-mac-mask": "A2:3A:D6:3F:06:B8",
-                  "ethertype": 18432,
-                  "source-mac": "84:94:Ad:dE:1D:CA",
-                  "source-mac-mask": "48:81:Bd:29:fF:Fb"
+                  "destination-mac": "38:7a:D2:Fa:B4:Fa",
+                  "destination-mac-mask": "a1:d1:CA:8b:40:44",
+                  "ethertype": 49458,
+                  "source-mac": "fF:Cb:a8:14:DD:4F",
+                  "source-mac-mask": "fA:2C:7c:e6:FF:0F"
                 }
               },
               "mpls": {
                 "state": {
-                  "end-label-value": 890888,
-                  "start-label-value": 368707,
-                  "traffic-class": 3,
-                  "ttl-value": 104
+                  "end-label-value": 199221,
+                  "start-label-value": 170916,
+                  "traffic-class": 1,
+                  "ttl-value": 206
                 }
               },
-              "sequence-id": 2114002370,
+              "sequence-id": 272851767,
               "state": {
-                "description": "ca",
-                "sequence-id": 2114002370
+                "description": ":",
+                "sequence-id": 272851767
               },
               "transport": {
                 "state": {
-                  "destination-port": "30..00999",
-                  "source-port": "59441..00037",
+                  "destination-port": 24319,
+                  "source-port": "5596..00056",
                   "tcp-flags": [
-                    "openconfig-packet-match-types:TCP_ECE",
+                    "openconfig-packet-match-types:TCP_ACK",
+                    "openconfig-packet-match-types:TCP_CWR",
                     "openconfig-packet-match-types:TCP_SYN",
+                    "openconfig-packet-match-types:TCP_CWR",
                     "openconfig-packet-match-types:TCP_ECE",
-                    "openconfig-packet-match-types:TCP_URG"
+                    "openconfig-packet-match-types:TCP_ACK",
+                    "openconfig-packet-match-types:TCP_URG",
+                    "openconfig-packet-match-types:TCP_ACK",
+                    "openconfig-packet-match-types:TCP_SYN",
+                    "openconfig-packet-match-types:TCP_RST"
                   ]
                 }
               }
             }
           ]
         },
-        "name": ":ai",
+        "name": "c",
         "state": {
-          "description": ":ci",
-          "name": ":ai",
-          "type": "openconfig-acl:ACL_MPLS"
+          "description": "s",
+          "name": "c",
+          "type": "openconfig-acl:ACL_L2"
         },
-        "type": "openconfig-acl:ACL_MPLS"
+        "type": "openconfig-acl:ACL_L2"
       }
     ]
   },
@@ -115,36 +116,36 @@
         "egress-acl-sets": {
           "egress-acl-set": [
             {
-              "set-name": ":ai",
+              "set-name": "c",
               "state": {
-                "set-name": ":ai",
-                "type": "openconfig-acl:ACL_MPLS"
+                "set-name": "c",
+                "type": "openconfig-acl:ACL_L2"
               },
-              "type": "openconfig-acl:ACL_MPLS"
+              "type": "openconfig-acl:ACL_L2"
             }
           ]
         },
-        "id": "i",
+        "id": "c",
         "ingress-acl-sets": {
           "ingress-acl-set": [
             {
-              "set-name": ":ai",
+              "set-name": "c",
               "state": {
-                "set-name": ":ai",
-                "type": "openconfig-acl:ACL_MPLS"
+                "set-name": "c",
+                "type": "openconfig-acl:ACL_L2"
               },
-              "type": "openconfig-acl:ACL_MPLS"
+              "type": "openconfig-acl:ACL_L2"
             }
           ]
         },
         "interface-ref": {
           "state": {
-            "interface": "isss",
-            "subinterface": 1553382235
+            "interface": "sa",
+            "subinterface": 2870640387
           }
         },
         "state": {
-          "id": "i"
+          "id": "c"
         }
       }
     ]

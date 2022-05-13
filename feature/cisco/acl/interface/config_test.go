@@ -32,8 +32,7 @@ func TestId(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		":cc",
-		":",
+		"s",
 	}
 
 	for _, input := range inputs {
@@ -65,8 +64,10 @@ func TestId(t *testing.T) {
 			}
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.Val(t).Id != nil {
-					t.Errorf("Delete /acl/interfaces/interface/config/id fail: got %v", qs)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).Id != nil {
+						t.Errorf("Delete /acl/interfaces/interface/config/id fail: got %v", qs)
+					}
 				}
 			})
 		})
