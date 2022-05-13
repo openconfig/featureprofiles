@@ -2,12 +2,17 @@ package util
 
 import (
 	"context"
+	"encoding/binary"
+	"math"
+	"math/rand"
 	"net"
 	"testing"
 	"time"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/gribigo/client"
+	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 )
@@ -38,6 +43,23 @@ func CheckTrafficPassViaPortPktCounter(pktCounters []*telemetry.Interface_Counte
 	return float64(totalIn)/float64(totalOut) >= thresholdValue
 }
 
+func CheckTrafficPassViaRate(stats []*telemetry.Flow) []string {
+	lossFlow := []string{}
+	for _, flow := range stats {
+		// Tx Rate
+		// Need to convert byte[] to float, then take the integer part
+		txRate := int(math.Float32frombits(binary.BigEndian.Uint32(flow.OutFrameRate)))
+		// Rx Rate
+		// Need to convert byte[] to float, then take the integer part
+		rxRate := int(math.Float32frombits(binary.BigEndian.Uint32(flow.InFrameRate)))
+
+		if txRate-rxRate > 1 {
+			lossFlow = append(lossFlow, *flow.Name)
+		}
+	}
+	return lossFlow
+}
+
 // ReloadDUT reloads the router using GNMI APIs
 func ReloadDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
@@ -63,4 +85,57 @@ func GNMIWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, con
 	if err != nil {
 		t.Errorf("There is error when applying the config")
 	}
+}
+
+func FlushServer(c *fluent.GRIBIClient, t testing.TB) {
+	ctx := context.Background()
+	c.Start(ctx, t)
+	defer c.Stop(t)
+
+	t.Logf("Flush Entries in All Network Instances.")
+
+	if _, err := c.Flush().
+		WithElectionOverride().
+		WithAllNetworkInstances().
+		Send(); err != nil {
+		t.Fatalf("could not remove all entries from server, got: %v", err)
+	}
+}
+
+func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, timeout time.Duration) error {
+	subctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	return c.Await(subctx, t)
+}
+
+func DoModifyOps(c *fluent.GRIBIClient, t testing.TB, ops []func(), wantACK fluent.ProgrammingResult, randomise bool, electionId uint64) []*client.OpResult {
+	conn := c.Connection().WithRedundancyMode(fluent.ElectedPrimaryClient).WithInitialElectionID(electionId, 0).WithPersistence()
+
+	if wantACK == fluent.InstalledInFIB {
+		conn.WithFIBACK()
+	}
+
+	ctx := context.Background()
+	c.Start(ctx, t)
+	defer c.Stop(t)
+	c.StartSending(ctx, t)
+	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+		t.Fatalf("got unexpected error from server - session negotiation, got: %v, want: nil", err)
+	}
+
+	// If randomise is specified, we go and do the operations in a random order.
+	// In this case, the caller MUST
+	if randomise {
+		rand.Seed(time.Now().UnixNano())
+		rand.Shuffle(len(ops), func(i, j int) { ops[i], ops[j] = ops[j], ops[i] })
+	}
+
+	for _, fn := range ops {
+		fn()
+	}
+
+	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+		t.Fatalf("got unexpected error from server - entries, got: %v, want: nil", err)
+	}
+	return c.Results(t)
 }

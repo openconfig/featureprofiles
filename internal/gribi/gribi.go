@@ -21,9 +21,11 @@ package gribi
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
+	gribi "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -57,6 +59,11 @@ type Client struct {
 	// Unexport fields below.
 	fluentC *fluent.GRIBIClient
 }
+
+var (
+	mu         sync.Mutex
+	electionID = make(map[*ondatra.DUTDevice]gribi.Uint128)
+)
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
 func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
@@ -145,6 +152,18 @@ func (c *Client) BecomeLeader(t testing.TB) {
 		high++ // Carry to high.
 	}
 	c.UpdateElectionID(t, newLow, high)
+}
+
+func GetElectionID(ctx context.Context, dut *ondatra.DUTDevice) (low, high uint64) {
+	mu.Lock()
+	defer mu.Unlock()
+	_, ok := electionID[dut]
+	if !ok {
+		electionID[dut] = gribi.Uint128{Low: 0,
+			High: 0,
+		}
+	}
+	return electionID[dut].Low, electionID[dut].High
 }
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
