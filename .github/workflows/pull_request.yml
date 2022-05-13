@@ -9,12 +9,20 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: '1.18'
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Install protobuf
       uses: arduino/setup-protoc@v1
       with:
         version: '3.x'
-    - name: Checkout code
-      uses: actions/checkout@v2
     - name: Lint protobufs
       run: |
         go install github.com/googleapis/api-linter/cmd/api-linter@latest
@@ -55,8 +63,8 @@ jobs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
-          ~/.cache/staticcheck
-        key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Fetch Openconfig Models
       run: make openconfig_public
     - name: Validate Paths
@@ -78,7 +86,8 @@ jobs:
           ~/go/pkg/mod
           ~/.cache/go-build
           ~/.cache/staticcheck
-        key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Go vet
       run: go vet ./...
     - name: Gofmt
