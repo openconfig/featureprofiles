@@ -70,9 +70,9 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	resv.ID = resvID
 	b.resv = resv
 
-	if err := b.reserveIxSessions(ctx); err != nil {
-		return nil, err
-	}
+	// if err := b.reserveIxSessions(ctx); err != nil {
+	// 	return nil, err
+	// }
 	return resv, nil
 }
 

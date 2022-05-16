@@ -1,0 +1,217 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/openconfig/featureprofiles/tools/input_cisco/proto";
+import "google/protobuf/any.proto";
+
+message Input {
+    enum Encap{
+        dot1ad_dot1q = 0;
+        dot1q = 1;
+    }
+    message vrf {
+        string name = 1;
+        string rd =3; 
+        string type = 2;
+        bool disabled= 4;
+        string description = 5;
+
+    }
+    message ISIS {
+        enum AfiSafiType {
+            IPV4_MULTICAST =0;
+            IPV4_UNICAST =1;
+            IPV6_MULTICAST =2;
+            IPV6_UNICAST =3;
+        }
+        message Interface {
+            bool passive =1;
+            bool point_to_point=2;
+            bool suppressed=3;
+            bool shutdown=4;
+            string id = 5;
+            repeated AfiSafi afisafi=6;
+            string name =7;
+            
+        }
+       
+        enum metric_style {
+            narrow = 0;
+            transition =1;
+            wide = 2;
+        }
+        message AfiSafi{
+            AfiSafiType type = 1;
+            string metric_style  = 3;   
+            int32 metric = 4;      
+        }
+        enum Level{
+            level_1 = 0;
+            level_1_2 = 1;
+            level_2 = 2;
+
+        }
+        string name = 1;
+        Level level =2;
+        string net_id=3;
+        bool nsr = 4;
+        string nsf =5;
+        bool log_adj=6;
+        repeated AfiSafi afisafi=7;
+        repeated Interface interface=8;
+        string vrf = 9;
+        int32 lsp_refresh_interval =10;
+        int32 max_lsp_lifetime =11;
+
+    }
+    message RoutePolicy{
+        enum Action {
+            accept = 0;
+            reject = 1;
+
+        }
+        message AsPathPrepend {
+            int32 repeatn =1;
+            int32 asn =2;
+        }
+        message BGPAction{
+            int32 local_perf =1;
+            string medtype = 2;
+            AsPathPrepend aspathprepend =3;
+        }
+        message Policy {
+            Action action =1;
+            BGPAction bgpaction=2;
+        }
+
+        Policy policy =1;
+        string name =2;
+    }
+    message BGP {
+       
+        enum AdditionalPaths{
+            send=0;
+            recieve=1;
+            selection=2;
+        }
+        enum AfiSafiType {
+            IPV4_FLOWSPEC = 0;
+            IPV4_LABELED_UNICAST =2;
+            IPV4_UNICAST =3;
+            IPV6_LABELED_UNICAST =4;
+            IPV6_UNICAST =5;
+            L2VPN_EVPN =6;
+            L2VPN_VPLS =7;
+            L3VPN_IPV4_MULTICAST =8;
+            L3VPN_IPV4_UNICAST =9;
+            L3VPN_IPV6_MULTICAST =10;
+            L3VPN_IPV6_UNICAST =11;
+            LINKSTATE =12;
+            LINKSTATE_SPF =13;
+            LINKSTATE_VPN  =14;
+            SRTE_POLICY_IPV4 =15;
+            SRTE_POLICY_IPV6 =16;
+            VPNV4_FLOWSPEC =17;
+            
+        }
+        message Neighbor {
+            string address =1;
+            repeated AfiSafi afisafi=2;
+            int32 peer_as =3;
+            int32 ebgp_multihop =4;
+            string neighbor_group=5;
+
+        }
+        message Policy{
+            repeated string importpolicy =1;
+            repeated string exportpolicy = 2;
+        }
+        message AfiSafi {
+            AfiSafiType type = 1;
+            Policy policy = 2;
+            repeated AdditionalPaths additional_paths = 4;
+            string route_policy_retention=5;
+        }
+        message GracefullRestart{
+            bool enabled = 1;
+        }
+        int32 as =1;
+        GracefullRestart gracefull_restart =2;
+        repeated AfiSafi afisafi=4;
+        repeated Neighbor neighbors =6;
+        string vrf = 7;
+        string router_id = 8;
+    }
+    message Vlan{
+        string id = 1;
+        string ipv4_address = 2;
+        string ipv4_mask = 3;
+        int32 ipv4_prefix_length = 4;
+        string ipv6_address = 5;
+        string ipv6_mask = 6;
+        int32 ipv6_prefix_length = 7;
+        Encap encapsulation = 8;
+        string vrf = 9;
+        int32 v4step = 10;
+        int32 v6step = 11;
+        int32 scale = 12;
+        string group = 13;
+
+        
+    }
+
+    message Interface {
+
+        string id = 1;
+        string  name = 2;
+        bool disabled = 3;
+        string ipv4_address = 4;
+        string ipv4_mask = 5;
+        int32  mtu = 6;
+        int32 ipv4_prefix_length=7;
+        string ipv6_address = 8;
+        string ipv6_mask = 9;
+        int32 ipv6_prefix_length = 10;
+        string vrf = 11 ;
+        repeated string members = 12;
+        string mac_address = 13;
+        repeated Vlan vlan = 14;
+        string group = 15;
+    }
+    message Gribi{
+        map<string, NextHopGroup> nhg=1;
+    }
+    message NextHop{
+        int32 index = 1;
+        string ipv4_entry = 3;
+
+    }
+    message NextHopGroup{
+        int32 index = 1;
+        int32 weight =2;
+        string vrf_name = 3;
+        repeated NextHop nexthop=4;
+    }
+
+    message Feature {
+       
+        repeated Interface interface = 2;
+        repeated vrf vrf = 3;
+        repeated ISIS isis = 4;
+        repeated BGP bgp = 5;
+        repeated Gribi gribi = 6;
+        google.protobuf.Any any = 7;
+        string confpath = 8;
+        repeated RoutePolicy routepolicy = 9;
+        repeated string json_config =10;
+
+    }
+    message TestCase {
+        map<string, Feature> feature = 4;
+    }
+
+    map<string, Feature> feature =  1;
+    map<string, TestCase> testcase =  2;
+    map<string, string> params = 3;
+}
