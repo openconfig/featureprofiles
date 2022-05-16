@@ -230,8 +230,8 @@ func TestPlatformTransceiverState(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.OpticsModule).Description()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		if !strings.Contains(val, "Power") {
-			t.Errorf("Platform OpticsModule Description: got %s, should contain %s", val, "Power")
+		if !strings.Contains(val, "Optics") {
+			t.Errorf("Platform OpticsModule Description: got %s, should contain %s", val, "Optics")
 
 		}
 	})
@@ -255,15 +255,6 @@ func TestPlatformPSUIOState(t *testing.T) {
 func TestTransceiverchannel(t *testing.T) {
 	// Failure due to CSCwb72703
 	dut := ondatra.DUT(t, device1)
-	t.Run("state//components/component/state/serial-no", func(t *testing.T) {
-		state := dut.Telemetry().Component(Platform.Transceiver).SerialNo()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
-		if val == "" {
-			t.Errorf("Platform Transceiverchannel SerialNo: got %s, want != %s", val, "''")
-
-		}
-	})
 	t.Run("state//components/component/transceiver/state/form-factor", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.Transceiver).Transceiver().FormFactor()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
