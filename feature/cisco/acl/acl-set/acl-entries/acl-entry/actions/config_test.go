@@ -1,18 +1,19 @@
+
 package acl_test
-
 import (
-	"fmt"
 	"testing"
+	"fmt"
 
-	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
+
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
@@ -22,6 +23,8 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
 	bcAclSetAclEntry := setup.GetAnyValue(bcAclSet.AclEntry)
 	setup.ResetStruct(bcAclSetAclEntry, []string{"Actions"})
+	bcAclSetAclEntryActions := bcAclSetAclEntry.Actions
+	setup.ResetStruct(bcAclSetAclEntryActions, []string{"ForwardingAction"})
 	dut.Config().Acl().Replace(t, bc)
 	return bc
 }
@@ -29,25 +32,69 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 	dut.Config().Acl().Delete(t)
 }
-func TestLogAction(t *testing.T) {
+func TestForwardingAction(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
+	
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []oc.E_Acl_LOG_ACTION{
-		oc.E_Acl_LOG_ACTION(2), //LOG_SYSLOG
+	inputs := []oc.E_Acl_FORWARDING_ACTION {
+		oc.E_Acl_FORWARDING_ACTION(2), //DROP
 	}
+	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/log-action using value %v", input), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action using value %v", input) , func(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryActions := baseConfigAclSetAclEntry.Actions
-			baseConfigAclSetAclEntryActions.LogAction = input
+			baseConfigAclSetAclEntryActions.ForwardingAction = input 
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Actions()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Actions()
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Actions()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Actions()
+
+			t.Run("Replace", func(t *testing.T) {
+				config.Replace(t, baseConfigAclSetAclEntryActions)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get", func(t *testing.T) {
+					configGot := config.Get(t)
+					if configGot.ForwardingAction != input {
+						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if stateGot.ForwardingAction != input {
+						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+		})
+	}
+}
+func TestLogAction(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	
+	baseConfig := setupAcl(t, dut)
+	defer teardownAcl(t, dut, baseConfig)
+
+	inputs := []oc.E_Acl_LOG_ACTION {
+		oc.E_Acl_LOG_ACTION(2), //LOG_SYSLOG
+	}
+	
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/log-action using value %v", input) , func(t *testing.T) {
+			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
+			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
+			baseConfigAclSetAclEntryActions := baseConfigAclSetAclEntry.Actions
+			baseConfigAclSetAclEntryActions.LogAction = input 
+
+			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Actions()
+			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name,baseConfigAclSet.Type,).AclEntry(*baseConfigAclSetAclEntry.SequenceId,).Actions()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigAclSetAclEntryActions)
@@ -76,48 +123,6 @@ func TestLogAction(t *testing.T) {
 					}
 				}
 			})
-		})
-	}
-}
-func TestForwardingAction(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-
-	baseConfig := setupAcl(t, dut)
-	defer teardownAcl(t, dut, baseConfig)
-
-	inputs := []oc.E_Acl_FORWARDING_ACTION{
-		oc.E_Acl_FORWARDING_ACTION(1), //ACCEPT
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action using value %v", input), func(t *testing.T) {
-			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
-			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
-			baseConfigAclSetAclEntryActions := baseConfigAclSetAclEntry.Actions
-			baseConfigAclSetAclEntryActions.ForwardingAction = input
-
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Actions()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Actions()
-
-			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryActions)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
-					if configGot.ForwardingAction != input {
-						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if stateGot.ForwardingAction != input {
-						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action: got %v, want %v", stateGot, input)
-					}
-				})
-			}
 		})
 	}
 }

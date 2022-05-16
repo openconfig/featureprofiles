@@ -1,14 +1,15 @@
-package setup
 
+package setup
 import (
-	"fmt"
 	"io/ioutil"
-	"os"
-	"reflect"
+	"fmt"
 	"strings"
+	"reflect"
+	"os"
 
 	oc "github.com/openconfig/ondatra/telemetry"
 )
+
 
 var (
 	// BaseConfig contains the base cofig for acl models that is loaded from json or knowninput
@@ -53,12 +54,12 @@ func SkipGet() bool {
 
 // GetAnyValue return the first entry from a map
 func GetAnyValue[M ~map[K]V, K comparable, V any](m M) V {
-	var r V
-	for _, v := range m {
-		r = v
+    var r V
+    for _, v := range m {
+        r = v
 		break
 	}
-	return r
+    return r
 }
 
 // ResetStruct removes all non-primitive child from the struct except the ones passed as excepts

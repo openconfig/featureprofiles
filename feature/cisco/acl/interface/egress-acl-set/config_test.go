@@ -1,18 +1,19 @@
+
 package acl_test
-
 import (
-	"fmt"
 	"testing"
+	"fmt"
 
-	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
+
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
@@ -20,6 +21,8 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	setup.ResetStruct(bc, []string{"Interface", "AclSet"})
 	bcInterface := setup.GetAnyValue(bc.Interface)
 	setup.ResetStruct(bcInterface, []string{"EgressAclSet"})
+	bcInterfaceEgressAclSet := setup.GetAnyValue(bcInterface.EgressAclSet)
+	setup.ResetStruct(bcInterfaceEgressAclSet, []string{})
 	dut.Config().Acl().Replace(t, bc)
 	return bc
 }
@@ -27,73 +30,25 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 	dut.Config().Acl().Delete(t)
 }
-func TestSetName(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-
-	baseConfig := setupAcl(t, dut)
-	defer teardownAcl(t, dut, baseConfig)
-
-	inputs := []string{
-		"ii",
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/egress-acl-sets/egress-acl-set/config/set-name using value %v", input), func(t *testing.T) {
-			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
-			baseConfigInterfaceEgressAclSet := setup.GetAnyValue(baseConfigInterface.EgressAclSet)
-			*baseConfigInterfaceEgressAclSet.SetName = input
-
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id).EgressAclSet(*baseConfigInterfaceEgressAclSet.SetName, baseConfigInterfaceEgressAclSet.Type)
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id).EgressAclSet(*baseConfigInterfaceEgressAclSet.SetName, baseConfigInterfaceEgressAclSet.Type)
-
-			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigInterfaceEgressAclSet)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.SetName != input {
-						t.Errorf("Config /acl/interfaces/interface/egress-acl-sets/egress-acl-set/config/set-name: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.SetName != input {
-						t.Errorf("State /acl/interfaces/interface/egress-acl-sets/egress-acl-set/config/set-name: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).SetName != nil {
-						t.Errorf("Delete /acl/interfaces/interface/egress-acl-sets/egress-acl-set/config/set-name fail: got %v", qs)
-					}
-				}
-			})
-		})
-	}
-}
 func TestType(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
+	
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []oc.E_Acl_ACL_TYPE{
-		oc.E_Acl_ACL_TYPE(4), //ACL_MIXED
+	inputs := []oc.E_Acl_ACL_TYPE {
+		oc.E_Acl_ACL_TYPE(3), //ACL_L2
 	}
+	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/egress-acl-sets/egress-acl-set/config/type using value %v", input), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/egress-acl-sets/egress-acl-set/config/type using value %v", input) , func(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 			baseConfigInterfaceEgressAclSet := setup.GetAnyValue(baseConfigInterface.EgressAclSet)
-			baseConfigInterfaceEgressAclSet.Type = input
+			baseConfigInterfaceEgressAclSet.Type = input 
 
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id).EgressAclSet(*baseConfigInterfaceEgressAclSet.SetName, baseConfigInterfaceEgressAclSet.Type)
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id).EgressAclSet(*baseConfigInterfaceEgressAclSet.SetName, baseConfigInterfaceEgressAclSet.Type)
+			config := dut.Config().Acl().Interface(*baseConfigInterface.Id,).EgressAclSet(*baseConfigInterfaceEgressAclSet.SetName,baseConfigInterfaceEgressAclSet.Type,)
+			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id,).EgressAclSet(*baseConfigInterfaceEgressAclSet.SetName,baseConfigInterfaceEgressAclSet.Type,)
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigInterfaceEgressAclSet)
@@ -119,6 +74,56 @@ func TestType(t *testing.T) {
 				if !setup.SkipSubscribe() {
 					if qs := config.Lookup(t); qs.Val(t).Type != 0 {
 						t.Errorf("Delete /acl/interfaces/interface/egress-acl-sets/egress-acl-set/config/type fail: got %v", qs)
+					}
+				}
+			})
+		})
+	}
+}
+func TestSetName(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	
+	baseConfig := setupAcl(t, dut)
+	defer teardownAcl(t, dut, baseConfig)
+
+	inputs := []string {
+		"ai", 
+	}
+	
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/egress-acl-sets/egress-acl-set/config/set-name using value %v", input) , func(t *testing.T) {
+			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
+			baseConfigInterfaceEgressAclSet := setup.GetAnyValue(baseConfigInterface.EgressAclSet)
+			*baseConfigInterfaceEgressAclSet.SetName = input 
+
+			config := dut.Config().Acl().Interface(*baseConfigInterface.Id,).EgressAclSet(*baseConfigInterfaceEgressAclSet.SetName,baseConfigInterfaceEgressAclSet.Type,)
+			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id,).EgressAclSet(*baseConfigInterfaceEgressAclSet.SetName,baseConfigInterfaceEgressAclSet.Type,)
+
+			t.Run("Replace", func(t *testing.T) {
+				config.Replace(t, baseConfigInterfaceEgressAclSet)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.SetName != input {
+						t.Errorf("Config /acl/interfaces/interface/egress-acl-sets/egress-acl-set/config/set-name: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.SetName != input {
+						t.Errorf("State /acl/interfaces/interface/egress-acl-sets/egress-acl-set/config/set-name: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete", func(t *testing.T) {
+				config.Delete(t)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).SetName != nil {
+						t.Errorf("Delete /acl/interfaces/interface/egress-acl-sets/egress-acl-set/config/set-name fail: got %v", qs)
 					}
 				}
 			})

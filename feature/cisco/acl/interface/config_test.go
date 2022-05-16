@@ -1,23 +1,26 @@
+
 package acl_test
-
 import (
-	"fmt"
 	"testing"
+	"fmt"
 
-	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
 	*bc = setup.BaseConfig
-	setup.ResetStruct(bc, []string{"AclSet", "Interface"})
+	setup.ResetStruct(bc, []string{"Interface", "AclSet"})
+	bcInterface := setup.GetAnyValue(bc.Interface)
+	setup.ResetStruct(bcInterface, []string{})
 	dut.Config().Acl().Replace(t, bc)
 	return bc
 }
@@ -27,21 +30,22 @@ func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 }
 func TestId(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
+	
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []string{
-		"s",
+	inputs := []string {
+		":", 
 	}
+	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/config/id using value %v", input), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/config/id using value %v", input) , func(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
-			*baseConfigInterface.Id = input
+			*baseConfigInterface.Id = input 
 
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id)
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id)
+			config := dut.Config().Acl().Interface(*baseConfigInterface.Id,)
+			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id,)
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigInterface)
