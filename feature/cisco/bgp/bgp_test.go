@@ -16,11 +16,11 @@ func TestBGPState(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	// input_obj.ConfigInterfaces(dut)
+	input_obj.ConfigInterfaces(dut)
 	time.Sleep(30 * time.Second)
-	// topoobj := getIXIATopology(t, "ate")
-	// topoobj.StartProtocols(t)
-	// time.Sleep(30 * time.Second)
+	topoobj := getIXIATopology(t, "ate")
+	topoobj.StartProtocols(t)
+	time.Sleep(30 * time.Second)
 	for _, bgp := range input_obj.Device(dut).Features().Bgp {
 		for _, neighbor := range bgp.Neighbors {
 			t.Run("state//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/description", func(t *testing.T) {
