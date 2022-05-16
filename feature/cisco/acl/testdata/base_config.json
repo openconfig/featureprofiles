@@ -7,106 +7,74 @@
             {
               "actions": {
                 "state": {
-                  "forwarding-action": "openconfig-acl:REJECT",
-                  "log-action": "openconfig-acl:LOG_NONE"
+                  "forwarding-action": "openconfig-acl:ACCEPT",
+                  "log-action": "openconfig-acl:LOG_SYSLOG"
                 }
               },
               "input-interface": {
                 "interface-ref": {
                   "state": {
-                    "interface": "a",
-                    "subinterface": 1504551022
+                    "interface": "FourHundredGigE0/0/0/10",
+                    "subinterface": 0
                   }
                 }
               },
               "ipv4": {
                 "state": {
-                  "destination-address": "28.106.213.9/16",
-                  "dscp": 21,
-                  "dscp-set": [
-                    5,
-                    30,
-                    57,
-                    42,
-                    12,
-                    19
-                  ],
-                  "hop-limit": 199,
-                  "protocol": 83,
-                  "source-address": "9.151.0.253/27"
+                  "destination-address": "10.1.1.1/32",
+                  "protocol": 6,
+                  "dscp": 10,
+                  "hop-limit": 5,
+                  "source-address": "20.1.1.1/32"
                 }
               },
               "ipv6": {
                 "state": {
-                  "destination-address": "Fbf:d:2::47:0/107",
-                  "destination-flow-label": 1170,
-                  "dscp": 33,
-                  "dscp-set": [
-                    32,
-                    1,
-                    37,
-                    25,
-                    17,
-                    32,
-                    8,
-                    21
-                  ],
-                  "hop-limit": 81,
-                  "protocol": 199,
-                  "source-address": "F0:E::A3f/40",
-                  "source-flow-label": 980698
+                  "destination-address": "7::0/108",
+                  "source-address": "8::0/108",
+                  "dscp": 21,
+                  "hop-limit": 5,
+                  "protocol": 6
                 }
               },
               "l2": {
                 "state": {
-                  "destination-mac": "38:7a:D2:Fa:B4:Fa",
-                  "destination-mac-mask": "a1:d1:CA:8b:40:44",
-                  "ethertype": 49458,
-                  "source-mac": "fF:Cb:a8:14:DD:4F",
-                  "source-mac-mask": "fA:2C:7c:e6:FF:0F"
+                  "destination-mac": "Ff:a2:20:9B:5D:51",
+                  "destination-mac-mask": "00:00:00:00:00:00",
+                  "source-mac": "BE:aB:4C:e6:39:A0",
+                  "source-mac-mask": "00:00:00:00:00:00"
                 }
               },
               "mpls": {
                 "state": {
-                  "end-label-value": 199221,
-                  "start-label-value": 170916,
-                  "traffic-class": 1,
-                  "ttl-value": 206
+                  "end-label-value": 158281,
+                  "start-label-value": 14620,
+                  "traffic-class": 0,
+                  "ttl-value": 192
                 }
               },
-              "sequence-id": 272851767,
+              "sequence-id": 10,
               "state": {
-                "description": ":",
-                "sequence-id": 272851767
+                "sequence-id": 10
               },
               "transport": {
                 "state": {
-                  "destination-port": 24319,
-                  "source-port": "5596..00056",
+                  "destination-port": "61524..606",
+                  "source-port": "22603..65533",
                   "tcp-flags": [
-                    "openconfig-packet-match-types:TCP_ACK",
-                    "openconfig-packet-match-types:TCP_CWR",
-                    "openconfig-packet-match-types:TCP_SYN",
-                    "openconfig-packet-match-types:TCP_CWR",
-                    "openconfig-packet-match-types:TCP_ECE",
-                    "openconfig-packet-match-types:TCP_ACK",
-                    "openconfig-packet-match-types:TCP_URG",
-                    "openconfig-packet-match-types:TCP_ACK",
-                    "openconfig-packet-match-types:TCP_SYN",
-                    "openconfig-packet-match-types:TCP_RST"
+                    "openconfig-packet-match-types:TCP_SYN"
                   ]
                 }
               }
             }
           ]
         },
-        "name": "c",
+        "name": "acl1",
         "state": {
-          "description": "s",
-          "name": "c",
-          "type": "openconfig-acl:ACL_L2"
+          "name": "acl1",
+          "type": "openconfig-acl:ACL_IPV4"
         },
-        "type": "openconfig-acl:ACL_L2"
+        "type": "openconfig-acl:ACL_IPV4"
       }
     ]
   },
@@ -116,36 +84,36 @@
         "egress-acl-sets": {
           "egress-acl-set": [
             {
-              "set-name": "c",
+              "set-name": "egressacl1",
               "state": {
-                "set-name": "c",
-                "type": "openconfig-acl:ACL_L2"
+                "set-name": "egressacl1",
+                "type": "openconfig-acl:ACL_IPV4"
               },
-              "type": "openconfig-acl:ACL_L2"
+              "type": "openconfig-acl:ACL_IPV4"
             }
           ]
         },
-        "id": "c",
+        "id": "FourHundredGigE0/0/0/10",
         "ingress-acl-sets": {
           "ingress-acl-set": [
             {
-              "set-name": "c",
+              "set-name": "acl1",
               "state": {
-                "set-name": "c",
-                "type": "openconfig-acl:ACL_L2"
+                "set-name": "acl1",
+                "type": "openconfig-acl:ACL_IPV4"
               },
-              "type": "openconfig-acl:ACL_L2"
+              "type": "openconfig-acl:ACL_IPV4"
             }
           ]
         },
         "interface-ref": {
           "state": {
-            "interface": "sa",
-            "subinterface": 2870640387
+            "interface": "FourHundredGigE0/0/0/10",
+            "subinterface": 0
           }
         },
         "state": {
-          "id": "c"
+          "id": "FourHundredGigE0/0/0/10"
         }
       }
     ]
