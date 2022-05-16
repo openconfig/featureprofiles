@@ -252,8 +252,8 @@ func TestMain(m *testing.M) {
 
 func testCD2ConnectedNHIP(t *testing.T, args *testArgs) {
 	args.c.AddNH(t, 3, "100.121.1.2", server.DefaultNetworkInstanceName, fluent.InstalledInRIB)
-	args.c.AddIPv4(t, "11.11.11.11/32", 11, "TE", server.DefaultNetworkInstanceName, fluent.InstalledInRIB)
 	args.c.AddNHG(t, 11, map[uint64]uint64{3: 15}, server.DefaultNetworkInstanceName, fluent.InstalledInRIB)
+	args.c.AddIPv4(t, "11.11.11.11/32", 11, "TE", server.DefaultNetworkInstanceName, fluent.InstalledInRIB)
 
 	portMaps := args.topology.Interfaces()
 
