@@ -1,19 +1,18 @@
-
 package acl_test
-import (
-	"testing"
-	"fmt"
 
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	oc "github.com/openconfig/ondatra/telemetry"
+import (
+	"fmt"
+	"testing"
+
 	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
@@ -32,23 +31,22 @@ func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 }
 func TestSubinterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []uint32 {
-		1854090381, 
+	inputs := []uint32{
+		1854090381,
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/interface-ref/config/subinterface using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/interface-ref/config/subinterface using value %v", input), func(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 			baseConfigInterfaceInterfaceRef := baseConfigInterface.InterfaceRef
-			*baseConfigInterfaceInterfaceRef.Subinterface = input 
+			*baseConfigInterfaceInterfaceRef.Subinterface = input
 
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id,).InterfaceRef()
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id,).InterfaceRef()
+			config := dut.Config().Acl().Interface(*baseConfigInterface.Id).InterfaceRef()
+			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id).InterfaceRef()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigInterfaceInterfaceRef)
@@ -82,23 +80,22 @@ func TestSubinterface(t *testing.T) {
 }
 func TestInterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []string {
-		"s", 
+	inputs := []string{
+		"s",
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/interface-ref/config/interface using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/interface-ref/config/interface using value %v", input), func(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 			baseConfigInterfaceInterfaceRef := baseConfigInterface.InterfaceRef
-			*baseConfigInterfaceInterfaceRef.Interface = input 
+			*baseConfigInterfaceInterfaceRef.Interface = input
 
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id,).InterfaceRef()
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id,).InterfaceRef()
+			config := dut.Config().Acl().Interface(*baseConfigInterface.Id).InterfaceRef()
+			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id).InterfaceRef()
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigInterfaceInterfaceRef)

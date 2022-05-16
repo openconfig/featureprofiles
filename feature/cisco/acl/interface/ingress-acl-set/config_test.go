@@ -1,19 +1,18 @@
-
 package acl_test
-import (
-	"testing"
-	"fmt"
 
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	oc "github.com/openconfig/ondatra/telemetry"
+import (
+	"fmt"
+	"testing"
+
 	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
@@ -32,23 +31,22 @@ func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 }
 func TestType(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []oc.E_Acl_ACL_TYPE {
+	inputs := []oc.E_Acl_ACL_TYPE{
 		oc.E_Acl_ACL_TYPE(3), //ACL_L2
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/type using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/type using value %v", input), func(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 			baseConfigInterfaceIngressAclSet := setup.GetAnyValue(baseConfigInterface.IngressAclSet)
-			baseConfigInterfaceIngressAclSet.Type = input 
+			baseConfigInterfaceIngressAclSet.Type = input
 
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id,).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName,baseConfigInterfaceIngressAclSet.Type,)
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id,).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName,baseConfigInterfaceIngressAclSet.Type,)
+			config := dut.Config().Acl().Interface(*baseConfigInterface.Id).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName, baseConfigInterfaceIngressAclSet.Type)
+			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName, baseConfigInterfaceIngressAclSet.Type)
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigInterfaceIngressAclSet)
@@ -82,23 +80,22 @@ func TestType(t *testing.T) {
 }
 func TestSetName(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 
-	inputs := []string {
-		":cc", 
+	inputs := []string{
+		":cc",
 	}
-	
 
 	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name using value %v", input) , func(t *testing.T) {
+		t.Run(fmt.Sprintf("Testing /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name using value %v", input), func(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 			baseConfigInterfaceIngressAclSet := setup.GetAnyValue(baseConfigInterface.IngressAclSet)
-			*baseConfigInterfaceIngressAclSet.SetName = input 
+			*baseConfigInterfaceIngressAclSet.SetName = input
 
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id,).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName,baseConfigInterfaceIngressAclSet.Type,)
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id,).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName,baseConfigInterfaceIngressAclSet.Type,)
+			config := dut.Config().Acl().Interface(*baseConfigInterface.Id).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName, baseConfigInterfaceIngressAclSet.Type)
+			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName, baseConfigInterfaceIngressAclSet.Type)
 
 			t.Run("Replace", func(t *testing.T) {
 				config.Replace(t, baseConfigInterfaceIngressAclSet)
