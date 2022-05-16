@@ -115,6 +115,7 @@ func TestPlatformFanTrayState(t *testing.T) {
 	})
 
 }
+
 func TestPlatformChassisState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	t.Run("state//components/component/state/serial-no", func(t *testing.T) {
@@ -248,4 +249,130 @@ func TestPlatformTransceiverState(t *testing.T) {
 
 func TestPlatformPSUIOState(t *testing.T) {
 	// dut := ondatra.DUT(t, device1)
+	//PSU model (https://github.com/openconfig/public/blob/master/release/models/platform/openconfig-platform-psu.yang)  not included  in  ondatra
+}
+
+func TestTransceiverchannel(t *testing.T) {
+	// Failure due to CSCwb72703
+	dut := ondatra.DUT(t, device1)
+	t.Run("state//components/component/state/serial-no", func(t *testing.T) {
+		state := dut.Telemetry().Component("0/0-Optics0/0/0/0").SerialNo()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val == "" {
+			t.Errorf("Platform Transceiverchannel SerialNo: got %s, want != %s", val, "''")
+
+		}
+	})
+	t.Run("state//components/component/transceiver/state/form-factor", func(t *testing.T) {
+		state := dut.Telemetry().Component("0/0-Optics0/0/0/0").Transceiver().FormFactor()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_SFP {
+			t.Errorf("Platform Transceiverchannel FormFactor: got %s, want != %s", val, oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_SFP)
+
+		}
+	})
+	t.Run("state//components/component/transceiver/physical-channels/channel/state/input-power/instant", func(t *testing.T) {
+		state := dut.Telemetry().Component("0/0-Optics0/0/0/0").Transceiver().Channel(1).InputPower().Instant()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != float64(0) {
+			t.Errorf("Platform Transceiverchannel Channel InputPower Instant: got %v, want != %v", val, float64(0))
+
+		}
+	})
+	t.Run("state//components/component/transceiver/physical-channels/channel/state/output-power/instant", func(t *testing.T) {
+		state := dut.Telemetry().Component("0/0-Optics0/0/0/0").Transceiver().Channel(1).OutputPower().Instant()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != float64(0) {
+			t.Errorf("Platform Transceiverchannel Channel OutputPower Instant: got %v, want != %v", val, float64(0))
+
+		}
+	})
+	t.Run("state//components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant", func(t *testing.T) {
+		state := dut.Telemetry().Component("0/0-Optics0/0/0/0").Transceiver().Channel(1).LaserBiasCurrent().Instant()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != float64(0) {
+			t.Errorf("Platform Transceiverchannel Channel LaserBiasCurrent Instant: got %v, want != %v", val, float64(0))
+
+		}
+	})
+
+}
+
+func TestTempSensor(t *testing.T) {
+	dut := ondatra.DUT(t, device1)
+	t.Run("state//components/component/state/temperature/instant", func(t *testing.T) {
+		state := dut.Telemetry().Component(Platform.TempSensor).Temperature().Instant()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val == float64(0) {
+			t.Errorf("Platform Temperature Instant: got %v, want != %v", val, float64(0))
+
+		}
+	})
+}
+
+func TestFirmware(t *testing.T) {
+	dut := ondatra.DUT(t, device1)
+	t.Run("state//components/component/state/firmware-version", func(t *testing.T) {
+		state := dut.Telemetry().Component(Platform.BiosFirmware).FirmwareVersion()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val == "" {
+			t.Errorf("Platform FirmwareVersion: got %s, want != %s", val, "''")
+
+		}
+	})
+}
+
+func TestSWVersion(t *testing.T) {
+	dut := ondatra.DUT(t, device1)
+	t.Run("state//components/component/state/software-version", func(t *testing.T) {
+		state := dut.Telemetry().Component("0/0/CPU0-Broadwell-DE (D-1530)").SoftwareVersion()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val == "" {
+			t.Errorf("Platform SoftwareVersion : got %s, want != %s", val, "''")
+
+		}
+	})
+}
+
+func TestFabric(t *testing.T) {
+	dut := ondatra.DUT(t, device1)
+	t.Run("state//components/component/state/serial-no", func(t *testing.T) {
+		state := dut.Telemetry().Component("0/FC0").SerialNo()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val == "" {
+			t.Errorf("Platform Fabric SerialNo: got %s, want != %s", val, "''")
+
+		}
+	})
+	t.Run("state//components/component/state/description", func(t *testing.T) {
+		state := dut.Telemetry().Component("0/FC0").Description()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if !strings.Contains(val, "Fabric") {
+			t.Errorf("Platform Fabric Description: got %s, should contain %s", val, "Fabric")
+
+		}
+	})
+}
+
+func TestSubComponent(t *testing.T) {
+	dut := ondatra.DUT(t, device1)
+	t.Run("state//components/component/subcomponents/subcomponent/state/name", func(t *testing.T) {
+		state := dut.Telemetry().Component(Platform.Chassis).Subcomponent("Rack 0-Line Card Slot 0").Name()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val == "" {
+			t.Errorf("Platform Subcomponent Name: got %s, want != %s", val, "''")
+
+		}
+	})
 }
