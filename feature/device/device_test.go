@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	defaultNIName = "default"
+	defaultNI = "default"
 )
 
 // TestNew tests the New function.
@@ -68,7 +68,7 @@ func TestMerge(t *testing.T) {
 
 	// Create source device with some feature.
 	srcDevice := New()
-	ni := networkinstance.New(defaultNIName, fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	ni := networkinstance.New(defaultNI, fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	bgp := bgp.New().WithAS(12345)
 	if err := ni.WithFeature(bgp); err != nil {
 		t.Fatalf("unexpected error %v", err)
@@ -113,7 +113,7 @@ func TestFullReplaceRequest(t *testing.T) {
 		name: "device with basic LLDP and BGP",
 		device: func() *Device {
 			d := New()
-			ni := networkinstance.New(defaultNIName, fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			ni := networkinstance.New(defaultNI, fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 			bgp := bgp.New().WithAS(12345)
 			if err := ni.WithFeature(bgp); err != nil {
 				t.Fatalf("unexpected error %v", err)
@@ -199,7 +199,7 @@ func TestFullReplaceRequest_Errors(t *testing.T) {
 			if err := d.WithFeature(l); err != nil {
 				t.Fatalf("unexpected error %v", err)
 			}
-			ni := networkinstance.New(defaultNIName, fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			ni := networkinstance.New(defaultNI, fpoc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 			bgp := bgp.New().WithAS(12345)
 			if err := ni.WithFeature(bgp); err != nil {
 				t.Fatalf("unexpected error %v", err)
