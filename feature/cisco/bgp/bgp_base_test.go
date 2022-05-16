@@ -1,4 +1,4 @@
-package lldp_base_test
+package bgp_base_test
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	input_file = "lldp.yaml"
+	input_file = "bgp.yaml"
 )
 
 var ()
@@ -17,7 +17,7 @@ var (
 	device1   = "dut"
 	device2   = "peer"
 	observer  = fptest.
-			NewObserver("LLDP").
+			NewObserver("BGP").
 			AddCsvRecorder()
 )
 
