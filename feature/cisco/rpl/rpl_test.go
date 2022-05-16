@@ -27,8 +27,9 @@ func TestRPLConfig(t *testing.T) {
 		updatePolicy(statement, policy.Policy)
 		t.Run("replaceconfig//routing-policy/policy-definitions/policy-definition", func(t *testing.T) {
 			path := dut.Config().RoutingPolicy()
-			defer observer.RecordYgot(t, "UPDATE", path)
-			defer observer.RecordYgot(t, "UPDATE", dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1"))
+
+			defer observer.RecordYgot(t, "UPDATE", dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Name())
+			defer observer.RecordYgot(t, "UPDATE", dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Name())
 			path.Update(t, rpl)
 
 		})
