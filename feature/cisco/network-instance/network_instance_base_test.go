@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	device1   = "dut1"
+	device1   = "dut"
 	observer  = fptest.NewObserver("NetworkInstance").AddAdditionalCsvRecorder("ocreport").AddCsvRecorder()
 	instances = []NetworkInstance{
 		{
