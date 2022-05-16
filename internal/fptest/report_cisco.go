@@ -2,7 +2,6 @@ package fptest
 
 import (
 	"encoding/csv"
-	"flag"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 
 var (
 	timeformat = "2006-01-02 15:04:05"
+	reportDir  = os.Getenv("REPORTS_DIR")
 )
 
 type observer struct {
@@ -30,10 +30,7 @@ func (o *observer) AddCsvRecorder() *observer {
 	return o
 }
 func (o *observer) AddAdditionalCsvRecorder(name string) *observer {
-	if !flag.Parsed() {
-		flag.Parse()
-	}
-	path := filepath.Join(*outputsDir, name) + ".csv"
+	path := filepath.Join(reportDir, name) + ".csv"
 	o.listeners = append(o.listeners, &csvListner{
 		filepath: path,
 	})
@@ -49,10 +46,7 @@ func (o *observer) RecordYgot(t *testing.T, operation string, pathstruct ygot.Pa
 }
 
 func NewObserver(name string, listeners ...listner) *observer {
-	if !flag.Parsed() {
-		flag.Parse()
-	}
-	path := filepath.Join(*outputsDir, name)
+	path := filepath.Join(reportDir, name)
 	return &observer{
 		name:      name,
 		path:      path,
