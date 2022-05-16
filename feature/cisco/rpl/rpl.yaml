@@ -1,12 +1,12 @@
 feature:
   dut:
     routepolicy:
-      - name: DENY2
-        policy: 
-          action: reject
-      - name: ALLOW2
-        policy: 
-          action: accept
+      # - name: DENY2
+      #   policy: 
+      #     action: reject
+      # - name: ALLOW2
+      #   policy: 
+      #     action: accept
       - name: ALLOW1
         policy: 
           action: accept
@@ -81,11 +81,6 @@ feature:
         members:
           - $ports.port8
         ipv4_address: 100.127.1.1
-        ipv4_prefix_length: 24
-      - name: Bundle-Ether128
-        members:
-          - $ports.port9
-        ipv4_address: 100.128.1.1
         ipv4_prefix_length: 24
       - name : Loopback0
         ipv4_address: 1.1.1.1
