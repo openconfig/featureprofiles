@@ -250,6 +250,34 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func testCD2ConnectedNHIP(t *testing.T, args *testArgs) {
+	args.c.AddNH(t, 3, "100.121.1.2", server.DefaultNetworkInstanceName, fluent.InstalledInRIB)
+	args.c.AddIPv4(t, "11.11.11.11/32", 11, "TE", server.DefaultNetworkInstanceName, fluent.InstalledInRIB)
+	args.c.AddNHG(t, 11, map[uint64]uint64{3: 15}, server.DefaultNetworkInstanceName, fluent.InstalledInRIB)
+
+	portMaps := args.topology.Interfaces()
+
+	args.topology.StartProtocols(t)
+	defer args.topology.StopProtocols(t)
+
+	baseflow := getBaseFlow(t, portMaps, args.ate, "IPinIPConnected")
+	args.ate.Traffic().Start(t, baseflow)
+	defer args.ate.Traffic().Stop(t)
+
+	time.Sleep(60 * time.Second)
+
+	stats := args.ate.Telemetry().FlowAny().Get(t)
+	lossStream := util.CheckTrafficPassViaRate(stats)
+
+	if len(lossStream) > 0 {
+		t.Error("There is stream failing:", strings.Join(lossStream, ","))
+	} else {
+
+		t.Log("There is no traffic loss.")
+	}
+	// dut1.Telemetry().NetworkInstance().Afts().Ipv4Entry().Get(t)
+}
+
 func TestTransitWECMPFlush(t *testing.T) {
 	ctx := context.Background()
 	test := []struct {
@@ -294,33 +322,4 @@ func TestTransitWECMPFlush(t *testing.T) {
 			tt.fn(t, args)
 		})
 	}
-}
-
-func testCD2ConnectedNHIP(t *testing.T, args *testArgs) { 
-
-	args.c.AddNH(t, 3, "100.121.1.2", server.DefaultNetworkInstanceName, fluent.InstalledInRIB)
-	args.c.AddIPv4(t, "11.11.11.11/32", 11, "TE", server.DefaultNetworkInstanceName, fluent.InstalledInRIB)
-	args.c.AddNHG(t, 11, map[uint64]uint64{3: 15}, server.DefaultNetworkInstanceName, fluent.InstalledInRIB)
-
-	portMaps := args.topology.Interfaces()
-
-	args.topology.StartProtocols(t)
-	defer args.topology.StopProtocols(t)
-
-	baseflow := getBaseFlow(t, portMaps, args.ate, "IPinIPConnected")
-	args.ate.Traffic().Start(t, baseflow)
-	defer args.ate.Traffic().Stop(t)
-
-	time.Sleep(60 * time.Second)
-
-	stats := args.ate.Telemetry().FlowAny().Get(t)
-	lossStream := util.CheckTrafficPassViaRate(stats)
-
-	if len(lossStream) > 0 {
-		t.Error("There is stream failing:", strings.Join(lossStream, ","))
-	} else {
-
-		t.Log("There is no traffic loss.")
-	}
-	// dut1.Telemetry().NetworkInstance().Afts().Ipv4Entry().Get(t)
 }
