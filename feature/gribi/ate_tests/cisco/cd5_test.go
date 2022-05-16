@@ -152,13 +152,9 @@ func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDev
 	time.Sleep(15 * time.Second)
 
 	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	if got := util.CheckTrafficPassViaPortPktCounter(stats); !got {
-		if expectPass {
-			t.Errorf("LossPct for flow %s", flow.Name())
-		}
+	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
+		t.Errorf("Flow %s is not working as expected", flow.Name())
 	}
-
-	//
 
 	// tolerance := float64(0.03)
 	// interval := 45 * time.Second
@@ -176,7 +172,7 @@ func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDev
 }
 
 // Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy
-func testMovePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs) {
+func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, samePolicy bool) {
 	configbasePBR(t, args.dut)
 
 	physicalInterface := fptest.SortPorts(args.dut.Ports())[0].Name()
@@ -187,7 +183,13 @@ func testMovePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs)
 	physicalInterfaceConfig.Replace(t, config)
 
 	// Configure policy on the physical interface and bunlde interface
-	configPBRunderInterface(t, args, physicalInterface, pbrName)
+	policyName := pbrName
+	if !samePolicy {
+		policyName = "new-PBR"
+		configNewPolicy(t, args.dut, policyName, 0)
+		defer args.dut.Config().NetworkInstance(instance).PolicyForwarding().Policy(policyName).Delete(t)
+	}
+	configPBRunderInterface(t, args, physicalInterface, policyName)
 	configPBRunderInterface(t, args, args.interfaces.in[0], pbrName)
 
 	// Remove the interface from physical to bundle interface
@@ -208,6 +210,14 @@ func testMovePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs)
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
 	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+}
+
+func testMovePhysicalToBundleWithSamePolicy(ctx context.Context, t *testing.T, args *testArgs) {
+	movePhysicalToBundle(ctx, t, args, true)
+}
+
+func testMovePhysicalToBundleWithDifferentPolicy(ctx context.Context, t *testing.T, args *testArgs) {
+	movePhysicalToBundle(ctx, t, args, false)
 }
 
 // testChangePBRUnderInterface tests changing the PBR policy under the interface
