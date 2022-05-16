@@ -35,7 +35,6 @@ var (
 	outputsDir = flag.String("outputs_dir",
 		os.Getenv("TEST_UNDECLARED_OUTPUTS_DIR"),
 		"specifies the directory where test results will be written")
-	OutputsDir = outputsDir
 )
 
 // sanitizeFilename keeps letters, digits, and safe punctuations, but removes
