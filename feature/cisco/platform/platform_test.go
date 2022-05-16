@@ -256,7 +256,7 @@ func TestTransceiverchannel(t *testing.T) {
 	// Failure due to CSCwb72703
 	dut := ondatra.DUT(t, device1)
 	t.Run("state//components/component/state/serial-no", func(t *testing.T) {
-		state := dut.Telemetry().Component("0/0-Optics0/0/0/0").SerialNo()
+		state := dut.Telemetry().Component(Platform.Transceiver).SerialNo()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
 		if val == "" {
@@ -265,7 +265,7 @@ func TestTransceiverchannel(t *testing.T) {
 		}
 	})
 	t.Run("state//components/component/transceiver/state/form-factor", func(t *testing.T) {
-		state := dut.Telemetry().Component("0/0-Optics0/0/0/0").Transceiver().FormFactor()
+		state := dut.Telemetry().Component(Platform.Transceiver).Transceiver().FormFactor()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
 		if val != oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_SFP {
@@ -274,7 +274,7 @@ func TestTransceiverchannel(t *testing.T) {
 		}
 	})
 	t.Run("state//components/component/transceiver/physical-channels/channel/state/input-power/instant", func(t *testing.T) {
-		state := dut.Telemetry().Component("0/0-Optics0/0/0/0").Transceiver().Channel(1).InputPower().Instant()
+		state := dut.Telemetry().Component(Platform.Transceiver).Transceiver().Channel(1).InputPower().Instant()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
 		if val != float64(0) {
@@ -283,7 +283,7 @@ func TestTransceiverchannel(t *testing.T) {
 		}
 	})
 	t.Run("state//components/component/transceiver/physical-channels/channel/state/output-power/instant", func(t *testing.T) {
-		state := dut.Telemetry().Component("0/0-Optics0/0/0/0").Transceiver().Channel(1).OutputPower().Instant()
+		state := dut.Telemetry().Component(Platform.Transceiver).Transceiver().Channel(1).OutputPower().Instant()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
 		if val != float64(0) {
@@ -292,7 +292,7 @@ func TestTransceiverchannel(t *testing.T) {
 		}
 	})
 	t.Run("state//components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant", func(t *testing.T) {
-		state := dut.Telemetry().Component("0/0-Optics0/0/0/0").Transceiver().Channel(1).LaserBiasCurrent().Instant()
+		state := dut.Telemetry().Component(Platform.Transceiver).Transceiver().Channel(1).LaserBiasCurrent().Instant()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
 		if val != float64(0) {
@@ -332,7 +332,7 @@ func TestFirmware(t *testing.T) {
 func TestSWVersion(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	t.Run("state//components/component/state/software-version", func(t *testing.T) {
-		state := dut.Telemetry().Component("0/0/CPU0-Broadwell-DE (D-1530)").SoftwareVersion()
+		state := dut.Telemetry().Component(Platform.SWVersionComponent).SoftwareVersion()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
 		if val == "" {
@@ -345,7 +345,7 @@ func TestSWVersion(t *testing.T) {
 func TestFabric(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	t.Run("state//components/component/state/serial-no", func(t *testing.T) {
-		state := dut.Telemetry().Component("0/FC0").SerialNo()
+		state := dut.Telemetry().Component(Platform.FabricCard).SerialNo()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
 		if val == "" {
@@ -354,7 +354,7 @@ func TestFabric(t *testing.T) {
 		}
 	})
 	t.Run("state//components/component/state/description", func(t *testing.T) {
-		state := dut.Telemetry().Component("0/FC0").Description()
+		state := dut.Telemetry().Component(Platform.FabricCard).Description()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
 		if !strings.Contains(val, "Fabric") {
@@ -367,7 +367,7 @@ func TestFabric(t *testing.T) {
 func TestSubComponent(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	t.Run("state//components/component/subcomponents/subcomponent/state/name", func(t *testing.T) {
-		state := dut.Telemetry().Component(Platform.Chassis).Subcomponent("Rack 0-Line Card Slot 0").Name()
+		state := dut.Telemetry().Component(Platform.Chassis).Subcomponent(Platform.SubComponent).Name()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
 		if val == "" {
