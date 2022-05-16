@@ -101,6 +101,16 @@ var (
 			desc: "Configure with policy matching protocol IPinIP and send IPv6 in IPv4 and verify traffic drop",
 			fn:   testIPv6InIPv4Traffic,
 		},
+		{
+			name: "Remove existing class-map",
+			desc: "Remove existing class-map which is not related to matching protocol IPinIP and verify traffic",
+			fn:   testRemoveClassMap,
+		},
+		{
+			name: "Change existing action",
+			desc: "Change existing action to a new VRF with existing class-map and verify traffic",
+			fn:   testChangeAction,
+		},
 	}
 )
 
