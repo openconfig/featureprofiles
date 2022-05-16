@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	device1          = "dut1"
+	device1          = "dut"
 	observer         = fptest.NewObserver("System").AddAdditionalCsvRecorder("ocreport").AddCsvRecorder()
 	systemContainers = []system{
 		{
