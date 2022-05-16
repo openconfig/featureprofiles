@@ -154,11 +154,13 @@ func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, n
 		nhg.WithBackupNHG(bkhgIndex)
 	}
 
-	for nhIndex, weight := range nhWeights {
-		nhg.AddNextHop(nhIndex, weight)
-		g.fluentC.Modify().AddEntry(t, nhg)
-		if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
-			t.Fatalf("Error waiting to add NHG: %v", err)
+	if len(nhWeights) != 0 {
+		for nhIndex, weight := range nhWeights {
+			nhg.AddNextHop(nhIndex, weight)
+			g.fluentC.Modify().AddEntry(t, nhg)
+			if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
+				t.Fatalf("Error waiting to add NHG: %v", err)
+			}
 		}
 	}
 
@@ -180,6 +182,11 @@ func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, address, instance str
 				WithNetworkInstance(instance).
 				WithIndex(nhIndex).
 				WithDecapsulateHeader(fluent.IPinIP))
+	} else if "" == address {
+		g.fluentC.Modify().AddEntry(t,
+			fluent.NextHopEntry().
+				WithNetworkInstance(instance).
+				WithIndex(nhIndex))
 	} else {
 		g.fluentC.Modify().AddEntry(t,
 			fluent.NextHopEntry().
