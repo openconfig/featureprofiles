@@ -82,7 +82,7 @@ const (
 	asPathRepeatValue      = 3
 	aclStatement1          = "10"
 	aclStatement2          = "20"
-	defaultNI          = "default"
+	defaultNI              = "default"
 )
 
 var (

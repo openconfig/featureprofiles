@@ -44,8 +44,8 @@ var (
 )
 
 const (
-	dutAS         = 64500
-	ateAS         = 64501
+	dutAS     = 64500
+	ateAS     = 64501
 	defaultNI = "default"
 )
 
