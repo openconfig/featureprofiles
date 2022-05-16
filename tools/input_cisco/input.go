@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/tools/input_cisco/internal/feature"
+	"github.com/openconfig/featureprofiles/tools/input_cisco/feature"
 	"github.com/openconfig/featureprofiles/tools/input_cisco/proto"
 	"github.com/openconfig/featureprofiles/tools/input_cisco/testinput"
 	"github.com/openconfig/ondatra"

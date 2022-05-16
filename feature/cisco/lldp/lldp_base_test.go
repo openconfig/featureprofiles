@@ -17,7 +17,7 @@ var (
 	device1   = "dut"
 	device2   = "peer"
 	observer  = fptest.
-			NewObserver("LLDP").
+			NewObserver("LLDP").AddAdditionalCsvRecorder("ocreport").
 			AddCsvRecorder()
 )
 

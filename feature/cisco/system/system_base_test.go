@@ -25,7 +25,7 @@ import (
 
 var (
 	device1          = "dut1"
-	observer         = fptest.NewObserver("System").AddCsvRecorder()
+	observer         = fptest.NewObserver("System").AddAdditionalCsvRecorder("ocreport").AddCsvRecorder()
 	systemContainers = []system{
 		{
 			hostname: ygot.String("tempHost1"),

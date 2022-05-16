@@ -20,7 +20,7 @@ var (
 	testInput = ipb.LoadInput(input_file)
 	device1   = "dut"
 	observer  = fptest.
-			NewObserver("RPL").
+			NewObserver("RPL").AddAdditionalCsvRecorder("ocreport").
 			AddCsvRecorder()
 )
 

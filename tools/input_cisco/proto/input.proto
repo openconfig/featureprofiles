@@ -13,7 +13,7 @@ message Input {
     message vrf {
         string name = 1;
         string rd =3; 
-        string type = 2;
+        string type = 2; 
         bool disabled= 4;
         string description = 5;
 
@@ -117,10 +117,13 @@ message Input {
         }
         message Neighbor {
             string address =1;
+            string local_address =8;
             repeated AfiSafi afisafi=2;
             int32 peer_as =3;
+            int32 local_as =7;
             int32 ebgp_multihop =4;
             string neighbor_group=5;
+            string description = 6;
 
         }
         message Policy{
@@ -142,6 +145,7 @@ message Input {
         repeated Neighbor neighbors =6;
         string vrf = 7;
         string router_id = 8;
+        string description = 9;
     }
     message Vlan{
         string id = 1;

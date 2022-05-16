@@ -13,7 +13,7 @@ const (
 var (
 	device1  = "dut"
 	observer = fptest.
-			NewObserver("Platform").
+			NewObserver("Platform").AddAdditionalCsvRecorder("ocreport").
 			AddCsvRecorder()
 	PlatformSF = PlatformInfo{
 		Chassis:            "Rack 0",

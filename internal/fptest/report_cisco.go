@@ -2,6 +2,7 @@ package fptest
 
 import (
 	"encoding/csv"
+	"flag"
 	"io"
 	"os"
 	"path/filepath"
@@ -28,6 +29,16 @@ func (o *observer) AddCsvRecorder() *observer {
 	})
 	return o
 }
+func (o *observer) AddAdditionalCsvRecorder(name string) *observer {
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+	path := filepath.Join(*outputsDir, name) + ".csv"
+	o.listeners = append(o.listeners, &csvListner{
+		filepath: path,
+	})
+	return o
+}
 func (o *observer) RecordYgot(t *testing.T, operation string, pathstruct ygot.PathStruct) {
 	ygotEvents := newYgotEvent(o.name, t, operation, pathstruct)
 	for _, event := range ygotEvents {
@@ -38,6 +49,9 @@ func (o *observer) RecordYgot(t *testing.T, operation string, pathstruct ygot.Pa
 }
 
 func NewObserver(name string, listeners ...listner) *observer {
+	if !flag.Parsed() {
+		flag.Parse()
+	}
 	path := filepath.Join(*outputsDir, name)
 	return &observer{
 		name:      name,
@@ -94,8 +108,8 @@ func newYgotEvent(name string, t *testing.T, operation string, pathstruct ygot.P
 	events = append(events, ygotEvent{
 		feature:   name,
 		testname:  t.Name(),
-		operation: operation,
 		status:    status,
+		operation: operation,
 		timestamp: timestamp,
 		path:      pathToText(pathstruct),
 	})

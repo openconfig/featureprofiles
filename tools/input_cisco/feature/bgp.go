@@ -3,8 +3,8 @@ package feature
 import (
 	"testing"
 
-	"github.com/openconfig/featureprofiles/tools/input_cisco/internal/solver"
 	"github.com/openconfig/featureprofiles/tools/input_cisco/proto"
+	"github.com/openconfig/featureprofiles/tools/input_cisco/solver"
 	"github.com/openconfig/featureprofiles/tools/input_cisco/testinput"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
@@ -59,7 +59,7 @@ func configBGP(t *testing.T, bgp *proto.Input_BGP, input testinput.TestInput) *o
 	for _, afi := range bgp.Afisafi {
 		afisafi := &oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{}
 		afisafi.AddPaths = getAddPathsGlobal(afi.AdditionalPaths)
-		afisafi.AfiSafiName = getAfisafiType(afi.Type)
+		afisafi.AfiSafiName = GetAfisafiType(afi.Type)
 		model.Bgp.Global.AfiSafi[afisafi.AfiSafiName] = afisafi
 	}
 	model.Bgp.Neighbor = getBGPneighbor(t, bgp.Neighbors, input)
@@ -75,7 +75,7 @@ func getBGPneighbor(t *testing.T, neigbors []*proto.Input_BGP_Neighbor, input te
 		for _, afi := range neighbor.Afisafi {
 			afisafi := oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{}
 			afisafi.AddPaths = getAddPathsNeighbor(afi.AdditionalPaths)
-			afisafi.AfiSafiName = getAfisafiType(afi.Type)
+			afisafi.AfiSafiName = GetAfisafiType(afi.Type)
 			afisafimap[afisafi.AfiSafiName] = &afisafi
 			afisafi.ApplyPolicy = getNeighborPolicy(afi.Policy)
 		}
@@ -134,7 +134,7 @@ func getAddPathsNeighbor(add_paths []proto.Input_BGP_AdditionalPaths) *oc.Networ
 
 	return model
 }
-func getAfisafiType(afisafitype proto.Input_BGP_AfiSafiType) oc.E_BgpTypes_AFI_SAFI_TYPE {
+func GetAfisafiType(afisafitype proto.Input_BGP_AfiSafiType) oc.E_BgpTypes_AFI_SAFI_TYPE {
 	switch afisafitype {
 	case proto.Input_BGP_IPV4_FLOWSPEC:
 		return oc.BgpTypes_AFI_SAFI_TYPE_IPV4_FLOWSPEC

@@ -10,8 +10,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/openconfig/featureprofiles/tools/input_cisco/internal/solver"
 	"github.com/openconfig/featureprofiles/tools/input_cisco/proto"
+	"github.com/openconfig/featureprofiles/tools/input_cisco/solver"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
 
@@ -104,6 +104,7 @@ func buildInterface(intf *proto.Input_Interface, intftype oc.E_IETFInterfaces_In
 func createBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interface_name string, bundle_name string, intf *proto.Input_Interface) {
 
 	member := &oc.Interface{
+		Enabled: ygot.Bool(true),
 		//
 		Name: ygot.String(interface_name),
 		Ethernet: &oc.Interface_Ethernet{
