@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/gribi/ocutils"
 	"github.com/openconfig/featureprofiles/internal/gribi/util"
+	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/gribigo/server"
 	"github.com/openconfig/ondatra"
@@ -251,9 +252,27 @@ func TestMain(m *testing.M) {
 }
 
 func testCD2ConnectedNHIP(t *testing.T, args *testArgs) {
-	args.c.AddNH(t, 3, "100.121.1.2", server.DefaultNetworkInstanceName, fluent.InstalledInRIB)
-	args.c.AddNHG(t, 11, map[uint64]uint64{3: 15}, server.DefaultNetworkInstanceName, fluent.InstalledInRIB)
-	args.c.AddIPv4(t, "11.11.11.11/32", 11, "TE", server.DefaultNetworkInstanceName, fluent.InstalledInRIB)
+	elecLow, _ := args.c.GetElectionID(args.ctx, t)
+	args.c.BecomeLeader(t)
+	defer util.FlushServer(args.fluentC, t)
+
+	ops := []func(){
+		func() {
+			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
+				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
+			)
+		},
+	}
+	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, elecLow+1)
+
+	for i := uint64(1); i < 4; i++ {
+		chk.HasResult(t, res, fluent.OperationResult().
+			WithOperationID(i).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			AsResult(),
+		)
+	}
 
 	portMaps := args.topology.Interfaces()
 
@@ -308,9 +327,8 @@ func TestTransitWECMPFlush(t *testing.T) {
 			if err := client.Start(t); err != nil {
 				t.Fatalf("gRIBI Connection can not be established")
 			}
-			client.BecomeLeader(t)
+
 			fluentC := client.Fluent(t)
-			defer util.FlushServer(fluentC, t)
 			args := &testArgs{
 				ctx:      ctx,
 				c:        &client,
