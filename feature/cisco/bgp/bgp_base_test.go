@@ -60,8 +60,8 @@ func addNetworkAndProtocolsToAte(t *testing.T, ate *ondatra.ATEDevice, topo *ond
 	//Configure ISIS, BGP on TGN
 	utils.AddAteISISL2(t, topo, "1/1", "490001", "isis_network1", 20, "120.1.1.1/32", scale)
 	utils.AddAteISISL2(t, topo, "1/2", "490002", "isis_network2", 20, "121.1.1.1/32", scale)
-	utils.AddAteEBGPPeer(t, topo, "1/1", "100.120.1.1", 64001, "bgp_network", "100.120.0.2", "130.1.1.1/32", scale, false)
-	utils.AddAteEBGPPeer(t, topo, "1/2", "100.121.1.1", 64001, "bgp_network", "100.121.0.2", "131.1.1.1/32", scale, false)
+	utils.AddAteEBGPPeer(t, topo, "1/1", "100.120.1.1", 64001, "bgp_network", "100.120.1.2", "130.1.1.1/32", scale, false)
+	utils.AddAteEBGPPeer(t, topo, "1/2", "100.121.1.1", 64001, "bgp_network", "100.121.1.2", "131.1.1.1/32", scale, false)
 	//Configure loopbacks for BGP to use as source addresses
 	utils.AddLoopback(t, topo, "1/1", "11.11.11.1/32")
 	utils.AddLoopback(t, topo, "1/2", "12.12.12.1/32")

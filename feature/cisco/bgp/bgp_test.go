@@ -200,7 +200,7 @@ func TestBGPState(t *testing.T) {
 					state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().Installed()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := state.Get(t)
-					if val != 0 {
+					if val == 0 {
 						t.Errorf("BGP Neighbor Afisafi  Prefixes installed: got %d, want %d", val, 0)
 					}
 				})
@@ -208,7 +208,7 @@ func TestBGPState(t *testing.T) {
 					state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().ReceivedPrePolicy()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := state.Get(t)
-					if val != 0 {
+					if val == 0 {
 						t.Errorf("BGP Neighbor Afisafi  Prefixes ReceivedPrePolicy: got %d, want %d", val, 0)
 					}
 				})
@@ -216,7 +216,7 @@ func TestBGPState(t *testing.T) {
 					state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().Received()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := state.Get(t)
-					if val != 0 {
+					if val == 0 {
 						t.Errorf("BGP Neighbor Afisafi  Prefixes Received: got %d, want %d", val, 0)
 					}
 				})
@@ -224,7 +224,7 @@ func TestBGPState(t *testing.T) {
 					state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().Sent()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := state.Get(t)
-					if val != 0 {
+					if val == 0 {
 						t.Errorf("BGP Neighbor Afisafi  Prefixes sent: got %d, want %d", val, 0)
 					}
 				})
@@ -242,7 +242,7 @@ func TestBGPState(t *testing.T) {
 				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Received().UPDATE()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
-				if val != 0 {
+				if val == 0 {
 					t.Errorf("BGP Neighbor messages recieved Update: got %d, want  %d", val, 0)
 				}
 			})
@@ -258,7 +258,7 @@ func TestBGPState(t *testing.T) {
 				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Sent().UPDATE()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
-				if val != 0 {
+				if val == 0 {
 					t.Errorf("BGP Neighbor messages sent Update: got %d, want  %d", val, 0)
 				}
 			})

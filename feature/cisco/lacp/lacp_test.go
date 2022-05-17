@@ -33,12 +33,14 @@ func TestLacpCfgs(t *testing.T) {
 	t.Cleanup(func() {
 		dut.Config().Lacp().Interface(iut.Name()).Delete(t)
 	})
+
 	t.Run("updateconfig//lacp/interfaces/interface/config/interval", func(t *testing.T) {
 		path := dut.Config().Lacp().Interface(iut.Name()).Interval()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, oc.Lacp_LacpPeriodType_SLOW)
 
 	})
+
 	t.Run("updateconfig//lacp/interfaces/interface/config/system-priority", func(t *testing.T) {
 		path := dut.Config().Lacp().Interface(iut.Name()).SystemPriority()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -187,7 +189,7 @@ func TestLacpCountersState(t *testing.T) {
 		state := dut.Telemetry().Lacp().Interface(iut.Name()).Member(member).Counters().LacpOutPkts()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		if val != 0 {
+		if val == 0 {
 			t.Errorf("Lacp LacpOutPkts: got %d, want %d", val, 0)
 
 		}
@@ -223,14 +225,5 @@ func TestLacpCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors", func(t *testing.T) {
-		state := dut.Telemetry().Lacp().Interface(iut.Name()).Member(member).Counters().LacpTxErrors()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
-		if val != 0 {
-			t.Errorf("Lacp LacpTxErrors: got %d, want %d", val, 0)
 
-		}
-
-	})
 }

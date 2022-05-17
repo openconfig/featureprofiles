@@ -14,6 +14,13 @@ feature:
       - name: VRF3
       - name: VRF4
     interface:
+      - name: Bundle-Ether120
+        members:
+          - $ports.port1
+        ipv4_address: 100.120.1.1
+        ipv4_prefix_length: 24
+        ipv6_address: 2000::100:120:1:1
+        ipv6_prefix_length: 126
       - name: Bundle-Ether121
         members:
           - $ports.port2
