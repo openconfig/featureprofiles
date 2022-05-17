@@ -296,6 +296,7 @@ func (in *testInput) UnConfigInterfaces(dev *ondatra.DUTDevice) {
 
 type device struct {
 	dev        *ondatra.DUTDevice
+	ate        *ondatra.ATEDevice
 	features   *proto.Input_Feature
 	interfaces []*feature.IfObject
 }
@@ -320,6 +321,22 @@ func (in *testInput) Device(dev *ondatra.DUTDevice) testinput.Device {
 	}
 	return &device{
 		dev:        dev,
+		features:   dev_features,
+		interfaces: interfaces,
+	}
+}
+func (in *testInput) ATE(dev *ondatra.ATEDevice) testinput.ATE {
+	dev_features := &proto.Input_Feature{}
+	features := in.data.Feature
+
+	if features != nil {
+		dev_features = in.data.Feature[dev.ID()]
+	}
+
+	interfaces := []*feature.IfObject{}
+
+	return &device{
+		ate:        dev,
 		features:   dev_features,
 		interfaces: interfaces,
 	}
@@ -354,7 +371,7 @@ func (in *device) GetInterface(name string) testinput.Intf {
 
 }
 
-func (in *device) IFGroup(group_name string) testinput.IfGroup {
+func (in *device) IFGroup(groupName string) testinput.IfGroup {
 	ifg := ifgroup{
 		ifnames:        []string{},
 		v4addresses:    []string{},
@@ -365,7 +382,7 @@ func (in *device) IFGroup(group_name string) testinput.IfGroup {
 	}
 
 	for _, intf := range in.interfaces {
-		if intf.Group() == group_name {
+		if intf.Group() == groupName {
 			if intf.Name() != "" {
 				ifg.ifnames = append(ifg.ifnames, intf.Name())
 			}

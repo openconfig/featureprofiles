@@ -46,7 +46,7 @@ func configISIS(isis *proto.Input_ISIS) *oc.NetworkInstance_Protocol {
 	}
 	model.Isis.Global = &oc.NetworkInstance_Protocol_Isis_Global{}
 	if isis.Level != 0 {
-		model.Isis.Global.LevelCapability = getIsisLevelType(isis.Level)
+		model.Isis.Global.LevelCapability = GetIsisLevelType(isis.Level)
 	}
 	if len(isis.Afisafi) > 0 {
 		model.Isis.Global.Afi = getIsisglobalAfi(isis)
@@ -59,7 +59,7 @@ func configISIS(isis *proto.Input_ISIS) *oc.NetworkInstance_Protocol {
 func getIsisglobalAf(isis *proto.Input_ISIS) map[oc.NetworkInstance_Protocol_Isis_Global_Af_Key]*oc.NetworkInstance_Protocol_Isis_Global_Af {
 	Af := map[oc.NetworkInstance_Protocol_Isis_Global_Af_Key]*oc.NetworkInstance_Protocol_Isis_Global_Af{}
 	for _, afi := range isis.Afisafi {
-		afiname, safiname := getIsisAfiSafiname(afi.Type)
+		afiname, safiname := GetIsisAfiSafiname(afi.Type)
 		afimodel := &oc.NetworkInstance_Protocol_Isis_Global_Af{
 			AfiName:  afiname,
 			SafiName: safiname,
@@ -87,7 +87,7 @@ func getIsisglobalAfi(isis *proto.Input_ISIS) map[oc.E_IsisTypes_AFI_TYPE]*oc.Ne
 
 }
 
-func getIsisAfiSafiname(afisafitype proto.Input_ISIS_AfiSafiType) (oc.E_IsisTypes_AFI_TYPE, oc.E_IsisTypes_SAFI_TYPE) {
+func GetIsisAfiSafiname(afisafitype proto.Input_ISIS_AfiSafiType) (oc.E_IsisTypes_AFI_TYPE, oc.E_IsisTypes_SAFI_TYPE) {
 
 	switch afisafitype {
 	case proto.Input_ISIS_IPV4_UNICAST:
@@ -103,7 +103,7 @@ func getIsisAfiSafiname(afisafitype proto.Input_ISIS_AfiSafiType) (oc.E_IsisType
 
 	}
 }
-func getIsisLevelType(afisafitype proto.Input_ISIS_Level) oc.E_IsisTypes_LevelType {
+func GetIsisLevelType(afisafitype proto.Input_ISIS_Level) oc.E_IsisTypes_LevelType {
 	switch afisafitype {
 	case proto.Input_ISIS_level_1:
 		return oc.IsisTypes_LevelType_LEVEL_1

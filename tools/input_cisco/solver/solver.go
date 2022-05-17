@@ -13,8 +13,8 @@ func Solver(t *testing.T, dev *ondatra.DUTDevice, parameter string, variables ..
 		return parameter
 	}
 	if strings.HasPrefix(strings.ToLower(parameter), "$ports.") {
-		port_id := strings.TrimPrefix(parameter, "$ports.")
-		return dev.Port(t, port_id).Name()
+		portID := strings.TrimPrefix(parameter, "$ports.")
+		return dev.Port(t, portID).Name()
 	}
 	if strings.HasPrefix(strings.ToLower(parameter), "$params.") {
 		param := strings.TrimPrefix(parameter, "$params.")

@@ -60,7 +60,7 @@ func createInterface(t *testing.T, dut *ondatra.DUTDevice, intf *proto.Input_Int
 		intf.Name = intfname
 	}
 	config := buildInterface(intf, intftype)
-	dut.Config().Interface(intfname).Update(t, config)
+	dut.Config().Interface(intfname).Replace(t, config)
 }
 func deleteInterface(t *testing.T, dut *ondatra.DUTDevice, intf *proto.Input_Interface, intftype oc.E_IETFInterfaces_InterfaceType) {
 	var intfname string
@@ -111,7 +111,7 @@ func createBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interface_name 
 			AggregateId: ygot.String(bundle_name),
 		},
 	}
-	update_response := dut.Config().Interface(interface_name).Update(t, member)
+	update_response := dut.Config().Interface(interface_name).Replace(t, member)
 	t.Logf("Update response : %v", update_response)
 }
 

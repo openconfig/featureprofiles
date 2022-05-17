@@ -5,6 +5,7 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// TestInput is an interface that allows for config operations on an Input file
 type TestInput interface {
 	UnConfigProtocols(dev *ondatra.DUTDevice)
 	ConfigProtocols(dev *ondatra.DUTDevice)
@@ -24,13 +25,24 @@ type TestInput interface {
 	UnConfigISIS(dev *ondatra.DUTDevice)
 	UnConfigInterfaces(dev *ondatra.DUTDevice)
 	Device(dev *ondatra.DUTDevice) Device
+	ATE(dev *ondatra.ATEDevice) ATE
 }
+
+// Device interface provides methods for accessing Device properties
 type Device interface {
-	IFGroup(group_name string) IfGroup
+	IFGroup(groupName string) IfGroup
 	Features() *proto.Input_Feature
 	GetInterface(name string) Intf
 }
 
+// ATE interface provides methods for accessing ATE properties
+type ATE interface {
+	IFGroup(groupName string) IfGroup
+	Features() *proto.Input_Feature
+	GetInterface(name string) Intf
+}
+
+// IfGroup provides an interface to get grouing data from input file
 type IfGroup interface {
 	Names() []string
 	Ipv4Addresses() []string
@@ -39,6 +51,7 @@ type IfGroup interface {
 	Ipv6AddressMasks() []string
 }
 
+// Intf acts as an interface for collecting Interface data
 type Intf interface {
 	Name() string
 	ID() string

@@ -7,7 +7,7 @@ import (
 	oc "github.com/openconfig/ondatra/telemetry"
 )
 
-func nTestLacpCfgs(t *testing.T) {
+func TestLacpCfgs(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	input_obj, err := testInput.GetTestInput(t)
 	if err != nil {
@@ -29,6 +29,10 @@ func nTestLacpCfgs(t *testing.T) {
 	// 	path.Update(t, obj)
 
 	// })
+	input_obj.ConfigInterfaces(dut)
+	t.Cleanup(func() {
+		dut.Config().Lacp().Interface(iut.Name()).Delete(t)
+	})
 	t.Run("updateconfig//lacp/interfaces/interface/config/interval", func(t *testing.T) {
 		path := dut.Config().Lacp().Interface(iut.Name()).Interval()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -55,13 +59,17 @@ func nTestLacpCfgs(t *testing.T) {
 	})
 
 }
-func nTestLacpState(t *testing.T) {
+func TestLacpState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	input_obj, err := testInput.GetTestInput(t)
 	if err != nil {
 		t.Error(err)
 	}
 	iut := input_obj.Device(dut).GetInterface("Bundle-Ether120")
+	input_obj.ConfigInterfaces(dut)
+	t.Cleanup(func() {
+		dut.Config().Lacp().Interface(iut.Name()).Delete(t)
+	})
 	member := iut.Members()[0]
 	systemIDMac := "00:03:00:04:00:05"
 	priority := uint16(100)
