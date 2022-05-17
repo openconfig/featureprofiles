@@ -16,12 +16,12 @@ func TestMain(m *testing.M) {
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
-	*bc = setup.BaseConfig
+	*bc = setup.BaseConfig()
 	setup.ResetStruct(bc, []string{"AclSet"})
 	bcAclSet := setup.GetAnyValue(bc.AclSet)
 	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
 	bcAclSetAclEntry := setup.GetAnyValue(bcAclSet.AclEntry)
-	setup.ResetStruct(bcAclSetAclEntry, []string{"Transport", "Actions"})
+	setup.ResetStruct(bcAclSetAclEntry, []string{"Transport", "Actions", "Ipv4"})
 	bcAclSetAclEntryTransport := bcAclSetAclEntry.Transport
 	setup.ResetStruct(bcAclSetAclEntryTransport, []string{})
 	dut.Config().Acl().Replace(t, bc)
@@ -38,7 +38,7 @@ func TestSourcePort(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.Acl_AclSet_AclEntry_Transport_SourcePort_Union{
-		oc.UnionString("65352..546"),
+		oc.UnionString("10001..10005"),
 	}
 
 	for _, input := range inputs {
@@ -88,7 +88,7 @@ func TestDestinationPort(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.Acl_AclSet_AclEntry_Transport_DestinationPort_Union{
-		oc.UnionUint16(47796),
+		oc.UnionString("10001..10005"),
 	}
 
 	for _, input := range inputs {
@@ -140,13 +140,7 @@ func TestTcpFlags(t *testing.T) {
 	inputs := [][]oc.E_PacketMatchTypes_TCP_FLAGS{
 		{
 			oc.E_PacketMatchTypes_TCP_FLAGS(1), //TCP_ACK
-			oc.E_PacketMatchTypes_TCP_FLAGS(6), //TCP_RST
 			oc.E_PacketMatchTypes_TCP_FLAGS(7), //TCP_SYN
-			oc.E_PacketMatchTypes_TCP_FLAGS(2), //TCP_CWR
-			oc.E_PacketMatchTypes_TCP_FLAGS(8), //TCP_URG
-			oc.E_PacketMatchTypes_TCP_FLAGS(3), //TCP_ECE
-			oc.E_PacketMatchTypes_TCP_FLAGS(4), //TCP_FIN
-			oc.E_PacketMatchTypes_TCP_FLAGS(5), //TCP_PSH
 		},
 	}
 

@@ -32,7 +32,7 @@
                 "state": {
                   "destination-address": "7::0/108",
                   "source-address": "8::0/108",
-                  "dscp": 21,
+                  "dscp": 10,
                   "hop-limit": 5,
                   "protocol": 6
                 }

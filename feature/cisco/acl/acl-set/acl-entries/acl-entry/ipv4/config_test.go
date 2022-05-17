@@ -16,7 +16,7 @@ func TestMain(m *testing.M) {
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
-	*bc = setup.BaseConfig
+	*bc = setup.BaseConfig()
 	setup.ResetStruct(bc, []string{"AclSet"})
 	bcAclSet := setup.GetAnyValue(bc.AclSet)
 	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
@@ -38,7 +38,7 @@ func TestDscp(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []uint8{
-		36,
+		10,
 	}
 
 	for _, input := range inputs {
@@ -88,7 +88,7 @@ func TestProtocol(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.Acl_AclSet_AclEntry_Ipv4_Protocol_Union{
-		oc.UnionUint8(178),
+		oc.UnionUint8(6),
 	}
 
 	for _, input := range inputs {
@@ -138,7 +138,7 @@ func TestSourceAddress(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		"190.74.38.75/18",
+		"190.74.38.75/32",
 	}
 
 	for _, input := range inputs {
@@ -189,21 +189,7 @@ func TestDscpSet(t *testing.T) {
 
 	inputs := [][]uint8{
 		{
-			19,
-			56,
-			14,
-			16,
-			40,
-			60,
-			13,
-			18,
-			21,
-			25,
-			29,
-			60,
-			63,
-			8,
-			45,
+			10,
 		},
 	}
 
@@ -212,6 +198,7 @@ func TestDscpSet(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryIpv4 := baseConfigAclSetAclEntry.Ipv4
+			baseConfigAclSetAclEntryIpv4.Dscp = nil
 			baseConfigAclSetAclEntryIpv4.DscpSet = input
 
 			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv4()
@@ -258,7 +245,7 @@ func TestDestinationAddress(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		"4.129.101.154/30",
+		"4.129.101.154/32",
 	}
 
 	for _, input := range inputs {
@@ -308,7 +295,7 @@ func TestHopLimit(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []uint8{
-		22,
+		10,
 	}
 
 	for _, input := range inputs {

@@ -16,9 +16,13 @@ func TestMain(m *testing.M) {
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
-	*bc = setup.BaseConfig
+	*bc = setup.BaseConfig()
 	setup.ResetStruct(bc, []string{"Interface", "AclSet"})
 	bcInterface := setup.GetAnyValue(bc.Interface)
+	bcAclSet := setup.GetAnyValue(bc.AclSet)
+	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
+	bcAclSetAclEntry := setup.GetAnyValue(bcAclSet.AclEntry)
+	setup.ResetStruct(bcAclSetAclEntry, []string{"Actions"})
 	setup.ResetStruct(bcInterface, []string{"InterfaceRef"})
 	bcInterfaceInterfaceRef := bcInterface.InterfaceRef
 	setup.ResetStruct(bcInterfaceInterfaceRef, []string{})

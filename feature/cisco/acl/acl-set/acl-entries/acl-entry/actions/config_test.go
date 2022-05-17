@@ -16,7 +16,7 @@ func TestMain(m *testing.M) {
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
-	*bc = setup.BaseConfig
+	*bc = setup.BaseConfig()
 	setup.ResetStruct(bc, []string{"AclSet"})
 	bcAclSet := setup.GetAnyValue(bc.AclSet)
 	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
@@ -38,7 +38,7 @@ func TestForwardingAction(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.E_Acl_FORWARDING_ACTION{
-		oc.E_Acl_FORWARDING_ACTION(2), //DROP
+		oc.E_Acl_FORWARDING_ACTION(1), //Accept
 	}
 
 	for _, input := range inputs {
@@ -113,7 +113,7 @@ func TestLogAction(t *testing.T) {
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				config.LogAction().Delete(t)
 				if !setup.SkipSubscribe() {
 					if qs := config.Lookup(t); qs.Val(t).LogAction != 0 {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/log-action fail: got %v", qs)

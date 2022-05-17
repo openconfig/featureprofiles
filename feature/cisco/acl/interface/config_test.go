@@ -16,10 +16,14 @@ func TestMain(m *testing.M) {
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
-	*bc = setup.BaseConfig
+	*bc = setup.BaseConfig()
 	setup.ResetStruct(bc, []string{"Interface", "AclSet"})
+	bcAclSet := setup.GetAnyValue(bc.AclSet)
+	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
+	bcAclSetAclEntry := setup.GetAnyValue(bcAclSet.AclEntry)
+	setup.ResetStruct(bcAclSetAclEntry, []string{"Actions"})
 	bcInterface := setup.GetAnyValue(bc.Interface)
-	setup.ResetStruct(bcInterface, []string{})
+	setup.ResetStruct(bcInterface, []string{"Id", "InterfaceRef", "IngressAclSet"})
 	dut.Config().Acl().Replace(t, bc)
 	return bc
 }
@@ -34,7 +38,7 @@ func TestId(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		":",
+		"FourHundredGigE0/0/0/10",
 	}
 
 	for _, input := range inputs {

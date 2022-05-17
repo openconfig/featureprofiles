@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	// BaseConfig contains the base cofig for acl models that is loaded from json or knowninput
-	BaseConfig oc.Acl
+	jsonConfig []uint8
+	err        error
 	oCPackages = []string{"system", "acl",
 		"networkinstance", "lacp", "local-routes", "lldp", "network-instances", "components", "qos", "interface"} // order is important
 )
@@ -30,13 +30,21 @@ func findTestDataPath() string {
 	return "testdata/base_config.json"
 }
 
+// BaseConfig returns the base config for acl models that is loaded from json file
+func BaseConfig() oc.Acl {
+	var baseConfig oc.Acl
+	oc.Unmarshal(jsonConfig, &baseConfig)
+	return baseConfig
+}
+
 func init() {
-	jsonConfig, err := ioutil.ReadFile(findTestDataPath())
+	var baseConfig oc.Acl
+	jsonConfig, err = ioutil.ReadFile(findTestDataPath())
 	if err != nil {
 		panic(fmt.Sprintf("Cannot load base config: %v", err))
 	}
 
-	if err := oc.Unmarshal(jsonConfig, &BaseConfig); err != nil {
+	if err := oc.Unmarshal(jsonConfig, &baseConfig); err != nil {
 		panic(fmt.Sprintf("Cannot unmarshal base config: %v", err))
 	}
 }

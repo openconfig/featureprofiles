@@ -16,10 +16,12 @@ func TestMain(m *testing.M) {
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
-	*bc = setup.BaseConfig
+	*bc = setup.BaseConfig()
 	setup.ResetStruct(bc, []string{"AclSet"})
 	bcAclSet := setup.GetAnyValue(bc.AclSet)
 	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
+	bcAclSetAclEntry := setup.GetAnyValue(bcAclSet.AclEntry)
+	setup.ResetStruct(bcAclSetAclEntry, []string{"Actions"})
 	dut.Config().Acl().Replace(t, bc)
 	return bc
 }
@@ -34,7 +36,7 @@ func TestType(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.E_Acl_ACL_TYPE{
-		oc.E_Acl_ACL_TYPE(2), //ACL_IPV6
+		oc.E_Acl_ACL_TYPE(1), //ACL_IPV4
 	}
 
 	for _, input := range inputs {
@@ -82,7 +84,7 @@ func TestName(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		"ssc",
+		"acl1",
 	}
 
 	for _, input := range inputs {
@@ -124,6 +126,7 @@ func TestName(t *testing.T) {
 	}
 }
 func TestDescription(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)

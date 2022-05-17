@@ -16,11 +16,12 @@ func TestMain(m *testing.M) {
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
-	*bc = setup.BaseConfig
+	*bc = setup.BaseConfig()
 	setup.ResetStruct(bc, []string{"AclSet"})
 	bcAclSet := setup.GetAnyValue(bc.AclSet)
 	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
 	bcAclSetAclEntry := setup.GetAnyValue(bcAclSet.AclEntry)
+	bcAclSet.Type = oc.E_Acl_ACL_TYPE(2) // IPV6
 	setup.ResetStruct(bcAclSetAclEntry, []string{"Ipv6", "Actions"})
 	bcAclSetAclEntryIpv6 := bcAclSetAclEntry.Ipv6
 	setup.ResetStruct(bcAclSetAclEntryIpv6, []string{})
@@ -38,7 +39,7 @@ func TestProtocol(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.Acl_AclSet_AclEntry_Ipv6_Protocol_Union{
-		oc.UnionUint8(238),
+		oc.UnionUint8(6),
 	}
 
 	for _, input := range inputs {
@@ -82,6 +83,7 @@ func TestProtocol(t *testing.T) {
 	}
 }
 func TestSourceFlowLabel(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
@@ -139,41 +141,7 @@ func TestDscpSet(t *testing.T) {
 
 	inputs := [][]uint8{
 		{
-			15,
-			44,
-			5,
-			38,
-			22,
-			26,
-			35,
-			45,
-			12,
-			59,
-			60,
-			22,
-			16,
-			37,
-			60,
-			20,
-			52,
-			1,
-			50,
-			26,
-			12,
-			26,
-			20,
-			42,
-			44,
-			3,
-			52,
-			11,
-			14,
-			1,
-			38,
-			21,
-			19,
-			54,
-			51,
+			10,
 		},
 	}
 
@@ -183,6 +151,7 @@ func TestDscpSet(t *testing.T) {
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryIpv6 := baseConfigAclSetAclEntry.Ipv6
 			baseConfigAclSetAclEntryIpv6.DscpSet = input
+			baseConfigAclSetAclEntryIpv6.Dscp = nil
 
 			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv6()
 			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Ipv6()
@@ -222,6 +191,7 @@ func TestDscpSet(t *testing.T) {
 	}
 }
 func TestDestinationFlowLabel(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
@@ -278,7 +248,7 @@ func TestDestinationAddress(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		"d:a:F9cE:fDe:f7A3:a:5fFa:b0f/1",
+		"D::221F/64",
 	}
 
 	for _, input := range inputs {
@@ -328,7 +298,7 @@ func TestDscp(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []uint8{
-		15,
+		10,
 	}
 
 	for _, input := range inputs {
@@ -428,7 +398,7 @@ func TestSourceAddress(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		"e:11Fe:aE::2C/97",
+		"Ae::/64",
 	}
 
 	for _, input := range inputs {

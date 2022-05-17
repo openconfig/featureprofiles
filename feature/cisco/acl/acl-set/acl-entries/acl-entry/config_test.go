@@ -16,7 +16,7 @@ func TestMain(m *testing.M) {
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
-	*bc = setup.BaseConfig
+	*bc = setup.BaseConfig()
 	setup.ResetStruct(bc, []string{"AclSet"})
 	bcAclSet := setup.GetAnyValue(bc.AclSet)
 	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
@@ -36,7 +36,7 @@ func TestSequenceId(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []uint32{
-		3282937832,
+		11,
 	}
 
 	for _, input := range inputs {
@@ -79,6 +79,7 @@ func TestSequenceId(t *testing.T) {
 	}
 }
 func TestDescription(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)

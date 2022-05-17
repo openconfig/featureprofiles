@@ -16,7 +16,7 @@ func TestMain(m *testing.M) {
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
-	*bc = setup.BaseConfig
+	*bc = setup.BaseConfig()
 	setup.ResetStruct(bc, []string{"AclSet"})
 	bcAclSet := setup.GetAnyValue(bc.AclSet)
 	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
@@ -32,6 +32,7 @@ func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 	dut.Config().Acl().Delete(t)
 }
 func TestStartLabelValue(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
@@ -82,6 +83,7 @@ func TestStartLabelValue(t *testing.T) {
 	}
 }
 func TestTrafficClass(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
@@ -132,6 +134,7 @@ func TestTrafficClass(t *testing.T) {
 	}
 }
 func TestEndLabelValue(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
@@ -182,6 +185,7 @@ func TestEndLabelValue(t *testing.T) {
 	}
 }
 func TestTtlValue(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)

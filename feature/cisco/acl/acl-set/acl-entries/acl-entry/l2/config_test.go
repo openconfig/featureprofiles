@@ -16,12 +16,14 @@ func TestMain(m *testing.M) {
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bc := new(oc.Acl)
-	*bc = setup.BaseConfig
+	*bc = setup.BaseConfig()
 	setup.ResetStruct(bc, []string{"AclSet"})
 	bcAclSet := setup.GetAnyValue(bc.AclSet)
+	bcAclSet.Type = oc.E_Acl_ACL_TYPE(3) // L3
 	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
 	bcAclSetAclEntry := setup.GetAnyValue(bcAclSet.AclEntry)
 	setup.ResetStruct(bcAclSetAclEntry, []string{"L2", "Actions"})
+	bcAclSetAclEntry.Actions.LogAction = oc.E_Acl_LOG_ACTION(0)
 	bcAclSetAclEntryL2 := bcAclSetAclEntry.L2
 	setup.ResetStruct(bcAclSetAclEntryL2, []string{})
 	dut.Config().Acl().Replace(t, bc)
@@ -38,7 +40,7 @@ func TestDestinationMacMask(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		"C4:Cb:bc:cc:2C:Df",
+		"Ff:a2:20:9B:5D:00",
 	}
 
 	for _, input := range inputs {
@@ -88,7 +90,8 @@ func TestEthertype(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.Acl_AclSet_AclEntry_L2_Ethertype_Union{
-		oc.UnionUint16(54976),
+		oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_ARP,
+		//oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4,
 	}
 
 	for _, input := range inputs {
