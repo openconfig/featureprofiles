@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -138,4 +139,10 @@ func DoModifyOps(c *fluent.GRIBIClient, t testing.TB, ops []func(), wantACK flue
 		t.Fatalf("got unexpected error from server - entries, got: %v, want: nil", err)
 	}
 	return c.Results(t)
+}
+
+//getIpv4Net returns network in CIDR format ("192.168.1.1/32", "192.168.1.0/24", "192.168.0.0/16")
+func GetIpv4Net(prefix string, mask_length int) string {
+	_, ipv4Net, _ := net.ParseCIDR(prefix + "/" + strconv.Itoa(mask_length))
+	return ipv4Net.String()
 }
