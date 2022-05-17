@@ -16,7 +16,7 @@ const (
 	pbrName = "PBR"
 )
 
-func configbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
+func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r1.SequenceId = ygot.Uint32(1)
 	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
@@ -123,7 +123,7 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	util.GNMIWithText(ctx, t, dut, configToChange)
 
 	t.Log("Configure PBR policy and Apply it under interface")
-	configbasePBR(t, dut)
+	configBasePBR(t, dut)
 	dut.Config().NetworkInstance(instance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
 
 	t.Log("Reload the router to activate hw module config")
@@ -186,7 +186,7 @@ func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDev
 
 // Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy
 func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, samePolicy bool) {
-	configbasePBR(t, args.dut)
+	configBasePBR(t, args.dut)
 
 	physicalInterface := fptest.SortPorts(args.dut.Ports())[0].Name()
 	physicalInterfaceConfig := args.dut.Config().Interface(physicalInterface)
@@ -283,7 +283,7 @@ func testIPv6InIPv4Traffic(ctx context.Context, t *testing.T, args *testArgs) {
 
 // testRemoveClassMap tests removing existing class-map which is not related to IPinIP match and verify traffic
 func testRemoveClassMap(ctx context.Context, t *testing.T, args *testArgs) {
-	defer configbasePBR(t, args.dut)
+	defer configBasePBR(t, args.dut)
 
 	defer flushSever(t, args)
 
@@ -304,7 +304,7 @@ func testRemoveClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testChangeAction(ctx context.Context, t *testing.T, args *testArgs) {
-	defer configbasePBR(t, args.dut)
+	defer configBasePBR(t, args.dut)
 	defer flushSever(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
@@ -325,7 +325,7 @@ func testChangeAction(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
-	defer configbasePBR(t, args.dut)
+	defer configBasePBR(t, args.dut)
 	defer flushSever(t, args)
 
 	ruleID := uint32(10)
