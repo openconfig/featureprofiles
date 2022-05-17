@@ -75,6 +75,19 @@ func configNewPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string, ds
 	dut.Config().NetworkInstance("default").PolicyForwarding().Policy(policyName).Update(t, &p)
 }
 
+func configNewRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, ruleID uint32, protocol uint8, dscp ...uint8) {
+	r := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r.SequenceId = ygot.Uint32(ruleID)
+	r.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		DscpSet: dscp,
+	}
+	if protocol == 4 {
+		r.Ipv4.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP
+	}
+	r.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	dut.Config().NetworkInstance(instance).PolicyForwarding().Policy(policyName).Rule(ruleID).Replace(t, &r)
+}
+
 func generatePhysicalInterfaceConfig(t *testing.T, name, ipv4 string, prefixlen uint8) *telemetry.Interface {
 	i := &telemetry.Interface{}
 	i.Name = ygot.String(name)
@@ -309,4 +322,30 @@ func testChangeAction(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Expecting Traffic fail
 	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+}
+
+func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configbasePBR(t, args.dut)
+	defer flushSever(t, args)
+
+	ruleID := uint32(10)
+	dscp := uint8(32)
+	configNewRule(t, args.dut, pbrName, ruleID, 4, dscp)
+	defer args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(ruleID).Delete(t)
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	// Change action for matching protocol IPinIP class
+	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Action().NetworkInstance().Replace(t, *ygot.String("VRF1"))
+
+	// Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
+
+	// Expecting Traffic fail
+	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
 }

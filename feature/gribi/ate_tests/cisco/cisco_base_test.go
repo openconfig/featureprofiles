@@ -111,6 +111,11 @@ var (
 			desc: "Change existing action to a new VRF with existing class-map and verify traffic",
 			fn:   testChangeAction,
 		},
+		{
+			name: "Add new class-map",
+			desc: "Add new class-map to existing policy and verify traffic",
+			fn:   testAddClassMap,
+		},
 	}
 )
 
