@@ -74,6 +74,7 @@ message Input {
         int32 iprmetric = 19;
         int32 scale=20;
         int32 areaid =21;
+        string neighboraddress =22;
 
     }
     message RoutePolicy{
