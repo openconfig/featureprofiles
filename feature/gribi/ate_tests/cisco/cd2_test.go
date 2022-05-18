@@ -165,7 +165,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
+func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress("00:11:01:00:00:01")
 	ethHeader.WithDstAddress("00:01:00:02:00:00")
@@ -199,16 +199,16 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	time.Sleep(15 * time.Second)
 
 	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	if got := util.CheckTrafficPassViaPortPktCounter(stats); !got {
-		t.Errorf("LossPct for flow %s", flow.Name())
+	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
+		t.Errorf("Flow %s is not working as expected", flow.Name())
 	}
 
-	//
-
-	// tolerance := float64(0.03)
-	// interval := 45 * time.Second
-	// if len(weights) > 0 {
-	// 	CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out[:len(weights)], weights, interval, tolerance)
+	// if expectPass {
+	// 	tolerance := float64(0.03)
+	// 	interval := 45 * time.Second
+	// 	if len(weights) > 0 {
+	// 		CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out[:len(weights)], weights, interval, tolerance)
+	// 	}
 	// }
 	ate.Traffic().Stop(t)
 
@@ -407,7 +407,7 @@ func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testAr
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }
 
 func testDeleteAndAddUCMP(ctx context.Context, t *testing.T, args *testArgs) {
@@ -423,12 +423,12 @@ func testDeleteAndAddUCMP(ctx context.Context, t *testing.T, args *testArgs) {
 	// Delete UCMP at VRF Level by changing current NHG to single PATH
 	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vrfNhIndex + 1: 1}, instance, fluent.InstalledInRIB)
 	weights := []float64{10, 20, 30}
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 
 	// Add back UCMP at VRF Level by changing NHG back to UCMP
 	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vrfNhIndex + 1: 15, args.prefix.vrfNhIndex + 2: 85}, instance, fluent.InstalledInRIB)
 	weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }
 
 func testVRFnonRecursion(ctx context.Context, t *testing.T, args *testArgs) {
@@ -444,10 +444,10 @@ func testVRFnonRecursion(ctx context.Context, t *testing.T, args *testArgs) {
 	// Change VRF Level NHG to single recursion which is same as the VIP1
 	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vip1NhIndex + 2: 10, args.prefix.vip1NhIndex + 3: 20, args.prefix.vip1NhIndex + 4: 30}, instance, fluent.InstalledInRIB)
 	weights := []float64{10, 20, 30}
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 
 	// Change VRF Level NHG to back to double recursion
 	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vrfNhIndex + 1: 15, args.prefix.vrfNhIndex + 2: 85}, instance, fluent.InstalledInRIB)
 	weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }
