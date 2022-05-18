@@ -467,5 +467,5 @@ func (x *ifgroup) Ipv6Addresses() []string { return x.v6addresses }
 // Ipv6AddressMasks return all IF Ipv6AddressMasks in a Group
 func (x *ifgroup) Ipv6AddressMasks() []string { return x.v6addressmasks }
 
-// nterfaces return all IF objects  in a Group
+// Interfaces return all IF objects  in a Group
 func (x *ifgroup) Interfaces() map[string]*feature.IfObject { return x.interfaces }
