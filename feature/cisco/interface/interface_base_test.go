@@ -1,11 +1,11 @@
-package interface_base_test
+package basetest
 
 import (
 	"sort"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	ipb "github.com/openconfig/featureprofiles/tools/input_cisco"
+	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
 )
 
 const (
@@ -16,15 +16,14 @@ var ()
 var (
 	testInput = ipb.LoadInput(input_file)
 	device1   = "dut"
-	observer  = fptest.
-			NewObserver("Interface").AddAdditionalCsvRecorder("ocreport").
-			AddCsvRecorder()
+	observer  = fptest.NewObserver().AddCsvRecorder("ocreport").
+			AddCsvRecorder("Interface")
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-func SliceEqual(a, b []string) bool {
+func sliceEqual(a, b []string) bool {
 	sort.Strings(a)
 	sort.Strings(b)
 	if len(a) != len(b) {

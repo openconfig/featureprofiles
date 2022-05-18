@@ -1,4 +1,4 @@
-package platform_base_test
+package basetest
 
 import (
 	"strings"

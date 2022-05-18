@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package system_base_test
+package basetest
 
 import (
 	"testing"

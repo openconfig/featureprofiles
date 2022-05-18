@@ -16,27 +16,24 @@ var (
 	reportDir  = os.Getenv("REPORTS_DIR")
 )
 
-type observer struct {
+// Observer watches for events and sends them to all listners
+type Observer struct {
 	name      string
 	listeners []listner
 	path      string
 }
 
-func (o *observer) AddCsvRecorder() *observer {
-	path := o.path + ".csv"
+// AddCsvRecorder adds a CSV recorder
+func (o *Observer) AddCsvRecorder(name string) *Observer {
+	path := filepath.Join(o.path, name) + ".csv"
 	o.listeners = append(o.listeners, &csvListner{
 		filepath: path,
 	})
 	return o
 }
-func (o *observer) AddAdditionalCsvRecorder(name string) *observer {
-	path := filepath.Join(reportDir, name) + ".csv"
-	o.listeners = append(o.listeners, &csvListner{
-		filepath: path,
-	})
-	return o
-}
-func (o *observer) RecordYgot(t *testing.T, operation string, pathstruct ygot.PathStruct) {
+
+// RecordYgot records a ygot operation
+func (o *Observer) RecordYgot(t *testing.T, operation string, pathstruct ygot.PathStruct) {
 	ygotEvents := newYgotEvent(o.name, t, operation, pathstruct)
 	for _, event := range ygotEvents {
 		for _, listner := range o.listeners {
@@ -45,10 +42,10 @@ func (o *observer) RecordYgot(t *testing.T, operation string, pathstruct ygot.Pa
 	}
 }
 
-func NewObserver(name string, listeners ...listner) *observer {
-	path := filepath.Join(reportDir, name)
-	return &observer{
-		name:      name,
+// NewObserver returns an Observer with given listners
+func NewObserver(listeners ...listner) *Observer {
+	path := reportDir
+	return &Observer{
 		path:      path,
 		listeners: listeners,
 	}
@@ -61,7 +58,7 @@ type event interface {
 	getCsvEvent() []string
 }
 
-func (*observer) RegisterObserver() {
+func (*Observer) RegisterObserver() {
 
 }
 

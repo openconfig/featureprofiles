@@ -1,7 +1,7 @@
 package testinput
 
 import (
-	"github.com/openconfig/featureprofiles/tools/input_cisco/proto"
+	"github.com/openconfig/featureprofiles/tools/inputcisco/proto"
 	"github.com/openconfig/ondatra"
 )
 
@@ -19,13 +19,15 @@ type TestInput interface {
 	UnConfigRPL(dev *ondatra.DUTDevice)
 	ConfigBGP(dev *ondatra.DUTDevice)
 	ConfigISIS(dev *ondatra.DUTDevice)
-	ConfigJson(dev *ondatra.DUTDevice)
+	ConfigJSON(dev *ondatra.DUTDevice)
 	UnConfig(dev *ondatra.DUTDevice)
 	UnConfigBGP(dev *ondatra.DUTDevice)
 	UnConfigISIS(dev *ondatra.DUTDevice)
 	UnConfigInterfaces(dev *ondatra.DUTDevice)
 	Device(dev *ondatra.DUTDevice) Device
 	ATE(dev *ondatra.ATEDevice) ATE
+	ConfigAte(dev *ondatra.ATEDevice)
+	StartAteProtocols(dev *ondatra.ATEDevice)
 }
 
 // Device interface provides methods for accessing Device properties

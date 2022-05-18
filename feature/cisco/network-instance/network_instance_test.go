@@ -1,4 +1,4 @@
-package networkinstance_base
+package basetest
 
 import (
 	"testing"

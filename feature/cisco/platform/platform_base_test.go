@@ -1,4 +1,4 @@
-package platform_base_test
+package basetest
 
 import (
 	"testing"
@@ -12,9 +12,8 @@ const (
 
 var (
 	device1  = "dut"
-	observer = fptest.
-			NewObserver("Platform").AddAdditionalCsvRecorder("ocreport").
-			AddCsvRecorder()
+	observer = fptest.NewObserver().AddCsvRecorder("ocreport").
+			AddCsvRecorder("Platform")
 	PlatformSF = PlatformInfo{
 		Chassis:            "Rack 0",
 		Linecard:           "0/0/CPU0",

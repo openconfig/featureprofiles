@@ -19,7 +19,7 @@ func readJson(fp string) (string, error) {
 	return string(bytes.TrimRight(data, "\n")), nil
 
 }
-func ConfigJson(dev *ondatra.DUTDevice, t *testing.T, fp string) error {
+func ConfigJSON(dev *ondatra.DUTDevice, t *testing.T, fp string) error {
 	client := dev.RawAPIs().GNMI().New(t)
 	rawjson, err := readJson(fp)
 	if err != nil {

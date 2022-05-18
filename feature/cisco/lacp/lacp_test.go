@@ -1,4 +1,4 @@
-package lacp_base_test
+package basetest
 
 import (
 	"testing"

@@ -1,4 +1,4 @@
-package input_cisco
+package inputcisco
 
 import (
 	"fmt"
@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/tools/input_cisco/feature"
-	"github.com/openconfig/featureprofiles/tools/input_cisco/proto"
-	"github.com/openconfig/featureprofiles/tools/input_cisco/testinput"
+	"github.com/openconfig/featureprofiles/tools/inputcisco/feature"
+	"github.com/openconfig/featureprofiles/tools/inputcisco/proto"
+	"github.com/openconfig/featureprofiles/tools/inputcisco/testinput"
 	"github.com/openconfig/ondatra"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -74,12 +74,14 @@ func getTestInput(t *testing.T, input *proto.Input) *testInput {
 	}
 }
 
+// Input holds the input File parameters like filepath , err and Input variable
 type Input struct {
 	In            *proto.Input
 	err           error
 	inputFilePath string
 }
 
+// LoadInput creates an input file object
 func LoadInput(inputFilePath string) *Input {
 	in, err := getInput(inputFilePath)
 	return &Input{
@@ -89,6 +91,8 @@ func LoadInput(inputFilePath string) *Input {
 	}
 
 }
+
+// GetTestInput opens the input file and return the protObject
 func (x *Input) GetTestInput(t *testing.T) (testinput.TestInput, error) {
 	t.Helper()
 	if x.err != nil {
@@ -160,9 +164,17 @@ func (in *testInput) ConfigProtocols(dev *ondatra.DUTDevice) {
 	in.ConfigRPL(dev)
 	in.ConfigBGP(dev)
 	in.ConfigISIS(dev)
-	in.ConfigJson(dev)
+	in.ConfigJSON(dev)
 }
+func (in *testInput) ConfigAte(dev *ondatra.ATEDevice) {
+	dvc := getFeatureConfig(in.data, dev.ID())
+	feature.ConfigIxiaTopology(dev, in.t, dvc)
 
+}
+func (in *testInput) StartAteProtocols(dev *ondatra.ATEDevice) {
+	dvc := getFeatureConfig(in.data, dev.ID())
+	feature.StartIxiaProtocols(dev, in.t, dvc)
+}
 func (in *testInput) ConfigRPL(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	rpls := dvc.Routepolicy
@@ -209,13 +221,13 @@ func (in *testInput) ConfigBGP(dev *ondatra.DUTDevice) {
 	}
 }
 
-func (in *testInput) ConfigJson(dev *ondatra.DUTDevice) {
+func (in *testInput) ConfigJSON(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
-	json_configs := dvc.JsonConfig
-	for _, json_config := range json_configs {
-		err := feature.ConfigJson(dev, in.t, json_config)
+	jsonConfigs := dvc.JsonConfig
+	for _, jsonConfig := range jsonConfigs {
+		err := feature.ConfigJSON(dev, in.t, jsonConfig)
 		if err != nil {
-			in.t.Logf("error in Configuring from Json %s", json_config)
+			in.t.Logf("error in Configuring from Json %s", jsonConfig)
 			in.t.Error(err)
 		}
 	}
@@ -306,38 +318,38 @@ func (in *device) Interfaces() []*feature.IfObject {
 }
 
 func (in *testInput) Device(dev *ondatra.DUTDevice) testinput.Device {
-	dev_features := &proto.Input_Feature{}
+	devFeatures := &proto.Input_Feature{}
 	features := in.data.Feature
 
 	if features != nil {
-		dev_features = in.data.Feature[dev.ID()]
+		devFeatures = in.data.Feature[dev.ID()]
 	}
 
 	interfaces := []*feature.IfObject{}
-	if dev_features != nil {
-		for _, intf := range dev_features.Interface {
+	if devFeatures != nil {
+		for _, intf := range devFeatures.Interface {
 			interfaces = append(interfaces, feature.GetIFs(dev, in.t, intf)...)
 		}
 	}
 	return &device{
 		dev:        dev,
-		features:   dev_features,
+		features:   devFeatures,
 		interfaces: interfaces,
 	}
 }
 func (in *testInput) ATE(dev *ondatra.ATEDevice) testinput.ATE {
-	dev_features := &proto.Input_Feature{}
+	devFeatures := &proto.Input_Feature{}
 	features := in.data.Feature
 
 	if features != nil {
-		dev_features = in.data.Feature[dev.ID()]
+		devFeatures = in.data.Feature[dev.ID()]
 	}
 
 	interfaces := []*feature.IfObject{}
 
 	return &device{
 		ate:        dev,
-		features:   dev_features,
+		features:   devFeatures,
 		interfaces: interfaces,
 	}
 }

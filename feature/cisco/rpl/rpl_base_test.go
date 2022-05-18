@@ -1,12 +1,12 @@
-package rpl_base_test
+package basetest
 
 import (
 	"testing"
 
-	"github.com/openconfig/featureprofiles/tools/input_cisco/proto"
+	"github.com/openconfig/featureprofiles/tools/inputcisco/proto"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	ipb "github.com/openconfig/featureprofiles/tools/input_cisco"
+	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
 	oc "github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -19,9 +19,8 @@ var ()
 var (
 	testInput = ipb.LoadInput(input_file)
 	device1   = "dut"
-	observer  = fptest.
-			NewObserver("RPL").AddAdditionalCsvRecorder("ocreport").
-			AddCsvRecorder()
+	observer  = fptest.NewObserver().AddCsvRecorder("ocreport").
+			AddCsvRecorder("RPL")
 )
 
 func TestMain(m *testing.M) {

@@ -1,4 +1,4 @@
-package interface_base_test
+package basetest
 
 import (
 	"strings"
@@ -479,7 +479,7 @@ func TestInterfaceState(t *testing.T) {
 		state := dut.Telemetry().Interface(iut.Name()).Aggregation().Member()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		members := state.Get(t)
-		if SliceEqual(members, iut.Members()) {
+		if sliceEqual(members, iut.Members()) {
 			t.Errorf("Interface InFcsErrors: got %v, want %v", members, iut.Members())
 
 		}

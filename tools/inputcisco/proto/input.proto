@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package proto;
 
-option go_package = "github.com/openconfig/featureprofiles/tools/input_cisco/proto";
+option go_package = "github.com/openconfig/featureprofiles/tools/inputcisco/proto";
 import "google/protobuf/any.proto";
 
 message Input {
@@ -69,12 +69,15 @@ message Input {
         string lsp_id =14;
         string eisrsystem_id = 15;
         string networkname =16;
-        string prefix =17;
+        string v4prefix =17;
         int32 prefixmetric =18;
         int32 iprmetric = 19;
         int32 scale=20;
         int32 areaid =21;
         string neighboraddress =22;
+        string v6prefix =23;
+        string connectedv4prefix= 24;
+        string connectedv6prefix =25;
 
     }
     message RoutePolicy{
@@ -136,6 +139,9 @@ message Input {
             int32 ebgp_multihop =4;
             string neighbor_group=5;
             string description = 6;
+            string nexthop= 10;
+            string prefix= 9;
+            string port = 11;
 
         }
         message Policy{
@@ -158,6 +164,10 @@ message Input {
         string vrf = 7;
         string router_id = 8;
         string description = 9;
+        
+        string networkname =11;
+        bool useloopback =12;
+        int32 scale =10;
     }
     message Vlan{
         string id = 1;
@@ -211,17 +221,24 @@ message Input {
         string vrf_name = 3;
         repeated NextHop nexthop=4;
     }
+    message V4Network{
+        string cidr =1;
+        string name = 2;
+        string id = 3;
+        int32 scale =4;
+    }
     message Feature {
        
         repeated Interface interface = 2;
         repeated vrf vrf = 3;
+        repeated V4Network  ipv4network = 11;
         repeated ISIS isis = 4;
         repeated BGP bgp = 5;
         repeated Gribi gribi = 6;
         google.protobuf.Any any = 7;
         string confpath = 8;
         repeated RoutePolicy routepolicy = 9;
-        repeated string json_config =10;
+        repeated string jsonConfig =10;
 
     }
     message TestCase {

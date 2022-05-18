@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/tools/input_cisco/proto"
+	"github.com/openconfig/featureprofiles/tools/inputcisco/proto"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 

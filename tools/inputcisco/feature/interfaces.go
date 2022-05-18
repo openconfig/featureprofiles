@@ -10,8 +10,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/openconfig/featureprofiles/tools/input_cisco/proto"
-	"github.com/openconfig/featureprofiles/tools/input_cisco/solver"
+	"github.com/openconfig/featureprofiles/tools/inputcisco/proto"
+	"github.com/openconfig/featureprofiles/tools/inputcisco/solver"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
 
@@ -264,7 +264,7 @@ func nextIP(iprep uint128, step int32, v4net *net.IPNet, ipv string) (*uint128, 
 	}
 	diff := _max.sub(iprep.Low, iprep.High)
 	if !diff.compare(uint64(step), 0) {
-		return nil, "", errors.New(fmt.Sprintf("Adress Exhaustion"))
+		return nil, "", errors.Errorf("Adress Exhaustion")
 	}
 	iprep = iprep.add(uint64(step), 0)
 

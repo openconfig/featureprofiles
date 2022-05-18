@@ -1,4 +1,4 @@
-package lldp_base_test
+package basetest
 
 import (
 	"testing"

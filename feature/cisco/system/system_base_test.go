@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package system_base_test
+package basetest
 
 import (
 	"testing"
@@ -24,8 +24,9 @@ import (
 )
 
 var (
-	device1          = "dut"
-	observer         = fptest.NewObserver("System").AddAdditionalCsvRecorder("ocreport").AddCsvRecorder()
+	device1  = "dut"
+	observer = fptest.NewObserver().AddCsvRecorder("ocreport").
+			AddCsvRecorder("System")
 	systemContainers = []system{
 		{
 			hostname: ygot.String("tempHost1"),

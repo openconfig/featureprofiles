@@ -3,7 +3,7 @@ package feature
 import (
 	"testing"
 
-	"github.com/openconfig/featureprofiles/tools/input_cisco/proto"
+	"github.com/openconfig/featureprofiles/tools/inputcisco/proto"
 	"github.com/pkg/errors"
 
 	// "github.com/openconfig/ygot/ygot"
@@ -13,6 +13,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// ConfigRPL configures RPL from input file
 func ConfigRPL(dev *ondatra.DUTDevice, t *testing.T, policy *proto.Input_RoutePolicy) error {
 	if policy.Name == "" {
 		return errors.Errorf("Cannot configure rouite-policy without name %v", policy)
@@ -34,6 +35,7 @@ func ConfigRPL(dev *ondatra.DUTDevice, t *testing.T, policy *proto.Input_RoutePo
 	return nil
 }
 
+// ReplaceRPL Replaces RPL from input file
 func ReplaceRPL(dev *ondatra.DUTDevice, t *testing.T, policy *proto.Input_RoutePolicy) error {
 	if policy.Name == "" {
 		return errors.Errorf("Cannot configure rouite-policy without name %v", policy)
@@ -54,6 +56,8 @@ func ReplaceRPL(dev *ondatra.DUTDevice, t *testing.T, policy *proto.Input_RouteP
 	dev.Config().RoutingPolicy().Replace(t, rpl)
 	return nil
 }
+
+// UnnConfigRPL removes RPL configs from input file
 func UnConfigRPL(dev *ondatra.DUTDevice, t *testing.T, policy *proto.Input_RoutePolicy) error {
 	if policy.Name == "" {
 		return errors.Errorf("Cannot configure rouite-policy without name %v", policy)

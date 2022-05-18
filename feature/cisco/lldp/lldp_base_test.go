@@ -1,10 +1,10 @@
-package lldp_base_test
+package basetest
 
 import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	ipb "github.com/openconfig/featureprofiles/tools/input_cisco"
+	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
 )
 
 const (
@@ -16,9 +16,8 @@ var (
 	testInput = ipb.LoadInput(input_file)
 	device1   = "dut"
 	device2   = "peer"
-	observer  = fptest.
-			NewObserver("LLDP").AddAdditionalCsvRecorder("ocreport").
-			AddCsvRecorder()
+	observer  = fptest.NewObserver().AddCsvRecorder("ocreport").
+			AddCsvRecorder("LLDP")
 )
 
 func TestMain(m *testing.M) {

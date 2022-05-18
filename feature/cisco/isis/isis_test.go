@@ -1,4 +1,4 @@
-package isis_base_test
+package basetest
 
 import (
 	"fmt"
@@ -6,8 +6,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/feature/cisco/utils"
-	ft "github.com/openconfig/featureprofiles/tools/input_cisco/feature"
+	ft "github.com/openconfig/featureprofiles/tools/inputcisco/feature"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
 )
@@ -20,10 +19,9 @@ func TestISISState(t *testing.T) {
 		t.Error(err)
 	}
 	input_obj.ConfigInterfaces(dut)
-	time.Sleep(30 * time.Second)
-	topoobj := getIXIATopology(t, "ate")
-	topoobj.StartProtocols(t)
-	time.Sleep(30 * time.Second)
+	time.Sleep(10 * time.Second)
+	input_obj.StartAteProtocols(ate)
+	time.Sleep(10 * time.Second)
 	isis := input_obj.Device(dut).Features().Isis[0]
 	peerIsis := input_obj.ATE(ate).Features().Isis[0]
 	isisPath := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isis.Name).Isis()
@@ -155,7 +153,6 @@ func TestISISState(t *testing.T) {
 		state := isisadjPath.Topology()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		fmt.Println(cmp.Diff(val, []oc.E_IsisTypes_AFI_SAFI_TYPE{oc.IsisTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.IsisTypes_AFI_SAFI_TYPE_IPV6_UNICAST}))
 		if cmp.Diff(val, []oc.E_IsisTypes_AFI_SAFI_TYPE{oc.IsisTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.IsisTypes_AFI_SAFI_TYPE_IPV6_UNICAST}) != "" {
 			t.Errorf("ISIS Adj Topology: got %v, want %v", val, []oc.E_IsisTypes_AFI_SAFI_TYPE{oc.IsisTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.IsisTypes_AFI_SAFI_TYPE_IPV6_UNICAST})
 		}
@@ -463,13 +460,13 @@ func TestISISState(t *testing.T) {
 		state := systemLevelCountersPath.SpfRuns()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		if val >= 0 {
+		if val < 0 {
 			t.Errorf("ISIS System Level Counters SpfRuns: got %d, want >=%d", val, 0)
 		}
 	})
 	//store initial values of CircuitCounters
 	iCC := isisPath.Interface(intf.Name).CircuitCounters().Get(t)
-	utils.FlapInterface(t, dut, intf.Name, 30)
+	flapInterface(t, dut, intf.Name, 30)
 	circuitCounters := isisPath.Interface(intf.Name).CircuitCounters()
 	t.Run("state//network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/adj-changes", func(t *testing.T) {
 		state := circuitCounters.AdjChanges()
@@ -543,7 +540,151 @@ func TestISISState(t *testing.T) {
 			t.Errorf("ISIS CircuitCounters RejectedAdj: got %d, want %d", val, iCC.GetRejectedAdj())
 		}
 	})
+	lsp := isisPath.Level(uint8(2)).
+		Lsp(peerIsis.Systemid)
+	tlvExtv6Prefix := lsp.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(peerIsis.Connectedv6Prefix)
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/metric", func(t *testing.T) {
+		state := tlvExtv6Prefix.Metric()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != uint32(peerIsis.Iprmetric) {
+			t.Errorf("ISIS tlvExtv6Prefix metric: got %d, want %d", val, uint32(peerIsis.Iprmetric))
+		}
+	})
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/prefix", func(t *testing.T) {
+		state := tlvExtv6Prefix.Prefix()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != peerIsis.Connectedv6Prefix {
+			t.Errorf("ISIS tlvExtv6Prefix prefix: got %s, want %s", val, peerIsis.Connectedv6Prefix)
+		}
+	})
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/x-bit", func(t *testing.T) {
+		state := tlvExtv6Prefix.XBit()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != false {
+			t.Errorf("ISIS tlvExtv6Prefix Xbit:: got %t, want %t", val, false)
+		}
+	})
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/s-bit", func(t *testing.T) {
+		state := tlvExtv6Prefix.SBit()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != false {
+			t.Errorf("ISIS tlvExtv6Prefix Sbit: got %t, want %t", val, false)
+		}
+	})
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/up-down", func(t *testing.T) {
+		state := tlvExtv6Prefix.UpDown()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != false {
+			t.Errorf("ISIS tlvExtv6Prefix up-down: got %t, want %t", val, false)
+		}
+	})
+	tlvExtv4Prefix := lsp.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).
+		ExtendedIpv4Reachability().Prefix(peerIsis.Connectedv4Prefix)
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/metric", func(t *testing.T) {
+		state := tlvExtv4Prefix.Metric()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != uint32(peerIsis.Prefixmetric) {
+			t.Errorf("ISIS tlvExtv4Prefix metric: got %d, want %d", val, uint32(peerIsis.Prefixmetric))
+		}
+	})
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix", func(t *testing.T) {
+		state := tlvExtv4Prefix.Prefix()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != peerIsis.Connectedv6Prefix {
+			t.Errorf("ISIS tlvExtv4Prefix prefix: got %s, want %s", val, peerIsis.Connectedv6Prefix)
+		}
+	})
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/s-bit", func(t *testing.T) {
+		state := tlvExtv4Prefix.SBit()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != false {
+			t.Errorf("ISIS tlvExtv4Prefix Sbit: got %t, want %t", val, false)
+		}
+	})
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/up-down", func(t *testing.T) {
+		state := tlvExtv4Prefix.UpDown()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != false {
+			t.Errorf("ISIS tlvExtv4Prefix up-down: got %t, want %t", val, false)
+		}
+	})
+	id := uint64(0)
+	neighbor := lsp.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IS_REACHABILITY).ExtendedIsReachability().Neighbor(intf.Name).Get(t)
+	if neighbor != nil {
+		for _, y := range neighbor.Instance {
+			id = *y.Id
+		}
+	}
 
-	// tlvExtv4Prefix := isisPath.Level(uint8(2)).
-	// Lsp(peerIsis.Systemid).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix("2000::100:120:1:0/126")
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/state/metric", func(t *testing.T) {
+		state := lsp.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IS_REACHABILITY).ExtendedIsReachability().Neighbor(intf.Name).Instance(id).Metric()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != uint32(peerIsis.Prefixmetric) {
+			t.Errorf("ISIS tlvExtv4Prefix instsance metric: got %d, want %d", val, peerIsis.Prefixmetric)
+		}
+	})
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-interfaces-addresses/state/ipv6-interface-addresses", func(t *testing.T) {
+		state := lsp.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_INTERFACE_ADDRESSES).Ipv6InterfaceAddresses().Address()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if cmp.Diff(val, []string{"2000::100:120:1:2"}) != "" {
+			t.Errorf("ISIS tlvExtv6Prefix Address: got %v, want %v", val, []string{"2000::100:120:1:2"})
+		}
+	})
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/subtlvs/subtlv/ipv4-source-router-id/state/ipv4-source-router-id", func(t *testing.T) {
+		state := lsp.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).
+			Ipv6Reachability().Prefix(peerIsis.GetConnectedv6Prefix()).Subtlv(oc.IsisLsdbTypes_ISIS_SUBTLV_TYPE_IP_REACHABILITY_IPV4_ROUTER_ID).Ipv4SourceRouterId().RouterId()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val == "" {
+			t.Errorf("ISIS tlvExtv6Prefix Address: got %s, want !=%s", val, "''")
+		}
+	})
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/subtlvs/subtlv/ipv4-source-router-id/state/ipv4-source-router-id", func(t *testing.T) {
+		state := lsp.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).
+			Ipv6Reachability().Prefix(peerIsis.GetConnectedv6Prefix()).Subtlv(oc.IsisLsdbTypes_ISIS_SUBTLV_TYPE_IP_REACHABILITY_IPV4_ROUTER_ID).Ipv4SourceRouterId().RouterId()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val == "" {
+			t.Errorf("ISIS tlv IPv6 Reachability Prefix Subtlv IPv4 Router ID: got %s, want !=%s", val, "''")
+		}
+	})
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/subtlvs/subtlv/ipv6-source-router-id/state/ipv4-source-router-id", func(t *testing.T) {
+		state := lsp.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).
+			Ipv6Reachability().Prefix(peerIsis.GetConnectedv6Prefix()).Subtlv(oc.IsisLsdbTypes_ISIS_SUBTLV_TYPE_IP_REACHABILITY_IPV6_ROUTER_ID).Ipv6SourceRouterId().RouterId()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val == "" {
+			t.Errorf("ISIS tlv IPv6 Reachability Prefix Subtlv IPv6 Router ID: got %s, want !=%s", val, "''")
+		}
+	})
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/subtlvs/subtlv/flags/state/flags", func(t *testing.T) {
+		state := lsp.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).
+			Ipv6Reachability().Prefix(peerIsis.GetConnectedv6Prefix()).Subtlv(oc.IsisLsdbTypes_ISIS_SUBTLV_TYPE_IP_REACHABILITY_PREFIX_FLAGS).Flags().Flags()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if cmp.Diff(val, []oc.E_Flags_Flags{oc.Flags_Flags_EXTERNAL_FLAG, oc.Flags_Flags_READVERTISEMENT_FLAG, oc.Flags_Flags_NODE_FLAG}) != "" {
+			t.Errorf("ISIS tlv IPv6 Reachability Prefix Subtlv IPv6 Router ID: got %v, want %v", val, []oc.E_Flags_Flags{oc.Flags_Flags_EXTERNAL_FLAG, oc.Flags_Flags_READVERTISEMENT_FLAG, oc.Flags_Flags_NODE_FLAG})
+		}
+	})
+	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/subtlvs/subtlv/flags/state/flags", func(t *testing.T) {
+		state := lsp.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).
+			ExtendedIpv4Reachability().Prefix(peerIsis.V4Prefix).Subtlv(oc.IsisLsdbTypes_ISIS_SUBTLV_TYPE_IP_REACHABILITY_PREFIX_FLAGS).Flags()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if cmp.Diff(val, []oc.E_Flags_Flags{oc.Flags_Flags_EXTERNAL_FLAG, oc.Flags_Flags_READVERTISEMENT_FLAG, oc.Flags_Flags_NODE_FLAG}) != "" {
+			t.Errorf("ISIS tlv IPv6 Reachability Prefix Subtlv IPv6 Router ID: got %v, want %v", val, []oc.E_Flags_Flags{oc.Flags_Flags_EXTERNAL_FLAG, oc.Flags_Flags_READVERTISEMENT_FLAG, oc.Flags_Flags_NODE_FLAG})
+		}
+	})
+
 }

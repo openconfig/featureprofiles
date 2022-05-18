@@ -3,15 +3,16 @@ package feature
 import (
 	"testing"
 
-	"github.com/openconfig/featureprofiles/tools/input_cisco/proto"
-	"github.com/openconfig/featureprofiles/tools/input_cisco/solver"
-	"github.com/openconfig/featureprofiles/tools/input_cisco/testinput"
+	"github.com/openconfig/featureprofiles/tools/inputcisco/proto"
+	"github.com/openconfig/featureprofiles/tools/inputcisco/solver"
+	"github.com/openconfig/featureprofiles/tools/inputcisco/testinput"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 
 	oc "github.com/openconfig/ondatra/telemetry"
 )
 
+// ConfigBGP Configures BGP as per input file
 func ConfigBGP(dev *ondatra.DUTDevice, t *testing.T, bgp *proto.Input_BGP, input testinput.TestInput) error {
 	model := configBGP(t, bgp, input)
 	request := oc.NetworkInstance{}
@@ -27,6 +28,7 @@ func ConfigBGP(dev *ondatra.DUTDevice, t *testing.T, bgp *proto.Input_BGP, input
 
 }
 
+// UnConfigBGP unconfigures BGP as per input file
 func UnConfigBGP(dev *ondatra.DUTDevice, t *testing.T, bgp *proto.Input_BGP) error {
 	if bgp.Vrf == "" {
 		bgp.Vrf = "default"
@@ -35,6 +37,7 @@ func UnConfigBGP(dev *ondatra.DUTDevice, t *testing.T, bgp *proto.Input_BGP) err
 	return nil
 
 }
+
 func configBGP(t *testing.T, bgp *proto.Input_BGP, input testinput.TestInput) *oc.NetworkInstance_Protocol {
 
 	if bgp.Vrf == "" {
@@ -98,10 +101,10 @@ func getBGPneighbor(t *testing.T, neigbors []*proto.Input_BGP_Neighbor, input te
 
 	return model
 }
-func getAddPathsGlobal(add_paths []proto.Input_BGP_AdditionalPaths) *oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths {
+func getAddPathsGlobal(addPaths []proto.Input_BGP_AdditionalPaths) *oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths {
 	model := &oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths{}
-	for _, add_path := range add_paths {
-		switch add_path {
+	for _, addPath := range addPaths {
+		switch addPath {
 		case proto.Input_BGP_recieve:
 			model.Receive = ygot.Bool(true)
 		case proto.Input_BGP_send:
@@ -119,10 +122,10 @@ func getNeighborPolicy(policy *proto.Input_BGP_Policy) *oc.NetworkInstance_Proto
 	model.ExportPolicy = policy.Exportpolicy
 	return model
 }
-func getAddPathsNeighbor(add_paths []proto.Input_BGP_AdditionalPaths) *oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths {
+func getAddPathsNeighbor(addPaths []proto.Input_BGP_AdditionalPaths) *oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths {
 	model := &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths{}
-	for _, add_path := range add_paths {
-		switch add_path {
+	for _, addPath := range addPaths {
+		switch addPath {
 		case proto.Input_BGP_recieve:
 			model.Receive = ygot.Bool(true)
 		case proto.Input_BGP_send:

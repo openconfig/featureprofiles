@@ -1,4 +1,4 @@
-package networkinstance_base
+package basetest
 
 import (
 	"testing"
@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	device1   = "dut"
-	observer  = fptest.NewObserver("NetworkInstance").AddAdditionalCsvRecorder("ocreport").AddCsvRecorder()
+	device1  = "dut"
+	observer = fptest.NewObserver().AddCsvRecorder("ocreport").
+			AddCsvRecorder("NetworkInstance")
 	instances = []NetworkInstance{
 		{
 			name:        "vrf_test1",

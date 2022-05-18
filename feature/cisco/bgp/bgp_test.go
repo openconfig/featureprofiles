@@ -1,10 +1,10 @@
-package bgp_base_test
+package basetest
 
 import (
 	"testing"
 	"time"
 
-	ft "github.com/openconfig/featureprofiles/tools/input_cisco/feature"
+	ft "github.com/openconfig/featureprofiles/tools/inputcisco/feature"
 	oc "github.com/openconfig/ondatra/telemetry"
 
 	"github.com/openconfig/ondatra"
@@ -12,14 +12,14 @@ import (
 
 func TestBGPState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+	ate := ondatra.ATE(t, ate1)
 	input_obj, err := testInput.GetTestInput(t)
 	if err != nil {
 		t.Error(err)
 	}
 	input_obj.ConfigInterfaces(dut)
 	time.Sleep(30 * time.Second)
-	topoobj := getIXIATopology(t, "ate")
-	topoobj.StartProtocols(t)
+	input_obj.StartAteProtocols(ate)
 	time.Sleep(30 * time.Second)
 	for _, bgp := range input_obj.Device(dut).Features().Bgp {
 		for _, neighbor := range bgp.Neighbors {
