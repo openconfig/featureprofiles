@@ -40,7 +40,7 @@ func TestSubinterface(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []uint32{
-		1854090381,
+		0,
 	}
 
 	for _, input := range inputs {
@@ -89,7 +89,7 @@ func TestInterface(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		"s",
+		"FourHundredGigE0/0/0/10",
 	}
 
 	for _, input := range inputs {
