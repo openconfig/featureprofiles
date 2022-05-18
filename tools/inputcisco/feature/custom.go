@@ -35,7 +35,7 @@ func ConfigJSON(dev *ondatra.DUTDevice, t *testing.T, fp string) error {
 	return nil
 }
 
-// UnconfigJson sends an Delete request in raw JSON format
+// UnconfigJSON sends an Delete request in raw JSON format
 func UnConfigJSON(dev *ondatra.DUTDevice, t *testing.T, fp string) error {
 	client := dev.RawAPIs().GNMI().New(t)
 	rawjson, err := readJSON(fp)
