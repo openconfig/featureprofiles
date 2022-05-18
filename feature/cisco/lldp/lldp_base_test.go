@@ -11,7 +11,6 @@ const (
 	inputFile = "testdata/lldp.yaml"
 )
 
-var ()
 var (
 	testInput = ipb.LoadInput(inputFile)
 	device1   = "dut"

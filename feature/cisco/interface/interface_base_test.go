@@ -12,7 +12,6 @@ const (
 	inputFile = "testdata/interface.yaml"
 )
 
-var ()
 var (
 	testInput = ipb.LoadInput(inputFile)
 	device1   = "dut"

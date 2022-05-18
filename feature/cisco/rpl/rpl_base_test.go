@@ -15,7 +15,6 @@ const (
 	inputFile = "testdata/rpl.yaml"
 )
 
-var ()
 var (
 	testInput = ipb.LoadInput(inputFile)
 	device1   = "dut"
