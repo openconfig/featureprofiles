@@ -13,15 +13,15 @@ import (
 func TestBGPState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	ate := ondatra.ATE(t, ate1)
-	input_obj, err := testInput.GetTestInput(t)
+	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
 		t.Error(err)
 	}
-	input_obj.ConfigInterfaces(dut)
+	inputObj.ConfigInterfaces(dut)
 	time.Sleep(30 * time.Second)
-	input_obj.StartAteProtocols(ate)
+	inputObj.StartAteProtocols(ate)
 	time.Sleep(30 * time.Second)
-	for _, bgp := range input_obj.Device(dut).Features().Bgp {
+	for _, bgp := range inputObj.Device(dut).Features().Bgp {
 		for _, neighbor := range bgp.Neighbors {
 			t.Run("state//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/description", func(t *testing.T) {
 				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Description()

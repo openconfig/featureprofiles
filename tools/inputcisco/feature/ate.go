@@ -24,27 +24,27 @@ func StartIxiaProtocols(dev *ondatra.ATEDevice, t *testing.T, feature *proto.Inp
 	topoobj := configIXIATopology(t, dev, feature)
 	topoobj.StartProtocols(t)
 }
-func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, network_name string, metric uint32, iprmetric uint32, prefix string, count uint32) {
+func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaID, networkName string, metric uint32, iprmetric uint32, prefix string, count uint32) {
 
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
 	}
-	network := intfs[atePort].AddNetwork(network_name)
+	network := intfs[atePort].AddNetwork(networkName)
 	//IPReachabilityConfig :=
 	network.ISIS().WithIPReachabilityMetric(iprmetric)
 	network.IPv4().WithAddress(prefix).WithCount(count)
-	intfs[atePort].ISIS().WithAreaID(areaId).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
+	intfs[atePort].ISIS().WithAreaID(areaID).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
 }
 
-func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddress string, localAsn uint32, network_name, nexthop, prefix string, count uint32, useLoopback bool) {
+func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddress string, localAsn uint32, networkName, nexthop, prefix string, count uint32, useLoopback bool) {
 
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
 	}
 	//Add network instance
-	network := intfs[atePort].AddNetwork(network_name)
+	network := intfs[atePort].AddNetwork(networkName)
 	bgpAttribute := network.BGP()
 	bgpAttribute.WithActive(true).WithNextHopAddress(nexthop)
 	//Add prefixes
@@ -58,26 +58,26 @@ func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddres
 	bgpPeer.Capabilities().WithIPv4UnicastEnabled(true).WithIPv6UnicastEnabled(true).WithGracefulRestart(true)
 }
 
-func addLoopback(t *testing.T, topo *ondatra.ATETopology, port, loopback_prefix string) {
+func addLoopback(t *testing.T, topo *ondatra.ATETopology, port, loopbackPrefix string) {
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
 	}
-	intfs[port].WithIPv4Loopback(loopback_prefix)
+	intfs[port].WithIPv4Loopback(loopbackPrefix)
 }
-func addIpv4Network(t *testing.T, topo *ondatra.ATETopology, port, network_name, address_CIDR string, count uint32) {
+func addIpv4Network(t *testing.T, topo *ondatra.ATETopology, port, networkName, addressCIDR string, count uint32) {
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
 	}
-	intfs[port].AddNetwork(network_name).IPv4().WithAddress(address_CIDR).WithCount(count)
+	intfs[port].AddNetwork(networkName).IPv4().WithAddress(addressCIDR).WithCount(count)
 }
-func addIpv6Network(t *testing.T, topo *ondatra.ATETopology, port, network_name, address_CIDR string, count uint32) {
+func addIpv6Network(t *testing.T, topo *ondatra.ATETopology, port, networkName, addressCIDR string, count uint32) {
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
 	}
-	intfs[port].AddNetwork(network_name).IPv6().WithAddress(address_CIDR).WithCount(count)
+	intfs[port].AddNetwork(networkName).IPv6().WithAddress(addressCIDR).WithCount(count)
 }
 
 func configIXIATopology(t *testing.T, dev *ondatra.ATEDevice, feature *proto.Input_Feature) *ondatra.ATETopology {

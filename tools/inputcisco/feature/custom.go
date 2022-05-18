@@ -11,7 +11,7 @@ import (
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
-func readJson(fp string) (string, error) {
+func readJSON(fp string) (string, error) {
 	data, err := os.ReadFile(fp)
 	if err != nil {
 		return "", err
@@ -19,29 +19,33 @@ func readJson(fp string) (string, error) {
 	return string(bytes.TrimRight(data, "\n")), nil
 
 }
+
+// ConfigJSON configures a json request over gnmi
 func ConfigJSON(dev *ondatra.DUTDevice, t *testing.T, fp string) error {
 	client := dev.RawAPIs().GNMI().New(t)
-	rawjson, err := readJson(fp)
+	rawjson, err := readJSON(fp)
 	if err != nil {
 		t.Errorf("Unable to read json config file %s %v", fp, err)
 	}
-	response, err := client.Set(context.Background(), configJson(rawjson))
+	response, err := client.Set(context.Background(), configJSON(rawjson))
 	if err != nil {
 		t.Log(response)
 		t.Error(err)
 	}
 	return nil
 }
-func UnConfigJson(dev *ondatra.DUTDevice, t *testing.T, fp string) error {
+
+// UnconfigJson sends an Delete request in raw JSON format
+func UnConfigJSON(dev *ondatra.DUTDevice, t *testing.T, fp string) error {
 	client := dev.RawAPIs().GNMI().New(t)
-	rawjson, err := readJson(fp)
+	rawjson, err := readJSON(fp)
 	if err != nil {
 		t.Errorf("Unable to read json config file %s %v", fp, err)
 	}
-	client.Set(context.Background(), configJson(rawjson))
+	client.Set(context.Background(), configJSON(rawjson))
 	return nil
 }
-func configJson(config string) *gnmipb.SetRequest {
+func configJSON(config string) *gnmipb.SetRequest {
 	return &gnmipb.SetRequest{
 		Update: []*gnmipb.Update{{
 			Path: &gnmipb.Path{
@@ -56,7 +60,7 @@ func configJson(config string) *gnmipb.SetRequest {
 		}},
 	}
 }
-func unconfigJson(config string) *gnmipb.SetRequest {
+func unconfigJSON(config string) *gnmipb.SetRequest {
 	return &gnmipb.SetRequest{
 		Update: []*gnmipb.Update{{
 			Path: &gnmipb.Path{

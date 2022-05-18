@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	input_file = "bgp.yaml"
+	inputFile = "bgp.yaml"
 )
 
 var (
-	testInput = ipb.LoadInput(input_file)
+	testInput = ipb.LoadInput(inputFile)
 	device1   = "dut"
 	device2   = "peer"
 	ate1      = "ate"

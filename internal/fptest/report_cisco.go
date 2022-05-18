@@ -38,7 +38,7 @@ func (o *Observer) RecordYgot(t *testing.T, operation string, pathstruct ygot.Pa
 	ygotEvents := newYgotEvent(o.name, t, operation, pathstruct)
 	for _, event := range ygotEvents {
 		for _, listner := range o.listeners {
-			err := listner.Record(event)
+			err := listner.record(event)
 			if err != nil {
 				t.Log(fmt.Sprintf("Unable to record , logging instead %s - %s - %s - %s ", event.testname, event.path, event.operation, event.status))
 
@@ -58,21 +58,17 @@ func NewObserver(listeners ...listner) *Observer {
 }
 
 type listner interface {
-	Record(event event) error
+	record(event event) error
 }
 type event interface {
 	getCsvEvent() []string
-}
-
-func (*Observer) RegisterObserver() {
-
 }
 
 type csvListner struct {
 	filepath string
 }
 
-func (fw *csvListner) Record(event event) error {
+func (fw *csvListner) record(event event) error {
 	data := event.getCsvEvent()
 	f, err := os.OpenFile(fw.filepath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {

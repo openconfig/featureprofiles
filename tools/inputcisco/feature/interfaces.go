@@ -18,6 +18,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// ConfigInterfaces configures interfaces as given in input file
 func ConfigInterfaces(dev *ondatra.DUTDevice, t *testing.T, intf *proto.Input_Interface) error {
 	if strings.HasPrefix(strings.ToLower(intf.Name), "bundle") {
 		for _, intfname := range intf.Members {
@@ -38,6 +39,8 @@ func ConfigInterfaces(dev *ondatra.DUTDevice, t *testing.T, intf *proto.Input_In
 	}
 	return nil
 }
+
+// UnConfigInterfaces removes interfaces as given in input file
 func UnConfigInterfaces(dev *ondatra.DUTDevice, t *testing.T, intf *proto.Input_Interface) error {
 	if strings.HasPrefix(strings.ToLower(intf.Name), "bundle") {
 		for _, intfname := range intf.Members {
@@ -51,6 +54,7 @@ func UnConfigInterfaces(dev *ondatra.DUTDevice, t *testing.T, intf *proto.Input_
 	}
 	return nil
 }
+
 func createInterface(t *testing.T, dut *ondatra.DUTDevice, intf *proto.Input_Interface, intftype oc.E_IETFInterfaces_InterfaceType) {
 	var intfname string
 	if intf.Name != "" {
@@ -101,23 +105,23 @@ func buildInterface(intf *proto.Input_Interface, intftype oc.E_IETFInterfaces_In
 	return &model
 }
 
-func createBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interface_name string, bundle_name string, intf *proto.Input_Interface) {
+func createBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, bundleName string, intf *proto.Input_Interface) {
 
 	member := &oc.Interface{
 		Enabled: ygot.Bool(true),
 		//
-		Name: ygot.String(interface_name),
+		Name: ygot.String(interfaceName),
 		Ethernet: &oc.Interface_Ethernet{
-			AggregateId: ygot.String(bundle_name),
+			AggregateId: ygot.String(bundleName),
 		},
 	}
-	update_response := dut.Config().Interface(interface_name).Update(t, member)
-	t.Logf("Update response : %v", update_response)
+	updateResponse := dut.Config().Interface(interfaceName).Update(t, member)
+	t.Logf("Update response : %v", updateResponse)
 }
 
-func deleteBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interface_name string, bundle_name string, intf *proto.Input_Interface) {
-	update_response := dut.Config().Interface(interface_name).Delete(t)
-	t.Logf("Update response : %v", update_response)
+func deleteBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, bundleName string, intf *proto.Input_Interface) {
+	updateResponse := dut.Config().Interface(interfaceName).Delete(t)
+	t.Logf("Update response : %v", updateResponse)
 }
 
 func createVlan(t *testing.T, dut *ondatra.DUTDevice, intf *proto.Input_Interface, vlan *proto.Input_Vlan, vlanid *uint32, encapid *uint16) {
@@ -452,26 +456,26 @@ func getVlan(t *testing.T, dut *ondatra.DUTDevice, intf *proto.Input_Interface, 
 			v4ip = ""
 			v6ip = ""
 		}
-		intf_data := &IfObject{
+		intfData := &IfObject{
 			name:  fmt.Sprintf("%s.%d", intfname, *vlanid),
 			group: vlan.Group,
 		}
 		if v4ip != "" {
-			intf_data.v4address = v4ip
-			intf_data.v4prefixlength = vlan.Ipv4PrefixLength
-			intf_data.v4addressmask = fmt.Sprintf("%s/%d", v4ip, vlan.Ipv4PrefixLength)
+			intfData.v4address = v4ip
+			intfData.v4prefixlength = vlan.Ipv4PrefixLength
+			intfData.v4addressmask = fmt.Sprintf("%s/%d", v4ip, vlan.Ipv4PrefixLength)
 		}
 		if v6ip != "" {
-			intf_data.v6address = v4ip
-			intf_data.v6prefixlength = vlan.Ipv6PrefixLength
-			intf_data.v6addressmask = fmt.Sprintf("%s/%d", v6ip, vlan.Ipv6PrefixLength)
+			intfData.v6address = v4ip
+			intfData.v6prefixlength = vlan.Ipv6PrefixLength
+			intfData.v6addressmask = fmt.Sprintf("%s/%d", v6ip, vlan.Ipv6PrefixLength)
 		}
 		if vlan.Vrf == "" {
-			intf_data.vrf = "default"
+			intfData.vrf = "default"
 		} else {
-			intf_data.vrf = vlan.Vrf
+			intfData.vrf = vlan.Vrf
 		}
-		vlans = append(vlans, intf_data)
+		vlans = append(vlans, intfData)
 		*vlanid++
 	}
 	return vlans

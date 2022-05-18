@@ -35,14 +35,14 @@ func TestLldpState(t *testing.T) {
 
 	dut := ondatra.DUT(t, device1)
 	peer := ondatra.DUT(t, device2)
-	input_obj, err := testInput.GetTestInput(t)
-	input_obj.ConfigInterfaces(dut)
-	input_obj.ConfigInterfaces(peer)
+	inputObj, err := testInput.GetTestInput(t)
+	inputObj.ConfigInterfaces(dut)
+	inputObj.ConfigInterfaces(peer)
 	if err != nil {
 		t.Error(err)
 	}
-	iut := input_obj.Device(dut).GetInterface("$ports.peer_dut_1")
-	peerintf := input_obj.Device(peer).GetInterface("$ports.peer_dut_1")
+	iut := inputObj.Device(dut).GetInterface("$ports.peer_dut_1")
+	peerintf := inputObj.Device(peer).GetInterface("$ports.peer_dut_1")
 	t.Run("updateconfig//lldp/config/enabled", func(t *testing.T) {
 		path := peer.Config().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)

@@ -9,11 +9,11 @@ import (
 
 func TestRPLConfig(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	input_obj, err := testInput.GetTestInput(t)
+	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
 		t.Error(err)
 	}
-	for _, policy := range input_obj.Device(dut).Features().Routepolicy {
+	for _, policy := range inputObj.Device(dut).Features().Routepolicy {
 		rpl := &oc.RoutingPolicy{}
 		rpd, err := rpl.NewPolicyDefinition(policy.Name)
 		if err != nil {

@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	input_file = "rpl.yaml"
+	inputFile = "rpl.yaml"
 )
 
 var ()
 var (
-	testInput = ipb.LoadInput(input_file)
+	testInput = ipb.LoadInput(inputFile)
 	device1   = "dut"
 	observer  = fptest.NewObserver().AddCsvRecorder("ocreport").
 			AddCsvRecorder("RPL")

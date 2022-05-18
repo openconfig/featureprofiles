@@ -14,16 +14,16 @@ import (
 func TestISISState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	ate := ondatra.ATE(t, ate)
-	input_obj, err := testInput.GetTestInput(t)
+	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
 		t.Error(err)
 	}
-	input_obj.ConfigInterfaces(dut)
+	inputObj.ConfigInterfaces(dut)
 	time.Sleep(10 * time.Second)
-	input_obj.StartAteProtocols(ate)
+	inputObj.StartAteProtocols(ate)
 	time.Sleep(10 * time.Second)
-	isis := input_obj.Device(dut).Features().Isis[0]
-	peerIsis := input_obj.ATE(ate).Features().Isis[0]
+	isis := inputObj.Device(dut).Features().Isis[0]
+	peerIsis := inputObj.ATE(ate).Features().Isis[0]
 	isisPath := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isis.Name).Isis()
 	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/state/level-number", func(t *testing.T) {
 		state := isisPath.Level(uint8(ft.GetIsisLevelType(isis.Level))).LevelNumber()

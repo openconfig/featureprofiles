@@ -9,11 +9,11 @@ import (
 
 func TestLacpCfgs(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	input_obj, err := testInput.GetTestInput(t)
+	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
 		t.Error(err)
 	}
-	iut := input_obj.Device(dut).GetInterface("Bundle-Ether120")
+	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
 	systemIDMac := "00:03:00:04:00:05"
 	priority := uint16(100)
 	// t.Run("configLacp", func(t *testing.T) {
@@ -29,7 +29,7 @@ func TestLacpCfgs(t *testing.T) {
 	// 	path.Update(t, obj)
 
 	// })
-	input_obj.ConfigInterfaces(dut)
+	inputObj.ConfigInterfaces(dut)
 	t.Cleanup(func() {
 		dut.Config().Lacp().Interface(iut.Name()).Delete(t)
 	})
@@ -63,12 +63,12 @@ func TestLacpCfgs(t *testing.T) {
 }
 func TestLacpState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	input_obj, err := testInput.GetTestInput(t)
+	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
 		t.Error(err)
 	}
-	iut := input_obj.Device(dut).GetInterface("Bundle-Ether120")
-	input_obj.ConfigInterfaces(dut)
+	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
+	inputObj.ConfigInterfaces(dut)
 	t.Cleanup(func() {
 		dut.Config().Lacp().Interface(iut.Name()).Delete(t)
 	})
@@ -138,11 +138,11 @@ func TestLacpState(t *testing.T) {
 
 func TestLacpCountersState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	input_obj, err := testInput.GetTestInput(t)
+	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
 		t.Error(err)
 	}
-	iut := input_obj.Device(dut).GetInterface("Bundle-Ether120")
+	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
 	member := iut.Members()[0]
 	systemIDMac := "00:03:00:04:00:05"
 	priority := uint16(100)

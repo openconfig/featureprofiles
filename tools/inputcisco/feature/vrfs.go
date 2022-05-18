@@ -17,7 +17,7 @@ func ConfigVrf(dev *ondatra.DUTDevice, t *testing.T, vrf *proto.InputVrf) error 
 
 }
 
-// ConfigVrf Replaces Vrfs as per input file
+// ReplaceVrf Replaces Vrfs as per input file
 func ReplaceVrf(dev *ondatra.DUTDevice, t *testing.T, vrf *proto.InputVrf) error {
 
 	dev.Config().NetworkInstance(vrf.Name).Replace(t, configVrf(vrf))

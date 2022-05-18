@@ -8,12 +8,12 @@ import (
 )
 
 const (
-	input_file = "lldp.yaml"
+	inputFile = "lldp.yaml"
 )
 
 var ()
 var (
-	testInput = ipb.LoadInput(input_file)
+	testInput = ipb.LoadInput(inputFile)
 	device1   = "dut"
 	device2   = "peer"
 	observer  = fptest.NewObserver().AddCsvRecorder("ocreport").

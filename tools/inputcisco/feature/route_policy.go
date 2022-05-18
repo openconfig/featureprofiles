@@ -57,7 +57,7 @@ func ReplaceRPL(dev *ondatra.DUTDevice, t *testing.T, policy *proto.Input_RouteP
 	return nil
 }
 
-// UnnConfigRPL removes RPL configs from input file
+// UnConfigRPL removes RPL configs from input file
 func UnConfigRPL(dev *ondatra.DUTDevice, t *testing.T, policy *proto.Input_RoutePolicy) error {
 	if policy.Name == "" {
 		return errors.Errorf("Cannot configure rouite-policy without name %v", policy)

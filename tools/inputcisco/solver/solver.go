@@ -33,7 +33,7 @@ func Solver(t *testing.T, dev *ondatra.DUTDevice, parameter string, variables ..
 
 }
 
-// Solver Resolves the port name referances for interfaces for ATE
+// SolveAte Resolves the port name referances for interfaces for ATE
 func SolveAte(t *testing.T, dev *ondatra.ATEDevice, parameter string, variables ...map[string]string) string {
 	if !strings.HasPrefix(parameter, "$") {
 		return parameter
@@ -58,7 +58,7 @@ func SolveAte(t *testing.T, dev *ondatra.ATEDevice, parameter string, variables 
 
 }
 
-// Solver Resolves the group tag given for interfaces
+// Solvetag Resolves the group tag given for interfaces
 func Solvetag(t *testing.T, parameter string, input testinput.TestInput, variables ...map[string]string) []string {
 	if strings.HasPrefix(strings.ToLower(parameter), "$if-tag.") {
 		param := strings.TrimPrefix(parameter, "$if-tag.")

@@ -11,11 +11,11 @@ import (
 
 func TestInterfaceCfgs(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	input_obj, err := testInput.GetTestInput(t)
+	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
 		t.Error(err)
 	}
-	iut := input_obj.Device(dut).GetInterface("Bundle-Ether120")
+	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
 	t.Run("configInterface", func(t *testing.T) {
 		path := dut.Config().Interface(iut.Name())
 		obj := &oc.Interface{
@@ -71,11 +71,11 @@ func TestInterfaceCfgs(t *testing.T) {
 
 	})
 	member := iut.Members()[0]
-	mac_add := "78:2a:67:b6:a8:08"
+	macAdd := "78:2a:67:b6:a8:08"
 	t.Run("replaceconfig//interfaces/interface/config/description", func(t *testing.T) {
 		path := dut.Config().Interface(member).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "REPLACE", path)
-		path.Replace(t, mac_add)
+		path.Replace(t, macAdd)
 
 	})
 	t.Run("replaceconfig//interfaces/interface/config/description", func(t *testing.T) {
@@ -93,7 +93,7 @@ func TestInterfaceCfgs(t *testing.T) {
 	t.Run("updateconfig//interfaces/interface/config/description", func(t *testing.T) {
 		path := dut.Config().Interface(member).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, mac_add)
+		path.Update(t, macAdd)
 
 	})
 	t.Run("updateconfig//interfaces/interface/config/description", func(t *testing.T) {
@@ -113,11 +113,11 @@ func TestInterfaceCfgs(t *testing.T) {
 
 func TestInterfaceIPCfgs(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	input_obj, err := testInput.GetTestInput(t)
+	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
 		t.Error(err)
 	}
-	iut := input_obj.Device(dut).GetInterface("Bundle-Ether120")
+	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
 	vlanid := uint32(0)
 	t.Run("configInterfaceIP", func(t *testing.T) {
 		path := dut.Config().Interface(iut.Name()).Subinterface(vlanid)
@@ -184,11 +184,11 @@ func TestInterfaceCountersState(t *testing.T) {
 	// cli_handle := dut.RawAPIs().CLI(t)
 	// cli_handle.Stdin().Write([]byte("clear counters\n"))
 	// cli_handle.Stdin().Write([]byte("\n"))
-	input_obj, err := testInput.GetTestInput(t)
+	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
 		t.Error(err)
 	}
-	iut := input_obj.Device(dut).GetInterface("Bundle-Ether120")
+	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
 	state := dut.Telemetry().Interface(iut.Members()[0]).Counters()
 	t.Run("state//interfaces/interface/state/counters/in-broadcast-pkts", func(t *testing.T) {
 		state := state.InBroadcastPkts()
@@ -373,11 +373,11 @@ func TestInterfaceCountersState(t *testing.T) {
 }
 func TestInterfaceState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	input_obj, err := testInput.GetTestInput(t)
+	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
 		t.Error(err)
 	}
-	iut := input_obj.Device(dut).GetInterface("Bundle-Ether120")
+	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
 	randstr := "random string"
 	randmtu := ygot.Uint16(1200)
 	path := dut.Config().Interface(iut.Name())
@@ -522,19 +522,19 @@ func TestInterfaceState(t *testing.T) {
 
 		}
 	})
-	mac_add := "78:2a:67:b6:a8:08"
+	macAdd := "78:2a:67:b6:a8:08"
 	t.Run("updateconfig//interfaces/interface/ethernet/config/mac-addres", func(t *testing.T) {
 		path := dut.Config().Interface(member).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, mac_add)
+		path.Update(t, macAdd)
 
 	})
 	t.Run("state//interfaces/interface/ethernet/state/mac-address", func(t *testing.T) {
 		state := dut.Telemetry().Interface(member).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		macadd := state.Get(t)
-		if macadd != mac_add {
-			t.Errorf("Interface InFcsErrors: got %s, want !=%s", macadd, mac_add)
+		if macadd != macAdd {
+			t.Errorf("Interface InFcsErrors: got %s, want !=%s", macadd, macAdd)
 
 		}
 	})
@@ -558,11 +558,11 @@ func TestInterfaceState(t *testing.T) {
 
 func TestInterfaceHoldTime(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	input_obj, err := testInput.GetTestInput(t)
+	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
 		t.Error(err)
 	}
-	iut := input_obj.Device(dut).GetInterface("Bundle-Ether120")
+	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
 	hlt := uint32(30)
 	member := iut.Members()[0]
 	t.Run("configupdate//interfaces/interface/hold-time/config/up", func(t *testing.T) {

@@ -12,11 +12,11 @@ import (
 )
 
 const (
-	input_file = "isis.yaml"
+	inputFile = "isis.yaml"
 )
 
 var (
-	testInput = ipb.LoadInput(input_file)
+	testInput = ipb.LoadInput(inputFile)
 	device1   = "dut"
 	device2   = "peer"
 	ate       = "ate"
@@ -27,26 +27,26 @@ var (
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-func flapInterface(t *testing.T, dut *ondatra.DUTDevice, interface_name string, flap_duration time.Duration) {
+func flapInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, flapDuration time.Duration) {
 
-	initialState := dut.Telemetry().Interface(interface_name).Get(t).GetEnabled()
+	initialState := dut.Telemetry().Interface(interfaceName).Get(t).GetEnabled()
 	transientState := !initialState
-	setInterfaceState(t, dut, interface_name, transientState)
-	time.Sleep(flap_duration * time.Second)
-	setInterfaceState(t, dut, interface_name, initialState)
+	setInterfaceState(t, dut, interfaceName, transientState)
+	time.Sleep(flapDuration * time.Second)
+	setInterfaceState(t, dut, interfaceName, initialState)
 }
-func setInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interface_name string, admin_state bool) {
+func setInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, adminState bool) {
 
 	i := &oc.Interface{
-		Enabled: ygot.Bool(admin_state),
-		Name:    ygot.String(interface_name),
+		Enabled: ygot.Bool(adminState),
+		Name:    ygot.String(interfaceName),
 	}
-	update_response := dut.Config().Interface(interface_name).Update(t, i)
+	update_response := dut.Config().Interface(interfaceName).Update(t, i)
 	t.Logf("Update response : %v", update_response)
-	currEnabledState := dut.Telemetry().Interface(interface_name).Get(t).GetEnabled()
-	if currEnabledState != admin_state {
-		t.Fatalf("Failed to set interface admin_state to :%v", admin_state)
+	currEnabledState := dut.Telemetry().Interface(interfaceName).Get(t).GetEnabled()
+	if currEnabledState != adminState {
+		t.Fatalf("Failed to set interface adminState to :%v", adminState)
 	} else {
-		t.Logf("Interface admin_state set to :%v", admin_state)
+		t.Logf("Interface adminState set to :%v", adminState)
 	}
 }
