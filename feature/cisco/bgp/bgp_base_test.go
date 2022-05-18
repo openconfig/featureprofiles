@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	inputFile = "bgp.yaml"
+	inputFile = "testdata/bgp.yaml"
 )
 
 var (

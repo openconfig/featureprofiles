@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	inputFile = "interface.yaml"
+	inputFile = "testdata/interface.yaml"
 )
 
 var ()

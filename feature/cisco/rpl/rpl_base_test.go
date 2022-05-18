@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	inputFile = "rpl.yaml"
+	inputFile = "testdata/rpl.yaml"
 )
 
 var ()

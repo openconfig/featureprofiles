@@ -49,6 +49,29 @@ feature:
         v4prefix: 121.1.1.1/32
         connectedv4prefix: 100.121.1.0/24
         connectedv6prefix: 2000::100:121:1:0/126
+    interface:
+    - id: $ports.port1
+      ipv4_address: 100.120.1.2
+      ipv4_prefix_length: 24
+      ipv6_address: 2000::100:120:1:2
+      ipv6_prefix_length: 126
+      ipv4_gateway: 100.120.1.1
+      ipv6_gateway: 2000::100:120:1:1
+    - id: $ports.port2
+      ipv4_address: 100.121.1.2
+      ipv4_prefix_length: 24
+      ipv6_address: 2000::100:121:1:2
+      ipv6_prefix_length: 126
+      ipv4_gateway: 100.121.1.1
+      ipv6_gateway: 2000::100:121:1:1
+    - name: loopback1
+      id: $ports.port1
+      ipv4_address: 11.11.11.1
+      ipv4_prefix_length: 32
+    - name: loopback2
+      id: $ports.port2
+      ipv4_address: 2.12.12.1
+      ipv4_prefix_length: 32
   dut:
     bgp:
       - as: 65000

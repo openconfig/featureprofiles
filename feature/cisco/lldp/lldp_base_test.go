@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	inputFile = "lldp.yaml"
+	inputFile = "testdata/lldp.yaml"
 )
 
 var ()

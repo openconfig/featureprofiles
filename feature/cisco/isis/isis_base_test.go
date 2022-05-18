@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	inputFile = "isis.yaml"
+	inputFile = "testdata/isis.yaml"
 )
 
 var (
