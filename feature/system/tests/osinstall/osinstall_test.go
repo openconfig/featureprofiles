@@ -16,13 +16,12 @@ package osinstall_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 	"testing"
 	"time"
-
-	"flag"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	closer "github.com/openconfig/gocloser"
