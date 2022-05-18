@@ -107,6 +107,7 @@ type testInput struct {
 	t    *testing.T
 }
 
+// ConfigInterfaces configures interfaces for the device
 func (in *testInput) ConfigInterfaces(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	interfaces := dvc.Interface
@@ -119,6 +120,7 @@ func (in *testInput) ConfigInterfaces(dev *ondatra.DUTDevice) {
 	}
 }
 
+// ConfigVrf configures Vrfs for the device
 func (in *testInput) ConfigVrf(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	vrfs := dvc.Vrf
@@ -130,6 +132,8 @@ func (in *testInput) ConfigVrf(dev *ondatra.DUTDevice) {
 		}
 	}
 }
+
+// ReplacesVrf Replaces Vrfs for the device
 func (in *testInput) ReplaceVrf(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	vrfs := dvc.Vrf
@@ -154,27 +158,35 @@ func getFeatureConfig(data *proto.Input, devid string) *proto.Input_Feature {
 	return data.Feature[devid]
 }
 
+// Config configures the device
 func (in *testInput) Config(dev *ondatra.DUTDevice) {
 	in.ConfigVrf(dev)
 	in.ConfigInterfaces(dev)
 	in.ConfigProtocols(dev)
 }
 
+// ConfigProtocols configures protocols for the device
 func (in *testInput) ConfigProtocols(dev *ondatra.DUTDevice) {
 	in.ConfigRPL(dev)
 	in.ConfigBGP(dev)
 	in.ConfigISIS(dev)
 	in.ConfigJSON(dev)
 }
+
+// ConfigAte configures ATE
 func (in *testInput) ConfigAte(dev *ondatra.ATEDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	feature.ConfigIxiaTopology(dev, in.t, dvc)
 
 }
+
+// StartAteProtocols starts protocols on ATE
 func (in *testInput) StartAteProtocols(dev *ondatra.ATEDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	feature.StartIxiaProtocols(dev, in.t, dvc)
 }
+
+// ConfigRPL configures RPL
 func (in *testInput) ConfigRPL(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	rpls := dvc.Routepolicy
@@ -186,6 +198,8 @@ func (in *testInput) ConfigRPL(dev *ondatra.DUTDevice) {
 		}
 	}
 }
+
+// ReplaceRPL Replaces RPL in the device
 func (in *testInput) ReplaceRPL(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	rpls := dvc.Routepolicy
@@ -197,6 +211,8 @@ func (in *testInput) ReplaceRPL(dev *ondatra.DUTDevice) {
 		}
 	}
 }
+
+// UnConfigRPL removes RPL in the device
 func (in *testInput) UnConfigRPL(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	rpls := dvc.Routepolicy
@@ -209,6 +225,7 @@ func (in *testInput) UnConfigRPL(dev *ondatra.DUTDevice) {
 	}
 }
 
+// ConfigBGP configure BGP on the device
 func (in *testInput) ConfigBGP(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	bgps := dvc.Bgp
@@ -221,6 +238,7 @@ func (in *testInput) ConfigBGP(dev *ondatra.DUTDevice) {
 	}
 }
 
+// ConfigJSON sends a Raw JSON config
 func (in *testInput) ConfigJSON(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	jsonConfigs := dvc.JsonConfig
@@ -233,6 +251,7 @@ func (in *testInput) ConfigJSON(dev *ondatra.DUTDevice) {
 	}
 }
 
+// ConfigISIS configures ISIS on the device
 func (in *testInput) ConfigISIS(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	fmt.Println(dvc)
@@ -247,11 +266,14 @@ func (in *testInput) ConfigISIS(dev *ondatra.DUTDevice) {
 	}
 }
 
+// UnConfig Removes all device configs as in input file
 func (in *testInput) UnConfig(dev *ondatra.DUTDevice) {
 	in.UnConfigProtocols(dev)
 	in.UnConfigInterfaces(dev)
 	in.UnConfigVrf(dev)
 }
+
+// UnConfigVrf removes Vrf config from device
 func (in *testInput) UnConfigVrf(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	vrfs := dvc.Vrf
@@ -264,12 +286,14 @@ func (in *testInput) UnConfigVrf(dev *ondatra.DUTDevice) {
 	}
 }
 
+// UnConfigProtocols removes protocol configurations from device
 func (in *testInput) UnConfigProtocols(dev *ondatra.DUTDevice) {
 	in.UnConfigRPL(dev)
 	in.UnConfigBGP(dev)
 	in.UnConfigISIS(dev)
 }
 
+// UnConfigBGP removes BGP configurations from device
 func (in *testInput) UnConfigBGP(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	bgps := dvc.Bgp
@@ -282,6 +306,7 @@ func (in *testInput) UnConfigBGP(dev *ondatra.DUTDevice) {
 	}
 }
 
+// UnConfigISIS removes ISIS from the device
 func (in *testInput) UnConfigISIS(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	isiss := dvc.Isis
@@ -294,6 +319,7 @@ func (in *testInput) UnConfigISIS(dev *ondatra.DUTDevice) {
 	}
 }
 
+// UnConfigInterfaces unconfigures all interface configurations
 func (in *testInput) UnConfigInterfaces(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())
 	interfaces := dvc.Interface
@@ -313,10 +339,12 @@ type device struct {
 	interfaces []*feature.IfObject
 }
 
+// Interfaces all resolved interfaces
 func (in *device) Interfaces() []*feature.IfObject {
 	return in.interfaces
 }
 
+// Device returns Device properties (features and interfaces)
 func (in *testInput) Device(dev *ondatra.DUTDevice) testinput.Device {
 	devFeatures := &proto.Input_Feature{}
 	features := in.data.Feature
@@ -337,6 +365,8 @@ func (in *testInput) Device(dev *ondatra.DUTDevice) testinput.Device {
 		interfaces: interfaces,
 	}
 }
+
+// ATE returns ATE properties (features and interfaces)
 func (in *testInput) ATE(dev *ondatra.ATEDevice) testinput.ATE {
 	devFeatures := &proto.Input_Feature{}
 	features := in.data.Feature
@@ -363,10 +393,13 @@ type ifgroup struct {
 	interfaces     map[string]*feature.IfObject
 }
 
+// Features returns all features for a device
 func (in *device) Features() *proto.Input_Feature {
 	return in.features
 
 }
+
+// GetInterface returns  the required interface
 func (in *device) GetInterface(name string) testinput.Intf {
 	for _, intf := range in.interfaces {
 		if intf.Name() == name {
@@ -383,6 +416,7 @@ func (in *device) GetInterface(name string) testinput.Intf {
 
 }
 
+// IFGroup returns a particular interface group
 func (in *device) IFGroup(groupName string) testinput.IfGroup {
 	ifg := ifgroup{
 		ifnames:        []string{},
@@ -418,9 +452,20 @@ func (in *device) IFGroup(groupName string) testinput.IfGroup {
 	return &ifg
 }
 
-func (x *ifgroup) Names() []string                          { return x.ifnames }
-func (x *ifgroup) Ipv4Addresses() []string                  { return x.v4addresses }
-func (x *ifgroup) Ipv4AddressMasks() []string               { return x.v4addressmasks }
-func (x *ifgroup) Ipv6Addresses() []string                  { return x.v6addresses }
-func (x *ifgroup) Ipv6AddressMasks() []string               { return x.v6addressmasks }
+// Names return all IF names  in a Group
+func (x *ifgroup) Names() []string { return x.ifnames }
+
+// Ipv4Addresses return all IF Ipv4Addresses  in a Group
+func (x *ifgroup) Ipv4Addresses() []string { return x.v4addresses }
+
+// Ipv4AddressMasks return all IF Ipv4AddressMasks  in a Group
+func (x *ifgroup) Ipv4AddressMasks() []string { return x.v4addressmasks }
+
+// Ipv6Addresses return all IF Ipv6Addresses  in a Group
+func (x *ifgroup) Ipv6Addresses() []string { return x.v6addresses }
+
+// Ipv6AddressMasks return all IF Ipv6AddressMasks in a Group
+func (x *ifgroup) Ipv6AddressMasks() []string { return x.v6addressmasks }
+
+// nterfaces return all IF objects  in a Group
 func (x *ifgroup) Interfaces() map[string]*feature.IfObject { return x.interfaces }

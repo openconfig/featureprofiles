@@ -341,6 +341,7 @@ func (x *uint128) compare(low uint64, high uint64) bool {
 	return true
 }
 
+// GetIFs returns the interface objects after solving them for scale
 func GetIFs(dev *ondatra.DUTDevice, t *testing.T, intf *proto.Input_Interface) []*IfObject {
 	ifs := []*IfObject{}
 	name := intf.Name
@@ -385,6 +386,7 @@ func GetIFs(dev *ondatra.DUTDevice, t *testing.T, intf *proto.Input_Interface) [
 
 }
 
+// IfObject holds interface information
 type IfObject struct {
 	id             string
 	name           string
@@ -400,17 +402,38 @@ type IfObject struct {
 	members        []string
 }
 
-func (x *IfObject) Name() string            { return x.name }
-func (x *IfObject) Members() []string       { return x.members }
-func (x *IfObject) ID() string              { return x.id }
-func (x *IfObject) Ipv4Address() string     { return x.v4address }
+// Name return interface Name
+func (x *IfObject) Name() string { return x.name }
+
+// Members return interface aggregation Members
+func (x *IfObject) Members() []string { return x.members }
+
+// ID return interface ID
+func (x *IfObject) ID() string { return x.id }
+
+// Ipv4Address return interface Ipv4Address
+func (x *IfObject) Ipv4Address() string { return x.v4address }
+
+// Ipv4AddressMask return interface Ipv4AddressMask
 func (x *IfObject) Ipv4AddressMask() string { return x.v4addressmask }
+
+// Ipv4PrefixLength return interface Ipv4PrefixLength
 func (x *IfObject) Ipv4PrefixLength() uint8 { return uint8(x.v4prefixlength) }
-func (x *IfObject) Ipv6Address() string     { return x.v6address }
+
+// Ipv6Address return interface Ipv6Address
+func (x *IfObject) Ipv6Address() string { return x.v6address }
+
+// Ipv6AddressMask return interface Ipv6AddressMask
 func (x *IfObject) Ipv6AddressMask() string { return x.v6addressmask }
+
+// Ipv6PrefixLength return interface Ipv6PrefixLength
 func (x *IfObject) Ipv6PrefixLength() uint8 { return uint8(x.v6prefixlength) }
-func (x *IfObject) Vrf() string             { return x.vrf }
-func (x *IfObject) Group() string           { return x.group }
+
+// Vrf return interface Vrf
+func (x *IfObject) Vrf() string { return x.vrf }
+
+// Group return interface Group
+func (x *IfObject) Group() string { return x.group }
 
 func getVlan(t *testing.T, dut *ondatra.DUTDevice, intf *proto.Input_Interface, vlan *proto.Input_Vlan, vlanid *uint32, encapid *uint16) []*IfObject {
 	vlans := []*IfObject{}

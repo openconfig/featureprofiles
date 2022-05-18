@@ -137,6 +137,8 @@ func getAddPathsNeighbor(addPaths []proto.Input_BGP_AdditionalPaths) *oc.Network
 
 	return model
 }
+
+// GetAfisafiType returns the proto format enum for afisafi for an input file parameter
 func GetAfisafiType(afisafitype proto.Input_BGP_AfiSafiType) oc.E_BgpTypes_AFI_SAFI_TYPE {
 	switch afisafitype {
 	case proto.Input_BGP_IPV4_FLOWSPEC:

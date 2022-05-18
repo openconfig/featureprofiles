@@ -11,6 +11,7 @@ import (
 	oc "github.com/openconfig/ondatra/telemetry"
 )
 
+// ConfigISIS configures ISIS as in input file
 func ConfigISIS(dev *ondatra.DUTDevice, t *testing.T, isis *proto.Input_ISIS) error {
 	if isis.Vrf == "" {
 		isis.Vrf = "default"
@@ -30,6 +31,7 @@ func ConfigISIS(dev *ondatra.DUTDevice, t *testing.T, isis *proto.Input_ISIS) er
 
 }
 
+// UnConfigISIS Deletes ISIS as in input file
 func UnConfigISIS(dev *ondatra.DUTDevice, t *testing.T, isis *proto.Input_ISIS) error {
 	if isis.Vrf == "" {
 		isis.Vrf = "default"
@@ -87,6 +89,7 @@ func getIsisglobalAfi(isis *proto.Input_ISIS) map[oc.E_IsisTypes_AFI_TYPE]*oc.Ne
 
 }
 
+// GetIsisAfiSafiname returns the proto format enum for afisafi for an input file parameter
 func GetIsisAfiSafiname(afisafitype proto.Input_ISIS_AfiSafiType) (oc.E_IsisTypes_AFI_TYPE, oc.E_IsisTypes_SAFI_TYPE) {
 
 	switch afisafitype {
@@ -103,6 +106,8 @@ func GetIsisAfiSafiname(afisafitype proto.Input_ISIS_AfiSafiType) (oc.E_IsisType
 
 	}
 }
+
+// GetIsisLevelType returns the level type enum for input file parameter
 func GetIsisLevelType(afisafitype proto.Input_ISIS_Level) oc.E_IsisTypes_LevelType {
 	switch afisafitype {
 	case proto.Input_ISIS_level_1:
