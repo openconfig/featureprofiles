@@ -125,6 +125,19 @@ func TestCLIConfigViaSSH(t *testing.T) {
 
 func TestGNMIFullCommitReplace(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	config.GNMICommitReplace(context.Background(), t, dut, fullConfig)
+}
+
+func TestGNMIFullCommitReplaceWithOC(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	_, err := config.GNMICommitReplace(context.Background(), t, dut, fullConfig)
+	if err != nil {
+		t.Fatalf("TestGNMIFullCommitReplace is failed: %v", err)
+	}
+}
+
+func TestHWModuleWithGNMI(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 	_, err := config.GNMICommitReplace(context.Background(), t, dut, fullConfig)
 	if err != nil {
 		t.Fatalf("TestGNMIFullCommitReplace is failed: %v", err)
