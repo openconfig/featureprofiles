@@ -14,7 +14,6 @@ const (
 var (
 	testInput = ipb.LoadInput(inputFile)
 	device1   = "dut"
-	device2   = "peer"
 	ate1      = "ate"
 	observer  = fptest.NewObserver().AddCsvRecorder("ocreport").
 			AddCsvRecorder("BGP")

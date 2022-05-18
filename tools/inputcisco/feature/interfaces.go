@@ -45,7 +45,7 @@ func UnConfigInterfaces(dev *ondatra.DUTDevice, t *testing.T, intf *proto.Input_
 	if strings.HasPrefix(strings.ToLower(intf.Name), "bundle") {
 		for _, intfname := range intf.Members {
 			deleteInterface(t, dev, intf, oc.IETFInterfaces_InterfaceType_ieee8023adLag)
-			createBundleInterface(t, dev, solver.Solver(t, dev, intfname), intf.Name, intf)
+			deleteBundleInterface(t, dev, solver.Solver(t, dev, intfname), intf.Name, intf)
 		}
 	} else if strings.HasPrefix(strings.ToLower(intf.Name), "loopback") {
 		deleteInterface(t, dev, intf, oc.IETFInterfaces_InterfaceType_softwareLoopback)
@@ -231,7 +231,7 @@ func getvlanID(encap proto.Input_Encap, encapid *uint16) (oc.Interface_Subinterf
 }
 
 func convertIPDec(addr net.IP, ipv string) *uint128 {
-	ipbit := net.IP{}
+	var ipbit net.IP
 	groupLen := uint64(0)
 	iprep := uint128{0, 0}
 	//default is ipv6
@@ -289,7 +289,7 @@ type uint128 struct {
 
 func (x uint128) add(low uint64, high uint64) (y uint128) {
 	_low, carry := bits.Add64(x.Low, low, 0)
-	_high, carry := bits.Add64(x.High, high, carry)
+	_high, _ := bits.Add64(x.High, high, carry)
 	y.Low = _low
 	y.High = _high
 	return
@@ -470,6 +470,9 @@ func getVlan(t *testing.T, dut *ondatra.DUTDevice, intf *proto.Input_Interface, 
 		if v4err == nil {
 			if iter != int32(0) {
 				v4dec, v4ip, err = nextIP(*v4dec, vlan.V4Step, v4net, "v4")
+				if err != nil {
+					return vlans
+				}
 				v6dec, v6ip, err = nextIP(*v6dec, vlan.V6Step, v6net, "v6")
 				if err != nil {
 					return vlans

@@ -2,7 +2,6 @@ package fptest
 
 import (
 	"encoding/csv"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -40,7 +39,7 @@ func (o *Observer) RecordYgot(t *testing.T, operation string, pathstruct ygot.Pa
 		for _, listner := range o.listeners {
 			err := listner.record(event)
 			if err != nil {
-				t.Log(fmt.Sprintf("Unable to record , logging instead %s - %s - %s - %s ", event.testname, event.path, event.operation, event.status))
+				t.Logf("Unable to record , logging instead %s - %s - %s - %s ", event.testname, event.path, event.operation, event.status)
 
 			}
 

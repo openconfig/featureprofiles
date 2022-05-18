@@ -35,32 +35,7 @@ func ConfigJSON(dev *ondatra.DUTDevice, t *testing.T, fp string) error {
 	return nil
 }
 
-// UnConfigJSON sends an Delete request in raw JSON format
-func UnConfigJSON(dev *ondatra.DUTDevice, t *testing.T, fp string) error {
-	client := dev.RawAPIs().GNMI().New(t)
-	rawjson, err := readJSON(fp)
-	if err != nil {
-		t.Errorf("Unable to read json config file %s %v", fp, err)
-	}
-	client.Set(context.Background(), configJSON(rawjson))
-	return nil
-}
 func configJSON(config string) *gnmipb.SetRequest {
-	return &gnmipb.SetRequest{
-		Update: []*gnmipb.Update{{
-			Path: &gnmipb.Path{
-				Origin: "openconfig",
-				Elem:   []*gnmipb.PathElem{},
-			},
-			Val: &gnmipb.TypedValue{
-				Value: &gnmipb.TypedValue_JsonIetfVal{
-					JsonIetfVal: []byte(config),
-				},
-			},
-		}},
-	}
-}
-func unconfigJSON(config string) *gnmipb.SetRequest {
 	return &gnmipb.SetRequest{
 		Update: []*gnmipb.Update{{
 			Path: &gnmipb.Path{

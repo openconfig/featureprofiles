@@ -65,19 +65,13 @@ func addLoopback(t *testing.T, topo *ondatra.ATETopology, port, loopbackPrefix s
 	}
 	intfs[port].WithIPv4Loopback(loopbackPrefix)
 }
+
 func addIpv4Network(t *testing.T, topo *ondatra.ATETopology, port, networkName, addressCIDR string, count uint32) {
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
 	}
 	intfs[port].AddNetwork(networkName).IPv4().WithAddress(addressCIDR).WithCount(count)
-}
-func addIpv6Network(t *testing.T, topo *ondatra.ATETopology, port, networkName, addressCIDR string, count uint32) {
-	intfs := topo.Interfaces()
-	if len(intfs) == 0 {
-		t.Fatal("There are no interfaces in the Topology")
-	}
-	intfs[port].AddNetwork(networkName).IPv6().WithAddress(addressCIDR).WithCount(count)
 }
 
 func configIXIATopology(t *testing.T, dev *ondatra.ATEDevice, feature *proto.Input_Feature) *ondatra.ATETopology {

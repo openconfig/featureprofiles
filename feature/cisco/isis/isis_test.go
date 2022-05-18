@@ -459,10 +459,7 @@ func TestISISState(t *testing.T) {
 	t.Run("state//network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/spf-runs", func(t *testing.T) {
 		state := systemLevelCountersPath.SpfRuns()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
-		if val < 0 {
-			t.Errorf("ISIS System Level Counters SpfRuns: got %d, want >=%d", val, 0)
-		}
+		state.Get(t)
 	})
 	//store initial values of CircuitCounters
 	iCC := isisPath.Interface(intf.Name).CircuitCounters().Get(t)
