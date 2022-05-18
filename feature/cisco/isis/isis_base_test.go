@@ -41,8 +41,8 @@ func setInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interfaceName strin
 		Enabled: ygot.Bool(adminState),
 		Name:    ygot.String(interfaceName),
 	}
-	update_response := dut.Config().Interface(interfaceName).Update(t, i)
-	t.Logf("Update response : %v", update_response)
+	updateResponse := dut.Config().Interface(interfaceName).Update(t, i)
+	t.Logf("Update response : %v", updateResponse)
 	currEnabledState := dut.Telemetry().Interface(interfaceName).Get(t).GetEnabled()
 	if currEnabledState != adminState {
 		t.Fatalf("Failed to set interface adminState to :%v", adminState)
