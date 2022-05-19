@@ -111,6 +111,21 @@ var (
 			desc: "Test RT3.2 with multiple DSCP, IPinIP protocol based VRF selection",
 			fn:   testMultipleDscpProtocolRuleBasedVRFSelection,
 		},
+		{
+			name: "Remove existing class-map",
+			desc: "Remove existing class-map which is not related to matching protocol IPinIP and verify traffic",
+			fn:   testRemoveClassMap,
+		},
+		{
+			name: "Change existing action",
+			desc: "Change existing action to a new VRF with existing class-map and verify traffic",
+			fn:   testChangeAction,
+		},
+		{
+			name: "Add new class-map",
+			desc: "Add new class-map to existing policy and verify traffic",
+			fn:   testAddClassMap,
+		},
 	}
 )
 

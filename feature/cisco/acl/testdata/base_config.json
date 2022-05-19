@@ -84,9 +84,9 @@
         "egress-acl-sets": {
           "egress-acl-set": [
             {
-              "set-name": "egressacl1",
+              "set-name": "acl1",
               "state": {
-                "set-name": "egressacl1",
+                "set-name": "acl1",
                 "type": "openconfig-acl:ACL_IPV4"
               },
               "type": "openconfig-acl:ACL_IPV4"
