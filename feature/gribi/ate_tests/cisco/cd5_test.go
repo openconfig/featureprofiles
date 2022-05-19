@@ -353,9 +353,8 @@ func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testAddRemoveHWModule(ctx context.Context, t *testing.T, args *testArgs) {
-	//defer configBasePBR(t, args.dut)
-	//defer flushSever(t, args)
-	// configure gribi and check traffic
+	defer flushSever(t, args)
+	
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -383,6 +382,7 @@ func testAddRemoveHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 	afterReloadConfig = ""
 	config.Reload(context.Background(), t, args.dut, beforeReloadConfig, afterReloadConfig, 6*time.Minute)
 	args.clientA.StartWithNoCache(t)
+	args.clientA.BecomeLeader(t)
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
