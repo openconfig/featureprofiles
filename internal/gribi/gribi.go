@@ -154,18 +154,6 @@ func (c *Client) BecomeLeader(t testing.TB) {
 	c.UpdateElectionID(t, newLow, high)
 }
 
-func (c *Client) GetElectionID(ctx context.Context, t testing.TB) (low, high uint64) {
-	mu.Lock()
-	defer mu.Unlock()
-	_, ok := electionID[c.DUT]
-	if !ok {
-		electionID[c.DUT] = gribi.Uint128{Low: 0,
-			High: 0,
-		}
-	}
-	return electionID[c.DUT].Low, electionID[c.DUT].High
-}
-
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
 func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {

@@ -30,11 +30,91 @@ import (
 	"github.com/openconfig/gribigo/server"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygot/ygot"
 )
 
 var (
 	ixiaTopology = make(map[string]*ondatra.ATETopology)
 )
+
+const (
+	pbrName = "PBR"
+)
+
+func configbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
+	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r1.SequenceId = ygot.Uint32(1)
+	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+	}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+
+	r2 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r2.SequenceId = ygot.Uint32(2)
+	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		DscpSet: []uint8{*ygot.Uint8(16)},
+	}
+	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+
+	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r3.SequenceId = ygot.Uint32(3)
+	r3.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		DscpSet: []uint8{*ygot.Uint8(18)},
+	}
+	r3.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("VRF1")}
+
+	r4 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r4.SequenceId = ygot.Uint32(4)
+	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		DscpSet: []uint8{*ygot.Uint8(48)},
+	}
+	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+
+	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
+	p.PolicyId = ygot.String(pbrName)
+	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
+	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2, 3: &r3, 4: &r4}
+
+	policy := telemetry.NetworkInstance_PolicyForwarding{}
+	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+
+	dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+}
+
+func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+
+	t.Log("Remove Flowspec Config and add HW Module Config")
+	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
+	util.GNMIWithText(ctx, t, dut, configToChange)
+
+	t.Log("Configure PBR policy and Apply it under interface")
+	configbasePBR(t, dut)
+	dut.Config().NetworkInstance("default").PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
+
+	t.Log("Reload the router to activate hw module config")
+	util.ReloadDUT(t, dut)
+
+}
+
+func generatePhysicalInterfaceConfig(t *testing.T, name, ipv4 string, prefixlen uint8) *telemetry.Interface {
+	i := &telemetry.Interface{}
+	i.Name = ygot.String(name)
+	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	a := s4.GetOrCreateAddress(ipv4)
+	a.PrefixLength = ygot.Uint8(prefixlen)
+	return i
+}
+
+func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *telemetry.Interface {
+	i := &telemetry.Interface{Name: ygot.String(name)}
+	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	e := i.GetOrCreateEthernet()
+	e.AutoNegotiate = ygot.Bool(false)
+	e.AggregateId = ygot.String(bundleID)
+	return i
+}
 
 func getIXIATopology(t *testing.T, ateName string) *ondatra.ATETopology {
 	topo, ok := ixiaTopology[ateName]
@@ -241,12 +321,11 @@ func checkTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, flow_duration time.
 
 type testArgs struct {
 	ctx      context.Context
-	c        *gribi.Client
+	c1       *gribi.Client
+	c2       *gribi.Client
 	dut      *ondatra.DUTDevice
 	ate      *ondatra.ATEDevice
 	topology *ondatra.ATETopology
-	fluentC  *fluent.GRIBIClient
-	elecLow  uint64
 }
 
 func TestMain(m *testing.M) {
@@ -255,15 +334,20 @@ func TestMain(m *testing.M) {
 
 func testCD2ConnectedNHIP(t *testing.T, args *testArgs) {
 
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
+
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 	}
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 4; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -297,11 +381,16 @@ func testCD2ConnectedNHIP(t *testing.T, args *testArgs) {
 }
 
 func testCD2RecursiveNonConnectedNHOP(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
+
 	ops := []func(){
 
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40),
@@ -318,11 +407,11 @@ func testCD2RecursiveNonConnectedNHOP(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(20, 99))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 7; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -358,16 +447,20 @@ func testCD2RecursiveNonConnectedNHOP(t *testing.T, args *testArgs) {
 
 // Transit-46 ADD same IPv4 Entry verify no traffic impact
 func testAddIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 	}
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 4; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -387,18 +480,20 @@ func testAddIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
 	ate.Traffic().Start(t, baseflow)
 
 	// Add same ipv4 entry
-	args.dut.GRIBI().SynchElectionID(t, true)
-	c2 := args.dut.GRIBI().MasterClient(t)
+	args.c2.BecomeLeader(t)
+	fluentC2 := args.c2.Fluent(t)
+	defer util.FlushServer(fluentC2, t)
+	elecLow2, _ := args.c2.LearnElectionID(t)
 	ops2 := []func(){
 		func() {
-			c2.Modify().AddEntry(t,
+			fluentC2.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 			)
 		},
 	}
-	res2 := util.DoModifyOps(args.fluentC, t, ops2, fluent.InstalledInRIB, false, args.elecLow+2)
+	res2 := util.DoModifyOps(fluentC2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
 
-	for i := uint64(4); i < 5; i++ {
+	for i := uint64(1); i < 2; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
 			WithOperationID(i).
 			WithProgrammingResult(fluent.InstalledInRIB).
@@ -417,21 +512,24 @@ func testAddIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
 	} else {
 		t.Log("There is no traffic loss.")
 	}
-
 }
 
 // Transit-47 REPLACE same IPv4 Entry verify no traffic impact
 func testReplaceIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 	}
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 4; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -451,18 +549,20 @@ func testReplaceIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
 	ate.Traffic().Start(t, baseflow)
 
 	// Replace same ipv4 entry
-	args.dut.GRIBI().SynchElectionID(t, true)
-	c2 := args.dut.GRIBI().MasterClient(t)
+	args.c2.BecomeLeader(t)
+	fluentC2 := args.c2.Fluent(t)
+	defer util.FlushServer(fluentC2, t)
+	elecLow2, _ := args.c2.LearnElectionID(t)
 	ops2 := []func(){
 		func() {
-			c2.Modify().ReplaceEntry(t,
+			fluentC2.Modify().ReplaceEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 			)
 		},
 	}
-	res2 := util.DoModifyOps(args.fluentC, t, ops2, fluent.InstalledInRIB, false, args.elecLow+2)
+	res2 := util.DoModifyOps(fluentC2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
 
-	for i := uint64(4); i < 5; i++ {
+	for i := uint64(1); i < 2; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
 			WithOperationID(i).
 			WithProgrammingResult(fluent.InstalledInRIB).
@@ -486,16 +586,19 @@ func testReplaceIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
 
 // Transit-48 ADD same NHG verify no traffic impact
 func testAddNHGTrafficCheck(t *testing.T, args *testArgs) {
-
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 	}
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 4; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -515,18 +618,20 @@ func testAddNHGTrafficCheck(t *testing.T, args *testArgs) {
 	ate.Traffic().Start(t, baseflow)
 
 	// Add same NHG entry
-	args.dut.GRIBI().SynchElectionID(t, true)
-	c2 := args.dut.GRIBI().MasterClient(t)
+	args.c2.BecomeLeader(t)
+	fluentC2 := args.c2.Fluent(t)
+	defer util.FlushServer(fluentC2, t)
+	elecLow2, _ := args.c2.LearnElectionID(t)
 	ops2 := []func(){
 		func() {
-			c2.Modify().AddEntry(t,
+			fluentC2.Modify().AddEntry(t,
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 	}
-	res2 := util.DoModifyOps(args.fluentC, t, ops2, fluent.InstalledInRIB, false, args.elecLow+2)
+	res2 := util.DoModifyOps(fluentC2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
 
-	for i := uint64(4); i < 5; i++ {
+	for i := uint64(1); i < 2; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
 			WithOperationID(i).
 			WithProgrammingResult(fluent.InstalledInRIB).
@@ -549,16 +654,19 @@ func testAddNHGTrafficCheck(t *testing.T, args *testArgs) {
 
 // Transit-49 REPLACE same NHG verify no traffic impact
 func testReplaceNHGTrafficCheck(t *testing.T, args *testArgs) {
-
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 	}
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 4; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -578,18 +686,20 @@ func testReplaceNHGTrafficCheck(t *testing.T, args *testArgs) {
 	ate.Traffic().Start(t, baseflow)
 
 	// Replace same NHG entry
-	args.dut.GRIBI().SynchElectionID(t, true)
-	c2 := args.dut.GRIBI().MasterClient(t)
+	args.c2.BecomeLeader(t)
+	fluentC2 := args.c2.Fluent(t)
+	defer util.FlushServer(fluentC2, t)
+	elecLow2, _ := args.c2.LearnElectionID(t)
 	ops2 := []func(){
 		func() {
-			c2.Modify().ReplaceEntry(t,
+			fluentC2.Modify().ReplaceEntry(t,
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 	}
-	res2 := util.DoModifyOps(args.fluentC, t, ops2, fluent.InstalledInRIB, false, args.elecLow+2)
+	res2 := util.DoModifyOps(fluentC2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
 
-	for i := uint64(4); i < 5; i++ {
+	for i := uint64(1); i < 2; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
 			WithOperationID(i).
 			WithProgrammingResult(fluent.InstalledInRIB).
@@ -612,16 +722,19 @@ func testReplaceNHGTrafficCheck(t *testing.T, args *testArgs) {
 
 // Transit-50 ADD same NH verify no traffic impact
 func testAddNHTrafficCheck(t *testing.T, args *testArgs) {
-
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 	}
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 4; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -641,18 +754,20 @@ func testAddNHTrafficCheck(t *testing.T, args *testArgs) {
 	ate.Traffic().Start(t, baseflow)
 
 	// Add same NH entry
-	args.dut.GRIBI().SynchElectionID(t, true)
-	c2 := args.dut.GRIBI().MasterClient(t)
+	args.c2.BecomeLeader(t)
+	fluentC2 := args.c2.Fluent(t)
+	defer util.FlushServer(fluentC2, t)
+	elecLow2, _ := args.c2.LearnElectionID(t)
 	ops2 := []func(){
 		func() {
-			c2.Modify().AddEntry(t,
+			fluentC2.Modify().AddEntry(t,
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 			)
 		},
 	}
-	res2 := util.DoModifyOps(args.fluentC, t, ops2, fluent.InstalledInRIB, false, args.elecLow+2)
+	res2 := util.DoModifyOps(fluentC2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
 
-	for i := uint64(4); i < 5; i++ {
+	for i := uint64(1); i < 2; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
 			WithOperationID(i).
 			WithProgrammingResult(fluent.InstalledInRIB).
@@ -675,16 +790,19 @@ func testAddNHTrafficCheck(t *testing.T, args *testArgs) {
 
 // Transit-51 REPLACE same NH verify no traffic impact
 func testReplaceNHTrafficCheck(t *testing.T, args *testArgs) {
-
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 	}
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 4; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -704,18 +822,20 @@ func testReplaceNHTrafficCheck(t *testing.T, args *testArgs) {
 	ate.Traffic().Start(t, baseflow)
 
 	// Replace same NH entry
-	args.dut.GRIBI().SynchElectionID(t, true)
-	c2 := args.dut.GRIBI().MasterClient(t)
+	args.c2.BecomeLeader(t)
+	fluentC2 := args.c2.Fluent(t)
+	defer util.FlushServer(fluentC2, t)
+	elecLow2, _ := args.c2.LearnElectionID(t)
 	ops2 := []func(){
 		func() {
-			c2.Modify().ReplaceEntry(t,
+			fluentC2.Modify().ReplaceEntry(t,
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 			)
 		},
 	}
-	res2 := util.DoModifyOps(args.fluentC, t, ops2, fluent.InstalledInRIB, false, args.elecLow+2)
+	res2 := util.DoModifyOps(fluentC2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
 
-	for i := uint64(4); i < 5; i++ {
+	for i := uint64(1); i < 2; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
 			WithOperationID(i).
 			WithProgrammingResult(fluent.InstalledInRIB).
@@ -737,16 +857,19 @@ func testReplaceNHTrafficCheck(t *testing.T, args *testArgs) {
 }
 
 func testCD2SingleRecursion(t *testing.T, args *testArgs) {
-
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 	}
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 4; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -783,11 +906,14 @@ func testCD2SingleRecursion(t *testing.T, args *testArgs) {
 }
 
 func testCD2DoubleRecursion(t *testing.T, args *testArgs) {
-
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	ops := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -800,7 +926,7 @@ func testCD2DoubleRecursion(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -824,11 +950,11 @@ func testCD2DoubleRecursion(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+1000; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -843,16 +969,19 @@ func testCD2DoubleRecursion(t *testing.T, args *testArgs) {
 
 // Transit-34 REPLACE: default VRF IPv4 Entry with single path NHG+NH in default vrf
 func testReplaceDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
-
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.3"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.3"),
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 	}
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 4; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -863,20 +992,21 @@ func testReplaceDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 	}
 
 	// Add New NHG
-	args.dut.GRIBI().SynchElectionID(t, true)
-	elecLow2, _ := args.dut.GRIBI().GetElectionID(t)
-	c2 := args.dut.GRIBI().MasterClient(t)
+	args.c2.BecomeLeader(t)
+	fluentC2 := args.c2.Fluent(t)
+	defer util.FlushServer(fluentC2, t)
+	elecLow2, _ := args.c2.LearnElectionID(t)
 
 	ops2 := []func(){
 		func() {
-			c2.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.121.1.2"),
+			fluentC2.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.121.1.2"),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(12).AddNextHop(4, 15),
 			)
 		},
 	}
-	res2 := util.DoModifyOps(c2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
+	res2 := util.DoModifyOps(fluentC2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
 
-	for i := uint64(4); i < 6; i++ {
+	for i := uint64(1); i < 3; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
 			WithOperationID(i).
 			WithProgrammingResult(fluent.InstalledInRIB).
@@ -885,21 +1015,31 @@ func testReplaceDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 	}
 
 	// Replace VRF IPv4 Entry Pointing to different NHG
-	args.dut.GRIBI().SynchElectionID(t, true)
-	elecLow3, _ := args.dut.GRIBI().GetElectionID(t)
-	c3 := args.dut.GRIBI().MasterClient(t)
-
+	c3 := gribi.Client{
+		DUT:                  args.dut,
+		FibACK:               false,
+		Persistence:          true,
+		InitialElectionIDLow: 10,
+	}
+	defer c3.Close(t)
+	if err := c3.Start(t); err != nil {
+		t.Fatalf("gRIBI Connection can not be established")
+	}
+	c3.BecomeLeader(t)
+	fluentC3 := c3.Fluent(t)
+	defer util.FlushServer(fluentC3, t)
+	elecLow3, _ := c3.LearnElectionID(t)
 	ops3 := []func(){
 		func() {
-			c3.Modify().ReplaceEntry(t,
+			fluentC3.Modify().ReplaceEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("11.11.11.11/32").WithNextHopGroup(12).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 			)
 		},
 	}
-	res3 := util.DoModifyOps(c3, t, ops3, fluent.InstalledInRIB, false, elecLow3+1)
+	res3 := util.DoModifyOps(fluentC3, t, ops3, fluent.InstalledInRIB, false, elecLow3+1)
 
 	chk.HasResult(t, res3, fluent.OperationResult().
-		WithOperationID(6).
+		WithOperationID(1).
 		WithProgrammingResult(fluent.InstalledInRIB).
 		AsResult(),
 	)
@@ -930,16 +1070,19 @@ func testReplaceDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 
 // Transit-38 DELETE: VRF IPv4 Entry with single path NHG+NH in default vrf
 func testDeleteVRFIPv4EntrySinglePath(t *testing.T, args *testArgs) {
-
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 	}
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 4; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -972,20 +1115,21 @@ func testDeleteVRFIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 	}
 
 	// Delete Entry
-	args.dut.GRIBI().SynchElectionID(t, true)
-	elecLow2, _ := args.dut.GRIBI().GetElectionID(t)
-	c2 := args.dut.GRIBI().MasterClient(t)
+	args.c2.BecomeLeader(t)
+	fluentC2 := args.c2.Fluent(t)
+	defer util.FlushServer(fluentC2, t)
+	elecLow2, _ := args.c1.LearnElectionID(t)
 	ops2 := []func(){
 		func() {
-			args.fluentC.Modify().DeleteEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3),
+			fluentC2.Modify().DeleteEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11),
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 			)
 		},
 	}
-	res2 := util.DoModifyOps(c2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
+	res2 := util.DoModifyOps(fluentC2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
 
-	for i := uint64(4); i < 7; i++ {
+	for i := uint64(1); i < 4; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
 			WithOperationID(i).
 			WithProgrammingResult(fluent.InstalledInRIB).
@@ -997,16 +1141,19 @@ func testDeleteVRFIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 
 // Transit-42 DELETE: default VRF IPv4 Entry with single path NHG+NH in default vrf
 func testDeleteDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
-
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(6).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(6).WithIPAddress("100.121.1.2"),
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("11.11.11.11/32").WithNextHopGroup(16).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(16).AddNextHop(6, 15),
 			)
 		},
 	}
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 4; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -1039,20 +1186,21 @@ func testDeleteDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 	}
 
 	// Delete Entry
-	args.dut.GRIBI().SynchElectionID(t, true)
-	elecLow2, _ := args.dut.GRIBI().GetElectionID(t)
-	c2 := args.dut.GRIBI().MasterClient(t)
+	args.c2.BecomeLeader(t)
+	fluentC2 := args.c2.Fluent(t)
+	defer util.FlushServer(fluentC2, t)
+	elecLow2, _ := args.c1.LearnElectionID(t)
 	ops2 := []func(){
 		func() {
-			args.fluentC.Modify().DeleteEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(6),
+			fluentC2.Modify().DeleteEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(6),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(16),
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("11.11.11.11/32").WithNextHopGroup(16).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 			)
 		},
 	}
-	res2 := util.DoModifyOps(c2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
+	res2 := util.DoModifyOps(fluentC2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
 
-	for i := uint64(4); i < 7; i++ {
+	for i := uint64(1); i < 3; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
 			WithOperationID(i).
 			WithProgrammingResult(fluent.InstalledInRIB).
@@ -1064,25 +1212,28 @@ func testDeleteDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 
 //Transit TC 066 - Two prefixes with NHGs with backup pointing to the each other's NHG
 func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) {
-
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("12.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 			)
 		},
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.122.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.122.1.2"),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(14).WithBackupNHG(11).AddNextHop(4, 15),
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("12.11.11.12/32").WithNextHopGroup(14).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 			)
 		},
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).WithBackupNHG(14).AddNextHop(3, 15))
+			fluentC1.Modify().AddEntry(t, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).WithBackupNHG(14).AddNextHop(3, 15))
 		},
 	}
-	results := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < uint64(len(results)-2); i++ {
 		chk.HasResult(t, results, fluent.OperationResult().
@@ -1107,11 +1258,14 @@ func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) 
 
 //Transit TC 067 - Same forwarding entries across multiple vrfs
 func testSameForwardingEntriesAcrossMultipleVrfs(t *testing.T, args *testArgs) {
-	elecLow, _ := args.dut.GRIBI().GetElectionID(t)
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.122.1.2"),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(14).WithBackupNHG(11).AddNextHop(4, 15),
@@ -1121,12 +1275,12 @@ func testSameForwardingEntriesAcrossMultipleVrfs(t *testing.T, args *testArgs) {
 		},
 		func() {
 			//Add previously used prefixes in a different vrf
-			args.fluentC.Modify().AddEntry(t, fluent.IPv4Entry().WithNetworkInstance("VRF1").WithPrefix("12.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
+			fluentC1.Modify().AddEntry(t, fluent.IPv4Entry().WithNetworkInstance("VRF1").WithPrefix("12.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.IPv4Entry().WithNetworkInstance("VRF1").WithPrefix("12.11.11.12/32").WithNextHopGroup(14).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 			)
 		},
 	}
-	results := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, elecLow+1)
+	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < uint64(len(results)-2); i++ {
 		chk.HasResult(t, results, fluent.OperationResult().
@@ -1154,11 +1308,15 @@ func testSameForwardingEntriesAcrossMultipleVrfs(t *testing.T, args *testArgs) {
 // Transit-11: Next Hop resoultion with interface in different VRF of NH_network_instance
 func testNHInterfaceInDifferentVRF(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Next Hop resoultion with interface in different VRF of NH_network_instance")
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -1171,7 +1329,7 @@ func testNHInterfaceInDifferentVRF(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 10).
@@ -1195,11 +1353,11 @@ func testNHInterfaceInDifferentVRF(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+1000; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -1212,13 +1370,13 @@ func testNHInterfaceInDifferentVRF(t *testing.T, args *testArgs) {
 	// Correct the related NH and verify traffic
 	ops = []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
 			)
 		},
 	}
 
-	res = util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+2)
+	res = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+2)
 
 	chk.HasResult(t, res, fluent.OperationResult().
 		WithOperationID(1015).
@@ -1232,11 +1390,15 @@ func testNHInterfaceInDifferentVRF(t *testing.T, args *testArgs) {
 // Transit-13: Next Hop resolution with interface+IP out of that interface subnet
 func testNHIPOutOfInterfaceSubnet(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Next Hop resolution with interface+IP out of that interface subnet")
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 30).
@@ -1249,7 +1411,7 @@ func testNHIPOutOfInterfaceSubnet(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 10).
@@ -1273,11 +1435,11 @@ func testNHIPOutOfInterfaceSubnet(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+1000; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -1290,13 +1452,13 @@ func testNHIPOutOfInterfaceSubnet(t *testing.T, args *testArgs) {
 	// Correct the related NH and verify traffic
 	ops = []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
 			)
 		},
 	}
 
-	res = util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+2)
+	res = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+2)
 
 	chk.HasResult(t, res, fluent.OperationResult().
 		WithOperationID(1015).
@@ -1310,11 +1472,14 @@ func testNHIPOutOfInterfaceSubnet(t *testing.T, args *testArgs) {
 // Transit-16:Changing IP address on I/F making NHOP unreachable and changing it back
 func testChangeNHToUnreachableAndChangeBack(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Changing IP address on I/F making NHOP unreachable and changing it back")
-
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	ops := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 15).
@@ -1328,7 +1493,7 @@ func testChangeNHToUnreachableAndChangeBack(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 10).
@@ -1352,11 +1517,11 @@ func testChangeNHToUnreachableAndChangeBack(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+1000; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -1368,13 +1533,13 @@ func testChangeNHToUnreachableAndChangeBack(t *testing.T, args *testArgs) {
 	// Correct the related NH and verify traffic
 	ops = []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("1.2.3.4"),
 			)
 		},
 	}
 
-	res = util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+2)
+	res = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+2)
 
 	chk.HasResult(t, res, fluent.OperationResult().
 		WithOperationID(1015).
@@ -1385,13 +1550,13 @@ func testChangeNHToUnreachableAndChangeBack(t *testing.T, args *testArgs) {
 	// Correct the related NH and verify traffic
 	ops = []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
 			)
 		},
 	}
 
-	res = util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+3)
+	res = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+3)
 
 	chk.HasResult(t, res, fluent.OperationResult().
 		WithOperationID(1016).
@@ -1406,17 +1571,21 @@ func testChangeNHToUnreachableAndChangeBack(t *testing.T, args *testArgs) {
 // Transit-19: Next Hop Group resolution change NH from recursive and non-recursive
 func testChangeNHFromRecursiveToNonRecursive(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Next Hop Group resolution change NH from recursive and non-recursive")
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -1430,7 +1599,7 @@ func testChangeNHFromRecursiveToNonRecursive(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 15).
@@ -1454,11 +1623,11 @@ func testChangeNHFromRecursiveToNonRecursive(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+1000; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -1475,11 +1644,11 @@ func testChangeNHFromRecursiveToNonRecursive(t *testing.T, args *testArgs) {
 			for i := 0; i < scale; i++ {
 				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res = util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+2)
+	res = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+2)
 
 	for i := uint64(1017); i < 1015+1000; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -1496,14 +1665,17 @@ func testChangeNHFromRecursiveToNonRecursive(t *testing.T, args *testArgs) {
 // Transit TC 073 - ADD/REPLACE/DELETE during related interface flap
 func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Add, Replace, Delete operations with related interface flap")
-
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	scale := 100
 
 	ops := []func(){
 		//Add all entries
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -1516,7 +1688,7 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 15).
@@ -1539,12 +1711,12 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 		//Replace all entries
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().ReplaceEntry(t,
+			fluentC1.Modify().ReplaceEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -1557,7 +1729,7 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().ReplaceEntry(t,
+			fluentC1.Modify().ReplaceEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 10).
@@ -1580,12 +1752,12 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().ReplaceEntry(t, entries...)
+			fluentC1.Modify().ReplaceEntry(t, entries...)
 		},
 		//Delete all entries
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().DeleteEntry(t,
+			fluentC1.Modify().DeleteEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -1598,7 +1770,7 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().DeleteEntry(t,
+			fluentC1.Modify().DeleteEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 10).
@@ -1621,10 +1793,10 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().DeleteEntry(t, entries...)
+			fluentC1.Modify().DeleteEntry(t, entries...)
 		},
 	}
-	results := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := 1; i <= 3*(scale+14); i++ {
 		chk.HasResult(t, results, fluent.OperationResult().
@@ -1643,12 +1815,10 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 		ocutils.SetInterfaceState(t, args.dut, interface_name, true)
 	}
 
-	args.dut.GRIBI().SynchElectionID(t, true)
-	args.fluentC = args.dut.GRIBI().MasterClient(t)
 	ops = []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 15).
@@ -1661,7 +1831,7 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 10).
@@ -1683,11 +1853,11 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	results = util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	results = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := 3*(scale+14) + 1; i <= 4*(scale+14); i++ {
 		chk.HasResult(t, results, fluent.OperationResult().
@@ -1703,11 +1873,15 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 
 //Transit-40	DELETE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf
 func testDeleteVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -1720,7 +1894,7 @@ func testDeleteVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 15).
@@ -1744,11 +1918,11 @@ func testDeleteVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+1000; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -1764,7 +1938,7 @@ func testDeleteVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	ops2 := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().DeleteEntry(t,
+			fluentC1.Modify().DeleteEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -1777,7 +1951,7 @@ func testDeleteVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().DeleteEntry(t,
+			fluentC1.Modify().DeleteEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -1801,11 +1975,11 @@ func testDeleteVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().DeleteEntry(t, entries...)
+			fluentC1.Modify().DeleteEntry(t, entries...)
 		},
 	}
 
-	res2 := util.DoModifyOps(args.fluentC, t, ops2, fluent.InstalledInRIB, false, args.elecLow+2)
+	res2 := util.DoModifyOps(fluentC1, t, ops2, fluent.InstalledInRIB, false, elecLow1+2)
 
 	for i := uint64(1015); i < 1015+1000; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
@@ -1821,10 +1995,14 @@ func testDeleteVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 //Transit-45	DELETE: default VRF IPv4 Entry with ECMP+backup path NHG+NH in default vrf
 func testDeleteDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.122.1.2"),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(14).WithBackupNHG(11).AddNextHop(4, 15),
@@ -1834,7 +2012,7 @@ func testDeleteDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 7; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -1849,7 +2027,7 @@ func testDeleteDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	// Delete
 	ops2 := []func(){
 		func() {
-			args.fluentC.Modify().DeleteEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().DeleteEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.122.1.2"),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(14).WithBackupNHG(11).AddNextHop(4, 15),
@@ -1858,7 +2036,7 @@ func testDeleteDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 			)
 		},
 	}
-	res2 := util.DoModifyOps(args.fluentC, t, ops2, fluent.InstalledInRIB, false, args.elecLow+2)
+	res2 := util.DoModifyOps(fluentC1, t, ops2, fluent.InstalledInRIB, false, elecLow1+2)
 
 	for i := uint64(7); i < 13; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
@@ -1875,11 +2053,15 @@ func testDeleteDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 //Transit-32 REPLACE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf
 func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -1892,7 +2074,7 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -1916,11 +2098,11 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+1000; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -1948,11 +2130,11 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 
-			args.fluentC.Modify().ReplaceEntry(t, entries...)
+			fluentC1.Modify().ReplaceEntry(t, entries...)
 		},
 	}
 
-	res2 := util.DoModifyOps(args.fluentC, t, ops2, fluent.InstalledInRIB, false, args.elecLow+2)
+	res2 := util.DoModifyOps(fluentC1, t, ops2, fluent.InstalledInRIB, false, elecLow1+2)
 
 	for i := uint64(1015); i < 1015+1000; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
@@ -1977,11 +2159,15 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 //Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf
 func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -1994,7 +2180,7 @@ func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -2018,11 +2204,11 @@ func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+1000; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -2042,11 +2228,11 @@ func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 
-			args.fluentC.Modify().ReplaceEntry(t, entries...)
+			fluentC1.Modify().ReplaceEntry(t, entries...)
 		},
 	}
 
-	res2 := util.DoModifyOps(args.fluentC, t, ops2, fluent.InstalledInRIB, false, args.elecLow+2)
+	res2 := util.DoModifyOps(fluentC1, t, ops2, fluent.InstalledInRIB, false, elecLow1+2)
 
 	for i := uint64(1015); i < 1015+1000; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
@@ -2079,16 +2265,20 @@ func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 // Transit-52	ADD/REPLACE change NH from single path to ECMP
 func testReplaceSinglePathtoECMP(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 30),
 			)
 		},
 	}
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 4; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -2110,12 +2300,12 @@ func testReplaceSinglePathtoECMP(t *testing.T, args *testArgs) {
 	// Add New NHG
 	ops2 := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.122.1.2"),
+			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.122.1.2"),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(4, 30).AddNextHop(3, 30),
 			)
 		},
 	}
-	res2 := util.DoModifyOps(args.fluentC, t, ops2, fluent.InstalledInRIB, false, args.elecLow+2)
+	res2 := util.DoModifyOps(fluentC1, t, ops2, fluent.InstalledInRIB, false, elecLow1+2)
 
 	for i := uint64(4); i < 6; i++ {
 		chk.HasResult(t, res2, fluent.OperationResult().
@@ -2141,13 +2331,17 @@ func testReplaceSinglePathtoECMP(t *testing.T, args *testArgs) {
 // Transit TC 068 - Verify ISIS/BGP control plane doesn’t  affect gRIBI related traffic with connected NHOP
 func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Verify ISIS/BGP control plane doesn’t  affect gRIBI related traffic with connected NHOP")
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	scale := 100
 
 	ops := []func(){
 		//Add all entries
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 30).
@@ -2160,7 +2354,7 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 10).
@@ -2183,10 +2377,10 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
-	results := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := 1; i <= scale+14; i++ {
 		chk.HasResult(t, results, fluent.OperationResult().
@@ -2208,11 +2402,15 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 // Transit TC 071 - Verify protocol (BGP) over gribi transit fwding entry
 func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Verify protocol (BGP) over gribi transit fwding entry")
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		// 192.0.2.40/32  for east-to-west flow
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).AddNextHop(31, 100),
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.120.1.2").WithInterfaceRef("Bundle-Ether120"),
@@ -2220,14 +2418,14 @@ func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.140/32  for west-to-east flow
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.140/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).AddNextHop(41, 100),
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
 			)
 		},
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.1/32").WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 100),
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"),
@@ -2237,7 +2435,7 @@ func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 			)
 		},
 	}
-	results := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := 1; i <= 12; i++ {
 		chk.HasResult(t, results, fluent.OperationResult().
@@ -2260,6 +2458,10 @@ func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 // Transit TC 075 - ADD/REPLACE/DELETE with same Prefix with varying prefix lengths
 func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Add, Replace, Delete operations with same prefix with varying prefix lengths and traffic verification")
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	//create ipv4Entry for subnet 11.0.0.0/8 through 11.11.11.1/32
 	start := 8
@@ -2269,7 +2471,7 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 	ops := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -2282,7 +2484,7 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 10).
@@ -2304,7 +2506,7 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 		func() {
 			entries := []fluent.GRIBIEntry{}
@@ -2315,11 +2517,11 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().ReplaceEntry(t, entries...)
+			fluentC1.Modify().ReplaceEntry(t, entries...)
 		},
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().ReplaceEntry(t,
+			fluentC1.Modify().ReplaceEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -2332,7 +2534,7 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().ReplaceEntry(t,
+			fluentC1.Modify().ReplaceEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 10).
@@ -2353,11 +2555,11 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 			for i := start; i <= end; i++ {
 				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIpv4Net(prefix, i)).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
-			args.fluentC.Modify().DeleteEntry(t, entries...)
+			fluentC1.Modify().DeleteEntry(t, entries...)
 		},
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().DeleteEntry(t,
+			fluentC1.Modify().DeleteEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -2370,7 +2572,7 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().DeleteEntry(t,
+			fluentC1.Modify().DeleteEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 10).
@@ -2385,7 +2587,7 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 		},
 	}
 
-	results := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := 1; i <= (end-start+15)*3; i++ {
 		chk.HasResult(t, results, fluent.OperationResult().
@@ -2396,12 +2598,11 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 	}
 
 	// Add back all entries
-	args.dut.GRIBI().SynchElectionID(t, true)
 
 	ops = []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -2414,7 +2615,7 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 10).
@@ -2436,11 +2637,11 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	results = util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+2)
+	results = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+2)
 
 	for i := (end-start+15)*3 + 1; i <= (end-start+15)*4; i++ {
 		chk.HasResult(t, results, fluent.OperationResult().
@@ -2460,17 +2661,21 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 // Transit-18: Next Hop Group resolution change NH from non-recursive and recursive
 func testChangeNHFromNonRecursiveToRecursive(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Next Hop Group resolution change NH from recursive and non-recursive")
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
 			)
 		},
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 30).
@@ -2484,7 +2689,7 @@ func testChangeNHFromNonRecursiveToRecursive(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -2508,11 +2713,11 @@ func testChangeNHFromNonRecursiveToRecursive(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+1000; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -2529,11 +2734,11 @@ func testChangeNHFromNonRecursiveToRecursive(t *testing.T, args *testArgs) {
 			for i := 0; i < scale; i++ {
 				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res = util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+2)
+	res = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+2)
 
 	for i := uint64(1017); i < 1015+1000; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -2549,13 +2754,16 @@ func testChangeNHFromNonRecursiveToRecursive(t *testing.T, args *testArgs) {
 
 // Transit- Set ISIS overload bit and then verify traffic
 func testSetISISOverloadBit(t *testing.T, args *testArgs) {
-
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 	scale := 100
 
 	ops := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 30).
@@ -2568,7 +2776,7 @@ func testSetISISOverloadBit(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -2591,11 +2799,11 @@ func testSetISISOverloadBit(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+100; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -2615,12 +2823,17 @@ func testSetISISOverloadBit(t *testing.T, args *testArgs) {
 
 // Transit- Change peer ip/mac address and then verify traffic
 func testChangePeerAddress(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
+
 	scale := 1000
 
 	ops := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 30).
@@ -2633,7 +2846,7 @@ func testChangePeerAddress(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -2656,11 +2869,11 @@ func testChangePeerAddress(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+100; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -2687,13 +2900,17 @@ func testChangePeerAddress(t *testing.T, args *testArgs) {
 
 // Transit- LC OIR
 func testLC_OIR(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	scale := 1000
 
 	ops := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 30).
@@ -2706,7 +2923,7 @@ func testLC_OIR(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -2729,11 +2946,11 @@ func testLC_OIR(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+100; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -2753,13 +2970,17 @@ func testLC_OIR(t *testing.T, args *testArgs) {
 // Transit TC 072 - Verify dataplane fields(TTL, DSCP) with gribi transit fwding entry
 func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs) {
 	t.Log("Testcase:  Verify dataplane fields(TTL, DSCP) with gribi transit fwding entry")
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	scale := 100
 
 	ops := []func(){
 		// 192.0.2.40/32  for east-to-west flow
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).AddNextHop(31, 100),
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.120.1.2").WithInterfaceRef("Bundle-Ether120"),
@@ -2767,7 +2988,7 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 		},
 		// 192.0.2.140/32  for west-to-east flow
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.140/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).AddNextHop(41, 100),
 				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
@@ -2780,7 +3001,7 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 100))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 		func() {
 			entries := []fluent.GRIBIEntry{}
@@ -2789,10 +3010,10 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(2).AddNextHop(20, 100))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.140"))
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
-	results := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := 1; i <= 2*scale+10; i++ {
 		chk.HasResult(t, results, fluent.OperationResult().
@@ -2832,6 +3053,10 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 // Transit TC 074 - ADD/REPLACE/DELETE during related configuration change
 func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Add, Replace, Delete operations with related configuration change")
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	scale := 100
 
@@ -2839,7 +3064,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 		//Add all entries
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -2852,7 +3077,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -2875,12 +3100,12 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 		//Replace all entries
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().ReplaceEntry(t,
+			fluentC1.Modify().ReplaceEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 30).
@@ -2893,7 +3118,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().ReplaceEntry(t,
+			fluentC1.Modify().ReplaceEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -2916,12 +3141,12 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().ReplaceEntry(t, entries...)
+			fluentC1.Modify().ReplaceEntry(t, entries...)
 		},
 		//Delete all entries
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().DeleteEntry(t,
+			fluentC1.Modify().DeleteEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 30).
@@ -2934,7 +3159,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().DeleteEntry(t,
+			fluentC1.Modify().DeleteEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -2957,10 +3182,10 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().DeleteEntry(t, entries...)
+			fluentC1.Modify().DeleteEntry(t, entries...)
 		},
 	}
-	results := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := 1; i <= 3*(scale+14); i++ {
 		chk.HasResult(t, results, fluent.OperationResult().
@@ -2992,13 +3217,10 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 		t.Logf("Restored configuration of interface %s", interface_name)
 	}
 	//Config change end
-
-	args.dut.GRIBI().SynchElectionID(t, true)
-
 	ops = []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 30).
@@ -3011,7 +3233,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -3033,11 +3255,11 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	results = util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	results = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := 3*(scale+14) + 1; i <= 4*(scale+14); i++ {
 		chk.HasResult(t, results, fluent.OperationResult().
@@ -3053,12 +3275,16 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 
 //Static Arp Resolution
 func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40),
@@ -3075,11 +3301,11 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(20, 99))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 7; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -3136,12 +3362,16 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 
 //Initially Dynamic arp and then static arp to be resolved
 func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40),
@@ -3158,11 +3388,11 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(20, 99))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 7; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -3221,11 +3451,15 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 
 // Transit-83 DELETE and RE-ADD flow spec config
 func testDeleteReAddFlowSpecConfig(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -3238,7 +3472,7 @@ func testDeleteReAddFlowSpecConfig(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -3262,11 +3496,11 @@ func testDeleteReAddFlowSpecConfig(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+1000; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -3316,10 +3550,15 @@ func testDeleteReAddFlowSpecConfig(t *testing.T, args *testArgs) {
 
 // Transit- Clearing ARP and then verify traffic
 func testClearingARP(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
+
 	ops := []func(){
 		// 192.0.2.40/32  Self-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
 					AddNextHop(31, 10).
@@ -3332,7 +3571,7 @@ func testClearingARP(t *testing.T, args *testArgs) {
 		},
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40).
@@ -3356,11 +3595,11 @@ func testClearingARP(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 13+1000; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -3385,12 +3624,16 @@ func testClearingARP(t *testing.T, args *testArgs) {
 
 //Static Arp Resolution
 func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
+	args.c1.BecomeLeader(t)
+	fluentC1 := args.c1.Fluent(t)
+	defer util.FlushServer(fluentC1, t)
+	elecLow1, _ := args.c1.LearnElectionID(t)
 
 	ops := []func(){
 
 		// 192.0.2.42/32  Next-Site
 		func() {
-			args.fluentC.Modify().AddEntry(t,
+			fluentC1.Modify().AddEntry(t,
 				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
 				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
 					AddNextHop(41, 40),
@@ -3407,11 +3650,11 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(20, 99))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			args.fluentC.Modify().AddEntry(t, entries...)
+			fluentC1.Modify().AddEntry(t, entries...)
 		},
 	}
 
-	res := util.DoModifyOps(args.fluentC, t, ops, fluent.InstalledInRIB, false, args.elecLow+1)
+	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
 
 	for i := uint64(1); i < 7; i++ {
 		chk.HasResult(t, res, fluent.OperationResult().
@@ -3454,56 +3697,242 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 
 func TestTransitWECMPFlush(t *testing.T) {
 	ctx := context.Background()
+	dut := ondatra.DUT(t, "dut")
+	// convertFlowspecToPBR(ctx, t, dut)
+	ate := ondatra.ATE(t, "ate")
 	test := []struct {
 		name string
 		desc string
 		fn   func(t *testing.T, args *testArgs)
 	}{
-		// {
-		// 	name: "CD2ConnectedNHIP",
-		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path and dropping",
-		// 	fn:   testCD2ConnectedNHIP,
-		// },
-		// {
-		// 	name: "CD2RecursiveNonConnectedNHOP",
-		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path and dropping",
-		// 	fn:   testCD2RecursiveNonConnectedNHOP,
-		// },
+		{
+			name: "CD2ConnectedNHIP",
+			desc: "Transit Connected nexthop",
+			fn:   testCD2ConnectedNHIP,
+		},
 		{
 			name: "CD2RecursiveNonConnectedNHOP",
-			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path and dropping",
+			desc: "Transit Recursive Non Connected nexthop",
 			fn:   testCD2RecursiveNonConnectedNHOP,
+		},
+		{
+			name: "AddIPv4EntryTrafficCheck",
+			desc: "Transit-46 ADD same IPv4 Entry verify no traffic impact",
+			fn:   testAddIPv4EntryTrafficCheck,
+		},
+		{
+			name: "ReplaceIPv4EntryTrafficCheck",
+			desc: "Transit-47 REPLACE same IPv4 Entry verify no traffic impact",
+			fn:   testReplaceIPv4EntryTrafficCheck,
+		},
+		{
+			name: "AddNHGTrafficCheck",
+			desc: "Transit-48 ADD same NHG verify no traffic impact",
+			fn:   testAddNHGTrafficCheck,
+		},
+		{
+			name: "ReplaceNHGTrafficCheck",
+			desc: "Transit-49 REPLACE same NHG verify no traffic impact",
+			fn:   testReplaceNHGTrafficCheck,
+		},
+		{
+			name: "AddNHTrafficCheck",
+			desc: "Transit-50 ADD same NH verify no traffic impact",
+			fn:   testAddNHTrafficCheck,
+		},
+		{
+			name: "ReplaceNHTrafficCheck",
+			desc: "Transit-51 REPLACE same NH verify no traffic impact",
+			fn:   testReplaceNHTrafficCheck,
+		},
+		{
+			name: "CD2SingleRecursion",
+			desc: "Transit single recursion",
+			fn:   testCD2SingleRecursion,
+		},
+		{
+			name: "CD2DoubleRecursion",
+			desc: "Transit double recursion",
+			fn:   testCD2DoubleRecursion,
+		},
+		{
+			name: "ReplaceDefaultIPv4EntrySinglePath",
+			desc: "Transit-34 REPLACE: default VRF IPv4 Entry with single path NHG+NH in default vrf",
+			fn:   testReplaceDefaultIPv4EntrySinglePath,
+		},
+		{
+			name: "DeleteVRFIPv4EntrySinglePath",
+			desc: "Transit-38 DELETE: VRF IPv4 Entry with single path NHG+NH in default vrf",
+			fn:   testDeleteVRFIPv4EntrySinglePath,
+		},
+		{
+			name: "DeleteDefaultIPv4EntrySinglePath",
+			desc: "Transit-42 DELETE: default VRF IPv4 Entry with single path NHG+NH in default vrf",
+			fn:   testDeleteDefaultIPv4EntrySinglePath,
+		},
+		{
+			name: "TwoPrefixesWithSameSetOfPrimaryAndBackup",
+			desc: "Transit TC 066 - Two prefixes with NHGs with backup pointing to the each other's NHG",
+			fn:   testTwoPrefixesWithSameSetOfPrimaryAndBackup,
+		},
+		{
+			name: "SameForwardingEntriesAcrossMultipleVrfs",
+			desc: "Transit TC 067 - Same forwarding entries across multiple vrfs",
+			fn:   testSameForwardingEntriesAcrossMultipleVrfs,
+		},
+		{
+			name: "NHInterfaceInDifferentVRF",
+			desc: "Transit-11: Next Hop resoultion with interface in different VRF of NH_network_instance",
+			fn:   testNHInterfaceInDifferentVRF,
+		},
+		{
+			name: "NHIPOutOfInterfaceSubnet",
+			desc: "Transit-13: Next Hop resolution with interface+IP out of that interface subnet",
+			fn:   testNHIPOutOfInterfaceSubnet,
+		},
+		{
+			name: "ChangeNHToUnreachableAndChangeBack",
+			desc: "Transit-16:Changing IP address on I/F making NHOP unreachable and changing it back",
+			fn:   testChangeNHToUnreachableAndChangeBack,
+		},
+		{
+			name: "ChangeNHFromRecursiveToNonRecursive",
+			desc: "Transit-19: Next Hop Group resolution change NH from recursive and non-recursive",
+			fn:   testChangeNHFromRecursiveToNonRecursive,
+		},
+		{
+			name: "AddReplaceDeleteWithRelatedInterfaceFLap",
+			desc: "Transit TC 073 - ADD/REPLACE/DELETE during related interface flap",
+			fn:   testAddReplaceDeleteWithRelatedInterfaceFLap,
+		},
+		{
+			name: "DeleteVRFIPv4EntryECMPPath",
+			desc: "Transit-40	DELETE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
+			fn: testDeleteVRFIPv4EntryECMPPath,
+		},
+		{
+			name: "DeleteDefaultIPv4EntryECMPPath",
+			desc: "Transit-45	DELETE: default VRF IPv4 Entry with ECMP+backup path NHG+NH in default vrf",
+			fn: testDeleteDefaultIPv4EntryECMPPath,
+		},
+		{
+			name: "ReplaceVRFIPv4EntryECMPPath",
+			desc: "Transit-32 REPLACE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
+			fn:   testReplaceVRFIPv4EntryECMPPath,
+		},
+		{
+			name: "ReplaceDefaultIPv4EntryECMPPath",
+			desc: "Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
+			fn:   testReplaceDefaultIPv4EntryECMPPath,
+		},
+		{
+			name: "ReplaceSinglePathtoECMP",
+			desc: "Transit-52	ADD/REPLACE change NH from single path to ECMP",
+			fn: testReplaceSinglePathtoECMP,
+		},
+		{
+			name: "IsisBgpControlPlaneInteractionWithGribi",
+			desc: "Transit TC 068 - Verify ISIS/BGP control plane doesn’t  affect gRIBI related traffic with connected NHOP",
+			fn:   testIsisBgpControlPlaneInteractionWithGribi,
+		},
+		{
+			name: "BgpProtocolOverGribiTransitEntry",
+			desc: "Transit TC 071 - Verify protocol (BGP) over gribi transit fwding entry",
+			fn:   testBgpProtocolOverGribiTransitEntry,
+		},
+		{
+			name: "AddReplaceDeleteWithSamePrefixWithVaryingPrefixLength",
+			desc: "Transit TC 075 - ADD/REPLACE/DELETE with same Prefix with varying prefix lengths",
+			fn:   testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength,
+		},
+		{
+			name: "ChangeNHFromNonRecursiveToRecursive",
+			desc: "Transit-18: Next Hop Group resolution change NH from non-recursive and recursive",
+			fn:   testChangeNHFromNonRecursiveToRecursive,
+		},
+		{
+			name: "SetISISOverloadBit",
+			desc: "Transit- Set ISIS overload bit and then verify traffici",
+			fn:   testSetISISOverloadBit,
+		},
+		{
+			name: "changePeerAddress",
+			desc: "Transit- Change peer ip/mac address and then verify traffic",
+			fn:   testChangePeerAddress,
+		},
+		{
+			name: "LC_OIR",
+			desc: "Transit- LC OIR",
+			fn:   testLC_OIR,
+		},
+		{
+			name: "DataPlaneFieldsOverGribiTransitFwdingEntry",
+			desc: "Transit TC 072 - Verify dataplane fields(TTL, DSCP) with gribi transit fwding entry",
+			fn:   testDataPlaneFieldsOverGribiTransitFwdingEntry,
+		},
+		{
+			name: "AddReplaceDeleteWithRelatedConfigChange",
+			desc: "Transit TC 074 - ADD/REPLACE/DELETE during related configuration change",
+			fn:   testAddReplaceDeleteWithRelatedConfigChange,
+		},
+		{
+			name: "CD2StaticMacChangeNHOP",
+			desc: "Static Arp Resolution",
+			fn:   testCD2StaticMacChangeNHOP,
+		},
+		{
+			name: "CD2StaticDynamicMacNHOP",
+			desc: "Initially Dynamic arp and then static arp to be resolved",
+			fn:   testCD2StaticDynamicMacNHOP,
+		},
+		{
+			name: "DeleteReAddFlowSpecConfig",
+			desc: "Transit-83 DELETE and RE-ADD flow spec config",
+			fn:   testDeleteReAddFlowSpecConfig,
+		},
+		{
+			name: "ClearingARP",
+			desc: "Transit- Clearing ARP and then verify traffic",
+			fn:   testClearingARP,
+		},
+		{
+			name: "CD2StaticMacNHOP",
+			desc: "Static Arp Resolution",
+			fn:   testCD2StaticMacNHOP,
 		},
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
-			dut := ondatra.DUT(t, "dut")
-			ate := ondatra.ATE(t, "ate")
 			topology := getIXIATopology(t, "ate")
-			client := gribi.Client{
+			client1 := gribi.Client{
+				DUT:                  dut,
+				FibACK:               false,
+				Persistence:          true,
+				InitialElectionIDLow: 100,
+			}
+			client2 := gribi.Client{
 				DUT:                  dut,
 				FibACK:               false,
 				Persistence:          true,
 				InitialElectionIDLow: 10,
 			}
-			defer client.Close(t)
-			if err := client.Start(t); err != nil {
+			defer client1.Close(t)
+			if err := client1.Start(t); err != nil {
 				t.Fatalf("gRIBI Connection can not be established")
 			}
-			elecLow, _ := client.LearnElectionID(t)
-			client.BecomeLeader(t)
-			fluentC := client.Fluent(t)
-			defer util.FlushServer(fluentC, t)
+			defer client2.Close(t)
+			if err := client2.Start(t); err != nil {
+				t.Fatalf("gRIBI Connection can not be established")
+			}
 			args := &testArgs{
 				ctx:      ctx,
-				c:        &client,
+				c1:       &client1,
+				c2:       &client2,
 				dut:      dut,
 				ate:      ate,
 				topology: topology,
-				fluentC:  fluentC,
-				elecLow:  elecLow,
 			}
 			tt.fn(t, args)
 		})
