@@ -602,6 +602,8 @@ func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testi
 	//cleanup
 	deletePolicyFromInterface(ctx, t, args.dut, "L3")
 	deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 2)
+}
+
 // testRemoveClassMap tests removing existing class-map which is not related to IPinIP match and verify traffic
 func testRemoveClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
