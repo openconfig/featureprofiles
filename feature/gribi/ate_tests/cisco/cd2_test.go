@@ -15,7 +15,9 @@ import (
 
 const (
 	ipv4PrefixLen = 24
+	ipv6PrefixLen = 126
 	instance      = "default"
+	vlanMTU       = 1518
 )
 
 var (
@@ -23,24 +25,32 @@ var (
 		Desc:    "dutPort1",
 		IPv4:    "100.120.1.1",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:120:1:1",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
 		IPv4:    "100.120.1.2",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:120:1:2",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "100.121.1.1",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:1:1",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
 		IPv4:    "100.121.1.2",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:1:2",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	dutPort3 = attrs.Attributes{
@@ -109,6 +119,60 @@ var (
 		IPv4:    "100.127.1.2",
 		IPv4Len: ipv4PrefixLen,
 	}
+
+	dutPort2Vlan10 = attrs.Attributes{
+		Desc:    "dutPort2Vlan10",
+		IPv4:    "100.121.10.1",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:10:1",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
+
+	atePort2Vlan10 = attrs.Attributes{
+		Name:    "atePort2Vlan10",
+		IPv4:    "100.121.10.2",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:10:2",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
+
+	dutPort2Vlan20 = attrs.Attributes{
+		Desc:    "dutPort2Vlan20",
+		IPv4:    "100.121.20.1",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:20:1",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
+
+	atePort2Vlan20 = attrs.Attributes{
+		Name:    "atePort2Vlan20",
+		IPv4:    "100.121.20.2",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:20:2",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
+
+	dutPort2Vlan30 = attrs.Attributes{
+		Desc:    "dutPort2Vlan30",
+		IPv4:    "100.121.30.1",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:30:1",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
+
+	atePort2Vlan30 = attrs.Attributes{
+		Name:    "atePort2Vlan20",
+		IPv4:    "100.121.30.2",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:30:2",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
 )
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -120,12 +184,18 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	i1.IPv4().
 		WithAddress(atePort1.IPv4CIDR()).
 		WithDefaultGateway(dutPort1.IPv4)
+	i1.IPv6().
+		WithAddress(atePort1.IPv6CIDR()).
+		WithDefaultGateway(dutPort1.IPv6)
 
 	p2 := ate.Port(t, "port2")
 	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
 	i2.IPv4().
 		WithAddress(atePort2.IPv4CIDR()).
 		WithDefaultGateway(dutPort2.IPv4)
+	i2.IPv6().
+		WithAddress(atePort2.IPv6CIDR()).
+		WithDefaultGateway(dutPort2.IPv6)
 
 	p3 := ate.Port(t, "port3")
 	i3 := top.AddInterface(atePort3.Name).WithPort(p3)
@@ -162,6 +232,35 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	i8.IPv4().
 		WithAddress(atePort8.IPv4CIDR()).
 		WithDefaultGateway(dutPort8.IPv4)
+
+	//Configure vlans on ATE port2
+	i2v10 := top.AddInterface("atePort2Vlan10").WithPort(p2)
+	i2v10.Ethernet().WithMTU(1518).WithVLANID(10)
+	i2v10.IPv4().
+		WithAddress(atePort2Vlan10.IPv4CIDR()).
+		WithDefaultGateway(dutPort2Vlan10.IPv4)
+	i2v10.IPv6().
+		WithAddress(atePort2Vlan10.IPv6CIDR()).
+		WithDefaultGateway(dutPort2Vlan10.IPv6)
+
+	i2v20 := top.AddInterface("atePort2Vlan20").WithPort(p2)
+	i2v20.Ethernet().WithMTU(1518).WithVLANID(20)
+	i2v20.IPv4().
+		WithAddress(atePort2Vlan20.IPv4CIDR()).
+		WithDefaultGateway(dutPort2Vlan20.IPv4)
+	i2v20.IPv6().
+		WithAddress(atePort2Vlan20.IPv6CIDR()).
+		WithDefaultGateway(dutPort2Vlan20.IPv6)
+
+	i2v30 := top.AddInterface("atePort2Vlan30").WithPort(p2)
+	i2v30.Ethernet().WithMTU(1518).WithVLANID(30)
+	i2v30.IPv4().
+		WithAddress(atePort2Vlan30.IPv4CIDR()).
+		WithDefaultGateway(dutPort2Vlan30.IPv4)
+	i2v30.IPv6().
+		WithAddress(atePort2Vlan30.IPv6CIDR()).
+		WithDefaultGateway(dutPort2Vlan30.IPv6)
+
 	return top
 }
 

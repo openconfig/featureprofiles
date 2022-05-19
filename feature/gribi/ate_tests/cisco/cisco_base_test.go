@@ -101,6 +101,16 @@ var (
 			desc: "Configure with policy matching protocol IPinIP and send IPv6 in IPv4 and verify traffic drop",
 			fn:   testIPv6InIPv4Traffic,
 		},
+		{
+			name: "Test DSCP Protocol Based VRF Selection",
+			desc: "Test RT3.1 with DSCP, IPv4, IPv6, IPinIP based VRF selection",
+			fn:   testDscpProtocolBasedVRFSelection,
+		},
+		{
+			name: "Test Multiple DSCP Protocol Rule Based VRF Selection",
+			desc: "Test RT3.2 with multiple DSCP, IPinIP protocol based VRF selection",
+			fn:   testMultipleDscpProtocolRuleBasedVRFSelection,
+		},
 	}
 )
 
@@ -184,6 +194,9 @@ func TestCD5PBR(t *testing.T) {
 
 	// Disable Flowspec and Enable PBR
 	convertFlowspecToPBR(ctx, t, dut)
+
+	//Configure IPv6 addresses and VLANS on DUT
+	configureIpv6AndVlans(t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
