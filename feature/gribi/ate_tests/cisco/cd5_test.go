@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -117,7 +116,7 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	dut.Config().NetworkInstance(instance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
 
 	t.Log("Reload the router to activate hw module config")
-	//util.ReloadDUT(t, dut)
+	util.ReloadDUT(t, dut)
 
 }
 
@@ -453,7 +452,7 @@ func testTrafficForFlows(t *testing.T, ate *ondatra.ATEDevice, topology *ondatra
 }
 
 //deletePolicyFromInterface function removes the pbr policy from Bundle-Ether120 using CLI options.
-//This is a temporary fix for accomodating various types of pbr policies on the interface
+//This is a temporary fix for accommodating various types of pbr policies on the interface
 func deletePolicyFromInterface(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 	configToChange := fmt.Sprintf("no interface Bundle-Ether120  service-policy type pbr input %s\n", policyName)
 	util.GNMIWithText(ctx, t, dut, configToChange)
@@ -590,22 +589,4 @@ func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testi
 	//cleanup
 	deletePolicyFromInterface(ctx, t, args.dut, "L3")
 	deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 2)
-}
-
-func TestRemovePolicy(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	//fmt.Print(dut.Telemetry().NetworkInstance(instance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Lookup(t))
-	//fmt.Print(dut.Telemetry().NetworkInstance(instance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Lookup(t))
-	fmt.Print(strings.Split("ipv4inipv6", "in"))
-	//configureL2PBR(t, dut, "L2", "VRF20", "ipv6", 3)
-
-	//configureL2PBRR(t, dut, "L2", "VRF10", "ipv4", 2)
-
-	// r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
-	// r1.SequenceId = ygot.Uint32(1)
-	// r1.L2 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
-	// 	Ethertype: telemetry.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6,
-	// }
-	deletePBRPolicyAndClassMaps(context.Background(), t, dut, "L2", 3)
-	// dut.Config().NetworkInstance("default").PolicyForwarding().Policy("L2").Rule(3).Delete(t)
 }
