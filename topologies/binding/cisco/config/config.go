@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
-// WithSSH applies the cli confguration via ssh on the device
+// TextWithSSH applies the cli confguration via ssh on the device
 func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) (string, error) {
 	sshClient := dut.RawAPIs().CLI(t)
 	cliOut := sshClient.Stdout()
@@ -148,7 +148,7 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 		return nil, fmt.Errorf("could not encode value (ocVal) into JSON format: %v", errs)
 	}
 
-	ocJsonVal, err := ygot.Marshal7951(ocVal, ygot.JSONIndent("  "), &ygot.RFC7951JSONConfig{AppendModuleName: true, PreferShadowPath: true})
+	ocJSONVal, err := ygot.Marshal7951(ocVal, ygot.JSONIndent("  "), &ygot.RFC7951JSONConfig{AppendModuleName: true, PreferShadowPath: true})
 	if err != nil {
 		t.Errorf("Could not encode value (ocVal) into JSON format; %v", err)
 		return nil, err
@@ -157,7 +157,7 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 		Path: path,
 		Val: &gpb.TypedValue{
 			Value: &gpb.TypedValue_JsonIetfVal{
-				JsonIetfVal: ocJsonVal,
+				JsonIetfVal: ocJSONVal,
 			},
 		},
 	}
