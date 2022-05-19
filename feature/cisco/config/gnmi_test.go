@@ -2,13 +2,13 @@ package config
 
 import (
 	"context"
-	"testing"
 	"fmt"
+	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/topologies/binding/cisco/config"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ygot/ygot"	
+	"github.com/openconfig/ygot/ygot"
 )
 
 const fullConfig = ` 
@@ -116,39 +116,39 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-
-
+// The following tests are sanity checks to make sure the GNMI Replace works
 func TestGNMIFullCommitReplace(t *testing.T) {
-	t.Skip()
+	t.Skip() // skipped since the commit replace  can cause issue for other test cases
 	dut := ondatra.DUT(t, "dut")
 	oldHostName := dut.Telemetry().System().Hostname().Get(t)
 	newHostname := oldHostName + "new"
-	config.GNMICommitReplace(context.Background(), t, dut, fmt.Sprintf(fullConfig,newHostname))
-	defer config.GNMICommitReplace(context.Background(), t, dut, fmt.Sprintf(fullConfig,oldHostName))
-	if got:=dut.Telemetry().System().Hostname().Get(t); got != newHostname {
-		t.Fatalf("Expected the host name to be %s, got %s",newHostname, got)
+	config.GNMICommitReplace(context.Background(), t, dut, fmt.Sprintf(fullConfig, newHostname))
+	defer config.GNMICommitReplace(context.Background(), t, dut, fmt.Sprintf(fullConfig, oldHostName))
+	if got := dut.Telemetry().System().Hostname().Get(t); got != newHostname {
+		t.Fatalf("Expected the host name to be %s, got %s", newHostname, got)
 	}
 }
 
 func TestGNMIFullCommitReplaceWithOC(t *testing.T) {
+	t.Skip() // skiped since this can cuase issues for other test cases
 	dut := ondatra.DUT(t, "dut")
 	oldHostName := dut.Telemetry().System().Hostname().Get(t)
 	newHostname := oldHostName + "new"
-	//config.GNMICommitReplace(context.Background(), t, dut, fmt.Sprintf(fullConfig,newHostname))
-	hostNamePath:= dut.Config().System().Hostname()
-	//hostNamePath.Replace(t,"Test")
-	config.GNMICommitReplaceWithOC(context.Background(), t, dut, fmt.Sprintf(fullConfig,newHostname),hostNamePath,ygot.String(oldHostName))
-	
-	if got:=dut.Telemetry().System().Hostname().Get(t); got != oldHostName {
-		t.Fatalf("Expected the host name to be not changed  %s, got %s",oldHostName, got)
+	hostNamePath := dut.Config().System().Hostname()
+	config.GNMICommitReplaceWithOC(context.Background(), t, dut, fmt.Sprintf(fullConfig, newHostname), hostNamePath, ygot.String(oldHostName))
+	if got := dut.Telemetry().System().Hostname().Get(t); got != oldHostName {
+		t.Fatalf("Expected the host name to be not changed  %s, got %s", oldHostName, got)
 	}
 
 }
 
-/*func TestHWModuleWithGNMI(t *testing.T) {
+func TestTextConfigWithGNMI(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	_, err := config.GNMICommitReplace(context.Background(), t, dut, fullConfig)
-	if err != nil {
-		t.Fatalf("TestGNMIFullCommitReplace is failed: %v", err)
+	oldHostName := dut.Telemetry().System().Hostname().Get(t)
+	newHostname := oldHostName + "new"
+	config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("hostname %s", newHostname))
+	defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("hostname %s", oldHostName))
+	if got := dut.Telemetry().System().Hostname().Get(t); got != newHostname {
+		t.Fatalf("Expected the host name to be %s, got %s", newHostname, got)
 	}
-}*/
+}

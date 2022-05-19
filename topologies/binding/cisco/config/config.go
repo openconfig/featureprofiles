@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/golang/glog"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
@@ -22,7 +23,7 @@ func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg 
 	cliOut := sshClient.Stdout()
 	cliIn := sshClient.Stdin()
 	if _, err := cliIn.Write([]byte(cfg)); err != nil {
-		t.Errorf("failed to write using ssh: %w", err)
+		t.Errorf("failed to write using ssh: %v", err)
 		return "", fmt.Errorf("failed to write using ssh: %w", err)
 	}
 	buf := make([]byte, 32768) // RFC 4253 max payload size for ssh
@@ -58,6 +59,7 @@ func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg 
 	}()
 	select {
 	case resp := <-ch:
+		log.V(1).Infof("ssh reply: %s", response)
 		if resp {
 			// add logging here
 			return response, nil
@@ -94,11 +96,11 @@ func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg
 			},
 		},
 	}
-	replaceRequest := &gpb.SetRequest{
+	setRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{textReplaceReq},
 	}
-	// fmt.Println(prototext.Format(inGetRequest))
-	resp, err := gnmiC.Set(context.Background(), replaceRequest)
+	log.V(1).Info(prettySetRequest(setRequest))
+	resp, err := gnmiC.Set(context.Background(), setRequest)
 	if err != nil {
 		t.Errorf("GNMI replace is failed; %v", err)
 	}
@@ -116,10 +118,11 @@ func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 			},
 		},
 	}
-	replaceRequest := &gpb.SetRequest{
+	setRequest := &gpb.SetRequest{
 		Replace: []*gpb.Update{textReplaceReq},
 	}
-	resp, err := gnmiC.Set(context.Background(), replaceRequest)
+	log.V(1).Info(prettySetRequest(setRequest))
+	resp, err := gnmiC.Set(context.Background(), setRequest)
 	if err != nil {
 		t.Errorf("GNMI replace is failed; %v", err)
 	}
@@ -154,23 +157,24 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 		Path: path,
 		Val: &gpb.TypedValue{
 			Value: &gpb.TypedValue_JsonIetfVal{
-				JsonIetfVal: ocJsonVal, 
+				JsonIetfVal: ocJsonVal,
 			},
 		},
 	}
 
 	setRequest := &gpb.SetRequest{
 		//Prefix: &gpb.Path{Origin: "openconfig"},
+		// setting origin at the set level when we have cli + oc can cause the request to be rejected
 		Replace: []*gpb.Update{textReplaceReq, ocReplaceReq},
 	}
-	fmt.Println(prettySetRequest(setRequest))
-	// fmt.Println(prototext.Format(inGetRequest))
+	log.V(1).Info(prettySetRequest(setRequest))
 	resp, err := gnmiC.Set(context.Background(), setRequest)
 	if err != nil {
 		t.Errorf("GNMI replace is failed; %v", err)
 	}
 	return resp, err
 }
+
 // copied from Ondatra code
 func prettySetRequest(setRequest *gpb.SetRequest) string {
 	var buf strings.Builder
