@@ -42,7 +42,7 @@ func Test_Type(t *testing.T) {
 		dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
 
 		t.Run("Delete openconfig-network-instance:network-instances/network-instance/policy-forwarding/policies/policy/config/type", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Delete(t)
+			dut.Config().NetworkInstance("default").PolicyForwarding().Policy("pbrName").Delete(t)
 		})
 	})
 }
