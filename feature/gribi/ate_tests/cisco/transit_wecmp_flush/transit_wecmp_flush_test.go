@@ -3698,7 +3698,7 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 func TestTransitWECMPFlush(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
-	// convertFlowspecToPBR(ctx, t, dut)
+	convertFlowspecToPBR(ctx, t, dut)
 	ate := ondatra.ATE(t, "ate")
 	test := []struct {
 		name string
