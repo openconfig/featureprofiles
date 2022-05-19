@@ -15,6 +15,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/protobuf/encoding/prototext"
+	spb "github.com/openconfig/gnoi/system"
 )
 
 // TextWithSSH applies the cli confguration via ssh on the device
@@ -127,6 +128,34 @@ func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 		t.Errorf("GNMI replace is failed; %v", err)
 	}
 	return resp, err
+}
+
+// Reload excure the hw-module reload on the router. It aslo apply the configs before and after the reload. 
+// The reload  will fail if the router is not responsive after max wait time.
+func Reload(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, beforeReloadConfig, afterReloadConfig string, maxTimeout time.Duration) {
+	t.Logf("Realoding router %s", dut.Name())
+	if beforeReloadConfig!="" {
+		_,err := TextWithGNMI(ctx, t, dut, beforeReloadConfig); if err != nil {
+			t.Fatalf("Reload failed duing applying config before reload %v", err)
+		}
+		t.Logf("The configuration %s \n is loaded correctly before reloading router %s", beforeReloadConfig,dut.Name() )
+	}
+
+	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Delay:   0,
+		Message: "Reboot chassis without delay",
+		Force:   true,
+	})
+	// TODO: use select and channel to detect when the router reload is complete
+	time.Sleep(maxTimeout)
+
+	if afterReloadConfig!="" {
+		_,err := TextWithGNMI(ctx, t, dut, afterReloadConfig); if err != nil {
+			t.Fatalf("Reload failed duing applying config before reload %v", err)
+		}
+	}
 }
 
 // GNMICommitReplaceWithOC apply the oc config and text config on the device. The result expected to be the merge of both configuations
