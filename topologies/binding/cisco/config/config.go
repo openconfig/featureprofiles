@@ -194,7 +194,7 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 	setRequest := &gpb.SetRequest{
 		//Prefix: &gpb.Path{Origin: "openconfig"},
 		// setting origin at the set level when we have cli + oc can cause the request to be rejected
-		Replace: []*gpb.Update{textReplaceReq, ocReplaceReq},
+		Update: []*gpb.Update{ocReplaceReq,textReplaceReq},
 	}
 	log.V(1).Info(prettySetRequest(setRequest))
 	resp, err := gnmiC.Set(context.Background(), setRequest)
