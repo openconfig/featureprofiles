@@ -13,6 +13,7 @@ import (
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 // WithSSH applies the cli confguration via ssh on the device
@@ -137,6 +138,8 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 		},
 	}
 	path, _, errs := ygot.ResolvePath(pathStruct)
+	path.Target = ""
+	path.Origin = "openconfig"
 	if errs != nil {
 		t.Errorf("Could not resolve the path; %v", errs)
 		return nil, fmt.Errorf("could not encode value (ocVal) into JSON format: %v", errs)
@@ -151,18 +154,58 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 		Path: path,
 		Val: &gpb.TypedValue{
 			Value: &gpb.TypedValue_JsonIetfVal{
-				JsonIetfVal: ocJsonVal, // use ietf json for oc models
+				JsonIetfVal: ocJsonVal, 
 			},
 		},
 	}
 
-	replaceRequest := &gpb.SetRequest{
-		Replace: []*gpb.Update{ocReplaceReq, textReplaceReq},
+	setRequest := &gpb.SetRequest{
+		//Prefix: &gpb.Path{Origin: "openconfig"},
+		Replace: []*gpb.Update{textReplaceReq, ocReplaceReq},
 	}
+	fmt.Println(prettySetRequest(setRequest))
 	// fmt.Println(prototext.Format(inGetRequest))
-	resp, err := gnmiC.Set(context.Background(), replaceRequest)
+	resp, err := gnmiC.Set(context.Background(), setRequest)
 	if err != nil {
 		t.Errorf("GNMI replace is failed; %v", err)
 	}
 	return resp, err
+}
+// copied from Ondatra code
+func prettySetRequest(setRequest *gpb.SetRequest) string {
+	var buf strings.Builder
+	fmt.Fprintf(&buf, "SetRequest:\n%s\n", prototext.Format(setRequest))
+
+	writePath := func(path *gpb.Path) {
+		pathStr, err := ygot.PathToString(path)
+		if err != nil {
+			pathStr = prototext.Format(path)
+		}
+		fmt.Fprintf(&buf, "%s\n", pathStr)
+	}
+
+	writeVal := func(val *gpb.TypedValue) {
+		switch v := val.Value.(type) {
+		case *gpb.TypedValue_JsonIetfVal:
+			fmt.Fprintf(&buf, "%s\n", v.JsonIetfVal)
+		default:
+			fmt.Fprintf(&buf, "%s\n", prototext.Format(val))
+		}
+	}
+
+	for i, path := range setRequest.Delete {
+		fmt.Fprintf(&buf, "-------delete path #%d------\n", i)
+		writePath(path)
+	}
+	for i, update := range setRequest.Replace {
+		fmt.Fprintf(&buf, "-------replace path/value pair #%d------\n", i)
+		writePath(update.Path)
+		writeVal(update.Val)
+	}
+	for i, update := range setRequest.Update {
+		fmt.Fprintf(&buf, "-------update path/value pair #%d------\n", i)
+		writePath(update.Path)
+		writeVal(update.Val)
+	}
+	return buf.String()
 }
