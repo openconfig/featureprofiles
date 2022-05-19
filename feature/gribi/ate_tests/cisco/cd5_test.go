@@ -16,7 +16,7 @@ const (
 	pbrName = "PBR"
 )
 
-func configbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
+func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r1.SequenceId = ygot.Uint32(1)
 	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
@@ -75,6 +75,19 @@ func configNewPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string, ds
 	dut.Config().NetworkInstance("default").PolicyForwarding().Policy(policyName).Update(t, &p)
 }
 
+func configNewRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, ruleID uint32, protocol uint8, dscp ...uint8) {
+	r := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r.SequenceId = ygot.Uint32(ruleID)
+	r.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		DscpSet: dscp,
+	}
+	if protocol == 4 {
+		r.Ipv4.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP
+	}
+	r.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	dut.Config().NetworkInstance(instance).PolicyForwarding().Policy(policyName).Rule(ruleID).Replace(t, &r)
+}
+
 func generatePhysicalInterfaceConfig(t *testing.T, name, ipv4 string, prefixlen uint8) *telemetry.Interface {
 	i := &telemetry.Interface{}
 	i.Name = ygot.String(name)
@@ -110,7 +123,7 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	util.GNMIWithText(ctx, t, dut, configToChange)
 
 	t.Log("Configure PBR policy and Apply it under interface")
-	configbasePBR(t, dut)
+	configBasePBR(t, dut)
 	dut.Config().NetworkInstance(instance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
 
 	t.Log("Reload the router to activate hw module config")
@@ -173,7 +186,7 @@ func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDev
 
 // Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy
 func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, samePolicy bool) {
-	configbasePBR(t, args.dut)
+	configBasePBR(t, args.dut)
 
 	physicalInterface := fptest.SortPorts(args.dut.Ports())[0].Name()
 	physicalInterfaceConfig := args.dut.Config().Interface(physicalInterface)
@@ -209,7 +222,7 @@ func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, sam
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }
 
 func testMovePhysicalToBundleWithSamePolicy(ctx context.Context, t *testing.T, args *testArgs) {
@@ -247,7 +260,7 @@ func testChangePBRUnderInterface(ctx context.Context, t *testing.T, args *testAr
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, weights...)
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, weights...)
 }
 
 // testIPv6InIPv4Traffic tests sending IPv6inIPv4 and verify it is not matched by IPinIP
@@ -266,4 +279,73 @@ func testIPv6InIPv4Traffic(ctx context.Context, t *testing.T, args *testArgs) {
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
 	testTrafficWithInnerIPv6(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+}
+
+// testRemoveClassMap tests removing existing class-map which is not related to IPinIP match and verify traffic
+func testRemoveClassMap(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
+
+	defer flushSever(t, args)
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	// Remove existing class map
+	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(2).Delete(t)
+
+	// Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
+
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+}
+
+func testChangeAction(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
+	defer flushSever(t, args)
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	// Change action for matching protocol IPinIP class
+	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Action().NetworkInstance().Replace(t, *ygot.String("VRF1"))
+
+	// Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
+
+	// Expecting Traffic fail
+	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+}
+
+func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
+	defer flushSever(t, args)
+
+	ruleID := uint32(10)
+	dscp := uint8(32)
+	configNewRule(t, args.dut, pbrName, ruleID, 4, dscp)
+	defer args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(ruleID).Delete(t)
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	// Change action for matching protocol IPinIP class
+	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Action().NetworkInstance().Replace(t, *ygot.String("VRF1"))
+
+	// Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
+
+	// Expecting Traffic fail
+	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
 }

@@ -19,25 +19,20 @@ package basetest
 import (
 	"testing"
 
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ondatra"
 )
 
-var (
-	device1  = "dut"
-	observer = fptest.NewObserver().AddCsvRecorder("ocreport").
-			AddCsvRecorder("System")
-	systemContainers = []system{
-		{
-			hostname: ygot.String("tempHost1"),
-		},
+// TestBootTime verifies the timestamp that the system was last restarted can
+// be read and is not an unreasonable value.
+//
+// telemetry_path:/system/state/boot-time
+func TestBootTime(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	defer observer.RecordYgot(t, "SUBSCRIBE", dut.Telemetry().System().BootTime())
+	bt := dut.Telemetry().System().BootTime().Get(t)
+
+	// Boot time should be after Dec 22, 2021 00:00:00 GMT in nanoseconds
+	if bt < 1640131200000000000 {
+		t.Errorf("Unexpected boot timestamp: got %d; check clock", bt)
 	}
-)
-
-type system struct {
-	hostname *string
-}
-
-func TestMain(m *testing.M) {
-	fptest.RunTests(m)
 }

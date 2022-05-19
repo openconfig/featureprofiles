@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package system_base_test
+package basetest
 
 import (
 	"testing"
@@ -27,8 +27,8 @@ func TestMemoryReserved(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/memory/state/reserved", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			memory_reserved := dut.Telemetry().System().Memory().Reserved().Get(t)
-			if memory_reserved == uint64(0) {
+			memoryReserved := dut.Telemetry().System().Memory().Reserved().Get(t)
+			if memoryReserved == uint64(0) {
 				t.Logf("Got correct reserved memory value")
 			} else {
 				t.Errorf("Unexpected reserved memory value")
@@ -42,8 +42,8 @@ func TestMemoryPhysical(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/memory/state/physical", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			memory_reserved := dut.Telemetry().System().Memory().Physical().Get(t)
-			if memory_reserved > uint64(0) {
+			memoryReserved := dut.Telemetry().System().Memory().Physical().Get(t)
+			if memoryReserved > uint64(0) {
 				t.Logf("Got correct Physical memory value")
 			} else {
 				t.Errorf("Unexpected Physical memory value")
