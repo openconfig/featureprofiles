@@ -1,0 +1,24 @@
+package basetest
+
+import (
+	"testing"
+
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
+)
+
+const (
+	inputFile = "testdata/bgp.yaml"
+)
+
+var (
+	testInput = ipb.LoadInput(inputFile)
+	device1   = "dut"
+	ate1      = "ate"
+	observer  = fptest.NewObserver().AddCsvRecorder("ocreport").
+			AddCsvRecorder("BGP")
+)
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
