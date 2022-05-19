@@ -22,6 +22,7 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	setup.ResetStruct(bcAclSet, []string{"AclEntry"})
 	bcAclSetAclEntry := setup.GetAnyValue(bcAclSet.AclEntry)
 	setup.ResetStruct(bcAclSetAclEntry, []string{"Actions"})
+	bcAclSetAclEntry.Actions.LogAction = oc.E_Acl_LOG_ACTION(0)
 	bcInterface := setup.GetAnyValue(bc.Interface)
 	setup.ResetStruct(bcInterface, []string{"EgressAclSet"})
 	bcInterfaceEgressAclSet := setup.GetAnyValue(bcInterface.EgressAclSet)
@@ -40,7 +41,7 @@ func TestType(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.E_Acl_ACL_TYPE{
-		oc.E_Acl_ACL_TYPE(3), //ACL_L2
+		oc.E_Acl_ACL_TYPE(1), //ACL_L2
 	}
 
 	for _, input := range inputs {
@@ -89,7 +90,7 @@ func TestSetName(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		"ai",
+		"acl1",
 	}
 
 	for _, input := range inputs {

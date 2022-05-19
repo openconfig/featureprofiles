@@ -40,7 +40,7 @@ func TestType(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []oc.E_Acl_ACL_TYPE{
-		oc.E_Acl_ACL_TYPE(3), //ACL_L2
+		oc.E_Acl_ACL_TYPE(1), //ACL_IPV4
 	}
 
 	for _, input := range inputs {
@@ -89,7 +89,7 @@ func TestSetName(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		":cc",
+		"acl1",
 	}
 
 	for _, input := range inputs {
