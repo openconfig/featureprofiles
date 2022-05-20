@@ -126,6 +126,26 @@ var (
 			desc: "Add new class-map to existing policy and verify traffic",
 			fn:   testAddClassMap,
 		},
+		{
+			name: "Unconfigure policy under interface",
+			desc: "Unconfigure PBR policy under bundle interface and verify traffic drop",
+			fn:   testUnconfigPBRUnderBundleInterface,
+		},
+		{
+			name: "Add new match field",
+			desc: "Add new match field in existing class-map and verify traffic",
+			fn:   testAddMatchField,
+		},
+		{
+			name: "Modify existing match field",
+			desc: "Modify existing match filed in the existing class-map and verify traffic",
+			fn:   testModifyMatchField,
+		},
+		{
+			name: "Remove existing match field",
+			desc: "Remove existing existing match field in existing class-map and verify traffic",
+			fn:   testRemoveMatchField,
+		},
 	}
 )
 

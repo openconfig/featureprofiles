@@ -12,6 +12,9 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygot/ytypes"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 const (
@@ -671,4 +674,302 @@ func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Expecting Traffic fail
 	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
+}
+
+// verifyConfigPBRUnderInterface verifies that PBR is or is not configured under interface
+//
+// TODO: currently fails on XR due to missing key field sequence-id in GetResponse
+func verifyConfigPBRUnderInterface(ctx context.Context, t *testing.T, args *testArgs, interfaceName string, shouldExist bool) {
+	policyForwardingPath, _, _ := ygot.ResolvePath(args.dut.Config().NetworkInstance(instance).PolicyForwarding())
+	gnmiC := args.dut.RawAPIs().GNMI().New(t)
+	gotRes, err := gnmiC.Get(context.Background(), &gpb.GetRequest{
+		Prefix:   &gpb.Path{Origin: "openconfig"},
+		Path:     []*gpb.Path{policyForwardingPath},
+		Encoding: gpb.Encoding_JSON_IETF,
+		Type:     gpb.GetRequest_CONFIG,
+	})
+	if err != nil {
+		t.Fatalf("Get(t) at path %s: %v", policyForwardingPath, err)
+	}
+	exists := false
+	for _, n := range gotRes.Notification {
+		for _, u := range n.Update {
+			d := &telemetry.NetworkInstance_PolicyForwarding{}
+			val := u.GetVal().GetJsonIetfVal()
+			if val == nil {
+				continue
+			}
+			if err := telemetry.Unmarshal(val, d, &ytypes.IgnoreExtraFields{}); err != nil {
+				t.Fatalf("failed to unmarshal JSON_IETF in GetResponse: %v", err)
+			}
+			if data, ok := d.Interface[interfaceName]; ok {
+				if data.ApplyVrfSelectionPolicy != nil {
+					exists = true
+				}
+			}
+		}
+	}
+	if exists != shouldExist {
+		shouldExistString := "exist"
+		if !shouldExist {
+			shouldExistString = "not exist"
+		}
+		t.Fatalf("apply-vrf-selection-policy leaf needs to %s", shouldExistString)
+	}
+}
+
+// testUnconfigPBRUnderBundleInterface tests unconfiguring the PBR policy under a bundle interface
+func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args *testArgs) {
+	// Program GRIBI entry on the router
+	defer flushSever(t, args)
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	interfaceName := args.interfaces.in[0]
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	t.Run("Delete apply-vrf-selection-policy leaf", func(t *testing.T) {
+		args.dut.Config().NetworkInstance(instance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Delete(t)
+		defer configPBRunderInterface(t, args, interfaceName, pbrName)
+
+		// // TODO: enabled once gNMI Get works on XR
+		// t.Run("Verify deleted", func(t *testing.T) {
+		// 	verifyConfigPBRUnderInterface(ctx, t, args, interfaceName, false)
+		// })
+
+		t.Run("Verify bundle still up", func(t *testing.T) {
+			if got := args.dut.Telemetry().Interface(interfaceName).OperStatus().Get(t); got != telemetry.Interface_OperStatus_UP {
+				t.Errorf("oper-status: got %v", got)
+			}
+		})
+
+		t.Run("Expect traffic fail", func(t *testing.T) {
+			// Create Traffic and check traffic
+			srcEndPoint := args.top.Interfaces()[atePort1.Name]
+			// Expecting Traffic fail
+			testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+		})
+	})
+
+	t.Run("Delete interface list entry", func(t *testing.T) {
+		args.dut.Config().NetworkInstance(instance).PolicyForwarding().Interface(interfaceName).Delete(t)
+		defer configPBRunderInterface(t, args, interfaceName, pbrName)
+
+		// // TODO: enabled once gNMI Get works on XR
+		// t.Run("Verify deleted", func(t *testing.T) {
+		// 	verifyConfigPBRUnderInterface(ctx, t, args, interfaceName, false)
+		// })
+
+		t.Run("Verify bundle still up", func(t *testing.T) {
+			if got := args.dut.Telemetry().Interface(interfaceName).OperStatus().Get(t); got != telemetry.Interface_OperStatus_UP {
+				t.Errorf("oper-status: got %v", got)
+			}
+		})
+
+		t.Run("Expect traffic fail", func(t *testing.T) {
+			// Create Traffic and check traffic
+			srcEndPoint := args.top.Interfaces()[atePort1.Name]
+			// Expecting Traffic fail
+			testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+		})
+	})
+}
+
+func equalUint8Slice(a, b []uint8) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// verifyConfigPBRUnderInterface verifies that PBR values for dscp-set
+//
+// TODO: currently fails on XR due to data missing in GetResponse
+func verifyConfigPbrMatchIpv4DscpSet(ctx context.Context, t *testing.T, args *testArgs, ruleID uint32, expectedDscpSet []uint8) {
+	policyPath, _, _ := ygot.ResolvePath(args.dut.Config().NetworkInstance(instance).PolicyForwarding().Policy(pbrName))
+	gnmiC := args.dut.RawAPIs().GNMI().New(t)
+	gotRes, err := gnmiC.Get(context.Background(), &gpb.GetRequest{
+		Prefix:   &gpb.Path{Origin: "openconfig"},
+		Path:     []*gpb.Path{policyPath},
+		Encoding: gpb.Encoding_JSON_IETF,
+		Type:     gpb.GetRequest_CONFIG,
+	})
+	if err != nil {
+		t.Fatalf("Get(t) at path %s: %v", policyPath, err)
+	}
+	var dscpSet []uint8
+	for _, n := range gotRes.Notification {
+		for _, u := range n.Update {
+			d := &telemetry.NetworkInstance_PolicyForwarding_Policy{}
+			val := u.GetVal().GetJsonIetfVal()
+			if val == nil {
+				continue
+			}
+			if err := telemetry.Unmarshal(val, d, &ytypes.IgnoreExtraFields{}); err != nil {
+				t.Fatalf("failed to unmarshal JSON_IETF in GetResponse: %v", err)
+			}
+			if data, ok := d.Rule[ruleID]; ok && data.Ipv4 != nil && data.Ipv4.DscpSet != nil {
+				dscpSet = data.Ipv4.DscpSet
+			}
+		}
+	}
+	if !equalUint8Slice(dscpSet, expectedDscpSet) {
+		t.Fatalf("dscp-set: got %v, want %v", dscpSet, expectedDscpSet)
+	} else {
+		t.Logf("dscp-set=%v matched expected", dscpSet)
+	}
+}
+
+// testRemoveMatchField tests existing match field in existing class-map which is not related to IPinIP match and verify traffic
+func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
+	defer flushSever(t, args)
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	t.Run("Remove dscp-set", func(t *testing.T) {
+		// Remove existing match field
+		args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().DscpSet().Delete(t)
+		defer configBasePBR(t, args.dut)
+
+		// // TODO: enabled once gNMI Get works on XR
+		// t.Run("Verify deleted", func(t *testing.T) {
+		// 	verifyConfigPbrMatchIpv4DscpSet(ctx, t, args, 2, []uint8{})
+		// })
+
+		// Create Traffic and check traffic
+		t.Run("Verify traffic", func(t *testing.T) {
+			srcEndPoint := args.top.Interfaces()[atePort1.Name]
+			// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
+
+			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+		})
+	})
+
+	t.Run("Remove protocol", func(t *testing.T) {
+		defer configBasePBR(t, args.dut)
+
+		var success bool
+		success = t.Run("Pre-test config", func(t *testing.T) {
+			r1 := &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+			r1.SequenceId = ygot.Uint32(1)
+			r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+				Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+				DscpSet:  []uint8{10},
+			}
+			r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+			args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Replace(t, r1)
+		})
+		if !success {
+			t.Fatal("failed to apply pre-test configuration")
+		}
+
+		// FIXME: Workaround as XR isn't deleting DSCP 10 on replace
+		defer deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, pbrName, 4)
+		defer deletePolicyFromInterface(ctx, t, args.dut, pbrName)
+
+		// Remove existing match field
+		success = t.Run("Delete", func(t *testing.T) {
+			args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Ipv4().Protocol().Delete(t)
+		})
+		if !success {
+			t.FailNow()
+		}
+
+		// // TODO: enabled once gNMI Get works on XR
+		// t.Run("Verify deleted", func(t *testing.T) {
+		// 	verifyConfigPbrMatchIpv4DscpSet(ctx, t, args, 2, []uint8{})
+		// })
+
+		t.Run("Expect traffic fail", func(t *testing.T) {
+			srcEndPoint := args.top.Interfaces()[atePort1.Name]
+			// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
+
+			// Expecting Traffic fail
+			testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+		})
+	})
+}
+
+// testModifyMatchField tests modifying existing match filed in the existing class-map and verify traffic
+func testModifyMatchField(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
+	defer flushSever(t, args)
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	// Modify match field for protocol IPinIP class
+	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Ipv4().Protocol().Replace(t, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_ICMP)
+
+	// Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
+
+	// Expecting Traffic fail
+	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+}
+
+// testAddMatchField tests adding new match field in the existing class-map and verify traffic
+func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
+	defer flushSever(t, args)
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	t.Run("Add dscp-set", func(t *testing.T) {
+		args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Ipv4().DscpSet().Replace(t, []uint8{10, 12})
+		defer configBasePBR(t, args.dut)
+
+		// // TODO: enabled once gNMI Get works on XR
+		// t.Run("Verify added", func(t *testing.T) {
+		// 	verifyConfigPbrMatchIpv4DscpSet(ctx, t, args, 1, []uint8{10, 12})
+		// })
+
+		// Create Traffic and check traffic
+		t.Run("Verify traffic on DSCP 12", func(t *testing.T) {
+			srcEndPoint := args.top.Interfaces()[atePort1.Name]
+			// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
+
+			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 12, weights...)
+		})
+
+		// TODO: Make sure this is correct when current config failure is fixed.
+		t.Run("Expect traffic fail without DSCP", func(t *testing.T) {
+			srcEndPoint := args.top.Interfaces()[atePort1.Name]
+			// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
+
+			// Expecting Traffic fail
+			testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+		})
+	})
+
+	t.Run("Add protocol", func(t *testing.T) {
+		args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().Protocol().Replace(t, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
+		defer configBasePBR(t, args.dut)
+
+		// Create Traffic and check traffic
+		t.Run("Verify traffic", func(t *testing.T) {
+			srcEndPoint := args.top.Interfaces()[atePort1.Name]
+			// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
+
+			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+		})
+	})
 }
