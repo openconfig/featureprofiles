@@ -2,6 +2,8 @@ package cisco_gribi_test
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -279,6 +281,327 @@ func testIPv6InIPv4Traffic(ctx context.Context, t *testing.T, args *testArgs) {
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
 	testTrafficWithInnerIPv6(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+}
+
+func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Interface_Subinterface {
+	s := &telemetry.Interface_Subinterface{}
+	s.Index = ygot.Uint32(index)
+	s4 := s.GetOrCreateIpv6()
+	a := s4.GetOrCreateAddress(ipv6)
+	a.PrefixLength = ygot.Uint8(prefixlen)
+	return s
+}
+func CreateNameSpace(t *testing.T, dut *ondatra.DUTDevice, name, intfname string, subint uint32) {
+	//create empty subinterface
+	si := &telemetry.Interface_Subinterface{}
+	dut.Config().Interface(intfname).Subinterface(subint).Replace(t, si)
+
+	//create vrf and apply on subinterface
+	v := &telemetry.NetworkInstance{
+		Name: ygot.String(name),
+	}
+	vi := v.GetOrCreateInterface(intfname + "." + strconv.Itoa(int(subint)))
+	vi.Subinterface = ygot.Uint32(subint)
+	dut.Config().NetworkInstance(name).Replace(t, v)
+}
+
+func GetSubInterface(ipv4 string, prefixlen4 uint8, ipv6 string, prefixlen6 uint8, vlanID uint16, index uint32) *telemetry.Interface_Subinterface {
+	s := &telemetry.Interface_Subinterface{}
+	s.Index = ygot.Uint32(index)
+	s4 := s.GetOrCreateIpv4()
+	a := s4.GetOrCreateAddress(ipv4)
+	a.PrefixLength = ygot.Uint8(prefixlen4)
+	s6 := s.GetOrCreateIpv6()
+	a6 := s6.GetOrCreateAddress(ipv6)
+	a6.PrefixLength = ygot.Uint8(prefixlen6)
+	v := s.GetOrCreateVlan()
+	m := v.GetOrCreateMatch()
+	if index != 0 {
+		m.GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+	}
+	return s
+}
+
+func configureIpv6AndVlans(t *testing.T, dut *ondatra.DUTDevice) {
+	//Configure IPv6 address on Bundle-Ether120, Bundle-Ether121
+	dut.Config().Interface("Bundle-Ether120").Subinterface(0).Update(t, AddIpv6Address(dutPort1.IPv6, dutPort1.IPv6Len, 0))
+	dut.Config().Interface("Bundle-Ether121").Subinterface(0).Update(t, AddIpv6Address(dutPort2.IPv6, dutPort2.IPv6Len, 0))
+
+	//Configure VLANs on Bundle-Ether121
+	for i := 1; i <= 3; i++ {
+		//Create VRFs and VRF enabled subinterfaces
+		CreateNameSpace(t, dut, fmt.Sprintf("VRF%d", i*10), "Bundle-Ether121", uint32(i))
+		//Add IPv4/IPv6 address on VLANs
+		subint := GetSubInterface(fmt.Sprintf("100.121.%d.1", i*10), 24, fmt.Sprintf("2000::100:121:%d:1", i*10), 126, uint16(i*10), uint32(i))
+		dut.Config().Interface("Bundle-Ether121").Subinterface(uint32(i)).Update(t, subint)
+	}
+
+}
+
+func configurePBR(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance, iptype string, index uint32, protocol telemetry.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
+	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r1.SequenceId = ygot.Uint32(index)
+	if iptype == "ipv4" {
+		r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+			Protocol: protocol,
+		}
+		if len(dscpset) > 0 {
+			r1.Ipv4.DscpSet = dscpset
+		}
+	}
+	if iptype == "ipv6" {
+		r1.Ipv6 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv6{
+			Protocol: protocol,
+		}
+		if len(dscpset) > 0 {
+			r1.Ipv6.DscpSet = dscpset
+		}
+	}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
+	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
+	p.PolicyId = ygot.String(name)
+	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
+	p.AppendRule(&r1)
+
+	policy := telemetry.NetworkInstance_PolicyForwarding{}
+	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+
+	dut.Config().NetworkInstance("default").PolicyForwarding().Update(t, &policy)
+}
+
+func configureL2PBR(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance, iptype string, index uint32) {
+	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r1.SequenceId = ygot.Uint32(index)
+	if iptype == "ipv4" {
+		r1.L2 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
+			Ethertype: telemetry.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4,
+		}
+	}
+	if iptype == "ipv6" {
+		r1.L2 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
+			Ethertype: telemetry.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6,
+		}
+	}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
+	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
+	p.PolicyId = ygot.String(name)
+	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
+	p.AppendRule(&r1)
+	policy := telemetry.NetworkInstance_PolicyForwarding{}
+	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+
+	dut.Config().NetworkInstance("default").PolicyForwarding().Update(t, &policy)
+}
+
+func GetBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8, ttl ...uint8) *ondatra.Flow {
+
+	flow := ate.Traffic().NewFlow(flowName)
+	t.Logf("Setting up flow -> %s", flowName)
+	ethheader := ondatra.NewEthernetHeader()
+	ipheader1 := ondatra.NewIPv4Header().WithDSCP(dscp)
+	if len(ttl) > 0 {
+		ipheader1.WithTTL(ttl[0])
+	}
+	flow.WithHeaders(ethheader, ipheader1)
+	flow.WithSrcEndpoints(srcEndpoint)
+	flow.WithDstEndpoints(dstEndPoint)
+	flow.WithFrameRateFPS(100)
+	flow.WithFrameSize(1024)
+	return flow
+}
+
+func GetBoundedFlowIpv6(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8) *ondatra.Flow {
+
+	flow := ate.Traffic().NewFlow(flowName)
+	t.Logf("Setting up flow -> %s", flowName)
+	ethheader := ondatra.NewEthernetHeader()
+	ipheader1 := ondatra.NewIPv6Header().WithDSCP(dscp)
+	flow.WithHeaders(ethheader, ipheader1)
+	flow.WithSrcEndpoints(srcEndpoint)
+	flow.WithDstEndpoints(dstEndPoint)
+	flow.WithFrameRateFPS(100)
+	flow.WithFrameSize(1024)
+	return flow
+}
+
+func GetBoundedFlowIPinIP(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8, ttl ...uint8) *ondatra.Flow {
+
+	flow := ate.Traffic().NewFlow(flowName)
+	t.Logf("Setting up flow -> %s", flowName)
+	ethheader := ondatra.NewEthernetHeader()
+	outerIPHeader := ondatra.NewIPv4Header().WithDSCP(dscp)
+	if len(ttl) > 0 {
+		outerIPHeader.WithTTL(ttl[0])
+	}
+	innerIPHeader := ondatra.NewIPv4Header()
+	innerIPHeader.WithSrcAddress("200.1.0.2")
+	innerIPHeader.DstAddressRange().WithMin("201.1.0.2").WithCount(10000).WithStep("0.0.0.1")
+
+	flow.WithHeaders(ethheader, outerIPHeader, innerIPHeader)
+	flow.WithSrcEndpoints(srcEndpoint)
+	flow.WithDstEndpoints(dstEndPoint)
+	flow.WithFrameRateFPS(100)
+	flow.WithFrameSize(1024)
+	return flow
+}
+
+func testTrafficForFlows(t *testing.T, ate *ondatra.ATEDevice, topology *ondatra.ATETopology, expectPass bool, threshold float64, flow ...*ondatra.Flow) {
+
+	ate.Traffic().Start(t, flow...)
+	defer ate.Traffic().Stop(t)
+
+	time.Sleep(60 * time.Second)
+
+	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	t.Log("Packets transmitted by ports: ", ate.Telemetry().InterfaceAny().Counters().OutPkts().Get(t))
+	t.Log("Packets received by ports: ", ate.Telemetry().InterfaceAny().Counters().InPkts().Get(t))
+	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
+
+	if trafficPass == expectPass {
+		t.Log("Traffic works as expected")
+	} else {
+		t.Error("Traffic doesn't work as expected")
+	}
+}
+
+//deletePolicyFromInterface function removes the pbr policy from Bundle-Ether120 using CLI options.
+//This is a temporary fix for accommodating various types of pbr policies on the interface
+func deletePolicyFromInterface(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+	configToChange := fmt.Sprintf("no interface Bundle-Ether120  service-policy type pbr input %s\n", policyName)
+	util.GNMIWithText(ctx, t, dut, configToChange)
+}
+
+//deletePBRPolicyAndClassMaps function deletes pbr policy-map and class-map configuration using CLI.
+//This is a temporary fix to cleanup the configurations.
+func deletePBRPolicyAndClassMaps(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, policyName string, index int) {
+	configToChange := fmt.Sprintf("no policy-map type pbr %s\n", policyName)
+	for i := 1; i <= index; i++ {
+		configToChange = configToChange + fmt.Sprintf("no class-map type traffic match-all %d_%s\n", i, policyName)
+	}
+	util.GNMIWithText(ctx, t, dut, configToChange)
+
+}
+
+func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *testArgs) {
+	t.Log("RT-3.1 :Protocol, DSCP-based VRF Selection - ensure that protocol and DSCP based VRF selection is configured correctly")
+	//TODO - remove residual config. Fix when Delete starts working for PBR policy-map on interface.
+	deletePolicyFromInterface(ctx, t, args.dut, pbrName)
+
+	//Case1 - Matching ipv4 protocol to VRF10. Dropping IPv6 traffic in VRF10.
+	configureL2PBR(t, args.dut, "L2", "VRF10", "ipv4", 1)
+	configPBRunderInterface(t, args, args.interfaces.in[0], "L2")
+
+	ipv4vlan10flow := GetBoundedFlow(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipv4vlan10flow", 0, 100)
+	ipv6vlan10flow := GetBoundedFlowIpv6(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipv6vlan10flow", 0)
+	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipv4vlan10flow)
+	testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipv6vlan10flow)
+
+	//Case3 - Matching IPv4 protocol to VRF10, IPv6 protocol to VRF20. Dropping IPv6 traffic in VRF10 and IPv4 in VRF20.
+	configureL2PBR(t, args.dut, "L2", "VRF20", "ipv6", 2)
+	ipv4vlan20flow := GetBoundedFlow(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipv4vlan20flow", 0, 100)
+	ipv6vlan20flow := GetBoundedFlowIpv6(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipv6vlan20flow", 0)
+	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipv4vlan10flow, ipv6vlan20flow)
+	testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipv6vlan10flow, ipv4vlan20flow)
+
+	//TODO - delete/replace of policy and class map and its entries is broken
+	//cleanup
+	deletePolicyFromInterface(ctx, t, args.dut, "L2")
+	deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L2", 2)
+
+	//Case2 - Match IPinIP protocol to VRF10. Drop IPv4 and IPv6 traffic in VRF10.
+	configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
+	ipinipvlan10flow := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipv4inipv4v10flow0", 0)
+
+	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipvlan10flow)
+	testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipv4vlan10flow, ipv6vlan10flow)
+
+	//Case4 - Match IPinIP and single DSCP46 to VRF10. Drop DSCP0 in VRF10.
+	configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{46})
+	ipinipvlan10flowd46 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipv4inipv4v10flow46", 46)
+	testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipvlan10flow)
+	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipvlan10flowd46)
+
+	//Case5 - Match IPinIP and single DSCP46, DSCP42 to VRF10. Drop DSCP0 in VRF10.
+	configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{42, 46})
+	ipinipvlan10flowd42 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipv4inipv4v10flow42", 42)
+	testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipvlan10flow)
+	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipvlan10flowd46, ipinipvlan10flowd42)
+
+	//cleanup
+	deletePolicyFromInterface(ctx, t, args.dut, "L3")
+	deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 1)
+}
+
+func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testing.T, args *testArgs) {
+	t.Log("RT-3.2 : Multiple <Protocol, DSCP> Rules for VRF Selection - ensure that multiple VRF selection rules are matched correctly")
+	//TODO - remove residual config. Fix when Delete starts working for PBR policy-map on interface.
+	deletePolicyFromInterface(ctx, t, args.dut, pbrName)
+
+	//Case1 - Ensure matching IPinIP with DSCP (10 - VRF10, 20- VRF20, 30-VRF30) traffic reaches to appropriate VLAN.
+	configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10})
+	configurePBR(t, args.dut, "L3", "VRF20", "ipv4", 2, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{20})
+	configurePBR(t, args.dut, "L3", "VRF30", "ipv4", 3, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{30})
+	configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
+
+	ipinipd10 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd10", 10, 100)
+	ipinipd20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd20", 20, 100)
+	ipinipd30 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan30"], "ipvinipd30", 30, 100)
+	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd20, ipinipd30)
+
+	//Case2 - Ensure matching IPinIP with DSCP (10-12 - VRF10, 20-22- VRF20, 30-32-VRF30) traffic reaches to appropriate VLAN.
+	configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10, 11, 12})
+	configurePBR(t, args.dut, "L3", "VRF20", "ipv4", 2, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{20, 21, 22})
+	configurePBR(t, args.dut, "L3", "VRF30", "ipv4", 3, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{30, 31, 32})
+
+	ipinipd11 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd11", 11, 100)
+	ipinipd12 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd12", 12, 100)
+
+	ipinipd21 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd21", 21, 100)
+	ipinipd22 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd22", 22, 100)
+
+	ipinipd31 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan30"], "ipvinipd31", 31, 100)
+	ipinipd32 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan30"], "ipvinipd32", 32, 100)
+
+	testTrafficForFlows(t, args.ate, args.top, true, 0.90,
+		ipinipd10, ipinipd11, ipinipd12,
+		ipinipd20, ipinipd21, ipinipd22,
+		ipinipd30, ipinipd31, ipinipd32)
+	//cleanup
+	deletePolicyFromInterface(ctx, t, args.dut, "L3")
+	deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 3)
+
+	//Case3 - Ensure first matching of IPinIP with DSCP (10-12 - VRF10, 10-12 - VRF20) rule takes precedence.
+	configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10, 11, 12})
+	configurePBR(t, args.dut, "L3", "VRF20", "ipv4", 2, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10, 11, 12})
+	configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
+
+	ipinipd10v20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd10v20", 10, 100)
+	ipinipd11v20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd11v20", 11, 100)
+	ipinipd12v20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd12v20", 12, 100)
+
+	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd11, ipinipd12)
+	testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipd10v20, ipinipd11v20, ipinipd12v20)
+
+	//cleanup
+	deletePolicyFromInterface(ctx, t, args.dut, "L3")
+	deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 2)
+
+	//Case4 - Ensure matching IPinIP to VRF10, IPinIP with DSCP20 VRF20 causes unspecified DSCP IPinIP traffic to match VRF10.
+	configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	configurePBR(t, args.dut, "L3", "VRF20", "ipv4", 2, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{20})
+	configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
+
+	//reuse ipinipd10, ipinipd11, ipinipd12 flows to match IPinIP to VRF10
+	//reuse ipinipd20 flow to match IPinIP with DSCP20 to VRF20
+	//reuse flows ipinipd10v20, ipinipd11v20, ipinipd12v20 to show they fail for VRF20
+
+	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd11, ipinipd12, ipinipd20)
+	testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipd10v20, ipinipd11v20, ipinipd12v20)
+
+	//cleanup
+	deletePolicyFromInterface(ctx, t, args.dut, "L3")
+	deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 2)
 }
 
 // testRemoveClassMap tests removing existing class-map which is not related to IPinIP match and verify traffic
