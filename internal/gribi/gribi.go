@@ -89,6 +89,10 @@ func (c *Client) Start(t testing.TB) error {
 	return err
 }
 
+// StartWithNoCache function start establish a client connection with the gribi server.
+// It works same as the start function but does not use the cached API.
+// By default the client is not the leader and for that function BecomeLeader
+// needs to be called.
 func (c *Client) StartWithNoCache(t testing.TB) error {
 	t.Helper()
 	t.Logf("Starting GRIBI connection for dut: %s", c.DUT.Name())
@@ -111,7 +115,6 @@ func (c *Client) StartWithNoCache(t testing.TB) error {
 	err := c.AwaitTimeout(ctx, t, timeout)
 	return err
 }
-
 
 // Close function closes the gribi session with the dut by stopping the fluent client.
 func (c *Client) Close(t testing.TB) {

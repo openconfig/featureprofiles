@@ -106,6 +106,8 @@ func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg
 	}
 	return resp
 }
+
+// CMDViaSSH push cli command to cisco router, (have not tested well)
 func CMDViaSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) {
 	sshClient := dut.RawAPIs().CLI(t)
 	cliOut := sshClient.Stdout()
