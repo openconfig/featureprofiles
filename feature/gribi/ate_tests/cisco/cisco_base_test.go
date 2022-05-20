@@ -146,6 +146,16 @@ var (
 			desc: "Remove existing existing match field in existing class-map and verify traffic",
 			fn:   testRemoveMatchField,
 		},
+		{
+			name: "Flap Interface",
+			desc: "Flap Interface and verify traffic",
+			fn:   testTrafficFlapInterface,
+		},
+		{
+			name: "Match DSCP and VRF redirect",
+			desc: "Verify PBR policy works with match DSCP and action VRF redirect",
+			fn:   testMatchDscpActionVRFRedirect,
+		},
 	}
 )
 

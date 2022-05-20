@@ -973,3 +973,41 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 		})
 	})
 }
+
+// Function.PBR.:027 interface shut/unshut and verify traffic
+func testTrafficFlapInterface(ctx context.Context, t *testing.T, args *testArgs) {
+	defer flushSever(t, args)
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	// Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+
+	// Flap Interface
+	for _, interface_name := range args.interfaces.in {
+		util.FlapInterface(t, args.dut, interface_name, 5)
+	}
+	// Verify Traffic again
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+}
+
+// Function.PBR.:020 Verify PBR policy works with match DSCP and action VRF redirect
+func testMatchDscpActionVRFRedirect(ctx context.Context, t *testing.T, args *testArgs) {
+	defer flushSever(t, args)
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	// Create Traffic and check traffic
+	dscp := uint8(16)
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
+}
