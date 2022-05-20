@@ -388,3 +388,27 @@ func testAddRemoveHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }
+
+
+func testRemoveADDPBRConfigWithGNMIReplace(ctx context.Context, t *testing.T, args *testArgs) {
+	defer flushSever(t, args)
+	
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	// Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
+
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+
+	// remove PBR expect the traffic to be failed even after adding gribi routes
+
+	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+
+	// add PBR config and expect the traffic to be passed after adding gribi routes
+
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+}

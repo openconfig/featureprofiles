@@ -200,7 +200,7 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 
 	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
 	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
-		t.Errorf("Flow %s is not working as expected", flow.Name())
+		t.Fatalf("Flow %s is not working as expected", flow.Name())
 	}
 
 	// if expectPass {

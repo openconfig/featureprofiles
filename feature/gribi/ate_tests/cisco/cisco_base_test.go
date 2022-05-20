@@ -119,12 +119,24 @@ var (
 		},
 	}
 
-	PBRWithReloadTestcases = []Testcase{
+	PBRCommitReplaceWithReloadTestcases = []Testcase{
 		{
-			name: "Add remove hw-module cli",
+			name: "Add remove hw-module CLI",
 			desc: "remove/add the pbr policy using hw-module and verify traffic fails/passes",
-			fn:   testAddRemoveHWModule,
-			skip: true,
+			fn:   testRemAddHWModule,
+			skip: false,
+		},
+		{
+			name: "Commit replace with PBR config changes",
+			desc: "Unconfig/config with PBR and verify traffic fails/passes",
+			fn:   testRemAddPBRWithGNMIReplace,
+			skip: false,
+		},
+		{
+			name: "Commit replace with HW config along with OC via GNMI",
+			desc: "Unconfig/config  PBR using oc and HWModule using text in the same GNMI replace  and verify traffic fails/passes",
+			fn:   testRemAddHWWithGNMIReplaceAndPBRwithOC,
+			skip: false,
 		},
 	}
 )
@@ -282,22 +294,25 @@ func TestCD5PBR(t *testing.T) {
 
 
 
-func TestPBRWithReload(t *testing.T) {
+func TestPBRConfigWithGNMIReplaceAndReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// Dial gRIBI
 	ctx := context.Background()
 
 	// Disable Flowspec and Enable PBR
-	convertFlowspecToPBR(ctx, t, dut)
+	//convertFlowspecToPBR(ctx, t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
 
-	for _, tt := range PBRWithReloadTestcases {
+	for _, tt := range PBRCommitReplaceWithReloadTestcases {
 		// Each case will run with its own gRIBI fluent client.
+		if tt.skip {
+			continue
+		}
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
