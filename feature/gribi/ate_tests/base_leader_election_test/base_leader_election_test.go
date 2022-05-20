@@ -617,8 +617,8 @@ func TestBackUp(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	// addAteISISL2(t, top, "atePort8", "B4", "testing", 20, "201.1.0.2/32", uint32(1000))
-	// top.Push(t).StartProtocols(t)
+	addAteISISL2(t, top, "atePort8", "B4", "testing", 20, "201.1.0.2/32", uint32(1000))
+	top.Push(t).StartProtocols(t)
 
 	test := []struct {
 		name string
