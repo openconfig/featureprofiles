@@ -91,8 +91,8 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	configbasePBR(t, dut)
 	dut.Config().NetworkInstance("default").PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
 
-	t.Log("Reload the router to activate hw module config")
-	util.ReloadDUT(t, dut)
+	// t.Log("Reload the router to activate hw module config")
+	// util.ReloadDUT(t, dut)
 
 }
 
@@ -547,6 +547,8 @@ func testReplaceIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
 	defer topology.StopProtocols(t)
 	baseflow := getBaseFlow(t, portMaps, ate, "IPinIP")
 	ate.Traffic().Start(t, baseflow)
+
+	time.Sleep(60 * time.Second)
 
 	// Replace same ipv4 entry
 	args.c2.BecomeLeader(t)
