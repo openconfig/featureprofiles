@@ -15,7 +15,9 @@ import (
 
 const (
 	ipv4PrefixLen = 24
+	ipv6PrefixLen = 126
 	instance      = "default"
+	vlanMTU       = 1518
 )
 
 var (
@@ -23,24 +25,32 @@ var (
 		Desc:    "dutPort1",
 		IPv4:    "100.120.1.1",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:120:1:1",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
 		IPv4:    "100.120.1.2",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:120:1:2",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "100.121.1.1",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:1:1",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
 		IPv4:    "100.121.1.2",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:1:2",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	dutPort3 = attrs.Attributes{
@@ -109,6 +119,60 @@ var (
 		IPv4:    "100.127.1.2",
 		IPv4Len: ipv4PrefixLen,
 	}
+
+	dutPort2Vlan10 = attrs.Attributes{
+		Desc:    "dutPort2Vlan10",
+		IPv4:    "100.121.10.1",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:10:1",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
+
+	atePort2Vlan10 = attrs.Attributes{
+		Name:    "atePort2Vlan10",
+		IPv4:    "100.121.10.2",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:10:2",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
+
+	dutPort2Vlan20 = attrs.Attributes{
+		Desc:    "dutPort2Vlan20",
+		IPv4:    "100.121.20.1",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:20:1",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
+
+	atePort2Vlan20 = attrs.Attributes{
+		Name:    "atePort2Vlan20",
+		IPv4:    "100.121.20.2",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:20:2",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
+
+	dutPort2Vlan30 = attrs.Attributes{
+		Desc:    "dutPort2Vlan30",
+		IPv4:    "100.121.30.1",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:30:1",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
+
+	atePort2Vlan30 = attrs.Attributes{
+		Name:    "atePort2Vlan20",
+		IPv4:    "100.121.30.2",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:30:2",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
 )
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -120,12 +184,18 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	i1.IPv4().
 		WithAddress(atePort1.IPv4CIDR()).
 		WithDefaultGateway(dutPort1.IPv4)
+	i1.IPv6().
+		WithAddress(atePort1.IPv6CIDR()).
+		WithDefaultGateway(dutPort1.IPv6)
 
 	p2 := ate.Port(t, "port2")
 	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
 	i2.IPv4().
 		WithAddress(atePort2.IPv4CIDR()).
 		WithDefaultGateway(dutPort2.IPv4)
+	i2.IPv6().
+		WithAddress(atePort2.IPv6CIDR()).
+		WithDefaultGateway(dutPort2.IPv6)
 
 	p3 := ate.Port(t, "port3")
 	i3 := top.AddInterface(atePort3.Name).WithPort(p3)
@@ -162,10 +232,39 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	i8.IPv4().
 		WithAddress(atePort8.IPv4CIDR()).
 		WithDefaultGateway(dutPort8.IPv4)
+
+	//Configure vlans on ATE port2
+	i2v10 := top.AddInterface("atePort2Vlan10").WithPort(p2)
+	i2v10.Ethernet().WithMTU(1518).WithVLANID(10)
+	i2v10.IPv4().
+		WithAddress(atePort2Vlan10.IPv4CIDR()).
+		WithDefaultGateway(dutPort2Vlan10.IPv4)
+	i2v10.IPv6().
+		WithAddress(atePort2Vlan10.IPv6CIDR()).
+		WithDefaultGateway(dutPort2Vlan10.IPv6)
+
+	i2v20 := top.AddInterface("atePort2Vlan20").WithPort(p2)
+	i2v20.Ethernet().WithMTU(1518).WithVLANID(20)
+	i2v20.IPv4().
+		WithAddress(atePort2Vlan20.IPv4CIDR()).
+		WithDefaultGateway(dutPort2Vlan20.IPv4)
+	i2v20.IPv6().
+		WithAddress(atePort2Vlan20.IPv6CIDR()).
+		WithDefaultGateway(dutPort2Vlan20.IPv6)
+
+	i2v30 := top.AddInterface("atePort2Vlan30").WithPort(p2)
+	i2v30.Ethernet().WithMTU(1518).WithVLANID(30)
+	i2v30.IPv4().
+		WithAddress(atePort2Vlan30.IPv4CIDR()).
+		WithDefaultGateway(dutPort2Vlan30.IPv4)
+	i2v30.IPv6().
+		WithAddress(atePort2Vlan30.IPv6CIDR()).
+		WithDefaultGateway(dutPort2Vlan30.IPv6)
+
 	return top
 }
 
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, weights ...float64) {
+func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress("00:11:01:00:00:01")
 	ethHeader.WithDstAddress("00:01:00:02:00:00")
@@ -175,6 +274,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 		WithMin("198.51.100.0").
 		WithMax("198.51.100.254").
 		WithCount(250)
+	ipv4Header.WithDSCP(dscp)
 	ipv4Header.DstAddressRange().WithMin(hostIP).WithCount(uint32(scale)).WithStep("0.0.0.1")
 
 	innerIpv4Header := ondatra.NewIPv4Header()
@@ -198,16 +298,16 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	time.Sleep(15 * time.Second)
 
 	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	if got := util.CheckTrafficPassViaPortPktCounter(stats); !got {
-		t.Errorf("LossPct for flow %s", flow.Name())
+	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
+		t.Errorf("Flow %s is not working as expected", flow.Name())
 	}
 
-	//
-
-	// tolerance := float64(0.03)
-	// interval := 45 * time.Second
-	// if len(weights) > 0 {
-	// 	CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out[:len(weights)], weights, interval, tolerance)
+	// if expectPass {
+	// 	tolerance := float64(0.03)
+	// 	interval := 45 * time.Second
+	// 	if len(weights) > 0 {
+	// 		CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out[:len(weights)], weights, interval, tolerance)
+	// 	}
 	// }
 	ate.Traffic().Stop(t)
 
@@ -406,7 +506,7 @@ func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testAr
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, weights...)
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }
 
 func testDeleteAndAddUCMP(ctx context.Context, t *testing.T, args *testArgs) {
@@ -422,12 +522,12 @@ func testDeleteAndAddUCMP(ctx context.Context, t *testing.T, args *testArgs) {
 	// Delete UCMP at VRF Level by changing current NHG to single PATH
 	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vrfNhIndex + 1: 1}, instance, fluent.InstalledInRIB)
 	weights := []float64{10, 20, 30}
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, weights...)
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 
 	// Add back UCMP at VRF Level by changing NHG back to UCMP
 	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vrfNhIndex + 1: 15, args.prefix.vrfNhIndex + 2: 85}, instance, fluent.InstalledInRIB)
 	weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, weights...)
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }
 
 func testVRFnonRecursion(ctx context.Context, t *testing.T, args *testArgs) {
@@ -443,10 +543,10 @@ func testVRFnonRecursion(ctx context.Context, t *testing.T, args *testArgs) {
 	// Change VRF Level NHG to single recursion which is same as the VIP1
 	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vip1NhIndex + 2: 10, args.prefix.vip1NhIndex + 3: 20, args.prefix.vip1NhIndex + 4: 30}, instance, fluent.InstalledInRIB)
 	weights := []float64{10, 20, 30}
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, weights...)
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 
 	// Change VRF Level NHG to back to double recursion
 	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vrfNhIndex + 1: 15, args.prefix.vrfNhIndex + 2: 85}, instance, fluent.InstalledInRIB)
 	weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
-	testTraffic(t, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, weights...)
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }

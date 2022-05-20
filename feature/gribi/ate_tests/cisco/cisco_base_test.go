@@ -82,9 +82,49 @@ var (
 var (
 	CD5Testcases = []Testcase{
 		{
-			name: "Move physical to bundle with same policy",
+			name: "Move physical interface to bundle with same policy",
 			desc: "Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy",
-			fn:   testMovePhysicalToBundle,
+			fn:   testMovePhysicalToBundleWithSamePolicy,
+		},
+		{
+			name: "Move physical interface to bundle with different policy",
+			desc: "Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy",
+			fn:   testMovePhysicalToBundleWithDifferentPolicy,
+		},
+		{
+			name: "Change policy under interface",
+			desc: "Change existing policy under the interface to a new one and verify gribi traffic",
+			fn:   testChangePBRUnderInterface,
+		},
+		{
+			name: "Match IPinIP with IPv6inIPv4 traffic",
+			desc: "Configure with policy matching protocol IPinIP and send IPv6 in IPv4 and verify traffic drop",
+			fn:   testIPv6InIPv4Traffic,
+		},
+		{
+			name: "Test DSCP Protocol Based VRF Selection",
+			desc: "Test RT3.1 with DSCP, IPv4, IPv6, IPinIP based VRF selection",
+			fn:   testDscpProtocolBasedVRFSelection,
+		},
+		{
+			name: "Test Multiple DSCP Protocol Rule Based VRF Selection",
+			desc: "Test RT3.2 with multiple DSCP, IPinIP protocol based VRF selection",
+			fn:   testMultipleDscpProtocolRuleBasedVRFSelection,
+		},
+		{
+			name: "Remove existing class-map",
+			desc: "Remove existing class-map which is not related to matching protocol IPinIP and verify traffic",
+			fn:   testRemoveClassMap,
+		},
+		{
+			name: "Change existing action",
+			desc: "Change existing action to a new VRF with existing class-map and verify traffic",
+			fn:   testChangeAction,
+		},
+		{
+			name: "Add new class-map",
+			desc: "Add new class-map to existing policy and verify traffic",
+			fn:   testAddClassMap,
 		},
 	}
 )
@@ -169,6 +209,9 @@ func TestCD5PBR(t *testing.T) {
 
 	// Disable Flowspec and Enable PBR
 	convertFlowspecToPBR(ctx, t, dut)
+
+	//Configure IPv6 addresses and VLANS on DUT
+	configureIpv6AndVlans(t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")

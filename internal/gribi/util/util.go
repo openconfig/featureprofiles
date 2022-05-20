@@ -78,7 +78,8 @@ func GNMIWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, con
 	r := &gnmipb.SetRequest{
 		Update: []*gnmipb.Update{
 			{
-				Val: &gnmipb.TypedValue{Value: &gnmipb.TypedValue_AsciiVal{AsciiVal: config}},
+				Path: &gnmipb.Path{Origin: "cli"},
+				Val:  &gnmipb.TypedValue{Value: &gnmipb.TypedValue_AsciiVal{AsciiVal: config}},
 			},
 		},
 	}

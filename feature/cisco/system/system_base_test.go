@@ -14,13 +14,29 @@
  limitations under the License.
 */
 
-package system_base_test
+package basetest
 
 import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ygot/ygot"
 )
+
+var (
+	device1  = "dut"
+	observer = fptest.NewObserver().AddCsvRecorder("ocreport").
+			AddCsvRecorder("System")
+	systemContainers = []system{
+		{
+			hostname: ygot.String("tempHost1"),
+		},
+	}
+)
+
+type system struct {
+	hostname *string
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

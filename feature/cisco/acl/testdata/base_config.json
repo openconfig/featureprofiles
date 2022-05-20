@@ -1,0 +1,121 @@
+{
+  "openconfig-acl:acl-sets": {
+    "acl-set": [
+      {
+        "acl-entries": {
+          "acl-entry": [
+            {
+              "actions": {
+                "state": {
+                  "forwarding-action": "openconfig-acl:ACCEPT",
+                  "log-action": "openconfig-acl:LOG_SYSLOG"
+                }
+              },
+              "input-interface": {
+                "interface-ref": {
+                  "state": {
+                    "interface": "FourHundredGigE0/0/0/10",
+                    "subinterface": 0
+                  }
+                }
+              },
+              "ipv4": {
+                "state": {
+                  "destination-address": "10.1.1.1/32",
+                  "protocol": 6,
+                  "dscp": 10,
+                  "hop-limit": 5,
+                  "source-address": "20.1.1.1/32"
+                }
+              },
+              "ipv6": {
+                "state": {
+                  "destination-address": "7::0/108",
+                  "source-address": "8::0/108",
+                  "dscp": 10,
+                  "hop-limit": 5,
+                  "protocol": 6
+                }
+              },
+              "l2": {
+                "state": {
+                  "destination-mac": "Ff:a2:20:9B:5D:51",
+                  "destination-mac-mask": "00:00:00:00:00:00",
+                  "source-mac": "BE:aB:4C:e6:39:A0",
+                  "source-mac-mask": "00:00:00:00:00:00"
+                }
+              },
+              "mpls": {
+                "state": {
+                  "end-label-value": 158281,
+                  "start-label-value": 14620,
+                  "traffic-class": 0,
+                  "ttl-value": 192
+                }
+              },
+              "sequence-id": 10,
+              "state": {
+                "sequence-id": 10
+              },
+              "transport": {
+                "state": {
+                  "destination-port": "61524..606",
+                  "source-port": "22603..65533",
+                  "tcp-flags": [
+                    "openconfig-packet-match-types:TCP_SYN"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "name": "acl1",
+        "state": {
+          "name": "acl1",
+          "type": "openconfig-acl:ACL_IPV4"
+        },
+        "type": "openconfig-acl:ACL_IPV4"
+      }
+    ]
+  },
+  "openconfig-acl:interfaces": {
+    "interface": [
+      {
+        "egress-acl-sets": {
+          "egress-acl-set": [
+            {
+              "set-name": "acl1",
+              "state": {
+                "set-name": "acl1",
+                "type": "openconfig-acl:ACL_IPV4"
+              },
+              "type": "openconfig-acl:ACL_IPV4"
+            }
+          ]
+        },
+        "id": "FourHundredGigE0/0/0/10",
+        "ingress-acl-sets": {
+          "ingress-acl-set": [
+            {
+              "set-name": "acl1",
+              "state": {
+                "set-name": "acl1",
+                "type": "openconfig-acl:ACL_IPV4"
+              },
+              "type": "openconfig-acl:ACL_IPV4"
+            }
+          ]
+        },
+        "interface-ref": {
+          "state": {
+            "interface": "FourHundredGigE0/0/0/10",
+            "subinterface": 0
+          }
+        },
+        "state": {
+          "id": "FourHundredGigE0/0/0/10"
+        }
+      }
+    ]
+  }
+}
