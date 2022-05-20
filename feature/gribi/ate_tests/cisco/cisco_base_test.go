@@ -148,7 +148,6 @@ var (
 	}
 )
 
-
 func TestTransitWCMPFlush(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -299,7 +298,3 @@ func TestCD5PBR(t *testing.T) {
 		})
 	}
 }
-
-
-
-

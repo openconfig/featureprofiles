@@ -673,4 +673,3 @@ func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	// Expecting Traffic fail
 	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
 }
-
