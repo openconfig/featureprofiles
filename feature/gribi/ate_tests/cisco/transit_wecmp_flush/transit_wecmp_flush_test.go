@@ -1120,7 +1120,7 @@ func testDeleteVRFIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 	args.c2.BecomeLeader(t)
 	fluentC2 := args.c2.Fluent(t)
 	defer util.FlushServer(fluentC2, t)
-	elecLow2, _ := args.c1.LearnElectionID(t)
+	elecLow2, _ := args.c2.LearnElectionID(t)
 	ops2 := []func(){
 		func() {
 			fluentC2.Modify().DeleteEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3),
@@ -1191,7 +1191,7 @@ func testDeleteDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 	args.c2.BecomeLeader(t)
 	fluentC2 := args.c2.Fluent(t)
 	defer util.FlushServer(fluentC2, t)
-	elecLow2, _ := args.c1.LearnElectionID(t)
+	elecLow2, _ := args.c2.LearnElectionID(t)
 	ops2 := []func(){
 		func() {
 			fluentC2.Modify().DeleteEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(6),
