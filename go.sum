@@ -578,10 +578,14 @@ github.com/openconfig/gribigo v0.0.0-20220513184916-3617bfdbfaff/go.mod h1:srAwA
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d h1:zrs4U92QEAadFotQyidT4U8iZDJO67pXsS4r64uAHik=
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d/go.mod h1:x9tAZ4EwqCQ0jI8D6S8Yhw9Z0ee7/BxWQX0k0Uib5Q8=
 github.com/openconfig/lemming v0.0.0-20220404232244-1dbc2b4c6179/go.mod h1:PzwucDxeWVfLHl75AfRyzI2FawaWV1IbaGzRRIKayF4=
+github.com/openconfig/ondatra v0.0.0-20211007012745-f8c2944e0a95 h1:XEzNbkSfw2ZdlguJXRNUKXeA9Y0AJ/ULujdfXog99Rc=
+github.com/openconfig/ondatra v0.0.0-20211007012745-f8c2944e0a95/go.mod h1:m7Q8KBXaO2uK5DiBCoagj5J4QgLZhOr1RMK/HUR+LMc=
 github.com/openconfig/ondatra v0.0.0-20220504185232-2b3a55f47082 h1:dAz8CEj1KqEdtJzps+ExAqR15BWilhAuJtliZMvYueA=
 github.com/openconfig/ondatra v0.0.0-20220504185232-2b3a55f47082/go.mod h1:5Lk3YmsQtalt8goffN5tPkSiUErXm9vL8foHw99FI7c=
 github.com/openconfig/ondatra v0.0.0-20220513182844-88dd577fb771 h1:mdDig87/4UkY8C2+u8wA0N3IkF3npORTdvRjC0YBBYk=
 github.com/openconfig/ondatra v0.0.0-20220513182844-88dd577fb771/go.mod h1:1H81dUyqp0/qXc3p6uX+l0ygBusO99hquOxgNuc5uiE=
+github.com/openconfig/ondatra v0.0.0-20220516223236-caa4dc9b12e2 h1:v1y1RajgkNk888vW17SEmjfk+1bzCtkGLlGZAZgPwkA=
+github.com/openconfig/ondatra v0.0.0-20220516223236-caa4dc9b12e2/go.mod h1:1H81dUyqp0/qXc3p6uX+l0ygBusO99hquOxgNuc5uiE=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=
