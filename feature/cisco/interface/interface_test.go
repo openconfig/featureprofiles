@@ -72,37 +72,37 @@ func TestInterfaceCfgs(t *testing.T) {
 	})
 	member := iut.Members()[0]
 	macAdd := "78:2a:67:b6:a8:08"
-	t.Run("replaceconfig//interfaces/interface/config/description", func(t *testing.T) {
+	t.Run("replaceconfig//interfaces/interface/ethernet/config/mac-address", func(t *testing.T) {
 		path := dut.Config().Interface(member).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, macAdd)
 
 	})
-	t.Run("replaceconfig//interfaces/interface/config/description", func(t *testing.T) {
+	t.Run("replaceconfig//interfaces/interface/config/type", func(t *testing.T) {
 		path := dut.Config().Interface(member).Type()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 
 	})
-	t.Run("replaceconfig//interfaces/interface/config/description", func(t *testing.T) {
+	t.Run("replaceconfig//interfaces/interface/ethernet/config/aggregate-id", func(t *testing.T) {
 		path := dut.Config().Interface(member).Ethernet().AggregateId()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, iut.Name())
 
 	})
-	t.Run("updateconfig//interfaces/interface/config/description", func(t *testing.T) {
+	t.Run("updateconfig//interfaces/interface/ethernet/config/mac-address", func(t *testing.T) {
 		path := dut.Config().Interface(member).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, macAdd)
 
 	})
-	t.Run("updateconfig//interfaces/interface/config/description", func(t *testing.T) {
+	t.Run("updateconfig//interfaces/interface/config/type", func(t *testing.T) {
 		path := dut.Config().Interface(member).Type()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 
 	})
-	t.Run("updateconfig//interfaces/interface/config/description", func(t *testing.T) {
+	t.Run("updateconfig//interfaces/interface/ethernet/config/aggregate-id", func(t *testing.T) {
 		path := dut.Config().Interface(member).Ethernet().AggregateId()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, iut.Name())
