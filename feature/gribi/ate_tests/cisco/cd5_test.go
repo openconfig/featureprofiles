@@ -1012,3 +1012,48 @@ func testMatchDscpActionVRFRedirect(ctx context.Context, t *testing.T, args *tes
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
 }
+
+func GetIpv4Acl(name string, sequenceId uint32, dscp uint8, action telemetry.E_Acl_FORWARDING_ACTION) *telemetry.Acl {
+	acl := (&telemetry.Device{}).GetOrCreateAcl()
+	aclSet := acl.GetOrCreateAclSet(name, telemetry.Acl_ACL_TYPE_ACL_IPV4)
+	aclEntry := aclSet.GetOrCreateAclEntry(sequenceId)
+	aclEntryIpv4 := aclEntry.GetOrCreateIpv4()
+	aclEntryIpv4.Dscp = ygot.Uint8(dscp)
+	aclEntryAction := aclEntry.GetOrCreateActions()
+	aclEntryAction.ForwardingAction = action
+	return acl
+}
+
+// Function.PBR.:024 Feature Interaction: configure ACL and PBR under same interface and verify behavior
+func testAclAndPBRUnderSameInterface(ctx context.Context, t *testing.T, args *testArgs) {
+	defer flushSever(t, args)
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	// Create and apply ACL that allows DSCP16 traffic to ingress interface. Verify traffic passes.
+	dscp := uint8(16)
+	aclName := "dscp_pass"
+	aclConfig := GetIpv4Acl(aclName, 10, dscp, telemetry.Acl_FORWARDING_ACTION_ACCEPT)
+	args.dut.Config().Acl().Replace(t, aclConfig)
+	args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).SetName().Replace(t, aclName)
+
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
+
+	//Create and apply ACL that drops DSCP16 traffic incoming on the ingress interface. Verify traffic drops.
+	aclName = "dscp_drop"
+	aclConfig = GetIpv4Acl(aclName, 10, dscp, telemetry.Acl_FORWARDING_ACTION_REJECT)
+	args.dut.Config().Acl().Replace(t, aclConfig)
+	args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).SetName().Replace(t, aclName)
+
+	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
+
+	// Cleanup
+	args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
+	args.dut.Config().Acl().Delete(t)
+
+}

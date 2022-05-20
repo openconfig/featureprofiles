@@ -172,6 +172,11 @@ var (
 			desc: "remove/add the pbr policy using hw-module and verify traffic fails/passes",
 			fn:   testRemAddHWModule,
 		},
+		{
+			name: "Test Acl And PBR Under Same Interface",
+			desc: "Configure ACL and PBR under same interface and verify functionality",
+			fn:   testAclAndPBRUnderSameInterface,
+		},
 	}
 )
 
