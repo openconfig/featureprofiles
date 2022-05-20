@@ -12,19 +12,19 @@ import (
 
 	log "github.com/golang/glog"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
 // TextWithSSH applies the cli confguration via ssh on the device
-func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) (string, error) {
+func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) string {
 	sshClient := dut.RawAPIs().CLI(t)
 	cliOut := sshClient.Stdout()
 	cliIn := sshClient.Stdin()
 	if _, err := cliIn.Write([]byte(cfg)); err != nil {
-		t.Errorf("failed to write using ssh: %v", err)
-		return "", fmt.Errorf("failed to write using ssh: %w", err)
+		t.Fatalf("failed to write using ssh: %v", err)
 	}
 	buf := make([]byte, 32768) // RFC 4253 max payload size for ssh
 	ch := make(chan bool)
@@ -62,16 +62,16 @@ func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg 
 		log.V(1).Infof("ssh reply: %s", response)
 		if resp {
 			// add logging here
-			return response, nil
+			return response
 		}
 		// add logging here
-		t.Error("Response message for ssh command is not as expected")
-		return response, fmt.Errorf("response message for ssh command is not as expected")
+		t.Fatalf("Response message for ssh command is not as expected")
 	case <-time.After(timeout):
 		// add logging here
-		t.Error("Did not recieve the expected response (timeout)")
-		return response, fmt.Errorf("did not recieve the expected response (timeout)")
+		t.Fatalf("Did not recieve the expected response (timeout)")
+		return response
 	}
+	return ""
 }
 
 func checkCLIConfigIsApplied(output string) bool {
@@ -86,7 +86,7 @@ func checkCLIConfigIsApplied(output string) bool {
 }
 
 // TextWithGNMI apply the cfg  (cisco text config)  on the device using gnmi update.
-func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) (*gpb.SetResponse, error) {
+func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) *gpb.SetResponse {
 	gnmiC := dut.RawAPIs().GNMI().New(t)
 	textReplaceReq := &gpb.Update{
 		Path: &gpb.Path{Origin: "cli"},
@@ -102,13 +102,34 @@ func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg
 	log.V(1).Info(prettySetRequest(setRequest))
 	resp, err := gnmiC.Set(context.Background(), setRequest)
 	if err != nil {
-		t.Errorf("GNMI replace is failed; %v", err)
+		t.Fatalf("GNMI replace is failed; %v", err)
 	}
-	return resp, err
+	return resp
+}
+
+// CMDViaSSH push cli command to cisco router, (have not tested well)
+func CMDViaSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) {
+	sshClient := dut.RawAPIs().CLI(t)
+	cliOut := sshClient.Stdout()
+	cliIn := sshClient.Stdin()
+	if _, err := cliIn.Write([]byte(cfg)); err != nil {
+		t.Fatalf("Failed to write using ssh: %v", err)
+	}
+	time.Sleep(30)
+	buf := make([]byte, 32768) // RFC 4253 max payload size for ssh
+	n := 0
+	var err error
+	response := ""
+	n, err = cliOut.Read(buf)
+	response = fmt.Sprintf("%s%s", response, string(buf[:n]))
+	if err != nil {
+		t.Fatalf("Sending command is failed %s", err)
+	}
+	log.V(1).Info(response)
 }
 
 // GNMICommitReplace replace the router config with the cfg  (cisco text config)  on the device using gnmi replace.
-func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) (*gpb.SetResponse, error) {
+func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) *gpb.SetResponse {
 	gnmiC := dut.RawAPIs().GNMI().New(t)
 	textReplaceReq := &gpb.Update{
 		Path: &gpb.Path{Origin: "cli"},
@@ -124,13 +145,84 @@ func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	log.V(1).Info(prettySetRequest(setRequest))
 	resp, err := gnmiC.Set(context.Background(), setRequest)
 	if err != nil {
-		t.Errorf("GNMI replace is failed; %v", err)
+		t.Fatalf("GNMI replace is failed; %v", err)
 	}
-	return resp, err
+	return resp
+}
+
+// Reload excure the hw-module reload on the router. It aslo apply the configs before and after the reload.
+// The reload  will fail if the router is not responsive after max wait time.
+// Part of this code copied from ondtara
+func Reload(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, beforeReloadConfig, afterReloadConfig string, maxTimeout time.Duration) {
+	t.Logf("Realoding router %s", dut.Name())
+	if beforeReloadConfig != "" {
+		TextWithGNMI(ctx, t, dut, beforeReloadConfig)
+		t.Logf("The configuration %s \n is loaded correctly before reloading router %s", beforeReloadConfig, dut.Name())
+	}
+
+	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Delay:   0,
+		Message: "Reboot chassis without delay",
+		Force:   true,
+	})
+	if err != nil {
+		t.Fatalf("Reboot is failed %v", err)
+	}
+
+	time.Sleep(maxTimeout)
+
+	/*ctx, cncl := context.WithTimeout(context.Background(), time.Second*60)
+	defer cncl()
+	gnoiClient = dut.RawAPIs().GNOI().New(t) // new gno client can not be opended unless the reboot is finished*/
+
+	/*rebootTimeout := maxTimeout
+	switch {
+	case rebootTimeout == 0:
+		rebootTimeout = 6 * time.Minute
+	case rebootTimeout < 0:
+		t.Fatalf("reboot timeout must be a positive duration")
+	}
+	rebootDeadline := time.Now().Add(rebootTimeout)
+	retry := true
+	for retry {
+		if time.Now().After(rebootDeadline) {
+			retry = false
+			break
+		}
+		resp, err := gnoiClient.System().RebootStatus(ctx, &spb.RebootStatusRequest{})
+		switch {
+		case status.Code(err) == codes.Unimplemented:
+			// Unimplemented means we don't have a valid way
+			// to validate health of reboot.
+			t.Fatalf("Can not get the reboot status of dut %s", dut.Name())
+		case err == nil:
+			if !resp.GetActive() {
+				t.Fatalf("Reboot failed for dut  %s", dut.Name())
+			}
+		default:
+			// any other error just sleep.
+		}
+		statusWait := time.Duration(resp.GetWait()) * time.Nanosecond
+		if statusWait <= 0 {
+			statusWait = 30 * time.Second
+		}
+		time.Sleep(statusWait)
+	}
+	t.Fatalf("reboot of %s timed out after %s", dut.Name(), maxTimeout)
+
+	*/
+	// TODO: use select and channel to detect when the router reload is complete
+
+	if afterReloadConfig != "" {
+		TextWithGNMI(ctx, t, dut, afterReloadConfig)
+		t.Logf("The configuration %s \n is loaded correctly after reloading router %s", beforeReloadConfig, dut.Name())
+	}
 }
 
 // GNMICommitReplaceWithOC apply the oc config and text config on the device. The result expected to be the merge of both configuations
-func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, pathStruct ygot.PathStruct, ocVal interface{}) (*gpb.SetResponse, error) {
+func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, pathStruct ygot.PathStruct, ocVal interface{}) *gpb.SetResponse {
 	gnmiC := dut.RawAPIs().GNMI().New(t)
 	textReplaceReq := &gpb.Update{
 		Path: &gpb.Path{Origin: "cli"},
@@ -142,16 +234,15 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 	}
 	path, _, errs := ygot.ResolvePath(pathStruct)
 	path.Target = ""
-	path.Origin = "openconfig"
+	//path.Origin = "openconfig"
 	if errs != nil {
-		t.Errorf("Could not resolve the path; %v", errs)
-		return nil, fmt.Errorf("could not encode value (ocVal) into JSON format: %v", errs)
+		t.Fatalf("Could not resolve the path; %v", errs)
+		return nil
 	}
 
 	ocJSONVal, err := ygot.Marshal7951(ocVal, ygot.JSONIndent("  "), &ygot.RFC7951JSONConfig{AppendModuleName: true, PreferShadowPath: true})
 	if err != nil {
-		t.Errorf("Could not encode value (ocVal) into JSON format; %v", err)
-		return nil, err
+		t.Fatalf("Could not encode value (ocVal) into JSON format; %v", err)
 	}
 	ocReplaceReq := &gpb.Update{
 		Path: path,
@@ -168,11 +259,13 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 		Replace: []*gpb.Update{textReplaceReq, ocReplaceReq},
 	}
 	log.V(1).Info(prettySetRequest(setRequest))
-	resp, err := gnmiC.Set(context.Background(), setRequest)
+	ctx, cncl := context.WithTimeout(context.Background(), time.Second*60)
+	defer cncl()
+	resp, err := gnmiC.Set(ctx, setRequest)
 	if err != nil {
-		t.Errorf("GNMI replace is failed; %v", err)
+		t.Fatalf("GNMI replace is failed; %v", err)
 	}
-	return resp, err
+	return resp
 }
 
 // copied from Ondatra code

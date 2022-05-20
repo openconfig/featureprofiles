@@ -11,6 +11,7 @@ import (
 )
 
 func TestCLIConfigViaSSH(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	oldHostName := dut.Telemetry().System().Hostname().Get(t)
 	newHostname := oldHostName + "new"

@@ -68,13 +68,16 @@ func CheckTrafficPassViaPortPktCounter(pktCounters []*telemetry.Interface_Counte
 
 // ReloadDUT reloads the router using GNMI APIs
 func ReloadDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
-	gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
 		Delay:   0,
 		Message: "Reboot chassis without delay",
 		Force:   true,
 	})
+	if err != nil {
+		t.Fatalf("Reboot failed %v", err)
+	}
 	time.Sleep(600 * time.Second)
 }
 

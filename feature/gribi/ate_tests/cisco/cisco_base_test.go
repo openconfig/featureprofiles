@@ -15,6 +15,7 @@ type Testcase struct {
 	name string
 	desc string
 	fn   func(ctx context.Context, t *testing.T, args *testArgs)
+	skip bool
 }
 
 // testArgs holds the objects needed by a test case.
@@ -156,6 +157,21 @@ var (
 			desc: "Verify PBR policy works with match DSCP and action VRF redirect",
 			fn:   testMatchDscpActionVRFRedirect,
 		},
+		{
+			name: "Commit replace with PBR config changes",
+			desc: "Unconfig/config with PBR and verify traffic fails/passes",
+			fn:   testRemAddPBRWithGNMIReplace,
+		},
+		{
+			name: "Commit replace with HW config along with OC via GNMI",
+			desc: "Unconfig/config  PBR using oc and HWModule using text in the same GNMI replace  and verify traffic fails/passes",
+			fn:   testRemAddHWWithGNMIReplaceAndPBRwithOC,
+		},
+		{
+			name: "Add remove hw-module CLI",
+			desc: "remove/add the pbr policy using hw-module and verify traffic fails/passes",
+			fn:   testRemAddHWModule,
+		},
 	}
 )
 
@@ -232,6 +248,7 @@ func TestTransitWCMPFlush(t *testing.T) {
 }
 
 func TestCD5PBR(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	// Dial gRIBI
