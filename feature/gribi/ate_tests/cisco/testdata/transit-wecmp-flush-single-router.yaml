@@ -18,16 +18,22 @@ custom:
           port: 22
         telnet: 
           port: 23
-        gnmi: 
+        gnmi:
           port: 57777
-          opts:  ["insecure", "skip_verify"]
-        gnoi: 
+          opts:  ["skip_verify"]
+        gnoi:
           port: 57777
+        gribi:
+          port: 57777
+          opts:  ["skip_verify"]
     ate: 
       model: IXIA_TG
       ports:
         ixnetwork:
-          port: 11009
+          port: 443
+          username: admin
+          password: admin
+          opts:  ["skip_verify"] 
 devices:
   dut1:
     image: /auto/tftp-idt-tools/josejoh/8000-x64.iso

@@ -21,11 +21,9 @@ package gribi
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
-	gribi "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -59,11 +57,6 @@ type Client struct {
 	// Unexport fields below.
 	fluentC *fluent.GRIBIClient
 }
-
-var (
-	mu         sync.Mutex
-	electionID = make(map[*ondatra.DUTDevice]gribi.Uint128)
-)
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
 func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
