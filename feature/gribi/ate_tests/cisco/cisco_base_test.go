@@ -117,9 +117,6 @@ var (
 			desc: "Add new class-map to existing policy and verify traffic",
 			fn:   testAddClassMap,
 		},
-	}
-
-	PBRCommitReplaceWithReloadTestcases = []Testcase{
 		{
 			name: "Commit replace with PBR config changes",
 			desc: "Unconfig/config with PBR and verify traffic fails/passes",
@@ -143,7 +140,6 @@ var (
 
 
 func TestTransitWCMPFlush(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	// Dial gRIBI
@@ -294,80 +290,3 @@ func TestCD5PBR(t *testing.T) {
 
 
 
-func TestPBRConfigWithGNMIReplaceAndReload(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-
-	// Dial gRIBI
-	ctx := context.Background()
-
-	// Disable Flowspec and Enable PBR
-	//convertFlowspecToPBR(ctx, t, dut)
-
-	// Configure the ATE
-	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
-
-	for _, tt := range PBRCommitReplaceWithReloadTestcases {
-		// Each case will run with its own gRIBI fluent client.
-		if tt.skip {
-			continue
-		}
-		t.Run(tt.name, func(t *testing.T) {
-			t.Logf("Name: %s", tt.name)
-			t.Logf("Description: %s", tt.desc)
-
-			clientA := gribi.Client{
-				DUT:                  ondatra.DUT(t, "dut"),
-				FibACK:               false,
-				Persistence:          true,
-				InitialElectionIDLow: 10,
-			}
-			defer clientA.Close(t)
-			if err := clientA.StartWithNoCache(t); err != nil {
-				t.Fatalf("Could not initialize gRIBI: %v", err)
-			}
-			clientA.BecomeLeader(t)
-
-			interfaceList := []string{}
-			for i := 121; i < 128; i++ {
-				interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
-			}
-
-			interfaces := interfaces{
-				in:  []string{"Bundle-Ether120"},
-				out: interfaceList,
-			}
-
-			args := &testArgs{
-				ctx:        ctx,
-				clientA:    &clientA,
-				dut:        dut,
-				ate:        ate,
-				top:        top,
-				usecase:    0,
-				interfaces: &interfaces,
-				prefix: &gribiPrefix{
-					scale:           1,
-					host:            "11.11.11.0",
-					vrfName:         "TE",
-					vipPrefixLength: "32",
-
-					vip1Ip: "192.0.2.40",
-					vip2Ip: "192.0.2.42",
-
-					vip1NhIndex:  uint64(100),
-					vip1NhgIndex: uint64(100),
-
-					vip2NhIndex:  uint64(200),
-					vip2NhgIndex: uint64(200),
-
-					vrfNhIndex:  uint64(1000),
-					vrfNhgIndex: uint64(1000),
-				},
-			}
-
-			tt.fn(ctx, t, args)
-		})
-	}
-}
