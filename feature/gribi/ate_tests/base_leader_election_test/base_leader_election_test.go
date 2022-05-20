@@ -508,7 +508,7 @@ func testIPv4BackUpSwitchDecap(ctx context.Context, t *testing.T, args *testArgs
 	configureDUT(t, args.dut)
 }
 
-func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
+func testIPv4BackUpSwitchCase3(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
 	// ensure that the entry is active through AFT telemetry and traffic.
@@ -523,161 +523,79 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	// LEVEL 2
-
-	// Creating a backup NHG with ID 101 (bkhgIndex_2)
-	// NH ID 10 (nhbIndex_2_1)
-
-	args.clientA.AddNH(t, 10, "", "REPAIR", fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, 10, 0, map[uint64]uint64{10: 10}, instance, fluent.InstalledInRIB)
-
-	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
-	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
-	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.AddNH(t, nhIndex_2_1, "192.0.2.40", instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_2_2, "192.0.2.42", instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_2_1, bkhgIndex_2, map[uint64]uint64{nhIndex_2_1: 85, nhIndex_2_2: 15}, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex_2_1, "TE", instance, fluent.InstalledInRIB)
-
-	// LEVEL 1
-
-	// VIP1: NHG ID 1000 (nhgIndex_1_1)
-	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
-	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
-	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
-	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
-	// VIP2: NHG ID 2000 (nhgIndex_1_2)
-	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
-	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
-	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
-
-	args.clientA.AddNH(t, nhIndex_1_11, atePort2.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_1_12, atePort3.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_1_13, atePort4.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_1_14, atePort5.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_1, 0, map[uint64]uint64{nhIndex_1_11: 50, nhIndex_1_12: 30, nhIndex_1_13: 15, nhIndex_1_14: 5}, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, "192.0.2.40/32", nhgIndex_1_1, instance, "", fluent.InstalledInRIB)
-
-	args.clientA.AddNH(t, nhIndex_1_21, atePort6.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_1_22, atePort7.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_2, 0, map[uint64]uint64{nhIndex_1_21: 60, nhIndex_1_22: 40}, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, "192.0.2.42/32", nhgIndex_1_2, instance, "", fluent.InstalledInRIB)
 
 	// Create REPAIR INSTANCE
 	args.clientA.AddNH(t, 3000, atePort7.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, 3, 0, make(map[uint64]uint64), instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, 3, 0, map[uint64]uint64{3000: 100}, instance, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, ateDstNetCIDR, 3, "REPAIR", instance, fluent.InstalledInRIB)
-
-	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	// dstEndPoint := args.top.Interfaces()
-	// updated_dstEndPoint := []ondatra.Endpoint{}
-	// for intf, intf_data := range dstEndPoint {
-	// 	if "atePort1" != intf && "atePort8" != intf {
-	// 		updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-	// 	}
-	// }
-
-	// //shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
-	// interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
-	// d := args.dut.Config()
-	// for _, intf := range interface_names {
-	// 	p := args.dut.Port(t, intf)
-	// 	i := &telemetry.Interface{Name: ygot.String(p.Name())}
-	// 	d.Interface(p.Name()).Replace(t, shutdownInterface(i, false))
-	// 	testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
-	// }
-	// // checking traffic on backup
-	// time.Sleep(time.Minute)
-	// testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
-
-	//adding back interface configurations
-	configureDUT(t, args.dut)
-}
-
-func testIPv4BackUpSwitchMultipleVrfs(ctx context.Context, t *testing.T, args *testArgs) {
-
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
-
-	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", ateDstNetCIDR)
-	args.clientA.BecomeLeader(t)
-	if _, err := args.clientA.Fluent(t).Flush().
-		WithElectionOverride().
-		WithAllNetworkInstances().
-		Send(); err != nil {
-		t.Fatalf("could not remove all entries from server, got: %v", err)
-	}
-
-	// LEVEL 2
-
-	// Creating a backup NHG with ID 101 (bkhgIndex_2)
-	// NH ID 10 (nhbIndex_2_1)
-
-	args.clientA.AddNH(t, 10, "", "REPAIR", fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, 10, 0, map[uint64]uint64{10: 10}, instance, fluent.InstalledInRIB)
-
-	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
-	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
-	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.AddNH(t, nhIndex_2_1, "192.0.2.40", instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_2_2, "192.0.2.42", instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_2_1, bkhgIndex_2, map[uint64]uint64{nhIndex_2_1: 85, nhIndex_2_2: 15}, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex_2_1, "TE", instance, fluent.InstalledInRIB)
-
-	// LEVEL 1
-
-	// VIP1: NHG ID 1000 (nhgIndex_1_1)
-	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
-	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
-	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
-	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
-	// VIP2: NHG ID 2000 (nhgIndex_1_2)
-	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
-	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
-	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
-
-	args.clientA.AddNH(t, nhIndex_1_11, atePort2.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_1_12, atePort3.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_1_13, atePort4.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_1_14, atePort5.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_1, 0, map[uint64]uint64{nhIndex_1_11: 50, nhIndex_1_12: 30, nhIndex_1_13: 15, nhIndex_1_14: 5}, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, "192.0.2.40/32", nhgIndex_1_1, instance, "", fluent.InstalledInRIB)
-
-	args.clientA.AddNH(t, nhIndex_1_21, atePort6.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNH(t, nhIndex_1_22, atePort7.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex_1_2, 0, map[uint64]uint64{nhIndex_1_21: 60, nhIndex_1_22: 40}, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, "192.0.2.42/32", nhgIndex_1_2, instance, "", fluent.InstalledInRIB)
 
 	// Create REPAIRED INSTANCE POINTING TO THE SAME LEVEL1 VIPS
 	args.clientA.AddNH(t, nhIndex_2_1, "192.0.2.40", instance, fluent.InstalledInRIB)
 	args.clientA.AddNH(t, nhIndex_2_2, "192.0.2.42", instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, 2, 0, make(map[uint64]uint64), instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, 2, 0, map[uint64]uint64{nhIndex_2_1: 85, nhIndex_2_2: 15}, instance, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, ateDstNetCIDR, 2, "REPAIRED", instance, fluent.InstalledInRIB)
 
-	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	// dstEndPoint := args.top.Interfaces()
-	// updated_dstEndPoint := []ondatra.Endpoint{}
-	// for intf, intf_data := range dstEndPoint {
-	// 	if "atePort1" != intf && "atePort8" != intf {
-	// 		updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-	// 	}
-	// }
+	// Creating a backup NHG with ID 101 (bkhgIndex_2), pointing to vrf Repair
+	// NH ID 10 (nhbIndex_2_1)
 
-	// //shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
-	// interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
-	// d := args.dut.Config()
-	// for _, intf := range interface_names {
-	// 	p := args.dut.Port(t, intf)
-	// 	i := &telemetry.Interface{Name: ygot.String(p.Name())}
-	// 	d.Interface(p.Name()).Replace(t, shutdownInterface(i, false))
-	// 	testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
-	// }
-	// // checking traffic on backup
-	// time.Sleep(time.Minute)
-	// testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
+	args.clientA.AddNH(t, 10, "", "REPAIR", fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, bkhgIndex_2, 0, map[uint64]uint64{10: 100}, instance, fluent.InstalledInRIB)
+
+	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
+	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
+	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
+
+	args.clientA.AddNH(t, nhIndex_2_1, "192.0.2.40", instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex_2_2, "192.0.2.42", instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex_2_1, bkhgIndex_2, map[uint64]uint64{nhIndex_2_1: 85, nhIndex_2_2: 15}, instance, fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex_2_1, "TE", instance, fluent.InstalledInRIB)
+
+	// LEVEL 1
+
+	// VIP1: NHG ID 1000 (nhgIndex_1_1)
+	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
+	// VIP2: NHG ID 2000 (nhgIndex_1_2)
+	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
+
+	args.clientA.AddNH(t, nhIndex_1_11, atePort2.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex_1_12, atePort3.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex_1_13, atePort4.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex_1_14, atePort5.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex_1_1, 0, map[uint64]uint64{nhIndex_1_11: 50, nhIndex_1_12: 30, nhIndex_1_13: 15, nhIndex_1_14: 5}, instance, fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", nhgIndex_1_1, instance, "", fluent.InstalledInRIB)
+
+	args.clientA.AddNH(t, nhIndex_1_21, atePort6.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex_1_22, atePort7.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex_1_2, 0, map[uint64]uint64{nhIndex_1_21: 60, nhIndex_1_22: 40}, instance, fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", nhgIndex_1_2, instance, "", fluent.InstalledInRIB)
+
+	// Verify the entry for 198.51.100.0/24 is active through Traffic.
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	dstEndPoint := args.top.Interfaces()
+	updated_dstEndPoint := []ondatra.Endpoint{}
+	for intf, intf_data := range dstEndPoint {
+		if "atePort1" != intf && "atePort8" != intf {
+			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
+		}
+	}
+
+	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
+	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
+	d := args.dut.Config()
+	for _, intf := range interface_names {
+		p := args.dut.Port(t, intf)
+		i := &telemetry.Interface{Name: ygot.String(p.Name())}
+		d.Interface(p.Name()).Replace(t, shutdownInterface(i, false))
+		testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
+	}
+	// checking traffic on backup
+	time.Sleep(time.Minute)
+	testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
 
 	//adding back interface configurations
 	configureDUT(t, args.dut)
@@ -699,8 +617,8 @@ func TestBackUp(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	addAteISISL2(t, top, "atePort8", "B4", "testing", 20, "201.1.0.2/32", uint32(1000))
-	top.Push(t).StartProtocols(t)
+	// addAteISISL2(t, top, "atePort8", "B4", "testing", 20, "201.1.0.2/32", uint32(1000))
+	// top.Push(t).StartProtocols(t)
 
 	test := []struct {
 		name string
@@ -718,14 +636,9 @@ func TestBackUp(t *testing.T) {
 			fn:   testIPv4BackUpSwitchDecap,
 		},
 		{
-			name: "IPv4BackUpSwitch",
+			name: "IPv4BackUpSwitchCase",
 			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path ",
-			fn:   testIPv4BackUpSwitch,
-		},
-		{
-			name: "IPv4BackUpSwitchMultipleVrfs",
-			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path, differentiated over different PBR vrfs using same Level1 VIPs ",
-			fn:   testIPv4BackUpSwitchMultipleVrfs,
+			fn:   testIPv4BackUpSwitchCase3,
 		},
 	}
 	for _, tt := range test {
