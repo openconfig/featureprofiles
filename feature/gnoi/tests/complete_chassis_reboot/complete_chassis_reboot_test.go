@@ -131,7 +131,7 @@ func TestChassisReboot(t *testing.T) {
 					time.Sleep(10 * time.Second)
 					t.Logf("Time elapsed %.2f seconds since reboot was requested.", time.Since(start).Seconds())
 					if uint64(time.Since(start).Seconds()) > rebootDelay {
-						t.Logf("Time elapsed %v seconds > %v reboot delay", time.Since(start), rebootDelay)
+						t.Logf("Time elapsed %.2f seconds > %d reboot delay", time.Since(start).Seconds(), rebootDelay)
 						break
 					}
 					latestTime, err := time.Parse(time.RFC3339, dut.Telemetry().System().CurrentDatetime().Get(t))
