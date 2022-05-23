@@ -298,11 +298,11 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 
 	for nhIndexInst, nhgNH := range nhg.NextHop {
 		if got, want := nhgNH.GetIndex(), uint64(nhIndexInst); got != want {
-			t.Errorf("next-hop index is incorrect: want %v, got %v", want, got)
+			t.Errorf("next-hop index is incorrect: got %v, want %v", got, want)
 		}
 		nh := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndexInst).Get(t)
 		if got, want := nh.GetIpAddress(), ateIndirectNH; got != want {
-			t.Errorf("next-hop is incorrect: want %v, got %v", want, got)
+			t.Errorf("next-hop is incorrect: got %v, want %v", got, want)
 		}
 		if nh.GetInterfaceRef().GetInterface() == "" {
 			t.Errorf("next-hop interface-ref/interface not found")
@@ -331,11 +331,11 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 
 	for nhIndexInst, nhgNH := range nhg.NextHop {
 		if got, want := nhgNH.GetIndex(), uint64(nhIndexInst); got != want {
-			t.Errorf("next-hop index is incorrect: want %v, got %v", want, got)
+			t.Errorf("next-hop index is incorrect: got %v, want %v", got, want)
 		}
 		nh := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndexInst).Get(t)
 		if got, want := nh.GetIpAddress(), atePort2.IPv4; got != want {
-			t.Errorf("next-hop is incorrect: want %v, got %v", want, got)
+			t.Errorf("next-hop is incorrect: got %v, want %v", got, want)
 		}
 		if nh.GetInterfaceRef().GetInterface() == "" {
 			t.Errorf("next-hop interface-ref/interface not found")
