@@ -237,8 +237,8 @@ func TestPGAugmentBGP(t *testing.T) {
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
 					Timers: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
-						HoldTime:          ygot.Float64(15),
-						KeepaliveInterval: ygot.Float64(5),
+						HoldTime:          ygot.Uint16(15),
+						KeepaliveInterval: ygot.Uint16(5),
 					},
 				},
 			},
@@ -252,7 +252,7 @@ func TestPGAugmentBGP(t *testing.T) {
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
 					Timers: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
-						MinimumAdvertisementInterval: ygot.Float64(5),
+						MinimumAdvertisementInterval: ygot.Uint16(5),
 					},
 				},
 			},
@@ -266,7 +266,7 @@ func TestPGAugmentBGP(t *testing.T) {
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
 					Timers: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
-						ConnectRetry: ygot.Float64(5),
+						ConnectRetry: ygot.Uint16(5),
 					},
 				},
 			},
@@ -317,7 +317,7 @@ func TestPGAugmentBGP_Errors(t *testing.T) {
 				"GLOBAL-PEER": {
 					PeerGroupName: ygot.String("GLOBAL-PEER"),
 					Timers: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
-						MinimumAdvertisementInterval: ygot.Float64(5),
+						MinimumAdvertisementInterval: ygot.Uint16(5),
 					},
 				},
 			},
