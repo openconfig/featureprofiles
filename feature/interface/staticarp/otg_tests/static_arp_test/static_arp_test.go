@@ -63,10 +63,8 @@ func TestMain(m *testing.M) {
 // where WW:XX:YY:ZZ are the four octets of the IPv4 in hex.  The 0x02
 // means the MAC address is locally administered.
 const (
-	trafficDuration   = 10 * time.Second
-	trafficPacketRate = 200
-	plen4             = 30
-	plen6             = 126
+	plen4 = 30
+	plen6 = 126
 
 	poisonedMAC = "12:34:56:78:7a:69" // 0x7a69 = 31337
 	noStaticMAC = ""
@@ -319,9 +317,9 @@ func testFlow(
 		flowipv4.TxRx().Device().
 			SetTxNames([]string{i1 + ".ipv4"}).
 			SetRxNames([]string{i2 + ".ipv4"})
-		flowipv4.Size().SetFixed(512)
-		flowipv4.Rate().SetPps(trafficPacketRate)
-		flowipv4.Duration().SetChoice("continuous")
+		flowipv4.Duration().SetChoice("fixed_packets")
+		flowipv4.Duration().FixedPackets().SetPackets(1000)
+		flowipv4.Size().SetFixed(100)
 		e1 := flowipv4.Packet().Add().Ethernet()
 		e1.Src().SetValue(ateSrc.MAC)
 		v4 := flowipv4.Packet().Add().Ipv4()
@@ -335,9 +333,9 @@ func testFlow(
 		flowipv6.TxRx().Device().
 			SetTxNames([]string{i1 + ".ipv6"}).
 			SetRxNames([]string{i2 + ".ipv6"})
-		flowipv6.Size().SetFixed(512)
-		flowipv6.Rate().SetPps(trafficPacketRate)
-		flowipv6.Duration().SetChoice("continuous")
+		flowipv6.Duration().SetChoice("fixed_packets")
+		flowipv6.Duration().FixedPackets().SetPackets(1000)
+		flowipv6.Size().SetFixed(100)
 		e1 := flowipv6.Packet().Add().Ethernet()
 		e1.Src().SetValue(ateSrc.MAC)
 		v4 := flowipv6.Packet().Add().Ipv6()
@@ -349,7 +347,7 @@ func testFlow(
 
 	// Starting the traffic
 	otg.StartTraffic(t)
-	err := helpers.WatchFlowMetrics(t, ate, config, &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: trafficDuration})
+	err := helpers.WatchFlowMetrics(t, ate, config, &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 5 * time.Second})
 	if err != nil {
 		log.Println(err)
 	}
@@ -368,9 +366,8 @@ func testFlow(
 	})
 
 	for _, f := range fMetrics.Items() {
-		lossPct := (f.FramesTx() - f.FramesRx()) * 100 / f.FramesTx()
-		if lossPct > 0 {
-			t.Errorf("LossPct for flow %s got %d, want 0", f.Name(), lossPct)
+		if f.FramesRx() != f.FramesTx() || f.FramesTx() != 1000 {
+			t.Errorf("LossPct for flow %s detected, expected 0", f.Name())
 		}
 	}
 
@@ -419,5 +416,13 @@ func TestStaticARP(t *testing.T) {
 func TestUnsetDut(t *testing.T) {
 	t.Logf("Start Unsetting DUT Config")
 	dut := ondatra.DUT(t, "dut")
-	dut.Config().New().WithAristaFile("unset_" + dut.Name() + ".txt").Push(t)
+	switch dut.Model() {
+	case "ARISTA_CEOS":
+		dut.Config().New().WithAristaFile("unset_" + dut.Name() + ".txt").Push(t)
+	case "CISCO_E8000":
+		dut.Config().New().WithCiscoFile("unset_" + dut.Name() + ".txt").Push(t)
+	case "JUNIPER":
+		dut.Config().New().WithJuniperFile("unset_" + dut.Name() + ".txt").Push(t)
+	}
+
 }
