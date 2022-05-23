@@ -35,27 +35,27 @@ No configuration relevant.
 
 ## Telemetry Parameter coverage
 
-For prefix:\
-/network-instances/network-instance/afts/
+### For prefix:
+* /network-instances/network-instance/afts/
 
-Parameters:\
-ipv4-unicast/ipv4-entry/state\
-ipv4-unicast/ipv4-entry/state/next-hop-group\
-ipv4-unicast/ipv4-entry/state/origin-protocol\
-ipv4-unicast/ipv4-entry/state/prefix\
-next-hop-groups/next-hop-group/id\
-next-hop-groups/next-hop-group/next-hops/next-hop/index\
-next-hop-groups/next-hop-group/next-hops/next-hop/state\
-next-hop-groups/next-hop-group/next-hops/next-hop/state/index\
-next-hop-groups/next-hop-group/state/id\
-next-hop-groups/next-hop-group/state/programmed-id\
-next-hops/next-hop/index\
-next-hops/next-hop/interface-ref/state/interface\
-next-hops/next-hop/interface-ref/state/subinterface (not supported)\
-next-hops/next-hop/state/index\
-next-hops/next-hop/state/state/programmed-id (not supported)\
-next-hops/next-hop/state/ip-address\
-next-hops/next-hop/state/mac-address (not supported)\
+### Parameters:
+* ipv4-unicast/ipv4-entry/state
+* ipv4-unicast/ipv4-entry/state/next-hop-group
+* ipv4-unicast/ipv4-entry/state/origin-protocol
+* ipv4-unicast/ipv4-entry/state/prefix
+* next-hop-groups/next-hop-group/id
+* next-hop-groups/next-hop-group/next-hops/next-hop/index
+* next-hop-groups/next-hop-group/next-hops/next-hop/state
+* next-hop-groups/next-hop-group/next-hops/next-hop/state/index
+* next-hop-groups/next-hop-group/state/id
+* next-hop-groups/next-hop-group/state/programmed-id
+* next-hops/next-hop/index
+* next-hops/next-hop/interface-ref/state/interface
+* next-hops/next-hop/interface-ref/state/subinterface (not supported)
+* next-hops/next-hop/state/index
+* next-hops/next-hop/state/state/programmed-id (not supported)
+* next-hops/next-hop/state/ip-address
+* next-hops/next-hop/state/mac-address (not supported)
 
 ## Protocol/RPC Parameter coverage
 
