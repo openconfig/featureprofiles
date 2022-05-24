@@ -99,9 +99,6 @@ feature:
         - name: Loopback0 
           passive: true
     interface:
-      - id: $ports.peer_dut_1
-        ipv4_address: 20.20.20.1
-        ipv4_prefix_length: 24
       - name: Loopback0
         ipv4_address: 1.1.1.1
         ipv4_prefix_length: 32
@@ -164,8 +161,3 @@ feature:
         ipv4_prefix_length: 24
         ipv6_address: 2000::100:127:1:1
         ipv6_prefix_length: 126
-  peer:
-    interface:
-      - id: $ports.peer_dut_1
-        ipv4_address: 20.20.20.2
-        ipv4_prefix_length: 24
