@@ -263,8 +263,8 @@ func TestAugmentBGP(t *testing.T) {
 				"1.2.3.4": {
 					NeighborAddress: ygot.String("1.2.3.4"),
 					Timers: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-						HoldTime:          ygot.Float64(15),
-						KeepaliveInterval: ygot.Float64(5),
+						HoldTime:          ygot.Uint16(15),
+						KeepaliveInterval: ygot.Uint16(5),
 					},
 				},
 			},
@@ -278,7 +278,7 @@ func TestAugmentBGP(t *testing.T) {
 				"1.2.3.4": {
 					NeighborAddress: ygot.String("1.2.3.4"),
 					Timers: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-						MinimumAdvertisementInterval: ygot.Float64(5),
+						MinimumAdvertisementInterval: ygot.Uint16(5),
 					},
 				},
 			},
@@ -292,7 +292,7 @@ func TestAugmentBGP(t *testing.T) {
 				"1.2.3.4": {
 					NeighborAddress: ygot.String("1.2.3.4"),
 					Timers: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-						ConnectRetry: ygot.Float64(5),
+						ConnectRetry: ygot.Uint16(5),
 					},
 				},
 			},
@@ -343,7 +343,7 @@ func TestAugmentBGP_Errors(t *testing.T) {
 				"1.2.3.4": {
 					NeighborAddress: ygot.String("1.2.3.4"),
 					Timers: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-						MinimumAdvertisementInterval: ygot.Float64(5),
+						MinimumAdvertisementInterval: ygot.Uint16(5),
 					},
 				},
 			},

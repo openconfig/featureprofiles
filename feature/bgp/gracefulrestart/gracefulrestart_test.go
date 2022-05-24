@@ -59,7 +59,7 @@ func TestAugmentNeighbor(t *testing.T) {
 		wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
 			GracefulRestart: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_GracefulRestart{
 				Enabled:         ygot.Bool(true),
-				StaleRoutesTime: ygot.Float64(60),
+				StaleRoutesTime: ygot.Uint16(60),
 			},
 		},
 	}, {
@@ -165,7 +165,7 @@ func TestAugmentPeerGroup(t *testing.T) {
 		wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
 			GracefulRestart: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_GracefulRestart{
 				Enabled:         ygot.Bool(true),
-				StaleRoutesTime: ygot.Float64(60),
+				StaleRoutesTime: ygot.Uint16(60),
 			},
 		},
 	}, {
