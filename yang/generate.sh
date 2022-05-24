@@ -44,6 +44,7 @@ COMMON_ARGS=(
 )
 
 YANG_FILES=(
+  google-bgp-timers.yang
   public/release/models/acl/openconfig-acl.yang
   public/release/models/acl/openconfig-packet-match.yang
   public/release/models/bgp/openconfig-bgp-policy.yang
