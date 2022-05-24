@@ -131,20 +131,20 @@ func (pg *PeerGroup) WithV4PrefixLimit(maxPrefixes uint32, opts PrefixLimitOptio
 // WithKeepaliveInterval sets the keep-alive and hold timers on the neighbor.
 func (pg *PeerGroup) WithKeepaliveInterval(keepalive, hold time.Duration) *PeerGroup {
 	toc := pg.oc.GetOrCreateTimers()
-	toc.HoldTime = ygot.Uint16(uint16(hold.Seconds()))
-	toc.KeepaliveInterval = ygot.Uint16(uint16(keepalive.Seconds()))
+	toc.HoldTime = ygot.Float64(hold.Seconds())
+	toc.KeepaliveInterval = ygot.Float64(keepalive.Seconds())
 	return pg
 }
 
 // WithMRAI sets the minimum route advertisement interval timer on the neighbor.
 func (pg *PeerGroup) WithMRAI(mrai time.Duration) *PeerGroup {
-	pg.oc.GetOrCreateTimers().MinimumAdvertisementInterval = ygot.Uint16(uint16(mrai.Seconds()))
+	pg.oc.GetOrCreateTimers().MinimumAdvertisementInterval = ygot.Float64(mrai.Seconds())
 	return pg
 }
 
 // WithConnectRetry sets the connect-retry timer on the neighbor.
 func (pg *PeerGroup) WithConnectRetry(cr time.Duration) *PeerGroup {
-	pg.oc.GetOrCreateTimers().ConnectRetry = ygot.Uint16(uint16(cr.Seconds()))
+	pg.oc.GetOrCreateTimers().ConnectRetry = ygot.Float64(cr.Seconds())
 	return pg
 }
 
