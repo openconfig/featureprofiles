@@ -150,20 +150,20 @@ func (n *Neighbor) WithV4PrefixLimit(maxPrefixes uint32, opts PrefixLimitOptions
 // WithKeepaliveInterval sets the keep-alive and hold timers on the neighbor.
 func (n *Neighbor) WithKeepaliveInterval(keepalive, hold time.Duration) *Neighbor {
 	toc := n.oc.GetOrCreateTimers()
-	toc.HoldTime = ygot.Uint16(uint16(hold.Seconds()))
-	toc.KeepaliveInterval = ygot.Uint16(uint16(keepalive.Seconds()))
+	toc.HoldTime = ygot.Float64(hold.Seconds())
+	toc.KeepaliveInterval = ygot.Float64(keepalive.Seconds())
 	return n
 }
 
 // WithMRAI sets the minimum route advertisement interval timer on the neighbor.
 func (n *Neighbor) WithMRAI(mrai time.Duration) *Neighbor {
-	n.oc.GetOrCreateTimers().MinimumAdvertisementInterval = ygot.Uint16(uint16(mrai.Seconds()))
+	n.oc.GetOrCreateTimers().MinimumAdvertisementInterval = ygot.Float64(mrai.Seconds())
 	return n
 }
 
 // WithConnectRetry sets the connect-retry timer on the neighbor.
 func (n *Neighbor) WithConnectRetry(cr time.Duration) *Neighbor {
-	n.oc.GetOrCreateTimers().ConnectRetry = ygot.Uint16(uint16(cr.Seconds()))
+	n.oc.GetOrCreateTimers().ConnectRetry = ygot.Float64(cr.Seconds())
 	return n
 }
 

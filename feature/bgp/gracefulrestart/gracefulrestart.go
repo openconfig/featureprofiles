@@ -58,7 +58,7 @@ func (gr *GracefulRestart) WithRestartTime(secs time.Duration) *GracefulRestart 
 
 // WithStaleRoutesTime sets the stale routes time for graceful restart feature.
 func (gr *GracefulRestart) WithStaleRoutesTime(secs time.Duration) *GracefulRestart {
-	rt := ygot.Uint16(uint16(secs.Seconds()))
+	rt := ygot.Float64(secs.Seconds())
 	gr.noc.StaleRoutesTime = rt
 	gr.poc.StaleRoutesTime = rt
 	gr.goc.StaleRoutesTime = rt
