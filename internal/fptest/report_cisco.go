@@ -13,7 +13,7 @@ import (
 
 var (
 	timeformat = "2006-01-02 15:04:05"
-	reportDir  = os.Getenv("REPORTS_DIR")
+	reportDir  = os.Getenv("REPORTS_DIR") 
 )
 
 // Observer watches for events and sends them to all listners
@@ -39,7 +39,11 @@ func (o *Observer) RecordYgot(t *testing.T, operation string, pathstruct ygot.Pa
 		for _, listner := range o.listeners {
 			err := listner.record(event)
 			if err != nil {
-				t.Logf("Unable to record , logging instead %s - %s - %s - %s ", event.testname, event.path, event.operation, event.status)
+				t.Logf("Unable to record , logging instead Test Path: %s -- %s -- %s -- %s -- %s ",o.name, event.testname, event.path, event.operation, event.status)
+
+			}
+			else{
+				t.Logf("Test Path: %s -- %s -- %s -- %s -- %s ",o.name, event.testname, event.path, event.operation, event.status)
 
 			}
 
@@ -48,9 +52,10 @@ func (o *Observer) RecordYgot(t *testing.T, operation string, pathstruct ygot.Pa
 }
 
 // NewObserver returns an Observer with given listners
-func NewObserver(listeners ...listner) *Observer {
+func NewObserver(name string, listeners ...listner) *Observer {
 	path := reportDir
 	return &Observer{
+		name: name,
 		path:      path,
 		listeners: listeners,
 	}
