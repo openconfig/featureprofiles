@@ -37,43 +37,87 @@ func TestRPLConfig(t *testing.T) {
 		if policy.Policy != nil {
 			t.Run("replaceconfig//routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result", func(t *testing.T) {
 				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().PolicyResult()
-				defer observer.RecordYgot(t, "UPDATE", path)
+				defer observer.RecordYgot(t, "REPLACE", path)
 				path.Replace(t, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 			})
 		}
 		if policy.Policy.Bgpaction != nil {
 			t.Run("replaceconfig//routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref", func(t *testing.T) {
 				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetLocalPref()
-				defer observer.RecordYgot(t, "UPDATE", path)
+				defer observer.RecordYgot(t, "REPLACE", path)
 				path.Replace(t, 1)
 
 			})
 
 			t.Run("replaceconfig//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/set-as-path-prepend/config/asn", func(t *testing.T) {
 				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetAsPathPrepend().Asn()
-				defer observer.RecordYgot(t, "UPDATE", path)
+				defer observer.RecordYgot(t, "REPLACE", path)
 				path.Replace(t, 1)
 
 			})
 
 			t.Run("replaceconfig//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/set-as-path-prepend/config/repeat-n", func(t *testing.T) {
 				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetAsPathPrepend().RepeatN()
-				defer observer.RecordYgot(t, "UPDATE", path)
+				defer observer.RecordYgot(t, "REPLACE", path)
 				path.Replace(t, 1)
 
 			})
 
 			t.Run("replaceconfig//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/config/set-med", func(t *testing.T) {
 				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetMed()
-				defer observer.RecordYgot(t, "UPDATE", path)
+				defer observer.RecordYgot(t, "REPLACE", path)
 				path.Replace(t, oc.UnionString("3"))
 
 			})
 
 			t.Run("replaceconfig//routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref", func(t *testing.T) {
 				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetLocalPref()
-				defer observer.RecordYgot(t, "UPDATE", path)
+				defer observer.RecordYgot(t, "REPLACE", path)
 				path.Replace(t, 1)
+
+			})
+
+		}
+		if policy.Policy != nil {
+			t.Run("updateconfig//routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result", func(t *testing.T) {
+				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().PolicyResult()
+				defer observer.RecordYgot(t, "UPDATE", path)
+				path.Update(t, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+			})
+		}
+		if policy.Policy.Bgpaction != nil {
+			t.Run("updateconfig//routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref", func(t *testing.T) {
+				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetLocalPref()
+				defer observer.RecordYgot(t, "UPDATE", path)
+				path.Update(t, 1)
+
+			})
+
+			t.Run("updateconfig//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/set-as-path-prepend/config/asn", func(t *testing.T) {
+				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetAsPathPrepend().Asn()
+				defer observer.RecordYgot(t, "UPDATE", path)
+				path.Update(t, 1)
+
+			})
+
+			t.Run("updateconfig//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/set-as-path-prepend/config/repeat-n", func(t *testing.T) {
+				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetAsPathPrepend().RepeatN()
+				defer observer.RecordYgot(t, "UPDATE", path)
+				path.Update(t, 1)
+
+			})
+
+			t.Run("replaceconfig//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/config/set-med", func(t *testing.T) {
+				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetMed()
+				defer observer.RecordYgot(t, "UPDATE", path)
+				path.Update(t, oc.UnionString("3"))
+
+			})
+
+			t.Run("updateconfig//routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref", func(t *testing.T) {
+				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetLocalPref()
+				defer observer.RecordYgot(t, "UPDATE", path)
+				path.Update(t, 1)
 
 			})
 
