@@ -10,7 +10,7 @@ import (
 
 func TestPlatformCPUState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	t.Run("state//components/component/cpu/utilization/state/avg", func(t *testing.T) {
+	t.Run("Subscribe//components/component/cpu/utilization/state/avg", func(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().Avg()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -19,7 +19,7 @@ func TestPlatformCPUState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/cpu/utilization/state/min", func(t *testing.T) {
+	t.Run("Subscribe//components/component/cpu/utilization/state/min", func(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().Min()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -28,7 +28,7 @@ func TestPlatformCPUState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/cpu/utilization/state/max", func(t *testing.T) {
+	t.Run("Subscribe//components/component/cpu/utilization/state/max", func(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().Max()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -37,7 +37,7 @@ func TestPlatformCPUState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/cpu/utilization/state/instant", func(t *testing.T) {
+	t.Run("Subscribe//components/component/cpu/utilization/state/instant", func(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().Instant()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -46,7 +46,7 @@ func TestPlatformCPUState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/cpu/utilization/state/max-time", func(t *testing.T) {
+	t.Run("Subscribe//components/component/cpu/utilization/state/max-time", func(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().MaxTime()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -55,7 +55,7 @@ func TestPlatformCPUState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/cpu/utilization/state/min-time", func(t *testing.T) {
+	t.Run("Subscribe//components/component/cpu/utilization/state/min-time", func(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().MinTime()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -64,7 +64,7 @@ func TestPlatformCPUState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/cpu/utilization/state/Interval", func(t *testing.T) {
+	t.Run("Subscribe//components/component/cpu/utilization/state/Interval", func(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().Interval()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -77,7 +77,7 @@ func TestPlatformCPUState(t *testing.T) {
 
 func TestPlatformFanTrayState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	t.Run("state//components/component/state/serial-no", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.FanTray).SerialNo()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -86,7 +86,7 @@ func TestPlatformFanTrayState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/oper-status/hardware-version", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/oper-status/hardware-version", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.FanTray).HardwareVersion()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -95,7 +95,7 @@ func TestPlatformFanTrayState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/oper-status", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/oper-status", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.FanTray).OperStatus()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -104,7 +104,7 @@ func TestPlatformFanTrayState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/description", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/description", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.FanTray).Description()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -118,7 +118,7 @@ func TestPlatformFanTrayState(t *testing.T) {
 
 func TestPlatformChassisState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	t.Run("state//components/component/state/serial-no", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.Chassis).SerialNo()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -127,7 +127,7 @@ func TestPlatformChassisState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/oper-status/hardware-version", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/oper-status/hardware-version", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.Chassis).HardwareVersion()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -136,7 +136,7 @@ func TestPlatformChassisState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/oper-status", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/oper-status", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.Chassis).OperStatus()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -145,7 +145,7 @@ func TestPlatformChassisState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/description", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/description", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.Chassis).Description()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -158,7 +158,7 @@ func TestPlatformChassisState(t *testing.T) {
 }
 func TestPlatformPSUState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	t.Run("state//components/component/state/serial-no", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.PowerSupply).SerialNo()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -167,7 +167,7 @@ func TestPlatformPSUState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/oper-status/hardware-version", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/oper-status/hardware-version", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.PowerSupply).HardwareVersion()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -176,7 +176,7 @@ func TestPlatformPSUState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/oper-status", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/oper-status", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.PowerSupply).OperStatus()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -185,7 +185,7 @@ func TestPlatformPSUState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/description", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/description", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.PowerSupply).Description()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -199,7 +199,7 @@ func TestPlatformPSUState(t *testing.T) {
 
 func TestPlatformTransceiverState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	t.Run("state//components/component/state/serial-no", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.OpticsModule).SerialNo()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -208,7 +208,7 @@ func TestPlatformTransceiverState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/oper-status/hardware-version", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/oper-status/hardware-version", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.OpticsModule).HardwareVersion()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -217,7 +217,7 @@ func TestPlatformTransceiverState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/oper-status", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/oper-status", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.OpticsModule).OperStatus()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -226,7 +226,7 @@ func TestPlatformTransceiverState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/description", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/description", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.OpticsModule).Description()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -235,7 +235,7 @@ func TestPlatformTransceiverState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/type", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/type", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.OpticsModule).Type()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -255,7 +255,7 @@ func TestPlatformPSUIOState(t *testing.T) {
 func TestTransceiverchannel(t *testing.T) {
 	// Failure due to CSCwb72703
 	dut := ondatra.DUT(t, device1)
-	t.Run("state//components/component/transceiver/state/form-factor", func(t *testing.T) {
+	t.Run("Subscribe//components/component/transceiver/state/form-factor", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.Transceiver).Transceiver().FormFactor()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -264,7 +264,7 @@ func TestTransceiverchannel(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/transceiver/physical-channels/channel/state/input-power/instant", func(t *testing.T) {
+	t.Run("Subscribe//components/component/transceiver/physical-channels/channel/state/input-power/instant", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.Transceiver).Transceiver().Channel(1).InputPower().Instant()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -273,7 +273,7 @@ func TestTransceiverchannel(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/transceiver/physical-channels/channel/state/output-power/instant", func(t *testing.T) {
+	t.Run("Subscribe//components/component/transceiver/physical-channels/channel/state/output-power/instant", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.Transceiver).Transceiver().Channel(1).OutputPower().Instant()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -282,7 +282,7 @@ func TestTransceiverchannel(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant", func(t *testing.T) {
+	t.Run("Subscribe//components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.Transceiver).Transceiver().Channel(1).LaserBiasCurrent().Instant()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -296,7 +296,7 @@ func TestTransceiverchannel(t *testing.T) {
 
 func TestTempSensor(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	t.Run("state//components/component/state/temperature/instant", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/temperature/instant", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.TempSensor).Temperature().Instant()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -309,7 +309,7 @@ func TestTempSensor(t *testing.T) {
 
 func TestFirmware(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	t.Run("state//components/component/state/firmware-version", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/firmware-version", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.BiosFirmware).FirmwareVersion()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -322,7 +322,7 @@ func TestFirmware(t *testing.T) {
 
 func TestSWVersion(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	t.Run("state//components/component/state/software-version", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/software-version", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.SWVersionComponent).SoftwareVersion()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -335,7 +335,7 @@ func TestSWVersion(t *testing.T) {
 
 func TestFabric(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	t.Run("state//components/component/state/serial-no", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.FabricCard).SerialNo()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -344,7 +344,7 @@ func TestFabric(t *testing.T) {
 
 		}
 	})
-	t.Run("state//components/component/state/description", func(t *testing.T) {
+	t.Run("Subscribe//components/component/state/description", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.FabricCard).Description()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -357,7 +357,7 @@ func TestFabric(t *testing.T) {
 
 func TestSubComponent(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	t.Run("state//components/component/subcomponents/subcomponent/state/name", func(t *testing.T) {
+	t.Run("Subscribe//components/component/subcomponents/subcomponent/state/name", func(t *testing.T) {
 		state := dut.Telemetry().Component(Platform.Chassis).Subcomponent(Platform.SubComponent).Name()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
