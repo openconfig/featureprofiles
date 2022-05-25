@@ -248,8 +248,6 @@ func TestLacpTelemetry(t *testing.T) {
 	triggerDelay := 15 * time.Second
 	expectedEntries := 2
 
-	//priority := uint16(100)
-
 	t.Run("Subscribe///lacp/interfaces/interface/state/system-id-mac", func(t *testing.T) {
 
 		//initialise system-id-mac
@@ -300,18 +298,4 @@ func TestLacpTelemetry(t *testing.T) {
 		}
 
 	})
-}
-
-func TestTime(t *testing.T) {
-	a, err1 := time.Parse(time.RFC3339Nano, "2022-05-25 12:44:46.918 +0530 IST")
-	b, err2 := time.Parse(time.RFC3339Nano, "2022-05-25 12:45:01.321 +0530 IST")
-
-	if err1 != nil && err2 != nil {
-		if b.After(a) {
-			t.Log("b is greater than a")
-		} else {
-			t.Log("a is greater than b")
-		}
-	}
-
 }
