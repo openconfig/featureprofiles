@@ -46,7 +46,7 @@ func TestHostname(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			config := dut.Config().System().Hostname()
 			state := dut.Telemetry().System().Hostname()
-			t.Run("configreplace//system/config/hostname", func(t *testing.T) {
+			t.Run("Replace//system/config/hostname", func(t *testing.T) {
 				defer observer.RecordYgot(t, "REPLACE", config)
 				config.Replace(t, testCase.hostname)
 			})
@@ -58,7 +58,7 @@ func TestHostname(t *testing.T) {
 					t.Errorf("Config hostname: got %s, want %s", configGot, testCase.hostname)
 				}
 			})
-			t.Run("configupdate//system/config/hostname", func(t *testing.T) {
+			t.Run("Update//system/config/hostname", func(t *testing.T) {
 				defer observer.RecordYgot(t, "UPDATE", config)
 				config.Update(t, testCase.hostname+"New")
 			})
@@ -79,7 +79,7 @@ func TestHostname(t *testing.T) {
 				}
 			})
 
-			t.Run("configdelete//system/config/hostname", func(t *testing.T) {
+			t.Run("Delete//system/config/hostname", func(t *testing.T) {
 				defer observer.RecordYgot(t, "DELETE", config)
 				config.Delete(t)
 				if qs := config.Lookup(t); qs.IsPresent() == true {

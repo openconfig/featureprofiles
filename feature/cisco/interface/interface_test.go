@@ -601,7 +601,7 @@ func TestInterfaceHoldTime(t *testing.T) {
 	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
 	hlt := uint32(30)
 	member := iut.Members()[0]
-	t.Run("configupdate//interfaces/interface/hold-time/config/up", func(t *testing.T) {
+	t.Run("Update//interfaces/interface/hold-time/config/up", func(t *testing.T) {
 		config := dut.Config().Interface(member).HoldTime().Up()
 		defer observer.RecordYgot(t, "UPDATE", config)
 		config.Update(t, hlt)
@@ -616,7 +616,7 @@ func TestInterfaceHoldTime(t *testing.T) {
 		}
 
 	})
-	t.Run("configupdate//interfaces/interface/hold-time/config/down", func(t *testing.T) {
+	t.Run("Update//interfaces/interface/hold-time/config/down", func(t *testing.T) {
 		config := dut.Config().Interface(member).HoldTime().Down()
 		defer observer.RecordYgot(t, "UPDATE", config)
 		config.Update(t, hlt)
@@ -631,12 +631,12 @@ func TestInterfaceHoldTime(t *testing.T) {
 		}
 
 	})
-	t.Run("configdelete//interfaces/interface/hold-time/config/down", func(t *testing.T) {
+	t.Run("Delete//interfaces/interface/hold-time/config/down", func(t *testing.T) {
 		config := dut.Config().Interface(member).HoldTime().Down()
 		defer observer.RecordYgot(t, "DELETE", config)
 		config.Delete(t)
 	})
-	t.Run("configdelete//interfaces/interface/hold-time/config/up", func(t *testing.T) {
+	t.Run("Delete//interfaces/interface/hold-time/config/up", func(t *testing.T) {
 		config := dut.Config().Interface(member).HoldTime().Up()
 		defer observer.RecordYgot(t, "DELETE", config)
 		config.Delete(t)

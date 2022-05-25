@@ -11,17 +11,17 @@ import (
 func TestNTPEnableConfig(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	config := dut.Config().System().Ntp().Enabled()
-	t.Run("configreplace//system/ntp/config/enabled", func(t *testing.T) {
+	t.Run("Replace//system/ntp/config/enabled", func(t *testing.T) {
 		defer observer.RecordYgot(t, "REPLACE", config)
 		config.Replace(t, true)
 		config.Replace(t, false)
 	})
-	t.Run("configupdate//system/ntp/config/enabled", func(t *testing.T) {
+	t.Run("Update//system/ntp/config/enabled", func(t *testing.T) {
 		defer observer.RecordYgot(t, "UPDATE", config)
 		config.Update(t, true)
 		config.Update(t, false)
 	})
-	t.Run("configdelete//system/ntp/config/enabled", func(t *testing.T) {
+	t.Run("Delete//system/ntp/config/enabled", func(t *testing.T) {
 		defer observer.RecordYgot(t, "DELETE", config)
 		config.Update(t, true)
 		config.Delete(t)

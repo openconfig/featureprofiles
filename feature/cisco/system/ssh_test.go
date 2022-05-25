@@ -10,21 +10,21 @@ func TestSSSHServerEnableConfig(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	config := dut.Config().System().SshServer().Enable()
 	enable := true
-	t.Run("configreplace//system/ssh-server/config/enable", func(t *testing.T) {
+	t.Run("Replace//system/ssh-server/config/enable", func(t *testing.T) {
 		defer observer.RecordYgot(t, "REPLACE", config)
 
 		config.Replace(t, enable)
 		enable = false
 		config.Replace(t, enable)
 	})
-	t.Run("configupdate//system/ssh-server/config/enable", func(t *testing.T) {
+	t.Run("Update//system/ssh-server/config/enable", func(t *testing.T) {
 		defer observer.RecordYgot(t, "UPDATE", config)
 		enable = true
 		config.Update(t, enable)
 		enable = false
 		config.Update(t, enable)
 	})
-	t.Run("configdelete//system/ssh-server/config/enable", func(t *testing.T) {
+	t.Run("Delete//system/ssh-server/config/enable", func(t *testing.T) {
 		defer observer.RecordYgot(t, "DELETE", config)
 		enable = true
 		config.Update(t, enable)
