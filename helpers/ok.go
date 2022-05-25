@@ -47,8 +47,8 @@ func NewExpectedState() ExpectedState {
 	return e
 }
 
-func AllBgp4SessionUp(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
-	dMetrics, err := GetBgpv4Metrics(t, ate, c)
+func AllBgp4SessionUp(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
+	dMetrics, err := GetBgpv4Metrics(t, otg, c)
 	if err != nil {
 		return false, err
 	}
@@ -69,8 +69,8 @@ func AllBgp4SessionUp(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, e
 	return expected, nil
 }
 
-func AllBgp6SessionUp(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
-	dMetrics, err := GetBgpv6Metrics(t, ate, c)
+func AllBgp6SessionUp(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
+	dMetrics, err := GetBgpv6Metrics(t, otg, c)
 	if err != nil {
 		return false, err
 	}
@@ -91,8 +91,8 @@ func AllBgp6SessionUp(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, e
 	return expected, nil
 }
 
-func AllIsisSessionUp(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
-	dMetrics, err := GetIsisMetrics(t, ate, c)
+func AllIsisSessionUp(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
+	dMetrics, err := GetIsisMetrics(t, otg, c)
 	if err != nil {
 		return false, err
 	}
@@ -115,8 +115,8 @@ func AllIsisSessionUp(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, e
 	return expected, nil
 }
 
-func FlowMetricsOk(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
-	fMetrics, err := GetFlowMetrics(t, ate, c)
+func FlowMetricsOk(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
+	fMetrics, err := GetFlowMetrics(t, otg, c)
 	if err != nil {
 		return false, err
 	}
@@ -137,17 +137,17 @@ func FlowMetricsOk(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, expe
 	return expected, nil
 }
 
-func ArpEntriesOk(t *testing.T, ate *ondatra.ATEDevice, ipType string, expectedMacEntries []string) (bool, error) {
+func ArpEntriesOk(t *testing.T, otg *ondatra.OTG, ipType string, expectedMacEntries []string) (bool, error) {
 	actualMacEntries := []string{}
 	var err error
 	switch ipType {
 	case "IPv4":
-		actualMacEntries, err = GetAllIPv4NeighborMacEntries(t, ate)
+		actualMacEntries, err = GetAllIPv4NeighborMacEntries(t, otg)
 		if err != nil {
 			return false, err
 		}
 	case "IPv6":
-		actualMacEntries, err = GetAllIPv6NeighborMacEntries(t, ate)
+		actualMacEntries, err = GetAllIPv6NeighborMacEntries(t, otg)
 		if err != nil {
 			return false, err
 		}

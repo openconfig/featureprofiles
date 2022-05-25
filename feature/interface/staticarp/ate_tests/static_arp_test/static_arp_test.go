@@ -193,8 +193,8 @@ func configureATE(t *testing.T) (*ondatra.ATEDevice, *ondatra.ATETopology) {
 
 func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
 	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG(t)
-	config := otg.NewConfig()
+	otg := ate.OTG()
+	config := otg.NewConfig(t)
 	srcPort := config.Ports().Add().SetName(ateSrc.Name)
 	dstPort := config.Ports().Add().SetName(ateDst.Name)
 
@@ -291,7 +291,7 @@ func testFlow(
 		}
 	case "software":
 		// Configure the flow
-		otg := ate.OTG(t)
+		otg := ate.OTG()
 		i1 := ateSrc.Name
 		i2 := ateDst.Name
 		config.Flows().Clear().Items()
@@ -308,11 +308,11 @@ func testFlow(
 		v4 := flowipv4.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
-		otg.PushConfig(t, ate, config)
+		otg.PushConfig(t, config)
 
 		// Starting the traffic
 		otg.StartTraffic(t)
-		err := helpers.WatchFlowMetrics(t, ate, config, &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 5 * time.Second})
+		err := helpers.WatchFlowMetrics(t, otg, config, &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 5 * time.Second})
 		if err != nil {
 			log.Println(err)
 		}
@@ -320,7 +320,7 @@ func testFlow(
 		otg.StopTraffic(t)
 
 		// Get the flow statistics
-		fMetrics, err := helpers.GetFlowMetrics(t, ate, config)
+		fMetrics, err := helpers.GetFlowMetrics(t, otg, config)
 		if err != nil {
 			t.Fatal("Error while getting the flow metrics")
 		}
@@ -352,8 +352,8 @@ func TestStaticARP(t *testing.T) {
 		top.Push(t).StartProtocols(t)
 	case "software":
 		ate, config = configureOTG(t)
-		ate.OTG(t).PushConfig(t, ate, config)
-		ate.OTG(t).StartProtocols(t)
+		ate.OTG().PushConfig(t, config)
+		ate.OTG().StartProtocols(t)
 
 	}
 	ethHeader := ondatra.NewEthernetHeader()

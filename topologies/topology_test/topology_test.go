@@ -136,9 +136,9 @@ func deconfigureDut(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG(t)
+	otg := ate.OTG()
 	sortedAtePorts := fptest.SortPorts(ate.Ports())
-	top := otg.NewConfig()
+	top := otg.NewConfig(t)
 	for i, ap := range sortedAtePorts {
 		t.Logf("OTG AddInterface: ports[%d] = %v", i, ap)
 		in := top.Ports().Add().SetName(ap.ID())
@@ -150,21 +150,21 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 			SetAddress(ipv4Addr).SetGateway(dutPortIP(i)).
 			SetPrefix(int32(plen))
 	}
-	otg.PushConfig(t, ate, top)
+	otg.PushConfig(t, top)
 	t.Logf("Start ATE Protocols")
 	otg.StartProtocols(t)
 	return top
 }
 
 func deconfigureATE(t *testing.T, ate *ondatra.ATEDevice, stopProtocols bool, stopTraffic bool) {
-	otg := ate.OTG(t)
+	otg := ate.OTG()
 	if stopTraffic {
 		otg.StopTraffic(t)
 	}
 	if stopProtocols {
 		otg.StopProtocols(t)
 	}
-	otg.PushConfig(t, ate, otg.NewConfig())
+	otg.PushConfig(t, otg.NewConfig(t))
 }
 
 func TestTopology(t *testing.T) {

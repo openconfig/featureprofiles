@@ -180,8 +180,8 @@ func configureDUT(t *testing.T, peermac string) (interfaceOrder bool) {
 
 func configureOTG(t *testing.T, interfaceOrder bool) (*ondatra.ATEDevice, gosnappi.Config) {
 	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG(t)
-	config := otg.NewConfig()
+	otg := ate.OTG()
+	config := otg.NewConfig(t)
 	var srcPort gosnappi.Port
 	var dstPort gosnappi.Port
 	if interfaceOrder {
@@ -267,6 +267,7 @@ func GetInterfaceMacs(t *testing.T, dev *ondatra.Device) map[string]string {
 func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned bool) {
 	ate := ondatra.ATE(t, "ate")
 	dut := ondatra.DUT(t, "dut")
+	otg := ate.OTG()
 	dutInterfaceMac := GetInterfaceMacs(t, dut.Device)
 	t.Logf("Mac Addresses of DUT: %v", dutInterfaceMac)
 	expectedMacEntries := []string{}
@@ -280,7 +281,7 @@ func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned b
 
 	err := helpers.WaitFor(
 		t,
-		func() (bool, error) { return helpers.ArpEntriesOk(t, ate, ipType, expectedMacEntries) }, nil,
+		func() (bool, error) { return helpers.ArpEntriesOk(t, otg, ipType, expectedMacEntries) }, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -306,7 +307,7 @@ func testFlow(
 	//   - Optional 802.1q VLAN tag (4 octets)
 	//   - Frame size (2 octets)
 	// Configure the flow
-	otg := ate.OTG(t)
+	otg := ate.OTG()
 	i1 := ateSrc.Name
 	i2 := ateDst.Name
 	config.Flows().Clear().Items()
@@ -325,7 +326,7 @@ func testFlow(
 		v4 := flowipv4.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
-		otg.PushConfig(t, ate, config)
+		otg.PushConfig(t, config)
 		checkOTGArpEntry(t, config, "IPv4", poisoned)
 	case "IPv6":
 		flowipv6 := config.Flows().Add().SetName("FlowIpv6")
@@ -341,13 +342,13 @@ func testFlow(
 		v4 := flowipv6.Packet().Add().Ipv6()
 		v4.Src().SetValue(ateSrc.IPv6)
 		v4.Dst().SetValue(ateDst.IPv6)
-		otg.PushConfig(t, ate, config)
+		otg.PushConfig(t, config)
 		checkOTGArpEntry(t, config, "IPv6", poisoned)
 	}
 
 	// Starting the traffic
 	otg.StartTraffic(t)
-	err := helpers.WatchFlowMetrics(t, ate, config, &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 5 * time.Second})
+	err := helpers.WatchFlowMetrics(t, otg, config, &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 5 * time.Second})
 	if err != nil {
 		log.Println(err)
 	}
@@ -355,7 +356,7 @@ func testFlow(
 	otg.StopTraffic(t)
 
 	// Get the flow statistics
-	fMetrics, err := helpers.GetFlowMetrics(t, ate, config)
+	fMetrics, err := helpers.GetFlowMetrics(t, otg, config)
 	if err != nil {
 		t.Fatal("Error while getting the flow metrics")
 	}

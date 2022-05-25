@@ -409,13 +409,13 @@ func CleanupTest(t *testing.T, ate *ondatra.ATEDevice, otg *ondatra.OTG, stopPro
 	if stopProtocols {
 		otg.StopProtocols(t)
 	}
-	otg.PushConfig(t, ate, otg.NewConfig())
+	otg.PushConfig(t, otg.NewConfig(t))
 }
 
-func WatchFlowMetrics(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, opts *WaitForOpts) error {
+func WatchFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, opts *WaitForOpts) error {
 	start := time.Now()
 	for {
-		fMetrics, err := GetFlowMetrics(t, ate, c)
+		fMetrics, err := GetFlowMetrics(t, otg, c)
 		if err != nil {
 			return err
 		}

@@ -147,8 +147,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
-	otg := ate.OTG(t)
-	top := otg.NewConfig()
+	otg := ate.OTG()
+	top := otg.NewConfig(t)
 
 	inputMap := map[attrs.Attributes]attrs.Attributes{
 		atePort1: dutPort1,
@@ -165,7 +165,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 			SetAddress(ateInput.IPv4).SetGateway(dutInput.IPv4).
 			SetPrefix(int32(ateInput.IPv4Len))
 	}
-	otg.PushConfig(t, ate, top)
+	otg.PushConfig(t, top)
 	otg.StartProtocols(t)
 	return top
 }
@@ -179,7 +179,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, srcEndPoint, dstEndPoint trafficEndpoint) {
 
-	otg := ate.OTG(t)
+	otg := ate.OTG()
 	config.Flows().Clear().Items()
 	flowipv4 := config.Flows().Add().SetName("Flow")
 	flowipv4.Metrics().SetEnable(true)
@@ -194,18 +194,18 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(srcEndPoint.ip)
 	v4.Dst().Increment().SetStart(strings.Split(ateDstNetCIDR, "/")[0]).SetCount(250)
-	otg.PushConfig(t, ate, config)
+	otg.PushConfig(t, config)
 
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
-	err := helpers.WatchFlowMetrics(t, ate, config, &helpers.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
+	err := helpers.WatchFlowMetrics(t, otg, config, &helpers.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
 	if err != nil {
 		log.Println(err)
 	}
 	t.Logf("Stop traffic")
 	otg.StopTraffic(t)
 
-	fMetrics, err := helpers.GetFlowMetrics(t, ate, config)
+	fMetrics, err := helpers.GetFlowMetrics(t, otg, config)
 	if err != nil {
 		t.Fatal("Error while getting the flow metrics")
 	}
