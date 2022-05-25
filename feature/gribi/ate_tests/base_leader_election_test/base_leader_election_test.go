@@ -538,7 +538,7 @@ func testIPv4BackUpSwitchCase3(ctx context.Context, t *testing.T, args *testArgs
 	// Creating a backup NHG with ID 101 (bkhgIndex_2), pointing to vrf Repair
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.AddNH(t, 10, "", "REPAIR", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "REPAIR", "DEFAULT", fluent.InstalledInRIB)
 	args.clientA.AddNHG(t, bkhgIndex_2, 0, map[uint64]uint64{10: 100}, instance, fluent.InstalledInRIB)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)

@@ -21,6 +21,7 @@ package gribi
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -175,24 +176,26 @@ func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, n
 }
 
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
-func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult) {
-	if "decap" == address {
+func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, nh_entry, instance string, expectedResult fluent.ProgrammingResult) {
+	addr := net.ParseIP(nh_entry)
+	if "decap" == nh_entry {
 		g.fluentC.Modify().AddEntry(t,
 			fluent.NextHopEntry().
 				WithNetworkInstance(instance).
 				WithIndex(nhIndex).
 				WithDecapsulateHeader(fluent.IPinIP))
-	} else if "" == address {
+	} else if addr != nil {
 		g.fluentC.Modify().AddEntry(t,
 			fluent.NextHopEntry().
 				WithNetworkInstance(instance).
-				WithIndex(nhIndex))
+				WithIndex(nhIndex).
+				WithIPAddress(nh_entry))
 	} else {
 		g.fluentC.Modify().AddEntry(t,
 			fluent.NextHopEntry().
 				WithNetworkInstance(instance).
 				WithIndex(nhIndex).
-				WithIPAddress(address))
+				WithNextHopNetworkInstance(nh_entry))
 	}
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NH: %v", err)
