@@ -25,9 +25,9 @@ type Observer struct {
 
 // AddCsvRecorder adds a CSV recorder
 func (o *Observer) AddCsvRecorder(name string) *Observer {
-	path := filepath.Join(o.path, name) + ".csv"
 	o.listeners = append(o.listeners, &csvListner{
-		filepath: path,
+		filepath: o.path,
+		filename: name + ".csv",
 	})
 	return o
 }
@@ -69,11 +69,17 @@ type event interface {
 
 type csvListner struct {
 	filepath string
+	filename string
 }
 
 func (fw *csvListner) record(event event) error {
+	filePath := filepath.Join(fw.filepath, fw.filename)
+	if *outputsDir != "" {
+		filePath = filepath.Join(*outputsDir, fw.filename)
+
+	}
 	data := event.getCsvEvent()
-	f, err := os.OpenFile(fw.filepath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}
