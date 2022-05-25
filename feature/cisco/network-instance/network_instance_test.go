@@ -29,21 +29,23 @@ func TestNetworkInstance(t *testing.T) {
 		}
 		defer observer.RecordYgot(t, "UPDATE", path)
 		defer observer.RecordYgot(t, "UPDATE", path.Name())
-		defer t.Run("UpdateDescription", func(t *testing.T) {
+		defer t.Run("deleteconfig//network-instances/network-instance/openconfig-network-instance:config/name", func(t *testing.T) {
 			deleteNetworkInstance(t, dut)
 		})
-		path.Update(t, request)
+		t.Run("updateconfig//network-instances/network-instance/openconfig-network-instance:config/name", func(t *testing.T) {
+			path.Update(t, request)
+		})
 	}
-	t.Run("updateconfig//network-instances/network-instance[name=*]/openconfig-network-instance:config/description", func(t *testing.T) {
+	t.Run("updateconfig//network-instances/network-instance/openconfig-network-instance:config/description", func(t *testing.T) {
 		verifyUpdateDescription(t, dut)
 	})
-	t.Run("replaceconfig//network-instances/network-instance[name=*]/openconfig-network-instance:config/description", func(t *testing.T) {
+	t.Run("replaceconfig//network-instances/network-instance/openconfig-network-instance:config/description", func(t *testing.T) {
 		verifyReplaceDescription(t, dut)
 	})
-	t.Run("deleteconfig//network-instances/network-instance[name=*]/openconfig-network-instance:config/description", func(t *testing.T) {
+	t.Run("deleteconfig//network-instances/network-instance/openconfig-network-instance:config/description", func(t *testing.T) {
 		verifyDeleteDescription(t, dut)
 	})
-	t.Run("pdateconfig//network-instances/network-instance[name=*]/openconfig-network-instance:config/description", func(t *testing.T) {
+	t.Run("pdateconfig//network-instances/network-instance/openconfig-network-instance:config/description", func(t *testing.T) {
 		verifyUpdateDescription(t, dut)
 	})
 }
