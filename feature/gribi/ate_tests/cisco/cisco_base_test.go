@@ -253,17 +253,16 @@ func TestTransitWCMPFlush(t *testing.T) {
 }
 
 func TestCD5PBR(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	// Dial gRIBI
 	ctx := context.Background()
 
-	// Disable Flowspec and Enable PBR
-	convertFlowspecToPBR(ctx, t, dut)
-
 	//Configure IPv6 addresses and VLANS on DUT
 	configureIpv6AndVlans(t, dut)
+
+	// Disable Flowspec and Enable PBR
+	convertFlowspecToPBR(ctx, t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
