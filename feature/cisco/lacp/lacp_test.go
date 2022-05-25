@@ -1,7 +1,9 @@
 package basetest
 
 import (
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
@@ -225,5 +227,91 @@ func TestLacpCountersState(t *testing.T) {
 		}
 
 	})
+
+}
+
+func TestLacpTelemetry(t *testing.T) {
+	dut := ondatra.DUT(t, device1)
+	inputObj, err := testInput.GetTestInput(t)
+	if err != nil {
+		t.Error(err)
+	}
+	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
+	systemIDMac1 := "00:03:00:04:00:05"
+	systemIDMac2 := "00:03:00:04:11:15"
+
+	systemPriority1 := uint16(100)
+	systemPriority2 := uint16(200)
+
+	//Default susbcription rate is 30 seconds.
+	subscriptionDuration := 50 * time.Second
+	triggerDelay := 15 * time.Second
+	expectedEntries := 2
+
+	//priority := uint16(100)
+
+	t.Run("Subscribe///lacp/interfaces/interface/state/system-id-mac", func(t *testing.T) {
+
+		//initialise system-id-mac
+		dut.Config().Lacp().Interface(iut.Name()).SystemIdMac().Update(t, systemIDMac1)
+		t.Logf("Updated SystemIdMac :%s", dut.Telemetry().Lacp().Interface(iut.Name()).SystemIdMac().Lookup(t))
+
+		//delay triggering system-id-mac change
+		go func(t *testing.T) {
+			time.Sleep(triggerDelay)
+			dut.Config().Lacp().Interface(iut.Name()).SystemIdMac().Update(t, systemIDMac2)
+			t.Log("Triggered system-id-mac change")
+		}(t)
+
+		path := dut.Telemetry().Lacp().Interface(iut.Name()).SystemIdMac()
+		defer observer.RecordYgot(t, "SUBSCRIBE", path)
+		got := path.Collect(t, subscriptionDuration).Await(t)
+
+		if len(got) < expectedEntries {
+			t.Errorf("Did not receive enough entries from subscription of system-id-mac: got %d, want %d", len(got), expectedEntries)
+		}
+		if !reflect.DeepEqual(got[len(got)-1].Val(t), systemIDMac2) {
+			t.Errorf("SystemIdMac change event was not recorded")
+		}
+	})
+
+	t.Run("Subscribe//lacp/interfaces/interface/state/system-priority", func(t *testing.T) {
+
+		//initialise system priority
+		dut.Config().Lacp().Interface(iut.Name()).SystemPriority().Update(t, systemPriority1)
+		t.Logf("Updated SystemPriority :%s", dut.Telemetry().Lacp().Interface(iut.Name()).SystemPriority().Lookup(t))
+
+		//delay triggering system priority change
+		go func(t *testing.T) {
+			time.Sleep(triggerDelay)
+			dut.Config().Lacp().Interface(iut.Name()).SystemPriority().Update(t, systemPriority2)
+			t.Log("Triggered system-priority change")
+		}(t)
+
+		path := dut.Telemetry().Lacp().Interface(iut.Name()).SystemPriority()
+		defer observer.RecordYgot(t, "SUBSCRIBE", path)
+		got := path.Collect(t, subscriptionDuration).Await(t)
+
+		if len(got) < expectedEntries {
+			t.Errorf("Did not receive enough entries from subscription of system-priority: got %d, want %d", len(got), expectedEntries)
+		}
+		if !reflect.DeepEqual(got[len(got)-1].Val(t), systemPriority2) {
+			t.Errorf("SystemPriority change event was not recorded")
+		}
+
+	})
+}
+
+func TestTime(t *testing.T) {
+	a, err1 := time.Parse(time.RFC3339Nano, "2022-05-25 12:44:46.918 +0530 IST")
+	b, err2 := time.Parse(time.RFC3339Nano, "2022-05-25 12:45:01.321 +0530 IST")
+
+	if err1 != nil && err2 != nil {
+		if b.After(a) {
+			t.Log("b is greater than a")
+		} else {
+			t.Log("a is greater than b")
+		}
+	}
 
 }
