@@ -51,7 +51,7 @@ func TestHostname(t *testing.T) {
 				config.Replace(t, testCase.hostname)
 			})
 
-			t.Run("state//system/config/hostname", func(t *testing.T) {
+			t.Run("Subscribe//system/config/hostname", func(t *testing.T) {
 				defer observer.RecordYgot(t, "SUBSCRIBE", config)
 				configGot := config.Get(t)
 				if configGot != testCase.hostname {
@@ -63,14 +63,14 @@ func TestHostname(t *testing.T) {
 				config.Update(t, testCase.hostname+"New")
 			})
 
-			t.Run("state//system/config/hostname", func(t *testing.T) {
+			t.Run("Subscribe//system/config/hostname", func(t *testing.T) {
 				configGot := config.Get(t)
 				if configGot != testCase.hostname+"New" {
 					t.Errorf("Config hostname: got %s, want %s", configGot, testCase.hostname)
 				}
 			})
 
-			t.Run("state//system/config/hostname", func(t *testing.T) {
+			t.Run("Subscribe//system/config/hostname", func(t *testing.T) {
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				stateGot := state.Await(t, 5*time.Second, testCase.hostname)
 				if stateGot.Val(t) != testCase.hostname {

@@ -38,7 +38,7 @@ func TestSSHEnableState(t *testing.T) {
 	config.Replace(t, true)
 	defer config.Delete(t)
 	telemetry := dut.Telemetry().System().SshServer().Enable()
-	t.Run("state//system/ssh-server/config/enable", func(t *testing.T) {
+	t.Run("Subscribe//system/ssh-server/config/enable", func(t *testing.T) {
 		defer observer.RecordYgot(t, "SUBSCRIBE", config)
 		enabled := telemetry.Get(t)
 		if enabled != true {

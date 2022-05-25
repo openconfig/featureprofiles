@@ -36,7 +36,7 @@ func TestNTPEnableState(t *testing.T) {
 	config.Replace(t, model)
 	defer config.Delete(t)
 	telemetry := dut.Telemetry().System().Ntp().Enabled()
-	t.Run("state//system/ntp/config/enabled", func(t *testing.T) {
+	t.Run("Subscribe//system/ntp/config/enabled", func(t *testing.T) {
 		defer observer.RecordYgot(t, "SUBSCRIBE", config)
 		enabled := telemetry.Get(t)
 		if enabled != true {
