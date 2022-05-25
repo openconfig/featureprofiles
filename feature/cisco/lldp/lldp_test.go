@@ -11,19 +11,19 @@ import (
 func TestLldpCfgs(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 
-	t.Run("updateconfig//lldp/config/enabled", func(t *testing.T) {
+	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
 		path := dut.Config().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, true)
 
 	})
-	t.Run("replaceconfig//lldp/config/enabled", func(t *testing.T) {
+	t.Run("Replace//lldp/config/enabled", func(t *testing.T) {
 		path := dut.Config().Lldp().Enabled()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, true)
 
 	})
-	t.Run("deleteconfig//lldp/config/enabled", func(t *testing.T) {
+	t.Run("Delete//lldp/config/enabled", func(t *testing.T) {
 		path := dut.Config().Lldp().Enabled()
 		defer observer.RecordYgot(t, "DELETE", path)
 		path.Delete(t)
@@ -43,20 +43,20 @@ func TestLldpState(t *testing.T) {
 	}
 	iut := inputObj.Device(dut).GetInterface("$ports.peer_dut_1")
 	peerintf := inputObj.Device(peer).GetInterface("$ports.peer_dut_1")
-	t.Run("updateconfig//lldp/config/enabled", func(t *testing.T) {
+	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
 		path := peer.Config().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, true)
 
 	})
 
-	t.Run("updateconfig//lldp/config/enabled", func(t *testing.T) {
+	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
 		path := dut.Config().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, true)
 
 	})
-	t.Run("state//lldp/config/enabled", func(t *testing.T) {
+	t.Run("Subscribe//lldp/config/enabled", func(t *testing.T) {
 		state := dut.Telemetry().Lldp().Interface(iut.Name()).Enabled()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -66,13 +66,13 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("updateconfig//lldp/config/enabled", func(t *testing.T) {
+	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
 		path := dut.Config().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, false)
 
 	})
-	t.Run("state//lldp/config/enabled", func(t *testing.T) {
+	t.Run("Subscribe//lldp/config/enabled", func(t *testing.T) {
 		state := dut.Telemetry().Lldp().Interface(iut.Name()).Enabled()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -82,7 +82,7 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("updateconfig//lldp/config/enabled", func(t *testing.T) {
+	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
 		path := dut.Config().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, true)
@@ -92,7 +92,7 @@ func TestLldpState(t *testing.T) {
 	peerid := peer.Telemetry().System().Hostname().Get(t) + "#" + peerintf.Name()
 	peername := peer.Telemetry().System().Hostname().Get(t)
 	time.Sleep(30 * time.Second)
-	t.Run("state//lldp/interfaces/interface/neighbors/neighbor/state/system-name", func(t *testing.T) {
+	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/system-name", func(t *testing.T) {
 		state := dut.Telemetry().Lldp().Interface(iut.Name()).Neighbor(peerid).SystemName()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -102,7 +102,7 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-type", func(t *testing.T) {
+	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-type", func(t *testing.T) {
 		state := dut.Telemetry().Lldp().Interface(iut.Name()).Neighbor(peerid).ChassisIdType()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -112,7 +112,7 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//lldp/interfaces/interface/neighbors/neighbor/state/port-id", func(t *testing.T) {
+	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/port-id", func(t *testing.T) {
 		state := dut.Telemetry().Lldp().Interface(iut.Name()).Neighbor(peerid).PortId()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -122,7 +122,7 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//lldp/interfaces/interface/neighbors/neighbor/state/port-id-type", func(t *testing.T) {
+	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/port-id-type", func(t *testing.T) {
 		state := dut.Telemetry().Lldp().Interface(iut.Name()).Neighbor(peerid).PortIdType()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -132,7 +132,7 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//lldp/interfaces/interface/neighbors/neighbor/state/system-description", func(t *testing.T) {
+	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/system-description", func(t *testing.T) {
 		state := dut.Telemetry().Lldp().Interface(iut.Name()).Neighbor(peerid).SystemDescription()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
@@ -142,7 +142,7 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//lldp/interfaces/interface/neighbors/neighbor/state/chassis-id", func(t *testing.T) {
+	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/chassis-id", func(t *testing.T) {
 		state := dut.Telemetry().Lldp().Interface(iut.Name()).Neighbor(peerid).ChassisId()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)

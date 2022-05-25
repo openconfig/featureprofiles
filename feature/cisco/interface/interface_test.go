@@ -27,44 +27,44 @@ func TestInterfaceCfgs(t *testing.T) {
 
 	})
 
-	t.Run("updateconfig//interfaces/interface/config/name", func(t *testing.T) {
+	t.Run("Update//interfaces/interface/config/name", func(t *testing.T) {
 		path := dut.Config().Interface(iut.Name()).Name()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, iut.Name())
 
 	})
 
-	t.Run("replaceconfig//interfaces/interface/config/description", func(t *testing.T) {
+	t.Run("Replace//interfaces/interface/config/description", func(t *testing.T) {
 		path := dut.Config().Interface(iut.Name()).Description()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Update(t, "desc1")
 
 	})
-	t.Run("updateconfig//interfaces/interface/config/description", func(t *testing.T) {
+	t.Run("Update//interfaces/interface/config/description", func(t *testing.T) {
 		path := dut.Config().Interface(iut.Name()).Description()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Replace(t, "desc2")
 
 	})
-	t.Run("deleteconfig//interfaces/interface/config/description", func(t *testing.T) {
+	t.Run("Delete//interfaces/interface/config/description", func(t *testing.T) {
 		path := dut.Config().Interface(iut.Name()).Description()
 		defer observer.RecordYgot(t, "DELETE", path)
 		path.Delete(t)
 
 	})
-	t.Run("updateconfig//interfaces/interface/config/mtu", func(t *testing.T) {
+	t.Run("Update//interfaces/interface/config/mtu", func(t *testing.T) {
 		path := dut.Config().Interface(iut.Name()).Mtu()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, 600)
 
 	})
-	t.Run("replaceconfig//interfaces/interface/config/mtu", func(t *testing.T) {
+	t.Run("Replace//interfaces/interface/config/mtu", func(t *testing.T) {
 		path := dut.Config().Interface(iut.Name()).Mtu()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, 1200)
 
 	})
-	t.Run("deleteconfig//interfaces/interface/config/mtu", func(t *testing.T) {
+	t.Run("Delete//interfaces/interface/config/mtu", func(t *testing.T) {
 		path := dut.Config().Interface(iut.Name()).Mtu()
 		defer observer.RecordYgot(t, "DELETE", path)
 		path.Delete(t)
@@ -72,37 +72,37 @@ func TestInterfaceCfgs(t *testing.T) {
 	})
 	member := iut.Members()[0]
 	macAdd := "78:2a:67:b6:a8:08"
-	t.Run("replaceconfig//interfaces/interface/ethernet/config/mac-address", func(t *testing.T) {
+	t.Run("Replace//interfaces/interface/ethernet/config/mac-address", func(t *testing.T) {
 		path := dut.Config().Interface(member).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, macAdd)
 
 	})
-	t.Run("replaceconfig//interfaces/interface/config/type", func(t *testing.T) {
+	t.Run("Replace//interfaces/interface/config/type", func(t *testing.T) {
 		path := dut.Config().Interface(member).Type()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 
 	})
-	t.Run("replaceconfig//interfaces/interface/ethernet/config/aggregate-id", func(t *testing.T) {
+	t.Run("Replace//interfaces/interface/ethernet/config/aggregate-id", func(t *testing.T) {
 		path := dut.Config().Interface(member).Ethernet().AggregateId()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, iut.Name())
 
 	})
-	t.Run("updateconfig//interfaces/interface/ethernet/config/mac-address", func(t *testing.T) {
+	t.Run("Update//interfaces/interface/ethernet/config/mac-address", func(t *testing.T) {
 		path := dut.Config().Interface(member).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, macAdd)
 
 	})
-	t.Run("updateconfig//interfaces/interface/config/type", func(t *testing.T) {
+	t.Run("Update//interfaces/interface/config/type", func(t *testing.T) {
 		path := dut.Config().Interface(member).Type()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 
 	})
-	t.Run("updateconfig//interfaces/interface/ethernet/config/aggregate-id", func(t *testing.T) {
+	t.Run("Update//interfaces/interface/ethernet/config/aggregate-id", func(t *testing.T) {
 		path := dut.Config().Interface(member).Ethernet().AggregateId()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, iut.Name())
@@ -190,7 +190,7 @@ func TestInterfaceCountersState(t *testing.T) {
 	}
 	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
 	state := dut.Telemetry().Interface(iut.Members()[0]).Counters()
-	t.Run("state//interfaces/interface/state/counters/in-broadcast-pkts", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/in-broadcast-pkts", func(t *testing.T) {
 		state := state.InBroadcastPkts()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -201,7 +201,7 @@ func TestInterfaceCountersState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//interfaces/interface/state/counters/in-errors", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/in-errors", func(t *testing.T) {
 		state := state.InErrors()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -213,7 +213,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/counters/in-discards", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/in-discards", func(t *testing.T) {
 		state := state.InDiscards()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -225,7 +225,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/counters/in-multicast-pkts", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/in-multicast-pkts", func(t *testing.T) {
 		state := state.InMulticastPkts()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -237,7 +237,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/counters/in-octets", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/in-octets", func(t *testing.T) {
 		state := state.InOctets()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -249,7 +249,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/counters/in-unicast-pkts", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/in-unicast-pkts", func(t *testing.T) {
 		state := state.InUnicastPkts()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -261,7 +261,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/counters/in-unknown-protos", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/in-unknown-protos", func(t *testing.T) {
 		state := state.InUnknownProtos()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -273,7 +273,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/counters/in-pkts", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/in-pkts", func(t *testing.T) {
 		state := state.InPkts()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -285,7 +285,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state///interfaces/interface/state/counters/out-broadcast-pkts", func(t *testing.T) {
+	t.Run("Subscribe///interfaces/interface/state/counters/out-broadcast-pkts", func(t *testing.T) {
 		state := state.OutBroadcastPkts()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -297,7 +297,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/counters/out-discards", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/out-discards", func(t *testing.T) {
 		state := state.OutDiscards()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -309,7 +309,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/counters/out-errorse", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/out-errorse", func(t *testing.T) {
 		state := state.OutErrors()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -321,7 +321,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/counters/out-multicast-pkts", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/out-multicast-pkts", func(t *testing.T) {
 		state := state.OutMulticastPkts()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -333,7 +333,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/counters/out-octets", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/out-octets", func(t *testing.T) {
 		state := state.OutOctets()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -345,7 +345,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/counters/out-pkts", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/out-pkts", func(t *testing.T) {
 		state := state.OutPkts()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -357,7 +357,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/counters/out-unicast-pkts", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/out-unicast-pkts", func(t *testing.T) {
 		state := state.OutUnicastPkts()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -369,7 +369,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/counters/in-fcs-errors", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/counters/in-fcs-errors", func(t *testing.T) {
 		state := state.InFcsErrors()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -382,7 +382,7 @@ func TestInterfaceCountersState(t *testing.T) {
 
 	})
 	member := iut.Members()[0]
-	t.Run("state//interfaces/interface/ethernet/state/counters/in-mac-pause-frames", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/ethernet/state/counters/in-mac-pause-frames", func(t *testing.T) {
 		state := dut.Telemetry().Interface(member).Ethernet().Counters().InMacPauseFrames()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -394,7 +394,7 @@ func TestInterfaceCountersState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/ethernet/state/counters/out-mac-pause-frames", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/ethernet/state/counters/out-mac-pause-frames", func(t *testing.T) {
 		state := dut.Telemetry().Interface(member).Ethernet().Counters().OutMacPauseFrames()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		counter := state.Get(t)
@@ -424,7 +424,7 @@ func TestInterfaceState(t *testing.T) {
 	}
 	path.Replace(t, obj)
 
-	t.Run("state//interfaces/interface/state/name", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/name", func(t *testing.T) {
 		state := dut.Telemetry().Interface(iut.Name()).Name()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		name := state.Get(t)
@@ -435,7 +435,7 @@ func TestInterfaceState(t *testing.T) {
 
 	})
 
-	t.Run("state//interfaces/interface/state/description", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/description", func(t *testing.T) {
 		state := dut.Telemetry().Interface(iut.Name()).Description()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		description := state.Get(t)
@@ -444,7 +444,7 @@ func TestInterfaceState(t *testing.T) {
 		}
 
 	})
-	t.Run("state//interfaces/interface/state/mtu", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/mtu", func(t *testing.T) {
 		state := dut.Telemetry().Interface(iut.Name()).Mtu()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		mtu := state.Get(t)
@@ -484,7 +484,7 @@ func TestInterfaceState(t *testing.T) {
 		Mtu:         ygot.Uint16(1200),
 	}
 	path.Update(t, obj)
-	t.Run("state//interfaces/interface/state/admin-status", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/admin-status", func(t *testing.T) {
 		state := state.AdminStatus()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		status := state.Get(t)
@@ -493,7 +493,7 @@ func TestInterfaceState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//interfaces/interface/state/type", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/type", func(t *testing.T) {
 		state := state.Type()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		status := dut.Telemetry().Interface(iut.Name()).Type().Get(t)
@@ -502,7 +502,7 @@ func TestInterfaceState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//interfaces/interface/state/oper-status", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/oper-status", func(t *testing.T) {
 		state := state.OperStatus()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		status := state.Get(t)
@@ -511,7 +511,7 @@ func TestInterfaceState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//interfaces/interface/aggregation/state/member", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/aggregation/state/member", func(t *testing.T) {
 		state := dut.Telemetry().Interface(iut.Name()).Aggregation().Member()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		members := state.Get(t)
@@ -525,7 +525,7 @@ func TestInterfaceState(t *testing.T) {
 	if strings.Contains(member, "FourHun") {
 		reqspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
 	}
-	t.Run("state//interfaces/interface/ethernet/state/port-speed", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/ethernet/state/port-speed", func(t *testing.T) {
 		state := dut.Telemetry().Interface(member).Ethernet().PortSpeed()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		speed := state.Get(t)
@@ -534,7 +534,7 @@ func TestInterfaceState(t *testing.T) {
 
 		}
 	})
-	t.Run("state//interfaces/interface/ethernet/state/negotiated-port-speeds", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/ethernet/state/negotiated-port-speeds", func(t *testing.T) {
 		state := dut.Telemetry().Interface(member).Ethernet().NegotiatedPortSpeed()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		speed := state.Get(t)
@@ -543,13 +543,13 @@ func TestInterfaceState(t *testing.T) {
 
 		}
 	})
-	t.Run("updateconfig//interfaces/interface/ethernet/config/aggregate-id", func(t *testing.T) {
+	t.Run("Update//interfaces/interface/ethernet/config/aggregate-id", func(t *testing.T) {
 		path := dut.Config().Interface(member).Ethernet().AggregateId()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, iut.Name())
 
 	})
-	t.Run("state//interfaces/interface/ethernet/state/aggregate-id", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/ethernet/state/aggregate-id", func(t *testing.T) {
 		state := dut.Telemetry().Interface(member).Ethernet().AggregateId()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		id := state.Get(t)
@@ -559,13 +559,13 @@ func TestInterfaceState(t *testing.T) {
 		}
 	})
 	macAdd := "78:2a:67:b6:a8:08"
-	t.Run("updateconfig//interfaces/interface/ethernet/config/mac-addres", func(t *testing.T) {
+	t.Run("Update//interfaces/interface/ethernet/config/mac-addres", func(t *testing.T) {
 		path := dut.Config().Interface(member).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, macAdd)
 
 	})
-	t.Run("state//interfaces/interface/ethernet/state/mac-address", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/ethernet/state/mac-address", func(t *testing.T) {
 		state := dut.Telemetry().Interface(member).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		macadd := state.Get(t)
@@ -574,13 +574,13 @@ func TestInterfaceState(t *testing.T) {
 
 		}
 	})
-	t.Run("updateconfig//interfaces/interface/config/type", func(t *testing.T) {
+	t.Run("Update//interfaces/interface/config/type", func(t *testing.T) {
 		path := dut.Config().Interface(member).Type()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 
 	})
-	t.Run("state//interfaces/interface/state/type", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/state/type", func(t *testing.T) {
 		state := dut.Telemetry().Interface(member).Type()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		_type := state.Get(t)
@@ -601,12 +601,12 @@ func TestInterfaceHoldTime(t *testing.T) {
 	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
 	hlt := uint32(30)
 	member := iut.Members()[0]
-	t.Run("configupdate//interfaces/interface/hold-time/config/up", func(t *testing.T) {
+	t.Run("Update//interfaces/interface/hold-time/config/up", func(t *testing.T) {
 		config := dut.Config().Interface(member).HoldTime().Up()
 		defer observer.RecordYgot(t, "UPDATE", config)
 		config.Update(t, hlt)
 	})
-	t.Run("state//interfaces/interface/hold-time/state/up", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/hold-time/state/up", func(t *testing.T) {
 		state := dut.Telemetry().Interface(member).HoldTime().Up()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		holdtime := state.Get(t)
@@ -616,12 +616,12 @@ func TestInterfaceHoldTime(t *testing.T) {
 		}
 
 	})
-	t.Run("configupdate//interfaces/interface/hold-time/config/down", func(t *testing.T) {
+	t.Run("Update//interfaces/interface/hold-time/config/down", func(t *testing.T) {
 		config := dut.Config().Interface(member).HoldTime().Down()
 		defer observer.RecordYgot(t, "UPDATE", config)
 		config.Update(t, hlt)
 	})
-	t.Run("state//interfaces/interface/hold-time/state/down", func(t *testing.T) {
+	t.Run("Subscribe//interfaces/interface/hold-time/state/down", func(t *testing.T) {
 		state := dut.Telemetry().Interface(member).HoldTime().Down()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		holdtime := state.Get(t)
@@ -631,12 +631,12 @@ func TestInterfaceHoldTime(t *testing.T) {
 		}
 
 	})
-	t.Run("configdelete//interfaces/interface/hold-time/config/down", func(t *testing.T) {
+	t.Run("Delete//interfaces/interface/hold-time/config/down", func(t *testing.T) {
 		config := dut.Config().Interface(member).HoldTime().Down()
 		defer observer.RecordYgot(t, "DELETE", config)
 		config.Delete(t)
 	})
-	t.Run("configdelete//interfaces/interface/hold-time/config/up", func(t *testing.T) {
+	t.Run("Delete//interfaces/interface/hold-time/config/up", func(t *testing.T) {
 		config := dut.Config().Interface(member).HoldTime().Up()
 		defer observer.RecordYgot(t, "DELETE", config)
 		config.Delete(t)
