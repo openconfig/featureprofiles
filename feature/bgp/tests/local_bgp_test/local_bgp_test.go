@@ -235,8 +235,8 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					HoldTime:          ygot.Float64(100),
-					KeepaliveInterval: ygot.Float64(50),
+					HoldTime:          ygot.Uint16(100),
+					KeepaliveInterval: ygot.Uint16(50),
 				},
 			}),
 			ateConf: bgpWithNbr(ateAS, "", &telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -250,7 +250,7 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					ConnectRetry: ygot.Float64(100),
+					ConnectRetry: ygot.Uint16(100),
 				},
 			}),
 			ateConf: bgpWithNbr(ateAS, "", &telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -265,25 +265,25 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					HoldTime:          ygot.Float64(100),
-					KeepaliveInterval: ygot.Float64(50),
+					HoldTime:          ygot.Uint16(100),
+					KeepaliveInterval: ygot.Uint16(50),
 				},
 			}),
 			ateConf: bgpWithNbr(ateAS, "", &telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(dutAS),
 				NeighborAddress: ygot.String(dutIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					HoldTime:          ygot.Float64(135),
-					KeepaliveInterval: ygot.Float64(45),
+					HoldTime:          ygot.Uint16(135),
+					KeepaliveInterval: ygot.Uint16(45),
 				},
 			}),
 			wantState: bgpWithNbr(dutAS, dutIP, &telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					HoldTime:           ygot.Float64(100),
-					NegotiatedHoldTime: ygot.Float64(100),
-					KeepaliveInterval:  ygot.Float64(50),
+					HoldTime:           ygot.Uint16(100),
+					NegotiatedHoldTime: ygot.Uint16(100),
+					KeepaliveInterval:  ygot.Uint16(50),
 				},
 			}),
 		},

@@ -7,7 +7,6 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/otgtelemetry"
 )
 
 func GetFlowMetrics(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) (gosnappi.MetricsResponseFlowMetricIter, error) {
