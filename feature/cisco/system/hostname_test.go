@@ -37,7 +37,7 @@ func TestHostname(t *testing.T) {
 		{"15 Numbers", "123456789012345"},
 		{"Single Character", "x"},
 		{"Periods", "test.name.example"},
-		{"63 Characters", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
+		{"63 Characters", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
 	}
 
 	dut := ondatra.DUT(t, device1)
@@ -73,6 +73,7 @@ func TestHostname(t *testing.T) {
 			t.Run("Subscribe//system/config/hostname", func(t *testing.T) {
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				stateGot := state.Await(t, 5*time.Second, testCase.hostname)
+				time.Sleep(5 * time.Second)
 				if stateGot.Val(t) != testCase.hostname {
 					t.Errorf("Telemetry hostname: got %v, want %s", stateGot, testCase.hostname)
 				}
