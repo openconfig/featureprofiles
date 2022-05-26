@@ -59,6 +59,13 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	policy := telemetry.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
+	policy.Interface = map[string]*telemetry.NetworkInstance_PolicyForwarding_Interface{
+		"Bundle-Ether120": &telemetry.NetworkInstance_PolicyForwarding_Interface{
+			InterfaceId:             ygot.String("Bundle-Ether120"),
+			ApplyVrfSelectionPolicy: ygot.String(pbrName),
+		},
+	}
+
 	dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
 }
 
@@ -241,6 +248,7 @@ func testMovePhysicalToBundleWithDifferentPolicy(ctx context.Context, t *testing
 
 // testChangePBRUnderInterface tests changing the PBR policy under the interface
 func testChangePBRUnderInterface(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
 	// Program GRIBI entry on the router
 	defer flushSever(t, args)
 
@@ -271,6 +279,7 @@ func testChangePBRUnderInterface(ctx context.Context, t *testing.T, args *testAr
 
 // testIPv6InIPv4Traffic tests sending IPv6inIPv4 and verify it is not matched by IPinIP
 func testIPv6InIPv4Traffic(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
 	// Program GRIBI entry on the router
 	defer flushSever(t, args)
 
@@ -487,6 +496,7 @@ func deletePBRPolicyAndClassMaps(ctx context.Context, t *testing.T, dut *ondatra
 }
 
 func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
 	t.Log("RT-3.1 :Protocol, DSCP-based VRF Selection - ensure that protocol and DSCP based VRF selection is configured correctly")
 	//TODO - remove residual config. Fix when Delete starts working for PBR policy-map on interface.
 	deletePolicyFromInterface(ctx, t, args.dut, pbrName)
@@ -538,6 +548,7 @@ func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *
 }
 
 func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
 	t.Log("RT-3.2 : Multiple <Protocol, DSCP> Rules for VRF Selection - ensure that multiple VRF selection rules are matched correctly")
 	//TODO - remove residual config. Fix when Delete starts working for PBR policy-map on interface.
 	deletePolicyFromInterface(ctx, t, args.dut, pbrName)
@@ -611,7 +622,6 @@ func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testi
 // testRemoveClassMap tests removing existing class-map which is not related to IPinIP match and verify traffic
 func testRemoveClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
-
 	defer flushSever(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
@@ -621,13 +631,13 @@ func testRemoveClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	// Remove existing class map
-	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(2).Delete(t)
+	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Delete(t)
 
 	// Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }
 
 func testChangeAction(ctx context.Context, t *testing.T, args *testArgs) {
@@ -721,6 +731,7 @@ func verifyConfigPBRUnderInterface(ctx context.Context, t *testing.T, args *test
 
 // testUnconfigPBRUnderBundleInterface tests unconfiguring the PBR policy under a bundle interface
 func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
 	// Program GRIBI entry on the router
 	defer flushSever(t, args)
 
@@ -830,6 +841,7 @@ func verifyConfigPbrMatchIpv4DscpSet(ctx context.Context, t *testing.T, args *te
 
 // testRemoveMatchField tests existing match field in existing class-map which is not related to IPinIP match and verify traffic
 func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
 	defer flushSever(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
@@ -914,7 +926,8 @@ func testModifyMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	// Modify match field for protocol IPinIP class
-	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Ipv4().Protocol().Replace(t, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_ICMP)
+	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Delete(t)
+	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().Protocol().Replace(t, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
 
 	// Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -926,6 +939,7 @@ func testModifyMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 
 // testAddMatchField tests adding new match field in the existing class-map and verify traffic
 func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
 	defer flushSever(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
@@ -977,6 +991,7 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 
 // Function.PBR.:027 interface shut/unshut and verify traffic
 func testTrafficFlapInterface(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
 	defer flushSever(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
@@ -999,6 +1014,7 @@ func testTrafficFlapInterface(ctx context.Context, t *testing.T, args *testArgs)
 
 // Function.PBR.:020 Verify PBR policy works with match DSCP and action VRF redirect
 func testMatchDscpActionVRFRedirect(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
 	defer flushSever(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
@@ -1026,6 +1042,7 @@ func GetIpv4Acl(name string, sequenceId uint32, dscp uint8, action telemetry.E_A
 
 // Function.PBR.:024 Feature Interaction: configure ACL and PBR under same interface and verify behavior
 func testAclAndPBRUnderSameInterface(ctx context.Context, t *testing.T, args *testArgs) {
+	defer configBasePBR(t, args.dut)
 	defer flushSever(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
