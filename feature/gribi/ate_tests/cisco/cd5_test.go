@@ -611,8 +611,8 @@ func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testi
 	//reuse ipinipd20 flow to match IPinIP with DSCP20 to VRF20
 	//reuse flows ipinipd10v20, ipinipd11v20, ipinipd12v20 to show they fail for VRF20
 
-	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd11, ipinipd12, ipinipd20)
-	testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipd10v20, ipinipd11v20, ipinipd12v20)
+	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd11, ipinipd12)
+	testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipd10v20, ipinipd11v20, ipinipd12v20, ipinipd20)
 
 	//cleanup
 	deletePolicyFromInterface(ctx, t, args.dut, "L3")
