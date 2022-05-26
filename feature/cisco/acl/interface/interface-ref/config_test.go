@@ -89,7 +89,7 @@ func TestInterface(t *testing.T) {
 	defer teardownAcl(t, dut, baseConfig)
 
 	inputs := []string{
-		"FourHundredGigE0/0/0/10",
+		"FourHundredGigE0/0/0/0",
 	}
 
 	for _, input := range inputs {
