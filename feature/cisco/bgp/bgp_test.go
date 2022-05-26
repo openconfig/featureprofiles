@@ -267,7 +267,7 @@ func TestBGPState(t *testing.T) {
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val == 0 {
-					t.Errorf("BGP Neighbor Timers NegotiatedHoldTime: got %f, want  %d", val, 0)
+					t.Errorf("BGP Neighbor Timers NegotiatedHoldTime: got %d, want  %d", val, 0)
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/queues/state/input", func(t *testing.T) {
