@@ -21,7 +21,7 @@ func TestISISState(t *testing.T) {
 	inputObj.ConfigInterfaces(dut)
 	time.Sleep(10 * time.Second)
 	inputObj.StartAteProtocols(ate)
-	time.Sleep(100000 * time.Second)
+	time.Sleep(15 * time.Second)
 	isis := inputObj.Device(dut).Features().Isis[0]
 	peerIsis := inputObj.ATE(ate).Features().Isis[0]
 	isisPath := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isis.Name).Isis()
