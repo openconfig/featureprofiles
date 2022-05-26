@@ -682,7 +682,7 @@ func TestInterfaceTelemetry(t *testing.T) {
 		if gotEntries < expectedEntries {
 			t.Errorf("Oper Status subscription samples: got %d, want %d", gotEntries, expectedEntries)
 		}
-		//verify last sample has the sample corresponding to event change
+		//verify last sample has event trigger recorded.
 		if got[gotEntries-1].Val(t) != oc.Interface_OperStatus_DOWN {
 			t.Errorf("Interface OperStatus change event was not recorded: got %s, want %s", got[gotEntries-1].Val(t), oc.Interface_OperStatus_DOWN)
 		}
@@ -713,7 +713,7 @@ func TestInterfaceTelemetry(t *testing.T) {
 		if gotEntries < expectedEntries {
 			t.Errorf("Admin Status subscription samples: got %d, want %d", gotEntries, expectedEntries)
 		}
-		//verify last sample has the sample corresponding to event change
+		//verify last sample has trigger event recorded.
 		if got[gotEntries-1].Val(t) != oc.Interface_AdminStatus_DOWN {
 			t.Errorf("Interface AdminStatus change event was not recorded: got %s, want %s", got[gotEntries-1].Val(t), oc.Interface_AdminStatus_DOWN)
 		}
