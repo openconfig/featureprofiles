@@ -22,7 +22,6 @@ const (
 
 func Test_Type(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
 	t.Log("Remove Flowspec Config")
 	configToChange := "no flowspec \n"
 	ctx := context.Background()
