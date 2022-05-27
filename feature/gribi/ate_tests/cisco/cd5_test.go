@@ -371,15 +371,35 @@ func configurePBR(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance, i
 		}
 	}
 	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
-	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
-	p.PolicyId = ygot.String(name)
+	policy := telemetry.NetworkInstance_PolicyForwarding{}
+	p := policy.GetOrCreatePolicy(name)
 	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
 	p.AppendRule(&r1)
-
-	policy := telemetry.NetworkInstance_PolicyForwarding{}
-	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-
 	dut.Config().NetworkInstance("default").PolicyForwarding().Update(t, &policy)
+	//dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+}
+
+func configurePBRRule(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance, iptype string, index uint32, protocol telemetry.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
+	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r1.SequenceId = ygot.Uint32(index)
+	if iptype == "ipv4" {
+		r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+			Protocol: protocol,
+		}
+		if len(dscpset) > 0 {
+			r1.Ipv4.DscpSet = dscpset
+		}
+	}
+	if iptype == "ipv6" {
+		r1.Ipv6 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv6{
+			Protocol: protocol,
+		}
+		if len(dscpset) > 0 {
+			r1.Ipv6.DscpSet = dscpset
+		}
+	}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
+	dut.Config().NetworkInstance("default").PolicyForwarding().Policy(name).Rule(index).Replace(t, &r1)
 }
 
 func configureL2PBR(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance, iptype string, index uint32) {
@@ -404,6 +424,23 @@ func configureL2PBR(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance,
 	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 	dut.Config().NetworkInstance("default").PolicyForwarding().Update(t, &policy)
+}
+
+func configureL2PBRRule(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance, iptype string, index uint32) {
+	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r1.SequenceId = ygot.Uint32(index)
+	if iptype == "ipv4" {
+		r1.L2 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
+			Ethertype: telemetry.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4,
+		}
+	}
+	if iptype == "ipv6" {
+		r1.L2 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
+			Ethertype: telemetry.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6,
+		}
+	}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
+	dut.Config().NetworkInstance("default").PolicyForwarding().Policy(name).Rule(index).Replace(t, &r1)
 }
 
 func GetBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8, ttl ...uint8) *ondatra.Flow {
@@ -492,35 +529,42 @@ func deletePBRPolicyAndClassMaps(ctx context.Context, t *testing.T, dut *ondatra
 		configToChange = configToChange + fmt.Sprintf("no class-map type traffic match-all %d_%s\n", i, policyName)
 	}
 	util.GNMIWithText(ctx, t, dut, configToChange)
+	//dut.Config().NetworkInstance("default").PolicyForwarding().Policy(policyName).Delete(t)
+}
 
+func deletePBRPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+	dut.Config().NetworkInstance("default").PolicyForwarding().Policy(policyName).Delete(t)
 }
 
 func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
 	t.Log("RT-3.1 :Protocol, DSCP-based VRF Selection - ensure that protocol and DSCP based VRF selection is configured correctly")
 	//TODO - remove residual config. Fix when Delete starts working for PBR policy-map on interface.
-	deletePolicyFromInterface(ctx, t, args.dut, pbrName)
+	//deletePolicyFromInterface(ctx, t, args.dut, pbrName)
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	//Case1 - Matching ipv4 protocol to VRF10. Dropping IPv6 traffic in VRF10.
 	configureL2PBR(t, args.dut, "L2", "VRF10", "ipv4", 1)
 	configPBRunderInterface(t, args, args.interfaces.in[0], "L2")
 
 	ipv4vlan10flow := GetBoundedFlow(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipv4vlan10flow", 0, 100)
-	ipv6vlan10flow := GetBoundedFlowIpv6(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipv6vlan10flow", 0)
+	ipv6vlan10flow := GetBoundedFlowIpv6(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipv6vlan10flow", 0)
 	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipv4vlan10flow)
 	testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipv6vlan10flow)
 
 	//Case3 - Matching IPv4 protocol to VRF10, IPv6 protocol to VRF20. Dropping IPv6 traffic in VRF10 and IPv4 in VRF20.
-	configureL2PBR(t, args.dut, "L2", "VRF20", "ipv6", 2)
-	ipv4vlan20flow := GetBoundedFlow(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipv4vlan20flow", 0, 100)
+	configureL2PBRRule(t, args.dut, "L2", "VRF20", "ipv6", 2)
+	ipv4vlan20flow := GetBoundedFlow(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipv4vlan20flow", 0, 100)
 	ipv6vlan20flow := GetBoundedFlowIpv6(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipv6vlan20flow", 0)
 	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipv4vlan10flow, ipv6vlan20flow)
 	testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipv6vlan10flow, ipv4vlan20flow)
 
 	//TODO - delete/replace of policy and class map and its entries is broken
 	//cleanup
-	deletePolicyFromInterface(ctx, t, args.dut, "L2")
-	deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L2", 2)
+	//deletePolicyFromInterface(ctx, t, args.dut, "L2")
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	//deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L2", 2)
+	deletePBRPolicy(t, args.dut, "L2")
 
 	//Case2 - Match IPinIP protocol to VRF10. Drop IPv4 and IPv6 traffic in VRF10.
 	configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
@@ -543,80 +587,121 @@ func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *
 	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipvlan10flowd46, ipinipvlan10flowd42)
 
 	//cleanup
-	deletePolicyFromInterface(ctx, t, args.dut, "L3")
-	deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 1)
+	//deletePolicyFromInterface(ctx, t, args.dut, "L3")
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	//deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 1)
+	deletePBRPolicy(t, args.dut, "L3")
 }
 
 func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
 	t.Log("RT-3.2 : Multiple <Protocol, DSCP> Rules for VRF Selection - ensure that multiple VRF selection rules are matched correctly")
 	//TODO - remove residual config. Fix when Delete starts working for PBR policy-map on interface.
-	deletePolicyFromInterface(ctx, t, args.dut, pbrName)
+	//deletePolicyFromInterface(ctx, t, args.dut, pbrName)
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	srcEndPoint := args.top.Interfaces()["atePort1"]
+	dstEndPointVlan10 := args.top.Interfaces()["atePort2Vlan10"]
+	dstEndPointVlan20 := args.top.Interfaces()["atePort2Vlan20"]
+	dstEndPointVlan30 := args.top.Interfaces()["atePort2Vlan30"]
 
-	//Case1 - Ensure matching IPinIP with DSCP (10 - VRF10, 20- VRF20, 30-VRF30) traffic reaches to appropriate VLAN.
-	configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10})
-	configurePBR(t, args.dut, "L3", "VRF20", "ipv4", 2, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{20})
-	configurePBR(t, args.dut, "L3", "VRF30", "ipv4", 3, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{30})
-	configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
+	//Case1 - Ensure matching IPinIP with DSCP (10 - VRF10, 20- VRF20, 30-VRF30) traffic reaches appropriate VLAN.
+	t.Run("RT-3.2 Case1", func(t *testing.T) {
 
-	ipinipd10 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd10", 10, 100)
-	ipinipd20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd20", 20, 100)
-	ipinipd30 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan30"], "ipvinipd30", 30, 100)
-	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd20, ipinipd30)
+		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10})
+		configurePBRRule(t, args.dut, "L3", "VRF20", "ipv4", 2, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{20})
+		configurePBRRule(t, args.dut, "L3", "VRF30", "ipv4", 3, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{30})
+		configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
+
+		ipinipd10 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipvinipd10", 10, 100)
+		ipinipd20 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd20", 20, 100)
+		ipinipd30 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan30, "ipvinipd30", 30, 100)
+		testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd20, ipinipd30)
+	})
 
 	//Case2 - Ensure matching IPinIP with DSCP (10-12 - VRF10, 20-22- VRF20, 30-32-VRF30) traffic reaches to appropriate VLAN.
-	configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10, 11, 12})
-	configurePBR(t, args.dut, "L3", "VRF20", "ipv4", 2, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{20, 21, 22})
-	configurePBR(t, args.dut, "L3", "VRF30", "ipv4", 3, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{30, 31, 32})
+	t.Run("RT-3.2 Case2", func(t *testing.T) {
+		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10, 11, 12})
+		configurePBRRule(t, args.dut, "L3", "VRF20", "ipv4", 2, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{20, 21, 22})
+		configurePBRRule(t, args.dut, "L3", "VRF30", "ipv4", 3, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{30, 31, 32})
 
-	ipinipd11 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd11", 11, 100)
-	ipinipd12 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd12", 12, 100)
+		ipinipd11 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd11", 11, 100)
+		ipinipd12 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd12", 12, 100)
 
-	ipinipd21 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd21", 21, 100)
-	ipinipd22 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd22", 22, 100)
+		ipinipd21 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd21", 21, 100)
+		ipinipd22 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd22", 22, 100)
 
-	ipinipd31 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan30"], "ipvinipd31", 31, 100)
-	ipinipd32 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan30"], "ipvinipd32", 32, 100)
+		ipinipd31 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan30"], "ipvinipd31", 31, 100)
+		ipinipd32 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan30"], "ipvinipd32", 32, 100)
 
-	testTrafficForFlows(t, args.ate, args.top, true, 0.90,
-		ipinipd10, ipinipd11, ipinipd12,
-		ipinipd20, ipinipd21, ipinipd22,
-		ipinipd30, ipinipd31, ipinipd32)
-	//cleanup
-	deletePolicyFromInterface(ctx, t, args.dut, "L3")
-	deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 3)
+		ipinipd10 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd10", 10, 100)
+		ipinipd20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd20", 20, 100)
+		ipinipd30 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan30"], "ipvinipd30", 30, 100)
+
+		testTrafficForFlows(t, args.ate, args.top, true, 0.90,
+			ipinipd10, ipinipd11, ipinipd12,
+			ipinipd20, ipinipd21, ipinipd22,
+			ipinipd30, ipinipd31, ipinipd32)
+		//cleanup
+		//deletePolicyFromInterface(ctx, t, args.dut, "L3")
+		unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+		//deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 3)
+		deletePBRPolicy(t, args.dut, "L3")
+
+	})
 
 	//Case3 - Ensure first matching of IPinIP with DSCP (10-12 - VRF10, 10-12 - VRF20) rule takes precedence.
-	configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10, 11, 12})
-	configurePBR(t, args.dut, "L3", "VRF20", "ipv4", 2, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10, 11, 12})
-	configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
+	t.Run("RT-3.2 Case3", func(t *testing.T) {
+		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10, 11, 12})
+		configurePBRRule(t, args.dut, "L3", "VRF20", "ipv4", 2, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10, 11, 12})
+		configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
 
-	ipinipd10v20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd10v20", 10, 100)
-	ipinipd11v20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd11v20", 11, 100)
-	ipinipd12v20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd12v20", 12, 100)
+		ipinipd10v20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd10v20", 10, 100)
+		ipinipd11v20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd11v20", 11, 100)
+		ipinipd12v20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd12v20", 12, 100)
 
-	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd11, ipinipd12)
-	testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipd10v20, ipinipd11v20, ipinipd12v20)
+		ipinipd10 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd10", 10, 100)
+		ipinipd11 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd11", 11, 100)
+		ipinipd12 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd12", 12, 100)
 
-	//cleanup
-	deletePolicyFromInterface(ctx, t, args.dut, "L3")
-	deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 2)
+		testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd11, ipinipd12)
+		testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipd10v20, ipinipd11v20, ipinipd12v20)
+
+		//cleanup
+		//deletePolicyFromInterface(ctx, t, args.dut, "L3")
+		unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+		//deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 2)
+		deletePBRPolicy(t, args.dut, "L3")
+	})
 
 	//Case4 - Ensure matching IPinIP to VRF10, IPinIP with DSCP20 VRF20 causes unspecified DSCP IPinIP traffic to match VRF10.
-	configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	configurePBR(t, args.dut, "L3", "VRF20", "ipv4", 2, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{20})
-	configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
+	t.Run("RT-3.2 Case4", func(t *testing.T) {
+		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+		configurePBRRule(t, args.dut, "L3", "VRF20", "ipv4", 2, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{20})
+		configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
 
-	//reuse ipinipd10, ipinipd11, ipinipd12 flows to match IPinIP to VRF10
-	//reuse ipinipd20 flow to match IPinIP with DSCP20 to VRF20
-	//reuse flows ipinipd10v20, ipinipd11v20, ipinipd12v20 to show they fail for VRF20
+		//reuse ipinipd10, ipinipd11, ipinipd12 flows to match IPinIP to VRF10
+		//reuse ipinipd20 flow to match IPinIP with DSCP20 to VRF20
+		//reuse flows ipinipd10v20, ipinipd11v20, ipinipd12v20 to show they fail for VRF20
 
-	testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd11, ipinipd12)
-	testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipd10v20, ipinipd11v20, ipinipd12v20, ipinipd20)
+		ipinipd10 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd10", 10, 100)
+		ipinipd11 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd11", 11, 100)
+		ipinipd12 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan10"], "ipvinipd12", 12, 100)
 
-	//cleanup
-	deletePolicyFromInterface(ctx, t, args.dut, "L3")
-	deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 2)
+		ipinipd10v20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd10v20", 10, 100)
+		ipinipd11v20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd11v20", 11, 100)
+		ipinipd12v20 := GetBoundedFlowIPinIP(t, args.ate, args.top.Interfaces()["atePort1"], args.top.Interfaces()["atePort2Vlan20"], "ipvinipd12v20", 12, 100)
+
+		ipinipd20 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd20", 20, 100)
+
+		testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd11, ipinipd12)
+		testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipd10v20, ipinipd11v20, ipinipd12v20, ipinipd20)
+
+		//cleanup
+		//deletePolicyFromInterface(ctx, t, args.dut, "L3")
+		unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+		//deletePBRPolicyAndClassMaps(context.Background(), t, args.dut, "L3", 2)
+		deletePBRPolicy(t, args.dut, "L3")
+	})
 }
 
 // testRemoveClassMap tests removing existing class-map which is not related to IPinIP match and verify traffic
