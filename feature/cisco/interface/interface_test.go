@@ -3,6 +3,7 @@ package basetest
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
@@ -641,4 +642,81 @@ func TestInterfaceHoldTime(t *testing.T) {
 		defer observer.RecordYgot(t, "DELETE", config)
 		config.Delete(t)
 	})
+}
+
+func TestInterfaceTelemetry(t *testing.T) {
+	dut := ondatra.DUT(t, device1)
+	inputObj, err := testInput.GetTestInput(t)
+	if err != nil {
+		t.Error(err)
+	}
+	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
+
+	//Default susbcription rate is 30 seconds.
+	subscriptionDuration := 50 * time.Second
+	triggerDelay := 20 * time.Second
+	postInterfaceEventWait := 10 * time.Second
+	expectedEntries := 2
+
+	t.Run("Subscribe//interfaces/interface/state/oper-status", func(t *testing.T) {
+
+		configPath := dut.Config().Interface(iut.Name()).Enabled()
+		statePath := dut.Telemetry().Interface(iut.Name()).OperStatus()
+
+		//initialise OperStatus
+		configPath.Update(t, true)
+		time.Sleep(postInterfaceEventWait)
+		t.Logf("Updated interface oper status: %s", statePath.Get(t))
+
+		//delay triggering OperStatus change
+		go func(t *testing.T) {
+			time.Sleep(triggerDelay)
+			configPath.Update(t, false)
+			t.Log("Triggered oper-status change")
+		}(t)
+
+		defer observer.RecordYgot(t, "SUBSCRIBE", statePath)
+		got := statePath.Collect(t, subscriptionDuration).Await(t)
+		gotEntries := len(got)
+
+		if gotEntries < expectedEntries {
+			t.Errorf("Oper Status subscription samples: got %d, want %d", gotEntries, expectedEntries)
+		}
+		//verify last sample has event trigger recorded.
+		if got[gotEntries-1].Val(t) != oc.Interface_OperStatus_DOWN {
+			t.Errorf("Interface OperStatus change event was not recorded: got %s, want %s", got[gotEntries-1].Val(t), oc.Interface_OperStatus_DOWN)
+		}
+	})
+
+	t.Run("Subscribe//interfaces/interface/state/admin-status", func(t *testing.T) {
+
+		configPath := dut.Config().Interface(iut.Name()).Enabled()
+		statePath := dut.Telemetry().Interface(iut.Name()).AdminStatus()
+
+		//initialise OperStatus to change admin-status
+		configPath.Update(t, true)
+		time.Sleep(postInterfaceEventWait)
+		t.Logf("Updated interface admin status: %s", statePath.Get(t))
+
+		//delay triggering OperStatus change
+		go func(t *testing.T) {
+			time.Sleep(triggerDelay)
+			configPath.Update(t, false)
+			t.Log("Triggered oper-status change to change admin-status")
+		}(t)
+
+		defer observer.RecordYgot(t, "SUBSCRIBE", statePath)
+		got := statePath.Collect(t, subscriptionDuration).Await(t)
+		t.Logf("Collected samples for admin-status: %v", got)
+		gotEntries := len(got)
+
+		if gotEntries < expectedEntries {
+			t.Errorf("Admin Status subscription samples: got %d, want %d", gotEntries, expectedEntries)
+		}
+		//verify last sample has trigger event recorded.
+		if got[gotEntries-1].Val(t) != oc.Interface_AdminStatus_DOWN {
+			t.Errorf("Interface AdminStatus change event was not recorded: got %s, want %s", got[gotEntries-1].Val(t), oc.Interface_AdminStatus_DOWN)
+		}
+	})
+
 }
