@@ -17,9 +17,11 @@ package rt_5_2_aggregate_test
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -104,7 +106,8 @@ type testCase struct {
 
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
-	top *ondatra.ATETopology
+	top gosnappi.Config
+	// config *gosnappi.Config
 
 	dutPorts []*ondatra.Port
 	atePorts []*ondatra.Port
@@ -245,43 +248,54 @@ func (tc *testCase) configureATE(t *testing.T) {
 	}
 
 	p0 := tc.atePorts[0]
-	i0 := tc.top.AddInterface(ateSrc.Name).WithPort(p0)
-	i0.IPv4().
-		WithAddress(ateSrc.IPv4CIDR()).
-		WithDefaultGateway(dutSrc.IPv4)
-	i0.IPv6().
-		WithAddress(ateSrc.IPv6CIDR()).
-		WithDefaultGateway(dutSrc.IPv6)
+	tc.top.Ports().Add().SetName(p0.ID())
+	srcDev := tc.top.Devices().Add().SetName(ateSrc.Name)
+	srcEth := srcDev.Ethernets().Add().
+		SetName(ateSrc.Name + ".eth").
+		SetMac(ateSrc.MAC)
+	srcEth.Ipv4Addresses().Add().
+		SetName(ateSrc.Name + ".ipv4").
+		SetAddress(ateSrc.IPv4).
+		SetGateway(dutSrc.IPv4).
+		SetPrefix(int32(ateSrc.IPv4Len))
+	srcEth.Ipv6Addresses().Add().
+		SetName(ateSrc.Name + ".ipv6").
+		SetAddress(ateSrc.IPv6).
+		SetGateway(dutSrc.IPv6).
+		SetPrefix(int32(ateSrc.IPv6Len))
 
-	// Don't use WithLACPEnabled which is for emulated Ixia LACP.
-	agg := tc.top.AddInterface(ateDst.Name)
-	lag := tc.top.AddLAG("lag").WithPorts(tc.atePorts[1:]...)
-	lag.LACP().WithEnabled(tc.lagType == lagTypeLACP)
-	agg.WithLAG(lag)
-
-	// Disable FEC for 100G-FR ports because Novus does not support it.
-	if p0.Speed() == 99 {
-		i0.Ethernet().FEC().WithEnabled(false)
-	}
-	is100gfr := false
+	// Adding the rest of the ports to the configuration and to the LAG
+	agg := tc.top.Lags().Add().SetName(ateDst.Name)
 	for _, p := range tc.atePorts[1:] {
-		if p.Speed() == 99 {
-			is100gfr = true
+		port := tc.top.Ports().Add().SetName(p.ID())
+		lagPort := agg.Ports().Add().
+			SetPortName(port.Name())
+		if tc.lagType == lagTypeSTATIC {
+			lagId, _ := strconv.Atoi(tc.aggID)
+			lagPort.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
+		} else {
+			lagPort.Protocol().SetChoice("lacp")
 		}
 	}
-	if is100gfr {
-		agg.Ethernet().FEC().WithEnabled(false)
-	}
 
-	agg.IPv4().
-		WithAddress(ateDst.IPv4CIDR()).
-		WithDefaultGateway(dutDst.IPv4)
-	agg.IPv6().
-		WithAddress(ateDst.IPv6CIDR()).
-		WithDefaultGateway(dutDst.IPv6)
+	dstDev := tc.top.Devices().Add().SetName(agg.Name())
+	dstEth := dstDev.Ethernets().Add().
+		SetName(ateDst.Name + ".eth").
+		SetPortName(agg.Name()).
+		SetMac(ateDst.MAC)
+	dstEth.Ipv4Addresses().Add().
+		SetName(ateDst.Name + ".ipv4").
+		SetAddress(ateDst.IPv4).
+		SetGateway(dutDst.IPv4).
+		SetPrefix(int32(ateDst.IPv4Len))
+	dstEth.Ipv6Addresses().Add().
+		SetName(ateDst.Name + ".ipv6").
+		SetAddress(ateDst.IPv6).
+		SetGateway(dutDst.IPv6).
+		SetPrefix(int32(ateDst.IPv6Len))
 
 	// Fail early if the topology is bad.
-	tc.top.Push(t)
+	tc.ate.OTG().PushConfig(t, tc.top)
 
 	ok := false
 	for n := 3; !ok; n-- {
@@ -290,7 +304,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 		}
 		msg := testt.ExpectFatal(t, func(t testing.TB) {
 			t.Log("Trying ATE StartProtocols")
-			tc.top.Push(t).StartProtocols(t)
+			tc.ate.OTG().StartProtocols(t)
 			ok = true
 			t.Fatal("Success!")
 		})
@@ -412,12 +426,12 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 func TestNegotiation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG(t)
+	otg := ate.OTG()
 
 	lagTypes := []telemetry.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
 
 	for _, lagType := range lagTypes {
-		top := ate.Topology().New()
+		top := otg.NewConfig(t)
 		aggID, err := fptest.LAGName(dut.Vendor(), 1001)
 		if err != nil {
 			t.Fatalf("LAGName for vendor %s: %s", dut.Vendor(), err)
@@ -437,7 +451,7 @@ func TestNegotiation(t *testing.T) {
 			l3header: []ondatra.Header{ondatra.NewIPv4Header()},
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
-			tc.configureDUT(t)
+			// tc.configureDUT(t)
 			tc.configureATE(t)
 			t.Run("VerifyATE", tc.verifyATE)
 			t.Run("VerifyDUT", tc.verifyDUT)
