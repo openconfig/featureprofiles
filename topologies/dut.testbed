@@ -1,0 +1,8 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# This testbed provides just a single DUT with no links.
+
+duts {
+  id: "dut"
+}
