@@ -1,9 +1,11 @@
 package basetest
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/gribi/util"
 	ft "github.com/openconfig/featureprofiles/tools/inputcisco/feature"
 	oc "github.com/openconfig/ondatra/telemetry"
 
@@ -17,6 +19,10 @@ func TestBGPState(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	t.Log("Remove Flowspec Config")
+	configToChange := "no flowspec \n"
+	ctx := context.Background()
+	util.GNMIWithText(ctx, t, dut, configToChange)
 	inputObj.ConfigInterfaces(dut)
 	time.Sleep(30 * time.Second)
 	inputObj.StartAteProtocols(ate)
