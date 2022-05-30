@@ -1,6 +1,7 @@
 package basetest
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -14,7 +15,9 @@ func TestPlatformCPUState(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().Avg()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		if val < 1 {
+		if val == 0 || val > 0 {
+			t.Logf("Got correct Platform CPU Avg value")
+		} else {
 			t.Errorf("Platform CPU Avg: got %d, want > %d", val, 0)
 
 		}
@@ -23,7 +26,9 @@ func TestPlatformCPUState(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().Min()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		if val < 1 {
+		if val == 0 || val > 0 {
+			t.Logf("Got correct Platform CPU  Min value")
+		} else {
 			t.Errorf("Platform CPU  Min: got %d, want >%d", val, 0)
 
 		}
@@ -32,7 +37,9 @@ func TestPlatformCPUState(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().Max()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		if val < 1 {
+		if val == 0 || val > 0 {
+			t.Logf("Got correct Platform  CPU Max value")
+		} else {
 			t.Errorf("Platform  CPU Max: got %d, want >%d", val, 0)
 
 		}
@@ -41,7 +48,9 @@ func TestPlatformCPUState(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().Instant()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		if val < 1 {
+		if val == 0 || val > 0 {
+			t.Logf("Got correct Platform  CPU Instant value")
+		} else {
 			t.Errorf("Platform  CPU Instant: got %d, want >%d", val, 0)
 
 		}
@@ -50,7 +59,9 @@ func TestPlatformCPUState(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().MaxTime()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		if val < 1 {
+		if val == 0 || val > 0 {
+			t.Logf("Got correct Platform  CPU MaxTime value")
+		} else {
 			t.Errorf("Platform  CPU MaxTime: got %d, want >%d", val, 0)
 
 		}
@@ -59,7 +70,9 @@ func TestPlatformCPUState(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().MinTime()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		if val < 1 {
+		if val == 0 || val > 0 {
+			t.Logf("Got correct Platform  CPU MinTime value")
+		} else {
 			t.Errorf("Platform  CPU MinTime: got %d, want >%d", val, 0)
 
 		}
@@ -68,7 +81,9 @@ func TestPlatformCPUState(t *testing.T) {
 		state := dut.Telemetry().Component(RP).Cpu().Utilization().Interval()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		if val < 1 {
+		if val == 0 || val > 0 {
+			t.Logf("Got correct Platform CPU interval value")
+		} else {
 			t.Errorf("Platform CPU interval: got %d, want >%d", val, 0)
 
 		}
@@ -197,56 +212,6 @@ func TestPlatformPSUState(t *testing.T) {
 
 }
 
-func TestPlatformTransceiverState(t *testing.T) {
-	dut := ondatra.DUT(t, device1)
-	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
-		state := dut.Telemetry().Component(Platform.OpticsModule).SerialNo()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
-		if val == "" {
-			t.Errorf("Platform OpticsModule SerialNo: got %s, want != %s", val, "''")
-
-		}
-	})
-	t.Run("Subscribe//components/component/state/oper-status/hardware-version", func(t *testing.T) {
-		state := dut.Telemetry().Component(Platform.OpticsModule).HardwareVersion()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
-		if val == "" {
-			t.Errorf("Platform OpticsModule HardwareVersion: got %s, want != %s", val, "''")
-
-		}
-	})
-	t.Run("Subscribe//components/component/state/oper-status", func(t *testing.T) {
-		state := dut.Telemetry().Component(Platform.OpticsModule).OperStatus()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
-		if val != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
-			t.Errorf("Platform OpticsModule  OperStatus: got %s, want > %s", val, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
-
-		}
-	})
-	t.Run("Subscribe//components/component/state/description", func(t *testing.T) {
-		state := dut.Telemetry().Component(Platform.OpticsModule).Description()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
-		if !strings.Contains(val, "Optics") {
-			t.Errorf("Platform OpticsModule Description: got %s, should contain %s", val, "Optics")
-
-		}
-	})
-	t.Run("Subscribe//components/component/state/type", func(t *testing.T) {
-		state := dut.Telemetry().Component(Platform.OpticsModule).Type()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
-		if val != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER {
-			t.Errorf("Platform OpticsModule  OperStatus: got %s, want > %s", val, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER)
-
-		}
-	})
-
-}
-
 func TestPlatformPSUIOState(t *testing.T) {
 	// dut := ondatra.DUT(t, device1)
 	//PSU model (https://github.com/openconfig/public/blob/master/release/models/platform/openconfig-platform-psu.yang)  not included  in  ondatra
@@ -366,4 +331,65 @@ func TestSubComponent(t *testing.T) {
 
 		}
 	})
+}
+
+func TestPlatformTransceiverState(t *testing.T) {
+	dut := ondatra.DUT(t, device1)
+	cliHandle := dut.RawAPIs().CLI(t)
+	resp, err := cliHandle.SendCommand(context.Background(), "show version")
+	t.Logf(resp)
+	if err != nil {
+		t.Error(err)
+	}
+	if strings.Contains(resp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
+
+	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
+		state := dut.Telemetry().Component(Platform.OpticsModule).SerialNo()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val == "" {
+			t.Errorf("Platform OpticsModule SerialNo: got %s, want != %s", val, "''")
+
+		}
+	})
+	t.Run("Subscribe//components/component/state/oper-status/hardware-version", func(t *testing.T) {
+		state := dut.Telemetry().Component(Platform.OpticsModule).HardwareVersion()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val == "" {
+			t.Errorf("Platform OpticsModule HardwareVersion: got %s, want != %s", val, "''")
+
+		}
+	})
+	t.Run("Subscribe//components/component/state/oper-status", func(t *testing.T) {
+		state := dut.Telemetry().Component(Platform.OpticsModule).OperStatus()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
+			t.Errorf("Platform OpticsModule  OperStatus: got %s, want > %s", val, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
+
+		}
+	})
+	t.Run("Subscribe//components/component/state/description", func(t *testing.T) {
+		state := dut.Telemetry().Component(Platform.OpticsModule).Description()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if !strings.Contains(val, "Optics") {
+			t.Errorf("Platform OpticsModule Description: got %s, should contain %s", val, "Optics")
+
+		}
+	})
+	t.Run("Subscribe//components/component/state/type", func(t *testing.T) {
+		state := dut.Telemetry().Component(Platform.OpticsModule).Type()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		if val != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER {
+			t.Errorf("Platform OpticsModule  OperStatus: got %s, want > %s", val, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER)
+
+		}
+	})
+
 }
