@@ -335,8 +335,8 @@ func TestSubComponent(t *testing.T) {
 
 func TestPlatformTransceiverState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	cli_handle := dut.RawAPIs().CLI(t)
-	resp, err := cli_handle.SendCommand(context.Background(), "show version")
+	cliHandle := dut.RawAPIs().CLI(t)
+	resp, err := cliHandle.SendCommand(context.Background(), "show version")
 	t.Logf(resp)
 	if err != nil {
 		t.Error(err)
