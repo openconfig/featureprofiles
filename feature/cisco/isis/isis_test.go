@@ -40,7 +40,7 @@ func TestISISState(t *testing.T) {
 		state := isisadjPath.DisSystemId()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		if val != "" {
+		if val != peerIsis.EisrsystemId {
 			t.Errorf("ISIS Adj DisSystemId: got %s, want %s", val, "''")
 		}
 	})
@@ -465,6 +465,7 @@ func TestISISState(t *testing.T) {
 	iCC := isisPath.Interface(intf.Name).CircuitCounters().Get(t)
 	flapInterface(t, dut, intf.Name, 30)
 	circuitCounters := isisPath.Interface(intf.Name).CircuitCounters()
+	time.Sleep(20 * time.Second)
 	t.Run("Subscribe//network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/adj-changes", func(t *testing.T) {
 		state := circuitCounters.AdjChanges()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
