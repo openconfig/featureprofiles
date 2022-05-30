@@ -307,6 +307,7 @@ func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Inter
 func CreateNameSpace(t *testing.T, dut *ondatra.DUTDevice, name, intfname string, subint uint32) {
 	//create empty subinterface
 	si := &telemetry.Interface_Subinterface{}
+	si.Index = ygot.Uint32(subint)
 	dut.Config().Interface(intfname).Subinterface(subint).Replace(t, si)
 
 	//create vrf and apply on subinterface
