@@ -30,7 +30,6 @@ links {
   a: "dut:port1"
   b: "ate:port1"
 }
-
 links {
   a: "dut:port2"
   b: "ate:port2"

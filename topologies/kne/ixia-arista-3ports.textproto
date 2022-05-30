@@ -2,7 +2,7 @@ name: "ixia-c"
 nodes: {
     name: "otg"
     type: IXIA_TG
-    version: "0.0.1-2755-local"
+    version: "0.0.1-2897"
     services: {
         key: 443
         value: {
@@ -39,7 +39,7 @@ nodes: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
         file: "init_arista_gribi.config"
-    	image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/ceos:4.28.0F-26265162"
+    	image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/ceos:4.28.01F"
     }
     services:{
         key: 22

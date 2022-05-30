@@ -335,7 +335,7 @@ func verifyPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, policy string) 
 
 // configureOTG configures the interfaces and BGP protocols on an OTG, including advertising some
 // (faked) networks over BGP.
-func configureOTG(t *testing.T, ate *ondatra.ATEDevice, otg *ondatra.OTG, expectedRoutes int32) (gosnappi.Config, helpers.ExpectedState) {
+func configureOTG(t *testing.T, otg *ondatra.OTG, expectedRoutes int32) (gosnappi.Config, helpers.ExpectedState) {
 
 	config := otg.NewConfig(t)
 	srcPort := config.Ports().Add().SetName("port1")
@@ -519,7 +519,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, want
 	}
 }
 
-func sendTraffic(t *testing.T, otg *ondatra.OTG, ate *ondatra.ATEDevice, c gosnappi.Config) {
+func sendTraffic(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
 	err := helpers.WatchFlowMetrics(t, otg, c, &helpers.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
@@ -582,7 +582,7 @@ func TestEstablish(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	otg := ate.OTG()
-	otgConfig, otgExpected := configureOTG(t, ate, otg, routeCount)
+	otgConfig, otgExpected := configureOTG(t, otg, routeCount)
 	// Verify Port Status
 	t.Logf("Verifying port status")
 	verifyPortsUp(t, dut.Device)
@@ -595,7 +595,7 @@ func TestEstablish(t *testing.T) {
 	helpers.WaitFor(t, func() (bool, error) { return helpers.AllBgp6SessionUp(t, otg, otgConfig, otgExpected) }, nil)
 
 	// Starting ATE Traffic and verify Traffic Flows and packet loss
-	sendTraffic(t, otg, ate, otgConfig)
+	sendTraffic(t, otg, otgConfig)
 	verifyTraffic(t, ate, otgConfig, false)
 	verifyPrefixesTelemetry(t, dut, routeCount, routeCount, 0)
 	verifyPrefixesTelemetryV6(t, dut, routeCount, routeCount, 0)
@@ -609,7 +609,7 @@ func TestEstablish(t *testing.T) {
 		// A pause is needed for DUT to completely withdraw routes
 		// time.Sleep(5 * time.Second)
 		verifyOtgBgpDown(t, ate, otgConfig)
-		sendTraffic(t, otg, ate, otgConfig)
+		sendTraffic(t, otg, otgConfig)
 		verifyTraffic(t, ate, otgConfig, true)
 	})
 }
@@ -672,13 +672,13 @@ func TestBGPPolicy(t *testing.T) {
 			bgp := bgpCreateNbr(dutAS, ateAS, tc.policy)
 			// Configure ATE to setup traffic.
 			otg := ate.OTG()
-			otgConfig, otgExpected := configureOTG(t, ate, otg, int32(tc.installed))
+			otgConfig, otgExpected := configureOTG(t, otg, int32(tc.installed))
 			dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
 			// Send and verify traffic.
 
 			helpers.WaitFor(t, func() (bool, error) { return helpers.AllBgp4SessionUp(t, otg, otgConfig, otgExpected) }, nil)
 			helpers.WaitFor(t, func() (bool, error) { return helpers.AllBgp6SessionUp(t, otg, otgConfig, otgExpected) }, nil)
-			sendTraffic(t, otg, ate, otgConfig)
+			sendTraffic(t, otg, otgConfig)
 			verifyTraffic(t, ate, otgConfig, tc.wantLoss)
 
 			// Verify traffic and telemetry.
@@ -694,10 +694,10 @@ func TestUnsetDut(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	switch dut.Model() {
 	case "ARISTA_CEOS":
-		dut.Config().New().WithAristaFile("unset_" + dut.Name() + ".txt").Push(t)
+		dut.Config().New().WithAristaFile("unset_" + dut.Model() + ".txt").Push(t)
 	case "CISCO_E8000":
-		dut.Config().New().WithCiscoFile("unset_" + dut.Name() + ".txt").Push(t)
+		dut.Config().New().WithCiscoFile("unset_" + dut.Model() + ".txt").Push(t)
 	case "JUNIPER":
-		dut.Config().New().WithJuniperFile("unset_" + dut.Name() + ".txt").Push(t)
+		dut.Config().New().WithJuniperFile("unset_" + dut.Model() + ".txt").Push(t)
 	}
 }
