@@ -16,6 +16,7 @@ package rt_5_2_aggregate_test
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"testing"
@@ -72,6 +73,7 @@ var (
 
 	ateSrc = attrs.Attributes{
 		Name:    "atesrc",
+		MAC:     "00:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
 		IPv4Len: plen4,
@@ -88,6 +90,7 @@ var (
 
 	ateDst = attrs.Attributes{
 		Name:    "atedst",
+		MAC:     "00:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: plen4,
@@ -252,6 +255,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	srcDev := tc.top.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().
 		SetName(ateSrc.Name + ".eth").
+		SetPortName(p0.ID()).
 		SetMac(ateSrc.MAC)
 	srcEth.Ipv4Addresses().Add().
 		SetName(ateSrc.Name + ".ipv4").
@@ -266,10 +270,13 @@ func (tc *testCase) configureATE(t *testing.T) {
 
 	// Adding the rest of the ports to the configuration and to the LAG
 	agg := tc.top.Lags().Add().SetName(ateDst.Name)
-	for _, p := range tc.atePorts[1:] {
+
+	for i, p := range tc.atePorts[1:] {
 		port := tc.top.Ports().Add().SetName(p.ID())
-		lagPort := agg.Ports().Add().
-			SetPortName(port.Name())
+		lagPort := agg.Ports().Add()
+		lagPort.SetPortName(port.Name()).
+			Ethernet().SetMac(atePortMac(ateDst.MAC, i)).
+			SetName("LagRx-" + strconv.Itoa(i))
 		if tc.lagType == lagTypeSTATIC {
 			lagId, _ := strconv.Atoi(tc.aggID)
 			lagPort.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
@@ -362,13 +369,13 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 // configureDUT().
 func (tc *testCase) verifyATE(t *testing.T) {
 	ap := tc.atePorts[0]
-	aip := tc.ate.Telemetry().Interface(ap.Name())
+	aip := tc.ate.OTG().Telemetry().Interface(ap.Name())
 	fptest.LogYgot(t, ap.String(), aip, aip.Get(t))
 
 	// State for the interface.
-	if got := aip.OperStatus().Get(t); got != opUp {
-		t.Errorf("%s oper-status got %v, want %v", ap, got, opUp)
-	}
+	// if got := aip.OperStatus().Get(t); got != opUp {
+	// 	t.Errorf("%s oper-status got %v, want %v", ap, got, opUp)
+	// }
 }
 
 // sortPorts sorts the ports by the testbed port ID.
@@ -377,6 +384,15 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 		return ports[i].ID() < ports[j].ID()
 	})
 	return ports
+}
+
+func atePortMac(mac string, i int) string {
+	r, _ := regexp.Compile("(([0-9A-Fa-f]{2}[:-]){5})([0-9A-Fa-f]{2})")
+	lastOctet := r.FindStringSubmatch(mac)[3]
+	lastInt, _ := strconv.Atoi(lastOctet)
+	lastInt = lastInt + i + 1
+	lastX := fmt.Sprintf("%02x", lastInt)
+	return r.FindStringSubmatch(mac)[1] + lastX
 }
 
 func (tc *testCase) verifyMinLinks(t *testing.T) {
@@ -451,7 +467,7 @@ func TestNegotiation(t *testing.T) {
 			l3header: []ondatra.Header{ondatra.NewIPv4Header()},
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
-			// tc.configureDUT(t)
+			tc.configureDUT(t)
 			tc.configureATE(t)
 			t.Run("VerifyATE", tc.verifyATE)
 			t.Run("VerifyDUT", tc.verifyDUT)
