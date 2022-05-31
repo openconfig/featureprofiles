@@ -517,6 +517,8 @@ func TestInterfaceState(t *testing.T) {
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		members := state.Get(t)
 		if sliceEqual(members, iut.Members()) {
+			t.Logf("Got correct Interface Aggregation Member Value")
+		} else {
 			t.Errorf("Interface Aggregation Member: got %v, want %v", members, iut.Members())
 
 		}
