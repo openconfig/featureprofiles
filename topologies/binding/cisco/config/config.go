@@ -108,24 +108,34 @@ func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg
 }
 
 // CMDViaSSH push cli command to cisco router, (have not tested well)
-func CMDViaSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) {
-	sshClient := dut.RawAPIs().CLI(t)
-	cliOut := sshClient.Stdout()
-	cliIn := sshClient.Stdin()
-	if _, err := cliIn.Write([]byte(cfg)); err != nil {
-		t.Fatalf("Failed to write using ssh: %v", err)
+func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
+	gnmiC := dut.RawAPIs().GNMI().New(t)
+	getRequest := &gpb.GetRequest{
+		Prefix: &gpb.Path{
+			Origin: "cli",
+		},
+		Path: []*gpb.Path{
+			{
+				Elem: []*gpb.PathElem{{
+					Name: cmd,
+				}},
+			},
+		},
+		Encoding: gpb.Encoding_ASCII,
 	}
-	time.Sleep(30)
-	buf := make([]byte, 32768) // RFC 4253 max payload size for ssh
-	n := 0
-	var err error
-	response := ""
-	n, err = cliOut.Read(buf)
-	response = fmt.Sprintf("%s%s", response, string(buf[:n]))
-	if err != nil {
-		t.Fatalf("Sending command is failed %s", err)
+	log.V(1).Infof("get cli (%s) via GNMI: \n %s", cmd, prototext.Format(getRequest))
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+        tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
+    }
+	resp, err := gnmiC.Get(ctx, getRequest); if err!=nil {
+		t.Fatalf("running cmd (%s) via GNMI is failed: %v", cmd, err)
 	}
-	log.V(1).Info(response)
+	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(resp))
+	return string(resp.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
+	// return string(gotRes.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal())
+
 }
 
 // GNMICommitReplace replace the router config with the cfg  (cisco text config)  on the device using gnmi replace.
@@ -143,7 +153,12 @@ func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 		Replace: []*gpb.Update{textReplaceReq},
 	}
 	log.V(1).Info(prettySetRequest(setRequest))
-	resp, err := gnmiC.Set(context.Background(), setRequest)
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+        tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
+    }
+	resp, err := gnmiC.Set(ctx, setRequest)
 	if err != nil {
 		t.Fatalf("GNMI replace is failed; %v", err)
 	}
@@ -161,7 +176,12 @@ func Reload(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, beforeRel
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI().New(t)
-	_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+        tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
+    }
+	_, err := gnoiClient.System().Reboot(ctx, &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
 		Delay:   0,
 		Message: "Reboot chassis without delay",
@@ -259,8 +279,11 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 		Replace: []*gpb.Update{textReplaceReq, ocReplaceReq},
 	}
 	log.V(1).Info(prettySetRequest(setRequest))
-	ctx, cncl := context.WithTimeout(context.Background(), time.Second*60)
-	defer cncl()
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+        tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
+    }
 	resp, err := gnmiC.Set(ctx, setRequest)
 	if err != nil {
 		t.Fatalf("GNMI replace is failed; %v", err)
