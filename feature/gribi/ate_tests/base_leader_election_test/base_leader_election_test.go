@@ -601,6 +601,60 @@ func testIPv4BackUpSwitchCase3(ctx context.Context, t *testing.T, args *testArgs
 	configureDUT(t, args.dut)
 }
 
+func testIPv4BackUpSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
+	// ensure that the entry is active through AFT telemetry and traffic.
+
+	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", ateDstNetCIDR)
+	args.clientA.BecomeLeader(t)
+	if _, err := args.clientA.Fluent(t).Flush().
+		WithElectionOverride().
+		WithAllNetworkInstances().
+		Send(); err != nil {
+		t.Fatalf("could not remove all entries from server, got: %v", err)
+	}
+
+	// LEVEL 2
+	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
+
+	args.clientA.AddNH(t, nhbIndex_2_1, atePort3.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, bkhgIndex_2, 0, map[uint64]uint64{nhbIndex_2_1: 100}, instance, fluent.InstalledInRIB)
+
+	args.clientA.AddNH(t, nhIndex_2_1, atePort2.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex_2_1, bkhgIndex_2, map[uint64]uint64{nhIndex_2_1: 100}, instance, fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, "1.0.0.0/8", nhgIndex_2_1, "TE", instance, fluent.InstalledInRIB)
+
+	t.Log("going to program Static ARP different from Ixia ")
+	args.clientA.DUT.Config().New().WithCiscoText("arp 1.0.0.0  0012.0100.0001 arpa \n commit \n end \n")
+
+	// Verify the entry for 1.0.0.0/8 is active through Traffic.
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	dstEndPoint := args.top.Interfaces()
+	updated_dstEndPoint := []ondatra.Endpoint{}
+	for intf, intf_data := range dstEndPoint {
+		if "atePort2" == intf || "atePort3" == intf {
+			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
+		}
+	}
+
+	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
+	interface_names := []string{"port2"}
+	d := args.dut.Config()
+	for _, intf := range interface_names {
+		p := args.dut.Port(t, intf)
+		i := &telemetry.Interface{Name: ygot.String(p.Name())}
+		d.Interface(p.Name()).Replace(t, shutdownInterface(i, false))
+		testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
+	}
+	// checking traffic on backup
+	time.Sleep(time.Minute)
+	testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
+
+	//adding back interface configurations
+	configureDUT(t, args.dut)
+}
+
 func TestBackUp(t *testing.T) {
 	deviations.InterfaceEnabled = &[]bool{false}[0]
 	t.Log("Name: BackUp")
@@ -617,28 +671,34 @@ func TestBackUp(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	addAteISISL2(t, top, "atePort8", "B4", "testing", 20, "201.1.0.2/32", uint32(1000))
-	top.Push(t).StartProtocols(t)
+	// top.ClearInterfaces()
+	// addAteISISL2(t, top, "atePort8", "B4", "testing", 20, "201.1.0.2/32", uint32(1000))
+	// top.Push(t).StartProtocols(t)
 
 	test := []struct {
 		name string
 		desc string
 		fn   func(ctx context.Context, t *testing.T, args *testArgs)
 	}{
+		// {
+		// 	name: "IPv4BackUpSwitchDrop",
+		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path and dropping",
+		// 	fn:   testIPv4BackUpSwitchDrop,
+		// },
+		// {
+		// 	name: "IPv4BackUpSwitchDecap",
+		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over default backup path ",
+		// 	fn:   testIPv4BackUpSwitchDecap,
+		// },
+		// {
+		// 	name: "IPv4BackUpSwitchCase",
+		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path ",
+		// 	fn:   testIPv4BackUpSwitchCase3,
+		// },
 		{
-			name: "IPv4BackUpSwitchDrop",
-			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path and dropping",
-			fn:   testIPv4BackUpSwitchDrop,
-		},
-		{
-			name: "IPv4BackUpSwitchDecap",
-			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over default backup path ",
-			fn:   testIPv4BackUpSwitchDecap,
-		},
-		{
-			name: "IPv4BackUpSwitchCase",
+			name: "IPv4BackUpSingleNH",
 			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path ",
-			fn:   testIPv4BackUpSwitchCase3,
+			fn:   testIPv4BackUpSingleNH,
 		},
 	}
 	for _, tt := range test {
