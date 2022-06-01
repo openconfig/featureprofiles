@@ -27,7 +27,10 @@ config_path {
   path: "/interfaces/interface/config/enabled"
 }
 config_path {
-  path: "/interfaces/interface/config/mtu"
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu"
+}
+config_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu"
 }
 config_path {
   path: "/interfaces/interface/config/id"
@@ -93,7 +96,10 @@ telemetry_path {
   path: "/interfaces/interface/state/counters/out-unicast-pkts"
 }
 telemetry_path {
-  path: "/interfaces/interface/state/mtu"
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv4/state/mtu"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/mtu"
 }
 telemetry_path {
   path: "/interfaces/interface/state/oper-status"
