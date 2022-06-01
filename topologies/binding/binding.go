@@ -18,9 +18,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"google.golang.org/grpc"
@@ -73,6 +75,9 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	if err := b.reserveIxSessions(ctx); err != nil {
 		return nil, err
 	}
+	if err := b.reset(ctx); err != nil {
+		return nil, err
+	}
 	return resv, nil
 }
 
@@ -87,9 +92,14 @@ func (b *staticBind) Release(ctx context.Context) error {
 	return nil
 }
 
-func (b *staticBind) FetchReservation(ctx context.Context, id string) (*binding.Reservation, error) {
+func (b *staticBind) FetchReservation(ctx context.Context, id string, reset bool) (*binding.Reservation, error) {
 	if b.resv == nil || id != resvID {
 		return nil, fmt.Errorf("reservation not found: %s", id)
+	}
+	if reset {
+		if err := b.reset(ctx); err != nil {
+			return nil, err
+		}
 	}
 	return b.resv, nil
 }
@@ -251,6 +261,61 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 		ATEs: ates,
 	}
 	return resv, nil
+}
+
+func (b *staticBind) reset(ctx context.Context) error {
+	for _, dut := range b.r.GetDuts() {
+		vendorConfig := []string{}
+		for _, conf := range dut.GetConfig().GetCliConfigData() {
+			vendorConfig = append(vendorConfig, string(conf))
+		}
+		for _, file := range dut.GetConfig().GetCliConfigFile() {
+			conf, err := readCli(file)
+			if err != nil {
+				return err
+			}
+			vendorConfig = append(vendorConfig, conf)
+		}
+		if err := b.resv.DUTs[dut.GetId()].PushConfig(ctx, strings.Join(vendorConfig, "\n"), true); err != nil {
+			return err
+		}
+
+		gnmi, err := b.resv.DUTs[dut.GetId()].DialGNMI(ctx)
+		if err != nil {
+			return err
+		}
+		for _, file := range dut.GetConfig().GetGnmiConfigFile() {
+			conf, err := readGnmi(file)
+			if err != nil {
+				return err
+			}
+			if _, err := gnmi.Set(ctx, conf); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func readCli(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func readGnmi(path string) (*gpb.SetRequest, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	req := &gpb.SetRequest{}
+	if err := proto.Unmarshal(data, req); err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
