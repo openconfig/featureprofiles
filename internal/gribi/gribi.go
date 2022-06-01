@@ -175,6 +175,31 @@ func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, n
 	)
 }
 
+func (g *GRIBIHandler) RemoveNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {
+	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
+
+	// checking if backup provided
+	if bkhgIndex != 0 {
+		nhg.WithBackupNHG(bkhgIndex)
+	}
+
+	if len(nhWeights) != 0 {
+		for nhIndex, weight := range nhWeights {
+			nhg.AddNextHop(nhIndex, weight)
+			g.fluentC.Modify().DeleteEntry(t, nhg)
+		}
+	}
+
+	chk.HasResult(t, g.fluentC.Results(t),
+		fluent.OperationResult().
+			WithNextHopGroupOperation(nhgIndex).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+}
+
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
 func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, nh_entry, instance string, expectedResult fluent.ProgrammingResult) {
 	addr := net.ParseIP(nh_entry)
@@ -210,6 +235,32 @@ func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, nh_entry, instance st
 	)
 }
 
+func (g *GRIBIHandler) RemoveNH(t testing.TB, nhIndex uint64, nh_entry, instance string, expectedResult fluent.ProgrammingResult) {
+
+	g.fluentC.Modify().DeleteEntry(t,
+		fluent.NextHopEntry().
+			WithNetworkInstance(instance).
+			WithIndex(nhIndex).
+			WithIPAddress(nh_entry))
+
+	// nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(200)
+
+	// nhg.AddNextHop(2000, 100)
+	// g.fluentC.Modify().DeleteEntry(t, nhg)
+
+	// if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
+	// 	t.Fatalf("Error waiting to add NH: %v", err)
+	// }
+	chk.HasResult(t, g.fluentC.Results(t),
+		fluent.OperationResult().
+			WithNextHopOperation(nhIndex).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+}
+
 // AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
 func (g *GRIBIHandler) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
 	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
@@ -222,6 +273,24 @@ func (g *GRIBIHandler) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, ins
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4: %v", err)
 	}
+	chk.HasResult(t, g.fluentC.Results(t),
+		fluent.OperationResult().
+			WithIPv4Operation(prefix).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+}
+
+func (g *GRIBIHandler) RemoveIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
+	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
+		WithNetworkInstance(instance).
+		WithNextHopGroup(nhgIndex)
+	if nhgInstance != "" && nhgInstance != instance {
+		ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+	}
+	g.fluentC.Modify().DeleteEntry(t, ipv4Entry)
 	chk.HasResult(t, g.fluentC.Results(t),
 		fluent.OperationResult().
 			WithIPv4Operation(prefix).

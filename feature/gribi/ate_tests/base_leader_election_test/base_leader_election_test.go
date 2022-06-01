@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/topologies/binding/cisco/config"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -53,6 +54,7 @@ func TestMain(m *testing.M) {
 
 const (
 	ipv4PrefixLen = 30
+	ipv6PrefixLen = 126
 	instance      = "DEFAULT"
 	ateDstNetCIDR = "198.51.100.1/32"
 	nhgIndex_2_1  = 100
@@ -76,95 +78,111 @@ var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
+		IPv6:    "192:0:2::1",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
 		IPv4:    "192.0.2.2",
+		IPv6:    "192:0:2::2",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "192.0.2.5",
+		IPv6:    "192:0:2::5",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
 		IPv4:    "192.0.2.6",
+		IPv6:    "192:0:2::6",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort3 = attrs.Attributes{
 		Desc:    "dutPort3",
 		IPv4:    "192.0.2.9",
+		IPv6:    "192:0:2::9",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	atePort3 = attrs.Attributes{
 		Name:    "atePort3",
 		IPv4:    "192.0.2.10",
+		IPv6:    "192:0:2::10",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort4 = attrs.Attributes{
 		Desc:    "dutPort4",
 		IPv4:    "192.0.2.13",
+		IPv6:    "192:0:2::13",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	atePort4 = attrs.Attributes{
 		Name:    "atePort4",
 		IPv4:    "192.0.2.14",
+		IPv6:    "192:0:2::14",
 		IPv4Len: ipv4PrefixLen,
 	}
 	dutPort5 = attrs.Attributes{
 		Desc:    "dutPort5",
 		IPv4:    "192.0.2.17",
+		IPv6:    "192:0:2::17",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	atePort5 = attrs.Attributes{
 		Name:    "atePort5",
 		IPv4:    "192.0.2.18",
+		IPv6:    "192:0:2::18",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort6 = attrs.Attributes{
 		Desc:    "dutPort6",
 		IPv4:    "192.0.2.21",
+		IPv6:    "192:0:2::21",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	atePort6 = attrs.Attributes{
 		Name:    "atePort6",
 		IPv4:    "192.0.2.22",
+		IPv6:    "192:0:2::22",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort7 = attrs.Attributes{
 		Desc:    "dutPort7",
 		IPv4:    "192.0.2.25",
+		IPv6:    "192:0:2::25",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	atePort7 = attrs.Attributes{
 		Name:    "atePort7",
 		IPv4:    "192.0.2.26",
+		IPv6:    "192:0:2::26",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort8 = attrs.Attributes{
 		Desc:    "dutPort8",
 		IPv4:    "192.0.2.29",
+		IPv6:    "192:0:2::29",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	atePort8 = attrs.Attributes{
 		Name:    "atePort8",
 		IPv4:    "192.0.2.30",
+		IPv6:    "192:0:2::30",
 		IPv4Len: ipv4PrefixLen,
 	}
 )
@@ -184,6 +202,13 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
+
+	s6 := s.GetOrCreateIpv6()
+	if *deviations.InterfaceEnabled {
+		s6.Enabled = ygot.Bool(true)
+	}
+	s6a := s6.GetOrCreateAddress(a.IPv6)
+	s6a.PrefixLength = ygot.Uint8(ipv6PrefixLen)
 
 	return i
 }
@@ -239,52 +264,76 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	i1.IPv4().
 		WithAddress(atePort1.IPv4CIDR()).
 		WithDefaultGateway(dutPort1.IPv4)
+	// i1.IPv6().
+	// 	WithAddress(atePort1.IPv6CIDR()).
+	// 	WithDefaultGateway(dutPort1.IPv6)
 
 	p2 := ate.Port(t, "port2")
 	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
 	i2.IPv4().
 		WithAddress(atePort2.IPv4CIDR()).
 		WithDefaultGateway(dutPort2.IPv4)
+	// i2.IPv6().
+	// 	WithAddress(atePort2.IPv6CIDR()).
+	// 	WithDefaultGateway(dutPort2.IPv6)
 
 	p3 := ate.Port(t, "port3")
 	i3 := top.AddInterface(atePort3.Name).WithPort(p3)
 	i3.IPv4().
 		WithAddress(atePort3.IPv4CIDR()).
 		WithDefaultGateway(dutPort3.IPv4)
+	// i3.IPv6().
+	// 	WithAddress(atePort3.IPv6CIDR()).
+	// 	WithDefaultGateway(dutPort3.IPv6)
 
 	p4 := ate.Port(t, "port4")
 	i4 := top.AddInterface(atePort4.Name).WithPort(p4)
 	i4.IPv4().
 		WithAddress(atePort4.IPv4CIDR()).
 		WithDefaultGateway(dutPort4.IPv4)
+	// i4.IPv6().
+	// 	WithAddress(atePort4.IPv6CIDR()).
+	// 	WithDefaultGateway(dutPort4.IPv6)
 
 	p5 := ate.Port(t, "port5")
 	i5 := top.AddInterface(atePort5.Name).WithPort(p5)
 	i5.IPv4().
 		WithAddress(atePort5.IPv4CIDR()).
 		WithDefaultGateway(dutPort5.IPv4)
+	// i5.IPv6().
+	// 	WithAddress(atePort5.IPv6CIDR()).
+	// 	WithDefaultGateway(dutPort5.IPv6)
 
 	p6 := ate.Port(t, "port6")
 	i6 := top.AddInterface(atePort6.Name).WithPort(p6)
 	i6.IPv4().
 		WithAddress(atePort6.IPv4CIDR()).
 		WithDefaultGateway(dutPort6.IPv4)
+	// i6.IPv6().
+	// 	WithAddress(atePort6.IPv6CIDR()).
+	// 	WithDefaultGateway(dutPort6.IPv6)
 
 	p7 := ate.Port(t, "port7")
 	i7 := top.AddInterface(atePort7.Name).WithPort(p7)
 	i7.IPv4().
 		WithAddress(atePort7.IPv4CIDR()).
 		WithDefaultGateway(dutPort7.IPv4)
+	// i7.IPv6().
+	// 	WithAddress(atePort7.IPv6CIDR()).
+	// 	WithDefaultGateway(dutPort7.IPv6)
 
 	p8 := ate.Port(t, "port8")
 	i8 := top.AddInterface(atePort8.Name).WithPort(p8)
 	i8.IPv4().
 		WithAddress(atePort8.IPv4CIDR()).
 		WithDefaultGateway(dutPort8.IPv4)
+	// i8.IPv6().
+	// 	WithAddress(atePort8.IPv6CIDR()).
+	// 	WithDefaultGateway(dutPort8.IPv6)
 	return top
 }
 
-func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, network_name string, metric uint32, prefix string, count uint32) {
+func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, network_name string, metric uint32, v4prefix string, v6prefix string, count uint32) {
 
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
@@ -293,7 +342,12 @@ func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, netw
 	network := intfs[atePort].AddNetwork(network_name)
 	//IPReachabilityConfig :=
 	network.ISIS().WithIPReachabilityMetric(metric + 1)
-	network.IPv4().WithAddress(prefix).WithCount(count)
+	if len(v4prefix) != 0 {
+		network.IPv4().WithAddress(v4prefix).WithCount(count)
+	}
+	if len(v6prefix) != 0 {
+		network.IPv6().WithAddress(v6prefix).WithCount(count)
+	}
 	intfs[atePort].ISIS().WithAreaID(areaId).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
 }
 
@@ -615,6 +669,13 @@ func testIPv4BackUpSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Fatalf("could not remove all entries from server, got: %v", err)
 	}
 
+	// Verify the entry for 1.0.0.0/8 is active through Traffic.
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	dstEndPoint := args.top.Interfaces()
+
+	t.Log("going to program Static ARP different from Ixia ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "arp 198.51.100.1  0012.0100.0001 arpa")
+
 	// LEVEL 2
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 
@@ -623,20 +684,15 @@ func testIPv4BackUpSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 
 	args.clientA.AddNH(t, nhIndex_2_1, atePort2.IPv4, instance, fluent.InstalledInRIB)
 	args.clientA.AddNHG(t, nhgIndex_2_1, bkhgIndex_2, map[uint64]uint64{nhIndex_2_1: 100}, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, "1.0.0.0/8", nhgIndex_2_1, "TE", instance, fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex_2_1, "TE", instance, fluent.InstalledInRIB)
 
-	t.Log("going to program Static ARP different from Ixia ")
-	args.clientA.DUT.Config().New().WithCiscoText("arp 1.0.0.0  0012.0100.0001 arpa \n commit \n end \n")
-
-	// Verify the entry for 1.0.0.0/8 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort2" == intf || "atePort3" == intf {
+		if "atePort2" == intf {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
+	testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
 
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	interface_names := []string{"port2"}
@@ -645,14 +701,50 @@ func testIPv4BackUpSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 		p := args.dut.Port(t, intf)
 		i := &telemetry.Interface{Name: ygot.String(p.Name())}
 		d.Interface(p.Name()).Replace(t, shutdownInterface(i, false))
-		testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
 	}
-	// checking traffic on backup
-	time.Sleep(time.Minute)
+
 	testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
+
+	t.Log("going to remove Static ARP different from Ixia ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "no arp 198.51.100.1 0012.0100.0001 arpa")
+	config.TextWithGNMI(args.ctx, t, args.dut, "interface fourHundredGigE 0/0/0/11 arp learning disable")
 
 	//adding back interface configurations
 	configureDUT(t, args.dut)
+
+	t.Logf("deleting all the IPV4 entries added")
+	if _, err := args.clientA.Fluent(t).Flush().
+		WithElectionOverride().
+		WithAllNetworkInstances().
+		Send(); err != nil {
+		t.Fatalf("could not remove all entries from server, got: %v", err)
+	}
+
+	args.clientA.AddNH(t, 3000, atePort3.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, 300, 0, map[uint64]uint64{3000: 100}, instance, fluent.InstalledInRIB)
+
+	args.clientA.AddNH(t, nhIndex_2_1, "193.0.2.1", instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex_2_1, 300, map[uint64]uint64{nhIndex_2_1: 100}, instance, fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex_2_1, "TE", instance, fluent.InstalledInRIB)
+
+	args.clientA.AddNH(t, 2000, atePort2.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, 200, 0, map[uint64]uint64{2000: 100}, instance, fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, "193.0.2.1/32", 200, instance, "", fluent.InstalledInRIB)
+
+	//args.clientA.RemoveNH(t, nhIndex_2_1, "192.0.2.1", instance, fluent.InstalledInRIB)
+	args.clientA.RemoveIPv4(t, "193.0.2.1/32", 200, instance, "", fluent.InstalledInRIB)
+	args.clientA.RemoveNHG(t, 200, 0, map[uint64]uint64{2000: 100}, instance, fluent.InstalledInRIB)
+	args.clientA.RemoveNH(t, 2000, atePort2.IPv4, instance, fluent.InstalledInRIB)
+
+	// checking traffic on backup
+	time.Sleep(time.Minute)
+	updated_dstEndPoint = []ondatra.Endpoint{}
+	for intf, intf_data := range dstEndPoint {
+		if "atePort3" == intf {
+			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
+		}
+	}
+	testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint)
 }
 
 func TestBackUp(t *testing.T) {
@@ -671,9 +763,8 @@ func TestBackUp(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	// top.ClearInterfaces()
-	// addAteISISL2(t, top, "atePort8", "B4", "testing", 20, "201.1.0.2/32", uint32(1000))
-	// top.Push(t).StartProtocols(t)
+	addAteISISL2(t, top, "atePort3", "B4", "testing", 20, ateDstNetCIDR, "", uint32(1))
+	top.Push(t).StartProtocols(t)
 
 	test := []struct {
 		name string
