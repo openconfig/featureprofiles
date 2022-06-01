@@ -218,6 +218,11 @@ func GetIPv6NeighborStates(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (g
 	return states, nil
 }
 
+func GetIPv4NeighborMacEntry(t *testing.T, interfaceName string, ipAddress string, otg *ondatra.OTG) (string, error) {
+	entries := otg.Telemetry().Interface(interfaceName).Ipv4Neighbor(ipAddress).LinkLayerAddress().Get(t)
+	return entries, nil
+}
+
 func GetAllIPv4NeighborMacEntries(t *testing.T, otg *ondatra.OTG) ([]string, error) {
 	macEntries := otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Get(t)
 	return macEntries, nil
