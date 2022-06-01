@@ -113,76 +113,76 @@ var (
 	atePort3 = attrs.Attributes{
 		Name:    "atePort3",
 		IPv4:    "192.0.2.10",
-		IPv6:    "192:0:2::10",
+		IPv6:    "192:0:2::A",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort4 = attrs.Attributes{
 		Desc:    "dutPort4",
 		IPv4:    "192.0.2.13",
-		IPv6:    "192:0:2::13",
+		IPv6:    "192:0:2::D",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	atePort4 = attrs.Attributes{
 		Name:    "atePort4",
 		IPv4:    "192.0.2.14",
-		IPv6:    "192:0:2::14",
+		IPv6:    "192:0:2::E",
 		IPv4Len: ipv4PrefixLen,
 	}
 	dutPort5 = attrs.Attributes{
 		Desc:    "dutPort5",
 		IPv4:    "192.0.2.17",
-		IPv6:    "192:0:2::17",
+		IPv6:    "192:0:2::11",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	atePort5 = attrs.Attributes{
 		Name:    "atePort5",
 		IPv4:    "192.0.2.18",
-		IPv6:    "192:0:2::18",
+		IPv6:    "192:0:2::12",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort6 = attrs.Attributes{
 		Desc:    "dutPort6",
 		IPv4:    "192.0.2.21",
-		IPv6:    "192:0:2::21",
+		IPv6:    "192:0:2::15",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	atePort6 = attrs.Attributes{
 		Name:    "atePort6",
 		IPv4:    "192.0.2.22",
-		IPv6:    "192:0:2::22",
+		IPv6:    "192:0:2::16",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort7 = attrs.Attributes{
 		Desc:    "dutPort7",
 		IPv4:    "192.0.2.25",
-		IPv6:    "192:0:2::25",
+		IPv6:    "192:0:2::19",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	atePort7 = attrs.Attributes{
 		Name:    "atePort7",
 		IPv4:    "192.0.2.26",
-		IPv6:    "192:0:2::26",
+		IPv6:    "192:0:2::1A",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort8 = attrs.Attributes{
 		Desc:    "dutPort8",
 		IPv4:    "192.0.2.29",
-		IPv6:    "192:0:2::29",
+		IPv6:    "192:0:2::1D",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	atePort8 = attrs.Attributes{
 		Name:    "atePort8",
 		IPv4:    "192.0.2.30",
-		IPv6:    "192:0:2::30",
+		IPv6:    "192:0:2::1E",
 		IPv4Len: ipv4PrefixLen,
 	}
 )
@@ -264,72 +264,72 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	i1.IPv4().
 		WithAddress(atePort1.IPv4CIDR()).
 		WithDefaultGateway(dutPort1.IPv4)
-	// i1.IPv6().
-	// 	WithAddress(atePort1.IPv6CIDR()).
-	// 	WithDefaultGateway(dutPort1.IPv6)
+	i1.IPv6().
+		WithAddress(atePort1.IPv6CIDR()).
+		WithDefaultGateway(dutPort1.IPv6)
 
 	p2 := ate.Port(t, "port2")
 	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
 	i2.IPv4().
 		WithAddress(atePort2.IPv4CIDR()).
 		WithDefaultGateway(dutPort2.IPv4)
-	// i2.IPv6().
-	// 	WithAddress(atePort2.IPv6CIDR()).
-	// 	WithDefaultGateway(dutPort2.IPv6)
+	i2.IPv6().
+		WithAddress(atePort2.IPv6CIDR()).
+		WithDefaultGateway(dutPort2.IPv6)
 
 	p3 := ate.Port(t, "port3")
 	i3 := top.AddInterface(atePort3.Name).WithPort(p3)
 	i3.IPv4().
 		WithAddress(atePort3.IPv4CIDR()).
 		WithDefaultGateway(dutPort3.IPv4)
-	// i3.IPv6().
-	// 	WithAddress(atePort3.IPv6CIDR()).
-	// 	WithDefaultGateway(dutPort3.IPv6)
+	i3.IPv6().
+		WithAddress(atePort3.IPv6CIDR()).
+		WithDefaultGateway(dutPort3.IPv6)
 
 	p4 := ate.Port(t, "port4")
 	i4 := top.AddInterface(atePort4.Name).WithPort(p4)
 	i4.IPv4().
 		WithAddress(atePort4.IPv4CIDR()).
 		WithDefaultGateway(dutPort4.IPv4)
-	// i4.IPv6().
-	// 	WithAddress(atePort4.IPv6CIDR()).
-	// 	WithDefaultGateway(dutPort4.IPv6)
+	i4.IPv6().
+		WithAddress(atePort4.IPv6CIDR()).
+		WithDefaultGateway(dutPort4.IPv6)
 
 	p5 := ate.Port(t, "port5")
 	i5 := top.AddInterface(atePort5.Name).WithPort(p5)
 	i5.IPv4().
 		WithAddress(atePort5.IPv4CIDR()).
 		WithDefaultGateway(dutPort5.IPv4)
-	// i5.IPv6().
-	// 	WithAddress(atePort5.IPv6CIDR()).
-	// 	WithDefaultGateway(dutPort5.IPv6)
+	i5.IPv6().
+		WithAddress(atePort5.IPv6CIDR()).
+		WithDefaultGateway(dutPort5.IPv6)
 
 	p6 := ate.Port(t, "port6")
 	i6 := top.AddInterface(atePort6.Name).WithPort(p6)
 	i6.IPv4().
 		WithAddress(atePort6.IPv4CIDR()).
 		WithDefaultGateway(dutPort6.IPv4)
-	// i6.IPv6().
-	// 	WithAddress(atePort6.IPv6CIDR()).
-	// 	WithDefaultGateway(dutPort6.IPv6)
+	i6.IPv6().
+		WithAddress(atePort6.IPv6CIDR()).
+		WithDefaultGateway(dutPort6.IPv6)
 
 	p7 := ate.Port(t, "port7")
 	i7 := top.AddInterface(atePort7.Name).WithPort(p7)
 	i7.IPv4().
 		WithAddress(atePort7.IPv4CIDR()).
 		WithDefaultGateway(dutPort7.IPv4)
-	// i7.IPv6().
-	// 	WithAddress(atePort7.IPv6CIDR()).
-	// 	WithDefaultGateway(dutPort7.IPv6)
+	i7.IPv6().
+		WithAddress(atePort7.IPv6CIDR()).
+		WithDefaultGateway(dutPort7.IPv6)
 
 	p8 := ate.Port(t, "port8")
 	i8 := top.AddInterface(atePort8.Name).WithPort(p8)
 	i8.IPv4().
 		WithAddress(atePort8.IPv4CIDR()).
 		WithDefaultGateway(dutPort8.IPv4)
-	// i8.IPv6().
-	// 	WithAddress(atePort8.IPv6CIDR()).
-	// 	WithDefaultGateway(dutPort8.IPv6)
+	i8.IPv6().
+		WithAddress(atePort8.IPv6CIDR()).
+		WithDefaultGateway(dutPort8.IPv6)
 	return top
 }
 
@@ -731,7 +731,6 @@ func testIPv4BackUpSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 	args.clientA.AddNHG(t, 200, 0, map[uint64]uint64{2000: 100}, instance, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, "193.0.2.1/32", 200, instance, "", fluent.InstalledInRIB)
 
-	//args.clientA.RemoveNH(t, nhIndex_2_1, "192.0.2.1", instance, fluent.InstalledInRIB)
 	args.clientA.RemoveIPv4(t, "193.0.2.1/32", 200, instance, "", fluent.InstalledInRIB)
 	args.clientA.RemoveNHG(t, 200, 0, map[uint64]uint64{2000: 100}, instance, fluent.InstalledInRIB)
 	args.clientA.RemoveNH(t, 2000, atePort2.IPv4, instance, fluent.InstalledInRIB)
@@ -763,7 +762,7 @@ func TestBackUp(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	addAteISISL2(t, top, "atePort3", "B4", "testing", 20, ateDstNetCIDR, "", uint32(1))
+	addAteISISL2(t, top, "atePort3", "B4", "testing", 20, ateDstNetCIDR, "198:51:100::1/128", uint32(1))
 	top.Push(t).StartProtocols(t)
 
 	test := []struct {
