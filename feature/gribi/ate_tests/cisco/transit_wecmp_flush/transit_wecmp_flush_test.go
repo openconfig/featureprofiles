@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/topologies/binding/cisco/config"
 )
 
 var (
@@ -3317,7 +3318,7 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 		)
 	}
 	t.Log("going to program Static ARP different from Ixia ")
-	args.dut.Config().New().WithCiscoText("arp 100.121.1.3  0000.0012.0011 arpa \n commit \n end \n").Append(t)
+	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.3  0000.0012.0011 arpa")
 
 	time.Sleep(10 * time.Second)
 
@@ -3343,11 +3344,11 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 		t.Log("There is no traffic loss.")
 	}
 	t.Log("going to change Static ARP ")
-	args.dut.Config().New().WithCiscoText("arp 100.121.1.3  0000.0012.0111 arpa \n commit\n").Append(t)
+	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.3  0000.0012.0011 arpa")
 
 	time.Sleep(10 * time.Second)
 
-	defer args.dut.Config().New().WithCiscoText("no arp 100.121.1.3  0000.0012.0111 arpa \n commit\n").Append(t)
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.3  0000.0012.0011 arpa")
 
 	statsb := ate.Telemetry().FlowAny().Get(t)
 	lossStreamb := util.CheckTrafficPassViaRate(statsb)
@@ -3428,16 +3429,16 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 	topology.StopProtocols(t)
 
 	t.Log("going to clear dynamic arp entry ")
-	args.dut.Config().New().WithCiscoText("do clear arp-cache bundle-Ether 121 location 0/RP0/CPU0 \n commit\n").Append(t)
+	config.TextWithGNMI(args.ctx, t, args.dut, "do clear arp-cache bundle-Ether 121 location 0/RP0/CPU0")
 
 	time.Sleep(10 * time.Second)
 
 	t.Log("going to configure static arp entry to make sure traffic is not failing after static arp is configured   ")
-	args.dut.Config().New().WithCiscoText("arp 100.121.1.2  0000.0012.0011 arpa \n commit \n end \n").Append(t)
+	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.2  0000.0012.0011 arpa ")
 
 	time.Sleep(10 * time.Second)
 
-	defer args.dut.Config().New().WithCiscoText("no arp 100.121.1.2  0000.0012.0011 arpa \n commit\n").Append(t)
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.2  0000.0012.0011 arpa")
 
 	statsb := ate.Telemetry().FlowAny().Get(t)
 	lossStreamb := util.CheckTrafficPassViaRate(statsb)
@@ -3514,7 +3515,7 @@ func testDeleteReAddFlowSpecConfig(t *testing.T, args *testArgs) {
 
 	// Remove the config
 	t.Log("going to remove flow spec config")
-	args.dut.Config().New().WithCiscoText("no flowspec \n commit\n end \n").Append(t)
+	config.TextWithGNMI(args.ctx, t, args.dut, "no flowspec")
 
 	time.Sleep(10 * time.Second)
 
@@ -3530,15 +3531,15 @@ func testDeleteReAddFlowSpecConfig(t *testing.T, args *testArgs) {
 	//   service-policy type pbr Transit local
 
 	t.Log("going to re-add flow spec config")
-	args.dut.Config().New().WithCiscoText("flowspec local-install interface-all  \n commit\n").Append(t)
+	config.TextWithGNMI(args.ctx, t, args.dut, "flowspec local-install interface-all")
 
 	time.Sleep(10 * time.Second)
 
-	args.dut.Config().New().WithCiscoText("flowspec address-family ipv4 local-install interface-all \n commit\n").Append(t)
+	config.TextWithGNMI(args.ctx, t, args.dut, "flowspec address-family ipv4 local-install interface-all")
 
 	time.Sleep(10 * time.Second)
 
-	args.dut.Config().New().WithCiscoText("flowspec address-family ipv4 service-policy type pbr Transit local \n commit\n end \n").Append(t)
+	config.TextWithGNMI(args.ctx, t, args.dut, "flowspec address-family ipv4 service-policy type pbr Transit local")
 
 	time.Sleep(10 * time.Second)
 
@@ -3612,7 +3613,7 @@ func testClearingARP(t *testing.T, args *testArgs) {
 	}
 
 	// Clear ARP
-	args.dut.Config().New().WithCiscoText("do clear arp-cache location all \n").Append(t)
+	config.TextWithGNMI(args.ctx, t, args.dut, "do clear arp-cache location all")
 
 	time.Sleep(10 * time.Second)
 
@@ -3666,11 +3667,11 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 		)
 	}
 	t.Log("going to program Static ARP different from Ixia ")
-	args.dut.Config().New().WithCiscoText("arp 100.121.1.3  0000.0012.0011 arpa \n commit \n end \n").Append(t)
+	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.3  0000.0012.0011 arpa")
 
 	time.Sleep(10 * time.Second)
 
-	defer args.dut.Config().New().WithCiscoText("no arp 100.121.1.3  0000.0012.0011 arpa \n commit\n").Append(t)
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.3  0000.0012.0011 arpa")
 
 	ate := ondatra.ATE(t, "ate")
 	topology := getIXIATopology(t, "ate")
