@@ -770,21 +770,21 @@ func TestBackUp(t *testing.T) {
 		desc string
 		fn   func(ctx context.Context, t *testing.T, args *testArgs)
 	}{
-		// {
-		// 	name: "IPv4BackUpSwitchDrop",
-		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path and dropping",
-		// 	fn:   testIPv4BackUpSwitchDrop,
-		// },
-		// {
-		// 	name: "IPv4BackUpSwitchDecap",
-		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over default backup path ",
-		// 	fn:   testIPv4BackUpSwitchDecap,
-		// },
-		// {
-		// 	name: "IPv4BackUpSwitchCase",
-		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path ",
-		// 	fn:   testIPv4BackUpSwitchCase3,
-		// },
+		{
+			name: "IPv4BackUpSwitchDrop",
+			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path and dropping",
+			fn:   testIPv4BackUpSwitchDrop,
+		},
+		{
+			name: "IPv4BackUpSwitchDecap",
+			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over default backup path ",
+			fn:   testIPv4BackUpSwitchDecap,
+		},
+		{
+			name: "IPv4BackUpSwitchCase",
+			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path ",
+			fn:   testIPv4BackUpSwitchCase3,
+		},
 		{
 			name: "IPv4BackUpSingleNH",
 			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path ",
