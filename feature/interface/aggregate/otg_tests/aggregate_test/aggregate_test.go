@@ -16,13 +16,13 @@ package rt_5_2_aggregate_test
 
 import (
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/helpers"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -110,7 +110,6 @@ type testCase struct {
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
 	top gosnappi.Config
-	// config *gosnappi.Config
 
 	dutPorts []*ondatra.Port
 	atePorts []*ondatra.Port
@@ -275,7 +274,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 		port := tc.top.Ports().Add().SetName(p.ID())
 		lagPort := agg.Ports().Add()
 		lagPort.SetPortName(port.Name()).
-			Ethernet().SetMac(atePortMac(ateDst.MAC, i)).
+			Ethernet().SetMac(helpers.IncrementedMac(ateDst.MAC, i)).
 			SetName("LagRx-" + strconv.Itoa(i))
 		if tc.lagType == lagTypeSTATIC {
 			lagId, _ := strconv.Atoi(tc.aggID)
@@ -369,13 +368,19 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 // configureDUT().
 func (tc *testCase) verifyATE(t *testing.T) {
 	ap := tc.atePorts[0]
-	aip := tc.ate.OTG().Telemetry().Interface(ap.Name())
-	fptest.LogYgot(t, ap.String(), aip, aip.Get(t))
 
+	pMetrics, err := helpers.GetAllPortMetrics(t, tc.ate.OTG(), tc.top)
+	if err != nil {
+		t.Fatal("Error while getting the port metrics")
+	}
 	// State for the interface.
-	// if got := aip.OperStatus().Get(t); got != opUp {
-	// 	t.Errorf("%s oper-status got %v, want %v", ap, got, opUp)
-	// }
+	for _, port := range pMetrics.Items() {
+		if port.Name() == ap.ID() {
+			if port.Link() != gosnappi.PortMetricLinkEnum("up") {
+				t.Errorf("%s oper-status got %v, want %v", ap.ID(), port.Link(), "up")
+			}
+		}
+	}
 }
 
 // sortPorts sorts the ports by the testbed port ID.
@@ -384,15 +389,6 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 		return ports[i].ID() < ports[j].ID()
 	})
 	return ports
-}
-
-func atePortMac(mac string, i int) string {
-	r, _ := regexp.Compile("(([0-9A-Fa-f]{2}[:-]){5})([0-9A-Fa-f]{2})")
-	lastOctet := r.FindStringSubmatch(mac)[3]
-	lastInt, _ := strconv.Atoi(lastOctet)
-	lastInt = lastInt + i + 1
-	lastX := fmt.Sprintf("%02x", lastInt)
-	return r.FindStringSubmatch(mac)[1] + lastX
 }
 
 func (tc *testCase) verifyMinLinks(t *testing.T) {

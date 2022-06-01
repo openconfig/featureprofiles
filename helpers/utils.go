@@ -6,7 +6,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -29,12 +31,13 @@ type WaitForOpts struct {
 }
 
 type MetricsTableOpts struct {
-	ClearPrevious bool
-	FlowMetrics   gosnappi.MetricsResponseFlowMetricIter
-	PortMetrics   gosnappi.MetricsResponsePortMetricIter
-	Bgpv4Metrics  gosnappi.MetricsResponseBgpv4MetricIter
-	Bgpv6Metrics  gosnappi.MetricsResponseBgpv6MetricIter
-	IsisMetrics   gosnappi.MetricsResponseIsisMetricIter
+	ClearPrevious  bool
+	FlowMetrics    gosnappi.MetricsResponseFlowMetricIter
+	PortMetrics    gosnappi.MetricsResponsePortMetricIter
+	AllPortMetrics gosnappi.MetricsResponsePortMetricIter
+	Bgpv4Metrics   gosnappi.MetricsResponseBgpv4MetricIter
+	Bgpv6Metrics   gosnappi.MetricsResponseBgpv6MetricIter
+	IsisMetrics    gosnappi.MetricsResponseIsisMetricIter
 }
 
 type StatesTableOpts struct {
@@ -367,6 +370,32 @@ func PrintMetricsTable(opts *MetricsTableOpts) {
 		out += border + "\n\n"
 	}
 
+	if opts.AllPortMetrics != nil {
+		border := strings.Repeat("-", 15*8-10)
+		out += "\nPort Metrics\n" + border + "\n"
+		out += fmt.Sprintf(
+			"%-15s%-15s%-15s%-15s%-15s%-15s%-15s%-15s\n",
+			"Name", "Frames Tx", "Frames Rx", "Bytes Tx", "Bytes Rx", "FPS Tx", "FPS Rx", "Link",
+		)
+		for _, m := range opts.AllPortMetrics.Items() {
+			if m != nil {
+				name := m.Name()
+				txFrames := m.FramesTx()
+				rxFrames := m.FramesRx()
+				txBytes := m.BytesTx()
+				rxBytes := m.BytesRx()
+				txRate := m.FramesTxRate()
+				rxRate := m.FramesRxRate()
+				link := m.Link()
+				out += fmt.Sprintf(
+					"%-15v%-15v%-15v%-15v%-15v%-15v%-15v%-15v\n",
+					name, txFrames, rxFrames, txBytes, rxBytes, txRate, rxRate, link,
+				)
+			}
+		}
+		out += border + "\n\n"
+	}
+
 	if opts.FlowMetrics != nil {
 		border := strings.Repeat("-", 32*3+10)
 		out += "\nFlow Metrics\n" + border + "\n"
@@ -504,4 +533,13 @@ func expectedElementsPresent(expected, actual []string) bool {
 		}
 	}
 	return true
+}
+
+func IncrementedMac(mac string, i int) string {
+	r, _ := regexp.Compile("(([0-9A-Fa-f]{2}[:-]){5})([0-9A-Fa-f]{2})")
+	lastOctet := r.FindStringSubmatch(mac)[3]
+	lastInt, _ := strconv.Atoi(lastOctet)
+	lastInt = lastInt + i + 1
+	lastX := fmt.Sprintf("%02x", lastInt)
+	return r.FindStringSubmatch(mac)[1] + lastX
 }

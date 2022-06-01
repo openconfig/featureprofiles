@@ -42,6 +42,31 @@ func GetPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi
 	return metrics, nil
 }
 
+func GetAllPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.MetricsResponsePortMetricIter, error) {
+	defer Timer(time.Now(), "GetPortMetrics GNMI")
+	metrics := gosnappi.NewApi().NewGetMetricsResponse().StatusCode200().PortMetrics()
+	for _, p := range c.Ports().Items() {
+		log.Printf("Getting port metrics for port %s\n", p.Name())
+		pMetric := metrics.Add()
+		recvMetric := otg.Telemetry().Port(p.Name()).Get(t)
+		pMetric.SetName(recvMetric.GetName())
+		pMetric.SetFramesTx(int64(recvMetric.GetCounters().GetOutFrames()))
+		pMetric.SetFramesRx(int64(recvMetric.GetCounters().GetInFrames()))
+		pMetric.SetBytesTx(int64(recvMetric.GetCounters().GetOutOctets()))
+		pMetric.SetBytesRx(int64(recvMetric.GetCounters().GetInOctets()))
+		pMetric.SetFramesTxRate(ygot.BinaryToFloat32(recvMetric.GetOutRate()))
+		pMetric.SetFramesRxRate(ygot.BinaryToFloat32(recvMetric.GetInRate()))
+		link := recvMetric.GetLink()
+		if link == otgtelemetry.Port_Link_UP {
+			pMetric.SetLink("up")
+		} else {
+			pMetric.SetLink("down")
+		}
+
+	}
+	return metrics, nil
+}
+
 func GetBgpv4Metrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.MetricsResponseBgpv4MetricIter, error) {
 	defer Timer(time.Now(), "GetBgpv4Metrics GNMI")
 	metrics := gosnappi.NewApi().NewGetMetricsResponse().StatusCode200().Bgpv4Metrics()

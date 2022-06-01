@@ -57,7 +57,7 @@ const (
 	ateDstNetCIDR   = "198.51.100.0/24"
 	nhIndex         = 1
 	nhgIndex        = 42
-	trafficDuration = 30 * time.Second
+	trafficDuration = 3 * time.Second
 )
 
 var (
@@ -187,7 +187,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 		SetTxName(srcEndPoint.endpointName).
 		SetRxName(dstEndPoint.endpointName)
 	flowipv4.Size().SetFixed(512)
-	flowipv4.Rate().SetPps(2)
+	flowipv4.Rate().SetPps(10)
 	flowipv4.Duration().SetChoice("continuous")
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(srcEndPoint.mac)
@@ -497,5 +497,12 @@ func TestElectionIDChange(t *testing.T) {
 func TestUnsetDut(t *testing.T) {
 	t.Logf("Start Unsetting DUT Config")
 	dut := ondatra.DUT(t, "dut")
-	dut.Config().New().WithAristaFile("unset_dut.txt").Push(t)
+	switch dut.Model() {
+	case "ARISTA_CEOS":
+		dut.Config().New().WithAristaFile("unset_" + dut.Model() + ".txt").Push(t)
+	case "CISCO_E8000":
+		dut.Config().New().WithCiscoFile("unset_" + dut.Model() + ".txt").Push(t)
+	case "JUNIPER":
+		dut.Config().New().WithJuniperFile("unset_" + dut.Model() + ".txt").Push(t)
+	}
 }
