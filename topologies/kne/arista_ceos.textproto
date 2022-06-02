@@ -6,7 +6,6 @@ nodes: {
     config_path: "/mnt/flash"
     config_file: "startup-config"
     file: "arista_ceos.config"
-    image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/ceos:4.28.0F-26265162"
     cert: {
       self_signed: {
         cert_name: "gnmiCert.pem"
