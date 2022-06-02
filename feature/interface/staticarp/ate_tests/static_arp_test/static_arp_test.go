@@ -16,12 +16,9 @@ package te_1_1_static_arp_test
 
 import (
 	"fmt"
-	"log"
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/helpers"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -63,9 +60,8 @@ func TestMain(m *testing.M) {
 // where WW:XX:YY:ZZ are the four octets of the IPv4 in hex.  The 0x02
 // means the MAC address is locally administered.
 const (
-	ateType = "software"
-	plen4   = 30
-	plen6   = 126
+	plen4 = 30
+	plen6 = 126
 
 	poisonedMAC = "12:34:56:78:7a:69" // 0x7a69 = 31337
 	noStaticMAC = ""
@@ -73,8 +69,7 @@ const (
 
 var (
 	ateSrc = attrs.Attributes{
-		Name:    "port1",
-		MAC:     "00:11:01:00:00:01",
+		Name:    "ateSrc",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
 		IPv4Len: plen4,
@@ -100,8 +95,7 @@ var (
 	}
 
 	ateDst = attrs.Attributes{
-		Name:    "port2",
-		MAC:     "00:12:01:00:00:01",
+		Name:    "dst",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: plen4,
@@ -191,56 +185,15 @@ func configureATE(t *testing.T) (*ondatra.ATEDevice, *ondatra.ATETopology) {
 	return ate, top
 }
 
-func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
-	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
-	config := otg.NewConfig(t)
-	srcPort := config.Ports().Add().SetName(ateSrc.Name)
-	dstPort := config.Ports().Add().SetName(ateDst.Name)
-
-	srcDev := config.Devices().Add().SetName(ateSrc.Name)
-	srcEth := srcDev.Ethernets().Add().
-		SetName(ateSrc.Name + ".eth").
-		SetPortName(srcPort.Name()).
-		SetMac(ateSrc.MAC)
-	srcEth.Ipv4Addresses().Add().
-		SetName(ateSrc.Name + ".ipv4").
-		SetAddress(ateSrc.IPv4).
-		SetGateway(dutSrc.IPv4).
-		SetPrefix(int32(ateSrc.IPv4Len))
-	srcEth.Ipv6Addresses().Add().
-		SetName(ateSrc.Name + ".ipv6").
-		SetAddress(ateSrc.IPv6).
-		SetGateway(dutSrc.IPv6).
-		SetPrefix(int32(ateSrc.IPv6Len))
-
-	dstDev := config.Devices().Add().SetName(ateDst.Name)
-	dstEth := dstDev.Ethernets().Add().
-		SetName(ateDst.Name + ".eth").
-		SetPortName(dstPort.Name()).
-		SetMac(ateDst.MAC)
-	dstEth.Ipv4Addresses().Add().
-		SetName(ateDst.Name + ".ipv4").
-		SetAddress(ateDst.IPv4).
-		SetGateway(dutDst.IPv4).
-		SetPrefix(int32(ateDst.IPv4Len))
-	dstEth.Ipv6Addresses().Add().
-		SetName(ateDst.Name + ".ipv6").
-		SetAddress(ateDst.IPv6).
-		SetGateway(dutDst.IPv6).
-		SetPrefix(int32(ateDst.IPv6Len))
-
-	return ate, config
-}
-
 func testFlow(
 	t *testing.T,
 	want string,
 	ate *ondatra.ATEDevice,
 	top *ondatra.ATETopology,
-	config gosnappi.Config,
 	headers ...ondatra.Header,
 ) {
+	i1 := top.Interfaces()[ateSrc.Name]
+	i2 := top.Interfaces()[ateDst.Name]
 
 	// Egress tracking inspects packets from DUT and key the flow
 	// counters by custom bit offset and width.  Width is limited to
@@ -251,111 +204,48 @@ func testFlow(
 	//   - Source MAC (6 octets)
 	//   - Optional 802.1q VLAN tag (4 octets)
 	//   - Frame size (2 octets)
-	switch ateType {
-	case "hardware":
-		i1 := top.Interfaces()[ateSrc.Name]
-		i2 := top.Interfaces()[ateDst.Name]
-		flow := ate.Traffic().NewFlow("Flow").
-			WithSrcEndpoints(i1).
-			WithDstEndpoints(i2).
-			WithHeaders(headers...).
-			WithEgressTrackingEnabled(33 /* bit offset */, 15 /* width */)
+	flow := ate.Traffic().NewFlow("Flow").
+		WithSrcEndpoints(i1).
+		WithDstEndpoints(i2).
+		WithHeaders(headers...).
+		WithEgressTrackingEnabled(33 /* bit offset */, 15 /* width */)
 
-		ate.Traffic().Start(t, flow)
-		time.Sleep(15 * time.Second)
-		ate.Traffic().Stop(t)
+	ate.Traffic().Start(t, flow)
+	time.Sleep(15 * time.Second)
+	ate.Traffic().Stop(t)
 
-		flowPath := ate.Telemetry().Flow(flow.Name())
+	flowPath := ate.Telemetry().Flow(flow.Name())
 
-		if got := flowPath.LossPct().Get(t); got > 0 {
-			t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
-		}
+	if got := flowPath.LossPct().Get(t); got > 0 {
+		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
+	}
 
-		etPath := flowPath.EgressTrackingAny()
-		ets := etPath.Get(t)
-		for i, et := range ets {
-			fptest.LogYgot(t, fmt.Sprintf("ATE flow EgressTracking[%d]", i), etPath, et)
-		}
+	etPath := flowPath.EgressTrackingAny()
+	ets := etPath.Get(t)
+	for i, et := range ets {
+		fptest.LogYgot(t, fmt.Sprintf("ATE flow EgressTracking[%d]", i), etPath, et)
+	}
 
-		if got := len(ets); got != 1 {
-			t.Errorf("EgressTracking got %d items, want 1", got)
-			return
-		}
+	if got := len(ets); got != 1 {
+		t.Errorf("EgressTracking got %d items, want 1", got)
+		return
+	}
 
-		if got := ets[0].GetFilter(); got != want {
-			t.Errorf("EgressTracking filter got %q, want %q", got, want)
-		}
+	if got := ets[0].GetFilter(); got != want {
+		t.Errorf("EgressTracking filter got %q, want %q", got, want)
+	}
 
-		if got := ets[0].GetCounters().GetInPkts(); got < 1000 {
-			t.Errorf("EgressTracking counter in-pkts got %d, want >= 1000", got)
-		}
-	case "software":
-		// Configure the flow
-		otg := ate.OTG()
-		i1 := ateSrc.Name
-		i2 := ateDst.Name
-		config.Flows().Clear().Items()
-		flowipv4 := config.Flows().Add().SetName("Flow")
-		flowipv4.Metrics().SetEnable(true)
-		flowipv4.TxRx().Device().
-			SetTxNames([]string{i1 + ".ipv4"}).
-			SetRxNames([]string{i2 + ".ipv4"})
-		flowipv4.Size().SetFixed(512)
-		flowipv4.Rate().SetPps(2)
-		flowipv4.Duration().SetChoice("continuous")
-		e1 := flowipv4.Packet().Add().Ethernet()
-		e1.Src().SetValue(ateSrc.MAC)
-		v4 := flowipv4.Packet().Add().Ipv4()
-		v4.Src().SetValue(ateSrc.IPv4)
-		v4.Dst().SetValue(ateDst.IPv4)
-		otg.PushConfig(t, config)
-
-		// Starting the traffic
-		otg.StartTraffic(t)
-		err := helpers.WatchFlowMetrics(t, otg, config, &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 5 * time.Second})
-		if err != nil {
-			log.Println(err)
-		}
-		t.Logf("Stop traffic")
-		otg.StopTraffic(t)
-
-		// Get the flow statistics
-		fMetrics, err := helpers.GetFlowMetrics(t, otg, config)
-		if err != nil {
-			t.Fatal("Error while getting the flow metrics")
-		}
-
-		helpers.PrintMetricsTable(&helpers.MetricsTableOpts{
-			ClearPrevious: false,
-			FlowMetrics:   fMetrics,
-		})
-
-		for _, f := range fMetrics.Items() {
-			lossPct := (f.FramesTx() - f.FramesRx()) * 100 / f.FramesTx()
-			if lossPct > 0 {
-				t.Errorf("LossPct for flow %s got %d, want 0", f.Name(), lossPct)
-			}
-		}
-
+	if got := ets[0].GetCounters().GetInPkts(); got < 1000 {
+		t.Errorf("EgressTracking counter in-pkts got %d, want >= 1000", got)
 	}
 }
 
 func TestStaticARP(t *testing.T) {
 	// First configure the DUT with dynamic ARP.
 	configureDUT(t, noStaticMAC)
-	var ate *ondatra.ATEDevice
-	var top *ondatra.ATETopology
-	var config gosnappi.Config
-	switch ateType {
-	case "hardware":
-		ate, top = configureATE(t)
-		top.Push(t).StartProtocols(t)
-	case "software":
-		ate, config = configureOTG(t)
-		ate.OTG().PushConfig(t, config)
-		ate.OTG().StartProtocols(t)
+	ate, top := configureATE(t)
+	top.Push(t).StartProtocols(t)
 
-	}
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv6Header := ondatra.NewIPv6Header()
@@ -368,10 +258,10 @@ func TestStaticARP(t *testing.T) {
 	// The last 15-bits therefore resolve to "1".
 	t.Run("NotPoisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testFlow(t, "1" /* want */, ate, top, config, ethHeader, ipv4Header)
+			testFlow(t, "1" /* want */, ate, top, ethHeader, ipv4Header)
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testFlow(t, "1" /* want */, ate, top, config, ethHeader, ipv6Header)
+			testFlow(t, "1" /* want */, ate, top, ethHeader, ipv6Header)
 		})
 	})
 
@@ -381,16 +271,10 @@ func TestStaticARP(t *testing.T) {
 	// Poisoned MAC address ends with 7a:69, so 0x7a69 = 31337.
 	t.Run("Poisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testFlow(t, "31337" /* want */, ate, top, config, ethHeader, ipv4Header)
+			testFlow(t, "31337" /* want */, ate, top, ethHeader, ipv4Header)
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testFlow(t, "31337" /* want */, ate, top, config, ethHeader, ipv6Header)
+			testFlow(t, "31337" /* want */, ate, top, ethHeader, ipv6Header)
 		})
 	})
-}
-
-func TestUnsetDut(t *testing.T) {
-	t.Logf("Start Unsetting DUT Config")
-	dut := ondatra.DUT(t, "dut")
-	dut.Config().New().WithAristaFile("unset_dut.txt").Push(t)
 }
