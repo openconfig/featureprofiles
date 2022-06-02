@@ -34,6 +34,7 @@ import (
 	"github.com/openconfig/ygot/util"
 	"github.com/protocolbuffers/txtpbfmt/parser"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google3/base/go/google"
 )
 
 var (
