@@ -688,16 +688,3 @@ func TestBGPPolicy(t *testing.T) {
 		})
 	}
 }
-
-// func TestUnsetDut(t *testing.T) {
-// 	t.Logf("Start Unsetting DUT Config")
-// 	dut := ondatra.DUT(t, "dut")
-// 	switch dut.Model() {
-// 	case "ARISTA_CEOS":
-// 		dut.Config().New().WithAristaFile("unset_" + dut.Model() + ".txt").Push(t)
-// 	case "CISCO_E8000":
-// 		dut.Config().New().WithCiscoFile("unset_" + dut.Model() + ".txt").Push(t)
-// 	case "JUNIPER":
-// 		dut.Config().New().WithJuniperFile("unset_" + dut.Model() + ".txt").Push(t)
-// 	}
-// }
