@@ -22,10 +22,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -39,8 +39,9 @@ import (
 // testbed topology.
 type staticBind struct {
 	binding.Binding
-	r    resolver
-	resv *binding.Reservation
+	r           resolver
+	resv        *binding.Reservation
+	push_config bool
 }
 
 type staticDUT struct {
@@ -75,8 +76,10 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	if err := b.reserveIxSessions(ctx); err != nil {
 		return nil, err
 	}
-	if err := b.reset(ctx); err != nil {
-		return nil, err
+	if b.push_config {
+		if err := b.reset(ctx); err != nil {
+			return nil, err
+		}
 	}
 	return resv, nil
 }
@@ -85,21 +88,21 @@ func (b *staticBind) Release(ctx context.Context) error {
 	if b.resv == nil {
 		return errors.New("no reservation")
 	}
-	if err := b.releaseIxSessions(ctx); err != nil {
-		return err
+	if b.push_config {
+		if err := b.releaseIxSessions(ctx); err != nil {
+			return err
+		}
 	}
 	b.resv = nil
 	return nil
 }
 
-func (b *staticBind) FetchReservation(ctx context.Context, id string, reset bool) (*binding.Reservation, error) {
+func (b *staticBind) FetchReservation(ctx context.Context, id string) (*binding.Reservation, error) {
 	if b.resv == nil || id != resvID {
 		return nil, fmt.Errorf("reservation not found: %s", id)
 	}
-	if reset {
-		if err := b.reset(ctx); err != nil {
-			return nil, err
-		}
+	if err := b.reset(ctx); err != nil {
+		return nil, err
 	}
 	return b.resv, nil
 }

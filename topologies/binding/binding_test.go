@@ -29,9 +29,9 @@ import (
 func TestReserveFetchRelease(t *testing.T) {
 	ctx := context.Background()
 	tb := &opb.Testbed{}
-	b := &staticBind{r: resolver{&bindpb.Binding{}}}
+	b := &staticBind{r: resolver{&bindpb.Binding{}}, push_config: false}
 
-	if _, err := b.FetchReservation(ctx, resvID, true); err == nil {
+	if _, err := b.FetchReservation(ctx, resvID); err == nil {
 		t.Error("FetchReservation should fail before reservation is made.")
 	}
 	if err := b.Release(ctx); err == nil {
@@ -42,14 +42,14 @@ func TestReserveFetchRelease(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not reserve testbed: %v", err)
 	}
-	if _, err := b.FetchReservation(ctx, resv.ID, true); err != nil {
+	if _, err := b.FetchReservation(ctx, resv.ID); err != nil {
 		t.Errorf("Could not fetch reservation %q: %v", resv.ID, err)
 	}
 	if err := b.Release(ctx); err != nil {
 		t.Errorf("Could not release reservation: %v", err)
 	}
 
-	if _, err := b.FetchReservation(ctx, resvID, false); err == nil {
+	if _, err := b.FetchReservation(ctx, resvID); err == nil {
 		t.Error("FetchReservation should fail after release.")
 	}
 	if err := b.Release(ctx); err == nil {
