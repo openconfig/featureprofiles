@@ -57,38 +57,45 @@ var (
 )
 
 const (
-	dutAS       = 64500
-	ateAS       = 64501
-	peerGrpName = "BGP-PEER-GROUP"
+	dutAS        = 64500
+	ateAS        = 64501
+	peerGrpName  = "BGP-PEER-GROUP"
+	netInstance  = "DEFAULT"
+	loopbackIntf = "lo0"
+	holdTime0    = 0
+	holdTime100  = 100
+	holdTime135  = 135
+	ConnTime0    = 0
+	ConnTime100  = 100
+	NegHoldTime0 = 0
 )
 
 //Configure network instance
 func configureNetworkInstance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &telemetry.Device{}
-	ni1 := d.GetOrCreateNetworkInstance("DEFAULT")
+	ni1 := d.GetOrCreateNetworkInstance(netInstance)
 	ni1.Type = telemetry.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE(*ygot.Int64(1))
 
 	configureDUTLoop(t, dut, dutlo0Attrs)
 	loopIPAddr := getLoopIP(t)
 
 	ni1.RouterId = ygot.String(loopIPAddr)
-	dutConfPath := dut.Config().NetworkInstance("DEFAULT")
+	dutConfPath := dut.Config().NetworkInstance(netInstance)
 	dutConfPath.Replace(t, ni1)
 }
 
 //configure loopback ip
 func configureDUTLoop(t *testing.T, dut *ondatra.DUTDevice, attrs attrs.Attributes) {
-	loop1 := attrs.NewInterface("lo0")
+	loop1 := attrs.NewInterface(loopbackIntf)
 	loop1.Type = telemetry.IETFInterfaces_InterfaceType_softwareLoopback
 	dut.Config().Interface(loop1.GetName()).Replace(t, loop1)
 }
 
 func getLoopIP(t *testing.T) string {
 	dut := ondatra.DUT(t, "dut")
-	lo0 := dut.Telemetry().Interface("lo0").Subinterface(0)
+	lo0 := dut.Telemetry().Interface(loopbackIntf).Subinterface(0)
 	ipv4Addrs := lo0.Ipv4().AddressAny().Get(t)
-	t.Logf("Got DUT %s IPv4 loopback address: %+v", dut.Name(), ipv4Addrs)
 	if len(ipv4Addrs) == 0 {
 		t.Fatalf("Failed to get a valid IPv4 loopback address: %+v", ipv4Addrs)
 	}
@@ -125,7 +132,7 @@ func bgpCreateNbr(localAs uint32, peerAs uint32, nbrLocalAS uint32, routerID str
 	nbrs := []*bgpNeighbor{nbr1v4}
 
 	d := &telemetry.Device{}
-	ni1 := d.GetOrCreateNetworkInstance("DEFAULT")
+	ni1 := d.GetOrCreateNetworkInstance(netInstance)
 	bgp := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(localAs)
@@ -173,7 +180,7 @@ func bgpCreateNbr(localAs uint32, peerAs uint32, nbrLocalAS uint32, routerID str
 //Verify BGP capabilities
 func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Verifying BGP capabilities")
-	statePath := dut.Telemetry().NetworkInstance("DEFAULT").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
 	capabilities := map[telemetry.E_BgpTypes_BGP_CAPABILITY]bool{
@@ -197,7 +204,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	ifName := dut.Port(t, "port1").Name()
 	lastFlapTime := dut.Telemetry().Interface(ifName).LastChange().Get(t)
 	t.Logf("Verifying BGP state")
-	statePath := dut.Telemetry().NetworkInstance("DEFAULT").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 	nbr := statePath.Get(t).GetNeighbor(ateAttrs.IPv4)
 
@@ -288,10 +295,10 @@ func TestEstablish(t *testing.T) {
 	t.Logf("Start DUT Network Instance and BGP Config")
 	configureNetworkInstance(t)
 
-	dutConfPath := dut.Config().NetworkInstance("DEFAULT").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := dut.Config().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 	dutConfPath.Replace(t, nil)
-	dutConf := bgpCreateNbr(dutAS, ateAS, 0, "", "", 0.0, 0.0, 0.0)
+	dutConf := bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime0, ConnTime0, NegHoldTime0)
 	dutConfPath.Replace(t, dutConf)
 
 	// ATE Configuration.
@@ -318,8 +325,8 @@ func TestDisconnect(t *testing.T) {
 	t.Logf("Start DUT interface Config")
 	configureDUT(t, dut)
 
-	dutConfPath := dut.Config().NetworkInstance("DEFAULT").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	statePath := dut.Telemetry().NetworkInstance("DEFAULT").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := dut.Config().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
 	// Configure BGP Neighbor on the DUT
@@ -328,7 +335,7 @@ func TestDisconnect(t *testing.T) {
 	// Clear any existing config
 	fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 	dutConfPath.Replace(t, nil)
-	dutConf := bgpCreateNbr(dutAS, ateAS, 0, "", "", 0.0, 0.0, 0.0)
+	dutConf := bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime0, ConnTime0, NegHoldTime0)
 	dutConfPath.Replace(t, dutConf)
 
 	t.Logf("configure port and BGP configs on ATE")
@@ -375,8 +382,8 @@ func TestParameters(t *testing.T) {
 	//Configure network instance with network-instance type and router-id
 	configureNetworkInstance(t)
 
-	dutConfPath := dut.Config().NetworkInstance("DEFAULT").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	statePath := dut.Telemetry().NetworkInstance("DEFAULT").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := dut.Config().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateIP)
 
 	//configure loopback to use it for explicit router id
@@ -392,44 +399,44 @@ func TestParameters(t *testing.T) {
 	}{
 		{
 			name:    "basic internal",
-			dutConf: bgpCreateNbr(dutAS, dutAS, 0, "", "", 0.0, 0.0, 0.0),
+			dutConf: bgpCreateNbr(dutAS, dutAS, 0, "", "", holdTime0, ConnTime0, NegHoldTime0),
 			ateConf: configureATE(t, dutAS, dutIP, "", 0, 0, "INTERNAL"),
 		},
 		{
 			name:    "basic external",
-			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "", 0.0, 0.0, 0.0),
+			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime0, ConnTime0, NegHoldTime0),
 			ateConf: configureATE(t, ateAS, dutIP, "", 0, 0, "EXTERNAL"),
 		},
 		{
 			name:    "explicit AS",
-			dutConf: bgpCreateNbr(dutAS, ateAS, 100, "", "", 0.0, 0.0, 0.0),
+			dutConf: bgpCreateNbr(dutAS, ateAS, 100, "", "", holdTime0, ConnTime0, NegHoldTime0),
 			ateConf: configureATE(t, ateAS, dutIP, "", 0, 0, "EXTERNAL"),
 		},
 		{
 			name:    "explicit router id",
-			dutConf: bgpCreateNbr(dutAS, ateAS, 0, loopIPAddr, "", 0.0, 0.0, 0.0),
+			dutConf: bgpCreateNbr(dutAS, ateAS, 0, loopIPAddr, "", holdTime0, ConnTime0, NegHoldTime0),
 			ateConf: configureATE(t, ateAS, dutIP, "", 0, 0, "EXTERNAL"),
 		},
 		{
 			name:    "password",
-			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "AUTHPASSWORD", 0.0, 0.0, 0.0),
+			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "AUTHPASSWORD", holdTime0, ConnTime0, NegHoldTime0),
 			ateConf: configureATE(t, ateAS, dutIP, "AUTHPASSWORD", 0, 0, "EXTERNAL"),
 		},
 		{
 			name:    "hold-time, keepalive timer",
-			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "", 100.0, 0.0, 0.0),
+			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime100, ConnTime0, NegHoldTime0),
 			ateConf: configureATE(t, ateAS, dutIP, "", 100, 0, "EXTERNAL"),
 		},
 		{
 			name:    "connect-retry",
-			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "", 0.0, 100.0, 0.0),
+			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime0, ConnTime100, NegHoldTime0),
 			ateConf: configureATE(t, ateAS, dutIP, "", 0, 0, "EXTERNAL"),
 		},
 		{
 			name:      "hold time negotiated",
-			dutConf:   bgpCreateNbr(dutAS, ateAS, 0, "", "", 100.0, 0.0, 0.0),
+			dutConf:   bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime100, ConnTime0, NegHoldTime0),
 			ateConf:   configureATE(t, ateAS, dutIP, "", 135, 0, "EXTERNAL"),
-			wantState: bgpCreateNbr(dutAS, ateAS, 0, "", "", 100.0, 0.0, 100.0),
+			wantState: bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime100, ConnTime0, holdTime100),
 		},
 	}
 	for _, tc := range cases {
