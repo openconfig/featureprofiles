@@ -55,7 +55,7 @@ const (
 	ateDstNetCIDR   = "198.51.100.0/24"
 	nhIndex         = 1
 	nhgIndex        = 42
-	trafficDuration = 3 * time.Second
+	trafficDuration = 10 * time.Second
 )
 
 var (
@@ -197,11 +197,19 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	t.Logf("Stop traffic")
 	otg.StopTraffic(t)
 
+	pMetrics, err := helpers.GetAllPortMetrics(t, otg, config)
+	if err != nil {
+		t.Fatal("Error while getting the port metrics")
+	}
+	helpers.PrintMetricsTable(&helpers.MetricsTableOpts{
+		ClearPrevious:  false,
+		AllPortMetrics: pMetrics,
+	})
+
 	fMetrics, err := helpers.GetFlowMetrics(t, otg, config)
 	if err != nil {
 		t.Fatal("Error while getting the flow metrics")
 	}
-
 	helpers.PrintMetricsTable(&helpers.MetricsTableOpts{
 		ClearPrevious: false,
 		FlowMetrics:   fMetrics,
