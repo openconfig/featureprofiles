@@ -20,8 +20,10 @@ package topology_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -49,6 +51,10 @@ func atePortCIDR(i int) string {
 	return fmt.Sprintf("192.0.2.%d/30", i*4+2)
 }
 
+func atePortMac(i int) string {
+	return fmt.Sprintf("00:00:0%d:01:01:01", i*4+2)
+}
+
 func configInterface(name, desc, ipv4 string, prefixlen uint8) *telemetry.Interface {
 	i := &telemetry.Interface{}
 	i.Name = ygot.String(name)
@@ -71,7 +77,7 @@ func configInterface(name, desc, ipv4 string, prefixlen uint8) *telemetry.Interf
 	return i
 }
 
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port) {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	var (
 		badReplace []string
 		badConfig  []string
@@ -83,7 +89,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port
 	// TODO(liulk): configure breakout ports when Ondatra is able to
 	// specify them in the testbed for reservation.
 
-	for i, dp := range dutPorts {
+	sortedDutPorts := fptest.SortPorts(dut.Ports())
+	for i, dp := range sortedDutPorts {
 		di := d.Interface(dp.Name())
 		in := configInterface(dp.Name(), dp.String(), dutPortIP(i), plen)
 		fptest.LogYgot(t, fmt.Sprintf("%s to Replace()", dp), di, in)
@@ -92,7 +99,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port
 		}
 	}
 
-	for _, dp := range dutPorts {
+	for _, dp := range dut.Ports() {
 		di := d.Interface(dp.Name())
 		if q := di.Lookup(t); q.IsPresent() {
 			fptest.LogYgot(t, fmt.Sprintf("%s from Get()", dp), di, q.Val(t))
@@ -103,7 +110,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port
 	}
 
 	dt := dut.Telemetry()
-	for _, dp := range dutPorts {
+	for _, dp := range dut.Ports() {
 		di := dt.Interface(dp.Name())
 		if q := di.Lookup(t); q.IsPresent() {
 			fptest.LogYgot(t, fmt.Sprintf("%s from Get()", dp), di, q.Val(t))
@@ -113,43 +120,66 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port
 		}
 	}
 
-	t.Logf("Replace error on interfaces: %v", badReplace)
-	t.Logf("Config Get error on interfaces: %v", badConfig)
-	t.Logf("Telemetry Get error on interfaces: %v", badTelem)
+	t.Logf("Replace issues on interfaces: %v", badReplace)
+	t.Logf("Config Get issues on interfaces: %v", badConfig)
+	t.Logf("Telemetry Get issues on interfaces: %v", badTelem)
 }
 
-func configureATE(t *testing.T, ate *ondatra.ATEDevice, atePorts []*ondatra.Port) {
-	top := ate.Topology().New()
-
-	for i, ap := range atePorts {
-		t.Logf("ATE AddInterface: ports[%d] = %v", i, ap)
-		in := top.AddInterface(ap.Name()).WithPort(ap)
-		in.IPv4().WithAddress(atePortCIDR(i)).WithDefaultGateway(dutPortIP(i))
-		// TODO(liulk): disable FEC for 100G-FR ports when Ondatra is able
-		// to specify the optics type.  Ixia Novus 100G does not support
-		// RS-FEC(544,514) used by 100G-FR/100G-DR; it only supports
-		// RS-FEC(528,514).
-		if false {
-			t.Logf("Disabling FEC on port %v", ap)
-			in.Ethernet().FEC().WithEnabled(false)
-		}
+func deconfigureDut(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Logf("Unsetting DUT Interface Config")
+	dc := dut.Config()
+	for _, port := range dut.Ports() {
+		intf := &telemetry.Interface{Name: ygot.String(port.Name())}
+		intf.DeleteSubinterface(0)
+		dc.Interface(intf.GetName()).Replace(t, intf)
 	}
+}
 
-	top.Push(t).StartProtocols(t)
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	otg := ate.OTG()
+	sortedAtePorts := fptest.SortPorts(ate.Ports())
+	top := otg.NewConfig(t)
+	for i, ap := range sortedAtePorts {
+		t.Logf("OTG AddInterface: ports[%d] = %v", i, ap)
+		in := top.Ports().Add().SetName(ap.ID())
+		dev := top.Devices().Add().SetName(ap.Name() + ".dev")
+		eth := dev.Ethernets().Add().SetName(ap.Name() + ".eth").
+			SetPortName(in.Name()).SetMac(atePortMac(i))
+		ipv4Addr := strings.Split(atePortCIDR(i), "/")[0]
+		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".ipv4").
+			SetAddress(ipv4Addr).SetGateway(dutPortIP(i)).
+			SetPrefix(int32(plen))
+	}
+	otg.PushConfig(t, top)
+	t.Logf("Start ATE Protocols")
+	otg.StartProtocols(t)
+	return top
+}
+
+func deconfigureATE(t *testing.T, ate *ondatra.ATEDevice, stopProtocols bool, stopTraffic bool) {
+	otg := ate.OTG()
+	if stopTraffic {
+		otg.StopTraffic(t)
+	}
+	if stopProtocols {
+		otg.StopProtocols(t)
+	}
+	otg.PushConfig(t, otg.NewConfig(t))
 }
 
 func TestTopology(t *testing.T) {
 	// Configure the DUT
 	dut := ondatra.DUT(t, "dut")
-	dutPorts := fptest.SortPorts(dut.Ports())
-	configureDUT(t, dut, dutPorts)
+	configureDUT(t, dut)
+	defer deconfigureDut(t, dut)
 
 	// Configure the ATE
-	ate := ondatra.ATE(t, "ate")
-	atePorts := fptest.SortPorts(ate.Ports())
-	configureATE(t, ate, atePorts)
+	ate := ondatra.ATE(t, "otg")
+	configureATE(t, ate)
+	defer deconfigureATE(t, ate, true, false)
 
 	// Query Telemetry
+	dutPorts := fptest.SortPorts(dut.Ports())
 	t.Run("Telemetry", func(t *testing.T) {
 		const want = telemetry.Interface_OperStatus_UP
 
@@ -160,11 +190,5 @@ func TestTopology(t *testing.T) {
 			}
 		}
 
-		at := ate.Telemetry()
-		for _, ap := range atePorts {
-			if got := at.Interface(ap.Name()).OperStatus().Get(t); got != want {
-				t.Errorf("%s oper-status got %v, want %v", ap, got, want)
-			}
-		}
 	})
 }

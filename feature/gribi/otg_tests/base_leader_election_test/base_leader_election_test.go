@@ -99,10 +99,10 @@ var (
 	}
 )
 
-type trafficEndpoint struct {
-	endpointName string
-	mac          string
-	ip           string
+var inputMap = map[attrs.Attributes]attrs.Attributes{
+	atePort1: dutPort1,
+	atePort2: dutPort2,
+	atePort3: dutPort3,
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
@@ -147,13 +147,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otg := ate.OTG()
 	top := otg.NewConfig(t)
 
-	inputMap := map[attrs.Attributes]attrs.Attributes{
-		atePort1: dutPort1,
-		atePort2: dutPort2,
-		atePort3: dutPort3,
-	}
 	for ateInput, dutInput := range inputMap {
-		t.Logf("OTG AddInterface: %v", ateInput)
+		t.Logf("OTG Add Interface: %v with IPv4 %v", ateInput.Name, ateInput.IPv4)
 		top.Ports().Add().SetName(ateInput.Name)
 		dev := top.Devices().Add().SetName(ateInput.Name)
 		eth := dev.Ethernets().Add().SetName(ateInput.Name + ".eth").
@@ -170,22 +165,26 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, srcEndPoint, dstEndPoint trafficEndpoint) {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, srcEndPoint, dstEndPoint attrs.Attributes) {
 
+	// srcEndPoint is atePort1
 	otg := ate.OTG()
+	gwIp := inputMap[srcEndPoint].IPv4
+	dstMac, _ := helpers.GetIPv4NeighborMacEntry(t, srcEndPoint.Name+".eth", gwIp, otg)
 	config.Flows().Clear().Items()
 	flowipv4 := config.Flows().Add().SetName("Flow")
 	flowipv4.Metrics().SetEnable(true)
 	flowipv4.TxRx().Port().
-		SetTxName(srcEndPoint.endpointName).
-		SetRxName(dstEndPoint.endpointName)
+		SetTxName(srcEndPoint.Name).
+		SetRxName(dstEndPoint.Name)
 	flowipv4.Size().SetFixed(512)
 	flowipv4.Rate().SetPps(10)
 	flowipv4.Duration().SetChoice("continuous")
 	e1 := flowipv4.Packet().Add().Ethernet()
-	e1.Src().SetValue(srcEndPoint.mac)
+	e1.Src().SetValue(srcEndPoint.MAC)
+	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flowipv4.Packet().Add().Ipv4()
-	v4.Src().SetValue(srcEndPoint.ip)
+	v4.Src().SetValue(srcEndPoint.IPv4)
 	v4.Dst().Increment().SetStart(strings.Split(ateDstNetCIDR, "/")[0]).SetCount(250)
 	otg.PushConfig(t, config)
 
@@ -248,9 +247,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	}
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := trafficEndpoint{atePort1.Name, atePort1.MAC, atePort1.IPv4}
-	dstEndPoint := trafficEndpoint{atePort3.Name, atePort3.MAC, atePort3.IPv4}
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+	testTraffic(t, args.ate, args.top, atePort1, atePort3)
 
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-2 via gRIBI-A,
 	// ensure that the entry is ignored by the DUT.
@@ -275,9 +272,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	}
 
 	// Verify with traffic that the entry for 198.51.100.0/24 is installed through the ATE port-2.
-	srcEndPoint = trafficEndpoint{atePort1.Name, atePort1.MAC, atePort1.IPv4}
-	dstEndPoint = trafficEndpoint{atePort2.Name, atePort2.MAC, atePort2.IPv4}
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+	testTraffic(t, args.ate, args.top, atePort1, atePort2)
 }
 
 func TestElectionIDChange(t *testing.T) {
