@@ -3634,7 +3634,7 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 func TestTransitWECMPFlush(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
-	convertFlowspecToPBR(ctx, t, dut)
+	// convertFlowspecToPBR(ctx, t, dut)
 	ate := ondatra.ATE(t, "ate")
 	test := []struct {
 		name string
@@ -3854,11 +3854,15 @@ func TestTransitWECMPFlush(t *testing.T) {
 				Persistence:          true,
 				InitialElectionIDLow: 10,
 			}
-			defer client1.Close(t)
+			if "TestChangeFlowSpecToPBR" != tt.name {
+				defer client1.Close(t)
+			}
 			if err := client1.Start(t); err != nil {
 				t.Fatalf("gRIBI Connection can not be established")
 			}
-			defer client2.Close(t)
+			if "TestChangeFlowSpecToPBR" != tt.name {
+				defer client2.Close(t)
+			}
 			if err := client2.Start(t); err != nil {
 				t.Fatalf("gRIBI Connection can not be established")
 			}
