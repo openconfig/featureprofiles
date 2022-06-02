@@ -3854,15 +3854,15 @@ func TestTransitWECMPFlush(t *testing.T) {
 				Persistence:          true,
 				InitialElectionIDLow: 10,
 			}
-			if "TestChangeFlowSpecToPBR" != tt.name {
-				defer client1.Close(t)
-			}
+
+			defer client1.Close(t)
+
 			if err := client1.Start(t); err != nil {
 				t.Fatalf("gRIBI Connection can not be established")
 			}
-			if "TestChangeFlowSpecToPBR" != tt.name {
-				defer client2.Close(t)
-			}
+
+			defer client2.Close(t)
+
 			if err := client2.Start(t); err != nil {
 				t.Fatalf("gRIBI Connection can not be established")
 			}
