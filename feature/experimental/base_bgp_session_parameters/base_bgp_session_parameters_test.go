@@ -127,7 +127,7 @@ type bgpNeighbor struct {
 }
 
 // bgpCreateNbr creates a BGP object with neighbors pointing to ate
-func bgpCreateNbr(localAs uint32, peerAs uint32, nbrLocalAS uint32, routerID string, AuthPasswd string, holdTime float64, ConnRetTime float64, negHoldTime float64) *telemetry.NetworkInstance_Protocol_Bgp {
+func bgpCreateNbr(localAs uint32, peerAs uint32, nbrLocalAS uint32, routerID string, AuthPasswd string, holdTime time.Duration, ConnRetTime time.Duration, negHoldTime time.Duration) *telemetry.NetworkInstance_Protocol_Bgp {
 	nbr1v4 := &bgpNeighbor{as: peerAs, neighborip: ateAttrs.IPv4, isV4: true}
 	nbrs := []*bgpNeighbor{nbr1v4}
 
@@ -161,15 +161,15 @@ func bgpCreateNbr(localAs uint32, peerAs uint32, nbrLocalAS uint32, routerID str
 			}
 			if holdTime != 0 {
 				nv4t := nv4.GetOrCreateTimers()
-				nv4t.HoldTime = ygot.Float64(holdTime)
+				nv4t.HoldTime = ygot.Float64(holdTime.Seconds())
 				if negHoldTime != 0 {
-					nv4t.NegotiatedHoldTime = ygot.Float64(negHoldTime)
+					nv4t.NegotiatedHoldTime = ygot.Float64(negHoldTime.Seconds())
 				}
 			}
 
 			if ConnRetTime != 0 {
 				nv4t := nv4.GetOrCreateTimers()
-				nv4t.ConnectRetry = ygot.Float64(ConnRetTime)
+				nv4t.ConnectRetry = ygot.Float64(ConnRetTime.Seconds())
 			}
 			nv4.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 		}
