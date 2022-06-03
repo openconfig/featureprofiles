@@ -29,8 +29,8 @@ import (
 
 // TestAddress tests the Address method.
 func TestAddress(t *testing.T) {
-	n := NewNeighbor("1.2.3.4")
-	if got, want := n.Address(), "1.2.3.4"; got != want {
+	n := NewNeighbor("192.0.2.1")
+	if got, want := n.Address(), "192.0.2.1"; got != want {
 		t.Errorf("got %v but expecting %v", got, want)
 	}
 }
@@ -44,23 +44,23 @@ func TestAugmentBGP(t *testing.T) {
 		wantBGP  *fpoc.NetworkInstance_Protocol_Bgp
 	}{{
 		desc:     "Neighbor with no params",
-		neighbor: NewNeighbor("1.2.3.4"),
+		neighbor: NewNeighbor("192.0.2.1"),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 				},
 			},
 		},
 	}, {
 		desc:     "Neighbor with AFI-SAFI",
-		neighbor: NewNeighbor("1.2.3.4").WithAFISAFI(fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
+		neighbor: NewNeighbor("192.0.2.1").WithAFISAFI(fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					AfiSafi: map[fpoc.E_BgpTypes_AFI_SAFI_TYPE]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
 						fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
 							AfiSafiName: fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
@@ -72,24 +72,24 @@ func TestAugmentBGP(t *testing.T) {
 		},
 	}, {
 		desc:     "Neighbor with peer-group",
-		neighbor: NewNeighbor("1.2.3.4").WithPeerGroup("GLOBAL-PEER"),
+		neighbor: NewNeighbor("192.0.2.1").WithPeerGroup("GLOBAL-PEER"),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					PeerGroup:       ygot.String("GLOBAL-PEER"),
 				},
 			},
 		},
 	}, {
 		desc:     "Neighbor with log-state-changes",
-		neighbor: NewNeighbor("1.2.3.4").WithLogStateChanges(true),
+		neighbor: NewNeighbor("192.0.2.1").WithLogStateChanges(true),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					LoggingOptions: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_LoggingOptions{
 						LogNeighborStateChanges: ygot.Bool(true),
 					},
@@ -98,36 +98,36 @@ func TestAugmentBGP(t *testing.T) {
 		},
 	}, {
 		desc:     "Neighbor with auth-password",
-		neighbor: NewNeighbor("1.2.3.4").WithAuthPassword("password"),
+		neighbor: NewNeighbor("192.0.2.1").WithAuthPassword("password"),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					AuthPassword:    ygot.String("password"),
 				},
 			},
 		},
 	}, {
 		desc:     "Neighbor with description",
-		neighbor: NewNeighbor("1.2.3.4").WithDescription("description"),
+		neighbor: NewNeighbor("192.0.2.1").WithDescription("description"),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					Description:     ygot.String("description"),
 				},
 			},
 		},
 	}, {
 		desc:     "Neighbor with passive-mode",
-		neighbor: NewNeighbor("1.2.3.4").WithPassiveMode(true),
+		neighbor: NewNeighbor("192.0.2.1").WithPassiveMode(true),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					Transport: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Transport{
 						PassiveMode: ygot.Bool(true),
 					},
@@ -136,12 +136,12 @@ func TestAugmentBGP(t *testing.T) {
 		},
 	}, {
 		desc:     "Neighbor with tcp-mss",
-		neighbor: NewNeighbor("1.2.3.4").WithTCPMSS(12345),
+		neighbor: NewNeighbor("192.0.2.1").WithTCPMSS(12345),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					Transport: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Transport{
 						TcpMss: ygot.Uint16(12345),
 					},
@@ -150,12 +150,12 @@ func TestAugmentBGP(t *testing.T) {
 		},
 	}, {
 		desc:     "Neighbor with mtu-discovery",
-		neighbor: NewNeighbor("1.2.3.4").WithMTUDiscovery(true),
+		neighbor: NewNeighbor("192.0.2.1").WithMTUDiscovery(true),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					Transport: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Transport{
 						MtuDiscovery: ygot.Bool(true),
 					},
@@ -164,69 +164,69 @@ func TestAugmentBGP(t *testing.T) {
 		},
 	}, {
 		desc:     "Neighbor with local-address",
-		neighbor: NewNeighbor("1.2.3.4").WithLocalAddress("1.2.3.5"),
+		neighbor: NewNeighbor("192.0.2.1").WithLocalAddress("192.0.2.2"),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					Transport: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Transport{
-						LocalAddress: ygot.String("1.2.3.5"),
+						LocalAddress: ygot.String("192.0.2.2"),
 					},
 				},
 			},
 		},
 	}, {
 		desc:     "Neighbor with local-as",
-		neighbor: NewNeighbor("1.2.3.4").WithLocalAS(1234),
+		neighbor: NewNeighbor("192.0.2.1").WithLocalAS(1234),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					LocalAs:         ygot.Uint32(1234),
 				},
 			},
 		},
 	}, {
 		desc:     "Neighbor with peer-as",
-		neighbor: NewNeighbor("1.2.3.4").WithPeerAS(1234),
+		neighbor: NewNeighbor("192.0.2.1").WithPeerAS(1234),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					PeerAs:          ygot.Uint32(1234),
 				},
 			},
 		},
 	}, {
 		desc:     "Neighbor with renmove-private-as",
-		neighbor: NewNeighbor("1.2.3.4").WithRemovePrivateAS(fpoc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL),
+		neighbor: NewNeighbor("192.0.2.1").WithRemovePrivateAS(fpoc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					RemovePrivateAs: fpoc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL,
 				},
 			},
 		},
 	}, {
 		desc:     "Neighbor with send-community",
-		neighbor: NewNeighbor("1.2.3.4").WithSendCommunity(fpoc.BgpTypes_CommunityType_BOTH),
+		neighbor: NewNeighbor("192.0.2.1").WithSendCommunity(fpoc.BgpTypes_CommunityType_BOTH),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					SendCommunity:   fpoc.BgpTypes_CommunityType_BOTH,
 				},
 			},
 		},
 	}, {
 		desc: "Neighbor with max-prefixes",
-		neighbor: NewNeighbor("1.2.3.4").WithV4PrefixLimit(2000, PrefixLimitOptions{
+		neighbor: NewNeighbor("192.0.2.1").WithV4PrefixLimit(2000, PrefixLimitOptions{
 			PreventTeardown:     true,
 			RestartTime:         5 * time.Second,
 			WarningThresholdPct: 90,
@@ -234,8 +234,8 @@ func TestAugmentBGP(t *testing.T) {
 		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					AfiSafi: map[fpoc.E_BgpTypes_AFI_SAFI_TYPE]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
 						fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
 							AfiSafiName: fpoc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
@@ -256,12 +256,12 @@ func TestAugmentBGP(t *testing.T) {
 		},
 	}, {
 		desc:     "Neighbor with keepalive-interval",
-		neighbor: NewNeighbor("1.2.3.4").WithKeepaliveInterval(5*time.Second, 15*time.Second),
+		neighbor: NewNeighbor("192.0.2.1").WithKeepaliveInterval(5*time.Second, 15*time.Second),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					Timers: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
 						HoldTime:          ygot.Float64(15),
 						KeepaliveInterval: ygot.Float64(5),
@@ -271,12 +271,12 @@ func TestAugmentBGP(t *testing.T) {
 		},
 	}, {
 		desc:     "Neighbor with MRAI",
-		neighbor: NewNeighbor("1.2.3.4").WithMRAI(5 * time.Second),
+		neighbor: NewNeighbor("192.0.2.1").WithMRAI(5 * time.Second),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					Timers: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
 						MinimumAdvertisementInterval: ygot.Float64(5),
 					},
@@ -285,12 +285,12 @@ func TestAugmentBGP(t *testing.T) {
 		},
 	}, {
 		desc:     "Neighbor with connect-retry",
-		neighbor: NewNeighbor("1.2.3.4").WithConnectRetry(5 * time.Second),
+		neighbor: NewNeighbor("192.0.2.1").WithConnectRetry(5 * time.Second),
 		inBGP:    &fpoc.NetworkInstance_Protocol_Bgp{},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					Timers: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
 						ConnectRetry: ygot.Float64(5),
 					},
@@ -299,18 +299,18 @@ func TestAugmentBGP(t *testing.T) {
 		},
 	}, {
 		desc:     "BGP already contains neighbor with no conflicts",
-		neighbor: NewNeighbor("1.2.3.4"),
+		neighbor: NewNeighbor("192.0.2.1"),
 		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 				},
 			},
 		},
 		wantBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 				},
 			},
 		},
@@ -337,11 +337,11 @@ func TestAugmentBGP_Errors(t *testing.T) {
 		wantErrSubStr string
 	}{{
 		desc:     "Neighbor already exists but with conflicts",
-		neighbor: NewNeighbor("1.2.3.4").WithMRAI(6 * time.Second),
+		neighbor: NewNeighbor("192.0.2.1").WithMRAI(6 * time.Second),
 		inBGP: &fpoc.NetworkInstance_Protocol_Bgp{
 			Neighbor: map[string]*fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-				"1.2.3.4": {
-					NeighborAddress: ygot.String("1.2.3.4"),
+				"192.0.2.1": {
+					NeighborAddress: ygot.String("192.0.2.1"),
 					Timers: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
 						MinimumAdvertisementInterval: ygot.Float64(5),
 					},
@@ -389,7 +389,7 @@ func TestNeighborWithFeature(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		n := NewNeighbor("1.2.3.4")
+		n := NewNeighbor("192.0.2.1")
 		ff := &FakeNeighborFeature{Err: test.wantErr}
 		gotErr := n.WithFeature(ff)
 		if !ff.augmentCalled {
