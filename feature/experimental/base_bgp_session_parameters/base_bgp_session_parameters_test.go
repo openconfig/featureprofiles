@@ -298,7 +298,7 @@ func TestEstablish(t *testing.T) {
 	dutConfPath := dut.Config().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 	dutConfPath.Replace(t, nil)
-	dutConf := bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime0, ConnTime0, NegHoldTime0)
+	dutConf := bgpCreateNbr(dutAS, ateAS, 0, "", "", 0*time.Second, 0*time.Second, 0*time.Second)
 	dutConfPath.Replace(t, dutConf)
 
 	// ATE Configuration.
@@ -335,7 +335,7 @@ func TestDisconnect(t *testing.T) {
 	// Clear any existing config
 	fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 	dutConfPath.Replace(t, nil)
-	dutConf := bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime0, ConnTime0, NegHoldTime0)
+	dutConf := bgpCreateNbr(dutAS, ateAS, 0, "", "", 0*time.Second, 0*time.Second, 0*time.Second)
 	dutConfPath.Replace(t, dutConf)
 
 	t.Logf("configure port and BGP configs on ATE")
@@ -399,44 +399,44 @@ func TestParameters(t *testing.T) {
 	}{
 		{
 			name:    "basic internal",
-			dutConf: bgpCreateNbr(dutAS, dutAS, 0, "", "", holdTime0, ConnTime0, NegHoldTime0),
+			dutConf: bgpCreateNbr(dutAS, dutAS, 0, "", "", 0*time.Second, 0*time.Second, 0*time.Second),
 			ateConf: configureATE(t, dutAS, dutIP, "", 0, 0, "INTERNAL"),
 		},
 		{
 			name:    "basic external",
-			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime0, ConnTime0, NegHoldTime0),
+			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "", 0*time.Second, 0*time.Second, 0*time.Second),
 			ateConf: configureATE(t, ateAS, dutIP, "", 0, 0, "EXTERNAL"),
 		},
 		{
 			name:    "explicit AS",
-			dutConf: bgpCreateNbr(dutAS, ateAS, 100, "", "", holdTime0, ConnTime0, NegHoldTime0),
+			dutConf: bgpCreateNbr(dutAS, ateAS, 100, "", "", 0*time.Second, 0*time.Second, 0*time.Second),
 			ateConf: configureATE(t, ateAS, dutIP, "", 0, 0, "EXTERNAL"),
 		},
 		{
 			name:    "explicit router id",
-			dutConf: bgpCreateNbr(dutAS, ateAS, 0, loopIPAddr, "", holdTime0, ConnTime0, NegHoldTime0),
+			dutConf: bgpCreateNbr(dutAS, ateAS, 0, loopIPAddr, "", 0*time.Second, 0*time.Second, 0*time.Second),
 			ateConf: configureATE(t, ateAS, dutIP, "", 0, 0, "EXTERNAL"),
 		},
 		{
 			name:    "password",
-			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "AUTHPASSWORD", holdTime0, ConnTime0, NegHoldTime0),
+			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "AUTHPASSWORD", 0*time.Second, 0*time.Second, 0*time.Second),
 			ateConf: configureATE(t, ateAS, dutIP, "AUTHPASSWORD", 0, 0, "EXTERNAL"),
 		},
 		{
 			name:    "hold-time, keepalive timer",
-			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime100, ConnTime0, NegHoldTime0),
+			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "", 100*time.Second, 0*time.Second, 0*time.Second),
 			ateConf: configureATE(t, ateAS, dutIP, "", 100, 0, "EXTERNAL"),
 		},
 		{
 			name:    "connect-retry",
-			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime0, ConnTime100, NegHoldTime0),
+			dutConf: bgpCreateNbr(dutAS, ateAS, 0, "", "", 0*time.Second, 100*time.Second, 0*time.Second),
 			ateConf: configureATE(t, ateAS, dutIP, "", 0, 0, "EXTERNAL"),
 		},
 		{
 			name:      "hold time negotiated",
-			dutConf:   bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime100, ConnTime0, NegHoldTime0),
+			dutConf:   bgpCreateNbr(dutAS, ateAS, 0, "", "", 100*time.Second, 0*time.Second, 0*time.Second),
 			ateConf:   configureATE(t, ateAS, dutIP, "", 135, 0, "EXTERNAL"),
-			wantState: bgpCreateNbr(dutAS, ateAS, 0, "", "", holdTime100, ConnTime0, holdTime100),
+			wantState: bgpCreateNbr(dutAS, ateAS, 0, "", "", 100*time.Second, 0*time.Second, 100*time.Second),
 		},
 	}
 	for _, tc := range cases {
