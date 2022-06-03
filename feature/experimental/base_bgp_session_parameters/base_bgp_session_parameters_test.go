@@ -62,12 +62,12 @@ const (
 	peerGrpName  = "BGP-PEER-GROUP"
 	netInstance  = "DEFAULT"
 	loopbackIntf = "lo0"
-	holdTime0    = 0
-	holdTime100  = 100
-	holdTime135  = 135
-	ConnTime0    = 0
-	ConnTime100  = 100
-	NegHoldTime0 = 0
+	holdTime0    = uint16(0)
+	holdTime100  = uint16(100)
+	holdTime135  = uint16(135)
+	ConnTime0    = uint16(0)
+	ConnTime100  = uint16(100)
+	NegHoldTime0 = uint16(0)
 )
 
 //Configure network instance
