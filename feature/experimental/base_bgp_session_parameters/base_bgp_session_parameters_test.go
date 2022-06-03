@@ -161,15 +161,14 @@ func bgpCreateNbr(localAs uint32, peerAs uint32, nbrLocalAS uint32, routerID str
 			}
 			if holdTime != 0 {
 				nv4t := nv4.GetOrCreateTimers()
-				nv4t.HoldTime = ygot.Float64(holdTime)
+				nv4t.HoldTime = ygot.Float64(float64(holdTime))
 				if negHoldTime != 0 {
-					nv4t.NegotiatedHoldTime = ygot.Float64(negHoldTime)
+					nv4t.NegotiatedHoldTime = ygot.Float64(float64(negHoldTime))
 				}
 			}
-
 			if ConnRetTime != 0 {
 				nv4t := nv4.GetOrCreateTimers()
-				nv4t.ConnectRetry = ygot.Float64(ConnRetTime)
+				nv4t.ConnectRetry = ygot.Float64(float64(ConnRetTime))
 			}
 			nv4.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 		}
