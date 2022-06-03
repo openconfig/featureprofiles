@@ -11,7 +11,7 @@ Validate new software can be copied and activated on single and dual supervisors
         *   Wait for the switch to respond with InstallResponse. Expect it to return TransferReady.
     *   Transfer the content by issuing gnoi.os.Install rpc with InstallRequest.transfer_content message.
         *   Expect it to return InstallResponse with a TransferProgress status asynchronously at certain intervals.
-        *   When the expected amount of bytes_received is reported by the switch, move to the activation step next.
+        *   TODO: When the expected amount of bytes_received is reported by the switch, move to the activation step next.
     *   End the transfer of software by issuing gnoi.os.Install rpc with InstallRequest.TransferEnd message.
         *   Expect the switch to return InstallResponse with a Validated message. The version in the message should be set to the one which was transferred above.
     *   Activate the software by issuing gnoi.os.Activate rpc. 
