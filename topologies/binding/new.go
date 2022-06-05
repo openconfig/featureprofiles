@@ -106,6 +106,6 @@ func staticBinding(bindingFile string) (binding.Binding, error) {
 	return &staticBind{
 		Binding:     nil,
 		r:           resolver{b},
-		push_config: *pushConfig,
+		pushConfig: *pushConfig,
 	}, nil
 }
