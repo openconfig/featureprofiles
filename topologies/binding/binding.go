@@ -39,8 +39,8 @@ import (
 // testbed topology.
 type staticBind struct {
 	binding.Binding
-	r           resolver
-	resv        *binding.Reservation
+	r          resolver
+	resv       *binding.Reservation
 	pushConfig bool
 }
 

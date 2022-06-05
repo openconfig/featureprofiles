@@ -104,8 +104,8 @@ func staticBinding(bindingFile string) (binding.Binding, error) {
 		return nil, fmt.Errorf("unable to parse binding file: %w", err)
 	}
 	return &staticBind{
-		Binding:     nil,
-		r:           resolver{b},
+		Binding:    nil,
+		r:          resolver{b},
 		pushConfig: *pushConfig,
 	}, nil
 }
