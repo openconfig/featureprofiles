@@ -141,7 +141,7 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, clie
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
 	}
 
-	flushRes, err := flush(ctx, t, clientA, clientAOriginElectionID, defaultNetworkInstance)
+	_, err := flush(ctx, t, clientA, clientAOriginElectionID, defaultNetworkInstance)
 	if err != nil {
 		t.Errorf("Unexpected error from flush, got: %v", err)
 	}
@@ -161,7 +161,7 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, clie
 	injectEntry(ctx, t, clientA, defaultNetworkInstance)
 
 	// flush should be failed, and remains 3 entries.
-	flushRes, err = flush(ctx, t, clientB, clientBOriginElectionID, defaultNetworkInstance)
+	flushRes, err := flush(ctx, t, clientB, clientBOriginElectionID, defaultNetworkInstance)
 	if err == nil {
 		t.Errorf("Flush should return an error, got response: %v", flushRes)
 	}
@@ -174,7 +174,7 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, clie
 	clientB.Modify().UpdateElectionID(t, clientBUpdatedElectionID, 0)
 
 	// Flush should be succeed and 0 entry left.
-	flushRes, err = flush(ctx, t, clientB, clientBUpdatedElectionID, defaultNetworkInstance)
+	_, err = flush(ctx, t, clientB, clientBUpdatedElectionID, defaultNetworkInstance)
 	if err != nil {
 		t.Fatalf("Unexpected error from flush, got: %v", err)
 	}
