@@ -41,7 +41,7 @@ type staticBind struct {
 	binding.Binding
 	r           resolver
 	resv        *binding.Reservation
-	push_config bool
+	pushConfig bool
 }
 
 type staticDUT struct {
@@ -76,7 +76,7 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	if err := b.reserveIxSessions(ctx); err != nil {
 		return nil, err
 	}
-	if b.push_config {
+	if b.pushConfig {
 		if err := b.reset(ctx); err != nil {
 			return nil, err
 		}
@@ -88,10 +88,8 @@ func (b *staticBind) Release(ctx context.Context) error {
 	if b.resv == nil {
 		return errors.New("no reservation")
 	}
-	if b.push_config {
-		if err := b.releaseIxSessions(ctx); err != nil {
-			return err
-		}
+	if err := b.releaseIxSessions(ctx); err != nil {
+		return err
 	}
 	b.resv = nil
 	return nil
@@ -101,8 +99,10 @@ func (b *staticBind) FetchReservation(ctx context.Context, id string) (*binding.
 	if b.resv == nil || id != resvID {
 		return nil, fmt.Errorf("reservation not found: %s", id)
 	}
-	if err := b.reset(ctx); err != nil {
-		return nil, err
+	if b.pushConfig {
+		if err := b.reset(ctx); err != nil {
+			return nil, err
+		}
 	}
 	return b.resv, nil
 }
