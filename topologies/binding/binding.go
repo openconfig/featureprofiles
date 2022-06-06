@@ -268,10 +268,10 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 
 func (b *staticBind) reset(ctx context.Context) error {
 	for _, bdut := range b.r.GetDuts() {
-		if err := applyCli(bdut, b, ctx); err != nil {
+		if err := applyCli(ctx, bdut, b); err != nil {
 			return err
 		}
-		if err := applyGnmi(bdut, b, ctx); err != nil {
+		if err := applyGnmi(ctx, bdut, b); err != nil {
 			return err
 		}
 	}
@@ -299,7 +299,7 @@ func readGnmi(path string) (*gpb.SetRequest, error) {
 	return req, nil
 }
 
-func applyCli(bdut *bindpb.Device, b *staticBind, ctx context.Context) error {
+func applyCli(ctx context.Context, bdut *bindpb.Device, b *staticBind) error {
 	vendorConfig := []string{}
 	for _, conf := range bdut.GetConfig().GetCli() {
 		vendorConfig = append(vendorConfig, string(conf))
@@ -317,7 +317,7 @@ func applyCli(bdut *bindpb.Device, b *staticBind, ctx context.Context) error {
 	return dut.PushConfig(ctx, conf, true)
 }
 
-func applyGnmi(bdut *bindpb.Device, b *staticBind, ctx context.Context) error {
+func applyGnmi(ctx context.Context, bdut *bindpb.Device, b *staticBind) error {
 	dialer, err := b.r.gnmi(bdut.GetName())
 	if err != nil {
 		return err
