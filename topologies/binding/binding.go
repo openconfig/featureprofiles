@@ -267,34 +267,12 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 }
 
 func (b *staticBind) reset(ctx context.Context) error {
-	for _, dut := range b.r.GetDuts() {
-		vendorConfig := []string{}
-		for _, conf := range dut.GetConfig().GetCliConfigData() {
-			vendorConfig = append(vendorConfig, string(conf))
-		}
-		for _, file := range dut.GetConfig().GetCliConfigFile() {
-			conf, err := readCli(file)
-			if err != nil {
-				return err
-			}
-			vendorConfig = append(vendorConfig, conf)
-		}
-		if err := b.resv.DUTs[dut.GetId()].PushConfig(ctx, strings.Join(vendorConfig, "\n"), true); err != nil {
+	for _, bdut := range b.r.GetDuts() {
+		if err := applyCli(bdut, b, ctx); err != nil {
 			return err
 		}
-
-		gnmi, err := b.resv.DUTs[dut.GetId()].DialGNMI(ctx)
-		if err != nil {
+		if err := applyGnmi(bdut, b, ctx); err != nil {
 			return err
-		}
-		for _, file := range dut.GetConfig().GetGnmiConfigFile() {
-			conf, err := readGnmi(file)
-			if err != nil {
-				return err
-			}
-			if _, err := gnmi.Set(ctx, conf); err != nil {
-				return err
-			}
 		}
 	}
 	return nil
@@ -319,6 +297,49 @@ func readGnmi(path string) (*gpb.SetRequest, error) {
 		return nil, err
 	}
 	return req, nil
+}
+
+func applyCli(bdut *bindpb.Device, b *staticBind, ctx context.Context) error {
+	vendorConfig := []string{}
+	for _, conf := range bdut.GetConfig().GetCli() {
+		vendorConfig = append(vendorConfig, string(conf))
+	}
+	for _, file := range bdut.GetConfig().GetCliFile() {
+		conf, err := readCli(file)
+		if err != nil {
+			return err
+		}
+		vendorConfig = append(vendorConfig, conf)
+	}
+	dut := b.resv.DUTs[bdut.GetId()]
+	conf := strings.Join(vendorConfig, "\n")
+
+	return dut.PushConfig(ctx, conf, true)
+}
+
+func applyGnmi(bdut *bindpb.Device, b *staticBind, ctx context.Context) error {
+	dialer, err := b.r.gnmi(bdut.GetName())
+	if err != nil {
+		return err
+	}
+	conn, err := dialer.dialGRPC(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	gnmi := gpb.NewGNMIClient(conn)
+
+	for _, file := range bdut.GetConfig().GetGnmiSetFile() {
+		conf, err := readGnmi(file)
+		if err != nil {
+			return err
+		}
+		if _, err := gnmi.Set(ctx, conf); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
