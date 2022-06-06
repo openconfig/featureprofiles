@@ -201,14 +201,15 @@ func (g *GRIBIHandler) RemoveNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64
 }
 
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
-func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, nh_entry, instance string, expectedResult fluent.ProgrammingResult) {
+func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, nh_entry, instance string, nh_Instance string, expectedResult fluent.ProgrammingResult) {
 	addr := net.ParseIP(nh_entry)
 	if "decap" == nh_entry {
 		g.fluentC.Modify().AddEntry(t,
 			fluent.NextHopEntry().
 				WithNetworkInstance(instance).
 				WithIndex(nhIndex).
-				WithDecapsulateHeader(fluent.IPinIP))
+				WithDecapsulateHeader(fluent.IPinIP).
+				WithNextHopNetworkInstance(nh_Instance))
 	} else if addr != nil {
 		g.fluentC.Modify().AddEntry(t,
 			fluent.NextHopEntry().
