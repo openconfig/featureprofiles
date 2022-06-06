@@ -371,6 +371,8 @@ github.com/google/goexpect v0.0.0-20210430020637-ab937bf7fd6f/go.mod h1:n1ej5+Fq
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/google/gofuzz v1.1.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/google/gofuzz v1.2.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
+github.com/google/gopacket v1.1.19 h1:ves8RnFZPGiFnTS0uPQStjwru6uO6h+nlr9j6fL7kF8=
+github.com/google/gopacket v1.1.19/go.mod h1:iJ8V8n6KS+z2U1A8pUwu8bW5SyEMkXJB8Yo/Vo+TKTo=
 github.com/google/goterm v0.0.0-20190703233501-fc88cf888a3f/go.mod h1:nOFQdrUlIlx6M6ODdSpBj1NVA+VgLC6kmw60mkw34H4=
 github.com/google/kne v0.0.0-20210729182439-570083e95d00/go.mod h1:SPR3ccXGsi5QIkxuSKdC+Lox63Rfg23HrlUldK2sOqg=
 github.com/google/kne v0.0.0-20211025172831-8c56d03dfbb6/go.mod h1:KWLSJWWQdKxjBr9fjCajpLpgeOM4o7T6qZW9G2izTq8=
@@ -1238,3 +1240,7 @@ sigs.k8s.io/structured-merge-diff/v4 v4.0.3/go.mod h1:bJZC9H9iH24zzfZ/41RGcq60oK
 sigs.k8s.io/structured-merge-diff/v4 v4.1.0/go.mod h1:bJZC9H9iH24zzfZ/41RGcq60oK1F7G282QMXDPYydCw=
 sigs.k8s.io/yaml v1.1.0/go.mod h1:UJmg0vDUVViEyp3mgSv9WPwZCDxu4rQW1olrI1uml+o=
 sigs.k8s.io/yaml v1.2.0/go.mod h1:yfXDCHCao9+ENCvLSE62v9VSji2MKu5jeNfTrofGhJc=
+wwwin-github.cisco.com/rehaddad/go-p4 v0.0.0-20220506235130-41ff741381ed h1:znk6oTACQJx6bM0KSEFqiZ190BYhEuBp90KAM6hfW/U=
+wwwin-github.cisco.com/rehaddad/go-p4 v0.0.0-20220506235130-41ff741381ed/go.mod h1:dqBB1k9KsbNUJt7UWLkBtWem2lYTbi1UZ97RiSREilw=
+wwwin-github.cisco.com/rehaddad/go-p4 v0.0.0-20220601232837-933dcb67d34f h1:busxUuIv7OmEpQ3HUT3CvI4NW3WD3x8PfZeVOzFDp7Y=
+wwwin-github.cisco.com/rehaddad/go-p4 v0.0.0-20220601232837-933dcb67d34f/go.mod h1:biufIAOZ1d9dr6Msa+fIit079+AbYzbQ8/z2u130H8w=

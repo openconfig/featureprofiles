@@ -23,6 +23,7 @@ require (
 require (
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/kne v0.1.1-0.20220209214853-52a824020cd9 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
@@ -40,4 +41,5 @@ require (
 	google.golang.org/genproto v0.0.0-20220405205423-9d709892a2bf // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	lukechampine.com/uint128 v1.1.1 // indirect
+	wwwin-github.cisco.com/rehaddad/go-p4 v0.0.0-20220601232837-933dcb67d34f // indirect
 )
