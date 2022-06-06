@@ -357,12 +357,13 @@ func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddres
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
 	}
-	//Add network instance
-	network := intfs[atePort].AddNetwork(network_name)
-	bgpAttribute := network.BGP()
-	bgpAttribute.WithActive(true).WithNextHopAddress(nexthop)
-	//Add prefixes
+	//
+
+	//Add prefixes, Add network instance
 	if prefix != "" {
+		network := intfs[atePort].AddNetwork(network_name)
+		bgpAttribute := network.BGP()
+		bgpAttribute.WithActive(true).WithNextHopAddress(nexthop)
 		network.IPv4().WithAddress(prefix).WithCount(count)
 	}
 	//Create BGP instance
@@ -786,7 +787,7 @@ func TestBackUp(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	addAteISISL2(t, top, "atePort8", "B4", "testing", 20, ateDstNetCIDR, "198:51:100::1/128", uint32(1))
-	addAteEBGPPeer(t, top, "atePort8", "192.0.2.29", 64001, "bgp_network", "192.0.2.29", "192.51.100.1/32", 1, false)
+	// addAteEBGPPeer(t, top, "atePort8", "192.0.2.29", 64001, "bgp_network", "192.0.2.29", "", 1, false)
 	top.Push(t).StartProtocols(t)
 
 	test := []struct {
@@ -794,26 +795,26 @@ func TestBackUp(t *testing.T) {
 		desc string
 		fn   func(ctx context.Context, t *testing.T, args *testArgs)
 	}{
-		// {
-		// 	name: "IPv4BackUpSwitchDrop",
-		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path and dropping",
-		// 	fn:   testIPv4BackUpSwitchDrop,
-		// },
+		{
+			name: "IPv4BackUpSwitchDrop",
+			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path and dropping",
+			fn:   testIPv4BackUpSwitchDrop,
+		},
 		{
 			name: "IPv4BackUpSwitchDecap",
 			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over default backup path ",
 			fn:   testIPv4BackUpSwitchDecap,
 		},
-		// {
-		// 	name: "IPv4BackUpSwitchCase",
-		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path ",
-		// 	fn:   testIPv4BackUpSwitchCase3,
-		// },
-		// {
-		// 	name: "IPv4BackUpSingleNH",
-		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path ",
-		// 	fn:   testIPv4BackUpSingleNH,
-		// },
+		{
+			name: "IPv4BackUpSwitchCase",
+			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path ",
+			fn:   testIPv4BackUpSwitchCase3,
+		},
+		{
+			name: "IPv4BackUpSingleNH",
+			desc: "Set primary and backup path with gribi and shutdown all the primary path validating traffic switching over backup path ",
+			fn:   testIPv4BackUpSingleNH,
+		},
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
