@@ -27,16 +27,16 @@ message Binding {
   Options options = 3;
 }
 
-// Device Config to be passed during Device binding
+// Config for resetting the device before the test run.
 message Configs {
   // Raw device config
-  repeated bytes cli_config_data = 1;
+  repeated bytes cli = 1;
 
   // Path to file containing raw device config
-  repeated string cli_config_file = 2;
+  repeated string cli_file = 2;
 
-  // Path to file containing gnmi setRequest device config
-  repeated string gnmi_config_file = 3;
+  // Path to a file containing gNMI SetRequest as text-formatted proto.
+  repeated string gnmi_set_file = 3;
 }
 
 // A device binding.
