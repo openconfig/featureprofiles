@@ -112,7 +112,10 @@ func TestChassisReboot(t *testing.T) {
 
 			bootTimeBeforeReboot := dut.Telemetry().System().BootTime().Get(t)
 			t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
-			PrevTime := dut.Telemetry().System().CurrentDatetime().Get(t)
+			prevTime, err := time.Parse(time.RFC3339, dut.Telemetry().System().CurrentDatetime().Get(t))
+			if err != nil {
+				t.Fatalf("Failed parsing current-datetime: %s", err)
+			}
 			start := time.Now()
 
 			t.Logf("Send reboot request: %v", tc.rebootRequest)
@@ -123,20 +126,22 @@ func TestChassisReboot(t *testing.T) {
 			}
 
 			if tc.rebootRequest.GetDelay() > 1 {
-				// DUT remains reachable for N seconds of delay by checking DUT time is updated.
-				t.Logf("DUT remains reachable with the delay of %v seconds", rebootDelay)
+				t.Logf("Validating DUT remains reachable for at least %d seconds", rebootDelay)
 				for {
+					time.Sleep(10 * time.Second)
 					t.Logf("Time elapsed %.2f seconds since reboot was requested.", time.Since(start).Seconds())
 					if uint64(time.Since(start).Seconds()) > rebootDelay {
-						t.Logf("Time elapsed %v seconds > %v reboot delay", time.Since(start), rebootDelay)
+						t.Logf("Time elapsed %.2f seconds > %d reboot delay", time.Since(start).Seconds(), rebootDelay)
 						break
 					}
-					latestTime := dut.Telemetry().System().CurrentDatetime().Get(t)
-					if latestTime == PrevTime {
-						t.Errorf("Get latest system time: got %v, want newer time than %v", latestTime, PrevTime)
+					latestTime, err := time.Parse(time.RFC3339, dut.Telemetry().System().CurrentDatetime().Get(t))
+					if err != nil {
+						t.Fatalf("Failed parsing current-datetime: %s", err)
 					}
-					PrevTime = latestTime
-					time.Sleep(10 * time.Second)
+					if latestTime.Before(prevTime) || latestTime.Equal(prevTime) {
+						t.Errorf("Get latest system time: got %v, want newer time than %v", latestTime, prevTime)
+					}
+					prevTime = latestTime
 				}
 			}
 

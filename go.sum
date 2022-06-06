@@ -589,6 +589,8 @@ github.com/openconfig/ondatra v0.0.0-20220513182844-88dd577fb771 h1:mdDig87/4UkY
 github.com/openconfig/ondatra v0.0.0-20220513182844-88dd577fb771/go.mod h1:1H81dUyqp0/qXc3p6uX+l0ygBusO99hquOxgNuc5uiE=
 github.com/openconfig/ondatra v0.0.0-20220516223236-caa4dc9b12e2 h1:v1y1RajgkNk888vW17SEmjfk+1bzCtkGLlGZAZgPwkA=
 github.com/openconfig/ondatra v0.0.0-20220516223236-caa4dc9b12e2/go.mod h1:1H81dUyqp0/qXc3p6uX+l0ygBusO99hquOxgNuc5uiE=
+github.com/openconfig/ondatra v0.0.0-20220523194709-be319f7ae58d h1:IrRa/NbPTTDNvpnWxqiQ9X+yZSfKhnyqJchcdKwA7iQ=
+github.com/openconfig/ondatra v0.0.0-20220523194709-be319f7ae58d/go.mod h1:1H81dUyqp0/qXc3p6uX+l0ygBusO99hquOxgNuc5uiE=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=

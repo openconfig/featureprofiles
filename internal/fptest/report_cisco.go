@@ -25,9 +25,9 @@ type Observer struct {
 
 // AddCsvRecorder adds a CSV recorder
 func (o *Observer) AddCsvRecorder(name string) *Observer {
-	path := filepath.Join(o.path, name) + ".csv"
 	o.listeners = append(o.listeners, &csvListner{
-		filepath: path,
+		filepath: o.path,
+		filename: name + ".csv",
 	})
 	return o
 }
@@ -39,7 +39,10 @@ func (o *Observer) RecordYgot(t *testing.T, operation string, pathstruct ygot.Pa
 		for _, listner := range o.listeners {
 			err := listner.record(event)
 			if err != nil {
-				t.Logf("Unable to record , logging instead %s - %s - %s - %s ", event.testname, event.path, event.operation, event.status)
+				t.Logf("Unable to record , logging instead Test Path: %s -- %s -- %s -- %s -- %s ", o.name, event.testname, event.path, event.operation, event.status)
+
+			} else {
+				t.Logf("Test Path: %s -- %s -- %s -- %s -- %s ", o.name, event.testname, event.path, event.operation, event.status)
 
 			}
 
@@ -48,9 +51,10 @@ func (o *Observer) RecordYgot(t *testing.T, operation string, pathstruct ygot.Pa
 }
 
 // NewObserver returns an Observer with given listners
-func NewObserver(listeners ...listner) *Observer {
+func NewObserver(name string, listeners ...listner) *Observer {
 	path := reportDir
 	return &Observer{
+		name:      name,
 		path:      path,
 		listeners: listeners,
 	}
@@ -65,11 +69,17 @@ type event interface {
 
 type csvListner struct {
 	filepath string
+	filename string
 }
 
 func (fw *csvListner) record(event event) error {
+	filePath := filepath.Join(fw.filepath, fw.filename)
+	if *outputsDir != "" {
+		filePath = filepath.Join(*outputsDir, fw.filename)
+
+	}
 	data := event.getCsvEvent()
-	f, err := os.OpenFile(fw.filepath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}

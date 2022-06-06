@@ -15,7 +15,7 @@ var (
 	testInput = ipb.LoadInput(inputFile)
 	device1   = "dut"
 	device2   = "peer"
-	observer  = fptest.NewObserver().AddCsvRecorder("ocreport").
+	observer  = fptest.NewObserver("LLDP").AddCsvRecorder("ocreport").
 			AddCsvRecorder("LLDP")
 )
 

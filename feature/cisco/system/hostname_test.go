@@ -37,7 +37,7 @@ func TestHostname(t *testing.T) {
 		{"15 Numbers", "123456789012345"},
 		{"Single Character", "x"},
 		{"Periods", "test.name.example"},
-		{"63 Characters", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
+		{"63 Characters", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
 	}
 
 	dut := ondatra.DUT(t, device1)
@@ -46,40 +46,28 @@ func TestHostname(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			config := dut.Config().System().Hostname()
 			state := dut.Telemetry().System().Hostname()
-			defer observer.RecordYgot(t, "REPLACE", config)
-			config.Replace(t, testCase.hostname)
-
-			t.Run("Get Hostname Config", func(t *testing.T) {
-				defer observer.RecordYgot(t, "SUBSCRIBE", config)
-				configGot := config.Get(t)
-				if configGot != testCase.hostname {
-					t.Errorf("Config hostname: got %s, want %s", configGot, testCase.hostname)
-				}
-			})
-			defer observer.RecordYgot(t, "UPDATE", config)
-			config.Update(t, testCase.hostname+"New")
-
-			t.Run("Get Hostname Config", func(t *testing.T) {
-				configGot := config.Get(t)
-				if configGot != testCase.hostname+"New" {
-					t.Errorf("Config hostname: got %s, want %s", configGot, testCase.hostname)
-				}
+			t.Run("Replace//system/config/hostname", func(t *testing.T) {
+				defer observer.RecordYgot(t, "REPLACE", config)
+				config.Replace(t, testCase.hostname)
 			})
 
-			t.Run("Get Hostname Telemetry", func(t *testing.T) {
+			t.Run("Subscribe//system/state/hostname", func(t *testing.T) {
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				stateGot := state.Await(t, 5*time.Second, testCase.hostname)
+				stateGot := state.Await(t, 35*time.Second, testCase.hostname)
+				time.Sleep(35 * time.Second)
 				if stateGot.Val(t) != testCase.hostname {
 					t.Errorf("Telemetry hostname: got %v, want %s", stateGot, testCase.hostname)
 				}
 			})
 
-			t.Run("Delete Hostname", func(t *testing.T) {
+			t.Run("Update//system/config/hostname", func(t *testing.T) {
+				defer observer.RecordYgot(t, "UPDATE", config)
+				config.Update(t, testCase.hostname+"New")
+			})
+
+			t.Run("Delete//system/config/hostname", func(t *testing.T) {
 				defer observer.RecordYgot(t, "DELETE", config)
 				config.Delete(t)
-				if qs := config.Lookup(t); qs.IsPresent() == true {
-					t.Errorf("Delete hostname fail: got %v", qs)
-				}
 			})
 		})
 	}
