@@ -19,15 +19,15 @@ import (
 	"testing"
 	"time"
 
-        "github.com/openconfig/featureprofiles/internal/attrs"
-        "github.com/openconfig/featureprofiles/internal/deviations"
-        "github.com/openconfig/featureprofiles/internal/fptest"
-        "github.com/openconfig/featureprofiles/internal/gribi"
-        "github.com/openconfig/gribigo/fluent"
-        "github.com/openconfig/ondatra"
-        "github.com/openconfig/ondatra/telemetry"
-        "github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/yang/fpoc"
+	"github.com/openconfig/gribigo/fluent"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -192,6 +192,17 @@ type testArgs struct {
 	top     *ondatra.ATETopology
 }
 
+//Configure network instance
+func configureNetworkInstance(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	d := &telemetry.Device{}
+	ni1 := d.GetOrCreateNetworkInstance(instance)
+	ni1.Type = telemetry.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE(*ygot.Int64(1))
+
+	dutConfPath := dut.Config().NetworkInstance(instance)
+	dutConfPath.Replace(t, ni1)
+}
+
 // configStaticRoute configures a static route.
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) *telemetry.NetworkInstance_Protocol_Static {
 	d := &telemetry.Device{}
@@ -199,7 +210,6 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 	ni1.Enabled = ygot.Bool(true)
 	ni1.Name = ygot.String(instance)
 	ni1.Description = ygot.String("Static route added by gNMI-OC")
-	ni1.Type = telemetry.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE(*ygot.Int64(1))
 	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static-1")
 	static.Enabled = ygot.Bool(true)
 	static.Identifier = telemetry.E_PolicyTypes_INSTALL_PROTOCOL_TYPE(*ygot.Int64(10))
@@ -245,6 +255,7 @@ func TestRouteAck(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	// Configure the DUT with static route 1.0.0.0/8
+	configureNetworkInstance(t)
 	t.Logf("Configure the DUT with static route 1.0.0.0/8...")
 	dutConf := configStaticRoute(t, dut, staticIP, staticNH)
 	dut.Config().NetworkInstance(instance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").Static("1.0.0.0").Replace(t, dutConf)
