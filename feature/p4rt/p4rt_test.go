@@ -18,6 +18,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -75,7 +76,6 @@ func TestP4RTClientIntegration(t *testing.T) {
 
 	}
 
-	// p4rt_client.StreamChannelGetArbitrationResp()
 	fmt.Println("checking primary state...")
 	lastSeqNum0, arbMsg0, arbErr0 := p4rt_client.StreamChannelGetArbitrationResp(&streamName, 1)
 
@@ -166,5 +166,29 @@ func TestP4RTClientIntegration(t *testing.T) {
 		} else {
 			fmt.Println("Read Response: ", readResp)
 		}
+	}
+
+	// Send L3 packet to ingress (on Primary channel)
+	err = p4rt_client.StreamChannelSendMsg(
+		&streamName, &p4_v1.StreamMessageRequest{
+			Update: &p4_v1.StreamMessageRequest_Packet{
+				Packet: &p4_v1.PacketOut{
+					Payload: utils.PacketICMPEchoRequestGet(false,
+						net.HardwareAddr{0xFF, 0xAA, 0xFA, 0xAA, 0xFF, 0xAA},
+						net.HardwareAddr{0xBD, 0xBD, 0xBD, 0xBD, 0xBD, 0xBD},
+						net.IP{10, 0, 0, 1},
+						net.IP{10, 0, 0, 2},
+						64),
+					Metadata: []*p4_v1.PacketMetadata{
+						&p4_v1.PacketMetadata{
+							MetadataId: 2, // "submit_to_ingress"
+							Value:      []byte{0x1},
+						},
+					},
+				},
+			},
+		})
+	if err != nil {
+		log.Fatal(err)
 	}
 }
