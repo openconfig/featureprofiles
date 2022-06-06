@@ -2,8 +2,6 @@ module github.com/openconfig/featureprofiles
 
 go 1.18
 
-replace github.com/openconfig/ondatra => ../../openconfig/ondatra/
-
 require (
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.7
