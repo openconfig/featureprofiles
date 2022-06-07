@@ -18,34 +18,29 @@ import (
 )
 
 // TextWithSSH applies the cli confguration via ssh on the device
-func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) (string, error) {
+func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) string {
+	t.Helper()
 	sshClient := dut.RawAPIs().CLI(t)
 	cliOut := sshClient.Stdout()
 	cliIn := sshClient.Stdin()
 	if _, err := cliIn.Write([]byte(cfg)); err != nil {
-		t.Errorf("failed to write using ssh: %v", err)
-		return "", fmt.Errorf("failed to write using ssh: %w", err)
+		t.Fatalf("Failed to write using ssh: %v", err)
 	}
 	buf := make([]byte, 32768) // RFC 4253 max payload size for ssh
 	ch := make(chan bool)
-	n := 0
-	var err error
 	response := ""
 	go func() {
 		for {
-			n, err = cliOut.Read(buf)
+			n, err := cliOut.Read(buf)
 			if err != nil {
 				if err == io.EOF {
 					response = fmt.Sprintf("%s%s", response, string(buf[:n]))
 					if checkCLIConfigIsApplied(response) {
 						ch <- true
-					} else {
-						ch <- false
+						break
 					}
-
-				} else {
-					ch <- false
 				}
+				ch <- false
 				break
 			} else {
 				response = fmt.Sprintf("%s%s", response, string(buf[:n]))
@@ -61,17 +56,13 @@ func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg 
 	case resp := <-ch:
 		log.V(1).Infof("ssh reply: %s", response)
 		if resp {
-			// add logging here
-			return response, nil
+			return response
 		}
-		// add logging here
-		t.Error("Response message for ssh command is not as expected")
-		return response, fmt.Errorf("response message for ssh command is not as expected")
+		t.Fatalf("Response message for ssh is not as expected %s", response)
 	case <-time.After(timeout):
-		// add logging here
-		t.Error("Did not recieve the expected response (timeout)")
-		return response, fmt.Errorf("did not recieve the expected response (timeout)")
+		t.Fatalf("Did not recieve the expected response (timeout)")
 	}
+	return ""
 }
 
 func checkCLIConfigIsApplied(output string) bool {
@@ -86,7 +77,8 @@ func checkCLIConfigIsApplied(output string) bool {
 }
 
 // TextWithGNMI apply the cfg  (cisco text config)  on the device using gnmi update.
-func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) (*gpb.SetResponse, error) {
+func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) *gpb.SetResponse {
+	t.Helper()
 	gnmiC := dut.RawAPIs().GNMI().New(t)
 	textReplaceReq := &gpb.Update{
 		Path: &gpb.Path{Origin: "cli"},
@@ -100,15 +92,21 @@ func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg
 		Update: []*gpb.Update{textReplaceReq},
 	}
 	log.V(1).Info(prettySetRequest(setRequest))
-	resp, err := gnmiC.Set(context.Background(), setRequest)
-	if err != nil {
-		t.Errorf("GNMI replace is failed; %v", err)
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
 	}
-	return resp, err
+	resp, err := gnmiC.Set(ctx, setRequest)
+	if err != nil {
+		t.Fatalf("GNMI replace is failed; %v", err)
+	}
+	return resp
 }
 
 // GNMICommitReplace replace the router config with the cfg  (cisco text config)  on the device using gnmi replace.
-func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) (*gpb.SetResponse, error) {
+func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) *gpb.SetResponse {
+	t.Helper()
 	gnmiC := dut.RawAPIs().GNMI().New(t)
 	textReplaceReq := &gpb.Update{
 		Path: &gpb.Path{Origin: "cli"},
@@ -122,15 +120,21 @@ func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 		Replace: []*gpb.Update{textReplaceReq},
 	}
 	log.V(1).Info(prettySetRequest(setRequest))
-	resp, err := gnmiC.Set(context.Background(), setRequest)
-	if err != nil {
-		t.Errorf("GNMI replace is failed; %v", err)
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
 	}
-	return resp, err
+	resp, err := gnmiC.Set(ctx, setRequest)
+	if err != nil {
+		t.Fatalf("GNMI replace is failed; %v", err)
+	}
+	return resp
 }
 
 // GNMICommitReplaceWithOC apply the oc config and text config on the device. The result expected to be the merge of both configuations
-func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, pathStruct ygot.PathStruct, ocVal interface{}) (*gpb.SetResponse, error) {
+func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, pathStruct ygot.PathStruct, ocVal interface{}) *gpb.SetResponse {
+	t.Helper()
 	gnmiC := dut.RawAPIs().GNMI().New(t)
 	textReplaceReq := &gpb.Update{
 		Path: &gpb.Path{Origin: "cli"},
@@ -144,14 +148,12 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 	path.Target = ""
 	path.Origin = "openconfig"
 	if errs != nil {
-		t.Errorf("Could not resolve the path; %v", errs)
-		return nil, fmt.Errorf("could not encode value (ocVal) into JSON format: %v", errs)
+		t.Fatalf("Could not resolve the path; %v", errs)
 	}
 
 	ocJSONVal, err := ygot.Marshal7951(ocVal, ygot.JSONIndent("  "), &ygot.RFC7951JSONConfig{AppendModuleName: true, PreferShadowPath: true})
 	if err != nil {
-		t.Errorf("Could not encode value (ocVal) into JSON format; %v", err)
-		return nil, err
+		t.Fatalf("Could not encode value (ocVal) into JSON format; %v", err)
 	}
 	ocReplaceReq := &gpb.Update{
 		Path: path,
@@ -163,17 +165,117 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 	}
 
 	setRequest := &gpb.SetRequest{
-		//Prefix: &gpb.Path{Origin: "openconfig"},
-		// setting origin at the set level when we have cli + oc can cause the request to be rejected
 		Replace: []*gpb.Update{textReplaceReq, ocReplaceReq},
 	}
 	log.V(1).Info(prettySetRequest(setRequest))
-	resp, err := gnmiC.Set(context.Background(), setRequest)
-	if err != nil {
-		t.Errorf("GNMI replace is failed; %v", err)
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
 	}
-	return resp, err
+	resp, err := gnmiC.Set(ctx, setRequest)
+	if err != nil {
+		t.Fatalf("GNMI replace is failed; %v", err)
+	}
+	return resp
 }
+
+
+type setOperation int
+
+const (
+	// DeleteOC represents a SetRequest delete for an oc path.
+	DeleteOC setOperation = iota
+	// ReplaceOC represents a SetRequest replace for an oc path.
+	ReplaceOC
+	// 	UpdateOC represents a SetRequest update for an oc path.
+	UpdateOC
+	// UpdateCLI represents a SetRequest update for a cli text config.
+	UpdateCLI
+	// ReplaceCLI represents a SetRequest replace for a cli text config.
+	ReplaceCLI
+)
+
+func AppendToSetRequest(req *gpb.SetRequest, path *gpb.Path, val interface{}, op setOperation) error {
+	if req == nil {
+		return fmt.Errorf("cannot populate a nil SetRequest")
+	}
+
+	// Keep only the path elements.
+	path = &gpb.Path{Elem: path.Elem}
+	switch op {
+	case DeleteOC:
+		req.Delete = append(req.Delete, path)
+	case ReplaceOC, UpdateOC:
+		// Since the GoStructs are generated using preferOperationalState, we
+		// need to turn on preferShadowPath to prefer marshalling config paths.
+		js, err := ygot.Marshal7951(val, ygot.JSONIndent("  "), &ygot.RFC7951JSONConfig{AppendModuleName: true, PreferShadowPath: true})
+		if err != nil {
+			return fmt.Errorf("could not encode value into JSON format: %w", err)
+		}
+		update := &gpb.Update{
+			Path: path,
+			Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{js}},
+		}
+		switch op {
+		case ReplaceOC:
+			req.Replace = append(req.Replace, update)
+		case UpdateOC:
+			req.Update = append(req.Update, update)
+		}
+	}
+
+	return nil
+}
+
+// GNMICommitReplaceWithOC apply the oc config and text config on the device. The result expected to be the merge of both configuations
+func GNMIBatchSet(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, pathStruct ygot.PathStruct, ocVal interface{}) *gpb.SetResponse {
+	t.Helper()
+	gnmiC := dut.RawAPIs().GNMI().New(t)
+	textReplaceReq := &gpb.Update{
+		Path: &gpb.Path{Origin: "cli"},
+		Val: &gpb.TypedValue{
+			Value: &gpb.TypedValue_AsciiVal{
+				AsciiVal: cfg,
+			},
+		},
+	}
+	path, _, errs := ygot.ResolvePath(pathStruct)
+	path.Target = ""
+	path.Origin = "openconfig"
+	if errs != nil {
+		t.Fatalf("Could not resolve the path; %v", errs)
+	}
+
+	ocJSONVal, err := ygot.Marshal7951(ocVal, ygot.JSONIndent("  "), &ygot.RFC7951JSONConfig{AppendModuleName: true, PreferShadowPath: true})
+	if err != nil {
+		t.Fatalf("Could not encode value (ocVal) into JSON format; %v", err)
+	}
+	ocReplaceReq := &gpb.Update{
+		Path: path,
+		Val: &gpb.TypedValue{
+			Value: &gpb.TypedValue_JsonIetfVal{
+				JsonIetfVal: ocJSONVal,
+			},
+		},
+	}
+
+	setRequest := &gpb.SetRequest{
+		Replace: []*gpb.Update{textReplaceReq, ocReplaceReq},
+	}
+	log.V(1).Info(prettySetRequest(setRequest))
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
+	}
+	resp, err := gnmiC.Set(ctx, setRequest)
+	if err != nil {
+		t.Fatalf("GNMI replace is failed; %v", err)
+	}
+	return resp
+}
+
 
 // copied from Ondatra code
 func prettySetRequest(setRequest *gpb.SetRequest) string {
