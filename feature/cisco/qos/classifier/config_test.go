@@ -32,7 +32,7 @@ func TestNameAtContainer(t *testing.T) {
 	defer teardownQos(t, dut, baseConfig)
 
 	inputs := []string{
-		"c",
+		"class2",
 	}
 
 	for _, input := range inputs {

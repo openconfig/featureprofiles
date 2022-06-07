@@ -2,15 +2,15 @@
   "openconfig-qos:buffer-allocation-profiles": {
     "buffer-allocation-profile": [
       {
-        "name": "aa",
+        "name": "buffer1",
         "queues": {
           "queue": [
             {
-              "name": "s",
+              "name": "q1",
               "state": {
                 "dedicated-buffer": "2307215526666690834",
                 "dynamic-limit-scaling-factor": 2094232146,
-                "name": "s",
+                "name": "q1",
                 "shared-buffer-limit-type": "openconfig-qos:DYNAMIC_BASED_ON_SCALING_FACTOR",
                 "static-shared-buffer-limit": 4035662753,
                 "use-shared-buffer": false
@@ -19,7 +19,7 @@
           ]
         },
         "state": {
-          "name": "aa"
+          "name": "buffer1"
         }
       }
     ]
@@ -27,10 +27,10 @@
   "openconfig-qos:classifiers": {
     "classifier": [
       {
-        "name": "a",
+        "name": "class1",
         "state": {
-          "name": "a",
-          "type": "MPLS"
+          "name": "class1",
+          "type": "IPV4"
         },
         "terms": {
           "term": [
@@ -128,13 +128,9 @@
   "openconfig-qos:forwarding-groups": {
     "forwarding-group": [
       {
-        "name": "ca",
+        "name": "fgroup1",
         "state": {
-          "fabric-priority": 169,
-          "multicast-output-queue": "ac",
-          "name": "ca",
-          "output-queue": "c",
-          "unicast-output-queue": "c"
+          "name": "fgroup1"
         }
       }
     ]
@@ -252,19 +248,19 @@
   "openconfig-qos:queue-management-profiles": {
     "queue-management-profile": [
       {
-        "name": "ii",
+        "name": "profile1",
         "red": {
           "uniform": {
             "state": {
               "drop": false,
               "enable-ecn": false,
-              "max-threshold": "6545845698470423027",
-              "min-threshold": "15012211953420764938"
+              "max-threshold": "100",
+              "min-threshold": "100000"
             }
           }
         },
         "state": {
-          "name": "ii"
+          "name": "profile1"
         },
         "wred": {
           "uniform": {
@@ -284,9 +280,9 @@
   "openconfig-qos:queues": {
     "queue": [
       {
-        "name": "i",
+        "name": "q1",
         "state": {
-          "name": "i"
+          "name": "q1"
         }
       }
     ]
@@ -294,18 +290,18 @@
   "openconfig-qos:scheduler-policies": {
     "scheduler-policy": [
       {
-        "name": "::c",
+        "name": "sched1",
         "schedulers": {
           "scheduler": [
             {
               "inputs": {
                 "input": [
                   {
-                    "id": "a",
+                    "id": "sched1",
                     "state": {
-                      "id": "a",
+                      "id": "sched1",
                       "input-type": "OUT_PROFILE",
-                      "queue": "i",
+                      "queue": "q1",
                       "weight": "13463058327853973018"
                     }
                   }
@@ -390,7 +386,7 @@
           ]
         },
         "state": {
-          "name": "::c"
+          "name": "sched1"
         }
       }
     ]
