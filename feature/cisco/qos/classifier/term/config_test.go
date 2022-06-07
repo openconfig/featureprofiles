@@ -5,39 +5,22 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
-	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
-	fptest.RunTests(m)
+	ondatra.RunTests(m, binding.New)
 }
 
-func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
-	bc := setup.BaseConfig()
-	setup.ResetStruct(bc, []string{"Classifier"})
-	bcClassifier := setup.GetAnyValue(bc.Classifier)
-	setup.ResetStruct(bcClassifier, []string{"Term"})
-	bcClassifierTerm := setup.GetAnyValue(bcClassifier.Term)
-	setup.ResetStruct(bcClassifierTerm, []string{})
-	dut.Config().Qos().Replace(t, bc)
-	return bc
-}
-
-func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
-	dut.Config().Qos().Delete(t)
-}
 func TestIdAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []string{
-		"c",
-	}
-
-	for _, input := range inputs {
+	for _, input := range testIdInput {
 		t.Run(fmt.Sprintf("Testing /qos/classifiers/classifier/terms/term/config/id using value %v", input), func(t *testing.T) {
 			baseConfigClassifier := setup.GetAnyValue(baseConfig.Classifier)
 			baseConfigClassifierTerm := setup.GetAnyValue(baseConfigClassifier.Term)

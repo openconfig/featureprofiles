@@ -5,136 +5,22 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
-	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
-	fptest.RunTests(m)
+	ondatra.RunTests(m, binding.New)
 }
 
-func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
-	bc := setup.BaseConfig()
-	setup.ResetStruct(bc, []string{"QueueManagementProfile"})
-	bcQueueManagementProfile := setup.GetAnyValue(bc.QueueManagementProfile)
-	setup.ResetStruct(bcQueueManagementProfile, []string{"Wred"})
-	bcQueueManagementProfileWred := bcQueueManagementProfile.Wred
-	setup.ResetStruct(bcQueueManagementProfileWred, []string{"Uniform"})
-	bcQueueManagementProfileWredUniform := bcQueueManagementProfileWred.Uniform
-	setup.ResetStruct(bcQueueManagementProfileWredUniform, []string{})
-	dut.Config().Qos().Replace(t, bc)
-	return bc
-}
-
-func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
-	dut.Config().Qos().Delete(t)
-}
-func TestWeightAtContainer(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
-	defer teardownQos(t, dut, baseConfig)
-
-	inputs := []uint32{
-		3905483675,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight using value %v", input), func(t *testing.T) {
-			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
-			baseConfigQueueManagementProfileWred := baseConfigQueueManagementProfile.Wred
-			baseConfigQueueManagementProfileWredUniform := baseConfigQueueManagementProfileWred.Uniform
-			*baseConfigQueueManagementProfileWredUniform.Weight = input
-
-			config := dut.Config().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform()
-			state := dut.Telemetry().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform()
-
-			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigQueueManagementProfileWredUniform)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get container", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.Weight != input {
-						t.Errorf("Config /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.Weight != input {
-						t.Errorf("State /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete container", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).Weight != nil {
-						t.Errorf("Delete /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight fail: got %v", qs)
-					}
-				}
-			})
-		})
-	}
-}
-func TestWeightAtLeaf(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
-	defer teardownQos(t, dut, baseConfig)
-
-	inputs := []uint32{
-		3905483675,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight using value %v", input), func(t *testing.T) {
-			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
-
-			config := dut.Config().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform().Weight()
-			state := dut.Telemetry().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform().Weight()
-
-			t.Run("Replace leaf", func(t *testing.T) {
-				config.Replace(t, input)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get leaf", func(t *testing.T) {
-					configGot := config.Get(t)
-					if configGot != input {
-						t.Errorf("Config /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if stateGot != input {
-						t.Errorf("State /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete leaf", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs != nil {
-						t.Errorf("Delete /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight fail: got %v", qs)
-					}
-				}
-			})
-		})
-	}
-}
 func TestEnableEcnAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []bool{
-		true,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testEnableEcnInput {
 		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn using value %v", input), func(t *testing.T) {
 			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
 			baseConfigQueueManagementProfileWred := baseConfigQueueManagementProfile.Wred
@@ -179,11 +65,7 @@ func TestEnableEcnAtLeaf(t *testing.T) {
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []bool{
-		true,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testEnableEcnInput {
 		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn using value %v", input), func(t *testing.T) {
 			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
 
@@ -222,14 +104,11 @@ func TestEnableEcnAtLeaf(t *testing.T) {
 }
 func TestMinThresholdAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint64{
-		15517279399695938449,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testMinThresholdInput {
 		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold using value %v", input), func(t *testing.T) {
 			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
 			baseConfigQueueManagementProfileWred := baseConfigQueueManagementProfile.Wred
@@ -274,11 +153,7 @@ func TestMinThresholdAtLeaf(t *testing.T) {
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint64{
-		15517279399695938449,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testMinThresholdInput {
 		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold using value %v", input), func(t *testing.T) {
 			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
 
@@ -315,21 +190,18 @@ func TestMinThresholdAtLeaf(t *testing.T) {
 		})
 	}
 }
-func TestMaxDropProbabilityPercentAtContainer(t *testing.T) {
+func TestWeightAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		1,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent using value %v", input), func(t *testing.T) {
+	for _, input := range testWeightInput {
+		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight using value %v", input), func(t *testing.T) {
 			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
 			baseConfigQueueManagementProfileWred := baseConfigQueueManagementProfile.Wred
 			baseConfigQueueManagementProfileWredUniform := baseConfigQueueManagementProfileWred.Uniform
-			*baseConfigQueueManagementProfileWredUniform.MaxDropProbabilityPercent = input
+			*baseConfigQueueManagementProfileWredUniform.Weight = input
 
 			config := dut.Config().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform()
 			state := dut.Telemetry().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform()
@@ -340,45 +212,41 @@ func TestMaxDropProbabilityPercentAtContainer(t *testing.T) {
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
 					configGot := config.Get(t)
-					if *configGot.MaxDropProbabilityPercent != input {
-						t.Errorf("Config /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent: got %v, want %v", configGot, input)
+					if *configGot.Weight != input {
+						t.Errorf("Config /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight: got %v, want %v", configGot, input)
 					}
 				})
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
 					stateGot := state.Get(t)
-					if *stateGot.MaxDropProbabilityPercent != input {
-						t.Errorf("State /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent: got %v, want %v", stateGot, input)
+					if *stateGot.Weight != input {
+						t.Errorf("State /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete container", func(t *testing.T) {
 				config.Delete(t)
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).MaxDropProbabilityPercent != nil {
-						t.Errorf("Delete /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent fail: got %v", qs)
+					if qs := config.Lookup(t); qs.Val(t).Weight != nil {
+						t.Errorf("Delete /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight fail: got %v", qs)
 					}
 				}
 			})
 		})
 	}
 }
-func TestMaxDropProbabilityPercentAtLeaf(t *testing.T) {
+func TestWeightAtLeaf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		1,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent using value %v", input), func(t *testing.T) {
+	for _, input := range testWeightInput {
+		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight using value %v", input), func(t *testing.T) {
 			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
 
-			config := dut.Config().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform().MaxDropProbabilityPercent()
-			state := dut.Telemetry().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform().MaxDropProbabilityPercent()
+			config := dut.Config().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform().Weight()
+			state := dut.Telemetry().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform().Weight()
 
 			t.Run("Replace leaf", func(t *testing.T) {
 				config.Replace(t, input)
@@ -387,7 +255,7 @@ func TestMaxDropProbabilityPercentAtLeaf(t *testing.T) {
 				t.Run("Get leaf", func(t *testing.T) {
 					configGot := config.Get(t)
 					if configGot != input {
-						t.Errorf("Config /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent: got %v, want %v", configGot, input)
+						t.Errorf("Config /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight: got %v, want %v", configGot, input)
 					}
 				})
 			}
@@ -395,7 +263,7 @@ func TestMaxDropProbabilityPercentAtLeaf(t *testing.T) {
 				t.Run("Subscribe leaf", func(t *testing.T) {
 					stateGot := state.Get(t)
 					if stateGot != input {
-						t.Errorf("State /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent: got %v, want %v", stateGot, input)
+						t.Errorf("State /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight: got %v, want %v", stateGot, input)
 					}
 				})
 			}
@@ -403,102 +271,7 @@ func TestMaxDropProbabilityPercentAtLeaf(t *testing.T) {
 				config.Delete(t)
 				if !setup.SkipSubscribe() {
 					if qs := config.Lookup(t); qs != nil {
-						t.Errorf("Delete /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent fail: got %v", qs)
-					}
-				}
-			})
-		})
-	}
-}
-func TestDropAtContainer(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
-	defer teardownQos(t, dut, baseConfig)
-
-	inputs := []bool{
-		true,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop using value %v", input), func(t *testing.T) {
-			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
-			baseConfigQueueManagementProfileWred := baseConfigQueueManagementProfile.Wred
-			baseConfigQueueManagementProfileWredUniform := baseConfigQueueManagementProfileWred.Uniform
-			*baseConfigQueueManagementProfileWredUniform.Drop = input
-
-			config := dut.Config().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform()
-			state := dut.Telemetry().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform()
-
-			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigQueueManagementProfileWredUniform)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get container", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.Drop != input {
-						t.Errorf("Config /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.Drop != input {
-						t.Errorf("State /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete container", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).Drop != nil {
-						t.Errorf("Delete /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop fail: got %v", qs)
-					}
-				}
-			})
-		})
-	}
-}
-func TestDropAtLeaf(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
-	defer teardownQos(t, dut, baseConfig)
-
-	inputs := []bool{
-		true,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop using value %v", input), func(t *testing.T) {
-			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
-
-			config := dut.Config().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform().Drop()
-			state := dut.Telemetry().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform().Drop()
-
-			t.Run("Replace leaf", func(t *testing.T) {
-				config.Replace(t, input)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get leaf", func(t *testing.T) {
-					configGot := config.Get(t)
-					if configGot != input {
-						t.Errorf("Config /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if stateGot != input {
-						t.Errorf("State /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete leaf", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs != nil {
-						t.Errorf("Delete /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop fail: got %v", qs)
+						t.Errorf("Delete /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight fail: got %v", qs)
 					}
 				}
 			})
@@ -507,14 +280,11 @@ func TestDropAtLeaf(t *testing.T) {
 }
 func TestMaxThresholdAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint64{
-		2123107431377213550,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testMaxThresholdInput {
 		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold using value %v", input), func(t *testing.T) {
 			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
 			baseConfigQueueManagementProfileWred := baseConfigQueueManagementProfile.Wred
@@ -559,11 +329,7 @@ func TestMaxThresholdAtLeaf(t *testing.T) {
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint64{
-		2123107431377213550,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testMaxThresholdInput {
 		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold using value %v", input), func(t *testing.T) {
 			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
 
@@ -594,6 +360,182 @@ func TestMaxThresholdAtLeaf(t *testing.T) {
 				if !setup.SkipSubscribe() {
 					if qs := config.Lookup(t); qs != nil {
 						t.Errorf("Delete /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold fail: got %v", qs)
+					}
+				}
+			})
+		})
+	}
+}
+func TestDropAtContainer(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
+	defer teardownQos(t, dut, baseConfig)
+
+	for _, input := range testDropInput {
+		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop using value %v", input), func(t *testing.T) {
+			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
+			baseConfigQueueManagementProfileWred := baseConfigQueueManagementProfile.Wred
+			baseConfigQueueManagementProfileWredUniform := baseConfigQueueManagementProfileWred.Uniform
+			*baseConfigQueueManagementProfileWredUniform.Drop = input
+
+			config := dut.Config().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform()
+			state := dut.Telemetry().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform()
+
+			t.Run("Replace container", func(t *testing.T) {
+				config.Replace(t, baseConfigQueueManagementProfileWredUniform)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get container", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.Drop != input {
+						t.Errorf("Config /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe container", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.Drop != input {
+						t.Errorf("State /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete container", func(t *testing.T) {
+				config.Delete(t)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).Drop != nil {
+						t.Errorf("Delete /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop fail: got %v", qs)
+					}
+				}
+			})
+		})
+	}
+}
+func TestDropAtLeaf(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	baseConfig := setupQos(t, dut)
+	defer teardownQos(t, dut, baseConfig)
+
+	for _, input := range testDropInput {
+		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop using value %v", input), func(t *testing.T) {
+			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
+
+			config := dut.Config().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform().Drop()
+			state := dut.Telemetry().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform().Drop()
+
+			t.Run("Replace leaf", func(t *testing.T) {
+				config.Replace(t, input)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get leaf", func(t *testing.T) {
+					configGot := config.Get(t)
+					if configGot != input {
+						t.Errorf("Config /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe leaf", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if stateGot != input {
+						t.Errorf("State /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete leaf", func(t *testing.T) {
+				config.Delete(t)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs != nil {
+						t.Errorf("Delete /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop fail: got %v", qs)
+					}
+				}
+			})
+		})
+	}
+}
+func TestMaxDropProbabilityPercentAtContainer(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
+	defer teardownQos(t, dut, baseConfig)
+
+	for _, input := range testMaxDropProbabilityPercentInput {
+		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent using value %v", input), func(t *testing.T) {
+			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
+			baseConfigQueueManagementProfileWred := baseConfigQueueManagementProfile.Wred
+			baseConfigQueueManagementProfileWredUniform := baseConfigQueueManagementProfileWred.Uniform
+			*baseConfigQueueManagementProfileWredUniform.MaxDropProbabilityPercent = input
+
+			config := dut.Config().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform()
+			state := dut.Telemetry().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform()
+
+			t.Run("Replace container", func(t *testing.T) {
+				config.Replace(t, baseConfigQueueManagementProfileWredUniform)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get container", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.MaxDropProbabilityPercent != input {
+						t.Errorf("Config /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe container", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.MaxDropProbabilityPercent != input {
+						t.Errorf("State /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete container", func(t *testing.T) {
+				config.Delete(t)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).MaxDropProbabilityPercent != nil {
+						t.Errorf("Delete /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent fail: got %v", qs)
+					}
+				}
+			})
+		})
+	}
+}
+func TestMaxDropProbabilityPercentAtLeaf(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	baseConfig := setupQos(t, dut)
+	defer teardownQos(t, dut, baseConfig)
+
+	for _, input := range testMaxDropProbabilityPercentInput {
+		t.Run(fmt.Sprintf("Testing /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent using value %v", input), func(t *testing.T) {
+			baseConfigQueueManagementProfile := setup.GetAnyValue(baseConfig.QueueManagementProfile)
+
+			config := dut.Config().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform().MaxDropProbabilityPercent()
+			state := dut.Telemetry().Qos().QueueManagementProfile(*baseConfigQueueManagementProfile.Name).Wred().Uniform().MaxDropProbabilityPercent()
+
+			t.Run("Replace leaf", func(t *testing.T) {
+				config.Replace(t, input)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get leaf", func(t *testing.T) {
+					configGot := config.Get(t)
+					if configGot != input {
+						t.Errorf("Config /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe leaf", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if stateGot != input {
+						t.Errorf("State /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete leaf", func(t *testing.T) {
+				config.Delete(t)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs != nil {
+						t.Errorf("Delete /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent fail: got %v", qs)
 					}
 				}
 			})
