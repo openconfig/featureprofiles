@@ -23,7 +23,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/featureprofiles/internal/gribi/ocutils"
 	"github.com/openconfig/featureprofiles/internal/gribi/util"
 	"github.com/openconfig/featureprofiles/topologies/binding/cisco/config"
 	spb "github.com/openconfig/gnoi/system"
@@ -146,20 +145,20 @@ func generateBaseScenario(t *testing.T, ate *ondatra.ATEDevice, topoobj *ondatra
 func addNetworkAndProtocolsToAte(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopology) {
 	//Add prefixes/networks on ports
 	scale := uint32(10)
-	ocutils.AddIpv4Network(t, topo, "1/1", "network101", "101.1.1.1/32", scale)
-	ocutils.AddIpv4Network(t, topo, "1/2", "network102", "102.1.1.1/32", scale)
+	util.AddIpv4Network(t, topo, "1/1", "network101", "101.1.1.1/32", scale)
+	util.AddIpv4Network(t, topo, "1/2", "network102", "102.1.1.1/32", scale)
 	//Configure ISIS, BGP on TGN
-	ocutils.AddAteISISL2(t, topo, "1/1", "490001", "isis_network1", 20, "120.1.1.1/32", scale)
-	ocutils.AddAteISISL2(t, topo, "1/2", "490002", "isis_network2", 20, "121.1.1.1/32", scale)
-	ocutils.AddAteEBGPPeer(t, topo, "1/1", "100.120.1.1", 64001, "bgp_network", "100.120.0.2", "130.1.1.1/32", scale, false)
-	ocutils.AddAteEBGPPeer(t, topo, "1/2", "100.121.1.1", 64001, "bgp_network", "100.121.0.2", "131.1.1.1/32", scale, false)
+	util.AddAteISISL2(t, topo, "1/1", "490001", "isis_network1", 20, "120.1.1.1/32", scale)
+	util.AddAteISISL2(t, topo, "1/2", "490002", "isis_network2", 20, "121.1.1.1/32", scale)
+	util.AddAteEBGPPeer(t, topo, "1/1", "100.120.1.1", 64001, "bgp_network", "100.120.0.2", "130.1.1.1/32", scale, false)
+	util.AddAteEBGPPeer(t, topo, "1/2", "100.121.1.1", 64001, "bgp_network", "100.121.0.2", "131.1.1.1/32", scale, false)
 	//Configure loopbacks for BGP to use as source addresses
-	ocutils.AddLoopback(t, topo, "1/1", "11.11.11.1/32")
-	ocutils.AddLoopback(t, topo, "1/2", "12.12.12.1/32")
+	util.AddLoopback(t, topo, "1/1", "11.11.11.1/32")
+	util.AddLoopback(t, topo, "1/2", "12.12.12.1/32")
 	//BGP instance for traffic over gRIBI transit forwarding entries
 	//BGP uses DSCP48 for control traffic. Router needs to be configured to handle DSCP48 accordingly.
-	ocutils.AddAteEBGPPeer(t, topo, "1/1", "12.12.12.1", 64001, "bgp_transit_network", "100.121.0.2", "11.11.11.1/32", 1, true)
-	ocutils.AddAteEBGPPeer(t, topo, "1/2", "11.11.11.1", 64002, "bgp_transit_network", "100.122.0.2", "12.12.12.1/32", 1, true)
+	util.AddAteEBGPPeer(t, topo, "1/1", "12.12.12.1", 64001, "bgp_transit_network", "100.121.0.2", "11.11.11.1/32", 1, true)
+	util.AddAteEBGPPeer(t, topo, "1/2", "11.11.11.1", 64002, "bgp_transit_network", "100.122.0.2", "12.12.12.1/32", 1, true)
 }
 
 func getBaseFlow(t *testing.T, atePorts map[string]*ondatra.Interface, ate *ondatra.ATEDevice, flowName string, vrf ...string) *ondatra.Flow {
@@ -435,7 +434,7 @@ func testCD2RecursiveNonConnectedNHOP(t *testing.T, args *testArgs) {
 			scale := 1
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.11", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.11", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(20, 99))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
@@ -979,7 +978,7 @@ func testCD2DoubleRecursion(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -1382,7 +1381,7 @@ func testNHInterfaceInDifferentVRF(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -1464,7 +1463,7 @@ func testNHIPOutOfInterfaceSubnet(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -1546,7 +1545,7 @@ func testChangeNHToUnreachableAndChangeBack(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -1652,7 +1651,7 @@ func testChangeNHFromRecursiveToNonRecursive(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -1677,7 +1676,7 @@ func testChangeNHFromRecursiveToNonRecursive(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			fluentC1.Modify().AddEntry(t, entries...)
 		},
@@ -1740,7 +1739,7 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -1781,7 +1780,7 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -1822,7 +1821,7 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -1843,11 +1842,11 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 	//Flap interfaces
 	interface_names := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
 	for _, interface_name := range interface_names {
-		ocutils.SetInterfaceState(t, args.dut, interface_name, false)
+		util.SetInterfaceState(t, args.dut, interface_name, false)
 	}
 	time.Sleep(30 * time.Second)
 	for _, interface_name := range interface_names {
-		ocutils.SetInterfaceState(t, args.dut, interface_name, true)
+		util.SetInterfaceState(t, args.dut, interface_name, true)
 	}
 
 	ops = []func(){
@@ -1882,7 +1881,7 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -1947,7 +1946,7 @@ func testDeleteVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -2004,7 +2003,7 @@ func testDeleteVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -2127,7 +2126,7 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -2162,7 +2161,7 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 
 			fluentC1.Modify().ReplaceEntry(t, entries...)
@@ -2233,7 +2232,7 @@ func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -2260,7 +2259,7 @@ func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 
 			fluentC1.Modify().ReplaceEntry(t, entries...)
@@ -2406,7 +2405,7 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -2427,8 +2426,8 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 	//Generate flows over ISIS and BGP sessions.
 	ate := ondatra.ATE(t, "ate")
 	topo := getIXIATopology(t, "ate")
-	isisFlow := ocutils.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "isis_network1", "isis_network2", "isis", 16)
-	bgpFlow := ocutils.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "bgp_network", "bgp_network", "bgp", 16)
+	isisFlow := util.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "isis_network1", "isis_network2", "isis", 16)
+	bgpFlow := util.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "bgp_network", "bgp_network", "bgp", 16)
 	scaleFlow := getScaleFlow(t, topo.Interfaces(), ate, "IPinIPWithScale", scale)
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.90, isisFlow, bgpFlow, scaleFlow)
@@ -2483,7 +2482,7 @@ func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 	ate := ondatra.ATE(t, "ate")
 	topo := getIXIATopology(t, "ate")
 	//Generate DSCP48 flow
-	bgpFlow := ocutils.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "bgp_transit_network", "bgp_transit_network", "bgp", 48)
+	bgpFlow := util.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "bgp_transit_network", "bgp_transit_network", "bgp", 48)
 
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.99, bgpFlow)
@@ -2742,7 +2741,7 @@ func testChangeNHFromNonRecursiveToRecursive(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -2767,7 +2766,7 @@ func testChangeNHFromNonRecursiveToRecursive(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			fluentC1.Modify().AddEntry(t, entries...)
 		},
@@ -2828,7 +2827,7 @@ func testSetISISOverloadBit(t *testing.T, args *testArgs) {
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -2898,7 +2897,7 @@ func testChangePeerAddress(t *testing.T, args *testArgs) {
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -2975,7 +2974,7 @@ func testLC_OIR(t *testing.T, args *testArgs) {
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -3032,7 +3031,7 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("101.1.1.1", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("101.1.1.1", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 100))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -3041,7 +3040,7 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("102.1.1.1", i, "32")).WithNextHopGroup(2).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("102.1.1.1", i, "32")).WithNextHopGroup(2).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(2).AddNextHop(20, 100))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.140"))
@@ -3062,10 +3061,10 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 	topo := getIXIATopology(t, "ate")
 
 	//flow with dscp=48, ttl=100
-	dscpTtlFlow := ocutils.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "network101", "network102", "dscpTtlFlow", 48, 100)
+	dscpTtlFlow := util.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "network101", "network102", "dscpTtlFlow", 48, 100)
 	//add acl with dscp=48, ttl=99. Transit traffic will have ttl decremented by 1
 	aclName := "ttl_dscp"
-	aclConfig := ocutils.GetIpv4Acl(aclName, 10, 48, 99, telemetry.Acl_FORWARDING_ACTION_ACCEPT)
+	aclConfig := util.GetIpv4Acl(aclName, 10, 48, 99, telemetry.Acl_FORWARDING_ACTION_ACCEPT)
 	args.dut.Config().Acl().Update(t, aclConfig)
 	//apply egress acl on all interfaces of interest
 	interface_names := []string{"Bundle-Ether120", "Bundle-Ether121"}
@@ -3129,7 +3128,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -3170,7 +3169,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -3211,7 +3210,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -3232,14 +3231,14 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	//Change interface configurations and revert back
 	interface_names := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
 	//Store current config
-	originalInterfaces := ocutils.GetCopyOfIpv4SubInterfaces(t, args.dut, interface_names, 0)
+	originalInterfaces := util.GetCopyOfIpv4SubInterfaces(t, args.dut, interface_names, 0)
 	//Change IP addresses for the interfaces in the slice
 	initialIp := "123.123.123.123"
 	counter := 1
 	for _, interface_name := range interface_names {
-		ipPrefix := ocutils.GetIPPrefix(initialIp, counter, "24")
+		ipPrefix := util.GetIPPrefix(initialIp, counter, "24")
 		initialIp = strings.Split(ipPrefix, "/")[0]
-		args.dut.Config().Interface(interface_name).Subinterface(0).Replace(t, ocutils.GetSubInterface(initialIp, 24, 0))
+		args.dut.Config().Interface(interface_name).Subinterface(0).Replace(t, util.GetSubInterface(initialIp, 24, 0))
 		t.Logf("Changed configuration of interface %s", interface_name)
 		counter = counter + 256
 
@@ -3284,7 +3283,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 		func() {
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -3331,7 +3330,7 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 			scale := 1
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.11", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.11", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(20, 99))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
@@ -3418,7 +3417,7 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 			scale := 1
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.11", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.11", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(20, 99))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
@@ -3525,7 +3524,7 @@ func testClearingARP(t *testing.T, args *testArgs) {
 			scale := 1000
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
@@ -3581,7 +3580,7 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 			scale := 1
 			entries := []fluent.GRIBIEntry{}
 			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(ocutils.GetIPPrefix("11.11.11.11", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
+				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.11", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
 			}
 			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(20, 99))
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
