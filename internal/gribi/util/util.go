@@ -308,12 +308,3 @@ func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Inter
 	a.PrefixLength = ygot.Uint8(prefixlen)
 	return s
 }
-
-func GetIPPrefix(IPAddr string, i int, prefixLen string) string {
-	ip := net.ParseIP(IPAddr)
-	ip = ip.To4()
-	ip[3] = ip[3] + byte(i%256)
-	ip[2] = ip[2] + byte(i/256)
-	ip[1] = ip[1] + byte(i/(256*256))
-	return ip.String() + "/" + prefixLen
-}
