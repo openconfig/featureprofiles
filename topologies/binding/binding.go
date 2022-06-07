@@ -267,18 +267,22 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 }
 
 func (b *staticBind) reset(ctx context.Context) error {
-	for _, bdut := range b.r.GetDuts() {
-		if err := applyCli(ctx, bdut, b); err != nil {
-			return err
-		}
-		if err := applyGnmi(ctx, bdut, b); err != nil {
-			return err
+	for _, dut := range b.resv.DUTs {
+		if sdut, ok := dut.(*staticDUT); ok {
+			sdut.reset(ctx)
 		}
 	}
 	return nil
 }
 
-func readCli(path string) (string, error) {
+func (d *staticDUT) reset(ctx context.Context) error {
+	if err := applyCLI(ctx, d.dev, d.r); err != nil {
+		return err
+	}
+	return applyGNMI(ctx, d.dev, d.r)
+}
+
+func readCLI(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
@@ -286,7 +290,7 @@ func readCli(path string) (string, error) {
 	return string(data), nil
 }
 
-func readGnmi(path string) (*gpb.SetRequest, error) {
+func readGNMI(path string) (*gpb.SetRequest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -299,26 +303,58 @@ func readGnmi(path string) (*gpb.SetRequest, error) {
 	return req, nil
 }
 
-func applyCli(ctx context.Context, bdut *bindpb.Device, b *staticBind) error {
+func applyCLI(ctx context.Context, bdut *bindpb.Device, r resolver) error {
 	vendorConfig := []string{}
 	for _, conf := range bdut.GetConfig().GetCli() {
 		vendorConfig = append(vendorConfig, string(conf))
 	}
 	for _, file := range bdut.GetConfig().GetCliFile() {
-		conf, err := readCli(file)
+		conf, err := readCLI(file)
 		if err != nil {
 			return err
 		}
 		vendorConfig = append(vendorConfig, conf)
 	}
-	dut := b.resv.DUTs[bdut.GetId()]
 	conf := strings.Join(vendorConfig, "\n")
 
-	return dut.PushConfig(ctx, conf, true)
+	if conf == "" {
+		return nil
+	}
+
+	dialer, err := r.ssh(bdut.GetName())
+	if err != nil {
+		return err
+	}
+	sc, err := dialer.dialSSH()
+	if err != nil {
+		return err
+	}
+	defer sc.Close()
+
+	cli, err := newCLI(sc)
+	if err != nil {
+		return err
+	}
+	if _, err := cli.SendCommand(ctx, conf); err != nil {
+		return err
+	}
+	return nil
 }
 
-func applyGnmi(ctx context.Context, bdut *bindpb.Device, b *staticBind) error {
-	dialer, err := b.r.gnmi(bdut.GetName())
+func applyGNMI(ctx context.Context, bdut *bindpb.Device, r resolver) error {
+	setReq := []*gpb.SetRequest{}
+	for _, file := range bdut.GetConfig().GetGnmiSetFile() {
+		conf, err := readGNMI(file)
+		if err != nil {
+			return err
+		}
+		setReq = append(setReq, conf)
+	}
+	if len(setReq) == 0 {
+		return nil
+	}
+
+	dialer, err := r.gnmi(bdut.GetName())
 	if err != nil {
 		return err
 	}
@@ -330,12 +366,8 @@ func applyGnmi(ctx context.Context, bdut *bindpb.Device, b *staticBind) error {
 
 	gnmi := gpb.NewGNMIClient(conn)
 
-	for _, file := range bdut.GetConfig().GetGnmiSetFile() {
-		conf, err := readGnmi(file)
-		if err != nil {
-			return err
-		}
-		if _, err := gnmi.Set(ctx, conf); err != nil {
+	for _, req := range setReq {
+		if _, err := gnmi.Set(ctx, req); err != nil {
 			return err
 		}
 	}
