@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rt_1_4_bgp_graceful_restart_test
+package bgp_graceful_restart_test
 
 import (
 	"testing"
