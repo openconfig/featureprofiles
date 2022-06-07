@@ -232,7 +232,7 @@ func TestTcpFlagsAtContainer(t *testing.T) {
 	defer teardownQos(t, dut, baseConfig)
 
 	inputs := [][]oc.E_PacketMatchTypes_TCP_FLAGS{
-		[]oc.E_PacketMatchTypes_TCP_FLAGS{
+		{
 			oc.E_PacketMatchTypes_TCP_FLAGS(4), //TCP_FIN
 			oc.E_PacketMatchTypes_TCP_FLAGS(3), //TCP_ECE
 			oc.E_PacketMatchTypes_TCP_FLAGS(8), //TCP_URG
@@ -295,7 +295,7 @@ func TestTcpFlagsAtLeaf(t *testing.T) {
 	defer teardownQos(t, dut, baseConfig)
 
 	inputs := [][]oc.E_PacketMatchTypes_TCP_FLAGS{
-		[]oc.E_PacketMatchTypes_TCP_FLAGS{
+		{
 			oc.E_PacketMatchTypes_TCP_FLAGS(4), //TCP_FIN
 			oc.E_PacketMatchTypes_TCP_FLAGS(3), //TCP_ECE
 			oc.E_PacketMatchTypes_TCP_FLAGS(8), //TCP_URG

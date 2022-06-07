@@ -232,7 +232,7 @@ func TestDscpSetAtContainer(t *testing.T) {
 	defer teardownQos(t, dut, baseConfig)
 
 	inputs := [][]uint8{
-		[]uint8{
+		{
 			55,
 			40,
 			40,
@@ -322,7 +322,7 @@ func TestDscpSetAtLeaf(t *testing.T) {
 	defer teardownQos(t, dut, baseConfig)
 
 	inputs := [][]uint8{
-		[]uint8{
+		{
 			55,
 			40,
 			40,
