@@ -1,0 +1,30 @@
+{
+  "openconfig-qos:classifiers": {
+    "classifier": [
+      {
+        "name": "oc_p1", 
+        "terms": {
+          "term": [{
+            "id": "oc_c1", 
+            "actions": {
+              "remark": {
+                "config": {
+                  "set-dscp": 8
+                }
+              }
+            }, 
+            "conditions": {
+              "ipv4": {
+                "config": {
+                  "dscp-set": [
+                    1
+                  ]
+                }
+              }
+            }
+          }]
+        }
+      }
+    ]
+  }
+}
