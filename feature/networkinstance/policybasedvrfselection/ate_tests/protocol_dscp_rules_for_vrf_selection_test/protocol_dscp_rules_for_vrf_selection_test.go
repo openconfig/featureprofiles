@@ -288,24 +288,6 @@ func getFlow(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint onda
 	return flow
 }
 
-//getIPv4Flow returns an IPv4 *ondatra.Flow with provided DSCP value.
-func getIPv4Flow(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8) *ondatra.Flow {
-
-	ethHeader := ondatra.NewEthernetHeader()
-	ipHeader := ondatra.NewIPv4Header().WithDSCP(dscp)
-
-	return getFlow(t, ate, srcEndpoint, dstEndPoint, flowName, ethHeader, ipHeader)
-}
-
-//getIPv6Flow returns an IPv6 *ondatra.Flow with provided DSCP value for a given set of endpoints.
-func getIPv6Flow(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8) *ondatra.Flow {
-
-	ethHeader := ondatra.NewEthernetHeader()
-	ipHeader := ondatra.NewIPv6Header().WithDSCP(dscp)
-
-	return getFlow(t, ate, srcEndpoint, dstEndPoint, flowName, ethHeader, ipHeader)
-}
-
 //getIPinIPFlow returns an IPv4inIPv4 *ondatra.Flow with provided DSCP value for a given set of endpoints.
 func getIPinIPFlow(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8) *ondatra.Flow {
 
@@ -394,46 +376,6 @@ func configurePBR(t *testing.T, dut *ondatra.DUTDevice, policyName, networkInsta
 func configurePBRRule(t *testing.T, dut *ondatra.DUTDevice, policyName, networkInstance, iptype string, index uint32, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
 
 	if r := getL3PBRRule(networkInstance, iptype, index, protocol, dscpset); r == nil {
-		t.Fatalf("Invalid pbr rule")
-	} else {
-		dut.Config().NetworkInstance("default").PolicyForwarding().Policy(policyName).Rule(index).Replace(t, r)
-	}
-}
-
-//getL2PBRRule provides an L2 PBR policy-forwarding rule config for ethertype ipv4 or ipv6.
-func getL2PBRRule(networkInstance, iptype string, index uint32) *oc.NetworkInstance_PolicyForwarding_Policy_Rule {
-
-	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
-	r.SequenceId = ygot.Uint32(index)
-	r.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
-	if iptype == "ipv4" {
-		r.L2 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
-			Ethertype: oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4,
-		}
-	} else if iptype == "ipv6" {
-		r.L2 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
-			Ethertype: oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6,
-		}
-	} else {
-		return nil
-	}
-
-	return &r
-}
-
-//configureL2PBR configures policy-forwarding with an L2 PBR policy.
-func configureL2PBR(t *testing.T, dut *ondatra.DUTDevice, policyName, networkInstance, iptype string, index uint32) {
-	r1 := getL2PBRRule(networkInstance, iptype, index)
-	pf := oc.NetworkInstance_PolicyForwarding{}
-	p := pf.GetOrCreatePolicy(policyName)
-	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
-	p.AppendRule(r1)
-	dut.Config().NetworkInstance("default").PolicyForwarding().Update(t, &pf)
-}
-
-//configureL2PBRRule applies an L2 rule to an existing PBR policy.
-func configureL2PBRRule(t *testing.T, dut *ondatra.DUTDevice, policyName, networkInstance, iptype string, index uint32) {
-	if r := getL2PBRRule(networkInstance, iptype, index); r == nil {
 		t.Fatalf("Invalid pbr rule")
 	} else {
 		dut.Config().NetworkInstance("default").PolicyForwarding().Policy(policyName).Rule(index).Replace(t, r)
