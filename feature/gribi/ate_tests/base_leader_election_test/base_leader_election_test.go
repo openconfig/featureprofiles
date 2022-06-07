@@ -439,7 +439,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 
 	innerIpv4Header := ondatra.NewIPv4Header()
 	innerIpv4Header.WithSrcAddress("200.1.0.2")
-	innerIpv4Header.DstAddressRange().WithMin("201.1.0.2").WithCount(1000).WithStep("0.0.0.1")
+	innerIpv4Header.DstAddressRange().WithMin("201.1.0.2").WithCount(1).WithStep("0.0.0.1")
 
 	flow = append(flow, ate.Traffic().NewFlow(fmt.Sprintf("Flow")).
 		WithSrcEndpoints(srcEndPoint).
@@ -470,6 +470,11 @@ type testArgs struct {
 }
 
 func testIPv4BackUpSwitchDrop(ctx context.Context, t *testing.T, args *testArgs) {
+
+	addAteISISL2(t, args.top, "atePort8", "B4", "testing", 20, "201.1.0.2/32", "198:51:100::1/128", uint32(1))
+	// addAteEBGPPeer(t, args.top, "atePort8", "192.0.2.29", 64001, "bgp_network", "192.0.2.30", "201.1.0.2/32", 1, false)
+	// addAteEBGPPeer(t, top, "atePort8", "192:0:2::29", 64001, "bgp_network", "192:0:2::30", "201:1:0::2/128", 1, false)
+	args.top.Push(t).StartProtocols(t)
 
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
 	// ensure that the entry is active through AFT telemetry and traffic.
@@ -528,7 +533,7 @@ func testIPv4BackUpSwitchDrop(ctx context.Context, t *testing.T, args *testArgs)
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf && "atePort8" != intf {
+		if "atePort1" != intf {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -551,6 +556,11 @@ func testIPv4BackUpSwitchDrop(ctx context.Context, t *testing.T, args *testArgs)
 }
 
 func testIPv4BackUpSwitchDecap(ctx context.Context, t *testing.T, args *testArgs) {
+
+	addAteISISL2(t, args.top, "atePort8", "B4", "testing", 20, "201.1.0.2/32", "198:51:100::1/128", uint32(1))
+	// addAteEBGPPeer(t, args.top, "atePort8", "192.0.2.29", 64001, "bgp_network", "192.0.2.30", "201.1.0.2/32", 1, false)
+	// addAteEBGPPeer(t, top, "atePort8", "192:0:2::29", 64001, "bgp_network", "192:0:2::30", "201:1:0::2/128", 1, false)
+	args.top.Push(t).StartProtocols(t)
 
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
 	// ensure that the entry is active through AFT telemetry and traffic.
@@ -610,7 +620,7 @@ func testIPv4BackUpSwitchDecap(ctx context.Context, t *testing.T, args *testArgs
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf && "atePort8" != intf {
+		if "atePort1" != intf {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -633,6 +643,11 @@ func testIPv4BackUpSwitchDecap(ctx context.Context, t *testing.T, args *testArgs
 }
 
 func testIPv4BackUpSwitchCase3(ctx context.Context, t *testing.T, args *testArgs) {
+
+	addAteISISL2(t, args.top, "atePort8", "B4", "testing", 20, "198.51.100.1/32", "198:51:100::1/128", uint32(1))
+	// addAteEBGPPeer(t, args.top, "atePort8", "192.0.2.29", 64001, "bgp_network", "192.0.2.30", "198.51.100.1/32", 1, false)
+	// addAteEBGPPeer(t, top, "atePort8", "192:0:2::29", 64001, "bgp_network", "192:0:2::30", "198:51:100::1/128", 1, false)
+	args.top.Push(t).StartProtocols(t)
 
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
 	// ensure that the entry is active through AFT telemetry and traffic.
@@ -703,7 +718,7 @@ func testIPv4BackUpSwitchCase3(ctx context.Context, t *testing.T, args *testArgs
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf && "atePort8" != intf {
+		if "atePort1" != intf {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -726,6 +741,11 @@ func testIPv4BackUpSwitchCase3(ctx context.Context, t *testing.T, args *testArgs
 }
 
 func testIPv4BackUpSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
+
+	addAteISISL2(t, args.top, "atePort8", "B4", "testing", 20, "198.51.100.1/32", "198:51:100::1/128", uint32(1))
+	// addAteEBGPPeer(t, args.top, "atePort8", "192.0.2.29", 64001, "bgp_network", "192.0.2.30", "198.51.100.1/32", 1, false)
+	// addAteEBGPPeer(t, top, "atePort8", "192:0:2::29", 64001, "bgp_network", "192:0:2::30", "198:51:100::1/128", 1, false)
+	args.top.Push(t).StartProtocols(t)
 
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
 	// ensure that the entry is active through AFT telemetry and traffic.
@@ -847,9 +867,6 @@ func TestBackUp(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	addAteISISL2(t, top, "atePort8", "B4", "testing", 20, ateDstNetCIDR, "198:51:100::1/128", uint32(1))
-	addAteEBGPPeer(t, top, "atePort8", "192.0.2.29", 64001, "bgp_network", "192.0.2.30", "", 1, false)
-	top.Push(t).StartProtocols(t)
 
 	test := []struct {
 		name string
