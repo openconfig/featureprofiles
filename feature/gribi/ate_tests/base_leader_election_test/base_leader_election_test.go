@@ -433,9 +433,9 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	flow := []*ondatra.Flow{}
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.DstAddressRange().
-		WithMin("198.51.100.0").
+		WithMin("198.51.100.1").
 		WithMax("198.51.100.254").
-		WithCount(250)
+		WithCount(1)
 
 	innerIpv4Header := ondatra.NewIPv4Header()
 	innerIpv4Header.WithSrcAddress("200.1.0.2")
