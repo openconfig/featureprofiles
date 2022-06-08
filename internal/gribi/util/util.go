@@ -146,7 +146,7 @@ func DoModifyOps(c *fluent.GRIBIClient, t testing.TB, ops []func(), wantACK flue
 	return c.Results(t)
 }
 
-//getIpv4Net returns network in CIDR format ("192.168.1.1/32", "192.168.1.0/24", "192.168.0.0/16")
+//GetIpv4Net returns network in CIDR format ("192.168.1.1/32", "192.168.1.0/24", "192.168.0.0/16")
 func GetIpv4Net(prefix string, maskLength int) string {
 	_, ipv4Net, _ := net.ParseCIDR(prefix + "/" + strconv.Itoa(maskLength))
 	return ipv4Net.String()
@@ -165,7 +165,7 @@ func CreateBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName s
 	SetInterfaceState(t, dut, bundleName, true)
 }
 
-//SetInterfaceState, sets interface state
+//SetInterfaceState sets interface state
 func SetInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, adminState bool) {
 
 	i := &telemetry.Interface{
@@ -182,7 +182,7 @@ func SetInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interfaceName strin
 	}
 }
 
-// FlapInterface, flaps an interface
+// FlapInterface flaps an interface
 func FlapInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, flapDuration time.Duration) {
 
 	initialState := dut.Telemetry().Interface(interfaceName).Get(t).GetEnabled()
@@ -192,7 +192,7 @@ func FlapInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, f
 	SetInterfaceState(t, dut, interfaceName, initialState)
 }
 
-//GetSubInterface, returns subinterface
+//GetSubInterface returns subinterface
 func GetSubInterface(ipv4 string, prefixlen uint8, index uint32) *telemetry.Interface_Subinterface {
 	s := &telemetry.Interface_Subinterface{}
 	s.Index = ygot.Uint32(index)
@@ -202,7 +202,7 @@ func GetSubInterface(ipv4 string, prefixlen uint8, index uint32) *telemetry.Inte
 	return s
 }
 
-//GetCopyOfIpv4SubInterfaces, returns subinterface ipv4 address
+//GetCopyOfIpv4SubInterfaces returns subinterface ipv4 address
 func GetCopyOfIpv4SubInterfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceNames []string, index uint32) map[string]*telemetry.Interface_Subinterface {
 	copiedSubInterfaces := make(map[string]*telemetry.Interface_Subinterface)
 	for _, interfaceName := range interfaceNames {
@@ -219,7 +219,7 @@ func GetCopyOfIpv4SubInterfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceN
 	return copiedSubInterfaces
 }
 
-// AddAteISISL2, appends ISIS configuration to ATETOPO obj
+// AddAteISISL2 appends ISIS configuration to ATETOPO obj
 func AddAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaID, networkName string, metric uint32, prefix string, count uint32) {
 
 	intfs := topo.Interfaces()
@@ -233,7 +233,7 @@ func AddAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaID, netw
 	intfs[atePort].ISIS().WithAreaID(areaID).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
 }
 
-// AddAteEBGPPeer, appends EBGP configuration to ATETOPO obj
+// AddAteEBGPPeer appends EBGP configuration to ATETOPO obj
 func AddAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddress string, localAsn uint32, networkName, nexthop, prefix string, count uint32, useLoopback bool) {
 
 	intfs := topo.Interfaces()
@@ -255,7 +255,7 @@ func AddAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddres
 	bgpPeer.Capabilities().WithIPv4UnicastEnabled(true).WithIPv6UnicastEnabled(true).WithGracefulRestart(true)
 }
 
-// AddLoopback, adds loopback
+// AddLoopback adds loopback
 func AddLoopback(t *testing.T, topo *ondatra.ATETopology, port, loopbackPrefix string) {
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
@@ -264,7 +264,7 @@ func AddLoopback(t *testing.T, topo *ondatra.ATETopology, port, loopbackPrefix s
 	intfs[port].WithIPv4Loopback(loopbackPrefix)
 }
 
-// AddIpv4Network, adds Ipv4 Address
+// AddIpv4Network adds Ipv4 Address
 func AddIpv4Network(t *testing.T, topo *ondatra.ATETopology, port, networkName, addressCIDR string, count uint32) {
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
@@ -273,7 +273,7 @@ func AddIpv4Network(t *testing.T, topo *ondatra.ATETopology, port, networkName, 
 	intfs[port].AddNetwork(networkName).IPv4().WithAddress(addressCIDR).WithCount(count)
 }
 
-// AddIpv6Network, adds Ipv4 Address
+// AddIpv6Network adds Ipv4 Address
 func AddIpv6Network(t *testing.T, topo *ondatra.ATETopology, port, networkName, addressCIDR string, count uint32) {
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
@@ -282,7 +282,7 @@ func AddIpv6Network(t *testing.T, topo *ondatra.ATETopology, port, networkName, 
 	intfs[port].AddNetwork(networkName).IPv6().WithAddress(addressCIDR).WithCount(count)
 }
 
-// GetBoundedFlow, returns BoundedFlow
+// GetBoundedFlow returns BoundedFlow
 func GetBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopology, srcPort, dstPort, srcNetwork, dstNetwork, flowName string, dscp uint8, ttl ...uint8) *ondatra.Flow {
 
 	intfs := topo.Interfaces()
@@ -303,7 +303,7 @@ func GetBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopol
 	return flow
 }
 
-//GetIpv4Acl, returns Ipv4 ACL
+//GetIpv4Acl returns Ipv4 ACL
 func GetIpv4Acl(name string, sequenceID uint32, dscp, hopLimit uint8, action telemetry.E_Acl_FORWARDING_ACTION) *telemetry.Acl {
 
 	acl := (&telemetry.Device{}).GetOrCreateAcl()
@@ -317,7 +317,7 @@ func GetIpv4Acl(name string, sequenceID uint32, dscp, hopLimit uint8, action tel
 	return acl
 }
 
-// AddIpv6Address, adds ipv6 address
+// AddIpv6Address adds ipv6 address
 func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Interface_Subinterface {
 	s := &telemetry.Interface_Subinterface{}
 	s.Index = ygot.Uint32(index)

@@ -106,7 +106,7 @@ func (c *Client) AwaitTimeout(ctx context.Context, t testing.TB, timeout time.Du
 	return c.fluentC.Await(subctx, t)
 }
 
-// learnElectionID learns the current server election id by sending
+// LearnElectionID learns the current server election id by sending
 // a dummy modify request with election id 1.
 func (c *Client) LearnElectionID(t testing.TB) (low, high uint64) {
 	t.Helper()
