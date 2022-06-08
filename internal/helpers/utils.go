@@ -1,14 +1,12 @@
 package helpers
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
-	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -16,7 +14,6 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // using protojson to marshal will emit property names with lowerCamelCase
@@ -49,71 +46,6 @@ type StatesTableOpts struct {
 func Timer(start time.Time, name string) {
 	elapsed := time.Since(start)
 	log.Printf("%s took %d ms", name, elapsed.Milliseconds())
-}
-
-func LogWarnings(warnings []string) {
-	for _, w := range warnings {
-		log.Printf("WARNING: %v", w)
-	}
-}
-
-func LogErrors(errors *[]string) error {
-	if errors == nil {
-		return fmt.Errorf("")
-	}
-	for _, e := range *errors {
-		log.Printf("ERROR: %v", e)
-	}
-
-	return fmt.Errorf("%v", errors)
-}
-
-func PrettyStructString(v interface{}) string {
-	var bytes []byte
-	var err error
-
-	switch v := v.(type) {
-	case protoreflect.ProtoMessage:
-		bytes, err = prettyProtoMarshaller.Marshal(v)
-		if err != nil {
-			log.Println(err)
-			return ""
-		}
-	default:
-		bytes, err = json.MarshalIndent(v, "", "  ")
-		if err != nil {
-			log.Println(err)
-			return ""
-		}
-	}
-
-	return string(bytes)
-}
-
-func ProtoToJsonStruct(in protoreflect.ProtoMessage, out interface{}) error {
-	log.Println("Marshalling from proto to json struct ...")
-
-	bytes, err := protoMarshaller.Marshal(in)
-	if err != nil {
-		return fmt.Errorf("could not marshal from proto to json: %v", err)
-	}
-	if err := json.Unmarshal(bytes, out); err != nil {
-		return fmt.Errorf("could not unmarshal from json to struct: %v", err)
-	}
-	return nil
-}
-
-func JsonStructToProto(in interface{}, out protoreflect.ProtoMessage) error {
-	log.Println("Marshalling from struct to json ... ")
-
-	bytes, err := json.Marshal(in)
-	if err != nil {
-		return fmt.Errorf("could not marshal from struct to json: %v", err)
-	}
-	if err := protojson.Unmarshal(bytes, out); err != nil {
-		return fmt.Errorf("could not unmarshal from json to proto: %v", err)
-	}
-	return nil
 }
 
 func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
@@ -419,18 +351,6 @@ func PrintMetricsTable(opts *MetricsTableOpts) {
 	log.Println(out)
 }
 
-func GetCapturePorts(c gosnappi.Config) []string {
-	capturePorts := []string{}
-	if c == nil {
-		return capturePorts
-	}
-
-	for _, capture := range c.Captures().Items() {
-		capturePorts = append(capturePorts, capture.PortNames()...)
-	}
-	return capturePorts
-}
-
 func CleanupTest(t *testing.T, ate *ondatra.ATEDevice, otg *ondatra.OTG, stopProtocols bool, stopTraffic bool) {
 	if stopTraffic {
 		otg.StopTraffic(t)
@@ -535,11 +455,15 @@ func expectedElementsPresent(expected, actual []string) bool {
 	return true
 }
 
-func IncrementedMac(mac string, i int) string {
-	r, _ := regexp.Compile("(([0-9A-Fa-f]{2}[:-]){5})([0-9A-Fa-f]{2})")
-	lastOctet := r.FindStringSubmatch(mac)[3]
-	lastInt, _ := strconv.Atoi(lastOctet)
-	lastInt = lastInt + i + 1
-	lastX := fmt.Sprintf("%02x", lastInt)
-	return r.FindStringSubmatch(mac)[1] + lastX
+func IncrementedMac(mac string, i int) (string, error) {
+	// Uses an mac string and increments the last 2 bytes by the given i
+	macAddr, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", err
+	}
+	fifthIndex := len(macAddr) - 2
+	lastIndex := len(macAddr) - 1
+	macAddr[fifthIndex] = byte(int(macAddr[fifthIndex]) + (i+int(macAddr[lastIndex]))/256)
+	macAddr[lastIndex] = byte((i + int(macAddr[lastIndex])) % 256)
+	return macAddr.String(), nil
 }

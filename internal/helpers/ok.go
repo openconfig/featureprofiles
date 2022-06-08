@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"testing"
-	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra"
@@ -88,30 +87,6 @@ func AllBgp6SessionUp(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expecte
 		}
 	}
 
-	return expected, nil
-}
-
-func AllIsisSessionUp(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
-	dMetrics, err := GetIsisMetrics(t, otg, c)
-	if err != nil {
-		return false, err
-	}
-	PrintMetricsTable(&MetricsTableOpts{
-		ClearPrevious: false,
-		IsisMetrics:   dMetrics,
-	})
-	expected := true
-	for _, d := range dMetrics.Items() {
-		expectedMetrics := expectedState.Isis[d.Name()]
-		if d.L1SessionsUp() != expectedMetrics.L1SessionsUp || d.L1DatabaseSize() != expectedMetrics.L1DatabaseSize || d.L1SessionsUp() != expectedMetrics.L1SessionsUp || d.L2DatabaseSize() != expectedMetrics.L2DatabaseSize {
-			expected = false
-		}
-	}
-
-	// TODO: wait explicitly until telemetry API (for talking to DUT) is available
-	if expected {
-		time.Sleep(2 * time.Second)
-	}
 	return expected, nil
 }
 
