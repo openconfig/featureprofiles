@@ -209,3 +209,8 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 		chk.IgnoreOperationID(),
 	)
 }
+
+// DeleteIpv4Entry deletes a given ipv4 route entry
+func (c *Client) DeleteIpv4Entry(t testing.TB, ipv4Entry fluent.GRIBIEntry) {
+	c.fluentC.Modify().DeleteEntry(t, ipv4Entry)
+}
