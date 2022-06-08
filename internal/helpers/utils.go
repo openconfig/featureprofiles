@@ -456,14 +456,31 @@ func expectedElementsPresent(expected, actual []string) bool {
 }
 
 func IncrementedMac(mac string, i int) (string, error) {
-	// Uses an mac string and increments the last 2 bytes by the given i
+	// Uses an mac string and increments it by the given i
 	macAddr, err := net.ParseMAC(mac)
 	if err != nil {
 		return "", err
 	}
-	fifthIndex := len(macAddr) - 2
-	lastIndex := len(macAddr) - 1
-	macAddr[fifthIndex] = byte(int(macAddr[fifthIndex]) + (i+int(macAddr[lastIndex]))/256)
-	macAddr[lastIndex] = byte((i + int(macAddr[lastIndex])) % 256)
+	addTo := [6]int{0, 0, 0, 0, 0, 0}
+	for j := len(macAddr) - 1; j >= 0; j-- {
+		val := 0
+		if j == 5 {
+			val = i + int(macAddr[j])
+			addTo[j] = val / 256
+			if addTo[j] < 256 {
+				macAddr[j] = byte(val)
+			} else {
+				macAddr[j] = byte(val % 256)
+			}
+		} else {
+			val = addTo[j+1] + int(macAddr[j])
+			if val < 256 {
+				macAddr[j] = byte(val)
+			} else {
+				addTo[j] = val / 256
+				macAddr[j] = byte(val % 256)
+			}
+		}
+	}
 	return macAddr.String(), nil
 }
