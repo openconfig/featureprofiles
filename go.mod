@@ -18,6 +18,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.0
+	wwwin-github.cisco.com/rehaddad/go-p4 v0.0.0-20220608005204-b6c4346e7100
 )
 
 require (
@@ -41,5 +42,4 @@ require (
 	google.golang.org/genproto v0.0.0-20220405205423-9d709892a2bf // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	lukechampine.com/uint128 v1.1.1 // indirect
-	wwwin-github.cisco.com/rehaddad/go-p4 v0.0.0-20220601232837-933dcb67d34f // indirect
 )

@@ -43,12 +43,12 @@ func TestP4RTClientIntegration(t *testing.T) {
 
 	// ctx := context.Background()
 
-	fmt.Println("Get p4rt clinet from ondatra...")
+	fmt.Println("Get p4rt client from ondatra...")
 	ondatra_client := dut.RawAPIs().P4RT(t)
 
 	fmt.Println("Get p4rt clinet from cisco...")
 	p4rt_client := p4rt.P4RTClient{}
-	p4rt_client.SetupP4RTClient(ondatra_client)
+	p4rt_client.P4rtClientSet(ondatra_client)
 	fmt.Println(p4rt_client)
 
 	// Create Stream
