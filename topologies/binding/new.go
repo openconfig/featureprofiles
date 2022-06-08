@@ -32,7 +32,7 @@ var (
 	pluginArgs  = flag.String("plugin-args", "", "arguments for the vendor binding")
 	bindingFile = flag.String("binding", "", "static binding configuration file")
 	kneConfig   = flag.String("kne-config", "", "YAML configuration file")
-	pushConfig  = flag.Bool("push-config", false, "push device reset config supplied to static binding")
+	pushConfig  = flag.Bool("push-config", true, "push device reset config supplied to static binding")
 )
 
 // New creates a new binding that could be either a vendor plugin, a
