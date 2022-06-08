@@ -25,7 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/tools/helpers"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
@@ -273,8 +273,9 @@ func (tc *testCase) configureATE(t *testing.T) {
 	for i, p := range tc.atePorts[1:] {
 		port := tc.top.Ports().Add().SetName(p.ID())
 		lagPort := agg.Ports().Add()
+		newMac, _ := helpers.IncrementedMac(ateDst.MAC, i)
 		lagPort.SetPortName(port.Name()).
-			Ethernet().SetMac(helpers.IncrementedMac(ateDst.MAC, i)).
+			Ethernet().SetMac(newMac).
 			SetName("LagRx-" + strconv.Itoa(i))
 		if tc.lagType == lagTypeSTATIC {
 			lagId, _ := strconv.Atoi(tc.aggID)

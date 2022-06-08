@@ -127,37 +127,6 @@ func GetBgpv6Metrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnapp
 	return metrics, nil
 }
 
-func GetIsisMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.MetricsResponseIsisMetricIter, error) {
-	defer Timer(time.Now(), "GetIsisMetrics GNMI")
-	metrics := gosnappi.NewApi().NewGetMetricsResponse().StatusCode200().IsisMetrics()
-	for _, d := range c.Devices().Items() {
-		isis := d.Isis()
-		log.Printf("Getting isis metrics for router %s\n", isis.Name())
-		isisMetric := metrics.Add()
-		recvMetric := otg.Telemetry().IsisRouter(isis.Name()).Get(t)
-		isisMetric.SetName(recvMetric.GetName())
-		isisMetric.SetL1SessionsUp(int32(recvMetric.GetCounters().GetLevel1().GetSessionsUp()))
-		isisMetric.SetL1SessionFlap(int32(recvMetric.GetCounters().GetLevel1().GetSessionsFlap()))
-		isisMetric.SetL1BroadcastHellosSent(int32(recvMetric.GetCounters().GetLevel1().GetOutBcastHellos()))
-		isisMetric.SetL1BroadcastHellosReceived(int32(recvMetric.GetCounters().GetLevel1().GetInBcastHellos()))
-		isisMetric.SetL1PointToPointHellosSent(int32(recvMetric.GetCounters().GetLevel1().GetOutP2PHellos()))
-		isisMetric.SetL1PointToPointHellosReceived(int32(recvMetric.GetCounters().GetLevel1().GetInP2PHellos()))
-		isisMetric.SetL1LspSent(int32(recvMetric.GetCounters().GetLevel1().GetOutLsp()))
-		isisMetric.SetL1LspReceived(int32(recvMetric.GetCounters().GetLevel1().GetInLsp()))
-		isisMetric.SetL1DatabaseSize(int32(recvMetric.GetCounters().GetLevel1().GetDatabaseSize()))
-		isisMetric.SetL2SessionsUp(int32(recvMetric.GetCounters().GetLevel2().GetSessionsUp()))
-		isisMetric.SetL2SessionFlap(int32(recvMetric.GetCounters().GetLevel2().GetSessionsFlap()))
-		isisMetric.SetL2BroadcastHellosSent(int32(recvMetric.GetCounters().GetLevel2().GetOutBcastHellos()))
-		isisMetric.SetL2BroadcastHellosReceived(int32(recvMetric.GetCounters().GetLevel2().GetInBcastHellos()))
-		isisMetric.SetL2PointToPointHellosSent(int32(recvMetric.GetCounters().GetLevel2().GetOutP2PHellos()))
-		isisMetric.SetL2PointToPointHellosReceived(int32(recvMetric.GetCounters().GetLevel2().GetInP2PHellos()))
-		isisMetric.SetL2LspSent(int32(recvMetric.GetCounters().GetLevel2().GetOutLsp()))
-		isisMetric.SetL2LspReceived(int32(recvMetric.GetCounters().GetLevel2().GetInLsp()))
-		isisMetric.SetL2DatabaseSize(int32(recvMetric.GetCounters().GetLevel2().GetDatabaseSize()))
-	}
-	return metrics, nil
-}
-
 func GetIPv4NeighborStates(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.StatesResponseNeighborsv4StateIter, error) {
 	defer Timer(time.Now(), "Getting IPv4 Neighbor states GNMI")
 	ethNeighborMap := make(map[string][]string)
