@@ -5,22 +5,41 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
-	"github.com/openconfig/featureprofiles/topologies/binding"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
-	ondatra.RunTests(m, binding.New)
+	fptest.RunTests(m)
 }
 
+func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
+	bc := setup.BaseConfig()
+	setup.ResetStruct(bc, []string{"Interface"})
+	bcInterface := setup.GetAnyValue(bc.Interface)
+	setup.ResetStruct(bcInterface, []string{"Input"})
+	bcInterfaceInput := bcInterface.Input
+	setup.ResetStruct(bcInterfaceInput, []string{"Queue"})
+	bcInterfaceInputQueue := setup.GetAnyValue(bcInterfaceInput.Queue)
+	setup.ResetStruct(bcInterfaceInputQueue, []string{})
+	dut.Config().Qos().Replace(t, bc)
+	return bc
+}
+
+func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
+	dut.Config().Qos().Delete(t)
+}
 func TestNameAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
-	var baseConfig *oc.Qos = setupQos(t, dut)
+	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	for _, input := range testNameInput {
+	inputs := []string{
+		"i",
+	}
+
+	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /qos/interfaces/interface/input/queues/queue/config/name using value %v", input), func(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 			baseConfigInterfaceInput := baseConfigInterface.Input
@@ -54,11 +73,14 @@ func TestNameAtContainer(t *testing.T) {
 }
 func TestQueueManagementProfileAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
-	var baseConfig *oc.Qos = setupQos(t, dut)
+	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	for _, input := range testQueueManagementProfileInput {
+	inputs := []string{
+		"a",
+	}
+
+	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /qos/interfaces/interface/input/queues/queue/config/queue-management-profile using value %v", input), func(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 			baseConfigInterfaceInput := baseConfigInterface.Input
@@ -103,7 +125,11 @@ func TestQueueManagementProfileAtLeaf(t *testing.T) {
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	for _, input := range testQueueManagementProfileInput {
+	inputs := []string{
+		"a",
+	}
+
+	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /qos/interfaces/interface/input/queues/queue/config/queue-management-profile using value %v", input), func(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 			baseConfigInterfaceInputQueue := setup.GetAnyValue(baseConfigInterface.Input.Queue)

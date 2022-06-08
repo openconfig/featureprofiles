@@ -15,18 +15,18 @@ Validate IPv4 AFT support in gRIBI with recursion.
 * Ensure that removing the NextHopGroup containing 203.0.113.1/32 with a DELETE
   operation results in traffic loss, and removal from AFT.
 * Repeat above test with the following (table) cases:
-  * Explicitly specified egress interface of DUT port-2.
-  * Explicitly specified MAC address for ATE port-2.
-  * Entry installed in a non-default network instance (with ATE port-1 and port-2 assigned to a non-default NI)
+  * TODO: Explicitly specified egress interface of DUT port-2.
+  * TODO: Explicitly specified MAC address for ATE port-2.
+  * TODO: Entry installed in a non-default network instance (with ATE port-1 and port-2 assigned to a non-default NI)
 * Ensure that the following cases result in an error being returned:
-  * Invalid IPv4 prefix in the IPv4Entry
-  * Missing NextHopGroup within an IPv4Entry
-  * Empty NextHopGroup
-  * Empty NextHop
-  * Invalid IPv4 address in NextHop.
+  * TODO: Invalid IPv4 prefix in the IPv4Entry
+  * TODO: Missing NextHopGroup within an IPv4Entry
+  * TODO: Empty NextHopGroup
+  * TODO: Empty NextHop
+  * TODO: Invalid IPv4 address in NextHop.
 * Validate that REPLACE operations:
-  * Fail when using 2.0.0.0/8 within the Ipv4EntryKey (does not exist).
-  * After installing a second next-hop-group with a different ID, validate that
+  * TODO: Fail when using 2.0.0.0/8 within the Ipv4EntryKey (does not exist).
+  * TODO: After installing a second next-hop-group with a different ID, validate that
     a REPLACE for 1.0.0.0/8 can update (in-place) the NHG to the new value.
     Validate via traffic and telemetry.
 

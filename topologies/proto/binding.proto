@@ -27,6 +27,18 @@ message Binding {
   Options options = 3;
 }
 
+// Config for resetting the device before the test run.
+message Configs {
+  // Raw device config
+  repeated bytes cli = 1;
+
+  // Path to file containing raw device config
+  repeated string cli_file = 2;
+
+  // Path to a file containing gNMI SetRequest as text-formatted proto.
+  repeated string gnmi_set_file = 3;
+}
+
 // A device binding.
 message Device {
   // Device ID as it appears in the testbed.
@@ -41,6 +53,9 @@ message Device {
 
   // Port bindings for this device.
   repeated Port ports = 4;
+
+  // Configs to apply to device after binding
+  Configs config = 5;
 
   // Dial options for SSH (DUT only).
   Options ssh = 11;

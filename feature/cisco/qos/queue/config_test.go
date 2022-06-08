@@ -5,22 +5,37 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
-	"github.com/openconfig/featureprofiles/topologies/binding"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
-	ondatra.RunTests(m, binding.New)
+	fptest.RunTests(m)
 }
 
+func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
+	bc := setup.BaseConfig()
+	setup.ResetStruct(bc, []string{"Queue"})
+	bcQueue := setup.GetAnyValue(bc.Queue)
+	setup.ResetStruct(bcQueue, []string{})
+	dut.Config().Qos().Replace(t, bc)
+	return bc
+}
+
+func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
+	dut.Config().Qos().Delete(t)
+}
 func TestNameAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
-	var baseConfig *oc.Qos = setupQos(t, dut)
+	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	for _, input := range testNameInput {
+	inputs := []string{
+		"a",
+	}
+
+	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /qos/queues/queue/config/name using value %v", input), func(t *testing.T) {
 			baseConfigQueue := setup.GetAnyValue(baseConfig.Queue)
 			*baseConfigQueue.Name = input

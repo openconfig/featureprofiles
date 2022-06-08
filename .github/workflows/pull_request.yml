@@ -69,6 +69,13 @@ jobs:
       run: make openconfig_public
     - name: Validate Paths
       run: make validate_paths
+  check_style:
+    name: Check style against CONTRIBUTING.md
+    runs-on: ubuntu-latest
+    steps:
+    - name: IP Addresses Assignment
+      run: |
+        find . -path ./yang/fpoc -prune -o -name \*.go -exec ./tools/check_ip_addresses.pl \{} +
   static_analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
