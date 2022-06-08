@@ -45,6 +45,7 @@ func CheckTrafficPassViaPortPktCounter(pktCounters []*telemetry.Interface_Counte
 	return float64(totalIn)/float64(totalOut) >= thresholdValue
 }
 
+// CheckTrafficPassViaRate checks traffic stats via Rate statistics
 func CheckTrafficPassViaRate(stats []*telemetry.Flow) []string {
 	lossFlow := []string{}
 	for _, flow := range stats {
@@ -90,6 +91,7 @@ func GNMIWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, con
 	}
 }
 
+// FlushServer flushes all the entries
 func FlushServer(c *fluent.GRIBIClient, t testing.TB) {
 	ctx := context.Background()
 	c.Start(ctx, t)
@@ -111,8 +113,9 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 	return c.Await(subctx, t)
 }
 
-func DoModifyOps(c *fluent.GRIBIClient, t testing.TB, ops []func(), wantACK fluent.ProgrammingResult, randomise bool, electionId uint64) []*client.OpResult {
-	conn := c.Connection().WithRedundancyMode(fluent.ElectedPrimaryClient).WithInitialElectionID(electionId, 0).WithPersistence()
+// DoModifyOps modifies programming
+func DoModifyOps(c *fluent.GRIBIClient, t testing.TB, ops []func(), wantACK fluent.ProgrammingResult, randomise bool, electionID uint64) []*client.OpResult {
+	conn := c.Connection().WithRedundancyMode(fluent.ElectedPrimaryClient).WithInitialElectionID(electionID, 0).WithPersistence()
 
 	if wantACK == fluent.InstalledInFIB {
 		conn.WithFIBACK()
@@ -144,48 +147,52 @@ func DoModifyOps(c *fluent.GRIBIClient, t testing.TB, ops []func(), wantACK flue
 }
 
 //getIpv4Net returns network in CIDR format ("192.168.1.1/32", "192.168.1.0/24", "192.168.0.0/16")
-func GetIpv4Net(prefix string, mask_length int) string {
-	_, ipv4Net, _ := net.ParseCIDR(prefix + "/" + strconv.Itoa(mask_length))
+func GetIpv4Net(prefix string, maskLength int) string {
+	_, ipv4Net, _ := net.ParseCIDR(prefix + "/" + strconv.Itoa(maskLength))
 	return ipv4Net.String()
 }
 
-func CreateBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interface_name string, bundle_name string) {
+//CreateBundleInterface creates bundle interface
+func CreateBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, bundleName string) {
 
 	member := &telemetry.Interface{
 		Ethernet: &telemetry.Interface_Ethernet{
-			AggregateId: ygot.String(bundle_name),
+			AggregateId: ygot.String(bundleName),
 		},
 	}
-	update_response := dut.Config().Interface(interface_name).Update(t, member)
-	t.Logf("Update response : %v", update_response)
-	SetInterfaceState(t, dut, bundle_name, true)
+	updateResponse := dut.Config().Interface(interfaceName).Update(t, member)
+	t.Logf("Update response : %v", updateResponse)
+	SetInterfaceState(t, dut, bundleName, true)
 }
 
-func SetInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interface_name string, admin_state bool) {
+//SetInterfaceState, sets interface state
+func SetInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, adminState bool) {
 
 	i := &telemetry.Interface{
-		Enabled: ygot.Bool(admin_state),
-		Name:    ygot.String(interface_name),
+		Enabled: ygot.Bool(adminState),
+		Name:    ygot.String(interfaceName),
 	}
-	update_response := dut.Config().Interface(interface_name).Update(t, i)
-	t.Logf("Update response : %v", update_response)
-	currEnabledState := dut.Telemetry().Interface(interface_name).Get(t).GetEnabled()
-	if currEnabledState != admin_state {
-		t.Fatalf("Failed to set interface admin_state to :%v", admin_state)
+	updateResponse := dut.Config().Interface(interfaceName).Update(t, i)
+	t.Logf("Update response : %v", updateResponse)
+	currEnabledState := dut.Telemetry().Interface(interfaceName).Get(t).GetEnabled()
+	if currEnabledState != adminState {
+		t.Fatalf("Failed to set interface admin_state to :%v", adminState)
 	} else {
-		t.Logf("Interface admin_state set to :%v", admin_state)
+		t.Logf("Interface admin_state set to :%v", adminState)
 	}
 }
 
-func FlapInterface(t *testing.T, dut *ondatra.DUTDevice, interface_name string, flap_duration time.Duration) {
+// FlapInterface, flaps an interface
+func FlapInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, flapDuration time.Duration) {
 
-	initialState := dut.Telemetry().Interface(interface_name).Get(t).GetEnabled()
+	initialState := dut.Telemetry().Interface(interfaceName).Get(t).GetEnabled()
 	transientState := !initialState
-	SetInterfaceState(t, dut, interface_name, transientState)
-	time.Sleep(flap_duration * time.Second)
-	SetInterfaceState(t, dut, interface_name, initialState)
+	SetInterfaceState(t, dut, interfaceName, transientState)
+	time.Sleep(flapDuration * time.Second)
+	SetInterfaceState(t, dut, interfaceName, initialState)
 }
 
+//GetSubInterface, returns subinterface
 func GetSubInterface(ipv4 string, prefixlen uint8, index uint32) *telemetry.Interface_Subinterface {
 	s := &telemetry.Interface_Subinterface{}
 	s.Index = ygot.Uint32(index)
@@ -195,14 +202,15 @@ func GetSubInterface(ipv4 string, prefixlen uint8, index uint32) *telemetry.Inte
 	return s
 }
 
-func GetCopyOfIpv4SubInterfaces(t *testing.T, dut *ondatra.DUTDevice, interface_names []string, index uint32) map[string]*telemetry.Interface_Subinterface {
+//GetCopyOfIpv4SubInterfaces, returns subinterface ipv4 address
+func GetCopyOfIpv4SubInterfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceNames []string, index uint32) map[string]*telemetry.Interface_Subinterface {
 	copiedSubInterfaces := make(map[string]*telemetry.Interface_Subinterface)
-	for _, interface_name := range interface_names {
-		a := dut.Telemetry().Interface(interface_name).Subinterface(index).Ipv4().Get(t)
-		copiedSubInterfaces[interface_name] = &telemetry.Interface_Subinterface{}
-		ipv4 := copiedSubInterfaces[interface_name].GetOrCreateIpv4()
+	for _, interfaceName := range interfaceNames {
+		a := dut.Telemetry().Interface(interfaceName).Subinterface(index).Ipv4().Get(t)
+		copiedSubInterfaces[interfaceName] = &telemetry.Interface_Subinterface{}
+		ipv4 := copiedSubInterfaces[interfaceName].GetOrCreateIpv4()
 		for _, ipval := range a.Address {
-			t.Logf("*** Copying address: %v/%v for interface %s", ipval.GetIp(), ipval.GetPrefixLength(), interface_name)
+			t.Logf("*** Copying address: %v/%v for interface %s", ipval.GetIp(), ipval.GetPrefixLength(), interfaceName)
 			ipv4addr := ipv4.GetOrCreateAddress(ipval.GetIp())
 			ipv4addr.PrefixLength = ygot.Uint8(ipval.GetPrefixLength())
 		}
@@ -211,27 +219,29 @@ func GetCopyOfIpv4SubInterfaces(t *testing.T, dut *ondatra.DUTDevice, interface_
 	return copiedSubInterfaces
 }
 
-func AddAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, network_name string, metric uint32, prefix string, count uint32) {
+// AddAteISISL2, appends ISIS configuration to ATETOPO obj
+func AddAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaID, networkName string, metric uint32, prefix string, count uint32) {
 
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
 	}
-	network := intfs[atePort].AddNetwork(network_name)
+	network := intfs[atePort].AddNetwork(networkName)
 	//IPReachabilityConfig :=
 	network.ISIS().WithIPReachabilityMetric(metric + 1)
 	network.IPv4().WithAddress(prefix).WithCount(count)
-	intfs[atePort].ISIS().WithAreaID(areaId).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
+	intfs[atePort].ISIS().WithAreaID(areaID).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
 }
 
-func AddAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddress string, localAsn uint32, network_name, nexthop, prefix string, count uint32, useLoopback bool) {
+// AddAteEBGPPeer, appends EBGP configuration to ATETOPO obj
+func AddAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddress string, localAsn uint32, networkName, nexthop, prefix string, count uint32, useLoopback bool) {
 
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
 	}
 	//Add network instance
-	network := intfs[atePort].AddNetwork(network_name)
+	network := intfs[atePort].AddNetwork(networkName)
 	bgpAttribute := network.BGP()
 	bgpAttribute.WithActive(true).WithNextHopAddress(nexthop)
 	//Add prefixes
@@ -245,28 +255,34 @@ func AddAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddres
 	bgpPeer.Capabilities().WithIPv4UnicastEnabled(true).WithIPv6UnicastEnabled(true).WithGracefulRestart(true)
 }
 
-func AddLoopback(t *testing.T, topo *ondatra.ATETopology, port, loopback_prefix string) {
+// AddLoopback, adds loopback
+func AddLoopback(t *testing.T, topo *ondatra.ATETopology, port, loopbackPrefix string) {
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
 	}
-	intfs[port].WithIPv4Loopback(loopback_prefix)
-}
-func AddIpv4Network(t *testing.T, topo *ondatra.ATETopology, port, network_name, address_CIDR string, count uint32) {
-	intfs := topo.Interfaces()
-	if len(intfs) == 0 {
-		t.Fatal("There are no interfaces in the Topology")
-	}
-	intfs[port].AddNetwork(network_name).IPv4().WithAddress(address_CIDR).WithCount(count)
-}
-func AddIpv6Network(t *testing.T, topo *ondatra.ATETopology, port, network_name, address_CIDR string, count uint32) {
-	intfs := topo.Interfaces()
-	if len(intfs) == 0 {
-		t.Fatal("There are no interfaces in the Topology")
-	}
-	intfs[port].AddNetwork(network_name).IPv6().WithAddress(address_CIDR).WithCount(count)
+	intfs[port].WithIPv4Loopback(loopbackPrefix)
 }
 
+// AddIpv4Network, adds Ipv4 Address
+func AddIpv4Network(t *testing.T, topo *ondatra.ATETopology, port, networkName, addressCIDR string, count uint32) {
+	intfs := topo.Interfaces()
+	if len(intfs) == 0 {
+		t.Fatal("There are no interfaces in the Topology")
+	}
+	intfs[port].AddNetwork(networkName).IPv4().WithAddress(addressCIDR).WithCount(count)
+}
+
+// AddIpv6Network, adds Ipv4 Address
+func AddIpv6Network(t *testing.T, topo *ondatra.ATETopology, port, networkName, addressCIDR string, count uint32) {
+	intfs := topo.Interfaces()
+	if len(intfs) == 0 {
+		t.Fatal("There are no interfaces in the Topology")
+	}
+	intfs[port].AddNetwork(networkName).IPv6().WithAddress(addressCIDR).WithCount(count)
+}
+
+// GetBoundedFlow, returns BoundedFlow
 func GetBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopology, srcPort, dstPort, srcNetwork, dstNetwork, flowName string, dscp uint8, ttl ...uint8) *ondatra.Flow {
 
 	intfs := topo.Interfaces()
@@ -287,11 +303,12 @@ func GetBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopol
 	return flow
 }
 
-func GetIpv4Acl(name string, sequenceId uint32, dscp, hopLimit uint8, action telemetry.E_Acl_FORWARDING_ACTION) *telemetry.Acl {
+//GetIpv4Acl, returns Ipv4 ACL
+func GetIpv4Acl(name string, sequenceID uint32, dscp, hopLimit uint8, action telemetry.E_Acl_FORWARDING_ACTION) *telemetry.Acl {
 
 	acl := (&telemetry.Device{}).GetOrCreateAcl()
 	aclSet := acl.GetOrCreateAclSet(name, telemetry.Acl_ACL_TYPE_ACL_IPV4)
-	aclEntry := aclSet.GetOrCreateAclEntry(sequenceId)
+	aclEntry := aclSet.GetOrCreateAclEntry(sequenceID)
 	aclEntryIpv4 := aclEntry.GetOrCreateIpv4()
 	aclEntryIpv4.Dscp = ygot.Uint8(dscp)
 	aclEntryIpv4.HopLimit = ygot.Uint8(hopLimit)
@@ -300,6 +317,7 @@ func GetIpv4Acl(name string, sequenceId uint32, dscp, hopLimit uint8, action tel
 	return acl
 }
 
+// AddIpv6Address, adds ipv6 address
 func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Interface_Subinterface {
 	s := &telemetry.Interface_Subinterface{}
 	s.Index = ygot.Uint32(index)

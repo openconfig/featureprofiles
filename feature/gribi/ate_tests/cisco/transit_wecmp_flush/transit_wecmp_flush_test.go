@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package transit_wecmp_flush
+package transitwecmpflush
 
 import (
 	"context"
@@ -303,11 +303,11 @@ func getDSCPFlow(t *testing.T, atePorts map[string]*ondatra.Interface, ate *onda
 	return flow
 }
 
-func checkTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, flow_duration time.Duration, flow ...*ondatra.Flow) {
+func checkTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, flowDuration time.Duration, flow ...*ondatra.Flow) {
 	ate.Traffic().Start(t, flow...)
 	defer ate.Traffic().Stop(t)
 
-	time.Sleep(flow_duration * time.Second)
+	time.Sleep(flowDuration * time.Second)
 
 	stats := ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
@@ -1331,12 +1331,12 @@ func testSameForwardingEntriesAcrossMultipleVrfs(t *testing.T, args *testArgs) {
 	topology.StartProtocols(t)
 	defer topology.StopProtocols(t)
 
-	dscp16Flow_vrf_TE := getDSCPFlow(t, portMaps, ate, "DSCP16_vrf_TE", 1, 16, "12.11.11.12", "1/3")
-	dscp10Flow_vrf_TE := getDSCPFlow(t, portMaps, ate, "DSCP10_vrf_TE", 1, 10, "12.11.11.11", "1/2")
-	dscp18Flow1_vrf_VRF1 := getDSCPFlow(t, portMaps, ate, "DSCP16_vrf_VRF1", 1, 18, "12.11.11.12", "1/3")
-	dscp18Flow2_vrf_VRF1 := getDSCPFlow(t, portMaps, ate, "DSCP10_vrf_VRF1", 1, 18, "12.11.11.11", "1/2")
+	dscp16FlowVrfTE := getDSCPFlow(t, portMaps, ate, "DSCP16_vrf_TE", 1, 16, "12.11.11.12", "1/3")
+	dscp10FlowVrfTE := getDSCPFlow(t, portMaps, ate, "DSCP10_vrf_TE", 1, 10, "12.11.11.11", "1/2")
+	dscp18Flow1VrfVRF1 := getDSCPFlow(t, portMaps, ate, "DSCP16_vrf_VRF1", 1, 18, "12.11.11.12", "1/3")
+	dscp18Flow2VrfVRF1 := getDSCPFlow(t, portMaps, ate, "DSCP10_vrf_VRF1", 1, 18, "12.11.11.11", "1/2")
 
-	checkTrafficFlows(t, ate, 60, dscp16Flow_vrf_TE, dscp10Flow_vrf_TE, dscp18Flow1_vrf_VRF1, dscp18Flow2_vrf_VRF1)
+	checkTrafficFlows(t, ate, 60, dscp16FlowVrfTE, dscp10FlowVrfTE, dscp18Flow1VrfVRF1, dscp18Flow2VrfVRF1)
 }
 
 // Transit-11: Next Hop resoultion with interface in different VRF of NH_network_instance
@@ -1840,13 +1840,13 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 		)
 	}
 	//Flap interfaces
-	interface_names := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
-	for _, interface_name := range interface_names {
-		util.SetInterfaceState(t, args.dut, interface_name, false)
+	interfaceNames := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
+	for _, interfaceName := range interfaceNames {
+		util.SetInterfaceState(t, args.dut, interfaceName, false)
 	}
 	time.Sleep(30 * time.Second)
-	for _, interface_name := range interface_names {
-		util.SetInterfaceState(t, args.dut, interface_name, true)
+	for _, interfaceName := range interfaceNames {
+		util.SetInterfaceState(t, args.dut, interfaceName, true)
 	}
 
 	ops = []func(){
@@ -2933,7 +2933,7 @@ func testChangePeerAddress(t *testing.T, args *testArgs) {
 }
 
 // Transit- LC OIR
-func testLC_OIR(t *testing.T, args *testArgs) {
+func testLCOIR(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
 	fluentC1 := args.c1.Fluent(t)
 	defer util.FlushServer(fluentC1, t)
@@ -3061,23 +3061,23 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 	topo := getIXIATopology(t, "ate")
 
 	//flow with dscp=48, ttl=100
-	dscpTtlFlow := util.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "network101", "network102", "dscpTtlFlow", 48, 100)
+	dscpTTLFlow := util.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "network101", "network102", "dscpTtlFlow", 48, 100)
 	//add acl with dscp=48, ttl=99. Transit traffic will have ttl decremented by 1
 	aclName := "ttl_dscp"
 	aclConfig := util.GetIpv4Acl(aclName, 10, 48, 99, telemetry.Acl_FORWARDING_ACTION_ACCEPT)
 	args.dut.Config().Acl().Update(t, aclConfig)
 	//apply egress acl on all interfaces of interest
-	interface_names := []string{"Bundle-Ether120", "Bundle-Ether121"}
-	for _, interface_name := range interface_names {
-		args.dut.Config().Acl().Interface(interface_name).EgressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).SetName().Update(t, aclName)
+	interfaceNames := []string{"Bundle-Ether120", "Bundle-Ether121"}
+	for _, interfaceName := range interfaceNames {
+		args.dut.Config().Acl().Interface(interfaceName).EgressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).SetName().Update(t, aclName)
 	}
 
 	// Verify traffic passes through ACL - allowing same DSCP and TTL decremented by 1
-	performATEActionForMultipleFlows(t, "ate", true, 0.99, dscpTtlFlow)
+	performATEActionForMultipleFlows(t, "ate", true, 0.99, dscpTTLFlow)
 
 	//remove acl from interfaces
-	for _, interface_name := range interface_names {
-		args.dut.Config().Acl().Interface(interface_name).EgressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
+	for _, interfaceName := range interfaceNames {
+		args.dut.Config().Acl().Interface(interfaceName).EgressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
 	}
 	//delete acl
 	args.dut.Config().Acl().AclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
@@ -3229,26 +3229,26 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 		)
 	}
 	//Change interface configurations and revert back
-	interface_names := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
+	interfaceNames := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
 	//Store current config
-	originalInterfaces := util.GetCopyOfIpv4SubInterfaces(t, args.dut, interface_names, 0)
+	originalInterfaces := util.GetCopyOfIpv4SubInterfaces(t, args.dut, interfaceNames, 0)
 	//Change IP addresses for the interfaces in the slice
 	initialIp := "123.123.123.123"
 	counter := 1
-	for _, interface_name := range interface_names {
+	for _, interfaceName := range interfaceNames {
 		ipPrefix := util.GetIPPrefix(initialIp, counter, "24")
 		initialIp = strings.Split(ipPrefix, "/")[0]
-		args.dut.Config().Interface(interface_name).Subinterface(0).Replace(t, util.GetSubInterface(initialIp, 24, 0))
-		t.Logf("Changed configuration of interface %s", interface_name)
+		args.dut.Config().Interface(interfaceName).Subinterface(0).Replace(t, util.GetSubInterface(initialIp, 24, 0))
+		t.Logf("Changed configuration of interface %s", interfaceName)
 		counter = counter + 256
 
 	}
 	//Revert original config
-	for _, interface_name := range interface_names {
-		osi := originalInterfaces[interface_name]
+	for _, interfaceName := range interfaceNames {
+		osi := originalInterfaces[interfaceName]
 		osi.Index = ygot.Uint32(0)
-		args.dut.Config().Interface(interface_name).Subinterface(0).Replace(t, osi)
-		t.Logf("Restored configuration of interface %s", interface_name)
+		args.dut.Config().Interface(interfaceName).Subinterface(0).Replace(t, osi)
+		t.Logf("Restored configuration of interface %s", interfaceName)
 	}
 	//Config change end
 	ops = []func(){
@@ -3803,7 +3803,7 @@ func TestTransitWECMPFlush(t *testing.T) {
 		{
 			name: "LC_OIR",
 			desc: "Transit- LC OIR",
-			fn:   testLC_OIR,
+			fn:   testLCOIR,
 		},
 		{
 			name: "DataPlaneFieldsOverGribiTransitFwdingEntry",
