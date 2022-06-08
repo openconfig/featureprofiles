@@ -13,7 +13,7 @@ var (
 		63,
 	}
 	testDscpSetInput [][]uint8 = [][]uint8{
-		[]uint8{
+		{
 			30,
 			56,
 			26,

@@ -16,7 +16,7 @@ var (
 		oc.UnionUint16(62616),
 	}
 	testTcpFlagsInput [][]oc.E_PacketMatchTypes_TCP_FLAGS = [][]oc.E_PacketMatchTypes_TCP_FLAGS{
-		[]oc.E_PacketMatchTypes_TCP_FLAGS{
+		{
 			oc.E_PacketMatchTypes_TCP_FLAGS(1), //TCP_ACK
 			oc.E_PacketMatchTypes_TCP_FLAGS(3), //TCP_ECE
 			oc.E_PacketMatchTypes_TCP_FLAGS(2), //TCP_CWR
