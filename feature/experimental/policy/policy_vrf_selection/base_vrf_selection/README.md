@@ -1,4 +1,4 @@
-# TE-4.1: Base Leader Election
+# RT-3.1: Policy based VRF selection
 
 ## Testcase summary
 
