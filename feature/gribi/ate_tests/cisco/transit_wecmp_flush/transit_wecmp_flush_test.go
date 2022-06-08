@@ -3233,12 +3233,12 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	//Store current config
 	originalInterfaces := util.GetCopyOfIpv4SubInterfaces(t, args.dut, interfaceNames, 0)
 	//Change IP addresses for the interfaces in the slice
-	initialIp := "123.123.123.123"
+	initialIP := "123.123.123.123"
 	counter := 1
 	for _, interfaceName := range interfaceNames {
-		ipPrefix := util.GetIPPrefix(initialIp, counter, "24")
-		initialIp = strings.Split(ipPrefix, "/")[0]
-		args.dut.Config().Interface(interfaceName).Subinterface(0).Replace(t, util.GetSubInterface(initialIp, 24, 0))
+		ipPrefix := util.GetIPPrefix(initialIP, counter, "24")
+		initialIP = strings.Split(ipPrefix, "/")[0]
+		args.dut.Config().Interface(interfaceName).Subinterface(0).Replace(t, util.GetSubInterface(initialIP, 24, 0))
 		t.Logf("Changed configuration of interface %s", interfaceName)
 		counter = counter + 256
 
