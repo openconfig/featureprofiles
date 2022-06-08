@@ -82,41 +82,6 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
 }
 
-func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-
-	t.Log("Remove Flowspec Config and add HW Module Config")
-	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
-	util.GNMIWithText(ctx, t, dut, configToChange)
-
-	t.Log("Configure PBR policy and Apply it under interface")
-	configbasePBR(t, dut)
-	dut.Config().NetworkInstance("default").PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
-
-	t.Log("Reload the router to activate hw module config")
-	util.ReloadDUT(t, dut)
-
-}
-
-func generatePhysicalInterfaceConfig(t *testing.T, name, ipv4 string, prefixlen uint8) *telemetry.Interface {
-	i := &telemetry.Interface{}
-	i.Name = ygot.String(name)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
-	s := i.GetOrCreateSubinterface(0)
-	s4 := s.GetOrCreateIpv4()
-	a := s4.GetOrCreateAddress(ipv4)
-	a.PrefixLength = ygot.Uint8(prefixlen)
-	return i
-}
-
-func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *telemetry.Interface {
-	i := &telemetry.Interface{Name: ygot.String(name)}
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
-	e := i.GetOrCreateEthernet()
-	e.AutoNegotiate = ygot.Bool(false)
-	e.AggregateId = ygot.String(bundleID)
-	return i
-}
-
 func getIXIATopology(t *testing.T, ateName string) *ondatra.ATETopology {
 	topo, ok := ixiaTopology[ateName]
 	if !ok {
