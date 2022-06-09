@@ -10,11 +10,11 @@ require (
 	github.com/openconfig/gnoi v0.0.0-20220131192435-7dd3a95a4f1e
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.0.0
-	github.com/openconfig/gribi v0.1.1-0.20220126144445-1634932f9fd8
-	github.com/openconfig/gribigo v0.0.0-20220315144647-df51e0795a27
-	github.com/openconfig/ondatra v0.0.0-20220527172056-d31d97bd400c
+	github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56
+	github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e
+	github.com/openconfig/ondatra v0.0.0-20220606180527-d76c2ca7e49a
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
-	github.com/openconfig/ygot v0.21.0
+	github.com/openconfig/ygot v0.22.1
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220131092820-39736dd543b4
 	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
