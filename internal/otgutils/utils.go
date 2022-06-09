@@ -351,16 +351,6 @@ func PrintMetricsTable(opts *MetricsTableOpts) {
 	log.Println(out)
 }
 
-func CleanupTest(t *testing.T, ate *ondatra.ATEDevice, otg *ondatra.OTG, stopProtocols bool, stopTraffic bool) {
-	if stopTraffic {
-		otg.StopTraffic(t)
-	}
-	if stopProtocols {
-		otg.StopProtocols(t)
-	}
-	otg.PushConfig(t, otg.NewConfig(t))
-}
-
 func WatchFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, opts *WaitForOpts) error {
 	start := time.Now()
 	for {
@@ -378,68 +368,6 @@ func WatchFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, opts *W
 		}
 		time.Sleep(opts.Interval)
 	}
-}
-
-func PrintStatesTable(opts *StatesTableOpts) {
-	if opts == nil {
-		return
-	}
-	out := "\n"
-
-	if opts.Ipv4NeighborsStates != nil {
-		border := strings.Repeat("-", 25*3+5)
-		out += "\nIPv4 Neighbors States\n" + border + "\n"
-		out += fmt.Sprintf(
-			"%-25s%-25s%-25s\n",
-			"Ethernet Name", "IPv4 Address", "Link Layer Address",
-		)
-		for _, state := range opts.Ipv4NeighborsStates.Items() {
-			if state != nil {
-				ethernetName := state.EthernetName()
-				ipv4Address := state.Ipv4Address()
-				linkLayerAddress := ""
-				if state.HasLinkLayerAddress() {
-					linkLayerAddress = state.LinkLayerAddress()
-				}
-
-				out += fmt.Sprintf(
-					"%-25v%-25v%-25v\n",
-					ethernetName, ipv4Address, linkLayerAddress,
-				)
-			}
-		}
-		out += border + "\n\n"
-	}
-
-	if opts.Ipv6NeighborsStates != nil {
-		border := strings.Repeat("-", 35*3+5)
-		out += "\nIPv6 Neighbors States\n" + border + "\n"
-		out += fmt.Sprintf(
-			"%-25s%-55s%-55s\n",
-			"Ethernet Name", "IPv6 Address", "Link Layer Address",
-		)
-		for _, state := range opts.Ipv6NeighborsStates.Items() {
-			if state != nil {
-				ethernetName := state.EthernetName()
-				ipv6Address := state.Ipv6Address()
-				linkLayerAddress := ""
-				if state.HasLinkLayerAddress() {
-					linkLayerAddress = state.LinkLayerAddress()
-				}
-
-				out += fmt.Sprintf(
-					"%-25v%-55v%-55v\n",
-					ethernetName, ipv6Address, linkLayerAddress,
-				)
-			}
-		}
-		out += border + "\n\n"
-	}
-
-	if opts.ClearPrevious {
-		ClearScreen()
-	}
-	log.Println(out)
 }
 
 func expectedElementsPresent(expected, actual []string) bool {

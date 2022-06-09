@@ -127,66 +127,6 @@ func GetBgpv6Metrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnapp
 	return metrics, nil
 }
 
-func GetIPv4NeighborStates(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.StatesResponseNeighborsv4StateIter, error) {
-	defer Timer(time.Now(), "Getting IPv4 Neighbor states GNMI")
-	ethNeighborMap := make(map[string][]string)
-	ethernetNames := []string{}
-	for _, d := range c.Devices().Items() {
-		for _, eth := range d.Ethernets().Items() {
-			ethernetNames = append(ethernetNames, eth.Name())
-			if _, found := ethNeighborMap[eth.Name()]; !found {
-				ethNeighborMap[eth.Name()] = []string{}
-			}
-			for _, ipv4Address := range eth.Ipv4Addresses().Items() {
-				ethNeighborMap[eth.Name()] = append(ethNeighborMap[eth.Name()], ipv4Address.Gateway())
-			}
-		}
-	}
-
-	states := gosnappi.NewApi().NewGetStatesResponse().StatusCode200().Ipv4Neighbors()
-	for _, ethernetName := range ethernetNames {
-		log.Printf("Fetching IPv4 Neighbor states for ethernet: %v", ethernetName)
-		for _, address := range ethNeighborMap[ethernetName] {
-			recvState := otg.Telemetry().Interface(ethernetName).Ipv4Neighbor(address).Get(t)
-			states.Add().
-				SetEthernetName(ethernetName).
-				SetIpv4Address(recvState.GetIpv4Address()).
-				SetLinkLayerAddress(recvState.GetLinkLayerAddress())
-		}
-	}
-	return states, nil
-}
-
-func GetIPv6NeighborStates(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.StatesResponseNeighborsv6StateIter, error) {
-	defer Timer(time.Now(), "Getting IPv6 Neighbor states GNMI")
-	ethNeighborMap := make(map[string][]string)
-	ethernetNames := []string{}
-	for _, d := range c.Devices().Items() {
-		for _, eth := range d.Ethernets().Items() {
-			ethernetNames = append(ethernetNames, eth.Name())
-			if _, found := ethNeighborMap[eth.Name()]; !found {
-				ethNeighborMap[eth.Name()] = []string{}
-			}
-			for _, ipv6Address := range eth.Ipv6Addresses().Items() {
-				ethNeighborMap[eth.Name()] = append(ethNeighborMap[eth.Name()], ipv6Address.Gateway())
-			}
-		}
-	}
-
-	states := gosnappi.NewApi().NewGetStatesResponse().StatusCode200().Ipv6Neighbors()
-	for _, ethernetName := range ethernetNames {
-		log.Printf("Fetching IPv6 Neighbor states for ethernet: %v", ethernetName)
-		for _, address := range ethNeighborMap[ethernetName] {
-			recvState := otg.Telemetry().Interface(ethernetName).Ipv6Neighbor(address).Get(t)
-			states.Add().
-				SetEthernetName(ethernetName).
-				SetIpv6Address(recvState.GetIpv6Address()).
-				SetLinkLayerAddress(recvState.GetLinkLayerAddress())
-		}
-	}
-	return states, nil
-}
-
 func GetIPv4NeighborMacEntry(t *testing.T, interfaceName string, ipAddress string, otg *ondatra.OTG) (string, error) {
 	entries := otg.Telemetry().Interface(interfaceName).Ipv4Neighbor(ipAddress).LinkLayerAddress().Get(t)
 	return entries, nil
