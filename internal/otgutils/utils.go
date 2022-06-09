@@ -1,6 +1,8 @@
 package otgutils
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"net"
@@ -389,26 +391,13 @@ func IncrementedMac(mac string, i int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	addTo := [6]int{0, 0, 0, 0, 0, 0}
-	for j := len(macAddr) - 1; j >= 0; j-- {
-		val := 0
-		if j == 5 {
-			val = i + int(macAddr[j])
-			addTo[j] = val / 256
-			if addTo[j] < 256 {
-				macAddr[j] = byte(val)
-			} else {
-				macAddr[j] = byte(val % 256)
-			}
-		} else {
-			val = addTo[j+1] + int(macAddr[j])
-			if val < 256 {
-				macAddr[j] = byte(val)
-			} else {
-				addTo[j] = val / 256
-				macAddr[j] = byte(val % 256)
-			}
-		}
+	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
+	convMac = convMac + uint64(i)
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, convMac)
+	if err != nil {
+		return "", err
 	}
-	return macAddr.String(), nil
+	newMac := net.HardwareAddr(buf.Bytes()[2:8])
+	return newMac.String(), nil
 }
