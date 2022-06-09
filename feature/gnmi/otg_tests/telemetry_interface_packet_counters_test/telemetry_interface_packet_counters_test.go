@@ -239,6 +239,9 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	t.Logf("inPkts: %v and outPkts: %v before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
+
+	helpers.WaitForArpEntries(t, otg, "ipv4", &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second})
+	helpers.WaitForArpEntries(t, otg, "ipv6", &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second})
 	otg.StartTraffic(t)
 	err := helpers.WatchFlowMetrics(t, otg, config, &helpers.WaitForOpts{Interval: 2 * time.Second, Timeout: 10 * time.Second})
 	if err != nil {
@@ -261,6 +264,10 @@ func TestIntfCounterUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error while getting the port metrics")
 	}
+	helpers.PrintMetricsTable(&helpers.MetricsTableOpts{
+		ClearPrevious:  false,
+		AllPortMetrics: pMetrics,
+	})
 	for _, port := range pMetrics.Items() {
 		if port.Link() != gosnappi.PortMetricLinkEnum("up") {
 			t.Errorf("Get(ATE %v status): got %v, want %v", port.Name(), port.Link(), "up")
