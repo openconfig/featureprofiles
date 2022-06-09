@@ -191,8 +191,6 @@ func TestIntfCounterUpdate(t *testing.T) {
 	ip6_2 := eth2.Ipv6Addresses().Add().SetName(intf2.Name() + ".ipv6").
 		SetAddress("2001:DB8::6").SetGateway("2001:DB8::5").
 		SetPrefix(126)
-	otg.PushConfig(t, config)
-	otg.StartProtocols(t)
 
 	flowipv4 := config.Flows().Add().SetName("ipv4_test_flow")
 	flowipv4.Metrics().SetEnable(true)
@@ -220,6 +218,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	v6.Src().SetValue(ip6_1.Address())
 	v6.Dst().SetValue(ip6_2.Address())
 	otg.PushConfig(t, config)
+	otg.StartProtocols(t)
 
 	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
 	i1 := dut.Telemetry().Interface(dp1.Name())
