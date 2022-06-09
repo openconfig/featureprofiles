@@ -24,7 +24,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -335,7 +335,7 @@ func verifyPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, policy string) 
 
 // configureOTG configures the interfaces and BGP protocols on an OTG, including advertising some
 // (faked) networks over BGP.
-func configureOTG(t *testing.T, otg *ondatra.OTG, expectedRoutes int32) (gosnappi.Config, helpers.ExpectedState) {
+func configureOTG(t *testing.T, otg *ondatra.OTG, expectedRoutes int32) (gosnappi.Config, otgutils.ExpectedState) {
 
 	config := otg.NewConfig(t)
 	srcPort := config.Ports().Add().SetName("port1")
@@ -462,16 +462,16 @@ func configureOTG(t *testing.T, otg *ondatra.OTG, expectedRoutes int32) (gosnapp
 	v6.Src().SetValue(srcIpv6.Address())
 	v6.Dst().Increment().SetStart(strings.Split(advertisedRoutesv6CIDR, "/")[0]).SetCount(routeCount)
 
-	expected := helpers.ExpectedState{
-		Bgp4: map[string]helpers.ExpectedBgpMetrics{
+	expected := otgutils.ExpectedState{
+		Bgp4: map[string]otgutils.ExpectedBgpMetrics{
 			srcBgp4Peer.Name(): {Advertised: 0, Received: expectedRoutes},
 			dstBgp4Peer.Name(): {Advertised: routeCount, Received: 0},
 		},
-		Bgp6: map[string]helpers.ExpectedBgpMetrics{
+		Bgp6: map[string]otgutils.ExpectedBgpMetrics{
 			srcBgp6Peer.Name(): {Advertised: 0, Received: expectedRoutes},
 			dstBgp6Peer.Name(): {Advertised: routeCount, Received: 0},
 		},
-		Flow: map[string]helpers.ExpectedFlowMetrics{
+		Flow: map[string]otgutils.ExpectedFlowMetrics{
 			flowipv4.Name(): {FramesRx: 0, FramesRxRate: 0},
 			flowipv6.Name(): {FramesRx: 0, FramesRxRate: 0},
 		},
@@ -487,12 +487,12 @@ func configureOTG(t *testing.T, otg *ondatra.OTG, expectedRoutes int32) (gosnapp
 // depending on wantLoss, +- 2%)
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, wantLoss bool) {
 	otg := ate.OTG()
-	fMetrics, err := helpers.GetFlowMetrics(t, otg, c)
+	fMetrics, err := otgutils.GetFlowMetrics(t, otg, c)
 	if err != nil {
 		t.Fatal("Error while getting the flow metrics")
 	}
 
-	helpers.PrintMetricsTable(&helpers.MetricsTableOpts{
+	otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
 		ClearPrevious: false,
 		FlowMetrics:   fMetrics,
 	})
@@ -522,7 +522,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, want
 func sendTraffic(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
-	err := helpers.WatchFlowMetrics(t, otg, c, &helpers.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
+	err := otgutils.WatchFlowMetrics(t, otg, c, &otgutils.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
 	if err != nil {
 		log.Println(err)
 	}
@@ -534,12 +534,12 @@ func verifyOtgBgpDown(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) {
 	otg := ate.OTG()
 	exit := true
 	for exit {
-		dMetrics, err := helpers.GetBgpv4Metrics(t, otg, c)
+		dMetrics, err := otgutils.GetBgpv4Metrics(t, otg, c)
 		if err != nil {
 			t.Errorf("Failed to retrieve OTG BGP stats")
 			exit = false
 		}
-		helpers.PrintMetricsTable(&helpers.MetricsTableOpts{
+		otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
 			ClearPrevious: false,
 			Bgpv4Metrics:  dMetrics,
 		})
@@ -591,8 +591,8 @@ func TestEstablish(t *testing.T) {
 	verifyBgpTelemetry(t, dut)
 
 	t.Logf("Check BGP sessions on OTG")
-	helpers.WaitFor(t, func() (bool, error) { return helpers.AllBgp4SessionUp(t, otg, otgConfig, otgExpected) }, nil)
-	helpers.WaitFor(t, func() (bool, error) { return helpers.AllBgp6SessionUp(t, otg, otgConfig, otgExpected) }, nil)
+	otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4SessionUp(t, otg, otgConfig, otgExpected) }, nil)
+	otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6SessionUp(t, otg, otgConfig, otgExpected) }, nil)
 
 	// Starting ATE Traffic and verify Traffic Flows and packet loss
 	sendTraffic(t, otg, otgConfig)
@@ -676,8 +676,8 @@ func TestBGPPolicy(t *testing.T) {
 			dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
 			// Send and verify traffic.
 
-			helpers.WaitFor(t, func() (bool, error) { return helpers.AllBgp4SessionUp(t, otg, otgConfig, otgExpected) }, nil)
-			helpers.WaitFor(t, func() (bool, error) { return helpers.AllBgp6SessionUp(t, otg, otgConfig, otgExpected) }, nil)
+			otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4SessionUp(t, otg, otgConfig, otgExpected) }, nil)
+			otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6SessionUp(t, otg, otgConfig, otgExpected) }, nil)
 			sendTraffic(t, otg, otgConfig)
 			verifyTraffic(t, ate, otgConfig, tc.wantLoss)
 

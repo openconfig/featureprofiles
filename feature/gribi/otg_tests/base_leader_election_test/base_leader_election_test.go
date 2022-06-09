@@ -26,7 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -170,7 +170,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	// srcEndPoint is atePort1
 	otg := ate.OTG()
 	gwIp := inputMap[srcEndPoint].IPv4
-	dstMac, _ := helpers.GetIPv4NeighborMacEntry(t, srcEndPoint.Name+".eth", gwIp, otg)
+	dstMac, _ := otgutils.GetIPv4NeighborMacEntry(t, srcEndPoint.Name+".eth", gwIp, otg)
 	config.Flows().Clear().Items()
 	flowipv4 := config.Flows().Add().SetName("Flow")
 	flowipv4.Metrics().SetEnable(true)
@@ -190,27 +190,27 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
-	err := helpers.WatchFlowMetrics(t, otg, config, &helpers.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
+	err := otgutils.WatchFlowMetrics(t, otg, config, &otgutils.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
 	if err != nil {
 		log.Println(err)
 	}
 	t.Logf("Stop traffic")
 	otg.StopTraffic(t)
 
-	pMetrics, err := helpers.GetAllPortMetrics(t, otg, config)
+	pMetrics, err := otgutils.GetAllPortMetrics(t, otg, config)
 	if err != nil {
 		t.Fatal("Error while getting the port metrics")
 	}
-	helpers.PrintMetricsTable(&helpers.MetricsTableOpts{
+	otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
 		ClearPrevious:  false,
 		AllPortMetrics: pMetrics,
 	})
 
-	fMetrics, err := helpers.GetFlowMetrics(t, otg, config)
+	fMetrics, err := otgutils.GetFlowMetrics(t, otg, config)
 	if err != nil {
 		t.Fatal("Error while getting the flow metrics")
 	}
-	helpers.PrintMetricsTable(&helpers.MetricsTableOpts{
+	otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
 		ClearPrevious: false,
 		FlowMetrics:   fMetrics,
 	})

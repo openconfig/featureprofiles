@@ -21,7 +21,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -239,10 +239,10 @@ func TestIntfCounterUpdate(t *testing.T) {
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	t.Logf("inPkts: %v and outPkts: %v before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 
-	helpers.WaitForArpEntries(t, otg, "ipv4", &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second})
-	helpers.WaitForArpEntries(t, otg, "ipv6", &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second})
+	otgutils.WaitForArpEntries(t, otg, "ipv4", &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second})
+	otgutils.WaitForArpEntries(t, otg, "ipv6", &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second})
 	otg.StartTraffic(t)
-	err := helpers.WatchFlowMetrics(t, otg, config, &helpers.WaitForOpts{Interval: 2 * time.Second, Timeout: 10 * time.Second})
+	err := otgutils.WatchFlowMetrics(t, otg, config, &otgutils.WaitForOpts{Interval: 2 * time.Second, Timeout: 10 * time.Second})
 	if err != nil {
 		log.Println(err)
 	}
@@ -259,11 +259,11 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 
 	// Verifying the ate port link state
-	pMetrics, err := helpers.GetAllPortMetrics(t, ate.OTG(), config)
+	pMetrics, err := otgutils.GetAllPortMetrics(t, ate.OTG(), config)
 	if err != nil {
 		t.Fatal("Error while getting the port metrics")
 	}
-	helpers.PrintMetricsTable(&helpers.MetricsTableOpts{
+	otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
 		ClearPrevious:  false,
 		AllPortMetrics: pMetrics,
 	})
@@ -274,12 +274,12 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 
 	// Getting the otg flow metrics
-	fMetrics, err := helpers.GetFlowMetrics(t, otg, config)
+	fMetrics, err := otgutils.GetFlowMetrics(t, otg, config)
 	if err != nil {
 		t.Fatal("Error while getting the flow metrics")
 	}
 
-	helpers.PrintMetricsTable(&helpers.MetricsTableOpts{
+	otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
 		ClearPrevious: false,
 		FlowMetrics:   fMetrics,
 	})

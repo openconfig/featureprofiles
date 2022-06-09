@@ -24,7 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 
@@ -279,9 +279,9 @@ func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned b
 		}
 	}
 
-	err := helpers.WaitFor(
+	err := otgutils.WaitFor(
 		t,
-		func() (bool, error) { return helpers.ArpEntriesOk(t, otg, ipType, expectedMacEntries) }, nil,
+		func() (bool, error) { return otgutils.ArpEntriesOk(t, otg, ipType, expectedMacEntries) }, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -348,7 +348,7 @@ func testFlow(
 
 	// Starting the traffic
 	otg.StartTraffic(t)
-	err := helpers.WatchFlowMetrics(t, otg, config, &helpers.WaitForOpts{Interval: 1 * time.Second, Timeout: 5 * time.Second})
+	err := otgutils.WatchFlowMetrics(t, otg, config, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 5 * time.Second})
 	if err != nil {
 		log.Println(err)
 	}
@@ -356,12 +356,12 @@ func testFlow(
 	otg.StopTraffic(t)
 
 	// Get the flow statistics
-	fMetrics, err := helpers.GetFlowMetrics(t, otg, config)
+	fMetrics, err := otgutils.GetFlowMetrics(t, otg, config)
 	if err != nil {
 		t.Fatal("Error while getting the flow metrics")
 	}
 
-	helpers.PrintMetricsTable(&helpers.MetricsTableOpts{
+	otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
 		ClearPrevious: false,
 		FlowMetrics:   fMetrics,
 	})

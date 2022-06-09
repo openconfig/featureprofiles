@@ -25,7 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
@@ -273,7 +273,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	for i, p := range tc.atePorts[1:] {
 		port := tc.top.Ports().Add().SetName(p.ID())
 		lagPort := agg.Ports().Add()
-		newMac, _ := helpers.IncrementedMac(ateDst.MAC, i)
+		newMac, _ := otgutils.IncrementedMac(ateDst.MAC, i)
 		lagPort.SetPortName(port.Name()).
 			Ethernet().SetMac(newMac).
 			SetName("LagRx-" + strconv.Itoa(i))
@@ -370,7 +370,7 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 func (tc *testCase) verifyATE(t *testing.T) {
 	ap := tc.atePorts[0]
 
-	pMetrics, err := helpers.GetAllPortMetrics(t, tc.ate.OTG(), tc.top)
+	pMetrics, err := otgutils.GetAllPortMetrics(t, tc.ate.OTG(), tc.top)
 	if err != nil {
 		t.Fatal("Error while getting the port metrics")
 	}
