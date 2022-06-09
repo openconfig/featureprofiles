@@ -14,7 +14,7 @@ const (
 var (
 	testInput = ipb.LoadInput(inputFile)
 	device1   = "dut"
-	observer  = fptest.NewObserver().AddCsvRecorder("ocreport").
+	observer  = fptest.NewObserver("LACP").AddCsvRecorder("ocreport").
 			AddCsvRecorder("LACP")
 )
 

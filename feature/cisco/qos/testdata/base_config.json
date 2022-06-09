@@ -1,0 +1,394 @@
+{
+  "openconfig-qos:buffer-allocation-profiles": {
+    "buffer-allocation-profile": [
+      {
+        "name": "buffer1",
+        "queues": {
+          "queue": [
+            {
+              "name": "q1",
+              "state": {
+                "dedicated-buffer": "2307215526666690834",
+                "dynamic-limit-scaling-factor": 2094232146,
+                "name": "q1",
+                "shared-buffer-limit-type": "openconfig-qos:DYNAMIC_BASED_ON_SCALING_FACTOR",
+                "static-shared-buffer-limit": 4035662753,
+                "use-shared-buffer": false
+              }
+            }
+          ]
+        },
+        "state": {
+          "name": "buffer1"
+        }
+      }
+    ]
+  },
+  "openconfig-qos:classifiers": {
+    "classifier": [
+      {
+        "name": "class1",
+        "state": {
+          "name": "class1",
+          "type": "IPV4"
+        },
+        "terms": {
+          "term": [
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dot1p": 199,
+                    "set-dscp": 8,
+                    "set-mpls-tc": 178
+                  }
+                },
+                "state": {
+                  "target-group": "cici"
+                }
+              },
+              "conditions": {
+                "ipv4": {
+                  "state": {
+                    "destination-address": "1.31.232.9/31",
+                    "dscp": 10,
+                    "dscp-set": [
+                      25,
+                      28,
+                      36,
+                      53,
+                      14
+                    ],
+                    "hop-limit": 45,
+                    "protocol": 217,
+                    "source-address": "206.250.115.249/12"
+                  }
+                },
+                "ipv6": {
+                  "state": {
+                    "destination-address": "Ed:6::1E:b/13",
+                    "destination-flow-label": 104116,
+                    "dscp": 18,
+                    "dscp-set": [
+                      60,
+                      56,
+                      54,
+                      45,
+                      44,
+                      46,
+                      15,
+                      23
+                    ],
+                    "hop-limit": 233,
+                    "protocol": 26,
+                    "source-address": "EFf::F/46",
+                    "source-flow-label": 269373
+                  }
+                },
+                "l2": {
+                  "state": {
+                    "destination-mac": "5a:5a:8e:cA:c6:E4",
+                    "destination-mac-mask": "96:14:Ba:fD:AB:d7",
+                    "ethertype": 57381,
+                    "source-mac": "61:F7:21:2B:de:af",
+                    "source-mac-mask": "eD:F7:B6:cE:80:fE"
+                  }
+                },
+                "mpls": {
+                  "state": {
+                    "end-label-value": 389917,
+                    "start-label-value": 816919,
+                    "traffic-class": 1,
+                    "ttl-value": 241
+                  }
+                },
+                "transport": {
+                  "state": {
+                    "destination-port": "006..13315",
+                    "source-port": 23899,
+                    "tcp-flags": [
+                      "openconfig-packet-match-types:TCP_URG",
+                      "openconfig-packet-match-types:TCP_PSH",
+                      "openconfig-packet-match-types:TCP_RST",
+                      "openconfig-packet-match-types:TCP_CWR"
+                    ]
+                  }
+                }
+              },
+              "id": ":i:aas",
+              "state": {
+                "id": ":i:aas"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "openconfig-qos:forwarding-groups": {
+    "forwarding-group": [
+      {
+        "name": "fgroup1",
+        "state": {
+          "name": "fgroup1"
+        }
+      }
+    ]
+  },
+  "openconfig-qos:interfaces": {
+    "interface": [
+      {
+        "input": {
+          "classifiers": {
+            "classifier": [
+              {
+                "state": {
+                  "name": "a",
+                  "type": "IPV6"
+                },
+                "type": "IPV6"
+              }
+            ]
+          },
+          "queues": {
+            "queue": [
+              {
+                "name": "i",
+                "state": {
+                  "name": "i",
+                  "queue-management-profile": "c:cai"
+                }
+              }
+            ]
+          },
+          "scheduler-policy": {
+            "state": {
+              "name": "s"
+            }
+          },
+          "state": {
+            "buffer-allocation-profile": "aa",
+            "multicast-buffer-allocation-profile": "aa",
+            "unicast-buffer-allocation-profile": "aa"
+          },
+          "virtual-output-queues": {
+            "voq-interface": [
+              {
+                "name": "a",
+                "queues": {
+                  "queue": [
+                    {
+                      "name": ":",
+                      "state": {
+                        "name": ":"
+                      }
+                    }
+                  ]
+                },
+                "state": {
+                  "name": "a"
+                }
+              }
+            ]
+          }
+        },
+        "interface-id": "a",
+        "interface-ref": {
+          "state": {
+            "interface": "a:",
+            "subinterface": 2553058228
+          }
+        },
+        "output": {
+          "classifiers": {
+            "classifier": [
+              {
+                "state": {
+                  "name": "a",
+                  "type": "IPV4_MULTICAST"
+                },
+                "type": "IPV4_MULTICAST"
+              }
+            ]
+          },
+          "interface-ref": {
+            "state": {
+              "interface": "icc",
+              "subinterface": 950348534
+            }
+          },
+          "queues": {
+            "queue": [
+              {
+                "name": ":",
+                "state": {
+                  "name": ":",
+                  "queue-management-profile": "cc"
+                }
+              }
+            ]
+          },
+          "scheduler-policy": {
+            "state": {
+              "name": "c"
+            }
+          },
+          "state": {
+            "buffer-allocation-profile": "aa",
+            "multicast-buffer-allocation-profile": "aa",
+            "unicast-buffer-allocation-profile": "aa"
+          }
+        },
+        "state": {
+          "interface-id": "a"
+        }
+      }
+    ]
+  },
+  "openconfig-qos:queue-management-profiles": {
+    "queue-management-profile": [
+      {
+        "name": "profile1",
+        "red": {
+          "uniform": {
+            "state": {
+              "drop": false,
+              "enable-ecn": false,
+              "max-threshold": "100",
+              "min-threshold": "100000"
+            }
+          }
+        },
+        "state": {
+          "name": "profile1"
+        },
+        "wred": {
+          "uniform": {
+            "state": {
+              "drop": false,
+              "enable-ecn": true,
+              "max-drop-probability-percent": 67,
+              "max-threshold": "14790725557884815052",
+              "min-threshold": "1944141415801712337",
+              "weight": 2488743969
+            }
+          }
+        }
+      }
+    ]
+  },
+  "openconfig-qos:queues": {
+    "queue": [
+      {
+        "name": "q1",
+        "state": {
+          "name": "q1"
+        }
+      }
+    ]
+  },
+  "openconfig-qos:scheduler-policies": {
+    "scheduler-policy": [
+      {
+        "name": "sched1",
+        "schedulers": {
+          "scheduler": [
+            {
+              "inputs": {
+                "input": [
+                  {
+                    "id": "sched1",
+                    "state": {
+                      "id": "sched1",
+                      "input-type": "OUT_PROFILE",
+                      "queue": "q1",
+                      "weight": "13463058327853973018"
+                    }
+                  }
+                ]
+              },
+              "one-rate-two-color": {
+                "conform-action": {
+                  "state": {
+                    "set-dot1p": 50,
+                    "set-dscp": 191,
+                    "set-mpls-tc": 99
+                  }
+                },
+                "exceed-action": {
+                  "state": {
+                    "drop": true,
+                    "set-dot1p": 169,
+                    "set-dscp": 80,
+                    "set-mpls-tc": 221
+                  }
+                },
+                "state": {
+                  "bc": 2114501481,
+                  "cir": "13883268041008033560",
+                  "cir-pct": 9,
+                  "cir-pct-remaining": 76,
+                  "max-queue-depth-bytes": 241981723,
+                  "max-queue-depth-packets": 1114174635,
+                  "max-queue-depth-percent": 95,
+                  "queuing-behavior": "SHAPE"
+                }
+              },
+              "output": {
+                "state": {
+                  "child-scheduler": "::c",
+                  "output-fwd-group": "ca",
+                  "output-type": "INTERFACE"
+                }
+              },
+              "sequence": 2043747280,
+              "state": {
+                "priority": "STRICT",
+                "sequence": 2043747280,
+                "type": "openconfig-qos-types:TWO_RATE_THREE_COLOR"
+              },
+              "two-rate-three-color": {
+                "conform-action": {
+                  "state": {
+                    "set-dot1p": 26,
+                    "set-dscp": 138,
+                    "set-mpls-tc": 164
+                  }
+                },
+                "exceed-action": {
+                  "state": {
+                    "drop": true,
+                    "set-dot1p": 23,
+                    "set-dscp": 11,
+                    "set-mpls-tc": 169
+                  }
+                },
+                "state": {
+                  "bc": 3103856131,
+                  "be": 3669526325,
+                  "cir": "5598293141868961232",
+                  "cir-pct": 29,
+                  "cir-pct-remaining": 3,
+                  "pir": "9487228989671840898",
+                  "pir-pct": 25,
+                  "pir-pct-remaining": 90
+                },
+                "violate-action": {
+                  "state": {
+                    "drop": true,
+                    "set-dot1p": 96,
+                    "set-dscp": 184,
+                    "set-mpls-tc": 243
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "state": {
+          "name": "sched1"
+        }
+      }
+    ]
+  }
+}

@@ -29,10 +29,12 @@ import (
 func TestBootTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	defer observer.RecordYgot(t, "SUBSCRIBE", dut.Telemetry().System().BootTime())
-	bt := dut.Telemetry().System().BootTime().Get(t)
-
+	t.Run("Subscribe//system/state/boot-time", func(t *testing.T) {
+		bt := dut.Telemetry().System().BootTime().Get(t)
+		if bt < 1640131200000000000 {
+			t.Errorf("Unexpected boot timestamp: got %d; check clock", bt)
+		}
+	})
 	// Boot time should be after Dec 22, 2021 00:00:00 GMT in nanoseconds
-	if bt < 1640131200000000000 {
-		t.Errorf("Unexpected boot timestamp: got %d; check clock", bt)
-	}
+
 }

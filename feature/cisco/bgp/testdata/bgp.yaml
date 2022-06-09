@@ -112,9 +112,6 @@ feature:
                   - ALLOW
                 type: IPV4_UNICAST
     interface:
-      - id: $ports.peer_dut_1
-        ipv4_address: 20.20.20.1
-        ipv4_prefix_length: 24
       - name: Bundle-Ether120
         members:
           - $ports.port1
@@ -157,9 +154,4 @@ feature:
         members:
           - $ports.port8
         ipv4_address: 100.127.1.1
-        ipv4_prefix_length: 24
-  peer:
-    interface:
-      - id: $ports.peer_dut_1
-        ipv4_address: 20.20.20.2
         ipv4_prefix_length: 24

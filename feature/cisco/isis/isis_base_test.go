@@ -19,7 +19,7 @@ var (
 	testInput = ipb.LoadInput(inputFile)
 	device1   = "dut"
 	ate       = "ate"
-	observer  = fptest.NewObserver().AddCsvRecorder("ocreport").
+	observer  = fptest.NewObserver("ISIS").AddCsvRecorder("ocreport").
 			AddCsvRecorder("ISIS")
 )
 
