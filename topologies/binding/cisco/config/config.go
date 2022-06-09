@@ -144,12 +144,11 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 			},
 		},
 	}
-	path, _, errs := ygot.ResolvePath(pathStruct)
-	path.Target = ""
-	path.Origin = "openconfig"
-	if errs != nil {
+	path, _, errs := ygot.ResolvePath(pathStruct); if errs != nil {
 		t.Fatalf("Could not resolve the path; %v", errs)
 	}
+	path.Target = ""
+	path.Origin = "openconfig"
 
 	ocJSONVal, err := ygot.Marshal7951(ocVal, ygot.JSONIndent("  "), &ygot.RFC7951JSONConfig{AppendModuleName: true, PreferShadowPath: true})
 	if err != nil {
@@ -180,7 +179,6 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 	return resp
 }
 
-
 type setOperation int
 
 const (
@@ -196,36 +194,77 @@ const (
 	ReplaceCLI
 )
 
-func AppendToSetRequest(req *gpb.SetRequest, path *gpb.Path, val interface{}, op setOperation) error {
-	if req == nil {
-		return fmt.Errorf("cannot populate a nil SetRequest")
+type batchSetRequest struct {
+	req *gpb.SetRequest
+}
+
+type batchRequest interface {
+	Send(ctx context.Context, t *testing.T, path *gpb.Path, val interface{}, op setOperation) error
+	Append(ctx context.Context, t *testing.T, path *gpb.Path, val interface{}, op setOperation) error
+}
+
+func NewBatchSetRequest() *batchSetRequest {
+	return &batchSetRequest{
+		req: &gpb.SetRequest{},
+	}
+}
+func (batch *batchSetRequest) Append(ctx context.Context, t *testing.T, pathStruct ygot.PathStruct, val interface{}, op setOperation)  {
+	t.Helper()
+	if op!= DeleteOC && val== nil {
+		t.Fatalf("Cannot append a nil value to the batch set request")
 	}
 
-	// Keep only the path elements.
-	path = &gpb.Path{Elem: path.Elem}
 	switch op {
 	case DeleteOC:
-		req.Delete = append(req.Delete, path)
+		path, _, errs := ygot.ResolvePath(pathStruct);if errs != nil {
+			t.Fatalf("Could not resolve the path; %v", errs)
+		}
+		path.Target = ""
+		path.Origin = "openconfig"
+		batch.req.Delete = append(batch.req.Delete, path)
+	case ReplaceCLI, UpdateCLI:
+		cfg, ok := val.(string); if ! ok {
+			t.Fatalf("The value for cli Set and Update should be an string",)
+		}
+		textReplaceReq := &gpb.Update{
+			Path: &gpb.Path{Origin: "cli"},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: cfg,
+				},
+			},
+		}
+
+		if op == ReplaceOC {
+			batch.req.Replace = append(batch.req.Replace, textReplaceReq)
+		} else {
+			batch.req.Update = append(batch.req.Update, textReplaceReq)
+		}
 	case ReplaceOC, UpdateOC:
+		path, _, errs := ygot.ResolvePath(pathStruct);if errs != nil {
+			t.Fatalf("Could not resolve the path; %v", errs)
+		}
 		// Since the GoStructs are generated using preferOperationalState, we
 		// need to turn on preferShadowPath to prefer marshalling config paths.
 		js, err := ygot.Marshal7951(val, ygot.JSONIndent("  "), &ygot.RFC7951JSONConfig{AppendModuleName: true, PreferShadowPath: true})
 		if err != nil {
-			return fmt.Errorf("could not encode value into JSON format: %w", err)
+			t.Fatalf("Could not encode value into JSON format: %v", err)
 		}
 		update := &gpb.Update{
 			Path: path,
-			Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{js}},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_JsonIetfVal{
+					JsonIetfVal: js,
+				},
+			},
 		}
 		switch op {
 		case ReplaceOC:
-			req.Replace = append(req.Replace, update)
+			batch.req.Replace = append(batch.req.Replace, update)
 		case UpdateOC:
-			req.Update = append(req.Update, update)
+			batch.req.Update = append(batch.req.Update, update)
 		}
 	}
-
-	return nil
 }
 
 // GNMICommitReplaceWithOC apply the oc config and text config on the device. The result expected to be the merge of both configuations
@@ -275,7 +314,6 @@ func GNMIBatchSet(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg
 	}
 	return resp
 }
-
 
 // copied from Ondatra code
 func prettySetRequest(setRequest *gpb.SetRequest) string {
