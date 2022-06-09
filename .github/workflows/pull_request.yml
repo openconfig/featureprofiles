@@ -73,6 +73,8 @@ jobs:
     name: Check style against CONTRIBUTING.md
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
     - name: IP Addresses Assignment
       run: |
         find . -path ./yang/fpoc -prune -o -name \*.go -exec ./tools/check_ip_addresses.pl \{} +
