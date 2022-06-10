@@ -15,7 +15,6 @@ type Testcase struct {
 	name string
 	desc string
 	fn   func(ctx context.Context, t *testing.T, args *testArgs)
-	skip bool
 }
 
 // testArgs holds the objects needed by a test case.
@@ -158,6 +157,11 @@ var (
 			fn:   testMatchDscpActionVRFRedirect,
 		},
 		{
+			name: "Test Acl And PBR Under Same Interface",
+			desc: "Configure ACL and PBR under same interface and verify functionality",
+			fn:   testAclAndPBRUnderSameInterface,
+		},
+		{
 			name: "Commit replace with PBR config changes",
 			desc: "Unconfig/config with PBR and verify traffic fails/passes",
 			fn:   testRemAddPBRWithGNMIReplace,
@@ -171,11 +175,6 @@ var (
 			name: "Add remove hw-module CLI",
 			desc: "remove/add the pbr policy using hw-module and verify traffic fails/passes",
 			fn:   testRemAddHWModule,
-		},
-		{
-			name: "Test Acl And PBR Under Same Interface",
-			desc: "Configure ACL and PBR under same interface and verify functionality",
-			fn:   testAclAndPBRUnderSameInterface,
 		},
 	}
 )

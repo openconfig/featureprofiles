@@ -3,19 +3,15 @@ package cisco_gribi_test
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"testing"
-	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/gribi/util"
 
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
-	"github.com/openconfig/ygot/ytypes"
-
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 const (
@@ -144,58 +140,6 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 
 }
 
-func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
-	ethHeader := ondatra.NewEthernetHeader()
-	ethHeader.WithSrcAddress("00:11:01:00:00:01")
-	ethHeader.WithDstAddress("00:01:00:02:00:00")
-
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.SrcAddressRange().
-		WithMin("198.51.100.0").
-		WithMax("198.51.100.254").
-		WithCount(250)
-	ipv4Header.WithDSCP(dscp)
-	ipv4Header.DstAddressRange().WithMin(hostIP).WithCount(uint32(scale)).WithStep("0.0.0.1")
-
-	innerIpv6Header := ondatra.NewIPv6Header()
-	innerIpv6Header.WithSrcAddress("1::1")
-	innerIpv6Header.DstAddressRange().WithMin("2::2").WithCount(10000).WithStep("::1")
-	dstEndPoint := []ondatra.Endpoint{}
-
-	for _, v := range allPorts {
-		if *v != *srcEndPoint {
-			dstEndPoint = append(dstEndPoint, v)
-		}
-	}
-
-	flow := ate.Traffic().NewFlow("Flow").
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint...)
-
-	flow.WithFrameSize(300).WithFrameRateFPS(1000).WithHeaders(ethHeader, ipv4Header, innerIpv6Header)
-
-	ate.Traffic().Start(t, flow)
-	time.Sleep(15 * time.Second)
-
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
-		t.Errorf("Flow %s is not working as expected", flow.Name())
-	}
-
-	// tolerance := float64(0.03)
-	// interval := 45 * time.Second
-	// if len(weights) > 0 {
-	// 	CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out[:len(weights)], weights, interval, tolerance)
-	// }
-	ate.Traffic().Stop(t)
-
-	time.Sleep(time.Minute)
-
-	// flowPath := ate.Telemetry().Flow(flow.Name())
-	// if got := flowPath.LossPct().Get(t); got > 0 {
-	// 	t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
-	// }
-}
 
 // Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy
 func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, samePolicy bool) {
@@ -223,7 +167,7 @@ func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, sam
 	physicalInterfaceConfig.Replace(t, memberConfig)
 
 	// Program GRIBI entry on the router
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
@@ -250,7 +194,7 @@ func testMovePhysicalToBundleWithDifferentPolicy(ctx context.Context, t *testing
 func testChangePBRUnderInterface(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
 	// Program GRIBI entry on the router
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
@@ -281,7 +225,7 @@ func testChangePBRUnderInterface(ctx context.Context, t *testing.T, args *testAr
 func testIPv6InIPv4Traffic(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
 	// Program GRIBI entry on the router
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
@@ -296,61 +240,6 @@ func testIPv6InIPv4Traffic(ctx context.Context, t *testing.T, args *testArgs) {
 	testTrafficWithInnerIPv6(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }
 
-func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Interface_Subinterface {
-	s := &telemetry.Interface_Subinterface{}
-	s.Index = ygot.Uint32(index)
-	s4 := s.GetOrCreateIpv6()
-	a := s4.GetOrCreateAddress(ipv6)
-	a.PrefixLength = ygot.Uint8(prefixlen)
-	return s
-}
-func CreateNameSpace(t *testing.T, dut *ondatra.DUTDevice, name, intfname string, subint uint32) {
-	//create empty subinterface
-	si := &telemetry.Interface_Subinterface{}
-	si.Index = ygot.Uint32(subint)
-	dut.Config().Interface(intfname).Subinterface(subint).Replace(t, si)
-
-	//create vrf and apply on subinterface
-	v := &telemetry.NetworkInstance{
-		Name: ygot.String(name),
-	}
-	vi := v.GetOrCreateInterface(intfname + "." + strconv.Itoa(int(subint)))
-	vi.Subinterface = ygot.Uint32(subint)
-	dut.Config().NetworkInstance(name).Replace(t, v)
-}
-
-func GetSubInterface(ipv4 string, prefixlen4 uint8, ipv6 string, prefixlen6 uint8, vlanID uint16, index uint32) *telemetry.Interface_Subinterface {
-	s := &telemetry.Interface_Subinterface{}
-	s.Index = ygot.Uint32(index)
-	s4 := s.GetOrCreateIpv4()
-	a := s4.GetOrCreateAddress(ipv4)
-	a.PrefixLength = ygot.Uint8(prefixlen4)
-	s6 := s.GetOrCreateIpv6()
-	a6 := s6.GetOrCreateAddress(ipv6)
-	a6.PrefixLength = ygot.Uint8(prefixlen6)
-	v := s.GetOrCreateVlan()
-	m := v.GetOrCreateMatch()
-	if index != 0 {
-		m.GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
-	}
-	return s
-}
-
-func configureIpv6AndVlans(t *testing.T, dut *ondatra.DUTDevice) {
-	//Configure IPv6 address on Bundle-Ether120, Bundle-Ether121
-	dut.Config().Interface("Bundle-Ether120").Subinterface(0).Update(t, AddIpv6Address(dutPort1.IPv6, dutPort1.IPv6Len, 0))
-	dut.Config().Interface("Bundle-Ether121").Subinterface(0).Update(t, AddIpv6Address(dutPort2.IPv6, dutPort2.IPv6Len, 0))
-
-	//Configure VLANs on Bundle-Ether121
-	for i := 1; i <= 3; i++ {
-		//Create VRFs and VRF enabled subinterfaces
-		CreateNameSpace(t, dut, fmt.Sprintf("VRF%d", i*10), "Bundle-Ether121", uint32(i))
-		//Add IPv4/IPv6 address on VLANs
-		subint := GetSubInterface(fmt.Sprintf("100.121.%d.1", i*10), 24, fmt.Sprintf("2000::100:121:%d:1", i*10), 126, uint16(i*10), uint32(i))
-		dut.Config().Interface("Bundle-Ether121").Subinterface(uint32(i)).Update(t, subint)
-	}
-
-}
 
 func configurePBR(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance, iptype string, index uint32, protocol telemetry.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
 	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
@@ -444,7 +333,7 @@ func configureL2PBRRule(t *testing.T, dut *ondatra.DUTDevice, name, networkInsta
 	dut.Config().NetworkInstance("default").PolicyForwarding().Policy(name).Rule(index).Replace(t, &r1)
 }
 
-func GetBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8, ttl ...uint8) *ondatra.Flow {
+func getBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8, ttl ...uint8) *ondatra.Flow {
 
 	flow := ate.Traffic().NewFlow(flowName)
 	t.Logf("Setting up flow -> %s", flowName)
@@ -461,7 +350,7 @@ func GetBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoi
 	return flow
 }
 
-func GetBoundedFlowIpv6(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8) *ondatra.Flow {
+func getBoundedFlowIpv6(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8) *ondatra.Flow {
 
 	flow := ate.Traffic().NewFlow(flowName)
 	t.Logf("Setting up flow -> %s", flowName)
@@ -475,7 +364,7 @@ func GetBoundedFlowIpv6(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEn
 	return flow
 }
 
-func GetBoundedFlowIPinIP(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8, ttl ...uint8) *ondatra.Flow {
+func getBoundedFlowIPinIP(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8, ttl ...uint8) *ondatra.Flow {
 
 	flow := ate.Traffic().NewFlow(flowName)
 	t.Logf("Setting up flow -> %s", flowName)
@@ -496,30 +385,12 @@ func GetBoundedFlowIPinIP(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dst
 	return flow
 }
 
-func testTrafficForFlows(t *testing.T, ate *ondatra.ATEDevice, topology *ondatra.ATETopology, expectPass bool, threshold float64, flow ...*ondatra.Flow) {
-
-	ate.Traffic().Start(t, flow...)
-	defer ate.Traffic().Stop(t)
-
-	time.Sleep(60 * time.Second)
-
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	t.Log("Packets transmitted by ports: ", ate.Telemetry().InterfaceAny().Counters().OutPkts().Get(t))
-	t.Log("Packets received by ports: ", ate.Telemetry().InterfaceAny().Counters().InPkts().Get(t))
-	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
-
-	if trafficPass == expectPass {
-		t.Log("Traffic works as expected")
-	} else {
-		t.Error("Traffic doesn't work as expected")
-	}
-}
 
 //deletePolicyFromInterface function removes the pbr policy from Bundle-Ether120 using CLI options.
 //This is a temporary fix for accommodating various types of pbr policies on the interface
 func deletePolicyFromInterface(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 	configToChange := fmt.Sprintf("no interface Bundle-Ether120  service-policy type pbr input %s\n", policyName)
-	util.GNMIWithText(ctx, t, dut, configToChange)
+	config.TextWithGNMI(ctx, t, dut, configToChange)
 }
 
 //deletePBRPolicyAndClassMaps function deletes pbr policy-map and class-map configuration using CLI.
@@ -529,7 +400,7 @@ func deletePBRPolicyAndClassMaps(ctx context.Context, t *testing.T, dut *ondatra
 	for i := 1; i <= index; i++ {
 		configToChange = configToChange + fmt.Sprintf("no class-map type traffic match-all %d_%s\n", i, policyName)
 	}
-	util.GNMIWithText(ctx, t, dut, configToChange)
+	config.TextWithGNMI(ctx, t, dut, configToChange)
 	//dut.Config().NetworkInstance("default").PolicyForwarding().Policy(policyName).Delete(t)
 }
 
@@ -547,8 +418,8 @@ func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *
 
 	//Case1 - Matching ipv4 protocol to VRF10. Dropping IPv6 traffic in VRF10.
 	//Create IPV4 and IPv6 flows for VLAN10 with DSCP0.
-	ipv4vlan10flow := GetBoundedFlow(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipv4vlan10flow", 0)
-	ipv6vlan10flow := GetBoundedFlowIpv6(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipv6vlan10flow", 0)
+	ipv4vlan10flow := getBoundedFlow(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipv4vlan10flow", 0)
+	ipv6vlan10flow := getBoundedFlowIpv6(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipv6vlan10flow", 0)
 	t.Run("RT-3.1 Case1", func(t *testing.T) {
 		configureL2PBR(t, args.dut, "L2", "VRF10", "ipv4", 1)
 		configPBRunderInterface(t, args, args.interfaces.in[0], "L2")
@@ -559,8 +430,8 @@ func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *
 
 	//Case3 - Matching IPv4 protocol to VRF10, IPv6 protocol to VRF20. Dropping IPv6 traffic in VRF10 and IPv4 in VRF20.
 	//Create IPv4 and IPv6 flows for VLAN20 with DSCP0.
-	ipv4vlan20flow := GetBoundedFlow(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipv4vlan20flow", 0)
-	ipv6vlan20flow := GetBoundedFlowIpv6(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipv6vlan20flow", 0)
+	ipv4vlan20flow := getBoundedFlow(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipv4vlan20flow", 0)
+	ipv6vlan20flow := getBoundedFlowIpv6(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipv6vlan20flow", 0)
 
 	t.Run("RT-3.1 Case3", func(t *testing.T) {
 		configureL2PBRRule(t, args.dut, "L2", "VRF20", "ipv6", 2)
@@ -575,7 +446,7 @@ func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *
 
 	//Case2 - Match IPinIP protocol to VRF10. Drop IPv4 and IPv6 traffic in VRF10.
 	//Create IPinIP flow for VLAN10 with DSCP0.
-	ipinipvlan10flow := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipv4inipv4v10flow0", 0)
+	ipinipvlan10flow := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipv4inipv4v10flow0", 0)
 	t.Run("RT-3.1 Case2", func(t *testing.T) {
 		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
 		configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
@@ -586,7 +457,7 @@ func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *
 
 	//Case4 - Match IPinIP and single DSCP46 to VRF10. Drop DSCP0 in VRF10.
 	//Create IPinIP flow with DSCP46 for VLAN10.
-	ipinipvlan10flowd46 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipv4inipv4v10flow46", 46)
+	ipinipvlan10flowd46 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipv4inipv4v10flow46", 46)
 	t.Run("RT-3.1 Case4", func(t *testing.T) {
 		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{46})
 
@@ -596,7 +467,7 @@ func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *
 
 	//Case5 - Match IPinIP and single DSCP46, DSCP42 to VRF10. Drop DSCP0 in VRF10.
 	//Create IPinIP flow with DSCP42 for VLAN10.
-	ipinipvlan10flowd42 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipv4inipv4v10flow42", 42)
+	ipinipvlan10flowd42 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipv4inipv4v10flow42", 42)
 	t.Run("RT-3.1 Case5", func(t *testing.T) {
 		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{42, 46})
 
@@ -620,9 +491,9 @@ func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testi
 
 	//Case1 - Ensure matching IPinIP with DSCP (10 - VRF10, 20- VRF20, 30-VRF30) traffic reaches appropriate VLAN.
 	//Create IPinIP DSCP10, DSCP20, DSCP30 flows for VLAN10, VLAN20 and VLAN30 respectively.
-	ipinipd10 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipvinipd10", 10)
-	ipinipd20 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd20", 20)
-	ipinipd30 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan30, "ipvinipd30", 30)
+	ipinipd10 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipvinipd10", 10)
+	ipinipd20 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd20", 20)
+	ipinipd30 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan30, "ipvinipd30", 30)
 
 	t.Run("RT-3.2 Case1", func(t *testing.T) {
 
@@ -637,14 +508,14 @@ func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testi
 	//Case2 - Ensure matching IPinIP with DSCP (10-12 - VRF10, 20-22- VRF20, 30-32-VRF30) traffic reaches to appropriate VLAN.
 	//Create IPinIP flows with DSCP11-12 for VLAN10, DSCP21-22 for VLAN20, DSCP31-32 for VLAN30.
 	//Reuse IPinIP flows for DSCP10, DSCP20 and DSCP30.
-	ipinipd11 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipvinipd11", 11)
-	ipinipd12 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipvinipd12", 12)
+	ipinipd11 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipvinipd11", 11)
+	ipinipd12 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipvinipd12", 12)
 
-	ipinipd21 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd21", 21)
-	ipinipd22 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd22", 22)
+	ipinipd21 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd21", 21)
+	ipinipd22 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd22", 22)
 
-	ipinipd31 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan30, "ipvinipd31", 31)
-	ipinipd32 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan30, "ipvinipd32", 32)
+	ipinipd31 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan30, "ipvinipd31", 31)
+	ipinipd32 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan30, "ipvinipd32", 32)
 
 	t.Run("RT-3.2 Case2", func(t *testing.T) {
 		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10, 11, 12})
@@ -663,9 +534,9 @@ func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testi
 
 	//Case3 - Ensure first matching of IPinIP with DSCP (10-12 - VRF10, 10-12 - VRF20) rule takes precedence.
 	//Create IPinIP DSCP10-12 flows for VLAN20. Reuse DSCP10-12 flows for VLAN10.
-	ipinipd10v20 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd10v20", 10)
-	ipinipd11v20 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd11v20", 11)
-	ipinipd12v20 := GetBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd12v20", 12)
+	ipinipd10v20 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd10v20", 10)
+	ipinipd11v20 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd11v20", 11)
+	ipinipd12v20 := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan20, "ipvinipd12v20", 12)
 
 	t.Run("RT-3.2 Case3", func(t *testing.T) {
 		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10, 11, 12})
@@ -701,10 +572,12 @@ func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testi
 // testRemoveClassMap tests removing existing class-map which is not related to IPinIP match and verify traffic
 func testRemoveClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
+	args.clientA.StartWithNoCache(t)
+	args.clientA.BecomeLeader(t)
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
@@ -721,10 +594,12 @@ func testRemoveClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 
 func testChangeAction(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
+	args.clientA.StartWithNoCache(t)
+	args.clientA.BecomeLeader(t)
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
@@ -742,7 +617,7 @@ func testChangeAction(ctx context.Context, t *testing.T, args *testArgs) {
 
 func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	ruleID := uint32(10)
 	dscp := uint8(32)
@@ -751,6 +626,8 @@ func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
+	args.clientA.StartWithNoCache(t)
+	args.clientA.BecomeLeader(t)
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
@@ -766,57 +643,17 @@ func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
 }
 
-// verifyConfigPBRUnderInterface verifies that PBR is or is not configured under interface
-//
-// TODO: currently fails on XR due to missing key field sequence-id in GetResponse
-func verifyConfigPBRUnderInterface(ctx context.Context, t *testing.T, args *testArgs, interfaceName string, shouldExist bool) {
-	policyForwardingPath, _, _ := ygot.ResolvePath(args.dut.Config().NetworkInstance(instance).PolicyForwarding())
-	gnmiC := args.dut.RawAPIs().GNMI().New(t)
-	gotRes, err := gnmiC.Get(context.Background(), &gpb.GetRequest{
-		Prefix:   &gpb.Path{Origin: "openconfig"},
-		Path:     []*gpb.Path{policyForwardingPath},
-		Encoding: gpb.Encoding_JSON_IETF,
-		Type:     gpb.GetRequest_CONFIG,
-	})
-	if err != nil {
-		t.Fatalf("Get(t) at path %s: %v", policyForwardingPath, err)
-	}
-	exists := false
-	for _, n := range gotRes.Notification {
-		for _, u := range n.Update {
-			d := &telemetry.NetworkInstance_PolicyForwarding{}
-			val := u.GetVal().GetJsonIetfVal()
-			if val == nil {
-				continue
-			}
-			if err := telemetry.Unmarshal(val, d, &ytypes.IgnoreExtraFields{}); err != nil {
-				t.Fatalf("failed to unmarshal JSON_IETF in GetResponse: %v", err)
-			}
-			if data, ok := d.Interface[interfaceName]; ok {
-				if data.ApplyVrfSelectionPolicy != nil {
-					exists = true
-				}
-			}
-		}
-	}
-	if exists != shouldExist {
-		shouldExistString := "exist"
-		if !shouldExist {
-			shouldExistString = "not exist"
-		}
-		t.Fatalf("apply-vrf-selection-policy leaf needs to %s", shouldExistString)
-	}
-}
-
 // testUnconfigPBRUnderBundleInterface tests unconfiguring the PBR policy under a bundle interface
 func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
 	// Program GRIBI entry on the router
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	interfaceName := args.interfaces.in[0]
 
+	args.clientA.StartWithNoCache(t)
+	args.clientA.BecomeLeader(t)
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
@@ -868,63 +705,15 @@ func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args
 	})
 }
 
-func equalUint8Slice(a, b []uint8) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if v != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-// verifyConfigPBRUnderInterface verifies that PBR values for dscp-set
-//
-// TODO: currently fails on XR due to data missing in GetResponse
-func verifyConfigPbrMatchIpv4DscpSet(ctx context.Context, t *testing.T, args *testArgs, ruleID uint32, expectedDscpSet []uint8) {
-	policyPath, _, _ := ygot.ResolvePath(args.dut.Config().NetworkInstance(instance).PolicyForwarding().Policy(pbrName))
-	gnmiC := args.dut.RawAPIs().GNMI().New(t)
-	gotRes, err := gnmiC.Get(context.Background(), &gpb.GetRequest{
-		Prefix:   &gpb.Path{Origin: "openconfig"},
-		Path:     []*gpb.Path{policyPath},
-		Encoding: gpb.Encoding_JSON_IETF,
-		Type:     gpb.GetRequest_CONFIG,
-	})
-	if err != nil {
-		t.Fatalf("Get(t) at path %s: %v", policyPath, err)
-	}
-	var dscpSet []uint8
-	for _, n := range gotRes.Notification {
-		for _, u := range n.Update {
-			d := &telemetry.NetworkInstance_PolicyForwarding_Policy{}
-			val := u.GetVal().GetJsonIetfVal()
-			if val == nil {
-				continue
-			}
-			if err := telemetry.Unmarshal(val, d, &ytypes.IgnoreExtraFields{}); err != nil {
-				t.Fatalf("failed to unmarshal JSON_IETF in GetResponse: %v", err)
-			}
-			if data, ok := d.Rule[ruleID]; ok && data.Ipv4 != nil && data.Ipv4.DscpSet != nil {
-				dscpSet = data.Ipv4.DscpSet
-			}
-		}
-	}
-	if !equalUint8Slice(dscpSet, expectedDscpSet) {
-		t.Fatalf("dscp-set: got %v, want %v", dscpSet, expectedDscpSet)
-	} else {
-		t.Logf("dscp-set=%v matched expected", dscpSet)
-	}
-}
-
 // testRemoveMatchField tests existing match field in existing class-map which is not related to IPinIP match and verify traffic
 func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
+	args.clientA.StartWithNoCache(t)
+	args.clientA.BecomeLeader(t)
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
@@ -996,10 +785,12 @@ func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 // testModifyMatchField tests modifying existing match filed in the existing class-map and verify traffic
 func testModifyMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
+	args.clientA.StartWithNoCache(t)
+	args.clientA.BecomeLeader(t)
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
@@ -1019,7 +810,7 @@ func testModifyMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 // testAddMatchField tests adding new match field in the existing class-map and verify traffic
 func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
@@ -1071,7 +862,7 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 // Function.PBR.:027 interface shut/unshut and verify traffic
 func testTrafficFlapInterface(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
@@ -1094,7 +885,7 @@ func testTrafficFlapInterface(ctx context.Context, t *testing.T, args *testArgs)
 // Function.PBR.:020 Verify PBR policy works with match DSCP and action VRF redirect
 func testMatchDscpActionVRFRedirect(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
@@ -1122,7 +913,7 @@ func GetIpv4Acl(name string, sequenceId uint32, dscp uint8, action telemetry.E_A
 // Function.PBR.:024 Feature Interaction: configure ACL and PBR under same interface and verify behavior
 func testAclAndPBRUnderSameInterface(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
@@ -1157,7 +948,7 @@ func testAclAndPBRUnderSameInterface(ctx context.Context, t *testing.T, args *te
 func testPolicesReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Skip()
 	defer configBasePBR(t, args.dut)
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
@@ -1205,7 +996,7 @@ func testPolicesReplace(ctx context.Context, t *testing.T, args *testArgs) {
 func testPolicyReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Skip()
 	defer configBasePBR(t, args.dut)
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/topologies/binding/cisco/config"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 	//"github.com/google/go-cmp/cmp"
@@ -15,7 +15,7 @@ import (
 
 func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Helper()
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -99,7 +99,7 @@ func removeInterfacePBRFromBaseConfing(t *testing.T, baseConfig string) string {
 
 func testRemAddPBRWithGNMIReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Helper()
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 
 	baseConfig := removeConfHeader(config.CMDViaGNMI(ctx, t, args.dut, "show running-config"))
 	defer config.GNMICommitReplace(context.Background(), t, args.dut, baseConfig)
@@ -110,6 +110,8 @@ func testRemAddPBRWithGNMIReplace(ctx context.Context, t *testing.T, args *testA
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	t.Log("Adding GRIBI Entries")
+	args.clientA.StartWithNoCache(t)
+	args.clientA.BecomeLeader(t)
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
@@ -274,7 +276,7 @@ func removeConfHeader(baseConf string) string {
 }
 func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, args *testArgs) {
 
-	defer flushSever(t, args)
+	defer flushServer(t, args)
 	baseConfig := removeConfHeader(config.CMDViaGNMI(ctx, t, args.dut, "show running-config"))
 	defer config.GNMICommitReplace(context.Background(), t, args.dut, baseConfig)
 	baseConfigWithoutHWModule := removeHWModuleFromBaseConfing(t, baseConfig)

@@ -135,7 +135,6 @@ func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd s
 	}
 	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(resp))
 	return string(resp.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
-	// return string(gotRes.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal())
 
 }
 
