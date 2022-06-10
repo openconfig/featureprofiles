@@ -140,7 +140,6 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 
 }
 
-
 // Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy
 func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, samePolicy bool) {
 	configBasePBR(t, args.dut)
@@ -239,7 +238,6 @@ func testIPv6InIPv4Traffic(ctx context.Context, t *testing.T, args *testArgs) {
 
 	testTrafficWithInnerIPv6(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }
-
 
 func configurePBR(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance, iptype string, index uint32, protocol telemetry.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
 	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
@@ -384,7 +382,6 @@ func getBoundedFlowIPinIP(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dst
 	flow.WithFrameSize(1024)
 	return flow
 }
-
 
 //deletePolicyFromInterface function removes the pbr policy from Bundle-Ether120 using CLI options.
 //This is a temporary fix for accommodating various types of pbr policies on the interface

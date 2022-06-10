@@ -2,11 +2,10 @@ package cisco_gribi_test
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"testing"
 	"time"
-	"strconv"
-	"fmt"
-	
 
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/gribigo/chk"
@@ -15,9 +14,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
-
 )
-
 
 func flushServer(t *testing.T, args *testArgs) {
 	c := args.clientA.Fluent(t)
@@ -194,7 +191,6 @@ func configureBaseDoubleRecusionVrfEntry(ctx context.Context, t *testing.T, scal
 	}
 }
 
-
 func createNameSpace(t *testing.T, dut *ondatra.DUTDevice, name, intfname string, subint uint32) {
 	//create empty subinterface
 	si := &telemetry.Interface_Subinterface{}
@@ -227,7 +223,6 @@ func getSubInterface(ipv4 string, prefixlen4 uint8, ipv6 string, prefixlen6 uint
 	return s
 }
 
-
 func addIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Interface_Subinterface {
 	s := &telemetry.Interface_Subinterface{}
 	s.Index = ygot.Uint32(index)
@@ -252,4 +247,3 @@ func configureIpv6AndVlans(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 }
-

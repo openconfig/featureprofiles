@@ -7,7 +7,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 
 	"github.com/openconfig/gribigo/fluent"
-	
 )
 
 const (
@@ -171,7 +170,6 @@ var (
 		MTU:     vlanMTU,
 	}
 )
-
 
 func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testArgs) {
 	defer flushServer(t, args)
