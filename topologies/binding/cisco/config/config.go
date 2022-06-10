@@ -125,11 +125,12 @@ func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd s
 	}
 	log.V(1).Infof("get cli (%s) via GNMI: \n %s", cmd, prototext.Format(getRequest))
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
-        tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
 		ctx = tmpCtx
 		defer cncl()
-    }
-	resp, err := gnmiC.Get(ctx, getRequest); if err!=nil {
+	}
+	resp, err := gnmiC.Get(ctx, getRequest)
+	if err != nil {
 		t.Fatalf("running cmd (%s) via GNMI is failed: %v", cmd, err)
 	}
 	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(resp))
@@ -154,10 +155,10 @@ func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	}
 	log.V(1).Info(prettySetRequest(setRequest))
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
-        tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
 		ctx = tmpCtx
 		defer cncl()
-    }
+	}
 	resp, err := gnmiC.Set(ctx, setRequest)
 	if err != nil {
 		t.Fatalf("GNMI replace is failed; %v", err)
@@ -177,10 +178,10 @@ func Reload(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, beforeRel
 
 	gnoiClient := dut.RawAPIs().GNOI().New(t)
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
-        tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
 		ctx = tmpCtx
 		defer cncl()
-    }
+	}
 	_, err := gnoiClient.System().Reboot(ctx, &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
 		Delay:   0,
@@ -280,10 +281,10 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 	}
 	log.V(1).Info(prettySetRequest(setRequest))
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
-        tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
 		ctx = tmpCtx
 		defer cncl()
-    }
+	}
 	resp, err := gnmiC.Set(ctx, setRequest)
 	if err != nil {
 		t.Fatalf("GNMI replace is failed; %v", err)
