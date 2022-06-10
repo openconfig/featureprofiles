@@ -60,7 +60,7 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 	policy.Interface = map[string]*telemetry.NetworkInstance_PolicyForwarding_Interface{
-		"Bundle-Ether120": &telemetry.NetworkInstance_PolicyForwarding_Interface{
+		"Bundle-Ether120": {
 			InterfaceId:             ygot.String("Bundle-Ether120"),
 			ApplyVrfSelectionPolicy: ygot.String(pbrName),
 		},

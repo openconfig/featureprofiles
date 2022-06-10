@@ -13,8 +13,6 @@ import (
 	//"github.com/google/go-cmp/cmp"
 )
 
-
-
 func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Helper()
 	defer flushSever(t, args)
@@ -49,59 +47,55 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 
 func removePBRFromBaseConfing(t *testing.T, baseConfig string) string {
 	t.Helper()
-	lines := strings.Split(baseConfig,"\n")
-	linesWithoutPBR := []string{} 
-	skip:=false
+	lines := strings.Split(baseConfig, "\n")
+	linesWithoutPBR := []string{}
+	skip := false
 	// remove policy and class-maps
-	for _,line := range(lines) {
-		if strings.HasPrefix(line,"class-map") || strings.HasPrefix(line,"policy-map"){
-			skip=true
+	for _, line := range lines {
+		if strings.HasPrefix(line, "class-map") || strings.HasPrefix(line, "policy-map") {
+			skip = true
 		}
-		if  ! skip {
+		if !skip {
 			linesWithoutPBR = append(linesWithoutPBR, line)
 		}
-		if line == "! "{
-			skip= false
+		if line == "! " {
+			skip = false
 		}
-	} 
+	}
 
 	// prepare the modified baseConfig
-	updatedBaseConf:=""
-	for _,line := range(linesWithoutPBR) {
-		if updatedBaseConf== "" {
+	updatedBaseConf := ""
+	for _, line := range linesWithoutPBR {
+		if updatedBaseConf == "" {
 			updatedBaseConf = line
 			continue
 		}
-		updatedBaseConf = fmt.Sprintf("%s\n%s",updatedBaseConf,line)
+		updatedBaseConf = fmt.Sprintf("%s\n%s", updatedBaseConf, line)
 	}
 	return updatedBaseConf
 }
 
-
-
 func removeInterfacePBRFromBaseConfing(t *testing.T, baseConfig string) string {
 	t.Helper()
-	lines := strings.Split(baseConfig,"\n")
-	// remove policy from interface 
-	linesWithoutPBRAndInterface := []string{} 
-	for _,line := range(lines) {
-		if  ! strings.HasPrefix(line," service-policy type pbr input") {
+	lines := strings.Split(baseConfig, "\n")
+	// remove policy from interface
+	linesWithoutPBRAndInterface := []string{}
+	for _, line := range lines {
+		if !strings.HasPrefix(line, " service-policy type pbr input") {
 			linesWithoutPBRAndInterface = append(linesWithoutPBRAndInterface, line)
 		}
 	}
 	// prepare the modified baseConfig
-	updatedBaseConf:=""
-	for _,line := range(linesWithoutPBRAndInterface) {
-		if updatedBaseConf== "" {
+	updatedBaseConf := ""
+	for _, line := range linesWithoutPBRAndInterface {
+		if updatedBaseConf == "" {
 			updatedBaseConf = line
 			continue
 		}
-		updatedBaseConf = fmt.Sprintf("%s\n%s",updatedBaseConf,line)
+		updatedBaseConf = fmt.Sprintf("%s\n%s", updatedBaseConf, line)
 	}
 	return updatedBaseConf
 }
-
-
 
 func testRemAddPBRWithGNMIReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Helper()
@@ -217,65 +211,63 @@ func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygot.PathStruct, inter
 
 func removeHWModuleFromBaseConfing(t *testing.T, baseConfig string) string {
 	t.Helper()
-	lines := strings.Split(baseConfig,"\n") 
-	// remove policy from interface 
-	linesWithoutHWModule := []string{} 
-	for _,line := range(lines) {
-		if  ! strings.HasPrefix(line,"hw-module profile pbr vrf-redirect") {
+	lines := strings.Split(baseConfig, "\n")
+	// remove policy from interface
+	linesWithoutHWModule := []string{}
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "hw-module profile pbr vrf-redirect") {
 			linesWithoutHWModule = append(linesWithoutHWModule, line)
 		}
 	}
 	// prepare the modified baseConfig
-	updatedBaseConf:=""
-	for _,line := range(linesWithoutHWModule) {
-		if updatedBaseConf== "" {
+	updatedBaseConf := ""
+	for _, line := range linesWithoutHWModule {
+		if updatedBaseConf == "" {
 			updatedBaseConf = line
 			continue
 		}
-		updatedBaseConf = fmt.Sprintf("%s\n%s",updatedBaseConf,line)
+		updatedBaseConf = fmt.Sprintf("%s\n%s", updatedBaseConf, line)
 	}
 	return updatedBaseConf
 
 }
 
-
 func addHWModule(t *testing.T, baseConfig string) string {
 	t.Helper()
-	lines := strings.Split(baseConfig,"\n") 
-	// remove policy from interface 
-	for _,line := range(lines) {
-		if   strings.HasPrefix(line,"hw-module profile pbr vrf-redirect") {
+	lines := strings.Split(baseConfig, "\n")
+	// remove policy from interface
+	for _, line := range lines {
+		if strings.HasPrefix(line, "hw-module profile pbr vrf-redirect") {
 			return baseConfig
 		}
 	}
 	// prepare the modified baseConfig
-	updatedBaseConf:=""
-	for _,line := range(lines) {
-		if updatedBaseConf== "" {
+	updatedBaseConf := ""
+	for _, line := range lines {
+		if updatedBaseConf == "" {
 			updatedBaseConf = line
 			continue
 		}
-		if line=="end"{
-			updatedBaseConf = fmt.Sprintf("%s\n%s",updatedBaseConf,"hw-module profile pbr vrf-redirect")
+		if line == "end" {
+			updatedBaseConf = fmt.Sprintf("%s\n%s", updatedBaseConf, "hw-module profile pbr vrf-redirect")
 		}
-		updatedBaseConf = fmt.Sprintf("%s\n%s",updatedBaseConf,line)
+		updatedBaseConf = fmt.Sprintf("%s\n%s", updatedBaseConf, line)
 	}
 	return updatedBaseConf
 
 }
 
-
 func removeConfHeader(baseConf string) string {
-	lines := strings.Split(baseConf,"\n")
-	skip:=false
+	lines := strings.Split(baseConf, "\n")
+	skip := false
 	baseConfig := ""
-	for _,line := range(lines){
+	for _, line := range lines {
 		if skip {
-			baseConfig = fmt.Sprintf("%s\n%s",baseConfig,line)
+			baseConfig = fmt.Sprintf("%s\n%s", baseConfig, line)
 		}
-		if strings.HasPrefix(line, "!! IOS XR Configuration"){
-			skip= true
-			baseConfig=line
+		if strings.HasPrefix(line, "!! IOS XR Configuration") {
+			skip = true
+			baseConfig = line
 		}
 	}
 	return baseConfig
