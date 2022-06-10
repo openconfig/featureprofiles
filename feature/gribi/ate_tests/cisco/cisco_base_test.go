@@ -162,6 +162,16 @@ var (
 			fn:   testAclAndPBRUnderSameInterface,
 		},
 		{
+			name: "Test Replace Policies",
+			desc: "Test Replace Policies, it is skipped for now",
+			fn:   testPolicesReplace,
+		},
+		{
+			name: "Test Replace Policy",
+			desc: "Test Replace Policy, it is skipped for now",
+			fn:   testPolicyReplace,
+		},
+		{
 			name: "Commit replace with PBR config changes",
 			desc: "Unconfig/config with PBR and verify traffic fails/passes",
 			fn:   testRemAddPBRWithGNMIReplace,
