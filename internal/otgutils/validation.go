@@ -91,6 +91,48 @@ func AllBgp6SessionUp(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expecte
 	return expected, nil
 }
 
+func AllBgp4SessionDown(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool, error) {
+	dMetrics, err := GetBgpv4Metrics(t, otg, c)
+	if err != nil {
+		return false, err
+	}
+
+	PrintMetricsTable(&MetricsTableOpts{
+		ClearPrevious: false,
+		Bgpv4Metrics:  dMetrics,
+	})
+
+	expected := true
+	for _, d := range dMetrics.Items() {
+		if d.SessionState() != gosnappi.Bgpv4MetricSessionState.DOWN {
+			expected = false
+		}
+	}
+
+	return expected, nil
+}
+
+func AllBgp6SessionDown(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool, error) {
+	dMetrics, err := GetBgpv6Metrics(t, otg, c)
+	if err != nil {
+		return false, err
+	}
+
+	PrintMetricsTable(&MetricsTableOpts{
+		ClearPrevious: false,
+		Bgpv6Metrics:  dMetrics,
+	})
+
+	expected := true
+	for _, d := range dMetrics.Items() {
+		if d.SessionState() != gosnappi.Bgpv6MetricSessionState.DOWN {
+			expected = false
+		}
+	}
+
+	return expected, nil
+}
+
 func FlowMetricsOk(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
 	fMetrics, err := GetFlowMetrics(t, otg, c)
 	if err != nil {

@@ -16,7 +16,6 @@ package te_1_1_static_arp_test
 
 import (
 	"log"
-	"sort"
 	"testing"
 	"time"
 
@@ -72,7 +71,7 @@ const (
 
 var (
 	ateSrc = attrs.Attributes{
-		Name:    "port1",
+		Name:    "ateSrc",
 		MAC:     "00:11:01:00:00:01",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
@@ -99,7 +98,7 @@ var (
 	}
 
 	ateDst = attrs.Attributes{
-		Name:    "port2",
+		Name:    "ateDst",
 		MAC:     "00:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
@@ -150,47 +149,29 @@ func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peer
 	return i
 }
 
-func configureDUT(t *testing.T, peermac string) (interfaceOrder bool) {
-	interfaceOrder = true
+func configureDUT(t *testing.T, peermac string) {
+	// interfaceOrder = true
 	dut := ondatra.DUT(t, "dut")
 	d := dut.Config()
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
 	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	portList := []string{*i1.Name, *i2.Name}
-	if sort.StringsAreSorted(portList) {
-		if peermac == "" {
-			d.Interface(p1.Name()).Replace(t,
-				configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
-		}
-		d.Interface(p2.Name()).Replace(t,
-			configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
-	} else {
-		interfaceOrder = false
-		d.Interface(p1.Name()).Replace(t,
-			configInterfaceDUT(i1, &dutDst, &ateDst, peermac))
-		if peermac == "" {
-			d.Interface(p2.Name()).Replace(t,
-				configInterfaceDUT(i2, &dutSrc, &ateSrc, peermac))
-		}
+	if peermac == "" {
+		d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
 	}
-	return interfaceOrder
+	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
 }
 
-func configureOTG(t *testing.T, interfaceOrder bool) (*ondatra.ATEDevice, gosnappi.Config) {
+func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
 	config := otg.NewConfig(t)
-	var srcPort gosnappi.Port
-	var dstPort gosnappi.Port
-	if interfaceOrder {
-		srcPort = config.Ports().Add().SetName(ateSrc.Name)
-		dstPort = config.Ports().Add().SetName(ateDst.Name)
-	} else {
-		srcPort = config.Ports().Add().SetName(ateDst.Name)
-		dstPort = config.Ports().Add().SetName(ateSrc.Name)
-	}
+	ap1 := ate.Port(t, "port1")
+	ap2 := ate.Port(t, "port2")
+
+	srcPort := config.Ports().Add().SetName(ap1.ID())
+	dstPort := config.Ports().Add().SetName(ap2.ID())
 
 	srcDev := config.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().
@@ -237,14 +218,14 @@ func checkArpEntry(t *testing.T, ipType string, poisoned bool) {
 	}
 	switch ipType {
 	case "IPv4":
-		macAddress := dut.Telemetry().Interface("Ethernet2").Subinterface(0).Ipv4().Neighbor(ateDst.IPv4).Get(t).LinkLayerAddress
+		macAddress := dut.Telemetry().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv4().Neighbor(ateDst.IPv4).Get(t).LinkLayerAddress
 		if *macAddress != expectedMac {
 			t.Errorf("ARP entry for %v is %v and expected was %v", ateDst.IPv4, *macAddress, expectedMac)
 		} else {
 			t.Logf("ARP entry for %v is %v", ateDst.IPv4, *macAddress)
 		}
 	case "IPv6":
-		macAddress := dut.Telemetry().Interface("Ethernet2").Subinterface(0).Ipv6().Neighbor(ateDst.IPv6).Get(t).LinkLayerAddress
+		macAddress := dut.Telemetry().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv6().Neighbor(ateDst.IPv6).Get(t).LinkLayerAddress
 		if *macAddress != expectedMac {
 			t.Errorf("ARP entry for %v is %v and expected was %v", ateDst.IPv6, *macAddress, expectedMac)
 		} else {
@@ -272,7 +253,7 @@ func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned b
 	t.Logf("Mac Addresses of DUT: %v", dutInterfaceMac)
 	expectedMacEntries := []string{}
 	if poisoned == true {
-		expectedMacEntries = append(expectedMacEntries, dutInterfaceMac["Ethernet1"])
+		expectedMacEntries = append(expectedMacEntries, dutInterfaceMac[dut.Port(t, "port1").Name()])
 	} else {
 		for _, macValue := range dutInterfaceMac {
 			expectedMacEntries = append(expectedMacEntries, macValue)
@@ -377,9 +358,9 @@ func testFlow(
 func TestStaticARP(t *testing.T) {
 	// First configure the DUT with dynamic ARP.
 
-	interfaceOrder := configureDUT(t, noStaticMAC)
+	configureDUT(t, noStaticMAC)
 	// var ate *ondatra.ATEDevice
-	ate, config := configureOTG(t, interfaceOrder)
+	ate, config := configureOTG(t)
 
 	// Default MAC addresses on Ixia are assigned incrementally as:
 	//   - 00:11:01:00:00:01
