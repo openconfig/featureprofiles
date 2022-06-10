@@ -211,6 +211,7 @@ func configForwardingPolicy(name string, matchType string, ate *attrs.Attributes
 	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
 	//No support fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().DscpSet = dscpset
 	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP
+	fwdPolicy1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
 	fwdPolicy1.GetOrCreateRule(2).GetOrCreateIpv4().Dscp = ygot.Uint8(42)
 	fwdPolicy1.GetOrCreateRule(2).GetOrCreateIpv4().Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP
 	fwdPolicy1.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("10")
