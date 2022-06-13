@@ -569,8 +569,14 @@ func TestEstablish(t *testing.T) {
 	verifyBgpTelemetry(t, dut)
 
 	t.Logf("Check BGP sessions on OTG")
-	otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4SessionUp(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 sessions up"})
-	otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6SessionUp(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 sessions up"})
+	err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4SessionUp(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 sessions up"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6SessionUp(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 sessions up"})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Starting ATE Traffic and verify Traffic Flows and packet loss
 	sendTraffic(t, otg, otgConfig)
@@ -584,8 +590,14 @@ func TestEstablish(t *testing.T) {
 		dutConfPath.Replace(t, bgpCreateNbr(dutAS, badAS, defaultPolicy))
 
 		// Resend traffic
-		otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4SessionDown(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP4 sessions down"})
-		otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6SessionDown(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP6 sessions down"})
+		err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4SessionDown(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP4 sessions down"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6SessionDown(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP6 sessions down"})
+		if err != nil {
+			t.Fatal(err)
+		}
 		sendTraffic(t, otg, otgConfig)
 		verifyTraffic(t, ate, otgConfig, true)
 	})
@@ -653,8 +665,14 @@ func TestBGPPolicy(t *testing.T) {
 			dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
 			// Send and verify traffic.
 
-			otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4SessionUp(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 sessions up"})
-			otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6SessionUp(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 sessions up"})
+			err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4SessionUp(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 sessions up"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6SessionUp(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 sessions up"})
+			if err != nil {
+				t.Fatal(err)
+			}
 			sendTraffic(t, otg, otgConfig)
 			verifyTraffic(t, ate, otgConfig, tc.wantLoss)
 

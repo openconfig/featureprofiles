@@ -273,7 +273,10 @@ func (tc *testCase) configureATE(t *testing.T) {
 	for i, p := range tc.atePorts[1:] {
 		port := tc.top.Ports().Add().SetName(p.ID())
 		lagPort := agg.Ports().Add()
-		newMac, _ := otgutils.IncrementedMac(ateDst.MAC, i)
+		newMac, err := otgutils.IncrementedMac(ateDst.MAC, i)
+		if err != nil {
+			t.Fatal(err)
+		}
 		lagPort.SetPortName(port.Name()).
 			Ethernet().SetMac(newMac).
 			SetName("LagRx-" + strconv.Itoa(i))

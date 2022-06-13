@@ -260,10 +260,7 @@ func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned b
 		}
 	}
 
-	err := otgutils.WaitFor(
-		t,
-		func() (bool, error) { return otgutils.ArpEntriesOk(t, otg, ipType, expectedMacEntries) }, nil,
-	)
+	err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.ArpEntriesOk(t, otg, ipType, expectedMacEntries) }, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

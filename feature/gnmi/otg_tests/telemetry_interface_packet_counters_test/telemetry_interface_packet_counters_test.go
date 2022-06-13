@@ -239,8 +239,13 @@ func TestIntfCounterUpdate(t *testing.T) {
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	t.Logf("inPkts: %v and outPkts: %v before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 
-	otgutils.WaitForArpEntries(t, otg, "ipv4", &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second})
-	otgutils.WaitForArpEntries(t, otg, "ipv6", &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second})
+	for _, ipType := range []string{"ipv4", "ipv6"} {
+		err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.ArpEntriesPresent(t, otg, ipType) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "ARP entries ready"})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	otg.StartTraffic(t)
 	err := otgutils.WatchFlowMetrics(t, otg, config, &otgutils.WaitForOpts{Interval: 2 * time.Second, Timeout: 10 * time.Second})
 	if err != nil {
