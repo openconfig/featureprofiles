@@ -58,8 +58,6 @@ func TestMain(m *testing.M) {
 //    that is covered by this requirement.
 //
 //  Sample gnmic command to send CLI config and get CLI command output using gmic:
-//   - gnmic -a ipaddr:10162 -u username -p password --skip-verify get \
-//       --path "cli:/show version"
 //   - gnmic -a ipaddr:10162 -u username -p password --skip-verify \
 //       --encoding ASCII set --update-path "cli:" \
 //       --update-value "logging host 192.0.2.18 514"
@@ -126,53 +124,6 @@ interface %s
 	}
 }
 
-func TestOriginCliShowCmd(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-
-	gnmiClient := dut.RawAPIs().GNMI().Default(t)
-	cases := []struct {
-		desc   string
-		cliCmd string
-	}{
-		{
-			desc:   "Get software version",
-			cliCmd: "show version",
-		},
-		{
-			desc:   "Get lldp neighbors list",
-			cliCmd: "show lldp neighbors",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-
-			t.Log("gnmiClient Get CLI show version output")
-			getResponse, err := gnmiClient.Get(context.Background(), &gpb.GetRequest{
-				Path: []*gpb.Path{{
-					Origin: "cli",
-					Elem:   []*gpb.PathElem{{Name: tc.cliCmd}},
-				}},
-				Type:     gpb.GetRequest_OPERATIONAL,
-				Encoding: gpb.Encoding_JSON_IETF,
-			})
-			if err != nil {
-				t.Fatalf("Cannot fetch %s output from the DUT with error: %v", tc.cliCmd, err)
-			}
-			t.Logf("getResponse: %v", getResponse)
-
-			if output, err := extractCliOutput(getResponse); err != nil {
-				t.Errorf("extractCliOutput(getResponse) failed with error: %v", err)
-			} else {
-				t.Logf("Display the CLI command %v output in key/value pair:", tc.cliCmd)
-				for k, v := range output {
-					t.Logf("%v => %v", k, v)
-				}
-			}
-		})
-	}
-}
-
 func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 	// Build config with Origin set to cli and Ascii encoded config.
 	gpbSetRequest := &gpb.SetRequest{
@@ -189,28 +140,4 @@ func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 		}},
 	}
 	return gpbSetRequest, nil
-}
-
-func extractCliOutput(getResponse *gpb.GetResponse) (map[string]interface{}, error) {
-	if got := len(getResponse.GetNotification()); got != 1 {
-		return nil, fmt.Errorf("number of notifications got %d, want 1", got)
-	}
-
-	n := getResponse.GetNotification()[0]
-	u := n.Update[0]
-	path, err := util.JoinPaths(n.GetPrefix(), u.GetPath())
-	if err != nil {
-		return nil, err
-	}
-	if len(path.GetElem()) != 1 {
-		return nil, fmt.Errorf("update path, got: %v, want 1", len(path.GetElem()))
-	}
-	var val map[string]interface{}
-	if err = json.Unmarshal(u.GetVal().GetJsonIetfVal(), &val); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal the json content, err: %v", err)
-	}
-	if len(val) == 0 {
-		return nil, fmt.Errorf("update val, got: %v, want non-empty map", val)
-	}
-	return val, nil
 }
