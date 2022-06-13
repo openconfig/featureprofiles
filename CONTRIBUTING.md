@@ -43,6 +43,7 @@ To make a contribution to OpenConfig featureprofiles:
      being made to the model, whilst also ensuring that course-corrections can be
      made early in the process. If a test is growing to more than 500 lines, it
      may need to be broken into multiple smaller tests.
+    * New contributions should be in the feature/experimental directory.
 
 1. The pull request should include both the suggested feature profile textproto
  additions, as well as any relevant additions to tests. Tests should be written
@@ -69,6 +70,7 @@ The directory tree is organized as follows:
 * `cloudbuild/` contains google cloud build scripts for running virtual
     routers in containers on [KNE](https://github.com/google/kne)
 * `feature/` contains definition and tests of feature profiles.
+* `feature/experimental` contains new features and tests which are not yet proven to be stable
 * `internal/` contains packages used by feature profile tests.
 * `proto/`  contains protobuf files for feature profiles.
 * `tools/` contains code used for CI checks.
@@ -91,7 +93,7 @@ Test suites should be placed in subdirectories formatted like `feature/<featuren
 * `internal/deviations` contains code which overrides standard tests where
     there are known issues in a DUT.
 
-Within each test directory `<test>_test.md` should document the test suite.  The
+Within each test directory `README.md` should document the test suite.  The
 `*.go` files should be named after an appropriate [github featureprofiles project](https://github.com/orgs/openconfig/projects/2/views/1?filterQuery=)
 item. For example:
 

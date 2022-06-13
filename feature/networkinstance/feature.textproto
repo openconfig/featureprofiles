@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "network_instance_base"
+  name: "networkinstance"
   version: 1
 }
 
@@ -31,9 +31,4 @@ config_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/state/type"
-}
-
-feature_profile_dependency {
-  name: "device_base"
-  version: 1
 }

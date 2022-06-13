@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "gnmi_base"
+  name: "system_gnmi"
   version: 1
 }
 

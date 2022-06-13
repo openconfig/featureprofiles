@@ -171,7 +171,8 @@ type file struct {
 	name  string
 	lines []line
 	// Errors which are not correlated with a line.
-	errors []string
+	errors       []string
+	dependencies []string
 }
 
 // checkFiles parses all `path:` lines in the input `files`, reporting any syntax errors and paths
@@ -179,6 +180,7 @@ type file struct {
 func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 	report := []file{}
 	tmp := fppb.FeatureProfile{}
+	validProfile := make(map[string]bool)
 
 	for _, f := range files {
 		bs, err := ioutil.ReadFile(f)
@@ -189,10 +191,26 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 		}
 
 		var errs []string
+		var dependencies []string
 
 		// Unmarshal will report syntax errors (although generally without line numbers).
 		if err := prototext.Unmarshal(bs, &tmp); err != nil {
 			errs = append(errs, err.Error())
+		}
+
+		// Validate feature profile ID name by checking path.
+		targetFeatureProfileName := getFeatureProfileNameFromPath(f, &tmp)
+		featureProfileIDName := tmp.GetId().GetName()
+		validProfile[featureProfileIDName] = true
+		if targetFeatureProfileName != featureProfileIDName {
+			errs = append(errs, featureProfileIDName+" is inconsistent with path, want "+targetFeatureProfileName)
+			validProfile[featureProfileIDName] = false
+		}
+
+		for _, dependency := range tmp.FeatureProfileDependency {
+			if dependency.GetName() != "" {
+				dependencies = append(dependencies, dependency.GetName())
+			}
 		}
 
 		// Use parser.Parse so I can get line numbers for OC paths we don't recognize.
@@ -230,12 +248,37 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 			}
 		}
 
-		if len(lines) == 0 && len(errs) == 0 {
+		if len(lines) == 0 && len(errs) == 0 && len(dependencies) == 0 {
 			continue
 		}
-		report = append(report, file{name: f, lines: lines, errors: errs})
+		report = append(report, file{name: f, lines: lines, dependencies: dependencies, errors: errs})
 	}
+	report = validateDependency(validProfile, report)
 	return report, nil
+}
+
+// getFeatureProfileNameFromPath gets feature profile id.name from path.
+func getFeatureProfileNameFromPath(file string, fp *fppb.FeatureProfile) string {
+	featureProfileFilePath := strings.ReplaceAll(strings.TrimPrefix(file, featuresRoot), "/", " ")
+	featureProfileFilePathArray := strings.Fields(featureProfileFilePath)
+	featureProfileFilePathArray = featureProfileFilePathArray[0 : len(featureProfileFilePathArray)-1]
+	return strings.Join(featureProfileFilePathArray, "_")
+}
+
+// validateDependency validates dependency from existing feature profile ID lists.
+func validateDependency(validProfile map[string]bool, reports []file) []file {
+	newReports := []file{}
+	for _, report := range reports {
+		for _, dependency := range report.dependencies {
+			if !validProfile[dependency] {
+				report.errors = append(report.errors, "can not find feature profile dependency "+dependency)
+			}
+		}
+		if len(report.lines) != 0 || len(report.errors) != 0 {
+			newReports = append(newReports, file{name: report.name, lines: report.lines, errors: report.errors})
+		}
+	}
+	return newReports
 }
 
 // featureFiles lists the file paths containing features data.

@@ -22,7 +22,7 @@ func TestAugment(t *testing.T) {
 		wantNI *fpoc.NetworkInstance
 	}{{
 		desc:   "Static route with nil next-hop",
-		static: New().WithRoute("1.1.1.1/32", nil),
+		static: New().WithRoute("192.0.2.1/32", nil),
 		inNI:   &fpoc.NetworkInstance{},
 		wantNI: &fpoc.NetworkInstance{
 			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
@@ -30,8 +30,8 @@ func TestAugment(t *testing.T) {
 					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 					Name:       ygot.String("static"),
 					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
-						"1.1.1.1/32": {
-							Prefix: ygot.String("1.1.1.1/32"),
+						"192.0.2.1/32": {
+							Prefix: ygot.String("192.0.2.1/32"),
 						},
 					},
 				},
@@ -39,7 +39,7 @@ func TestAugment(t *testing.T) {
 		},
 	}, {
 		desc:   "Static route with one next-hop",
-		static: New().WithRoute("1.1.1.1/32", []string{"1.2.3.44"}),
+		static: New().WithRoute("192.0.2.1/32", []string{"203.0.113.14"}),
 		inNI:   &fpoc.NetworkInstance{},
 		wantNI: &fpoc.NetworkInstance{
 			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
@@ -47,12 +47,12 @@ func TestAugment(t *testing.T) {
 					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 					Name:       ygot.String("static"),
 					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
-						"1.1.1.1/32": {
-							Prefix: ygot.String("1.1.1.1/32"),
+						"192.0.2.1/32": {
+							Prefix: ygot.String("192.0.2.1/32"),
 							NextHop: map[string]*fpoc.NetworkInstance_Protocol_Static_NextHop{
 								"1": {
 									Index:   ygot.String("1"),
-									NextHop: fpoc.UnionString("1.2.3.44"),
+									NextHop: fpoc.UnionString("203.0.113.14"),
 								},
 							},
 						},
@@ -62,7 +62,7 @@ func TestAugment(t *testing.T) {
 		},
 	}, {
 		desc:   "Static route Multiple Next Hops",
-		static: New().WithRoute("1.1.1.1/32", []string{"1.2.3.44", "1.2.3.45"}),
+		static: New().WithRoute("192.0.2.1/32", []string{"203.0.113.14", "203.0.113.15"}),
 		inNI:   &fpoc.NetworkInstance{},
 		wantNI: &fpoc.NetworkInstance{
 			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
@@ -70,16 +70,16 @@ func TestAugment(t *testing.T) {
 					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 					Name:       ygot.String("static"),
 					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
-						"1.1.1.1/32": {
-							Prefix: ygot.String("1.1.1.1/32"),
+						"192.0.2.1/32": {
+							Prefix: ygot.String("192.0.2.1/32"),
 							NextHop: map[string]*fpoc.NetworkInstance_Protocol_Static_NextHop{
 								"1": {
 									Index:   ygot.String("1"),
-									NextHop: fpoc.UnionString("1.2.3.44"),
+									NextHop: fpoc.UnionString("203.0.113.14"),
 								},
 								"2": {
 									Index:   ygot.String("2"),
-									NextHop: fpoc.UnionString("1.2.3.45"),
+									NextHop: fpoc.UnionString("203.0.113.15"),
 								},
 							},
 						},
@@ -89,23 +89,23 @@ func TestAugment(t *testing.T) {
 		},
 	}, {
 		desc:   "NI already contains static route so no change",
-		static: New().WithRoute("1.1.1.1/32", []string{"1.2.3.44", "1.2.3.45"}),
+		static: New().WithRoute("192.0.2.1/32", []string{"203.0.113.14", "203.0.113.15"}),
 		inNI: &fpoc.NetworkInstance{
 			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
 				protocolKey: {
 					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 					Name:       ygot.String("static"),
 					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
-						"1.1.1.1/32": {
-							Prefix: ygot.String("1.1.1.1/32"),
+						"192.0.2.1/32": {
+							Prefix: ygot.String("192.0.2.1/32"),
 							NextHop: map[string]*fpoc.NetworkInstance_Protocol_Static_NextHop{
 								"1": {
 									Index:   ygot.String("1"),
-									NextHop: fpoc.UnionString("1.2.3.44"),
+									NextHop: fpoc.UnionString("203.0.113.14"),
 								},
 								"2": {
 									Index:   ygot.String("2"),
-									NextHop: fpoc.UnionString("1.2.3.45"),
+									NextHop: fpoc.UnionString("203.0.113.15"),
 								},
 							},
 						},
@@ -119,16 +119,16 @@ func TestAugment(t *testing.T) {
 					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 					Name:       ygot.String("static"),
 					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
-						"1.1.1.1/32": {
-							Prefix: ygot.String("1.1.1.1/32"),
+						"192.0.2.1/32": {
+							Prefix: ygot.String("192.0.2.1/32"),
 							NextHop: map[string]*fpoc.NetworkInstance_Protocol_Static_NextHop{
 								"1": {
 									Index:   ygot.String("1"),
-									NextHop: fpoc.UnionString("1.2.3.44"),
+									NextHop: fpoc.UnionString("203.0.113.14"),
 								},
 								"2": {
 									Index:   ygot.String("2"),
-									NextHop: fpoc.UnionString("1.2.3.45"),
+									NextHop: fpoc.UnionString("203.0.113.15"),
 								},
 							},
 						},
@@ -163,24 +163,24 @@ func TestAugment_Errors(t *testing.T) {
 		wantErrSubStr string
 	}{{
 		desc:          "Prefix not in CIDR format",
-		static:        New().WithRoute("1.1.1.1", nil),
+		static:        New().WithRoute("192.0.2.1", nil),
 		inNI:          &fpoc.NetworkInstance{},
 		wantErrSubStr: "does not match regular expression pattern",
 	}, {
 		desc:   "Same prefix with different next-hop",
-		static: New().WithRoute("1.1.1.1/32", []string{"1.2.3.44"}),
+		static: New().WithRoute("192.0.2.1/32", []string{"203.0.113.14"}),
 		inNI: &fpoc.NetworkInstance{
 			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
 				protocolKey: {
 					Identifier: fpoc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 					Name:       ygot.String("static"),
 					Static: map[string]*fpoc.NetworkInstance_Protocol_Static{
-						"1.1.1.1/32": {
-							Prefix: ygot.String("1.1.1.1/32"),
+						"192.0.2.1/32": {
+							Prefix: ygot.String("192.0.2.1/32"),
 							NextHop: map[string]*fpoc.NetworkInstance_Protocol_Static_NextHop{
 								"1": {
 									Index:   ygot.String("1"),
-									NextHop: fpoc.UnionString("1.2.3.45"),
+									NextHop: fpoc.UnionString("203.0.113.15"),
 								},
 							},
 						},

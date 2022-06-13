@@ -98,27 +98,18 @@ func TestGNMIGet(t *testing.T) {
 			protocmp.IgnoreFields(&gpb.GetResponse{}, "notification"),
 		},
 		chkFn: func(t *testing.T, res *gpb.GetResponse) {
-			var val *gpb.TypedValue
+			d := &fpoc.Device{}
 			for _, n := range res.Notification {
 				for _, u := range n.Update {
-					// we know notification[0].update[0] is the contents of our Get in JSON.
-					val = u.Val
-					break
+					// The updates here are all TypedValue JSON_IETF fields that should be
+					// unmarshallable using SetNode to the root (since the get is for /.
+					if u.GetVal().GetJsonIetfVal() == nil {
+						t.Fatalf("got an update with a non JSON_IETF schema, got: %s", u)
+					}
+					if err := fpoc.Unmarshal(u.Val.GetJsonIetfVal(), d, &ytypes.IgnoreExtraFields{}); err != nil {
+						t.Fatalf("cannot call Unmarshal for path %s, err: %v", u.Path, err)
+					}
 				}
-			}
-
-			if val == nil {
-				t.Fatalf("did not get a valid update, got: %v", shortResponse(res))
-			}
-
-			jv := val.GetJsonIetfVal()
-			if jv == nil {
-				t.Fatalf("did not get JSON IETF value as expected, got:  %v", val)
-			}
-
-			d := &fpoc.Device{}
-			if err := fpoc.Unmarshal(jv, d, &ytypes.IgnoreExtraFields{}); err != nil {
-				t.Fatalf("did not get valid JSON IETF value, got err: %v", err)
 			}
 		},
 	}}
@@ -148,43 +139,39 @@ func TestGNMIGet(t *testing.T) {
 				t.Fatalf("did not get expected number of Notification fields, got: %d, want: %d", got, want)
 			}
 
-			found := map[string]bool{}
-			for _, n := range tt.wantGetResponse.Notification {
-				for _, u := range n.Update {
-					p, err := ygot.PathToString(u.Path)
-					if err != nil {
-						t.Fatalf("cannot convert path %v to string, err: %v", u.Path, err)
-					}
-					found[p] = false
-				}
-			}
-
+			// Check semantics of the response that we received from the DUT independently of its contents.
+			// Must be one Notification per Path, and each Notification must contain the same path.
+			foundPaths := map[string]bool{}
 			for _, n := range gotRes.Notification {
-				// TODO(robjs): today this is not specified in the spec, but means that there can be >1 update where the path does
-				// not match what the target responded.
-				if len(n.Update) != 1 {
-					t.Fatalf("did not get expected number of updates per Notification, got: %d (%v), want: 1", len(n.Update), shortResponse(gotRes))
-				}
-				msg := n.Update[0]
+				var p *gpb.Path
+				for _, u := range n.Update {
+					if p == nil {
+						p = u.Path
+					}
+					if !proto.Equal(p, u.Path) {
+						t.Fatalf("got mixed paths within a single Notification, want: %s, got: %s (%s)", p, u.Path, shortResponse(gotRes))
+					}
 
-				p, err := ygot.PathToString(msg.Path)
-				if err != nil {
-					t.Fatalf("cannot convert path %v to string, err: %v", msg.Path, err)
+					ps, err := ygot.PathToString(u.Path)
+					if err != nil {
+						t.Fatalf("got invalid path within an Update, got: %s, err: %v", u.Path, err)
+					}
+					foundPaths[ps] = true
 				}
-
-				seen, ok := found[p]
-				if !ok {
-					t.Errorf("found unexpected path %v in Notifications, got: %v", msg.Path, shortResponse(gotRes))
-				}
-				if seen {
-					t.Errorf("saw repeated path %v in Notifications, got: %v", msg.Path, shortResponse(gotRes))
-				}
-				found[p] = true
 			}
 
-			for p, ok := range found {
-				if !ok {
-					t.Errorf("did not find path %v in Notifications, got: %v", p, shortResponse(gotRes))
+			if len(foundPaths) != len(tt.inGetRequest.Path) {
+				t.Fatalf("did not get expected number of paths, got: %d (%v), want: %d (%v)", len(foundPaths), foundPaths, len(tt.inGetRequest.Path), tt.inGetRequest.Path)
+			}
+
+			for _, p := range tt.inGetRequest.Path {
+				ps, err := ygot.PathToString(p)
+				if err != nil {
+					t.Fatalf("invalid path in input GetRequest, got: %v, err: %v", p, err)
+				}
+				if !foundPaths[ps] {
+					// this path wasn't present
+					t.Fatalf("did not get a response for path %s, got: nil", ps)
 				}
 			}
 

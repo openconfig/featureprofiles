@@ -18,13 +18,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -38,8 +39,23 @@ import (
 // testbed topology.
 type staticBind struct {
 	binding.Binding
-	r    resolver
-	resv *binding.Reservation
+	r          resolver
+	resv       *binding.Reservation
+	pushConfig bool
+}
+
+type staticDUT struct {
+	*binding.AbstractDUT
+	r   resolver
+	dev *bindpb.Device
+}
+
+type staticATE struct {
+	*binding.AbstractATE
+	r      resolver
+	dev    *bindpb.Device
+	ixweb  *ixweb.IxWeb
+	ixsess *ixweb.Session
 }
 
 var _ = binding.Binding(&staticBind{})
@@ -56,12 +72,24 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	}
 	resv.ID = resvID
 	b.resv = resv
+
+	if err := b.reserveIxSessions(ctx); err != nil {
+		return nil, err
+	}
+	if b.pushConfig {
+		if err := b.reset(ctx); err != nil {
+			return nil, err
+		}
+	}
 	return resv, nil
 }
 
 func (b *staticBind) Release(ctx context.Context) error {
 	if b.resv == nil {
 		return errors.New("no reservation")
+	}
+	if err := b.releaseIxSessions(ctx); err != nil {
+		return err
 	}
 	b.resv = nil
 	return nil
@@ -71,16 +99,16 @@ func (b *staticBind) FetchReservation(ctx context.Context, id string) (*binding.
 	if b.resv == nil || id != resvID {
 		return nil, fmt.Errorf("reservation not found: %s", id)
 	}
+	if b.pushConfig {
+		if err := b.reset(ctx); err != nil {
+			return nil, err
+		}
+	}
 	return b.resv, nil
 }
 
-func (b *staticBind) PushConfig(ctx context.Context, dut *binding.DUT, config string, reset bool) error {
-	// If really needed, implement this using SSH cli.
-	return errors.New("featureprofiles tests should use gNMI, not PushConfig")
-}
-
-func (b *staticBind) DialGNMI(ctx context.Context, dut *binding.DUT, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
-	dialer, err := b.r.gnmi(dut.Name)
+func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
+	dialer, err := d.r.gnmi(d.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -91,8 +119,8 @@ func (b *staticBind) DialGNMI(ctx context.Context, dut *binding.DUT, opts ...grp
 	return gpb.NewGNMIClient(conn), nil
 }
 
-func (b *staticBind) DialGNOI(ctx context.Context, dut *binding.DUT, opts ...grpc.DialOption) (binding.GNOIClients, error) {
-	dialer, err := b.r.gnoi(dut.Name)
+func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (binding.GNOIClients, error) {
+	dialer, err := d.r.gnoi(d.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -103,8 +131,8 @@ func (b *staticBind) DialGNOI(ctx context.Context, dut *binding.DUT, opts ...grp
 	return gnoiConn{conn}, nil
 }
 
-func (b *staticBind) DialGRIBI(ctx context.Context, dut *binding.DUT, opts ...grpc.DialOption) (grpb.GRIBIClient, error) {
-	dialer, err := b.r.gribi(dut.Name)
+func (d *staticDUT) DialGRIBI(ctx context.Context, opts ...grpc.DialOption) (grpb.GRIBIClient, error) {
+	dialer, err := d.r.gribi(d.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -115,8 +143,8 @@ func (b *staticBind) DialGRIBI(ctx context.Context, dut *binding.DUT, opts ...gr
 	return grpb.NewGRIBIClient(conn), nil
 }
 
-func (b *staticBind) DialP4RT(ctx context.Context, dut *binding.DUT, opts ...grpc.DialOption) (p4pb.P4RuntimeClient, error) {
-	dialer, err := b.r.p4rt(dut.Name)
+func (d *staticDUT) DialP4RT(ctx context.Context, opts ...grpc.DialOption) (p4pb.P4RuntimeClient, error) {
+	dialer, err := d.r.p4rt(d.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -127,15 +155,8 @@ func (b *staticBind) DialP4RT(ctx context.Context, dut *binding.DUT, opts ...grp
 	return p4pb.NewP4RuntimeClient(conn), nil
 }
 
-func (b *staticBind) DialConsole(ctx context.Context, dut *binding.DUT, opts ...grpc.DialOption) (binding.StreamClient, error) {
-	// If needed, we can implement this by assuming the console is
-	// accessible as a local character special device such as ttyS0 or a
-	// pty.  Please file a feature request to discuss the use case.
-	return nil, errors.New("console is not supported yet by the static binding")
-}
-
-func (b *staticBind) DialCLI(ctx context.Context, dut *binding.DUT, opts ...grpc.DialOption) (binding.StreamClient, error) {
-	dialer, err := b.r.ssh(dut.Name)
+func (d *staticDUT) DialCLI(ctx context.Context, opts ...grpc.DialOption) (binding.StreamClient, error) {
+	dialer, err := d.r.ssh(d.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -146,36 +167,16 @@ func (b *staticBind) DialCLI(ctx context.Context, dut *binding.DUT, opts ...grpc
 	return newCLI(sc)
 }
 
-func (b *staticBind) DialIxNetwork(ctx context.Context, ate *binding.ATE) (*binding.IxNetwork, error) {
-	dialer, err := b.r.ixnetwork(ate.Name)
+func (a *staticATE) DialIxNetwork(ctx context.Context) (*binding.IxNetwork, error) {
+	dialer, err := a.r.ixnetwork(a.Name())
 	if err != nil {
 		return nil, err
 	}
-	hc := dialer.newHTTPClient()
-	password := dialer.GetPassword()
-	username := dialer.GetUsername()
-	if len(password) == 0 || len(username) == 0 {
-		password = "admin"
-		username = "admin"
-	}
-	ixw, err := ixweb.Connect(ctx, dialer.Target, ixweb.WithHTTPClient(hc), ixweb.WithLogin(username, password))
-	if err != nil {
-		return nil, err
-	}
-	ixs, err := ixw.IxNetwork().NewSession(ctx, ate.Name)
+	ixs, err := a.ixSession(ctx, dialer)
 	if err != nil {
 		return nil, err
 	}
 	return &binding.IxNetwork{Session: ixs}, nil
-}
-
-func (b *staticBind) HandleInfraFail(err error) error {
-	log.Printf("Infrastructure failure: %v", err)
-	return err
-}
-
-func (b *staticBind) SetTestMetadata(md *binding.TestMetadata) error {
-	return nil // Unimplemented.
 }
 
 // allerrors implements the error interface and will accumulate and
@@ -204,7 +205,7 @@ func (errs allerrors) Error() string {
 func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 	var errs allerrors
 
-	duts := make(map[string]*binding.DUT)
+	duts := make(map[string]binding.DUT)
 	for _, tdut := range tb.Duts {
 		bdut := r.dutByID(tdut.Id)
 		if bdut == nil {
@@ -217,7 +218,11 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 			duts[tdut.Id] = nil // mark it "found"
 			continue
 		}
-		duts[tdut.Id] = &binding.DUT{Dims: d}
+		duts[tdut.Id] = &staticDUT{
+			AbstractDUT: &binding.AbstractDUT{Dims: d},
+			r:           r,
+			dev:         bdut,
+		}
 	}
 	for _, bdut := range r.Duts {
 		if _, ok := duts[bdut.Id]; !ok {
@@ -225,7 +230,7 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 		}
 	}
 
-	ates := make(map[string]*binding.ATE)
+	ates := make(map[string]binding.ATE)
 	for _, tate := range tb.Ates {
 		bate := r.ateByID(tate.Id)
 		if bate == nil {
@@ -238,7 +243,11 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 			ates[tate.Id] = nil // mark it "found"
 			continue
 		}
-		ates[tate.Id] = &binding.ATE{Dims: d}
+		ates[tate.Id] = &staticATE{
+			AbstractATE: &binding.AbstractATE{Dims: d},
+			r:           r,
+			dev:         bate,
+		}
 	}
 	for _, bate := range r.Ates {
 		if _, ok := ates[bate.Id]; !ok {
@@ -255,6 +264,82 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 		ATEs: ates,
 	}
 	return resv, nil
+}
+
+func (b *staticBind) reset(ctx context.Context) error {
+	for _, bdut := range b.r.GetDuts() {
+		if err := applyCli(ctx, bdut, b); err != nil {
+			return err
+		}
+		if err := applyGnmi(ctx, bdut, b); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func readCli(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func readGnmi(path string) (*gpb.SetRequest, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	req := &gpb.SetRequest{}
+	if err := proto.Unmarshal(data, req); err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
+func applyCli(ctx context.Context, bdut *bindpb.Device, b *staticBind) error {
+	vendorConfig := []string{}
+	for _, conf := range bdut.GetConfig().GetCli() {
+		vendorConfig = append(vendorConfig, string(conf))
+	}
+	for _, file := range bdut.GetConfig().GetCliFile() {
+		conf, err := readCli(file)
+		if err != nil {
+			return err
+		}
+		vendorConfig = append(vendorConfig, conf)
+	}
+	dut := b.resv.DUTs[bdut.GetId()]
+	conf := strings.Join(vendorConfig, "\n")
+
+	return dut.PushConfig(ctx, conf, true)
+}
+
+func applyGnmi(ctx context.Context, bdut *bindpb.Device, b *staticBind) error {
+	dialer, err := b.r.gnmi(bdut.GetName())
+	if err != nil {
+		return err
+	}
+	conn, err := dialer.dialGRPC(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	gnmi := gpb.NewGNMIClient(conn)
+
+	for _, file := range bdut.GetConfig().GetGnmiSetFile() {
+		conf, err := readGnmi(file)
+		if err != nil {
+			return err
+		}
+		if _, err := gnmi.Set(ctx, conf); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
@@ -298,4 +383,63 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 		return nil, errs
 	}
 	return portmap, nil
+}
+
+func (b *staticBind) reserveIxSessions(ctx context.Context) error {
+	ates := b.resv.ATEs
+	for _, ate := range ates {
+		dialer, err := b.r.ixnetwork(ate.Name())
+		if err != nil {
+			return err
+		}
+		if _, err := ate.(*staticATE).ixSession(ctx, dialer); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (b *staticBind) releaseIxSessions(ctx context.Context) error {
+	for _, ate := range b.resv.ATEs {
+		dialer, err := b.r.ixnetwork(ate.Name())
+		if err != nil {
+			return err
+		}
+		sate := ate.(*staticATE)
+		if sate.ixsess != nil && dialer.SessionId == 0 {
+			if err := sate.ixweb.IxNetwork().DeleteSession(ctx, sate.ixsess.ID()); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (a *staticATE) ixWeb(ctx context.Context, d dialer) (*ixweb.IxWeb, error) {
+	if a.ixweb == nil {
+		ixw, err := d.newIxWebClient(ctx)
+		if err != nil {
+			return nil, err
+		}
+		a.ixweb = ixw
+	}
+	return a.ixweb, nil
+}
+
+func (a *staticATE) ixSession(ctx context.Context, d dialer) (*ixweb.Session, error) {
+	if a.ixsess == nil {
+		ixw, err := a.ixWeb(ctx, d)
+		if err != nil {
+			return nil, err
+		}
+		if d.SessionId > 0 {
+			a.ixsess, err = ixw.IxNetwork().FetchSession(ctx, int(d.SessionId))
+		} else {
+			a.ixsess, err = ixw.IxNetwork().NewSession(ctx, a.Name())
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return a.ixsess, nil
 }

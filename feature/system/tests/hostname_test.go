@@ -36,7 +36,6 @@ func TestHostname(t *testing.T) {
 		{"15 Letters", "abcdefghijkmnop"},
 		{"15 Numbers", "123456789012345"},
 		{"Single Character", "x"},
-		{"Dash and Underscore", "foo_bar-baz"},
 		{"Periods", "test.name.example"},
 		{"63 Characters", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
 	}

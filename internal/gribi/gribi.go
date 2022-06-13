@@ -203,7 +203,7 @@ func (g *Client) NH(t testing.TB, nhIndex uint64, nh_entry, instance string, nh_
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NH: %v", err)
 	}
-	chk.HasResult(t, g.fluentC.Results(t),
+	chk.HasResult(t, c.fluentC.Results(t),
 		fluent.OperationResult().
 			WithNextHopOperation(nhIndex).
 			WithOperationType(constants.Add).
@@ -232,7 +232,7 @@ func (g *Client) IPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nh
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4: %v", err)
 	}
-	chk.HasResult(t, g.fluentC.Results(t),
+	chk.HasResult(t, c.fluentC.Results(t),
 		fluent.OperationResult().
 			WithIPv4Operation(prefix).
 			WithOperationType(constants.Add).
