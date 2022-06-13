@@ -147,7 +147,11 @@ func (g *GRIBIHandler) BecomeLeader(t testing.TB) {
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
+<<<<<<< Updated upstream
 func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {
+=======
+func (g *Client) NHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, action string, expectedResult fluent.ProgrammingResult) {
+>>>>>>> Stashed changes
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 
 	// checking if backup provided
@@ -158,7 +162,11 @@ func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, n
 	if len(nhWeights) != 0 {
 		for nhIndex, weight := range nhWeights {
 			nhg.AddNextHop(nhIndex, weight)
-			g.fluentC.Modify().AddEntry(t, nhg)
+			if action == "add" {
+				g.fluentC.Modify().AddEntry(t, nhg)
+			} else if action == "delete" {
+				g.fluentC.Modify().DeleteEntry(t, nhg)
+			}
 			if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 				t.Fatalf("Error waiting to add NHG: %v", err)
 			}
@@ -175,54 +183,58 @@ func (g *GRIBIHandler) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, n
 	)
 }
 
+<<<<<<< Updated upstream
 func (g *GRIBIHandler) RemoveNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
+=======
+// func (g *Client) RemoveNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {
+// 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
+>>>>>>> Stashed changes
 
-	// checking if backup provided
-	if bkhgIndex != 0 {
-		nhg.WithBackupNHG(bkhgIndex)
-	}
+// 	// checking if backup provided
+// 	if bkhgIndex != 0 {
+// 		nhg.WithBackupNHG(bkhgIndex)
+// 	}
 
-	if len(nhWeights) != 0 {
-		for nhIndex, weight := range nhWeights {
-			nhg.AddNextHop(nhIndex, weight)
-			g.fluentC.Modify().DeleteEntry(t, nhg)
-		}
-	}
+// 	if len(nhWeights) != 0 {
+// 		for nhIndex, weight := range nhWeights {
+// 			nhg.AddNextHop(nhIndex, weight)
+// 			g.fluentC.Modify().DeleteEntry(t, nhg)
+// 		}
+// 	}
 
-	chk.HasResult(t, g.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopGroupOperation(nhgIndex).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
-}
+// 	chk.HasResult(t, g.fluentC.Results(t),
+// 		fluent.OperationResult().
+// 			WithNextHopGroupOperation(nhgIndex).
+// 			WithOperationType(constants.Add).
+// 			WithProgrammingResult(expectedResult).
+// 			AsResult(),
+// 		chk.IgnoreOperationID(),
+// 	)
+// }
 
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
+<<<<<<< Updated upstream
 func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, nh_entry, instance string, nh_Instance string, expectedResult fluent.ProgrammingResult) {
+=======
+func (g *Client) NH(t testing.TB, nhIndex uint64, nh_entry, instance string, nh_Instance string, action string, expectedResult fluent.ProgrammingResult) {
+>>>>>>> Stashed changes
 	addr := net.ParseIP(nh_entry)
+	nh := fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(nhIndex)
 	if "decap" == nh_entry {
-		g.fluentC.Modify().AddEntry(t,
-			fluent.NextHopEntry().
-				WithNetworkInstance(instance).
-				WithIndex(nhIndex).
-				WithDecapsulateHeader(fluent.IPinIP).
-				WithNextHopNetworkInstance(nh_Instance))
+		nh.WithDecapsulateHeader(fluent.IPinIP).WithNextHopNetworkInstance(nh_Instance)
 	} else if addr != nil {
-		g.fluentC.Modify().AddEntry(t,
-			fluent.NextHopEntry().
-				WithNetworkInstance(instance).
-				WithIndex(nhIndex).
-				WithIPAddress(nh_entry))
+		nh.WithIPAddress(nh_entry)
 	} else {
-		g.fluentC.Modify().AddEntry(t,
-			fluent.NextHopEntry().
-				WithNetworkInstance(instance).
-				WithIndex(nhIndex).
-				WithNextHopNetworkInstance(nh_entry))
+		nh.WithNextHopNetworkInstance(nh_entry)
 	}
+
+	if action == "add" {
+		g.fluentC.Modify().AddEntry(t, nh)
+	} else if action == "delete" {
+		g.fluentC.Modify().DeleteEntry(t, nh)
+	}
+
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NH: %v", err)
 	}
@@ -236,41 +248,55 @@ func (g *GRIBIHandler) AddNH(t testing.TB, nhIndex uint64, nh_entry, instance st
 	)
 }
 
+<<<<<<< Updated upstream
 func (g *GRIBIHandler) RemoveNH(t testing.TB, nhIndex uint64, nh_entry, instance string, expectedResult fluent.ProgrammingResult) {
+=======
+// func (g *Client) RemoveNH(t testing.TB, nhIndex uint64, nh_entry, instance string, expectedResult fluent.ProgrammingResult) {
+// 	g.fluentC.Modify().DeleteEntry(t,
+// 		fluent.NextHopEntry().
+// 			WithNetworkInstance(instance).
+// 			WithIndex(nhIndex).
+// 			WithIPAddress(nh_entry))
+>>>>>>> Stashed changes
 
-	g.fluentC.Modify().DeleteEntry(t,
-		fluent.NextHopEntry().
-			WithNetworkInstance(instance).
-			WithIndex(nhIndex).
-			WithIPAddress(nh_entry))
+// 	// nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(200)
 
-	// nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(200)
+// 	// nhg.AddNextHop(2000, 100)
+// 	// g.fluentC.Modify().DeleteEntry(t, nhg)
 
-	// nhg.AddNextHop(2000, 100)
-	// g.fluentC.Modify().DeleteEntry(t, nhg)
-
-	// if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
-	// 	t.Fatalf("Error waiting to add NH: %v", err)
-	// }
-	chk.HasResult(t, g.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopOperation(nhIndex).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
-}
+// 	// if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
+// 	// 	t.Fatalf("Error waiting to add NH: %v", err)
+// 	// }
+// 	chk.HasResult(t, g.fluentC.Results(t),
+// 		fluent.OperationResult().
+// 			WithNextHopOperation(nhIndex).
+// 			WithOperationType(constants.Add).
+// 			WithProgrammingResult(expectedResult).
+// 			AsResult(),
+// 		chk.IgnoreOperationID(),
+// 	)
+// }
 
 // AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
+<<<<<<< Updated upstream
 func (g *GRIBIHandler) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
+=======
+func (g *Client) IPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, action string, expectedResult fluent.ProgrammingResult) {
+>>>>>>> Stashed changes
 	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
 		WithNetworkInstance(instance).
 		WithNextHopGroup(nhgIndex)
+
 	if nhgInstance != "" && nhgInstance != instance {
 		ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
 	}
-	g.fluentC.Modify().AddEntry(t, ipv4Entry)
+
+	if action == "add" {
+		g.fluentC.Modify().AddEntry(t, ipv4Entry)
+	} else if action == "delete" {
+		g.fluentC.Modify().DeleteEntry(t, ipv4Entry)
+	}
+
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4: %v", err)
 	}
@@ -284,6 +310,7 @@ func (g *GRIBIHandler) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, ins
 	)
 }
 
+<<<<<<< Updated upstream
 func (g *GRIBIHandler) RemoveIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
 	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
 		WithNetworkInstance(instance).
@@ -301,3 +328,22 @@ func (g *GRIBIHandler) RemoveIPv4(t testing.TB, prefix string, nhgIndex uint64, 
 		chk.IgnoreOperationID(),
 	)
 }
+=======
+// func (g *Client) RemoveIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
+// 	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
+// 		WithNetworkInstance(instance).
+// 		WithNextHopGroup(nhgIndex)
+// 	if nhgInstance != "" && nhgInstance != instance {
+// 		ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+// 	}
+// 	g.fluentC.Modify().DeleteEntry(t, ipv4Entry)
+// 	chk.HasResult(t, g.fluentC.Results(t),
+// 		fluent.OperationResult().
+// 			WithIPv4Operation(prefix).
+// 			WithOperationType(constants.Add).
+// 			WithProgrammingResult(expectedResult).
+// 			AsResult(),
+// 		chk.IgnoreOperationID(),
+// 	)
+// }
+>>>>>>> Stashed changes
