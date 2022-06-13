@@ -69,7 +69,7 @@ func TestAugmentNetworkInstance(t *testing.T) {
 		},
 	}, {
 		desc: "BGP with router-id",
-		bgp:  New().WithRouterID("1.2.3.4"),
+		bgp:  New().WithRouterID("192.0.2.1"),
 		inNI: &fpoc.NetworkInstance{},
 		wantNI: &fpoc.NetworkInstance{
 			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
@@ -78,7 +78,7 @@ func TestAugmentNetworkInstance(t *testing.T) {
 					Name:       ygot.String("bgp"),
 					Bgp: &fpoc.NetworkInstance_Protocol_Bgp{
 						Global: &fpoc.NetworkInstance_Protocol_Bgp_Global{
-							RouterId: ygot.String("1.2.3.4"),
+							RouterId: ygot.String("192.0.2.1"),
 						},
 					},
 				},
@@ -108,7 +108,7 @@ func TestAugmentNetworkInstance(t *testing.T) {
 		},
 	}, {
 		desc: "NI contains BGP OC with no conflicts",
-		bgp:  New().WithRouterID("1.2.3.4"),
+		bgp:  New().WithRouterID("192.0.2.1"),
 		inNI: &fpoc.NetworkInstance{
 			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
 				protocolKey: {
@@ -130,7 +130,7 @@ func TestAugmentNetworkInstance(t *testing.T) {
 					Bgp: &fpoc.NetworkInstance_Protocol_Bgp{
 						Global: &fpoc.NetworkInstance_Protocol_Bgp_Global{
 							As:       ygot.Uint32(1234),
-							RouterId: ygot.String("1.2.3.4"),
+							RouterId: ygot.String("192.0.2.1"),
 						},
 					},
 				},
@@ -159,7 +159,7 @@ func TestAugmentNetworkInstance_Errors(t *testing.T) {
 		wantErrSubStr string
 	}{{
 		desc: "NI contains BGP OC with conflicts",
-		bgp:  New().WithRouterID("1.2.3.4"),
+		bgp:  New().WithRouterID("192.0.2.1"),
 		inNI: &fpoc.NetworkInstance{
 			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
 				protocolKey: {
@@ -167,7 +167,7 @@ func TestAugmentNetworkInstance_Errors(t *testing.T) {
 					Name:       ygot.String("bgp"),
 					Bgp: &fpoc.NetworkInstance_Protocol_Bgp{
 						Global: &fpoc.NetworkInstance_Protocol_Bgp_Global{
-							RouterId: ygot.String("1.2.3.5"),
+							RouterId: ygot.String("192.0.2.2"),
 						},
 					},
 				},
@@ -214,7 +214,7 @@ func TestWithFeature(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		b := New().WithRouterID("1.2.3.4")
+		b := New().WithRouterID("192.0.2.1")
 		ff := &FakeFeature{Err: test.wantErr}
 		gotErr := b.WithFeature(ff)
 		if !ff.augmentCalled {

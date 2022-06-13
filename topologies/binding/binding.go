@@ -18,12 +18,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -37,8 +39,9 @@ import (
 // testbed topology.
 type staticBind struct {
 	binding.Binding
-	r    resolver
-	resv *binding.Reservation
+	r          resolver
+	resv       *binding.Reservation
+	pushConfig bool
 }
 
 type staticDUT struct {
@@ -73,6 +76,11 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	if err := b.reserveIxSessions(ctx); err != nil {
 		return nil, err
 	}
+	if b.pushConfig {
+		if err := b.reset(ctx); err != nil {
+			return nil, err
+		}
+	}
 	return resv, nil
 }
 
@@ -90,6 +98,11 @@ func (b *staticBind) Release(ctx context.Context) error {
 func (b *staticBind) FetchReservation(ctx context.Context, id string) (*binding.Reservation, error) {
 	if b.resv == nil || id != resvID {
 		return nil, fmt.Errorf("reservation not found: %s", id)
+	}
+	if b.pushConfig {
+		if err := b.reset(ctx); err != nil {
+			return nil, err
+		}
 	}
 	return b.resv, nil
 }
@@ -251,6 +264,114 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 		ATEs: ates,
 	}
 	return resv, nil
+}
+
+func (b *staticBind) reset(ctx context.Context) error {
+	for _, dut := range b.resv.DUTs {
+		if sdut, ok := dut.(*staticDUT); ok {
+			sdut.reset(ctx)
+		}
+	}
+	return nil
+}
+
+func (d *staticDUT) reset(ctx context.Context) error {
+	if err := applyCLI(ctx, d.dev, d.r); err != nil {
+		return err
+	}
+	return applyGNMI(ctx, d.dev, d.r)
+}
+
+func readCLI(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func readGNMI(path string) (*gpb.SetRequest, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	req := &gpb.SetRequest{}
+	if err := proto.Unmarshal(data, req); err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
+func applyCLI(ctx context.Context, bdut *bindpb.Device, r resolver) error {
+	vendorConfig := []string{}
+	for _, conf := range bdut.GetConfig().GetCli() {
+		vendorConfig = append(vendorConfig, string(conf))
+	}
+	for _, file := range bdut.GetConfig().GetCliFile() {
+		conf, err := readCLI(file)
+		if err != nil {
+			return err
+		}
+		vendorConfig = append(vendorConfig, conf)
+	}
+	conf := strings.Join(vendorConfig, "\n")
+
+	if conf == "" {
+		return nil
+	}
+
+	dialer, err := r.ssh(bdut.GetName())
+	if err != nil {
+		return err
+	}
+	sc, err := dialer.dialSSH()
+	if err != nil {
+		return err
+	}
+	cli, err := newCLI(sc)
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	if _, err := cli.SendCommand(ctx, conf); err != nil {
+		return err
+	}
+	return nil
+}
+
+func applyGNMI(ctx context.Context, bdut *bindpb.Device, r resolver) error {
+	setReq := []*gpb.SetRequest{}
+	for _, file := range bdut.GetConfig().GetGnmiSetFile() {
+		conf, err := readGNMI(file)
+		if err != nil {
+			return err
+		}
+		setReq = append(setReq, conf)
+	}
+	if len(setReq) == 0 {
+		return nil
+	}
+
+	dialer, err := r.gnmi(bdut.GetName())
+	if err != nil {
+		return err
+	}
+	conn, err := dialer.dialGRPC(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	gnmi := gpb.NewGNMIClient(conn)
+
+	for _, req := range setReq {
+		if _, err := gnmi.Set(ctx, req); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {

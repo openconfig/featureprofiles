@@ -93,7 +93,7 @@ Test suites should be placed in subdirectories formatted like `feature/<featuren
 * `internal/deviations` contains code which overrides standard tests where
     there are known issues in a DUT.
 
-Within each test directory `<test>_test.md` should document the test suite.  The
+Within each test directory `README.md` should document the test suite.  The
 `*.go` files should be named after an appropriate [github featureprofiles project](https://github.com/orgs/openconfig/projects/2/views/1?filterQuery=)
 item. For example:
 
