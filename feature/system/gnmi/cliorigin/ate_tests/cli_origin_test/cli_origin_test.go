@@ -16,7 +16,6 @@ package cli_origin_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -24,7 +23,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygot/util"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
