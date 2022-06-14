@@ -84,7 +84,7 @@ var (
 	}
 )
 
-func TestP4RT(t *testing.T) {
+func TestP4RTPacketIO(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// Dial gRIBI

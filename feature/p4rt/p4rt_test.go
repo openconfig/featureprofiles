@@ -24,9 +24,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
-	"wwwin-github.cisco.com/rehaddad/go-p4/p4info/wbb"
 	p4rt "wwwin-github.cisco.com/rehaddad/go-p4/p4rt_client"
 	"wwwin-github.cisco.com/rehaddad/go-p4/utils"
+	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
 )
 
 var (
@@ -46,7 +46,7 @@ func TestP4RTClientIntegration(t *testing.T) {
 	fmt.Println("Get p4rt client from ondatra...")
 	ondatra_client := dut.RawAPIs().P4RT(t)
 
-	fmt.Println("Get p4rt clinet from cisco...")
+	fmt.Println("Get p4rt client from cisco...")
 	p4rt_client := p4rt.P4RTClient{}
 	p4rt_client.P4rtClientSet(ondatra_client)
 	fmt.Println(p4rt_client)
@@ -85,7 +85,7 @@ func TestP4RTClientIntegration(t *testing.T) {
 	fmt.Println(lastSeqNum0, arbMsg0)
 
 	p4Info, _ := utils.P4InfoLoad(p4InfoFile)
-	fmt.Println(p4Info)
+	// fmt.Println(p4Info)
 
 	// Get Capbilities (for now, we just log it)
 	_, err = p4rt_client.Capabilities(&p4_v1.CapabilitiesRequest{})
@@ -131,12 +131,12 @@ func TestP4RTClientIntegration(t *testing.T) {
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
 			},
-			&wbb.AclWbbIngressTableEntryInfo{
-				Type:    p4_v1.Update_INSERT,
-				IsIpv4:  0x1,
-				Ttl:     0x1,
-				TtlMask: 0xFF,
-			},
+			// &wbb.AclWbbIngressTableEntryInfo{
+			// 	Type:    p4_v1.Update_INSERT,
+			// 	IsIpv4:  0x1,
+			// 	Ttl:     0x1,
+			// 	TtlMask: 0xFF,
+			// },
 		}),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
 	})
