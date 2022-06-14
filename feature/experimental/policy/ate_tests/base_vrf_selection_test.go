@@ -202,14 +202,14 @@ func configForwardingPolicy(name string, matchType string, ate *attrs.Attributes
 	ni := d.GetOrCreateNetworkInstance(name)
 	ipv4Address := "0.0.0.0/0"
 	ipv6Address := "::/0"
-	//No support dscpset := []uint8{42, 46}
+	//TODO dscpset := []uint8{42, 46}
 
 	//Match policy
 	policyFwding := ni.GetOrCreatePolicyForwarding()
 
 	fwdPolicy1 := policyFwding.GetOrCreatePolicy("Match-IpipDscp4246")
 	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
-	//No support fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().DscpSet = dscpset
+	//TODO fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().DscpSet = dscpset
 	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP
 	fwdPolicy1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
 	fwdPolicy1.GetOrCreateRule(2).GetOrCreateIpv4().Dscp = ygot.Uint8(42)
@@ -218,7 +218,7 @@ func configForwardingPolicy(name string, matchType string, ate *attrs.Attributes
 	fwdPolicy1.GetOrCreateRule(3).GetOrCreateIpv4().SourceAddress = ygot.String(ipv4Address)
 	fwdPolicy1.GetOrCreateRule(3).GetOrCreateAction().Discard = ygot.Bool(true)
 	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv6().Dscp = ygot.Uint8(46)
-	//No support fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv6().DscpSet = dscpset
+	//TODO fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv6().DscpSet = dscpset
 	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv6().Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP
 	fwdPolicy1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
 	fwdPolicy1.GetOrCreateRule(2).GetOrCreateIpv6().Dscp = ygot.Uint8(42)
