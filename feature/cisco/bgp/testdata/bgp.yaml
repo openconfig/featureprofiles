@@ -1,0 +1,157 @@
+feature:
+  ate:
+    ipv4network:
+      - id: $ports.port1
+        name: network101
+        cidr: 101.1.1.1/32
+        scale: 10
+      - id: $ports.port2
+        name: network102
+        cidr: 102.1.1.1/32
+        scale: 10
+    bgp:
+      - scale: 10
+        networkname: bgp_network
+        useloopback: false
+        neighbors:
+          - address: 100.120.1.2
+            port: $ports.port1
+            local_as: 64001
+            nexthop: 100.120.1.2
+            prefix: 130.1.1.1/32
+          - address: 100.121.1.2
+            port: $ports.port2
+            local_as: 64001
+            nexthop: 100.121.1.2
+            prefix: 131.1.1.1/32
+    isis:
+      - systemid: 6401.0001.0000
+        port: $ports.port1
+        lsp_id: 6401.0001.0000.00-00
+        eisrsystem_id: 0000.0000.0001
+        networkname: isis_network1
+        areaid: 490001
+        scale: 10
+        prefixmetric: 20
+        iprmetric: 21
+        v4prefix: 120.1.1.1/32
+        connectedv4prefix: 100.120.1.0/24
+        connectedv6prefix: 2000::100:120:1:0/126
+      - systemid: 6501.0001.0000
+        port: $ports.port2
+        lsp_id: 6501.0001.0000.00-00
+        eisrsystem_id: 0000.0000.0001
+        networkname: isis_network2
+        areaid: 490002
+        scale: 10
+        prefixmetric: 20
+        iprmetric: 21
+        v4prefix: 121.1.1.1/32
+        connectedv4prefix: 100.121.1.0/24
+        connectedv6prefix: 2000::100:121:1:0/126
+    interface:
+    - id: $ports.port1
+      ipv4_address: 100.120.1.2
+      ipv4_prefix_length: 24
+      ipv6_address: 2000::100:120:1:2
+      ipv6_prefix_length: 126
+      ipv4_gateway: 100.120.1.1
+      ipv6_gateway: 2000::100:120:1:1
+    - id: $ports.port2
+      ipv4_address: 100.121.1.2
+      ipv4_prefix_length: 24
+      ipv6_address: 2000::100:121:1:2
+      ipv6_prefix_length: 126
+      ipv4_gateway: 100.121.1.1
+      ipv6_gateway: 2000::100:121:1:1
+    - name: loopback1
+      id: $ports.port1
+      ipv4_address: 11.11.11.1
+      ipv4_prefix_length: 32
+    - name: loopback2
+      id: $ports.port2
+      ipv4_address: 2.12.12.1
+      ipv4_prefix_length: 32
+  dut:
+    bgp:
+      - as: 65000
+        router_id: 1.1.1.1
+        gracefull_restart: 
+          enabled: true
+        vrf: default
+        afisafi:
+          - additional_paths:
+            - send
+            - recieve
+        neighbors:
+          - address: 100.120.1.2
+            local_address: 100.120.1.1
+            peer_as: 64001
+            local_as: 63001
+            description: "BGP_TEST"
+            ebgp_multihop: 255
+            afisafi:
+              - policy:
+                  
+                  importpolicy:
+                  - ALLOW
+                  exportpolicy:
+                  - ALLOW
+                type: IPV4_UNICAST
+          - address: 100.121.1.2
+            local_address: 100.121.1.1
+            peer_as: 64001
+            local_as: 63001
+            description: "BGP_TEST"
+            ebgp_multihop: 255
+            afisafi:
+              - policy:
+                  importpolicy:
+                  - ALLOW
+                  exportpolicy:
+                  - ALLOW
+                type: IPV4_UNICAST
+    interface:
+      - name: Bundle-Ether120
+        members:
+          - $ports.port1
+        ipv4_address: 100.120.1.1
+        ipv6_address: 2002::200:1:1:1
+        ipv6_prefix_length: 128
+        ipv4_prefix_length: 24
+      - name: Bundle-Ether121
+        members:
+          - $ports.port2
+        ipv4_address: 100.121.1.1
+        ipv4_prefix_length: 24
+      - name: Bundle-Ether122
+        members:
+          - $ports.port3
+        ipv4_address: 100.122.1.1
+        ipv4_prefix_length: 24
+      - name: Bundle-Ether123
+        members:
+          - $ports.port4
+        ipv4_address: 100.123.1.1
+        ipv4_prefix_length: 24
+      - name: Bundle-Ether124
+        members:
+          - $ports.port5
+        ipv4_address: 100.124.1.1
+        ipv4_prefix_length: 24
+        mac_address: 1.2.0
+      - name: Bundle-Ether125
+        members:
+          - $ports.port6
+        ipv4_address: 100.125.1.1
+        ipv4_prefix_length: 24
+      - name: Bundle-Ether126
+        members:
+          - $ports.port7
+        ipv4_address: 100.126.1.1
+        ipv4_prefix_length: 24
+      - name: Bundle-Ether127
+        members:
+          - $ports.port8
+        ipv4_address: 100.127.1.1
+        ipv4_prefix_length: 24
