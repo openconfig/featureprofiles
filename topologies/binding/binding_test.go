@@ -29,7 +29,7 @@ import (
 func TestReserveFetchRelease(t *testing.T) {
 	ctx := context.Background()
 	tb := &opb.Testbed{}
-	b := &staticBind{r: resolver{&bindpb.Binding{}}}
+	b := &staticBind{r: resolver{&bindpb.Binding{}}, pushConfig: false}
 
 	if _, err := b.FetchReservation(ctx, resvID); err == nil {
 		t.Error("FetchReservation should fail before reservation is made.")
