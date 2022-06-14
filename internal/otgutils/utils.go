@@ -74,7 +74,7 @@ func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
 	for {
 		done, err := fn()
 		if err != nil {
-			t.Fatal(fmt.Errorf("error waiting for %s: %v", opts.Condition, err))
+			return (fmt.Errorf("error waiting for %s: %v", opts.Condition, err))
 		}
 		if done {
 			log.Printf("Done waiting for %s\n", opts.Condition)
@@ -82,8 +82,7 @@ func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
 		}
 
 		if time.Since(start) > opts.Timeout {
-			t.Errorf("Timeout occurred while waiting for %s", opts.Condition)
-			return nil
+			return (fmt.Errorf("timeout occurred while waiting for %s", opts.Condition))
 		}
 		time.Sleep(opts.Interval)
 	}

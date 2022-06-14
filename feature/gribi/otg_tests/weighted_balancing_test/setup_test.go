@@ -297,7 +297,11 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
-	dstMac := otgutils.GetArpEntry(t, ate.OTG(), ateSrcPort+".eth", gwIp, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second})
+	err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.ArpEntriesPresent(t, ate.OTG(), "ipv4") }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "ARP entries ready"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dstMac, _ := otgutils.GetIPv4NeighborMacEntry(t, ateSrcPort+".eth", gwIp, ate.OTG())
 	config.Flows().Clear().Items()
 	flow := config.Flows().Add().SetName("flow")
 	flow.Metrics().SetEnable(true)

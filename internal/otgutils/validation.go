@@ -1,8 +1,8 @@
 package otgutils
 
 import (
+	"fmt"
 	"testing"
-	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra"
@@ -179,48 +179,22 @@ func ArpEntriesOk(t *testing.T, otg *ondatra.OTG, ipType string, expectedMacEntr
 	return expected, nil
 }
 
-func GetArpEntry(t *testing.T, otg *ondatra.OTG, interfaceName, ipAddress string, opts *WaitForOpts) string {
-	var macAddress string
-	// var err error
-	start := time.Now()
-	t.Logf("Waiting for arp entry ...\n")
-
-	for {
-		macAddress, _ = GetIPv4NeighborMacEntry(t, interfaceName, ipAddress, otg)
-		if macAddress != "" {
-			t.Logf("Mac address is %s\n", macAddress)
-			return macAddress
-		}
-		if time.Since(start) > opts.Timeout {
-			t.Fatal("Timeout occurred while waiting for ARP entry")
-		}
-		time.Sleep(opts.Interval)
-	}
-}
-
-func WaitForArpEntries(t *testing.T, otg *ondatra.OTG, ipType string, opts *WaitForOpts) []string {
-	start := time.Now()
-	t.Logf("Waiting for arp entries ...\n")
+func ArpEntriesPresent(t *testing.T, otg *ondatra.OTG, ipType string) (bool, error) {
 	actualMacEntries := []string{}
 	var err error
-	for {
-		switch ipType {
-		case "ipv4":
-			actualMacEntries, err = GetAllIPv4NeighborMacEntries(t, otg)
-		case "ipv6":
-			actualMacEntries, err = GetAllIPv6NeighborMacEntries(t, otg)
-		}
-		if err != nil {
-			t.Fatal("Failed to get the ARP entries")
+	switch ipType {
+	case "ipv4":
+		actualMacEntries, err = GetAllIPv4NeighborMacEntries(t, otg)
+	case "ipv6":
+		actualMacEntries, err = GetAllIPv6NeighborMacEntries(t, otg)
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to get the ARP entries for %v", ipType)
+	} else {
+		if len(actualMacEntries) == 0 {
+			return false, nil
 		} else {
-			if len(actualMacEntries) == 0 {
-				if time.Since(start) > opts.Timeout {
-					t.Fatal("Timeout occurred while waiting for ARP entry")
-				}
-			} else {
-				return actualMacEntries
-			}
+			return true, nil
 		}
-		time.Sleep(opts.Interval)
 	}
 }
