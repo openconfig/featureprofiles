@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
+	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/openconfig/ondatra"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
-	p4rt_client "wwwin-github.cisco.com/rehaddad/go-p4/p4rt_client"
 	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
 )
 
@@ -15,7 +15,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, srcEndPoint *ondatra.Inte
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress("00:11:01:00:00:01")
 	ethHeader.WithDstAddress("00:22:01:00:00:01")
-	ethHeader.WithEthernetType("0x6007")
+	ethHeader.WithEtherType(uint32(24583))
 
 	flow := ate.Traffic().NewFlow("GDP").
 		WithSrcEndpoints(srcEndPoint).

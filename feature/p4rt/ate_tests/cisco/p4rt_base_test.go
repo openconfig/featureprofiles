@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"testing"
 
+	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
-	p4rt_client "wwwin-github.cisco.com/rehaddad/go-p4/p4rt_client"
 	"wwwin-github.cisco.com/rehaddad/go-p4/utils"
 )
 
