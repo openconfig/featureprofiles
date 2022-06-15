@@ -396,7 +396,7 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 	for _, tf := range tests {
 		t.Run(tf.desc, func(t *testing.T) {
 			for _, port := range tc.atePorts[1 : 1+tf.downCount] {
-				tc.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(port).WithStateEnabled(false).Operate(t)
+				tc.ate.Actions().NewSetPortState().WithPort(port).WithEnabled(false).Send(t)
 				// Linked DUT and ATE ports have the same ID.
 				dp := tc.dut.Port(t, port.ID())
 				dip := tc.dut.Telemetry().Interface(dp.Name())
