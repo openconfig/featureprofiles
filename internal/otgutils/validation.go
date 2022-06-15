@@ -8,43 +8,38 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// Struct used for validating the fetched OTG BGP stats
 type ExpectedBgpMetrics struct {
 	Advertised int32
 	Received   int32
 }
 
+// Struct used for validating the fetched OTG ISIS stats
 type ExpectedIsisMetrics struct {
 	L1SessionsUp   int32
 	L2SessionsUp   int32
 	L1DatabaseSize int32
 	L2DatabaseSize int32
 }
+
+// Struct used for validating the fetched OTG Port stats
 type ExpectedPortMetrics struct {
 	FramesRx int32
 }
 
+// Struct used for validating the fetched OTG Flow stats
 type ExpectedFlowMetrics struct {
 	FramesRx     int64
 	FramesRxRate float32
 }
 
+// Struct used for creating expected otg metrics
 type ExpectedState struct {
 	Port map[string]ExpectedPortMetrics
 	Flow map[string]ExpectedFlowMetrics
 	Bgp4 map[string]ExpectedBgpMetrics
 	Bgp6 map[string]ExpectedBgpMetrics
 	Isis map[string]ExpectedIsisMetrics
-}
-
-func NewExpectedState() ExpectedState {
-	e := ExpectedState{
-		Port: map[string]ExpectedPortMetrics{},
-		Flow: map[string]ExpectedFlowMetrics{},
-		Bgp4: map[string]ExpectedBgpMetrics{},
-		Bgp6: map[string]ExpectedBgpMetrics{},
-		Isis: map[string]ExpectedIsisMetrics{},
-	}
-	return e
 }
 
 func AllBgp4SessionUp(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
@@ -193,8 +188,7 @@ func ArpEntriesPresent(t *testing.T, otg *ondatra.OTG, ipType string) (bool, err
 	} else {
 		if len(actualMacEntries) == 0 {
 			return false, nil
-		} else {
-			return true, nil
 		}
+		return true, nil
 	}
 }
