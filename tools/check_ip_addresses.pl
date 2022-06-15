@@ -13,10 +13,19 @@
 
 BEGIN {
   use English;
+  use Net::IP;
   $exitcode = 0;
 }
 
 END {
+  if ($exitcode) {
+    print STDERR <<'END'
+
+Error: detected usage of IPv4 and IPv6 addresses outside of the
+documentation range.  Please see "IP Addresses Assignment" in
+CONTRIBUTING.md for detail.
+END
+  }
   exit $exitcode;
 }
 
@@ -36,10 +45,8 @@ if (/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(\/\d+)?\b/) {
 
 # IPv6
 if (/\b(([[:xdigit:]]+(:|::)){2,}[[:xdigit:]]*)(\/\d+)?\b/) {
+  next if !new Net::IP($1);             # Not parsed as an IPv6.
   next if $1 =~ /2001:0?db8:/i;         # IPv6 Test Net
-  next if $1 =~ /([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}/;  # MAC addresses.
-  next if $_ =~ /02:1a:WW:XX:YY:ZZ/;    # MAC address used in example.
-  next if $1 =~ /\d{2}:\d{2}:\d{2}/;    # Time.
   $lineok = 0;
 }
 
