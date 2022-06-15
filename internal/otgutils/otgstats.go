@@ -11,6 +11,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// Function is used to retrieve the OTG Flow metrics in a gosnappi.MetricsResponseFlowMetricIter type
 func GetFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.MetricsResponseFlowMetricIter, error) {
 	defer Timer(time.Now(), "GetFlowMetrics GNMI")
 	metrics := gosnappi.NewApi().NewGetMetricsResponse().StatusCode200().FlowMetrics()
@@ -27,6 +28,7 @@ func GetFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi
 	return metrics, nil
 }
 
+// Function is used to retrieve some OTG Port metrics in a gosnappi.MetricsResponsePortMetricIter type
 func GetPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.MetricsResponsePortMetricIter, error) {
 	defer Timer(time.Now(), "GetPortMetrics GNMI")
 	metrics := gosnappi.NewApi().NewGetMetricsResponse().StatusCode200().PortMetrics()
@@ -42,6 +44,7 @@ func GetPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi
 	return metrics, nil
 }
 
+// Function is used to retrieve all OTG flow metrics in a gosnappi.MetricsResponsePortMetricIter type
 func GetAllPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.MetricsResponsePortMetricIter, error) {
 	defer Timer(time.Now(), "GetPortMetrics GNMI")
 	metrics := gosnappi.NewApi().NewGetMetricsResponse().StatusCode200().PortMetrics()
@@ -67,6 +70,7 @@ func GetAllPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosna
 	return metrics, nil
 }
 
+// Function is used to retrieve all OTG flow metrics in a gosnappi.MetricsResponseBgpv4MetricIter type
 func GetBgpv4Metrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.MetricsResponseBgpv4MetricIter, error) {
 	defer Timer(time.Now(), "GetBgpv4Metrics GNMI")
 	metrics := gosnappi.NewApi().NewGetMetricsResponse().StatusCode200().Bgpv4Metrics()
@@ -97,6 +101,7 @@ func GetBgpv4Metrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnapp
 	return metrics, nil
 }
 
+// Function is used to retrieve all OTG flow metrics in a gosnappi.MetricsResponseBgpv6MetricIter type
 func GetBgpv6Metrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.MetricsResponseBgpv6MetricIter, error) {
 	defer Timer(time.Now(), "GetBgpv6Metrics GNMI")
 	metrics := gosnappi.NewApi().NewGetMetricsResponse().StatusCode200().Bgpv6Metrics()
@@ -127,16 +132,22 @@ func GetBgpv6Metrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnapp
 	return metrics, nil
 }
 
+// This function is used to retrieve the mac address of an ipv4 neighbour given its IP address and the iterface name of the OTG
+// Fails if no entries are present in the ARP table
 func GetIPv4NeighborMacEntry(t *testing.T, interfaceName string, ipAddress string, otg *ondatra.OTG) (string, error) {
 	entries := otg.Telemetry().Interface(interfaceName).Ipv4Neighbor(ipAddress).LinkLayerAddress().Get(t)
 	return entries, nil
 }
 
+// This function is used to retrieve the mac address of an IPv4 neighbour given its IP address and the iterface name of the OTG
+// Returns empty array no entries are present in the ARP table
 func GetAllIPv4NeighborMacEntries(t *testing.T, otg *ondatra.OTG) ([]string, error) {
 	macEntries := otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Get(t)
 	return macEntries, nil
 }
 
+// This function is used to retrieve the mac address of an IPv6 neighbour given its IP address and the iterface name of the OTG
+// Returns empty array no entries are present in the ARP table
 func GetAllIPv6NeighborMacEntries(t *testing.T, otg *ondatra.OTG) ([]string, error) {
 	macEntries := otg.Telemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Get(t)
 	return macEntries, nil
