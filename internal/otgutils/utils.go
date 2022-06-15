@@ -23,12 +23,14 @@ import (
 var protoMarshaller = protojson.MarshalOptions{UseProtoNames: true}
 var prettyProtoMarshaller = protojson.MarshalOptions{UseProtoNames: true, Multiline: true}
 
+// This struct is used at tests level whenever WaitFor func is called
 type WaitForOpts struct {
 	Condition string
 	Interval  time.Duration
 	Timeout   time.Duration
 }
 
+// Struct used for fetching OTG stats
 type MetricsTableOpts struct {
 	ClearPrevious  bool
 	FlowMetrics    gosnappi.MetricsResponseFlowMetricIter
@@ -79,7 +81,7 @@ func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
 		}
 
 		if time.Since(start) > opts.Timeout {
-			return (fmt.Errorf("Timeout occurred while waiting for %s", opts.Condition))
+			return (fmt.Errorf("timeout occurred while waiting for %s", opts.Condition))
 		}
 		time.Sleep(opts.Interval)
 	}
