@@ -26,12 +26,14 @@ import (
 var protoMarshaller = protojson.MarshalOptions{UseProtoNames: true}
 var prettyProtoMarshaller = protojson.MarshalOptions{UseProtoNames: true, Multiline: true}
 
+// This struct is used at tests level whenever WaitFor func is called
 type WaitForOpts struct {
 	Condition string
 	Interval  time.Duration
 	Timeout   time.Duration
 }
 
+// Struct used for fetching OTG stats
 type MetricsTableOpts struct {
 	ClearPrevious  bool
 	FlowMetrics    gosnappi.MetricsResponseFlowMetricIter
