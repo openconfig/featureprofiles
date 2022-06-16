@@ -96,36 +96,36 @@ No configuration coverage.
 
 ## Telemetry Parameter coverage
 
-/interfaces/interface/state/admin-status
+*   /interfaces/interface/state/admin-status
 
-/lacp/interfaces/interface/members/member
+*   /lacp/interfaces/interface/members/member
 
-/interfaces/interface/ethernet/state/mac-address
-/interfaces/interface/state/hardware-port
-/interfaces/interface/state/id
-/interfaces/interface/state/oper-status
-/interfaces/interface/ethernet/state/port-speed
+*   /interfaces/interface/ethernet/state/mac-address
+*   /interfaces/interface/state/hardware-port
+*   /interfaces/interface/state/id
+*   /interfaces/interface/state/oper-status
+*   /interfaces/interface/ethernet/state/port-speed
 
-/components/component/integrated-circuit/state/node-id
-/components/component/state/parent
+*   /components/component/integrated-circuit/state/node-id
+*   /components/component/state/parent
 
-/interfaces/interface/state/counters/in-octets
-/interfaces/interface/state/counters/in-unicast-pkts
-/interfaces/interface/state/counters/in-broadcast-pkts
-/interfaces/interface/state/counters/in-multicast-pkts
-/interfaces/interface/state/counters/in-discards
-/interfaces/interface/state/counters/in-errors
-/interfaces/interface/state/counters/in-fcs-errors
-/interfaces/interface/state/counters/out-unicast-pkts
-/interfaces/interface/state/counters/out-broadcast-pkts
-/interfaces/interface/state/counters/out-multicast-pkts
-/interfaces/interface/state/counters/out-octets
-/interfaces/interface/state/counters/out-discards
-/interfaces/interface/state/counters/out-errors
+*   /interfaces/interface/state/counters/in-octets
+*   /interfaces/interface/state/counters/in-unicast-pkts
+*   /interfaces/interface/state/counters/in-broadcast-pkts
+*   /interfaces/interface/state/counters/in-multicast-pkts
+*   /interfaces/interface/state/counters/in-discards
+*   /interfaces/interface/state/counters/in-errors
+*   /interfaces/interface/state/counters/in-fcs-errors
+*   /interfaces/interface/state/counters/out-unicast-pkts
+*   /interfaces/interface/state/counters/out-broadcast-pkts
+*   /interfaces/interface/state/counters/out-multicast-pkts
+*   /interfaces/interface/state/counters/out-octets
+*   /interfaces/interface/state/counters/out-discards
+*   /interfaces/interface/state/counters/out-errors
 
-/qos/interfaces/interface/output/queues/queue/state/transmit-pkts
-/qos/interfaces/interface/output/queues/queue/state/transmit-octets
-/qos/interfaces/interface/output/queues/queue/state/dropped-pkts
+*   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
+*   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
+*   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
 
 ## Protocol/RPC Parameter coverage
 
