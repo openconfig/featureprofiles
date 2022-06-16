@@ -1,4 +1,0 @@
-username: admin
-password: admin
-topology: /home/opetre/featureprofiles/topologies/kne/arista_ixia.textproto
-cli: kne_cli
