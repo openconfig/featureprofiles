@@ -23,14 +23,14 @@ import (
 var protoMarshaller = protojson.MarshalOptions{UseProtoNames: true}
 var prettyProtoMarshaller = protojson.MarshalOptions{UseProtoNames: true, Multiline: true}
 
-// This struct is used at tests level whenever WaitFor func is called
+// WaitForOpts is used at tests level whenever WaitFor func is called
 type WaitForOpts struct {
 	Condition string
 	Interval  time.Duration
 	Timeout   time.Duration
 }
 
-// Struct used for fetching OTG stats
+// 	MetricsTableOpts is used for fetching OTG stats
 type MetricsTableOpts struct {
 	ClearPrevious  bool
 	FlowMetrics    gosnappi.MetricsResponseFlowMetricIter
@@ -41,17 +41,20 @@ type MetricsTableOpts struct {
 	IsisMetrics    gosnappi.MetricsResponseIsisMetricIter
 }
 
+// StatesTableOpts used for the IPv4 and IPv6 states
 type StatesTableOpts struct {
 	ClearPrevious       bool
 	Ipv4NeighborsStates gosnappi.StatesResponseNeighborsv4StateIter
 	Ipv6NeighborsStates gosnappi.StatesResponseNeighborsv6StateIter
 }
 
+// Timer prints time elapsed in ms since a given start time
 func Timer(start time.Time, name string) {
 	elapsed := time.Since(start)
 	log.Printf("%s took %d ms", name, elapsed.Milliseconds())
 }
 
+// WaitFor returns nil once the given function param returns true. It will wait and retry for the entire timeout duration
 func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
 	if opts == nil {
 		opts = &WaitForOpts{
@@ -104,6 +107,7 @@ func ClearScreen() {
 	}
 }
 
+// PrintMetricsTable prints the given metrics in a table
 func PrintMetricsTable(opts *MetricsTableOpts) {
 	if opts == nil {
 		return
@@ -354,6 +358,7 @@ func PrintMetricsTable(opts *MetricsTableOpts) {
 	log.Println(out)
 }
 
+// WatchFlowMetrics is displaying flow stats for the given timeout duration
 func WatchFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, opts *WaitForOpts) error {
 	start := time.Now()
 	for {
@@ -386,8 +391,8 @@ func expectedElementsPresent(expected, actual []string) bool {
 	return true
 }
 
+// IncrementedMac uses a mac string and increments it by the given i
 func IncrementedMac(mac string, i int) (string, error) {
-	// Uses an mac string and increments it by the given i
 	macAddr, err := net.ParseMAC(mac)
 	if err != nil {
 		return "", err
