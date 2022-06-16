@@ -90,7 +90,7 @@ func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
 	}
 }
 
-func ClearScreen() {
+func clearScreen() {
 	switch runtime.GOOS {
 	case "darwin":
 		fallthrough
@@ -353,7 +353,7 @@ func PrintMetricsTable(opts *MetricsTableOpts) {
 	}
 
 	if opts.ClearPrevious {
-		ClearScreen()
+		clearScreen()
 	}
 	log.Println(out)
 }

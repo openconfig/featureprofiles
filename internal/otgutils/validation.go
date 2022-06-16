@@ -132,7 +132,7 @@ func AllBgp6SessionDown(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool
 	return expected, nil
 }
 
-// FlowMetricsOK returns true if all the expected flow stats are verified
+// FlowMetricsOk returns true if all the expected flow stats are verified
 func FlowMetricsOk(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
 	fMetrics, err := GetFlowMetrics(t, otg, c)
 	if err != nil {
@@ -192,10 +192,9 @@ func ArpEntriesPresent(t *testing.T, otg *ondatra.OTG, ipType string) (bool, err
 	}
 	if err != nil {
 		return false, fmt.Errorf("failed to get the ARP entries for %v", ipType)
-	} else {
-		if len(actualMacEntries) == 0 {
-			return false, nil
-		}
-		return true, nil
 	}
+	if len(actualMacEntries) == 0 {
+		return false, nil
+	}
+	return true, nil
 }
