@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/gribi/util"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -165,6 +166,8 @@ func (g *Client) NHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights 
 				g.fluentC.Modify().AddEntry(t, nhg)
 			} else if action == "delete" {
 				g.fluentC.Modify().DeleteEntry(t, nhg)
+			} else if action == "replace" {
+				g.fluentC.Modify().ReplaceEntry(t, nhg)
 			}
 			if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
 				t.Fatalf("Error waiting to add NHG: %v", err)
@@ -198,6 +201,8 @@ func (g *Client) NH(t testing.TB, nhIndex uint64, nh_entry, instance string, nh_
 		g.fluentC.Modify().AddEntry(t, nh)
 	} else if action == "delete" {
 		g.fluentC.Modify().DeleteEntry(t, nh)
+	} else if action == "replace" {
+		g.fluentC.Modify().ReplaceEntry(t, nh)
 	}
 
 	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
@@ -214,30 +219,36 @@ func (g *Client) NH(t testing.TB, nhIndex uint64, nh_entry, instance string, nh_
 }
 
 // AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
-func (g *Client) IPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, action string, expectedResult fluent.ProgrammingResult) {
-	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
-		WithNetworkInstance(instance).
-		WithNextHopGroup(nhgIndex)
+func (g *Client) IPv4(t testing.TB, prefix string, mask string, nhgIndex uint64, instance, nhgInstance string, action string, scale int, expectedResult fluent.ProgrammingResult) {
+	for i := 0; i < scale; i++ {
+		ipv4Entry := fluent.IPv4Entry().WithPrefix(util.GetIPPrefix(prefix, i, mask)).
+			WithNetworkInstance(instance).
+			WithNextHopGroup(nhgIndex)
 
-	if nhgInstance != "" && nhgInstance != instance {
-		ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+		if nhgInstance != "" && nhgInstance != instance {
+			ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+		}
+
+		if action == "add" {
+			g.fluentC.Modify().AddEntry(t, ipv4Entry)
+		} else if action == "delete" {
+			g.fluentC.Modify().DeleteEntry(t, ipv4Entry)
+		} else if action == "replace" {
+			g.fluentC.Modify().ReplaceEntry(t, ipv4Entry)
+		}
+
+		if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
+			t.Fatalf("Error waiting to add IPv4: %v", err)
+		}
+
+		chk.HasResult(t, g.fluentC.Results(t),
+			fluent.OperationResult().
+				WithIPv4Operation(util.GetIPPrefix(prefix, i, mask)).
+				WithOperationType(constants.Add).
+				WithProgrammingResult(expectedResult).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
 	}
 
-	if action == "add" {
-		g.fluentC.Modify().AddEntry(t, ipv4Entry)
-	} else if action == "delete" {
-		g.fluentC.Modify().DeleteEntry(t, ipv4Entry)
-	}
-
-	if err := g.AwaitTimeout(context.Background(), t, timeout); err != nil {
-		t.Fatalf("Error waiting to add IPv4: %v", err)
-	}
-	chk.HasResult(t, g.fluentC.Results(t),
-		fluent.OperationResult().
-			WithIPv4Operation(prefix).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
 }
