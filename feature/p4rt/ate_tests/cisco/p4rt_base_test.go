@@ -19,6 +19,7 @@ var (
 		"Path to the p4info file.")
 	electionID = uint64(100)
 	streamName = "Primary"
+	deviceID   = uint64(1)
 )
 
 // Testcase defines testcase structure

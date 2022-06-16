@@ -13,13 +13,14 @@ require (
 	github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e
 	github.com/openconfig/ondatra v0.0.0-20220523194709-be319f7ae58d
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
-	github.com/openconfig/ygot v0.20.0
+	github.com/openconfig/ygot v0.22.1
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220131092820-39736dd543b4
 	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
-	google.golang.org/grpc v1.45.0
+	google.golang.org/grpc v1.47.0
 	google.golang.org/protobuf v1.28.0
 	wwwin-github.cisco.com/rehaddad/go-p4 v0.0.0-20220608005204-b6c4346e7100
+	wwwin-github.cisco.com/rehaddad/go-wbb v0.0.0-20220613172816-392a69f696ae
 )
 
 require (

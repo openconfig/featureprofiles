@@ -3,10 +3,14 @@ package cisco_p4rt_test
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"testing"
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"wwwin-github.cisco.com/rehaddad/go-p4/utils"
 )
@@ -25,6 +29,22 @@ var (
 		// },
 	}
 )
+
+func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	res := dut.Telemetry().ComponentAny().Get(t)
+	component := telemetry.Component{}
+	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
+	i := uint64(0)
+	for _, c := range res {
+		name := c.GetName()
+		if match, _ := regexp.MatchString(".*-NPU\\d+", name); match && !strings.Contains(name, "FC") {
+			component.Name = ygot.String(name)
+			component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID + i)
+			dut.Config().Component(name).Replace(t, &component)
+			i += 1
+		}
+	}
+}
 
 func TestP4RTCompliance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -79,6 +99,8 @@ func TestP4RTCompliance(t *testing.T) {
 		usecase:     0,
 		interfaces:  &interfaces,
 	}
+
+	configureDeviceID(ctx, t, dut)
 
 	for _, tt := range P4RTComplianceTestcases {
 		// Each case will run with its own gRIBI fluent client.
@@ -155,7 +177,6 @@ func setupForwardingPipeline(ctx context.Context, t *testing.T, deviceID uint64,
 
 func testWriteRPCInsertSameEntry(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
-	deviceID := uint64(1)
 	// Setup P4RT Client
 	if err := setupConnection(ctx, t, deviceID, client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
