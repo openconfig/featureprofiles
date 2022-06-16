@@ -15,6 +15,7 @@
 package telemetry_basic_check_test
 
 import (
+	"flag"
 	"math"
 	"regexp"
 	"strings"
@@ -25,6 +26,10 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
+)
+
+var (
+	p4rtNodeName = flag.String("p4rt_node_name", "SwitchChip3/0", "component name for P4RT Node")
 )
 
 const (
@@ -617,10 +622,10 @@ func TestP4rtInterfaceID(t *testing.T) {
 }
 
 func TestP4rtNodeID(t *testing.T) {
+	// TODO: add p4rtNodeName to Ondatra's netutil
 	dut := ondatra.DUT(t, "dut")
-	componentName := "SwitchChip3/0"
 	d := &telemetry.Device{}
-	ic := d.GetOrCreateComponent(componentName).GetOrCreateIntegratedCircuit()
+	ic := d.GetOrCreateComponent(*p4rtNodeName).GetOrCreateIntegratedCircuit()
 
 	cases := []struct {
 		desc   string
@@ -639,16 +644,16 @@ func TestP4rtNodeID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ic.NodeId = ygot.Uint64(tc.nodeID)
-			dut.Config().Component(componentName).IntegratedCircuit().Replace(t, ic)
+			dut.Config().Component(*p4rtNodeName).IntegratedCircuit().Replace(t, ic)
 
 			// Check path /components/component/integrated-circuit/state/node-id.
-			nodeID := dut.Telemetry().Component(componentName).IntegratedCircuit().NodeId().Lookup(t)
+			nodeID := dut.Telemetry().Component(*p4rtNodeName).IntegratedCircuit().NodeId().Lookup(t)
 			if !nodeID.IsPresent() {
-				t.Fatalf("nodeID.IsPresent() for %q: got false, want true", componentName)
+				t.Fatalf("nodeID.IsPresent() for %q: got false, want true", *p4rtNodeName)
 			}
 			t.Logf("Telemetry path/value: %v=>%v:", nodeID.GetPath().String(), nodeID.Val(t))
 			if nodeID.Val(t) != tc.nodeID {
-				t.Fatalf("nodeID.Val(t) for %q: got %d, want %d", componentName, nodeID.Val(t), tc.nodeID)
+				t.Fatalf("nodeID.Val(t) for %q: got %d, want %d", *p4rtNodeName, nodeID.Val(t), tc.nodeID)
 			}
 		})
 	}
