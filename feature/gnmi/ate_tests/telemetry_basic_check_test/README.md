@@ -6,9 +6,11 @@ Validate basic telemetry paths required.
 
 ## Procedure
 
-In the automated ondatra test, verify the presence of the telemetry paths of the following features:
+In the automated ondatra test, verify the presence of the telemetry paths of the
+following features:
 
 *   Ethernet interface
+
     *   Check the telemetry port-speed exists with correct speed.
         *   /interfaces/interfaces/interface/ethernet/state/mac-address
     *   Check the telemetry mac-address with correct format.
@@ -45,16 +47,22 @@ In the automated ondatra test, verify the presence of the telemetry paths of the
         *   /interfaces/interface/state/counters/out-errors
 
 *   Send the traffic over the DUT.
+
     *   Check some counters are updated correctly.
 
 *   QoS counters
-    *   Send the traffic with all forwarding class NC1, AF4, AF3, AF2, AF1 and BE1 over the DUT
+
+    *   Send the traffic with all forwarding class NC1, AF4, AF3, AF2, AF1 and
+        BE1 over the DUT
     *   Check the QoS queue counters exist and are updated correctly
         *   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
-        *   TODO: /qos/interfaces/interface/output/queues/queue/state/transmit-octets
-        *   TODO: /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
+        *   TODO:
+            /qos/interfaces/interface/output/queues/queue/state/transmit-octets
+        *   TODO:
+            /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
 
 *   Component
+
     *   Check the following component paths exists
         *   /components/component/integrated-circuit/state/node-id
         *   /components/component/state/parent
@@ -65,11 +73,15 @@ In the automated ondatra test, verify the presence of the telemetry paths of the
         *   (type=CPU) /components/component/state/mfg-name
 
 *   Controller card last-reboot-time and reason
+
     *   Check the following component paths exists
-        *   (type=CONTROLLER_CARD) /components/component[name=<supervisor>]/state/last-reboot-time
-        *   (type=CONTROLLER_CARD) /components/component[name=<supervisor>]/state/last-reboot-reason
+        *   (type=CONTROLLER_CARD)
+            /components/component[name=<supervisor>]/state/last-reboot-time
+        *   (type=CONTROLLER_CARD)
+            /components/component[name=<supervisor>]/state/last-reboot-reason
 
 *   Software version
+
     *   Check the following component paths exists for SwitchChip cards.
         *   /components/component/state/software-version
 
@@ -101,8 +113,7 @@ No configuration coverage.
 *   /lacp/interfaces/interface/members/member
 
 *   /interfaces/interface/ethernet/state/mac-address
-*   /interfaces/interface/state/hardware-port
-*   /interfaces/interface/state/id
+*   /interfaces/interface/state/hardware-port /interfaces/interface/state/id
 *   /interfaces/interface/state/oper-status
 *   /interfaces/interface/ethernet/state/port-speed
 
