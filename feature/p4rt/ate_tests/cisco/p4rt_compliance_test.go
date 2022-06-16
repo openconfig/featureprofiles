@@ -13,20 +13,51 @@ import (
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"wwwin-github.cisco.com/rehaddad/go-p4/utils"
+	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
 )
 
 var (
-	P4RTComplianceTestcases = []Testcase{
+	P4RTComplianceWriteRPC = []Testcase{
+		{
+			name: "Insert entry with trap action in Write RPC",
+			desc: "Write RPC-Compliance:001 Verify Write RPC with p4 entry trap action works when it's from Primary controller",
+			fn:   testWriteRPCInsertTrapAction,
+		},
+		{
+			name: "Insert entry with copy  action in Write RPC",
+			desc: "Write RPC-Compliance:002 Verify Write RPC with p4 entry copy action works when it's from Primary controller",
+			fn:   testWriteRPCInsertCopyAction,
+		},
+		{
+			name: "Insert to non-exist device in Write RPC",
+			desc: "Write RPC-Compliance:003 12(1) Write RPC with device_id doesn't exist, verify device returns with NOT_FOUND error",
+			fn:   testWriteRPCInsertNonExistDeviceID,
+		},
+		{
+			name: "Inert entry with lower election id in Write RPC",
+			desc: "Write RPC-Compliance:004 12(2) Write RPC with non-primary election-id(lower than primary), verify device returns with PERMISSION_DENIED error",
+			fn:   testWriteRPCInsertWithLowerElectionID,
+		},
+		{
+			name: "Inert entry with higher election id in Write RPC",
+			desc: "Write RPC-Compliance:005 12(2) Write RPC with non-primary election-id(higher than primary), verify device returns with PERMISSION_DENIED error",
+			fn:   testWriteRPCInsertWithHigherElectionID,
+		},
+		{
+			name: "Send Write RPC before SetForwardingPipeline",
+			desc: "Write RPC-Compliance:006 12(3) Write RPC sent before ForwardingPipelineConfig verify device returns with FAILED_PRECONDITION error",
+			fn:   testWriteRPCBeforeSetForwardingPipeline,
+		},
+		{
+			name: "Insert non-exist entry in Write RPC",
+			desc: "Write RPC-Compliance:007 12(INSERT) Write RPC with Insert non-exist entity, verify the entity is programmed on the device",
+			fn:   testWriteRPCInsertEntry,
+		},
 		{
 			name: "Insert existing entry in Write RPC",
 			desc: "Write RPC-Compliance:008 12(INSERT) Write RPC with Insert exisint entity, verify ALREADY_EXISTS error returned and existing entity remain unchanged",
 			fn:   testWriteRPCInsertSameEntry,
 		},
-		// {
-		// 	name: "Insert existing entry in Write RPC",
-		// 	desc: "Write RPC-Compliance:008 12(INSERT) Write RPC with Insert exisint entity, verify ALREADY_EXISTS error returned and existing entity remain unchanged",
-		// 	fn:   testWriteRPCInsertSameEntry,
-		// },
 	}
 )
 
@@ -102,6 +133,9 @@ func TestP4RTCompliance(t *testing.T) {
 
 	configureDeviceID(ctx, t, dut)
 
+	P4RTComplianceTestcases := []Testcase{}
+	P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceWriteRPC...)
+
 	for _, tt := range P4RTComplianceTestcases {
 		// Each case will run with its own gRIBI fluent client.
 		t.Run(tt.name, func(t *testing.T) {
@@ -175,6 +209,209 @@ func setupForwardingPipeline(ctx context.Context, t *testing.T, deviceID uint64,
 	return nil
 }
 
+// Write RPC-Compliance:001
+func testWriteRPCInsertTrapAction(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// Setup P4RT Client
+	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error setting up connection, %s", err)
+	}
+	// Destroy P4RT Client
+	defer teardownConnection(ctx, t, deviceID, client)
+
+	if err := setupForwardingPipeline(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
+	}
+
+	// Program the entry
+	if err := client.Write(&p4_v1.WriteRequest{
+		DeviceId:   uint64(1),
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
+		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
+			&wbb.AclWbbIngressTableEntryInfo{
+				Type:          p4_v1.Update_INSERT,
+				EtherType:     0x6007,
+				EtherTypeMask: 0xFFFF,
+			},
+		}),
+		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+	}); err != nil {
+		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
+	}
+}
+
+// Write RPC-Compliance:002
+func testWriteRPCInsertCopyAction(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// Setup P4RT Client
+	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error setting up connection, %s", err)
+	}
+	// Destroy P4RT Client
+	defer teardownConnection(ctx, t, deviceID, client)
+
+	if err := setupForwardingPipeline(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
+	}
+
+	// Program the entry
+	if err := client.Write(&p4_v1.WriteRequest{
+		DeviceId:   uint64(1),
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
+		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
+			&wbb.AclWbbIngressTableEntryInfo{
+				Type:          p4_v1.Update_INSERT,
+				EtherType:     0x6007,
+				EtherTypeMask: 0xFFFF,
+			},
+		}),
+		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+	}); err != nil {
+		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
+	}
+}
+
+// Write RPC-Compliance:003
+func testWriteRPCInsertNonExistDeviceID(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// Setup P4RT Client
+	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error setting up connection, %s", err)
+	}
+	// Destroy P4RT Client
+	defer teardownConnection(ctx, t, deviceID, client)
+
+	if err := setupForwardingPipeline(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
+	}
+
+	// Program the entry
+	if err := client.Write(&p4_v1.WriteRequest{
+		DeviceId:   ^uint64(1),
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
+		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
+			&wbb.AclWbbIngressTableEntryInfo{
+				Type:          p4_v1.Update_INSERT,
+				EtherType:     0x6007,
+				EtherTypeMask: 0xFFFF,
+			},
+		}),
+		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+	}); err == nil {
+		t.Errorf("Expected error is not seen.")
+	}
+}
+
+// Write RPC-Compliance:004
+func testWriteRPCInsertWithLowerElectionID(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// Setup P4RT Client
+	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error setting up connection, %s", err)
+	}
+	// Destroy P4RT Client
+	defer teardownConnection(ctx, t, deviceID, client)
+
+	if err := setupForwardingPipeline(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
+	}
+
+	// Program the entry
+	if err := client.Write(&p4_v1.WriteRequest{
+		DeviceId:   uint64(1),
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(99)},
+		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
+			&wbb.AclWbbIngressTableEntryInfo{
+				Type:          p4_v1.Update_INSERT,
+				EtherType:     0x6007,
+				EtherTypeMask: 0xFFFF,
+			},
+		}),
+		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+	}); err == nil {
+		t.Errorf("Expected error is not seen.")
+	}
+}
+
+// Write RPC-Compliance:005
+func testWriteRPCInsertWithHigherElectionID(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// Setup P4RT Client
+	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error setting up connection, %s", err)
+	}
+	// Destroy P4RT Client
+	defer teardownConnection(ctx, t, deviceID, client)
+
+	if err := setupForwardingPipeline(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
+	}
+
+	// Program the entry
+	if err := client.Write(&p4_v1.WriteRequest{
+		DeviceId:   uint64(1),
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(101)},
+		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
+			&wbb.AclWbbIngressTableEntryInfo{
+				Type:          p4_v1.Update_INSERT,
+				EtherType:     0x6007,
+				EtherTypeMask: 0xFFFF,
+			},
+		}),
+		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+	}); err == nil {
+		t.Errorf("Expected error is not seen.")
+	}
+}
+
+// Write RPC-Compliance:006
+func testWriteRPCBeforeSetForwardingPipeline(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// Setup P4RT Client
+	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error setting up connection, %s", err)
+	}
+	// Destroy P4RT Client
+	defer teardownConnection(ctx, t, deviceID, client)
+
+	// Program the entry
+	if err := client.Write(&p4_v1.WriteRequest{
+		DeviceId:   uint64(1),
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
+		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
+			&wbb.AclWbbIngressTableEntryInfo{
+				Type:          p4_v1.Update_INSERT,
+				EtherType:     0x6007,
+				EtherTypeMask: 0xFFFF,
+			},
+		}),
+		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+	}); err == nil {
+		t.Errorf("Expected error is not seen.")
+	}
+}
+
+// Write RPC-Compliance:007
+func testWriteRPCInsertEntry(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// Setup P4RT Client
+	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error setting up connection, %s", err)
+	}
+	// Destroy P4RT Client
+	defer teardownConnection(ctx, t, deviceID, client)
+
+	if err := setupForwardingPipeline(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
+	}
+
+	// Program the entry
+	if err := programmGDPMatchEntry(ctx, t, client, false); err != nil {
+		t.Errorf("There is error programming the entry, %s", err)
+	}
+}
+
+// Write RPC-Compliance:008
 func testWriteRPCInsertSameEntry(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
