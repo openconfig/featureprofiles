@@ -15,14 +15,19 @@
 package weighted_balancing_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"flag"
 	"fmt"
+	"net"
 	"regexp"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/c-robinson/iplib"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -211,7 +216,7 @@ func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 
 		config.Ports().Add().SetName(ap.ID())
 		dev := config.Devices().Add().SetName(ateid)
-		macAddress, _ := otgutils.IncrementedMac(startMac, i)
+		macAddress, _ := incrementedMac(startMac, i)
 		ateMac[ateid] = macAddress
 		eth := dev.Ethernets().Add().SetName(ateid + ".eth").
 			SetPortName(ap.ID()).SetMac(macAddress)
@@ -312,13 +317,13 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	eth.Src().SetValue(ateMac[ateSrcPort])
 	eth.Dst().SetValue(dstMac)
 	ipv4 := flow.Packet().Add().Ipv4()
-	firstIp, ipCount := otgutils.GetFirstIPv4AddrAndCount(ateSrcNetCIDR)
+	firstIp, ipCount := getFirstIPv4AddrAndCount(ateSrcNetCIDR)
 	if *randomSrcIP {
 		t.Errorf("Random source IP not yet supported")
 	} else {
 		ipv4.Src().SetChoice("increment").Increment().SetStart(firstIp).SetCount(int32(ipCount))
 	}
-	firstIp, ipCount = otgutils.GetFirstIPv4AddrAndCount(ateDstNetCIDR)
+	firstIp, ipCount = getFirstIPv4AddrAndCount(ateDstNetCIDR)
 	if *randomDstIP {
 		t.Errorf("Random destination IP not yet supported")
 	} else {
@@ -415,4 +420,30 @@ func debugGRIBI(t testing.TB, dut *ondatra.DUTDevice) {
 	} else {
 		t.Log("afts value not present")
 	}
+}
+
+// getFirstIPv4AddrAndCount uses a CIDR input and generates the first IP and the count of host IPs in the subnet
+func getFirstIPv4AddrAndCount(cidr string) (string, uint32) {
+	ipAddr, _, _ := net.ParseCIDR(cidr)
+	re, _ := regexp.Compile(".+/([0-9]+)$")
+	prefixLen, _ := strconv.Atoi(re.FindStringSubmatch(cidr)[1])
+	n := iplib.NewNet4(ipAddr, prefixLen)
+	return n.FirstAddress().String(), n.Count()
+}
+
+// incrementedMac uses an mac string and increments it by the given i
+func incrementedMac(mac string, i int) (string, error) {
+	macAddr, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", err
+	}
+	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
+	convMac = convMac + uint64(i)
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, convMac)
+	if err != nil {
+		return "", err
+	}
+	newMac := net.HardwareAddr(buf.Bytes()[2:8])
+	return newMac.String(), nil
 }
