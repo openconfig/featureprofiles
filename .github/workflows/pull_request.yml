@@ -87,7 +87,8 @@ jobs:
     - name: Executable Files
       run: |
         if
-          find . -name .git -prune -o -name '*.sh' -o -name '*.pl' -o \
+          find . -name .git -prune -o \
+            -name '*.sh' -o -name '*.pl' -o -name '*.py' -o \
             -type f -executable -print | grep .
         then
           cat <<END >&2
