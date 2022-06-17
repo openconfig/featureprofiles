@@ -245,7 +245,6 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 
 func TestElectionIDChange(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	deviations.ConfigVendorDeviations(dut.Vendor())
 	ctx := context.Background()
 
 	// Configure the DUT

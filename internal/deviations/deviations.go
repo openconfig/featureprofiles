@@ -19,27 +19,13 @@
 // future.
 package deviations
 
-import (
-	"flag"
-
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ygot/ygot"
-)
+import "flag"
 
 // Vendor deviation flags.
 var (
-	InterfaceEnabled = flag.Bool("deviation_interface_enabled", true,
+	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true (b/197141773)")
 
 	AggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", true,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate (b/201574574)")
 )
-
-// ConfigVendorDeviations sets the deviations for each vendor
-func ConfigVendorDeviations(vendor ondatra.Vendor) {
-	switch vendor {
-	case ondatra.CISCO:
-		InterfaceEnabled = ygot.Bool(false)
-		AggregateAtomicUpdate = ygot.Bool(false)
-	}
-}
