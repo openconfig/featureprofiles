@@ -84,9 +84,9 @@ func TestP4RTCompliance(t *testing.T) {
 	ctx := context.Background()
 
 	// Configure the ATE
-	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	// ate := ondatra.ATE(t, "ate")
+	// top := configureATE(t, ate)
+	// top.Push(t).StartProtocols(t)
 
 	p4rtClientA := p4rt_client.P4RTClient{}
 	if err := p4rtClientA.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
@@ -125,10 +125,10 @@ func TestP4RTCompliance(t *testing.T) {
 		p4rtClientC: &p4rtClientC,
 		p4rtClientD: &p4rtClientD,
 		dut:         dut,
-		ate:         ate,
-		top:         top,
-		usecase:     0,
-		interfaces:  &interfaces,
+		// ate:         ate,
+		// top:         top,
+		usecase:    0,
+		interfaces: &interfaces,
 	}
 
 	configureDeviceID(ctx, t, dut)
