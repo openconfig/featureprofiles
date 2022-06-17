@@ -51,42 +51,6 @@ func timer(start time.Time, name string) {
 	log.Printf("%s took %d ms", name, elapsed.Milliseconds())
 }
 
-// WaitFor returns nil once the given function param returns true. It will wait and retry for the entire timeout duration
-func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
-	if opts == nil {
-		opts = &WaitForOpts{
-			Condition: "condition to be true",
-		}
-	}
-	defer timer(time.Now(), fmt.Sprintf("Waiting for %s", opts.Condition))
-
-	if opts.Interval == 0 {
-		opts.Interval = 500 * time.Millisecond
-	}
-	if opts.Timeout == 0 {
-		opts.Timeout = 120 * time.Second
-	}
-
-	start := time.Now()
-	log.Printf("Waiting for %s ...\n", opts.Condition)
-
-	for {
-		done, err := fn()
-		if err != nil {
-			return (fmt.Errorf("error waiting for %s: %v", opts.Condition, err))
-		}
-		if done {
-			log.Printf("Done waiting for %s\n", opts.Condition)
-			return nil
-		}
-
-		if time.Since(start) > opts.Timeout {
-			return (fmt.Errorf("timeout occurred while waiting for %s", opts.Condition))
-		}
-		time.Sleep(opts.Interval)
-	}
-}
-
 func clearScreen() {
 	switch runtime.GOOS {
 	case "darwin":
@@ -373,17 +337,4 @@ func WatchFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, opts *W
 		}
 		time.Sleep(opts.Interval)
 	}
-}
-
-func expectedElementsPresent(expected, actual []string) bool {
-	exists := make(map[string]bool)
-	for _, value := range actual {
-		exists[value] = true
-	}
-	for _, value := range expected {
-		if !exists[value] {
-			return false
-		}
-	}
-	return true
 }
