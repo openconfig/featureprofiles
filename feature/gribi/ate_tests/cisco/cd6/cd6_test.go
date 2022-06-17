@@ -62,9 +62,9 @@ const (
 	dstPfxMin             = "198.51.100.1"
 	dstPfxCount           = 100
 	innersrcPfx           = "200.1.0.1"
-	innerdstPfxMin_bgp    = "201.1.0.1"
+	innerdstPfxMin_bgp    = "202.1.0.1"
 	innerdstPfxCount_bgp  = 100
-	innerdstPfxMin_isis   = "202.1.0.1"
+	innerdstPfxMin_isis   = "201.1.0.1"
 	innerdstPfxCount_isis = 100
 )
 
@@ -431,9 +431,9 @@ func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddres
 
 func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 	//intfs := top.Interfaces()
-	addAteISISL2(t, top, "atePort8", "B4", "testing", 20, "201.1.0.2/32", uint32(innerdstPfxCount_isis))
+	addAteISISL2(t, top, "atePort8", "B4", "testing", 20, innerdstPfxMin_isis+"/"+dstPfxMask, uint32(innerdstPfxCount_isis))
 	//intfs["atePort8"].WithIPv4Loopback("201.1.0.2/32")
-	addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_network", atePort8.IPv4, "202.1.0.2/32", innerdstPfxCount_bgp, false)
+	addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_network", atePort8.IPv4, innerdstPfxMin_bgp+"/"+dstPfxMask, innerdstPfxCount_bgp, false)
 	top.Push(t).StartProtocols(t)
 }
 
@@ -752,13 +752,16 @@ func testBackupNHOPCase2(ctx context.Context, t *testing.T, args *testArgs) {
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//delete backup path and validate no traffic loss
-	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "delete", fluent.InstalledInRIB)
+	args.clientA.NHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, instance, "replace", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "delete", fluent.InstalledInRIB)
+	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "delete", fluent.InstalledInRIB)
+
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//add back backup path and validate no traffic loss
 	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "replace", fluent.InstalledInRIB)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	// removing default route pointing to Valid Path
@@ -842,8 +845,9 @@ func testBackupNHOPCase3(ctx context.Context, t *testing.T, args *testArgs) {
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//delete backup path and shut primary interfaces and validate traffic drops
-	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "delete", fluent.InstalledInRIB)
+	args.clientA.NHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, instance, "replace", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "delete", fluent.InstalledInRIB)
+	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "delete", fluent.InstalledInRIB)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
 	args.interfaceaction(t, "port5", false)
@@ -855,6 +859,7 @@ func testBackupNHOPCase3(ctx context.Context, t *testing.T, args *testArgs) {
 	//add back backup path and validate traffic drops
 	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "replace", fluent.InstalledInRIB)
 	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
 
 	//restore the links
@@ -960,13 +965,13 @@ func testBackupNHOPCase4(ctx context.Context, t *testing.T, args *testArgs) {
 	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
 
 	// bringing up the links
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 	args.interfaceaction(t, "port7", true)
 	args.interfaceaction(t, "port6", true)
 	args.interfaceaction(t, "port5", true)
 	args.interfaceaction(t, "port4", true)
 	args.interfaceaction(t, "port3", true)
 	args.interfaceaction(t, "port2", true)
+	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	// removing default route
 	t.Log("remvoing default route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -1029,6 +1034,11 @@ func testBackupNHOPCase5(ctx context.Context, t *testing.T, args *testArgs) {
 	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
 
+	// adding default route pointing to Valid Path
+	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	dstEndPoint := args.top.Interfaces()
@@ -1048,8 +1058,8 @@ func testBackupNHOPCase5(ctx context.Context, t *testing.T, args *testArgs) {
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
-
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port8"})
+
 	args.interfaceaction(t, "port5", false)
 	args.interfaceaction(t, "port4", false)
 	args.interfaceaction(t, "port3", false)
@@ -1066,6 +1076,11 @@ func testBackupNHOPCase5(ctx context.Context, t *testing.T, args *testArgs) {
 	args.interfaceaction(t, "port6", true)
 	args.interfaceaction(t, "port7", true)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+
+	// removing default route and bringing up the links
+	t.Log("remvoing default route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 }
 
 func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1232,6 +1247,11 @@ func testBackupNHOPCase7(ctx context.Context, t *testing.T, args *testArgs) {
 	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
 
+	// adding default route pointing to Valid Path
+	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	dstEndPoint := args.top.Interfaces()
@@ -1260,8 +1280,8 @@ func testBackupNHOPCase7(ctx context.Context, t *testing.T, args *testArgs) {
 	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
 
 	// Modify backup from pointing to a static route to a DECAP chain
-	args.clientA.NH(t, 10, "decap", instance, instance, "replace", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.NH(t, 999, "decap", instance, instance, "add", fluent.InstalledInRIB)
+	args.clientA.NHG(t, 101, 0, map[uint64]uint64{999: 100}, instance, "replace", fluent.InstalledInRIB)
 	// validate traffic decap over backup path
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
@@ -1273,6 +1293,11 @@ func testBackupNHOPCase7(ctx context.Context, t *testing.T, args *testArgs) {
 	args.interfaceaction(t, "port6", true)
 	args.interfaceaction(t, "port7", true)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+
+	// removing default route and bringing up the links
+	t.Log("remvoing default route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 }
 
 func testBackupNHOPCase8(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1301,7 +1326,7 @@ func testBackupNHOPCase8(ctx context.Context, t *testing.T, args *testArgs) {
 	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 200, 201, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 200, "REPAIRED", instance, "add", dstPfxCount, fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 35, 200: 65}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfx, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
 	// LEVEL 1
@@ -1327,7 +1352,30 @@ func testBackupNHOPCase8(ctx context.Context, t *testing.T, args *testArgs) {
 	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
-	time.Sleep(10)
+
+	// adding default route pointing to Valid Path
+	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	dstEndPoint := args.top.Interfaces()
+	updated_dstEndPoint := []ondatra.Endpoint{}
+	for intf, intf_data := range dstEndPoint {
+		if "atePort1" != intf {
+			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
+		}
+	}
+	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
+	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
+	flows := []*ondatra.Flow{}
+	flows = append(flows, bgp_flow, isis_flow)
+	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+
+	// removing default route and bringing up the links
+	t.Log("remvoing default route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 }
 
 func testBackupNHOPCase9(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1384,28 +1432,12 @@ func testBackupNHOPCase9(ctx context.Context, t *testing.T, args *testArgs) {
 	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
 
-	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
-
 	// get gribi contents
 	data := args.clientA.Fluent(t).Get()
-	fmt.Print(data)
+	data.AllNetworkInstances()
 }
 
-func testIPv4BackUpSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
+func testBackupNHOPCase10(ctx context.Context, t *testing.T, args *testArgs) {
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
 	// ensure that the entry is active through AFT telemetry and traffic.
 
@@ -1437,7 +1469,7 @@ func testIPv4BackUpSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort2" == intf {
+		if "atePort1" != intf {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -1446,14 +1478,10 @@ func testIPv4BackUpSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
 	flows := []*ondatra.Flow{}
 	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2"})
 
-	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
-	interface_names := []string{"port2", "port3", "port4", "port5", "port6", "port7"}
-	for _, intf := range interface_names {
-		args.interfaceaction(t, intf, false)
-	}
-
+	//shutdown primary path port2 and switch to backup port8
+	args.interfaceaction(t, "port2", false)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
 	t.Log("going to remove Static ARP different from Ixia ")
@@ -1462,8 +1490,8 @@ func testIPv4BackUpSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
-	//adding back interface configurations
-	configureDUT(t, args.dut)
+	//adding back port2 configurations
+	args.interfaceaction(t, "port2", true)
 
 	t.Logf("deleting all the IPV4 entries added")
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -1473,7 +1501,7 @@ func testIPv4BackUpSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Fatalf("could not remove all entries from server, got: %v", err)
 	}
 
-	args.clientA.NH(t, 3000, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
+	args.clientA.NH(t, 3000, atePort8.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 300, 0, map[uint64]uint64{3000: 100}, instance, "add", fluent.InstalledInRIB)
 
 	args.clientA.NH(t, 100, "193.0.2.1", instance, "", "add", fluent.InstalledInRIB)
@@ -1488,22 +1516,10 @@ func testIPv4BackUpSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 	args.clientA.NHG(t, 200, 0, map[uint64]uint64{2000: 100}, instance, "delete", fluent.InstalledInRIB)
 	args.clientA.NH(t, 2000, atePort2.IPv4, instance, "", "delete", fluent.InstalledInRIB)
 
-	// checking traffic on backup
-	time.Sleep(time.Minute)
-	updated_dstEndPoint = []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if "atePort3" == intf {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-	bgp_flow = args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow = args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows = []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 }
 
-func testIPv4BackUpMultiNH(ctx context.Context, t *testing.T, args *testArgs) {
+func testBackupNHOPCase11(ctx context.Context, t *testing.T, args *testArgs) {
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
 	// ensure that the entry is active through AFT telemetry and traffic.
 
@@ -1536,7 +1552,7 @@ func testIPv4BackUpMultiNH(ctx context.Context, t *testing.T, args *testArgs) {
 
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort2" == intf || "atePort3" == intf || "atePort8" == intf {
+		if "atePort1" != intf {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -1544,21 +1560,18 @@ func testIPv4BackUpMultiNH(ctx context.Context, t *testing.T, args *testArgs) {
 	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
 	flows := []*ondatra.Flow{}
 	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3"})
 
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
-	interface_names := []string{"port2", "port3", "port4", "port5", "port6", "port7"}
-	for _, intf := range interface_names {
-		args.interfaceaction(t, intf, false)
-	}
+	args.interfaceaction(t, "port2", false)
+	args.validateTrafficFlows(t, flows, false, "port1", []string{"port3"})
+
+	args.interfaceaction(t, "port3", false)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
-	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
-	interface_names = []string{"port3"}
-	for _, intf := range interface_names {
-		args.interfaceaction(t, intf, false)
-	}
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	//bring up the shutlinks
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port3", true)
 }
 
 /*
@@ -2448,35 +2461,35 @@ func TestBackUp(t *testing.T) {
 			desc: "Base usecase with 2 NHOP Groups - - Backup Pointing to Decap",
 			fn:   testBackupNHOPCase5,
 		},
-		{
-			name: "BackupNHOPCase2-002",
-			desc: "add testcase to flush forwarding chain with backup NHG only and forwarding chain with backup NHG",
-			fn:   testBackupNHOPCase6,
-		},
-		{
-			name: "Backup change from static to decap",
-			desc: "While Primary Paths are down Modify the Backup from poiniting to a static route to a DECAP chain - Traffic resumes after Decap",
-			fn:   testBackupNHOPCase7,
-		},
-		{
-			name: "Multiple NW Instance with different NHG, same NH and different NHG backup",
-			desc: "Multiple NW Instances (VRF's ) pointing to different NHG but same NH Entry but different NHG Backup",
-			fn:   testBackupNHOPCase8,
-		},
-		{
-			name: "Get function validation",
-			desc: "add decap NH and related forwarding chain and validate them using GET function",
-			fn:   testBackupNHOPCase9,
-		},
+		// {
+		// 	name: "flush forwarding chain with and without backup NH",
+		// 	desc: "add testcase to flush forwarding chain with backup NHG only and forwarding chain with backup NHG",
+		// 	fn:   testBackupNHOPCase6,
+		// },
+		// {
+		// 	name: "Backup change from static to decap",
+		// 	desc: "While Primary Paths are down Modify the Backup from poiniting to a static route to a DECAP chain - Traffic resumes after Decap",
+		// 	fn:   testBackupNHOPCase7,
+		// },
+		// {
+		// 	name: "Multiple NW Instance with different NHG, same NH and different NHG backup",
+		// 	desc: "Multiple NW Instances (VRF's ) pointing to different NHG but same NH Entry but different NHG Backup",
+		// 	fn:   testBackupNHOPCase8,
+		// },
+		// {
+		// 	name: "Get function validation",
+		// 	desc: "add decap NH and related forwarding chain and validate them using GET function",
+		// 	fn:   testBackupNHOPCase9,
+		// },
 		{
 			name: "IPv4BackUpSingleNH",
 			desc: "Single NH Ensure that backup NextHopGroup entries are honoured in gRIBI for NHGs containing a single NH",
-			fn:   testIPv4BackUpSingleNH,
+			fn:   testBackupNHOPCase10,
 		},
 		{
 			name: "IPv4BackUpMultiNH",
 			desc: "Multiple NHBackup NHG: Multiple NH Ensure that backup NHGs are honoured with NextHopGroup entries containing",
-			fn:   testIPv4BackUpMultiNH,
+			fn:   testBackupNHOPCase11,
 		},
 		{
 			name: "IPv4BackUpRemoveBackup",
@@ -2534,7 +2547,7 @@ func TestBackUp(t *testing.T) {
 				DUT:                   dut,
 				FibACK:                false,
 				Persistence:           true,
-				InitialElectionIDLow:  1000,
+				InitialElectionIDLow:  10,
 				InitialElectionIDHigh: 0,
 			}
 			defer clientA.Close(t)
