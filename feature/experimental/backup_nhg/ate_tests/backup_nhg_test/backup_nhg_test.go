@@ -155,12 +155,14 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 				ateP2 := ate.Port(t, "port2")
 				dutP2 := dut.Port(t, "port2")
 				ate.Actions().NewSetPortState().WithPort(ateP2).WithEnabled(false).Send(t)
+
 				dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
 			},
 			removeImpairmentFn: func() {
 				ateP2 := ate.Port(t, "port2")
 				dutP2 := dut.Port(t, "port2")
 				ate.Actions().NewSetPortState().WithPort(ateP2).WithEnabled(true).Send(t)
+
 				dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
 			},
 		},

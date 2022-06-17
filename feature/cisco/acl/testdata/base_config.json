@@ -14,7 +14,7 @@
               "input-interface": {
                 "interface-ref": {
                   "state": {
-                    "interface": "FourHundredGigE0/0/0/10",
+                    "interface": "FourHundredGigE0/0/0/0",
                     "subinterface": 0
                   }
                 }
@@ -93,7 +93,7 @@
             }
           ]
         },
-        "id": "FourHundredGigE0/0/0/10",
+        "id": "FourHundredGigE0/0/0/0",
         "ingress-acl-sets": {
           "ingress-acl-set": [
             {
@@ -108,12 +108,12 @@
         },
         "interface-ref": {
           "state": {
-            "interface": "FourHundredGigE0/0/0/10",
+            "interface": "FourHundredGigE0/0/0/0",
             "subinterface": 0
           }
         },
         "state": {
-          "id": "FourHundredGigE0/0/0/10"
+          "id": "FourHundredGigE0/0/0/0"
         }
       }
     ]

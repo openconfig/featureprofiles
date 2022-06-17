@@ -26,6 +26,7 @@ var (
 		SWVersionComponent: "0/0/CPU0-Broadwell-DE (D-1530)",
 		FabricCard:         "0/FC0",
 		SubComponent:       "Rack 0-Line Card Slot 0",
+		SwPackage:          "IOSXR-PKG/2 xr-8000-qos-ea-7.8.1.14Iv1.0.0-1",
 	}
 	Platform = PlatformSF
 )
@@ -44,6 +45,7 @@ type PlatformInfo struct {
 	SWVersionComponent string
 	FabricCard         string
 	SubComponent       string
+	SwPackage          string
 }
 
 func TestMain(m *testing.M) {
