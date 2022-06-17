@@ -82,7 +82,33 @@ jobs:
       uses: actions/checkout@v2
     - name: IP Addresses Assignment
       run: |
-        find . -path ./yang/fpoc -prune -o -name \*.go -exec ./tools/check_ip_addresses.pl \{} +
+        find . -path ./yang/fpoc -prune -o -name \*.go \
+          -exec ./tools/check_ip_addresses.pl \{} +
+    - name: Executable Files
+      run: |
+        if
+          find . -name .git -prune -o -name '*.sh' -o -name '*.pl' -o \
+            -type f -executable -print | grep .
+        then
+          cat <<END >&2
+        Error: files should not have the executable bit.  Please see
+        "Executable Files" in CONTRIBUTING.md for detail.
+        END
+          false
+        fi
+    - name: Binary Executables
+      run: |
+        if
+          find . -name .git -prune -o -name openconfig_public -prune -o \
+            -type f -exec file \{} \+ |
+          egrep -vi '(ASCII|Unicode|JSON|Perl|shell)'
+        then
+          cat <<END >&2
+        Error: binary executables are strictly forbidden.  Please see
+        "Executable Files" in CONTRIBUTING.md for detail.
+        END
+          false
+        fi
   static_analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
