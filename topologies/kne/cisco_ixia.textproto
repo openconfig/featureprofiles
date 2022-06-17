@@ -66,6 +66,18 @@ nodes: {
           name: "GigabitEthernet0/0/0/1"
         }
     }
+    interfaces: {
+        key: "eth3"
+        value: {
+          name: "GigabitEthernet0/0/0/2"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+          name: "GigabitEthernet0/0/0/3"
+        }
+    }
 }
 links: {
     a_node: "otg"
@@ -78,4 +90,16 @@ links: {
     a_int: "eth2"
     z_node: "otg"
     z_int: "eth2"
+}
+links: {
+    a_node: "vxr"
+    a_int: "eth3"
+    z_node: "otg"
+    z_int: "eth3"
+}
+links: {
+    a_node: "vxr"
+    a_int: "eth4"
+    z_node: "otg"
+    z_int: "eth4"
 }

@@ -2,7 +2,7 @@ name: "ixia-c"
 nodes: {
     name: "otg"
     type: IXIA_TG
-    version: "0.0.1-2897"
+    version: "0.0.1-2934"
     services: {
         key: 443
         value: {
@@ -38,8 +38,8 @@ nodes: {
         }
         config_path: "/mnt/flash"
         config_file: "startup-config"
-        file: "init_arista.config"
-    	image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/ceos:4.28.01F"
+        file: "arista_ceos.config"
+    	image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/ceos:4.28.01F-toggle"
     }
     services:{
         key: 22
@@ -55,6 +55,13 @@ nodes: {
             inside: 6030
         }
     }
+    services:{
+        key: 6040
+        value: {
+            name: "gribi"
+            inside: 6040
+        }
+    }
 }
 links: {
     a_node: "otg"
@@ -67,4 +74,16 @@ links: {
     a_int: "eth2"
     z_node: "otg"
     z_int: "eth2"
+}
+links: {
+    a_node: "arista"
+    a_int: "eth3"
+    z_node: "otg"
+    z_int: "eth3"
+}
+links: {
+    a_node: "arista"
+    a_int: "eth4"
+    z_node: "otg"
+    z_int: "eth4"
 }
