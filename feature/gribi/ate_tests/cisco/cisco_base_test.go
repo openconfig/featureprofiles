@@ -126,6 +126,66 @@ var (
 			desc: "Add new class-map to existing policy and verify traffic",
 			fn:   testAddClassMap,
 		},
+		{
+			name: "Unconfigure policy under interface",
+			desc: "Unconfigure PBR policy under bundle interface and verify traffic drop",
+			fn:   testUnconfigPBRUnderBundleInterface,
+		},
+		{
+			name: "Add new match field",
+			desc: "Add new match field in existing class-map and verify traffic",
+			fn:   testAddMatchField,
+		},
+		{
+			name: "Modify existing match field",
+			desc: "Modify existing match filed in the existing class-map and verify traffic",
+			fn:   testModifyMatchField,
+		},
+		{
+			name: "Remove existing match field",
+			desc: "Remove existing existing match field in existing class-map and verify traffic",
+			fn:   testRemoveMatchField,
+		},
+		{
+			name: "Flap Interface",
+			desc: "Flap Interface and verify traffic",
+			fn:   testTrafficFlapInterface,
+		},
+		{
+			name: "Match DSCP and VRF redirect",
+			desc: "Verify PBR policy works with match DSCP and action VRF redirect",
+			fn:   testMatchDscpActionVRFRedirect,
+		},
+		{
+			name: "Test Acl And PBR Under Same Interface",
+			desc: "Configure ACL and PBR under same interface and verify functionality",
+			fn:   testAclAndPBRUnderSameInterface,
+		},
+		{
+			name: "Test Replace Policies",
+			desc: "Test Replace Policies, it is skipped for now",
+			fn:   testPolicesReplace,
+		},
+		{
+			name: "Test Replace Policy",
+			desc: "Test Replace Policy, it is skipped for now",
+			fn:   testPolicyReplace,
+		},
+		{
+			name: "Commit replace with PBR config changes",
+			desc: "Unconfig/config with PBR and verify traffic fails/passes",
+			fn:   testRemAddPBRWithGNMIReplace,
+		},
+		{
+			name: "Commit replace with HW config along with OC via GNMI",
+			desc: "Unconfig/config  PBR using oc and HWModule using text in the same GNMI replace  and verify traffic fails/passes",
+			fn:   testRemAddHWWithGNMIReplaceAndPBRwithOC,
+		},
+		{
+			name: "Add remove hw-module CLI",
+			desc: "remove/add the pbr policy using hw-module and verify traffic fails/passes",
+			fn:   testRemAddHWModule,
+		},
 	}
 )
 
@@ -207,11 +267,11 @@ func TestCD5PBR(t *testing.T) {
 	// Dial gRIBI
 	ctx := context.Background()
 
-	// Disable Flowspec and Enable PBR
-	convertFlowspecToPBR(ctx, t, dut)
-
 	//Configure IPv6 addresses and VLANS on DUT
 	configureIpv6AndVlans(t, dut)
+
+	// Disable Flowspec and Enable PBR
+	convertFlowspecToPBR(ctx, t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
