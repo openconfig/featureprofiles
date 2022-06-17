@@ -19,7 +19,12 @@
 // future.
 package deviations
 
-import "flag"
+import (
+	"flag"
+
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygot/ygot"
+)
 
 // Vendor deviation flags.
 var (
@@ -29,3 +34,12 @@ var (
 	AggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", true,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate (b/201574574)")
 )
+
+// ConfigVendorDeviation sets the deviations for each vendor
+func ConfigVendorDeviation(vendor ondatra.Vendor) {
+	switch vendor {
+	case ondatra.CISCO:
+		InterfaceEnabled = ygot.Bool(false)
+		AggregateAtomicUpdate = ygot.Bool(false)
+	}
+}
