@@ -13,7 +13,7 @@ import (
 
 // GetFlowMetrics is used to retrieve the OTG Flow metrics in a gosnappi.MetricsResponseFlowMetricIter type
 func GetFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.MetricsResponseFlowMetricIter, error) {
-	defer Timer(time.Now(), "GetFlowMetrics GNMI")
+	defer timer(time.Now(), "GetFlowMetrics GNMI")
 	metrics := gosnappi.NewApi().NewGetMetricsResponse().StatusCode200().FlowMetrics()
 	for _, f := range c.Flows().Items() {
 		log.Printf("Getting flow metrics for flow %s\n", f.Name())
@@ -30,7 +30,7 @@ func GetFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi
 
 // GetPortMetrics is used to retrieve some OTG Port metrics in a gosnappi.MetricsResponsePortMetricIter type
 func GetPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.MetricsResponsePortMetricIter, error) {
-	defer Timer(time.Now(), "GetPortMetrics GNMI")
+	defer timer(time.Now(), "GetPortMetrics GNMI")
 	metrics := gosnappi.NewApi().NewGetMetricsResponse().StatusCode200().PortMetrics()
 	for _, p := range c.Ports().Items() {
 		log.Printf("Getting port metrics for port %s\n", p.Name())
@@ -46,7 +46,7 @@ func GetPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi
 
 // GetAllPortMetrics is used to retrieve all OTG flow metrics in a gosnappi.MetricsResponsePortMetricIter type
 func GetAllPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.MetricsResponsePortMetricIter, error) {
-	defer Timer(time.Now(), "GetPortMetrics GNMI")
+	defer timer(time.Now(), "GetPortMetrics GNMI")
 	metrics := gosnappi.NewApi().NewGetMetricsResponse().StatusCode200().PortMetrics()
 	for _, p := range c.Ports().Items() {
 		log.Printf("Getting port metrics for port %s\n", p.Name())
@@ -72,7 +72,7 @@ func GetAllPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosna
 
 // GetBgpv4Metrics is used to retrieve all OTG flow metrics in a gosnappi.MetricsResponseBgpv4MetricIter type
 func GetBgpv4Metrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.MetricsResponseBgpv4MetricIter, error) {
-	defer Timer(time.Now(), "GetBgpv4Metrics GNMI")
+	defer timer(time.Now(), "GetBgpv4Metrics GNMI")
 	metrics := gosnappi.NewApi().NewGetMetricsResponse().StatusCode200().Bgpv4Metrics()
 	for _, d := range c.Devices().Items() {
 		bgp := d.Bgp()
@@ -103,7 +103,7 @@ func GetBgpv4Metrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnapp
 
 // GetBgpv6Metrics is used to retrieve all OTG flow metrics in a gosnappi.MetricsResponseBgpv6MetricIter type
 func GetBgpv6Metrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (gosnappi.MetricsResponseBgpv6MetricIter, error) {
-	defer Timer(time.Now(), "GetBgpv6Metrics GNMI")
+	defer timer(time.Now(), "GetBgpv6Metrics GNMI")
 	metrics := gosnappi.NewApi().NewGetMetricsResponse().StatusCode200().Bgpv6Metrics()
 	for _, d := range c.Devices().Items() {
 		bgp := d.Bgp()
