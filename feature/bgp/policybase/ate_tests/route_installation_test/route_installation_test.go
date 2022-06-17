@@ -82,6 +82,7 @@ const (
 	asPathRepeatValue      = 3
 	aclStatement1          = "10"
 	aclStatement2          = "20"
+	NetworkInstance        = "DEFAULT"
 )
 
 var (
@@ -127,6 +128,18 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc.Interface(i2.GetName()).Replace(t, i2)
 }
 
+//Configure network instance
+func configureNetworkInstance(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	d := &telemetry.Device{}
+	ni1 := d.GetOrCreateNetworkInstance(NetworkInstance)
+	ni1.Type = telemetry.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE(*ygot.Int64(1))
+
+	ni1.RouterId = ygot.String(dutDst.IPv4)
+	dutConfPath := dut.Config().NetworkInstance(NetworkInstance)
+	dutConfPath.Replace(t, ni1)
+}
+
 // verifyPortsUp asserts that each port on the device is operating
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
@@ -148,7 +161,7 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string) *telemetry.NetworkInsta
 	nbrs := []*bgpNeighbor{nbr1v4, nbr2v4, nbr1v6, nbr2v6}
 
 	d := &telemetry.Device{}
-	ni1 := d.GetOrCreateNetworkInstance("default")
+	ni1 := d.GetOrCreateNetworkInstance(NetworkInstance)
 	bgp := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(localAs)
@@ -218,7 +231,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	ifName := dut.Port(t, "port1").Name()
 	lastFlapTime := dut.Telemetry().Interface(ifName).LastChange().Get(t)
 	t.Logf("Verifying BGP state")
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(NetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateSrc.IPv4)
 	nbrPathv6 := statePath.Neighbor(ateSrc.IPv6)
 	nbr := statePath.Get(t).GetNeighbor(ateSrc.IPv4)
@@ -283,7 +296,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 // received IPv4 prefixes
 // TODO: Need to refactor and compare using cmp.diff
 func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled, wantRx, wantSent uint32) {
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(NetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(ateDst.IPv4).AfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 	if gotInstalled := prefixesv4.Installed().Get(t); gotInstalled != wantInstalled {
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
@@ -299,7 +312,7 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled
 // verifyPrefixesTelemetryV6 confirms that the dut shows the correct numbers of installed, sent and
 // received IPv6 prefixes
 func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, wantInstalledv6, wantRxv6, wantSentv6 uint32) {
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(NetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv6 := statePath.Neighbor(ateDst.IPv6).AfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 
 	if gotInstalledv6 := prefixesv6.Installed().Get(t); gotInstalledv6 != wantInstalledv6 {
@@ -315,7 +328,7 @@ func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 
 // verifyPolicyTelemetry confirms that the dut policy is set as expected.
 func verifyPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, policy string) {
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(NetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	policytel := statePath.PeerGroup(peerGrpName).ApplyPolicy().ImportPolicy().Get(t)
 	for _, val := range policytel {
 		if val != policy {
@@ -460,9 +473,12 @@ func TestEstablish(t *testing.T) {
 	t.Logf("Start DUT interface Config")
 	configureDUT(t, dut)
 
+	t.Log("Configure Network Instance")
+	configureNetworkInstance(t)
+
 	// Configure BGP+Neighbors on the DUT
 	t.Logf("Start DUT BGP Config")
-	dutConfPath := dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := dut.Config().NetworkInstance(NetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 	dutConfPath.Replace(t, nil)
 	dutConf := bgpCreateNbr(dutAS, ateAS, defaultPolicy)
@@ -510,6 +526,9 @@ func TestBGPPolicy(t *testing.T) {
 	t.Logf("Start DUT interface Config")
 	configureDUT(t, dut)
 
+	t.Log("Configure Network Instance")
+	configureNetworkInstance(t)
+
 	cases := []struct {
 		desc                      string
 		policy                    string
@@ -550,7 +569,7 @@ func TestBGPPolicy(t *testing.T) {
 			ate := ondatra.ATE(t, "ate")
 
 			// Configure Routing Policy on the DUT
-			dutConfPath := dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+			dutConfPath := dut.Config().NetworkInstance(NetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 			fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 			d := &telemetry.Device{}
 			t.Log("Configure BGP Policy with BGP actions on the neighbor")
@@ -559,7 +578,7 @@ func TestBGPPolicy(t *testing.T) {
 			bgp := bgpCreateNbr(dutAS, ateAS, tc.policy)
 			// Configure ATE to setup traffic.
 			allFlows := configureATE(t, ate)
-			dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
+			dut.Config().NetworkInstance(NetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
 			// Send and verify traffic.
 			sendTraffic(t, ate, allFlows)
 			verifyTraffic(t, ate, allFlows, tc.wantLoss)
