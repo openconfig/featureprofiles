@@ -8,13 +8,13 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-// Struct used for validating the fetched OTG BGP stats
+// ExpectedBgpMetrics struct used for validating the fetched OTG BGP stats
 type ExpectedBgpMetrics struct {
 	Advertised int32
 	Received   int32
 }
 
-// Struct used for validating the fetched OTG ISIS stats
+// ExpectedIsisMetrics struct used for validating the fetched OTG ISIS stats
 type ExpectedIsisMetrics struct {
 	L1SessionsUp   int32
 	L2SessionsUp   int32
@@ -22,18 +22,18 @@ type ExpectedIsisMetrics struct {
 	L2DatabaseSize int32
 }
 
-// Struct used for validating the fetched OTG Port stats
+// ExpectedPortMetrics struct used for validating the fetched OTG Port stats
 type ExpectedPortMetrics struct {
 	FramesRx int32
 }
 
-// Struct used for validating the fetched OTG Flow stats
+// ExpectedFlowMetrics struct used for validating the fetched OTG Flow stats
 type ExpectedFlowMetrics struct {
 	FramesRx     int64
 	FramesRxRate float32
 }
 
-// Struct used for creating expected otg metrics
+// ExpectedState is used for creating expected otg metrics
 type ExpectedState struct {
 	Port map[string]ExpectedPortMetrics
 	Flow map[string]ExpectedFlowMetrics
@@ -42,6 +42,7 @@ type ExpectedState struct {
 	Isis map[string]ExpectedIsisMetrics
 }
 
+// AllBgp4SessionUp checks if all BGPv4 sessions are up
 func AllBgp4SessionUp(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
 	dMetrics, err := GetBgpv4Metrics(t, otg, c)
 	if err != nil {
@@ -64,6 +65,7 @@ func AllBgp4SessionUp(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expecte
 	return expected, nil
 }
 
+// AllBgp6SessionUp checks if all BGPv6 sessions are up
 func AllBgp6SessionUp(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
 	dMetrics, err := GetBgpv6Metrics(t, otg, c)
 	if err != nil {
@@ -86,6 +88,7 @@ func AllBgp6SessionUp(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expecte
 	return expected, nil
 }
 
+// AllBgp4SessionDown checks if all BGPv4 sessions are down
 func AllBgp4SessionDown(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool, error) {
 	dMetrics, err := GetBgpv4Metrics(t, otg, c)
 	if err != nil {
@@ -107,6 +110,7 @@ func AllBgp4SessionDown(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool
 	return expected, nil
 }
 
+// AllBgp6SessionDown checks if all BGPv6 sessions are down
 func AllBgp6SessionDown(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool, error) {
 	dMetrics, err := GetBgpv6Metrics(t, otg, c)
 	if err != nil {
@@ -128,6 +132,7 @@ func AllBgp6SessionDown(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool
 	return expected, nil
 }
 
+// FlowMetricsOk returns true if all the expected flow stats are verified
 func FlowMetricsOk(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
 	fMetrics, err := GetFlowMetrics(t, otg, c)
 	if err != nil {
@@ -150,6 +155,7 @@ func FlowMetricsOk(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedSt
 	return expected, nil
 }
 
+// ArpEntriesOk returns true if all the expected mac entries are verified
 func ArpEntriesOk(t *testing.T, otg *ondatra.OTG, ipType string, expectedMacEntries []string) (bool, error) {
 	actualMacEntries := []string{}
 	var err error
@@ -174,6 +180,7 @@ func ArpEntriesOk(t *testing.T, otg *ondatra.OTG, ipType string, expectedMacEntr
 	return expected, nil
 }
 
+// ArpEntriesPresent returns true once ARP entries are present
 func ArpEntriesPresent(t *testing.T, otg *ondatra.OTG, ipType string) (bool, error) {
 	actualMacEntries := []string{}
 	var err error
@@ -185,10 +192,9 @@ func ArpEntriesPresent(t *testing.T, otg *ondatra.OTG, ipType string) (bool, err
 	}
 	if err != nil {
 		return false, fmt.Errorf("failed to get the ARP entries for %v", ipType)
-	} else {
-		if len(actualMacEntries) == 0 {
-			return false, nil
-		}
-		return true, nil
 	}
+	if len(actualMacEntries) == 0 {
+		return false, nil
+	}
+	return true, nil
 }
