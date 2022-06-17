@@ -15,7 +15,10 @@
 package rt_5_2_aggregate_test
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
+	"net"
 	"sort"
 	"strconv"
 	"testing"
@@ -273,7 +276,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	for i, p := range tc.atePorts[1:] {
 		port := tc.top.Ports().Add().SetName(p.ID())
 		lagPort := agg.Ports().Add()
-		newMac, err := otgutils.IncrementedMac(ateDst.MAC, i)
+		newMac, err := incrementedMac(ateDst.MAC, i)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -437,6 +440,23 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 			tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Await(t, 1*time.Minute, tf.want)
 		})
 	}
+}
+
+// incrementedMac uses a mac string and increments it by the given i
+func incrementedMac(mac string, i int) (string, error) {
+	macAddr, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", err
+	}
+	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
+	convMac = convMac + uint64(i)
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, convMac)
+	if err != nil {
+		return "", err
+	}
+	newMac := net.HardwareAddr(buf.Bytes()[2:8])
+	return newMac.String(), nil
 }
 
 func TestNegotiation(t *testing.T) {
