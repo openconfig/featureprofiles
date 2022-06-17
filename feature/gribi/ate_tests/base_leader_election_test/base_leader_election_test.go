@@ -113,7 +113,7 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 // configureDUT configures port1, port2 and port3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := dut.Config()
-	
+
 	p1 := dut.Port(t, "port1")
 	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
 	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutPort1))
