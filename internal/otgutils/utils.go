@@ -1,11 +1,8 @@
 package otgutils
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"os/exec"
 	"runtime"
@@ -30,7 +27,7 @@ type WaitForOpts struct {
 	Timeout   time.Duration
 }
 
-// 	MetricsTableOpts is used for fetching OTG stats
+// MetricsTableOpts is used for fetching OTG stats
 type MetricsTableOpts struct {
 	ClearPrevious  bool
 	FlowMetrics    gosnappi.MetricsResponseFlowMetricIter
@@ -48,8 +45,8 @@ type StatesTableOpts struct {
 	Ipv6NeighborsStates gosnappi.StatesResponseNeighborsv6StateIter
 }
 
-// Timer prints time elapsed in ms since a given start time
-func Timer(start time.Time, name string) {
+// timer prints time elapsed in ms since a given start time
+func timer(start time.Time, name string) {
 	elapsed := time.Since(start)
 	log.Printf("%s took %d ms", name, elapsed.Milliseconds())
 }
@@ -61,7 +58,7 @@ func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
 			Condition: "condition to be true",
 		}
 	}
-	defer Timer(time.Now(), fmt.Sprintf("Waiting for %s", opts.Condition))
+	defer timer(time.Now(), fmt.Sprintf("Waiting for %s", opts.Condition))
 
 	if opts.Interval == 0 {
 		opts.Interval = 500 * time.Millisecond
@@ -389,21 +386,4 @@ func expectedElementsPresent(expected, actual []string) bool {
 		}
 	}
 	return true
-}
-
-// IncrementedMac uses a mac string and increments it by the given i
-func IncrementedMac(mac string, i int) (string, error) {
-	macAddr, err := net.ParseMAC(mac)
-	if err != nil {
-		return "", err
-	}
-	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
-	convMac = convMac + uint64(i)
-	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.BigEndian, convMac)
-	if err != nil {
-		return "", err
-	}
-	newMac := net.HardwareAddr(buf.Bytes()[2:8])
-	return newMac.String(), nil
 }
