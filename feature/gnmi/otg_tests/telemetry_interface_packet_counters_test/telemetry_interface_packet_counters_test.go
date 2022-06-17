@@ -184,7 +184,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	config.Ports().Add().SetName(ap2.ID())
 	intf2 := config.Devices().Add().SetName(ap2.Name())
 	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".eth").
-		SetPortName(ap2.ID()).SetMac("00:00:01:01:01:01")
+		SetPortName(ap2.ID()).SetMac("00:00:01:02:01:01")
 	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".ipv4").
 		SetAddress("198.51.100.3").SetGateway("198.51.100.2").
 		SetPrefix(31)
