@@ -58,6 +58,11 @@ var (
 			desc: "Write RPC-Compliance:008 12(INSERT) Write RPC with Insert exisint entity, verify ALREADY_EXISTS error returned and existing entity remain unchanged",
 			fn:   testWriteRPCInsertSameEntry,
 		},
+		{
+			name: "Insert malformed entry in Write RPC",
+			desc: "Write RPC-Compliance:009 12(INSERT) Write RPC with Insert malformed entity, verify INVLIAD_ARGUMENT error is returned ",
+			fn:   testWriteRPCInsertMalformedEntry,
+		},
 	}
 )
 
@@ -433,5 +438,34 @@ func testWriteRPCInsertSameEntry(ctx context.Context, t *testing.T, args *testAr
 	// Program the entry 2nd time and expecting error
 	if err := programmGDPMatchEntry(ctx, t, client, false); err == nil {
 		t.Errorf("Expected error not seen")
+	}
+}
+
+// Write RPC-Compliance:009
+func testWriteRPCInsertMalformedEntry(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// Setup P4RT Client
+	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error setting up connection, %s", err)
+	}
+	// Destroy P4RT Client
+	defer teardownConnection(ctx, t, deviceID, client)
+
+	if err := setupForwardingPipeline(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
+	}
+	// Program the entry
+	if err := client.Write(&p4_v1.WriteRequest{
+		DeviceId:   uint64(1),
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
+		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
+			&wbb.AclWbbIngressTableEntryInfo{
+				Type:      p4_v1.Update_INSERT,
+				EtherType: 0x6007,
+			},
+		}),
+		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+	}); err == nil {
+		t.Errorf("Expected error is not seen.")
 	}
 }
