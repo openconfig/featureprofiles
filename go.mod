@@ -3,6 +3,7 @@ module github.com/openconfig/featureprofiles
 go 1.17
 
 require (
+	github.com/cisco-open/go-p4 v0.0.0-20220613165938-386fc6ef3747
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.7
 	github.com/openconfig/gnmi v0.0.0-20220131173555-39aa74195f0d
@@ -11,7 +12,7 @@ require (
 	github.com/openconfig/goyang v1.0.0
 	github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56
 	github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e
-	github.com/openconfig/ondatra v0.0.0-20220523194709-be319f7ae58d
+	github.com/openconfig/ondatra v0.0.0-20220617163322-7fa172bfbf25
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygot v0.22.1
 	github.com/p4lang/p4runtime v1.3.0
