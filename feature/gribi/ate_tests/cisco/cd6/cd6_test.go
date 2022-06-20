@@ -17,6 +17,7 @@ package base_leader_election_test
 import (
 	"context"
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -397,9 +398,11 @@ func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, netw
 		t.Fatal("There are no interfaces in the Topology")
 	}
 	network := intfs[atePort].AddNetwork(network_name)
-	//IPReachabilityConfig :=
 	network.ISIS().WithIPReachabilityMetric(metric + 1)
 	network.IPv4().WithAddress(v4prefix).WithCount(count)
+	rnetwork := intfs[atePort].AddNetwork("recursive")
+	rnetwork.ISIS().WithIPReachabilityMetric(metric + 1)
+	rnetwork.IPv4().WithAddress("100.100.100.100/32")
 	intfs[atePort].ISIS().WithAreaID(areaId).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
 }
 
@@ -430,10 +433,15 @@ func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddres
 }
 
 func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
-	//intfs := top.Interfaces()
-	addAteISISL2(t, top, "atePort8", "B4", "testing", 20, innerdstPfxMin_isis+"/"+dstPfxMask, uint32(innerdstPfxCount_isis))
-	//intfs["atePort8"].WithIPv4Loopback("201.1.0.2/32")
-	addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_network", atePort8.IPv4, innerdstPfxMin_bgp+"/"+dstPfxMask, innerdstPfxCount_bgp, false)
+
+	// addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+dstPfxMask, uint32(innerdstPfxCount_isis))
+	// addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_network", atePort8.IPv4, innerdstPfxMin_bgp+"/"+dstPfxMask, innerdstPfxCount_bgp, false)
+
+	//advertising 100.100.100.100/32 for bgp resolve over IGP prefix
+	intfs := top.Interfaces()
+	intfs["atePort8"].WithIPv4Loopback("100.100.100.100/32")
+	addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+dstPfxMask, uint32(innerdstPfxCount_isis))
+	addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+dstPfxMask, innerdstPfxCount_bgp, true)
 	top.Push(t).StartProtocols(t)
 }
 
@@ -1644,7 +1652,7 @@ func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArg
 	args.clientA.NHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
 
 	// validate traffic passing via primary links
-        time.Sleep(time.Minute)
+	time.Sleep(time.Minute)
 	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
 	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
 	flows := []*ondatra.Flow{}
@@ -2522,6 +2530,117 @@ func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs
 	configureDUT(t, args.dut)
 }
 
+func testIPv4MultipleNHG(ctx context.Context, t *testing.T, args *testArgs) {
+	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
+	// ensure that the entry is active through AFT telemetry and traffic.
+
+	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
+	args.clientA.BecomeLeader(t)
+	if _, err := args.clientA.Fluent(t).Flush().
+		WithElectionOverride().
+		WithAllNetworkInstances().
+		Send(); err != nil {
+		t.Fatalf("could not remove all entries from server, got: %v", err)
+	}
+
+	// LEVEL 2
+
+	// Creating a backup NHG with ID 101 (bkhgIndex_2)
+	// NH ID 10 (nhbIndex_2_1)
+
+	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
+	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+
+	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
+	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
+	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
+
+	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
+	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
+
+	ip := net.ParseIP(dstPfx)
+	ip = ip.To4()
+
+	for i := 501; i < 1001; i++ {
+		args.clientA.NHG(t, uint64(i), 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
+		ipv4 := fluent.IPv4Entry().WithPrefix(ip.String() + "/" + dstPfxMask).WithNetworkInstance("TE").WithNextHopGroup(uint64(i)).WithNextHopGroupNetworkInstance(instance)
+		ip[3]++
+		args.clientA.Fluent(t).Modify().AddEntry(t, ipv4)
+	}
+
+	// LEVEL 1
+
+	// VIP1: NHG ID 1000 (nhgIndex_1_1)
+	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
+	// VIP2: NHG ID 2000 (nhgIndex_1_2)
+	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
+
+	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
+	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
+	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
+	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
+	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", 1, fluent.InstalledInRIB)
+
+	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
+	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
+	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
+
+	// adding default route pointing to Valid Path
+	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+
+	// Verify the entry for 198.51.100.0/24 is active through Traffic.
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	dstEndPoint := args.top.Interfaces()
+	updated_dstEndPoint := []ondatra.Endpoint{}
+	for intf, intf_data := range dstEndPoint {
+		if "atePort1" != intf {
+			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
+		}
+	}
+
+	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
+	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
+	flows := []*ondatra.Flow{}
+	flows = append(flows, bgp_flow, isis_flow)
+	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+
+	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
+	args.interfaceaction(t, "port7", false)
+	args.interfaceaction(t, "port6", false)
+	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port8"})
+
+	args.interfaceaction(t, "port5", false)
+	args.interfaceaction(t, "port4", false)
+	args.interfaceaction(t, "port3", false)
+	args.interfaceaction(t, "port2", false)
+
+	// validate traffic decap over backup path
+	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+
+	// unshut all the links and validate traffic
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port3", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port5", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port7", true)
+	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+
+	// removing default route and bringing up the links
+	t.Log("remvoing default route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+}
+
 func TestBackUp(t *testing.T) {
 	deviations.InterfaceEnabled = &[]bool{false}[0]
 	t.Log("Name: BackUp")
@@ -2644,7 +2763,7 @@ func TestBackUp(t *testing.T) {
 			name: "IPv4BackUpShutSite1",
 			desc: "Shutdown the primary path for 1 Site  and validate traffic is going through another primary and not backup ",
 			fn:   testIPv4BackUpShutSite1,
-		}, 
+		},
 		{
 			name: "IPv4BackUpModifyDecapNHG",
 			desc: "Shutdown all the primary path and modify Backup NHG from  Decap NHG 101 to Decap NHG 102 and validate traffic ",
@@ -2658,13 +2777,18 @@ func TestBackUp(t *testing.T) {
 		{
 			name: "IPv4BackUpMultipleVRF",
 			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
-			fn:   testIPv4BackUpMultiplePrefixes,
+			fn:   testIPv4BackUpMultipleVRF,
 		},
 		{
 			name: "IPv4BackUpFlapBGPISIS",
 			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
 			fn:   testIPv4BackUpFlapBGPISIS,
-		}, 
+		},
+		{
+			name: "IPv4MultipleNHG",
+			desc: "Have same primary and backup decap with multiple nhg",
+			fn:   testIPv4MultipleNHG,
+		},
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
