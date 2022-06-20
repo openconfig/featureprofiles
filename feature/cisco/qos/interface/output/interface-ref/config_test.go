@@ -5,41 +5,22 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
-	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
-	fptest.RunTests(m)
+	ondatra.RunTests(m, binding.New)
 }
 
-func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
-	bc := setup.BaseConfig()
-	setup.ResetStruct(bc, []string{"Interface"})
-	bcInterface := setup.GetAnyValue(bc.Interface)
-	setup.ResetStruct(bcInterface, []string{"Output"})
-	bcInterfaceOutput := bcInterface.Output
-	setup.ResetStruct(bcInterfaceOutput, []string{"InterfaceRef"})
-	bcInterfaceOutputInterfaceRef := bcInterfaceOutput.InterfaceRef
-	setup.ResetStruct(bcInterfaceOutputInterfaceRef, []string{})
-	dut.Config().Qos().Replace(t, bc)
-	return bc
-}
-
-func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
-	dut.Config().Qos().Delete(t)
-}
 func TestInterfaceAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []string{
-		"assa",
-	}
-
-	for _, input := range inputs {
+	for _, input := range testInterfaceInput {
 		t.Run(fmt.Sprintf("Testing /qos/interfaces/interface/output/interface-ref/config/interface using value %v", input), func(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 			baseConfigInterfaceOutput := baseConfigInterface.Output
@@ -84,11 +65,7 @@ func TestInterfaceAtLeaf(t *testing.T) {
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []string{
-		"assa",
-	}
-
-	for _, input := range inputs {
+	for _, input := range testInterfaceInput {
 		t.Run(fmt.Sprintf("Testing /qos/interfaces/interface/output/interface-ref/config/interface using value %v", input), func(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 
@@ -127,14 +104,11 @@ func TestInterfaceAtLeaf(t *testing.T) {
 }
 func TestSubinterfaceAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint32{
-		2395897030,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testSubinterfaceInput {
 		t.Run(fmt.Sprintf("Testing /qos/interfaces/interface/output/interface-ref/config/subinterface using value %v", input), func(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 			baseConfigInterfaceOutput := baseConfigInterface.Output
@@ -179,11 +153,7 @@ func TestSubinterfaceAtLeaf(t *testing.T) {
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint32{
-		2395897030,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testSubinterfaceInput {
 		t.Run(fmt.Sprintf("Testing /qos/interfaces/interface/output/interface-ref/config/subinterface using value %v", input), func(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 

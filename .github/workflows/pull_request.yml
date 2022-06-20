@@ -73,6 +73,13 @@ jobs:
     name: Check style against CONTRIBUTING.md
     runs-on: ubuntu-latest
     steps:
+    - name: Setup Perl
+      uses: perl-actions/install-with-cpanm@v1
+      with:
+        install: |
+          Net::IP
+    - name: Checkout code
+      uses: actions/checkout@v2
     - name: IP Addresses Assignment
       run: |
         find . -path ./yang/fpoc -prune -o -name \*.go -exec ./tools/check_ip_addresses.pl \{} +

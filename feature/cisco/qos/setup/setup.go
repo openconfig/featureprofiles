@@ -29,7 +29,7 @@ func findTestDataPath() string {
 	return "testdata/base_config.json"
 }
 
-// BaseConfig creates a oc.Qos struct based on the configs defined in base_config.json
+// BaseConfig returns the base configuration used for test setup
 func BaseConfig() *oc.Qos {
 	baseConfig := new(oc.Qos)
 	oc.Unmarshal(jsonConfig, baseConfig)

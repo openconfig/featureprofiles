@@ -5,329 +5,22 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
-	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
-	fptest.RunTests(m)
+	ondatra.RunTests(m, binding.New)
 }
 
-func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
-	bc := setup.BaseConfig()
-	setup.ResetStruct(bc, []string{"SchedulerPolicy"})
-	bcSchedulerPolicy := setup.GetAnyValue(bc.SchedulerPolicy)
-	setup.ResetStruct(bcSchedulerPolicy, []string{"Scheduler"})
-	bcSchedulerPolicyScheduler := setup.GetAnyValue(bcSchedulerPolicy.Scheduler)
-	setup.ResetStruct(bcSchedulerPolicyScheduler, []string{"TwoRateThreeColor"})
-	bcSchedulerPolicySchedulerTwoRateThreeColor := bcSchedulerPolicyScheduler.TwoRateThreeColor
-	setup.ResetStruct(bcSchedulerPolicySchedulerTwoRateThreeColor, []string{})
-	dut.Config().Qos().Replace(t, bc)
-	return bc
-}
-
-func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
-	dut.Config().Qos().Delete(t)
-}
-func TestPirAtContainer(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
-	defer teardownQos(t, dut, baseConfig)
-
-	inputs := []uint64{
-		8766307853137674257,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir using value %v", input), func(t *testing.T) {
-			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
-			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
-			baseConfigSchedulerPolicySchedulerTwoRateThreeColor := baseConfigSchedulerPolicyScheduler.TwoRateThreeColor
-			*baseConfigSchedulerPolicySchedulerTwoRateThreeColor.Pir = input
-
-			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
-			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
-
-			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigSchedulerPolicySchedulerTwoRateThreeColor)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get container", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.Pir != input {
-						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.Pir != input {
-						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete container", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).Pir != nil {
-						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir fail: got %v", qs)
-					}
-				}
-			})
-		})
-	}
-}
-func TestPirAtLeaf(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
-	defer teardownQos(t, dut, baseConfig)
-
-	inputs := []uint64{
-		8766307853137674257,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir using value %v", input), func(t *testing.T) {
-			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
-			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
-
-			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().Pir()
-			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().Pir()
-
-			t.Run("Replace leaf", func(t *testing.T) {
-				config.Replace(t, input)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get leaf", func(t *testing.T) {
-					configGot := config.Get(t)
-					if configGot != input {
-						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if stateGot != input {
-						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete leaf", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs != nil {
-						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir fail: got %v", qs)
-					}
-				}
-			})
-		})
-	}
-}
-func TestBcAtContainer(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
-	defer teardownQos(t, dut, baseConfig)
-
-	inputs := []uint32{
-		2378449870,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc using value %v", input), func(t *testing.T) {
-			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
-			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
-			baseConfigSchedulerPolicySchedulerTwoRateThreeColor := baseConfigSchedulerPolicyScheduler.TwoRateThreeColor
-			*baseConfigSchedulerPolicySchedulerTwoRateThreeColor.Bc = input
-
-			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
-			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
-
-			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigSchedulerPolicySchedulerTwoRateThreeColor)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get container", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.Bc != input {
-						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.Bc != input {
-						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete container", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).Bc != nil {
-						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc fail: got %v", qs)
-					}
-				}
-			})
-		})
-	}
-}
-func TestBcAtLeaf(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
-	defer teardownQos(t, dut, baseConfig)
-
-	inputs := []uint32{
-		2378449870,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc using value %v", input), func(t *testing.T) {
-			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
-			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
-
-			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().Bc()
-			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().Bc()
-
-			t.Run("Replace leaf", func(t *testing.T) {
-				config.Replace(t, input)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get leaf", func(t *testing.T) {
-					configGot := config.Get(t)
-					if configGot != input {
-						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if stateGot != input {
-						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete leaf", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs != nil {
-						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc fail: got %v", qs)
-					}
-				}
-			})
-		})
-	}
-}
-func TestPirPctAtContainer(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
-	defer teardownQos(t, dut, baseConfig)
-
-	inputs := []uint8{
-		73,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct using value %v", input), func(t *testing.T) {
-			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
-			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
-			baseConfigSchedulerPolicySchedulerTwoRateThreeColor := baseConfigSchedulerPolicyScheduler.TwoRateThreeColor
-			*baseConfigSchedulerPolicySchedulerTwoRateThreeColor.PirPct = input
-
-			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
-			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
-
-			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigSchedulerPolicySchedulerTwoRateThreeColor)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get container", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.PirPct != input {
-						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.PirPct != input {
-						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete container", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).PirPct != nil {
-						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct fail: got %v", qs)
-					}
-				}
-			})
-		})
-	}
-}
-func TestPirPctAtLeaf(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
-	defer teardownQos(t, dut, baseConfig)
-
-	inputs := []uint8{
-		73,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct using value %v", input), func(t *testing.T) {
-			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
-			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
-
-			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().PirPct()
-			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().PirPct()
-
-			t.Run("Replace leaf", func(t *testing.T) {
-				config.Replace(t, input)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get leaf", func(t *testing.T) {
-					configGot := config.Get(t)
-					if configGot != input {
-						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if stateGot != input {
-						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete leaf", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs != nil {
-						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct fail: got %v", qs)
-					}
-				}
-			})
-		})
-	}
-}
 func TestBeAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint32{
-		145182553,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testBeInput {
 		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/be using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
@@ -372,11 +65,7 @@ func TestBeAtLeaf(t *testing.T) {
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint32{
-		145182553,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testBeInput {
 		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/be using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
@@ -414,21 +103,18 @@ func TestBeAtLeaf(t *testing.T) {
 		})
 	}
 }
-func TestCirPctRemainingAtContainer(t *testing.T) {
+func TestPirAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		90,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining using value %v", input), func(t *testing.T) {
+	for _, input := range testPirInput {
+		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
 			baseConfigSchedulerPolicySchedulerTwoRateThreeColor := baseConfigSchedulerPolicyScheduler.TwoRateThreeColor
-			*baseConfigSchedulerPolicySchedulerTwoRateThreeColor.CirPctRemaining = input
+			*baseConfigSchedulerPolicySchedulerTwoRateThreeColor.Pir = input
 
 			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
 			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
@@ -439,46 +125,42 @@ func TestCirPctRemainingAtContainer(t *testing.T) {
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
 					configGot := config.Get(t)
-					if *configGot.CirPctRemaining != input {
-						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining: got %v, want %v", configGot, input)
+					if *configGot.Pir != input {
+						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir: got %v, want %v", configGot, input)
 					}
 				})
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
 					stateGot := state.Get(t)
-					if *stateGot.CirPctRemaining != input {
-						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining: got %v, want %v", stateGot, input)
+					if *stateGot.Pir != input {
+						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete container", func(t *testing.T) {
 				config.Delete(t)
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).CirPctRemaining != nil {
-						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining fail: got %v", qs)
+					if qs := config.Lookup(t); qs.Val(t).Pir != nil {
+						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir fail: got %v", qs)
 					}
 				}
 			})
 		})
 	}
 }
-func TestCirPctRemainingAtLeaf(t *testing.T) {
+func TestPirAtLeaf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		90,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining using value %v", input), func(t *testing.T) {
+	for _, input := range testPirInput {
+		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
 
-			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().CirPctRemaining()
-			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().CirPctRemaining()
+			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().Pir()
+			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().Pir()
 
 			t.Run("Replace leaf", func(t *testing.T) {
 				config.Replace(t, input)
@@ -487,7 +169,7 @@ func TestCirPctRemainingAtLeaf(t *testing.T) {
 				t.Run("Get leaf", func(t *testing.T) {
 					configGot := config.Get(t)
 					if configGot != input {
-						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining: got %v, want %v", configGot, input)
+						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir: got %v, want %v", configGot, input)
 					}
 				})
 			}
@@ -495,7 +177,7 @@ func TestCirPctRemainingAtLeaf(t *testing.T) {
 				t.Run("Subscribe leaf", func(t *testing.T) {
 					stateGot := state.Get(t)
 					if stateGot != input {
-						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining: got %v, want %v", stateGot, input)
+						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir: got %v, want %v", stateGot, input)
 					}
 				})
 			}
@@ -503,28 +185,25 @@ func TestCirPctRemainingAtLeaf(t *testing.T) {
 				config.Delete(t)
 				if !setup.SkipSubscribe() {
 					if qs := config.Lookup(t); qs != nil {
-						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining fail: got %v", qs)
+						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir fail: got %v", qs)
 					}
 				}
 			})
 		})
 	}
 }
-func TestPirPctRemainingAtContainer(t *testing.T) {
+func TestPirPctAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		54,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining using value %v", input), func(t *testing.T) {
+	for _, input := range testPirPctInput {
+		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
 			baseConfigSchedulerPolicySchedulerTwoRateThreeColor := baseConfigSchedulerPolicyScheduler.TwoRateThreeColor
-			*baseConfigSchedulerPolicySchedulerTwoRateThreeColor.PirPctRemaining = input
+			*baseConfigSchedulerPolicySchedulerTwoRateThreeColor.PirPct = input
 
 			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
 			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
@@ -535,46 +214,42 @@ func TestPirPctRemainingAtContainer(t *testing.T) {
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
 					configGot := config.Get(t)
-					if *configGot.PirPctRemaining != input {
-						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining: got %v, want %v", configGot, input)
+					if *configGot.PirPct != input {
+						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct: got %v, want %v", configGot, input)
 					}
 				})
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
 					stateGot := state.Get(t)
-					if *stateGot.PirPctRemaining != input {
-						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining: got %v, want %v", stateGot, input)
+					if *stateGot.PirPct != input {
+						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete container", func(t *testing.T) {
 				config.Delete(t)
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).PirPctRemaining != nil {
-						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining fail: got %v", qs)
+					if qs := config.Lookup(t); qs.Val(t).PirPct != nil {
+						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct fail: got %v", qs)
 					}
 				}
 			})
 		})
 	}
 }
-func TestPirPctRemainingAtLeaf(t *testing.T) {
+func TestPirPctAtLeaf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		54,
-	}
-
-	for _, input := range inputs {
-		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining using value %v", input), func(t *testing.T) {
+	for _, input := range testPirPctInput {
+		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
 
-			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().PirPctRemaining()
-			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().PirPctRemaining()
+			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().PirPct()
+			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().PirPct()
 
 			t.Run("Replace leaf", func(t *testing.T) {
 				config.Replace(t, input)
@@ -583,7 +258,7 @@ func TestPirPctRemainingAtLeaf(t *testing.T) {
 				t.Run("Get leaf", func(t *testing.T) {
 					configGot := config.Get(t)
 					if configGot != input {
-						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining: got %v, want %v", configGot, input)
+						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct: got %v, want %v", configGot, input)
 					}
 				})
 			}
@@ -591,7 +266,7 @@ func TestPirPctRemainingAtLeaf(t *testing.T) {
 				t.Run("Subscribe leaf", func(t *testing.T) {
 					stateGot := state.Get(t)
 					if stateGot != input {
-						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining: got %v, want %v", stateGot, input)
+						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct: got %v, want %v", stateGot, input)
 					}
 				})
 			}
@@ -599,7 +274,7 @@ func TestPirPctRemainingAtLeaf(t *testing.T) {
 				config.Delete(t)
 				if !setup.SkipSubscribe() {
 					if qs := config.Lookup(t); qs != nil {
-						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining fail: got %v", qs)
+						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct fail: got %v", qs)
 					}
 				}
 			})
@@ -608,14 +283,11 @@ func TestPirPctRemainingAtLeaf(t *testing.T) {
 }
 func TestCirAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint64{
-		3160827711477470814,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testCirInput {
 		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
@@ -660,11 +332,7 @@ func TestCirAtLeaf(t *testing.T) {
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint64{
-		3160827711477470814,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testCirInput {
 		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
@@ -704,14 +372,11 @@ func TestCirAtLeaf(t *testing.T) {
 }
 func TestCirPctAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		23,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testCirPctInput {
 		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
@@ -756,11 +421,7 @@ func TestCirPctAtLeaf(t *testing.T) {
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		23,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testCirPctInput {
 		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
@@ -792,6 +453,273 @@ func TestCirPctAtLeaf(t *testing.T) {
 				if !setup.SkipSubscribe() {
 					if qs := config.Lookup(t); qs != nil {
 						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct fail: got %v", qs)
+					}
+				}
+			})
+		})
+	}
+}
+func TestBcAtContainer(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
+	defer teardownQos(t, dut, baseConfig)
+
+	for _, input := range testBcInput {
+		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc using value %v", input), func(t *testing.T) {
+			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
+			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
+			baseConfigSchedulerPolicySchedulerTwoRateThreeColor := baseConfigSchedulerPolicyScheduler.TwoRateThreeColor
+			*baseConfigSchedulerPolicySchedulerTwoRateThreeColor.Bc = input
+
+			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
+			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
+
+			t.Run("Replace container", func(t *testing.T) {
+				config.Replace(t, baseConfigSchedulerPolicySchedulerTwoRateThreeColor)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get container", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.Bc != input {
+						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe container", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.Bc != input {
+						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete container", func(t *testing.T) {
+				config.Delete(t)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).Bc != nil {
+						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc fail: got %v", qs)
+					}
+				}
+			})
+		})
+	}
+}
+func TestBcAtLeaf(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	baseConfig := setupQos(t, dut)
+	defer teardownQos(t, dut, baseConfig)
+
+	for _, input := range testBcInput {
+		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc using value %v", input), func(t *testing.T) {
+			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
+			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
+
+			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().Bc()
+			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().Bc()
+
+			t.Run("Replace leaf", func(t *testing.T) {
+				config.Replace(t, input)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get leaf", func(t *testing.T) {
+					configGot := config.Get(t)
+					if configGot != input {
+						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe leaf", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if stateGot != input {
+						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete leaf", func(t *testing.T) {
+				config.Delete(t)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs != nil {
+						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc fail: got %v", qs)
+					}
+				}
+			})
+		})
+	}
+}
+func TestCirPctRemainingAtContainer(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
+	defer teardownQos(t, dut, baseConfig)
+
+	for _, input := range testCirPctRemainingInput {
+		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining using value %v", input), func(t *testing.T) {
+			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
+			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
+			baseConfigSchedulerPolicySchedulerTwoRateThreeColor := baseConfigSchedulerPolicyScheduler.TwoRateThreeColor
+			*baseConfigSchedulerPolicySchedulerTwoRateThreeColor.CirPctRemaining = input
+
+			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
+			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
+
+			t.Run("Replace container", func(t *testing.T) {
+				config.Replace(t, baseConfigSchedulerPolicySchedulerTwoRateThreeColor)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get container", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.CirPctRemaining != input {
+						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe container", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.CirPctRemaining != input {
+						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete container", func(t *testing.T) {
+				config.Delete(t)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).CirPctRemaining != nil {
+						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining fail: got %v", qs)
+					}
+				}
+			})
+		})
+	}
+}
+func TestCirPctRemainingAtLeaf(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	baseConfig := setupQos(t, dut)
+	defer teardownQos(t, dut, baseConfig)
+
+	for _, input := range testCirPctRemainingInput {
+		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining using value %v", input), func(t *testing.T) {
+			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
+			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
+
+			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().CirPctRemaining()
+			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().CirPctRemaining()
+
+			t.Run("Replace leaf", func(t *testing.T) {
+				config.Replace(t, input)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get leaf", func(t *testing.T) {
+					configGot := config.Get(t)
+					if configGot != input {
+						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe leaf", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if stateGot != input {
+						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete leaf", func(t *testing.T) {
+				config.Delete(t)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs != nil {
+						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct-remaining fail: got %v", qs)
+					}
+				}
+			})
+		})
+	}
+}
+func TestPirPctRemainingAtContainer(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
+	defer teardownQos(t, dut, baseConfig)
+
+	for _, input := range testPirPctRemainingInput {
+		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining using value %v", input), func(t *testing.T) {
+			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
+			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
+			baseConfigSchedulerPolicySchedulerTwoRateThreeColor := baseConfigSchedulerPolicyScheduler.TwoRateThreeColor
+			*baseConfigSchedulerPolicySchedulerTwoRateThreeColor.PirPctRemaining = input
+
+			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
+			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor()
+
+			t.Run("Replace container", func(t *testing.T) {
+				config.Replace(t, baseConfigSchedulerPolicySchedulerTwoRateThreeColor)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get container", func(t *testing.T) {
+					configGot := config.Get(t)
+					if *configGot.PirPctRemaining != input {
+						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe container", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if *stateGot.PirPctRemaining != input {
+						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete container", func(t *testing.T) {
+				config.Delete(t)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs.Val(t).PirPctRemaining != nil {
+						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining fail: got %v", qs)
+					}
+				}
+			})
+		})
+	}
+}
+func TestPirPctRemainingAtLeaf(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	baseConfig := setupQos(t, dut)
+	defer teardownQos(t, dut, baseConfig)
+
+	for _, input := range testPirPctRemainingInput {
+		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining using value %v", input), func(t *testing.T) {
+			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
+			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
+
+			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().PirPctRemaining()
+			state := dut.Telemetry().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).TwoRateThreeColor().PirPctRemaining()
+
+			t.Run("Replace leaf", func(t *testing.T) {
+				config.Replace(t, input)
+			})
+			if !setup.SkipGet() {
+				t.Run("Get leaf", func(t *testing.T) {
+					configGot := config.Get(t)
+					if configGot != input {
+						t.Errorf("Config /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining: got %v, want %v", configGot, input)
+					}
+				})
+			}
+			if !setup.SkipSubscribe() {
+				t.Run("Subscribe leaf", func(t *testing.T) {
+					stateGot := state.Get(t)
+					if stateGot != input {
+						t.Errorf("State /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining: got %v, want %v", stateGot, input)
+					}
+				})
+			}
+			t.Run("Delete leaf", func(t *testing.T) {
+				config.Delete(t)
+				if !setup.SkipSubscribe() {
+					if qs := config.Lookup(t); qs != nil {
+						t.Errorf("Delete /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct-remaining fail: got %v", qs)
 					}
 				}
 			})

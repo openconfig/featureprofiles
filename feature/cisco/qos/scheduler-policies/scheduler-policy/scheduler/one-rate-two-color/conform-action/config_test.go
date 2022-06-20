@@ -5,43 +5,22 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
-	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
-	fptest.RunTests(m)
+	ondatra.RunTests(m, binding.New)
 }
 
-func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
-	bc := setup.BaseConfig()
-	setup.ResetStruct(bc, []string{"SchedulerPolicy"})
-	bcSchedulerPolicy := setup.GetAnyValue(bc.SchedulerPolicy)
-	setup.ResetStruct(bcSchedulerPolicy, []string{"Scheduler"})
-	bcSchedulerPolicyScheduler := setup.GetAnyValue(bcSchedulerPolicy.Scheduler)
-	setup.ResetStruct(bcSchedulerPolicyScheduler, []string{"OneRateTwoColor"})
-	bcSchedulerPolicySchedulerOneRateTwoColor := bcSchedulerPolicyScheduler.OneRateTwoColor
-	setup.ResetStruct(bcSchedulerPolicySchedulerOneRateTwoColor, []string{"ConformAction"})
-	bcSchedulerPolicySchedulerOneRateTwoColorConformAction := bcSchedulerPolicySchedulerOneRateTwoColor.ConformAction
-	setup.ResetStruct(bcSchedulerPolicySchedulerOneRateTwoColorConformAction, []string{})
-	dut.Config().Qos().Replace(t, bc)
-	return bc
-}
-
-func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
-	dut.Config().Qos().Delete(t)
-}
 func TestSetMplsTcAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		155,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testSetMplsTcInput {
 		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/conform-action/config/set-mpls-tc using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
@@ -87,11 +66,7 @@ func TestSetMplsTcAtLeaf(t *testing.T) {
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		155,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testSetMplsTcInput {
 		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/conform-action/config/set-mpls-tc using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
@@ -131,14 +106,11 @@ func TestSetMplsTcAtLeaf(t *testing.T) {
 }
 func TestSetDot1pAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		13,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testSetDot1pInput {
 		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/conform-action/config/set-dot1p using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
@@ -184,11 +156,7 @@ func TestSetDot1pAtLeaf(t *testing.T) {
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		13,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testSetDot1pInput {
 		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/conform-action/config/set-dot1p using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
@@ -228,14 +196,11 @@ func TestSetDot1pAtLeaf(t *testing.T) {
 }
 func TestSetDscpAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
+
+	var baseConfig *oc.Qos = setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		75,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testSetDscpInput {
 		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/conform-action/config/set-dscp using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
@@ -281,11 +246,7 @@ func TestSetDscpAtLeaf(t *testing.T) {
 	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
-	inputs := []uint8{
-		75,
-	}
-
-	for _, input := range inputs {
+	for _, input := range testSetDscpInput {
 		t.Run(fmt.Sprintf("Testing /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/conform-action/config/set-dscp using value %v", input), func(t *testing.T) {
 			baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 			baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
