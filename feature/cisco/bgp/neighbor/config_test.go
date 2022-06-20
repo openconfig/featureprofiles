@@ -265,9 +265,9 @@ func TestTimersConnectRetry(t *testing.T) {
 
 	dut := ondatra.DUT(t, dutName)
 
-	inputs := []float64{
+	inputs := []uint16{
 		55,
-		234.5,
+		234,
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
