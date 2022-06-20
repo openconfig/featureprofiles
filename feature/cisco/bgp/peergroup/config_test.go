@@ -240,8 +240,9 @@ func TestTimersConnectRetry(t *testing.T) {
 
 	dut := ondatra.DUT(t, dutName)
 
-	inputs := []float64{
-		time.Minute.Seconds(),
+	inputs := []uint16{
+		30,
+		//time.Minute.Seconds(),
 		// (30 * time.Second).Seconds(),
 	}
 
@@ -270,7 +271,7 @@ func TestTimersConnectRetry(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedFloat64) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 30 {
+				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 30 {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/connect-retry fail: got %v", qs)
 				}
 			})
@@ -283,9 +284,9 @@ func TestTimersConnectRetry(t *testing.T) {
 func TestTimersHoldTime(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
-	inputs := []float64{
+	inputs := []uint16{
 		40,
-		40.5,
+		41,
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
@@ -313,7 +314,7 @@ func TestTimersHoldTime(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedFloat64) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 90 {
+				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 90 {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/hold-time fail: got %v", qs)
 				}
 			})
@@ -326,9 +327,9 @@ func TestTimersHoldTime(t *testing.T) {
 func TestTimersKeepaliveInterval(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
-	inputs := []float64{
+	inputs := []uint16{
 		20,
-		20.1,
+		21,
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
@@ -356,7 +357,7 @@ func TestTimersKeepaliveInterval(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedFloat64) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 30 {
+				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 30 {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/keepalive-interval fail: got %v", qs)
 				}
 			})
@@ -369,9 +370,9 @@ func TestTimersKeepaliveInterval(t *testing.T) {
 func TestTimersMinimumAdvertisementInterval(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
-	inputs := []float64{
+	inputs := []uint16{
 		50,
-		43.5,
+		43,
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
@@ -399,7 +400,7 @@ func TestTimersMinimumAdvertisementInterval(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedFloat64) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 30 {
+				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 30 {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/minimum-advertisement-interval fail: got %v", qs)
 				}
 			})
@@ -542,9 +543,9 @@ func TestGracefulRestartRestartTime(t *testing.T) {
 func TestGracefulRestartStaleRoutesTime(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
-	inputs := []float64{
+	inputs := []uint16{
 		// 122429.24,
-		10.9,
+		10,
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
@@ -572,7 +573,7 @@ func TestGracefulRestartStaleRoutesTime(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedFloat64) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/stale-routes-time fail: got %v", qs)
 				}
 			})
