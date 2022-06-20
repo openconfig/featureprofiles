@@ -8,6 +8,96 @@ import (
 	"wwwin-github.cisco.com/rehaddad/go-p4/p4info/wbb"
 )
 
+var (
+	P4RTComplianceWriteRPC = []Testcase{
+		{
+			name: "Insert entry with trap action in Write RPC",
+			desc: "Write RPC-Compliance:001 Verify Write RPC with p4 entry trap action works when it's from Primary controller",
+			fn:   testWriteRPCInsertTrapAction,
+		},
+		{
+			name: "Insert entry with copy  action in Write RPC",
+			desc: "Write RPC-Compliance:002 Verify Write RPC with p4 entry copy action works when it's from Primary controller",
+			fn:   testWriteRPCInsertCopyAction,
+		},
+		{
+			name: "Insert to non-exist device in Write RPC",
+			desc: "Write RPC-Compliance:003 12(1) Write RPC with device_id doesn't exist, verify device returns with NOT_FOUND error",
+			fn:   testWriteRPCInsertNonExistDeviceID,
+		},
+		{
+			name: "Inert entry with lower election id in Write RPC",
+			desc: "Write RPC-Compliance:004 12(2) Write RPC with non-primary election-id(lower than primary), verify device returns with PERMISSION_DENIED error",
+			fn:   testWriteRPCInsertWithLowerElectionID,
+		},
+		{
+			name: "Inert entry with higher election id in Write RPC",
+			desc: "Write RPC-Compliance:005 12(2) Write RPC with non-primary election-id(higher than primary), verify device returns with PERMISSION_DENIED error",
+			fn:   testWriteRPCInsertWithHigherElectionID,
+		},
+		{
+			name: "Send Write RPC before SetForwardingPipeline",
+			desc: "Write RPC-Compliance:006 12(3) Write RPC sent before ForwardingPipelineConfig verify device returns with FAILED_PRECONDITION error",
+			fn:   testWriteRPCBeforeSetForwardingPipeline,
+		},
+		{
+			name: "Insert non-exist entry in Write RPC",
+			desc: "Write RPC-Compliance:007 12(INSERT) Write RPC with Insert non-exist entity, verify the entity is programmed on the device",
+			fn:   testWriteRPCInsertEntry,
+		},
+		{
+			name: "Insert existing entry in Write RPC",
+			desc: "Write RPC-Compliance:008 12(INSERT) Write RPC with Insert exisint entity, verify ALREADY_EXISTS error returned and existing entity remain unchanged",
+			fn:   testWriteRPCInsertSameEntry,
+		},
+		{
+			name: "Insert malformed entry in Write RPC",
+			desc: "Write RPC-Compliance:009 12(INSERT) Write RPC with Insert malformed entity, verify INVLIAD_ARGUMENT error is returned ",
+			fn:   testWriteRPCInsertMalformedEntry,
+		},
+		{
+			name: "Send Write RPC in case of OOR",
+			desc: "Write RPC-Compliance:010 12(INSERT) Write RPC with Insert entity when device is in OOR, verify RESOURCE_EXHAUSTED error is returned",
+			fn:   testWriteRPCOOR,
+		},
+		{
+			name: "Modify existing entry in Write RPC",
+			desc: "Write RPC-Compliance:011 12(MODIFY) Write RPC with Modify existing entity, verify the entity is changed on the device",
+			fn:   testWriteRPCModifyEntry,
+		},
+		{
+			name: "Modify malformed entry in Write RPC",
+			desc: "Write RPC-Compliance:012 12(MODIFY) Write RPC with Modify existing entity, verify the entity is changed on the device",
+			fn:   testWriteRPCModifyMalformedEntry,
+		},
+		{
+			name: "Modify non-exist entry in Write RPC",
+			desc: "Write RPC-Compliance:013 12(MODIFY) Write RPC with Modify existing entity, verify the entity is changed on the device",
+			fn:   testWriteRPCModifyNonExistEntry,
+		},
+		{
+			name: "Delete existing entry in Write RPC",
+			desc: "Write RPC-Compliance:014 12(DELETE) Write RPC with DELETE existing entity with Match Fields(without Actions) only, verify the entity is removed on the device",
+			fn:   testWriteRPCDeleteEntry,
+		},
+		{
+			name: "Delete malformed entry in Write RPC",
+			desc: "Write RPC-Compliance:015 12(DELETE) Write RPC with DELETE existing entity with Match Fields, verify the entity is removed on the device",
+			fn:   testWriteRPCDeleteMalformedEntry,
+		},
+		{
+			name: "Delete non-exist entry in Write RPC",
+			desc: "Write RPC-Compliance:016 12(DELETE) Write RPC with DELETE non-exist entity Match Fields(with different than programmed), verify NOT_FOUND is returned",
+			fn:   testWriteRPCDeleteNonExistEntry,
+		},
+		{
+			name: "UnSpecified action in Write RPC",
+			desc: "Write RPC-Compliance:017 12(UNSPECIFIED) when UNSPECIFIED sent, verify unimplemented error returned",
+			fn:   testWriteRPCWithUnspecificAction,
+		},
+	}
+)
+
 // Write RPC-Compliance:001
 func testWriteRPCInsertTrapAction(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
