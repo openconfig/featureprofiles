@@ -89,6 +89,7 @@ func TestP4RTCompliance(t *testing.T) {
 
 	P4RTComplianceTestcases := []Testcase{}
 	P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceWriteRPC...)
+	P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceReadRPC...)
 
 	for _, tt := range P4RTComplianceTestcases {
 		// Each case will run with its own gRIBI fluent client.
@@ -101,13 +102,17 @@ func TestP4RTCompliance(t *testing.T) {
 	}
 }
 
-func setupConnection(ctx context.Context, t *testing.T, deviceID uint64, client *p4rt_client.P4RTClient) error {
+func generateStreamParameter(DeviceId, electionIDH, electionIDL uint64) p4rt_client.P4RTStreamParameters {
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
 		DeviceId:    deviceID,
-		ElectionIdH: uint64(0),
-		ElectionIdL: electionID,
+		ElectionIdH: electionIDH,
+		ElectionIdL: electionIDL,
 	}
+	return streamParameter
+}
+
+func setupConnection(ctx context.Context, t *testing.T, streamParameter p4rt_client.P4RTStreamParameters, client *p4rt_client.P4RTClient) error {
 	client.StreamChannelCreate(&streamParameter)
 	if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
 		Update: &p4_v1.StreamMessageRequest_Arbitration{
@@ -123,7 +128,7 @@ func setupConnection(ctx context.Context, t *testing.T, deviceID uint64, client 
 		t.Logf("There is error when setting up p4rtClientA")
 		return err
 	}
-	_, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1)
+	_, _, arbErr := client.StreamChannelGetArbitrationResp(&streamParameter.Name, 1)
 
 	if arbErr != nil {
 		t.Logf("There is error at Arbitration time: %v", arbErr)

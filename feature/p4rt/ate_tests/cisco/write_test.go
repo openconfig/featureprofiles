@@ -102,7 +102,7 @@ var (
 func testWriteRPCInsertTrapAction(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -133,7 +133,7 @@ func testWriteRPCInsertTrapAction(ctx context.Context, t *testing.T, args *testA
 func testWriteRPCInsertCopyAction(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -164,7 +164,7 @@ func testWriteRPCInsertCopyAction(ctx context.Context, t *testing.T, args *testA
 func testWriteRPCInsertNonExistDeviceID(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -195,7 +195,7 @@ func testWriteRPCInsertNonExistDeviceID(ctx context.Context, t *testing.T, args 
 func testWriteRPCInsertWithLowerElectionID(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -226,7 +226,7 @@ func testWriteRPCInsertWithLowerElectionID(ctx context.Context, t *testing.T, ar
 func testWriteRPCInsertWithHigherElectionID(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -257,7 +257,7 @@ func testWriteRPCInsertWithHigherElectionID(ctx context.Context, t *testing.T, a
 func testWriteRPCBeforeSetForwardingPipeline(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -284,7 +284,7 @@ func testWriteRPCBeforeSetForwardingPipeline(ctx context.Context, t *testing.T, 
 func testWriteRPCInsertEntry(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -304,7 +304,7 @@ func testWriteRPCInsertEntry(ctx context.Context, t *testing.T, args *testArgs) 
 func testWriteRPCInsertSameEntry(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -329,7 +329,7 @@ func testWriteRPCInsertSameEntry(ctx context.Context, t *testing.T, args *testAr
 func testWriteRPCInsertMalformedEntry(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -360,7 +360,7 @@ func testWriteRPCOOR(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Skip()
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -389,7 +389,7 @@ func testWriteRPCOOR(ctx context.Context, t *testing.T, args *testArgs) {
 func testWriteRPCModifyEntry(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -422,7 +422,7 @@ func testWriteRPCModifyEntry(ctx context.Context, t *testing.T, args *testArgs) 
 func testWriteRPCModifyMalformedEntry(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -452,7 +452,7 @@ func testWriteRPCModifyMalformedEntry(ctx context.Context, t *testing.T, args *t
 func testWriteRPCModifyNonExistEntry(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -485,7 +485,7 @@ func testWriteRPCModifyNonExistEntry(ctx context.Context, t *testing.T, args *te
 func testWriteRPCDeleteEntry(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -507,7 +507,7 @@ func testWriteRPCDeleteEntry(ctx context.Context, t *testing.T, args *testArgs) 
 func testWriteRPCDeleteMalformedEntry(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -539,7 +539,7 @@ func testWriteRPCDeleteMalformedEntry(ctx context.Context, t *testing.T, args *t
 func testWriteRPCDeleteNonExistEntry(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -572,7 +572,7 @@ func testWriteRPCDeleteNonExistEntry(ctx context.Context, t *testing.T, args *te
 func testWriteRPCWithUnspecificAction(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, deviceID, client); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
