@@ -22,7 +22,7 @@
 ## Config Parameter Coverage
 
     For prefix:
-        /network-instances/network-instance/protocols/protocol/bgp
+        /network-instances/network-instance/protocols/protocol/bgp/global
     Parameters:
         config/as
         config/router-id
