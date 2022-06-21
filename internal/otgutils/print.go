@@ -50,6 +50,7 @@ func WatchFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, opts *W
 	}
 }
 
+// WatchPortMetrics is displaying port stats for the given timeout duration
 func WatchPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, opts *WaitForOpts) error {
 	start := time.Now()
 	for {
