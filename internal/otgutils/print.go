@@ -11,13 +11,7 @@ import (
 	"github.com/openconfig/ondatra"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
-	"google.golang.org/protobuf/encoding/protojson"
 )
-
-// using protojson to marshal will emit property names with lowerCamelCase
-// instead of snake_case
-var protoMarshaller = protojson.MarshalOptions{UseProtoNames: true}
-var prettyProtoMarshaller = protojson.MarshalOptions{UseProtoNames: true, Multiline: true}
 
 // timer prints time elapsed in ms since a given start time
 func timer(start time.Time, name string) {
