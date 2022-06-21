@@ -150,6 +150,7 @@ type nextHop struct {
 // according to portsIPv4.  Returns nil if the port has no IP address
 // mapping.
 func dutInterface(p *ondatra.Port) *telemetry.Interface {
+	deviations.InterfaceEnabled = ygot.Bool(true)
 	id := fmt.Sprintf("%s:%s", p.Device().ID(), p.ID())
 	i := &telemetry.Interface{
 		Name:        ygot.String(p.Name()),
@@ -306,7 +307,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	if err != nil {
 		t.Fatal(err)
 	}
-	dstMac, _ := otgutils.GetIPv4NeighborMacEntry(t, ateSrcPort+".eth", gwIp, ate.OTG())
+	dstMac := ate.OTG().Telemetry().Interface(ateSrcPort + ".eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
 	config.Flows().Clear().Items()
 	flow := config.Flows().Add().SetName("flow")
 	flow.Metrics().SetEnable(true)
@@ -361,21 +362,16 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	inPkts = make([]uint64, len(atePorts))
 	outPkts = make([]uint64, len(atePorts))
 
-	pMetrics, _ := otgutils.GetPortMetrics(t, ate.OTG(), config)
 	for i, ap := range atePorts {
-		for _, p := range pMetrics.Items() {
+		for _, p := range config.Ports().Items() {
+			portMetrics := ate.OTG().Telemetry().Port(p.Name()).Get(t)
 			if ap.ID() == p.Name() {
-				inPkts[i] = uint64(p.FramesRx())
-				outPkts[i] = uint64(p.FramesTx())
+				inPkts[i] = portMetrics.GetCounters().GetInFrames()
+				outPkts[i] = portMetrics.GetCounters().GetOutFrames()
+				continue
 			}
 		}
 	}
-
-	// for i, ap := range atePorts {
-	// 	aicp := ate.Telemetry().Interface(ap.Name()).Counters()
-	// 	inPkts[i] = aicp.InPkts().Get(t)
-	// 	outPkts[i] = aicp.OutPkts().Get(t)
-	// }
 
 	return atePorts, inPkts, outPkts
 }
