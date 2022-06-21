@@ -23,6 +23,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
@@ -127,6 +128,7 @@ var (
 
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	deviations.InterfaceEnabled = ygot.Bool(true)
 	dc := dut.Config()
 	i1 := dutSrc.NewInterface(dut.Port(t, "port1").Name())
 	dc.Interface(i1.GetName()).Replace(t, i1)
@@ -534,6 +536,7 @@ type bgpNeighbor struct {
 // TestEstablish sets up a basic BGP connection and confirms that traffic is forwarded according to
 // it.
 func TestEstablish(t *testing.T) {
+
 	// DUT configurations.
 	t.Logf("Start DUT config load:")
 	dut := ondatra.DUT(t, "dut")
