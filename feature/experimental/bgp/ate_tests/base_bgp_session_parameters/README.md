@@ -15,7 +15,7 @@ Procedure
         ○ Explicitly specified retry interval
     ● Validate session state and capabilities received on ATE.
     ● Validate session state and capabilities received on DUT using telemetry.
-    ● Terminate BGP session using NOTIFICATION message and ensure that device telemetry correctly   reports the error codes.
+    ● TODO: Terminate BGP session using NOTIFICATION message and ensure that device telemetry correctly   reports the error codes.
 
 Config Parameter Coverage
 
@@ -34,10 +34,6 @@ Config Parameter Coverage
         timers/config/hold-time
         timers/config/keepalive-interval
         timers/config/minimum-route-advertisement-interval
-
-To do
-
-    1.  Sending Notification from ATE is not  supported in ondatra framework. Waiting on ixia to support this in ondatra framework.
 
 Notes
 
