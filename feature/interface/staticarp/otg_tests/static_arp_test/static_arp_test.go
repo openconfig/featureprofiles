@@ -111,6 +111,7 @@ var (
 // of peer.  Note that peermac is used for static ARP, and not
 // peer.MAC.
 func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peermac string) *telemetry.Interface {
+	deviations.InterfaceEnabled = ygot.Bool(true)
 	i.Description = ygot.String(me.Desc)
 	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
@@ -334,18 +335,9 @@ func testFlow(
 	otg.StopTraffic(t)
 
 	// Get the flow statistics
-	fMetrics, err := otgutils.GetFlowMetrics(t, otg, config)
-	if err != nil {
-		t.Fatal("Error while getting the flow metrics")
-	}
-
-	otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
-		ClearPrevious: false,
-		FlowMetrics:   fMetrics,
-	})
-
-	for _, f := range fMetrics.Items() {
-		if f.FramesRx() != f.FramesTx() || f.FramesTx() != 1000 {
+	for _, f := range config.Flows().Items() {
+		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
+		if recvMetric.GetCounters().GetInPkts() != recvMetric.GetCounters().GetOutPkts() || recvMetric.GetCounters().GetInPkts() != 1000 {
 			t.Errorf("LossPct for flow %s detected, expected 0", f.Name())
 		}
 	}
