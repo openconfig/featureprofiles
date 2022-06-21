@@ -1104,6 +1104,20 @@ func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Fatalf("could not remove all entries from server, got: %v", err)
 	}
 
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	dstEndPoint := args.top.Interfaces()
+	updated_dstEndPoint := []ondatra.Endpoint{}
+	for intf, intf_data := range dstEndPoint {
+		if "atePort1" != intf {
+			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
+		}
+	}
+
+	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
+	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
+	flows := []*ondatra.Flow{}
+	flows = append(flows, bgp_flow, isis_flow)
+
 	// LEVEL 2
 
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
@@ -1113,29 +1127,37 @@ func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 101, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
-	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if "atePort8" == intf {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
+	//shutdown primary path
+	args.interfaceaction(t, "port7", false)
+	args.interfaceaction(t, "port6", false)
+	args.interfaceaction(t, "port5", false)
+	args.interfaceaction(t, "port4", false)
+	args.interfaceaction(t, "port3", false)
+	args.interfaceaction(t, "port2", false)
 
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+	//Validate traffic over backup is passing
+	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
-	//flush the entries
+	//flush all the entries
 	if _, err := args.clientA.Fluent(t).Flush().
 		WithElectionOverride().
 		WithAllNetworkInstances().
 		Send(); err != nil {
 		t.Fatalf("could not remove all entries from server, got: %v", err)
 	}
+
+	//Validate traffic dropping after deleting forwarding
+	args.validateTrafficFlows(t, flows, true, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7"})
+
+	//unshut links
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port3", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port5", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port7", true)
+
+	// LEVEL 2
 
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
@@ -1176,21 +1198,19 @@ func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
 	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
 
-	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint = args.top.Interfaces()[atePort1.Name]
-	dstEndPoint = args.top.Interfaces()
-	updated_dstEndPoint = []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
+	// validate traffic passing over primary path
+	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7"})
 
-	bgp_flow = args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow = args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows = []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+	//shutdown primary path
+	args.interfaceaction(t, "port7", false)
+	args.interfaceaction(t, "port6", false)
+	args.interfaceaction(t, "port5", false)
+	args.interfaceaction(t, "port4", false)
+	args.interfaceaction(t, "port3", false)
+	args.interfaceaction(t, "port2", false)
+
+	//Validate traffic over backup
+	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
 	//flush the entries
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -1199,6 +1219,16 @@ func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
 		Send(); err != nil {
 		t.Fatalf("could not remove all entries from server, got: %v", err)
 	}
+
+	//Validate traffic failing
+	args.validateTrafficFlows(t, flows, true, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port3", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port5", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port7", true)
 }
 
 func testBackupNHOPCase7(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2704,11 +2734,11 @@ func TestBackUp(t *testing.T) {
 			desc: "Base usecase with 2 NHOP Groups - - Backup Pointing to Decap",
 			fn:   testBackupNHOPCase5,
 		},
-		// {
-		// 	name: "flush forwarding chain with and without backup NH",
-		// 	desc: "add testcase to flush forwarding chain with backup NHG only and forwarding chain with backup NHG",
-		// 	fn:   testBackupNHOPCase6,
-		// },
+		{
+			name: "flush forwarding chain with and without backup NH",
+			desc: "add testcase to flush forwarding chain with backup NHG only and forwarding chain with backup NHG",
+			fn:   testBackupNHOPCase6,
+		},
 		// {
 		// 	name: "Backup change from static to decap",
 		// 	desc: "While Primary Paths are down Modify the Backup from poiniting to a static route to a DECAP chain - Traffic resumes after Decap",
