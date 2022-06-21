@@ -23,7 +23,7 @@ import "flag"
 
 // Vendor deviation flags.
 var (
-	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
+	InterfaceEnabled = flag.Bool("deviation_interface_enabled", true,
 		"Device requires interface enabled leaf booleans to be explicitly set to true (b/197141773)")
 
 	AggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", true,

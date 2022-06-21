@@ -46,6 +46,13 @@ type ExpectedState struct {
 	Isis map[string]ExpectedIsisMetrics
 }
 
+// WaitForOpts is used at tests level whenever WaitFor func is called\. There are 3 parameters which could be set
+type WaitForOpts struct {
+	Condition string
+	Interval  time.Duration
+	Timeout   time.Duration
+}
+
 // WaitFor returns nil once the given function param returns true. It will wait and retry for the entire timeout duration
 func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
 	if opts == nil {
@@ -94,6 +101,7 @@ func AllBgp4Up(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState 
 				inRoutes := int32(telePeer.GetCounters().GetInRoutes())
 				outRoutes := int32(telePeer.GetCounters().GetOutRoutes())
 				if telePeer.GetSessionState() != otgtelemetry.BgpPeer_SessionState_ESTABLISHED || outRoutes != expectedMetrics.Advertised || inRoutes != expectedMetrics.Received {
+					t.Logf(*telePeer.Name+" not up", telePeer.GetSessionState())
 					expected = false
 				}
 			}
@@ -114,6 +122,7 @@ func AllBgp6Up(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState 
 				inRoutes := int32(telePeer.GetCounters().GetInRoutes())
 				outRoutes := int32(telePeer.GetCounters().GetOutRoutes())
 				if telePeer.GetSessionState() != otgtelemetry.BgpPeer_SessionState_ESTABLISHED || outRoutes != expectedMetrics.Advertised || inRoutes != expectedMetrics.Received {
+					t.Logf(*telePeer.Name+" not up", telePeer.GetSessionState())
 					expected = false
 				}
 			}
@@ -131,6 +140,7 @@ func AllBgp4Down(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool, error
 			for _, configPeer := range ip.Peers().Items() {
 				telePeer := otg.Telemetry().BgpPeer(configPeer.Name()).Get(t)
 				if telePeer.GetSessionState() == otgtelemetry.BgpPeer_SessionState_ESTABLISHED {
+					t.Logf(*telePeer.Name+" not down", telePeer.GetSessionState())
 					expected = false
 				}
 			}
@@ -148,6 +158,7 @@ func AllBgp6Down(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool, error
 			for _, configPeer := range ip.Peers().Items() {
 				telePeer := otg.Telemetry().BgpPeer(configPeer.Name()).Get(t)
 				if telePeer.GetSessionState() == otgtelemetry.BgpPeer_SessionState_ESTABLISHED {
+					t.Logf(*telePeer.Name+" not down", telePeer.GetSessionState())
 					expected = false
 				}
 			}
@@ -158,28 +169,6 @@ func AllBgp6Down(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool, error
 
 // FlowMetricsOk returns true if all the expected flow stats are verified
 func FlowMetricsOk(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
-	fMetrics, err := GetFlowMetrics(t, otg, c)
-	if err != nil {
-		return false, err
-	}
-
-	PrintMetricsTable(&MetricsTableOpts{
-		ClearPrevious: false,
-		FlowMetrics:   fMetrics,
-	})
-
-	expected := true
-	for _, f := range fMetrics.Items() {
-		expectedMetrics := expectedState.Flow[f.Name()]
-		if f.FramesRx() != expectedMetrics.FramesRx || f.FramesRxRate() != expectedMetrics.FramesRxRate {
-			expected = false
-		}
-	}
-
-	return expected, nil
-}
-
-func FlowMetricsOkNew(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
 	expected := true
 	for _, f := range c.Flows().Items() {
 		flowMetrics := otg.Telemetry().Flow(f.Name()).Get(t)

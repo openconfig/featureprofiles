@@ -487,35 +487,30 @@ func configureOTG(t *testing.T, otg *ondatra.OTG, expectedRoutes int32) (gosnapp
 // depending on wantLoss, +- 2%)
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, wantLoss bool) {
 	otg := ate.OTG()
-	fMetrics, err := otgutils.GetFlowMetrics(t, otg, c)
-	if err != nil {
-		t.Fatal("Error while getting the flow metrics")
-	}
-
-	otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
-		ClearPrevious: false,
-		FlowMetrics:   fMetrics,
-	})
-
-	for _, f := range fMetrics.Items() {
-		lostPackets := f.FramesTx() - f.FramesRx()
-		lossPct := lostPackets * 100 / f.FramesTx()
+	for _, f := range c.Flows().Items() {
+		log.Printf("Getting flow metrics for flow %s\n", f.Name())
+		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
+		txPackets := recvMetric.GetCounters().GetOutPkts()
+		rxPackets := recvMetric.GetCounters().GetInPkts()
+		lostPackets := txPackets - rxPackets
+		lossPct := lostPackets * 100 / txPackets
 		if !wantLoss {
 			if lostPackets > tolerance {
-				t.Logf("Packets received not matching packets sent. Sent: %v, Received: %d", f.FramesTx(), f.FramesRx())
+				t.Logf("Packets received not matching packets sent. Sent: %v, Received: %d", txPackets, rxPackets)
 			}
-			if lossPct > tolerancePct && f.FramesTx() > 0 {
+			if lossPct > tolerancePct && txPackets > 0 {
 				t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want max %v pct failure", f.Name(), lossPct, tolerancePct)
 			} else {
 				t.Logf("Traffic Test Passed! for flow %s", f.Name())
 			}
 		} else {
-			if lossPct < 100-tolerancePct && f.FramesTx() > 0 {
+			if lossPct < 100-tolerancePct && txPackets > 0 {
 				t.Errorf("Traffic is expected to fail %s\n got %v, want max %v pct failure", f.Name(), lossPct, 100-tolerancePct)
 			} else {
 				t.Logf("Traffic Loss Test Passed! for flow %s", f.Name())
 			}
 		}
+
 	}
 }
 
