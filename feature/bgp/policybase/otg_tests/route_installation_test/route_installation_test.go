@@ -23,6 +23,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
@@ -127,6 +128,7 @@ var (
 
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	deviations.InterfaceEnabled = ygot.Bool(true)
 	dc := dut.Config()
 	i1 := dutSrc.NewInterface(dut.Port(t, "port1").Name())
 	dc.Interface(i1.GetName()).Replace(t, i1)
@@ -487,35 +489,30 @@ func configureOTG(t *testing.T, otg *ondatra.OTG, expectedRoutes int32) (gosnapp
 // depending on wantLoss, +- 2%)
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, wantLoss bool) {
 	otg := ate.OTG()
-	fMetrics, err := otgutils.GetFlowMetrics(t, otg, c)
-	if err != nil {
-		t.Fatal("Error while getting the flow metrics")
-	}
-
-	otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
-		ClearPrevious: false,
-		FlowMetrics:   fMetrics,
-	})
-
-	for _, f := range fMetrics.Items() {
-		lostPackets := f.FramesTx() - f.FramesRx()
-		lossPct := lostPackets * 100 / f.FramesTx()
+	for _, f := range c.Flows().Items() {
+		log.Printf("Getting flow metrics for flow %s\n", f.Name())
+		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
+		txPackets := recvMetric.GetCounters().GetOutPkts()
+		rxPackets := recvMetric.GetCounters().GetInPkts()
+		lostPackets := txPackets - rxPackets
+		lossPct := lostPackets * 100 / txPackets
 		if !wantLoss {
 			if lostPackets > tolerance {
-				t.Logf("Packets received not matching packets sent. Sent: %v, Received: %d", f.FramesTx(), f.FramesRx())
+				t.Logf("Packets received not matching packets sent. Sent: %v, Received: %d", txPackets, rxPackets)
 			}
-			if lossPct > tolerancePct && f.FramesTx() > 0 {
+			if lossPct > tolerancePct && txPackets > 0 {
 				t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want max %v pct failure", f.Name(), lossPct, tolerancePct)
 			} else {
 				t.Logf("Traffic Test Passed! for flow %s", f.Name())
 			}
 		} else {
-			if lossPct < 100-tolerancePct && f.FramesTx() > 0 {
+			if lossPct < 100-tolerancePct && txPackets > 0 {
 				t.Errorf("Traffic is expected to fail %s\n got %v, want max %v pct failure", f.Name(), lossPct, 100-tolerancePct)
 			} else {
 				t.Logf("Traffic Loss Test Passed! for flow %s", f.Name())
 			}
 		}
+
 	}
 }
 
@@ -539,6 +536,7 @@ type bgpNeighbor struct {
 // TestEstablish sets up a basic BGP connection and confirms that traffic is forwarded according to
 // it.
 func TestEstablish(t *testing.T) {
+
 	// DUT configurations.
 	t.Logf("Start DUT config load:")
 	dut := ondatra.DUT(t, "dut")
@@ -569,11 +567,11 @@ func TestEstablish(t *testing.T) {
 	verifyBgpTelemetry(t, dut)
 
 	t.Logf("Check BGP sessions on OTG")
-	err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4SessionUp(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 sessions up"})
+	err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 up"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6SessionUp(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 sessions up"})
+	err = otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 up"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -590,11 +588,11 @@ func TestEstablish(t *testing.T) {
 		dutConfPath.Replace(t, bgpCreateNbr(dutAS, badAS, defaultPolicy))
 
 		// Resend traffic
-		err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4SessionDown(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP4 sessions down"})
+		err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4Down(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP4 sessions down"})
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6SessionDown(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP6 sessions down"})
+		err = otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6Down(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP6 sessions down"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -665,11 +663,11 @@ func TestBGPPolicy(t *testing.T) {
 			dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
 			// Send and verify traffic.
 
-			err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4SessionUp(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 sessions up"})
+			err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 up"})
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6SessionUp(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 sessions up"})
+			err = otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 up"})
 			if err != nil {
 				t.Fatal(err)
 			}

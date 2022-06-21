@@ -2,10 +2,14 @@ package otgutils
 
 import (
 	"fmt"
+	"log"
 	"testing"
+	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // ExpectedBgpMetrics struct used for validating the fetched OTG BGP stats
@@ -42,116 +46,138 @@ type ExpectedState struct {
 	Isis map[string]ExpectedIsisMetrics
 }
 
-// AllBgp4SessionUp checks if all BGPv4 sessions are up
-func AllBgp4SessionUp(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
-	dMetrics, err := GetBgpv4Metrics(t, otg, c)
-	if err != nil {
-		return false, err
-	}
+// WaitForOpts is used at tests level whenever WaitFor func is called\. There are 3 parameters which could be set
+type WaitForOpts struct {
+	Condition string
+	Interval  time.Duration
+	Timeout   time.Duration
+}
 
-	PrintMetricsTable(&MetricsTableOpts{
-		ClearPrevious: false,
-		Bgpv4Metrics:  dMetrics,
-	})
-
-	expected := true
-	for _, d := range dMetrics.Items() {
-		expectedMetrics := expectedState.Bgp4[d.Name()]
-		if d.SessionState() != gosnappi.Bgpv4MetricSessionState.UP || d.RoutesAdvertised() != expectedMetrics.Advertised || d.RoutesReceived() != expectedMetrics.Received {
-			expected = false
+// WaitFor returns nil once the given function param returns true. It will wait and retry for the entire timeout duration
+func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
+	if opts == nil {
+		opts = &WaitForOpts{
+			Condition: "condition to be true",
 		}
 	}
+	defer timer(time.Now(), fmt.Sprintf("Waiting for %s", opts.Condition))
 
+	if opts.Interval == 0 {
+		opts.Interval = 500 * time.Millisecond
+	}
+	if opts.Timeout == 0 {
+		opts.Timeout = 120 * time.Second
+	}
+
+	start := time.Now()
+	log.Printf("Waiting for %s ...\n", opts.Condition)
+
+	for {
+		done, err := fn()
+		if err != nil {
+			return (fmt.Errorf("error waiting for %s: %v", opts.Condition, err))
+		}
+		if done {
+			log.Printf("Done waiting for %s\n", opts.Condition)
+			return nil
+		}
+
+		if time.Since(start) > opts.Timeout {
+			return (fmt.Errorf("timeout occurred while waiting for %s. The result was %v", opts.Condition, err))
+		}
+		time.Sleep(opts.Interval)
+	}
+}
+
+// AllBgp4Up returns true if all BGPv4 sessions are up and the advertised and received routes are matching the expected input
+func AllBgp4Up(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
+	expected := true
+	for _, d := range c.Devices().Items() {
+		bgp := d.Bgp()
+		for _, ip := range bgp.Ipv4Interfaces().Items() {
+			for _, configPeer := range ip.Peers().Items() {
+				telePeer := otg.Telemetry().BgpPeer(configPeer.Name()).Get(t)
+				expectedMetrics := expectedState.Bgp4[configPeer.Name()]
+				inRoutes := int32(telePeer.GetCounters().GetInRoutes())
+				outRoutes := int32(telePeer.GetCounters().GetOutRoutes())
+				if telePeer.GetSessionState() != otgtelemetry.BgpPeer_SessionState_ESTABLISHED || outRoutes != expectedMetrics.Advertised || inRoutes != expectedMetrics.Received {
+					t.Logf(*telePeer.Name+" not up", telePeer.GetSessionState())
+					expected = false
+				}
+			}
+		}
+	}
 	return expected, nil
 }
 
-// AllBgp6SessionUp checks if all BGPv6 sessions are up
-func AllBgp6SessionUp(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
-	dMetrics, err := GetBgpv6Metrics(t, otg, c)
-	if err != nil {
-		return false, err
-	}
-
-	PrintMetricsTable(&MetricsTableOpts{
-		ClearPrevious: false,
-		Bgpv6Metrics:  dMetrics,
-	})
-
+// AllBgp6Up returns true if all BGPv6 sessions are up and the advertised and received routes are matching the expected input
+func AllBgp6Up(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
 	expected := true
-	for _, d := range dMetrics.Items() {
-		expectedMetrics := expectedState.Bgp6[d.Name()]
-		if d.SessionState() != gosnappi.Bgpv6MetricSessionState.UP || d.RoutesAdvertised() != expectedMetrics.Advertised || d.RoutesReceived() != expectedMetrics.Received {
-			expected = false
+	for _, d := range c.Devices().Items() {
+		bgp := d.Bgp()
+		for _, ip := range bgp.Ipv6Interfaces().Items() {
+			for _, configPeer := range ip.Peers().Items() {
+				telePeer := otg.Telemetry().BgpPeer(configPeer.Name()).Get(t)
+				expectedMetrics := expectedState.Bgp6[configPeer.Name()]
+				inRoutes := int32(telePeer.GetCounters().GetInRoutes())
+				outRoutes := int32(telePeer.GetCounters().GetOutRoutes())
+				if telePeer.GetSessionState() != otgtelemetry.BgpPeer_SessionState_ESTABLISHED || outRoutes != expectedMetrics.Advertised || inRoutes != expectedMetrics.Received {
+					t.Logf(*telePeer.Name+" not up", telePeer.GetSessionState())
+					expected = false
+				}
+			}
 		}
 	}
-
 	return expected, nil
 }
 
-// AllBgp4SessionDown checks if all BGPv4 sessions are down
-func AllBgp4SessionDown(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool, error) {
-	dMetrics, err := GetBgpv4Metrics(t, otg, c)
-	if err != nil {
-		return false, err
-	}
-
-	PrintMetricsTable(&MetricsTableOpts{
-		ClearPrevious: false,
-		Bgpv4Metrics:  dMetrics,
-	})
-
+// AllBgp4Down returns true if all BGPv4 sessions are down
+func AllBgp4Down(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool, error) {
 	expected := true
-	for _, d := range dMetrics.Items() {
-		if d.SessionState() != gosnappi.Bgpv4MetricSessionState.DOWN {
-			expected = false
+	for _, d := range c.Devices().Items() {
+		bgp := d.Bgp()
+		for _, ip := range bgp.Ipv4Interfaces().Items() {
+			for _, configPeer := range ip.Peers().Items() {
+				telePeer := otg.Telemetry().BgpPeer(configPeer.Name()).Get(t)
+				if telePeer.GetSessionState() == otgtelemetry.BgpPeer_SessionState_ESTABLISHED {
+					t.Logf(*telePeer.Name+" not down", telePeer.GetSessionState())
+					expected = false
+				}
+			}
 		}
 	}
-
 	return expected, nil
 }
 
-// AllBgp6SessionDown checks if all BGPv6 sessions are down
-func AllBgp6SessionDown(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool, error) {
-	dMetrics, err := GetBgpv6Metrics(t, otg, c)
-	if err != nil {
-		return false, err
-	}
-
-	PrintMetricsTable(&MetricsTableOpts{
-		ClearPrevious: false,
-		Bgpv6Metrics:  dMetrics,
-	})
-
+// AllBgp6Down returns true if all BGPv6 sessions are down
+func AllBgp6Down(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool, error) {
 	expected := true
-	for _, d := range dMetrics.Items() {
-		if d.SessionState() != gosnappi.Bgpv6MetricSessionState.DOWN {
-			expected = false
+	for _, d := range c.Devices().Items() {
+		bgp := d.Bgp()
+		for _, ip := range bgp.Ipv6Interfaces().Items() {
+			for _, configPeer := range ip.Peers().Items() {
+				telePeer := otg.Telemetry().BgpPeer(configPeer.Name()).Get(t)
+				if telePeer.GetSessionState() == otgtelemetry.BgpPeer_SessionState_ESTABLISHED {
+					t.Logf(*telePeer.Name+" not down", telePeer.GetSessionState())
+					expected = false
+				}
+			}
 		}
 	}
-
 	return expected, nil
 }
 
 // FlowMetricsOk returns true if all the expected flow stats are verified
 func FlowMetricsOk(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) (bool, error) {
-	fMetrics, err := GetFlowMetrics(t, otg, c)
-	if err != nil {
-		return false, err
-	}
-
-	PrintMetricsTable(&MetricsTableOpts{
-		ClearPrevious: false,
-		FlowMetrics:   fMetrics,
-	})
-
 	expected := true
-	for _, f := range fMetrics.Items() {
+	for _, f := range c.Flows().Items() {
+		flowMetrics := otg.Telemetry().Flow(f.Name()).Get(t)
 		expectedMetrics := expectedState.Flow[f.Name()]
-		if f.FramesRx() != expectedMetrics.FramesRx || f.FramesRxRate() != expectedMetrics.FramesRxRate {
+		if int64(*flowMetrics.Counters.InPkts) != expectedMetrics.FramesRx || ygot.BinaryToFloat32(flowMetrics.GetInFrameRate()) != expectedMetrics.FramesRxRate {
 			expected = false
+
 		}
 	}
-
 	return expected, nil
 }
 
@@ -161,12 +187,12 @@ func ArpEntriesOk(t *testing.T, otg *ondatra.OTG, ipType string, expectedMacEntr
 	var err error
 	switch ipType {
 	case "IPv4":
-		actualMacEntries, err = GetAllIPv4NeighborMacEntries(t, otg)
+		actualMacEntries = otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Get(t)
 		if err != nil {
 			return false, err
 		}
 	case "IPv6":
-		actualMacEntries, err = GetAllIPv6NeighborMacEntries(t, otg)
+		actualMacEntries = otg.Telemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Get(t)
 		if err != nil {
 			return false, err
 		}
@@ -186,9 +212,9 @@ func ArpEntriesPresent(t *testing.T, otg *ondatra.OTG, ipType string) (bool, err
 	var err error
 	switch ipType {
 	case "ipv4":
-		actualMacEntries, err = GetAllIPv4NeighborMacEntries(t, otg)
+		actualMacEntries = otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Get(t)
 	case "ipv6":
-		actualMacEntries, err = GetAllIPv6NeighborMacEntries(t, otg)
+		actualMacEntries = otg.Telemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Get(t)
 	}
 	if err != nil {
 		return false, fmt.Errorf("failed to get the ARP entries for %v", ipType)
@@ -197,4 +223,17 @@ func ArpEntriesPresent(t *testing.T, otg *ondatra.OTG, ipType string) (bool, err
 		return false, nil
 	}
 	return true, nil
+}
+
+func expectedElementsPresent(expected, actual []string) bool {
+	exists := make(map[string]bool)
+	for _, value := range actual {
+		exists[value] = true
+	}
+	for _, value := range expected {
+		if !exists[value] {
+			return false
+		}
+	}
+	return true
 }
