@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
-	"wwwin-github.cisco.com/rehaddad/go-p4/p4info/wbb"
+	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
 )
 
 var (

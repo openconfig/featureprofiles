@@ -9,11 +9,11 @@ import (
 	"testing"
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
+	"github.com/cisco-open/go-p4/utils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
-	"wwwin-github.cisco.com/rehaddad/go-p4/utils"
 )
 
 func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
@@ -89,7 +89,7 @@ func TestP4RTCompliance(t *testing.T) {
 	configureDeviceID(ctx, t, dut)
 
 	P4RTComplianceTestcases := []Testcase{}
-	// P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceWriteRPC...)
+	P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceWriteRPC...)
 	P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceReadRPC...)
 
 	for _, tt := range P4RTComplianceTestcases {
