@@ -1,6 +1,6 @@
 module github.com/openconfig/featureprofiles
 
-go 1.17
+go 1.18
 
 require (
 	github.com/cisco-open/go-p4 v0.0.0-20220613165938-386fc6ef3747
@@ -16,12 +16,14 @@ require (
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygot v0.22.1
 	github.com/p4lang/p4runtime v1.3.0
+	github.com/pkg/errors v0.9.1
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220131092820-39736dd543b4
 	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
 	google.golang.org/grpc v1.47.0
 	google.golang.org/protobuf v1.28.0
 	wwwin-github.cisco.com/rehaddad/go-p4 v0.0.0-20220608005204-b6c4346e7100
 	wwwin-github.cisco.com/rehaddad/go-wbb v0.0.0-20220613172816-392a69f696ae
+	sigs.k8s.io/yaml v1.2.0
 )
 
 require (
@@ -35,7 +37,6 @@ require (
 	github.com/open-traffic-generator/snappi/gosnappi v0.7.12 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/net v0.0.0-20220403103023-749bd193bc2b // indirect
 	golang.org/x/sys v0.0.0-20220406163625-3f8b81556e12 // indirect
