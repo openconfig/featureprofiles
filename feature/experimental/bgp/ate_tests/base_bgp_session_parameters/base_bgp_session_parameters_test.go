@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-//List of variables.
+// List of variables.
 var (
 	dutAttrs = attrs.Attributes{
 		Desc:    "To ATE",
@@ -45,7 +45,7 @@ var (
 	}
 )
 
-//List of constants.
+// List of constants.
 const (
 	dutAS       = 64500
 	ateAS       = 64501
@@ -53,7 +53,7 @@ const (
 	netInstance = "DEFAULT"
 )
 
-//Configure network instance with network-instance type and router-id.
+// Configure network instance with network-instance type and router-id.
 func configureNetworkInstance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &telemetry.Device{}
@@ -83,7 +83,7 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	}
 }
 
-//bgpTestParams Struct is to pass bgp session parameters.
+// bgpTestParams Struct is to pass bgp session parameters.
 type bgpTestParams struct {
 	localAS, peerAS, nbrLocalAS         uint32
 	routerID, peerIP, authPwd, connType string
@@ -98,7 +98,7 @@ func bgpCreateNbr(bgpParams *bgpTestParams) *telemetry.NetworkInstance_Protocol_
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(bgpParams.localAS)
 
-	//If explicit router id is provided.
+	// If explicit router id is provided.
 	if bgpParams.routerID != "" {
 		global.RouterId = ygot.String(bgpParams.routerID)
 	}
@@ -133,7 +133,7 @@ func bgpCreateNbr(bgpParams *bgpTestParams) *telemetry.NetworkInstance_Protocol_
 	return bgp
 }
 
-//Verify BGP capabilities like route refresh as32 and mpbgp.
+// Verify BGP capabilities like route refresh as32 and mpbgp.
 func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP capabilities")
 	statePath := dut.Telemetry().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -211,7 +211,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-//Function to configure ATE configs based on args and returns ate topology handle.
+// Function to configure ATE configs based on args and returns ate topology handle.
 func configureATE(t *testing.T, ateParams *bgpTestParams) *ondatra.ATETopology {
 	ate := ondatra.ATE(t, "ate")
 	port1 := ate.Port(t, "port1")
@@ -312,9 +312,9 @@ func TestDisconnect(t *testing.T) {
 
 	t.Log("Send Cease Notification from ATE to DUT")
 	// TODO: waiting for ATE to support notification.
-	//if false {
-	//	topo.SendBGPPeerNotification(t, 6, 1, bgpDut1)
-	//}
+	// if false {
+	//  	topo.SendBGPPeerNotification(t, 6, 1, bgpDut1)
+	// }
 
 	t.Log("Verify BGP session state : ACTIVE")
 	nbrPath.SessionState().Await(t, time.Second*100, telemetry.Bgp_Neighbor_SessionState_ACTIVE)
@@ -325,7 +325,7 @@ func TestDisconnect(t *testing.T) {
 		t.Errorf("On disconnect: expected error code %v, got %v", telemetry.BgpTypes_BGP_ERROR_CODE_CEASE, code)
 	}
 
-	//clean config on DUT and ATE
+	// clean config on DUT and ATE
 	topo.StopProtocols(t)
 	dutConfPath.Replace(t, nil)
 }
