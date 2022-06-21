@@ -312,9 +312,9 @@ func TestDisconnect(t *testing.T) {
 
 	t.Log("Send Cease Notification from ATE to DUT")
 	// TODO: waiting for ATE to support notification.
-	if false {
-		topo.SendBGPPeerNotification(t, 6, 1, bgpDut1)
-	}
+	//if false {
+	//	topo.SendBGPPeerNotification(t, 6, 1, bgpDut1)
+	//}
 
 	t.Log("Verify BGP session state : ACTIVE")
 	nbrPath.SessionState().Await(t, time.Second*100, telemetry.Bgp_Neighbor_SessionState_ACTIVE)
