@@ -19,11 +19,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -264,41 +265,25 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 
 	// Verifying the ate port link state
-	pMetrics, err := otgutils.GetAllPortMetrics(t, ate.OTG(), config)
-	if err != nil {
-		t.Fatal("Error while getting the port metrics")
-	}
-	otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
-		ClearPrevious:  false,
-		AllPortMetrics: pMetrics,
-	})
-	for _, port := range pMetrics.Items() {
-		if port.Link() != gosnappi.PortMetricLinkEnum("up") {
-			t.Errorf("Get(ATE %v status): got %v, want %v", port.Name(), port.Link(), "up")
+	for _, p := range config.Ports().Items() {
+		portMetrics := otg.Telemetry().Port(p.Name()).Get(t)
+		if portMetrics.GetLink() != otgtelemetry.Port_Link_UP {
+			t.Errorf("Get(ATE %v status): got %v, want %v", p.Name(), portMetrics.GetLink(), otgtelemetry.Port_Link_UP)
 		}
 	}
 
 	// Getting the otg flow metrics
-	fMetrics, err := otgutils.GetFlowMetrics(t, otg, config)
-	if err != nil {
-		t.Fatal("Error while getting the flow metrics")
-	}
-
-	otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
-		ClearPrevious: false,
-		FlowMetrics:   fMetrics,
-	})
-
 	ateInPkts := map[string]uint64{}
 	ateOutPkts := map[string]uint64{}
-	for _, f := range fMetrics.Items() {
+	for _, f := range config.Flows().Items() {
+		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
 		if f.Name() == "ipv4_test_flow" {
-			ateInPkts["ipv4"] = uint64(f.FramesRx())
-			ateOutPkts["ipv4"] = uint64(f.FramesTx())
+			ateInPkts["ipv4"] = recvMetric.GetCounters().GetInPkts()
+			ateOutPkts["ipv4"] = recvMetric.GetCounters().GetOutPkts()
 		}
 		if f.Name() == "ipv6_test_flow" {
-			ateInPkts["ipv6"] = uint64(f.FramesRx())
-			ateOutPkts["ipv6"] = uint64(f.FramesTx())
+			ateInPkts["ipv6"] = recvMetric.GetCounters().GetInPkts()
+			ateOutPkts["ipv6"] = recvMetric.GetCounters().GetOutPkts()
 		}
 	}
 	ateInPkts["parent"] = ateInPkts["ipv4"] + ateInPkts["ipv6"]
@@ -306,7 +291,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	for k, v := range ateOutPkts {
 		if v == 0 {
-			t.Errorf("ate.Telemetry().Flow(%v).Counters().OutPkts().Get() = %v, want nonzero", k, v)
+			t.Errorf("otg.Telemetry().Flow(%v).GetCounters().GetOutPkts() = %v, want nonzero", k, v)
 		}
 	}
 	for _, flow := range []string{flowipv4.Name(), flowipv6.Name()} {
@@ -319,7 +304,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 			lossPct = lostPackets * 100 / int(ateOutPkts["ipv4"])
 		}
 		if lossPct >= 1 {
-			t.Errorf("ate.Telemetry().Flow(%v).LossPct().Get() = %v, want < 1", flow, lossPct)
+			t.Errorf("LossPct per Flow(%v) = %v, want < 1", flow, lossPct)
 		}
 	}
 
@@ -375,6 +360,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	}}
 
 	// Configure the interfaces.
+	deviations.InterfaceEnabled = ygot.Bool(true)
 	for _, intf := range dutIntfs {
 		t.Logf("Configure DUT interface %s with attributes %v", intf.intfName, intf)
 		i := &telemetry.Interface{
