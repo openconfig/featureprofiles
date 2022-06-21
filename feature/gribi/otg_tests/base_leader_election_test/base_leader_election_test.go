@@ -16,7 +16,6 @@ package base_leader_election_test
 
 import (
 	"context"
-	"log"
 	"strings"
 	"testing"
 	"time"
@@ -107,6 +106,7 @@ var inputMap = map[attrs.Attributes]attrs.Attributes{
 
 // configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
+	deviations.InterfaceEnabled = ygot.Bool(true)
 	i.Description = ygot.String(a.Desc)
 	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
@@ -170,7 +170,11 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	// srcEndPoint is atePort1
 	otg := ate.OTG()
 	gwIp := inputMap[srcEndPoint].IPv4
-	dstMac, _ := otgutils.GetIPv4NeighborMacEntry(t, srcEndPoint.Name+".eth", gwIp, otg)
+	err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.ArpEntriesPresent(t, otg, "ipv4") }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "ARP entries ready"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dstMac := otg.Telemetry().Interface(srcEndPoint.Name + ".eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
 	config.Flows().Clear().Items()
 	flowipv4 := config.Flows().Add().SetName("Flow")
 	flowipv4.Metrics().SetEnable(true)
@@ -190,38 +194,26 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
-	err := otgutils.WatchFlowMetrics(t, otg, config, &otgutils.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
-	if err != nil {
-		log.Println(err)
-	}
+	otgutils.WatchFlowMetrics(t, otg, config, &otgutils.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
 	t.Logf("Stop traffic")
 	otg.StopTraffic(t)
 
-	pMetrics, err := otgutils.GetAllPortMetrics(t, otg, config)
-	if err != nil {
-		t.Fatal("Error while getting the port metrics")
-	}
-	otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
-		ClearPrevious:  false,
-		AllPortMetrics: pMetrics,
-	})
+	// Print Port metrics
+	otgutils.WatchPortMetrics(t, otg, config, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 1})
 
-	fMetrics, err := otgutils.GetFlowMetrics(t, otg, config)
-	if err != nil {
-		t.Fatal("Error while getting the flow metrics")
-	}
-	otgutils.PrintMetricsTable(&otgutils.MetricsTableOpts{
-		ClearPrevious: false,
-		FlowMetrics:   fMetrics,
-	})
-
-	for _, f := range fMetrics.Items() {
-		lostPackets := f.FramesTx() - f.FramesRx()
-		lossPct := lostPackets * 100 / f.FramesTx()
-		if lossPct > 0 && f.FramesTx() > 0 {
+	// Check the flow statistics
+	for _, f := range config.Flows().Items() {
+		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
+		lostPackets := recvMetric.GetCounters().GetOutPkts() - recvMetric.GetCounters().GetInPkts()
+		lossPct := lostPackets * 100 / recvMetric.GetCounters().GetOutPkts()
+		if lossPct > 0 && recvMetric.GetCounters().GetOutPkts() > 0 {
 			t.Errorf("Loss Pct for Flow: %s got %v, want 0", f.Name(), lossPct)
 		}
+		if recvMetric.GetCounters().GetInPkts() != recvMetric.GetCounters().GetOutPkts() || recvMetric.GetCounters().GetInPkts() != 1000 {
+			t.Errorf("LossPct for flow %s detected, expected 0", f.Name())
+		}
 	}
+
 }
 
 // testArgs holds the objects needed by a test case.
