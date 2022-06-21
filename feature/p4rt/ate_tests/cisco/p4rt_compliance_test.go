@@ -3,6 +3,7 @@ package cisco_p4rt_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 	"testing"
@@ -88,7 +89,7 @@ func TestP4RTCompliance(t *testing.T) {
 	configureDeviceID(ctx, t, dut)
 
 	P4RTComplianceTestcases := []Testcase{}
-	P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceWriteRPC...)
+	// P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceWriteRPC...)
 	P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceReadRPC...)
 
 	for _, tt := range P4RTComplianceTestcases {
@@ -165,5 +166,37 @@ func setupForwardingPipeline(ctx context.Context, t *testing.T, deviceID uint64,
 		return err
 	}
 
+	return nil
+}
+
+func readProgrammedEntry(ctx context.Context, t *testing.T, device_id uint64, client *p4rt_client.P4RTClient) error {
+	stream, err := client.Read(&p4_v1.ReadRequest{
+		DeviceId: device_id,
+		Entities: []*p4_v1.Entity{
+			&p4_v1.Entity{
+				Entity: &p4_v1.Entity_TableEntry{},
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("There is error when Reading entries...%v", err)
+		return err
+	}
+	entities := []*p4_v1.Entity{}
+
+	for {
+		readResp, respErr := stream.Recv()
+		if respErr == io.EOF {
+			t.Logf("Response read done!")
+			break
+		} else if respErr != nil {
+			t.Logf("There is error when Reading response...%v", err)
+			return err
+		} else {
+			entities = append(entities, readResp.Entities...)
+			// fmt.Println("Read Response: ", readResp)
+			fmt.Println("Read Response: ", readResp.Entities[0].GetTableEntry())
+		}
+	}
 	return nil
 }
