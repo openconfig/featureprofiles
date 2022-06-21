@@ -3,6 +3,7 @@ module github.com/openconfig/featureprofiles
 go 1.18
 
 require (
+	github.com/cisco-open/go-p4 v0.0.0-20220613165938-386fc6ef3747
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.7
 	github.com/openconfig/gnmi v0.0.0-20220131173555-39aa74195f0d
@@ -11,21 +12,24 @@ require (
 	github.com/openconfig/goyang v1.0.0
 	github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56
 	github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e
-	github.com/openconfig/ondatra v0.0.0-20220523194709-be319f7ae58d
+	github.com/openconfig/ondatra v0.0.0-20220617163322-7fa172bfbf25
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
-	github.com/openconfig/ygot v0.20.0
+	github.com/openconfig/ygot v0.22.1
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220131092820-39736dd543b4
 	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
-	google.golang.org/grpc v1.45.0
+	google.golang.org/grpc v1.47.0
 	google.golang.org/protobuf v1.28.0
+	wwwin-github.cisco.com/rehaddad/go-p4 v0.0.0-20220608005204-b6c4346e7100
+	wwwin-github.cisco.com/rehaddad/go-wbb v0.0.0-20220613172816-392a69f696ae
 	sigs.k8s.io/yaml v1.2.0
 )
 
 require (
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/kne v0.1.1-0.20220209214853-52a824020cd9 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
