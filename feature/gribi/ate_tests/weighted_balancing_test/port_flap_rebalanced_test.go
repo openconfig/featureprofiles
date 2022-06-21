@@ -144,10 +144,11 @@ func TestPortFlap(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			if i < len(atePorts) {
 				t.Logf("Bringing down ate port: %v", atePorts[i])
-				ate.Operations().NewSetInterfaceState().
-					WithPhysicalInterface(atePorts[i]).
-					WithStateEnabled(false).
-					Operate(t)
+				ate.Actions().
+					NewSetPortState().
+					WithPort(atePorts[i]).
+					WithEnabled(false).
+					Send(t)
 
 				// ATE and DUT ports in the linked pair have the same ID(), but
 				// they are mapped to different Name().
