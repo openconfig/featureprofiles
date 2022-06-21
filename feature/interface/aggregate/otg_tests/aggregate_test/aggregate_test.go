@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -121,6 +122,7 @@ type testCase struct {
 }
 
 func (*testCase) configSrcDUT(i *telemetry.Interface, a *attrs.Attributes) {
+	deviations.InterfaceEnabled = ygot.Bool(true)
 	i.Description = ygot.String(a.Desc)
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
@@ -375,18 +377,11 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 // configureDUT().
 func (tc *testCase) verifyATE(t *testing.T) {
 	ap := tc.atePorts[0]
-
-	pMetrics, err := otgutils.GetAllPortMetrics(t, tc.ate.OTG(), tc.top)
-	if err != nil {
-		t.Fatal("Error while getting the port metrics")
-	}
+	otgutils.WatchPortMetrics(t, tc.ate.OTG(), tc.top, &otgutils.WaitForOpts{Timeout: 1 * time.Second})
 	// State for the interface.
-	for _, port := range pMetrics.Items() {
-		if port.Name() == ap.ID() {
-			if port.Link() != gosnappi.PortMetricLinkEnum("up") {
-				t.Errorf("%s oper-status got %v, want %v", ap.ID(), port.Link(), "up")
-			}
-		}
+	portMetrics := tc.ate.OTG().Telemetry().Port(ap.ID()).Get(t)
+	if portMetrics.GetLink() != otgtelemetry.Port_Link_UP {
+		t.Errorf("%s oper-status got %v, want %v", ap.ID(), portMetrics.GetLink(), otgtelemetry.Port_Link_UP)
 	}
 }
 
