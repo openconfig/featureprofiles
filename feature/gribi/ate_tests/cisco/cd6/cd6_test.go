@@ -2794,7 +2794,7 @@ func TestBackUp(t *testing.T) {
 		desc string
 		fn   func(ctx context.Context, t *testing.T, args *testArgs)
 	}{
-/*		{
+		{
 			name: "Backup pointing to route",
 			desc: "Base usecase with 2 NHOP Groups - Backup Pointing to route (drop)",
 			fn:   testBackupNHOPCase1,
@@ -2903,7 +2903,7 @@ func TestBackUp(t *testing.T) {
 			name: "IPv4MultipleNHG",
 			desc: "Have same primary and backup decap with multiple nhg",
 			fn:   testIPv4MultipleNHG,
-		},*/
+		},
 		{
 			name: "IPv4BackupLCOIR",
 			desc: "Have Primary and backup configured on same LC and do a shut of primary. Followed by LC reload",
