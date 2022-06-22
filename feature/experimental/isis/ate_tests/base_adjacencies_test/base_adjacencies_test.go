@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/feature/isis/ate_tests/internal/assert"
-	"github.com/openconfig/featureprofiles/feature/isis/ate_tests/internal/session"
+	"github.com/openconfig/featureprofiles/feature/experimental/isis/ate_tests/internal/assert"
+	"github.com/openconfig/featureprofiles/feature/experimental/isis/ate_tests/internal/session"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
