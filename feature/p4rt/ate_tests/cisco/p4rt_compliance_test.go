@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -99,6 +100,8 @@ func TestP4RTCompliance(t *testing.T) {
 			t.Logf("Description: %s", tt.desc)
 
 			tt.fn(ctx, t, args)
+
+			time.Sleep(5 * time.Second)
 		})
 	}
 }
