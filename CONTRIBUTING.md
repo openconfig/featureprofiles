@@ -148,9 +148,12 @@ Each code file should follow this general structure:
 TODO: Add preferred code structure
 ```
 
-## Executable Files
+## Allowed File Types
 
-Files should not have the executable bit. In particular:
+Regular files should be plain text in either ASCII or UTF-8 encoding. Please
+omit empty files.
+
+Regular files should not have the executable bit. In particular:
 
 *   Source code should not be executable. That's because they have to be
     compiled into a binary before they can be executed.
@@ -158,10 +161,12 @@ Files should not have the executable bit. In particular:
     binding files.
 *   Device configs are not executable.
 
-Exceptions are the shell scripts for generating code or for checking the
-integrity of the repository.
+Exceptions are the scripts (Shell, Python or Perl) for generating code or for
+checking the integrity of the repository. Scripts should have the executable bit
+set.
 
-Binary executables are strictly forbidden.
+Please do not check in binary files. If there is a need to expand the scope of
+allowed file types, please file an issue for discussion.
 
 ## IP Addresses Assignment
 
