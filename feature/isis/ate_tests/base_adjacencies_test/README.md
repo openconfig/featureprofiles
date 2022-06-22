@@ -139,9 +139,14 @@ Base IS-IS functionality and adjacency establishment.
 
 ## Protocol/RPC Parameter coverage
 
-IS-IS: * LSP messages * TLV 1 (Area Addresses) * TLV 10 (Authentication) * TLV
-22 (Extended IS reach) * TLV 135 (Extended IP Reachability) * TLV 137 (Dynamic
-Name) * TLV 232 (IPv6 Reachability)
+*   IS-IS:
+    *   LSP messages
+        *   TLV 1 (Area Addresses)
+        *   TLV 10 (Authentication)
+        *   TLV 22 (Extended IS reach)
+        *   TLV 135 (Extended IP Reachability)
+        *   TLV 137 (Dynamic Name)
+        *   TLV 232 (IPv6 Reachability)
 
 ## Minimum DUT platform requirement
 
