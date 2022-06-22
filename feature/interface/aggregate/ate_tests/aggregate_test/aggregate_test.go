@@ -182,6 +182,12 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	for _, port := range tc.dutPorts[1:] {
 		i := d.GetOrCreateInterface(port.Name())
 		i.GetOrCreateEthernet().AggregateId = ygot.String(tc.aggID)
+		//Adding type configuration "ethernetCsmacd"
+		i.Type = ethernetCsmacd
+
+		if *deviations.InterfaceEnabled {
+			i.Enabled = ygot.Bool(true)
+		}
 	}
 
 	p := tc.dut.Config()
@@ -195,6 +201,10 @@ func (tc *testCase) clearAggregateMembers(t *testing.T) {
 	}
 }
 
+//Deleting aggregate min link configuration from dut
+func (tc *testCase) clearAggregateMinlink(t *testing.T) {
+	tc.dut.Config().Interface(tc.aggID).Aggregation().MinLinks().Delete(t)
+}
 func (tc *testCase) configureDUT(t *testing.T) {
 	t.Logf("dut ports = %v", tc.dutPorts)
 	if len(tc.dutPorts) < 2 {
@@ -204,6 +214,8 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	d := tc.dut.Config()
 
 	if *deviations.AggregateAtomicUpdate {
+		//Deleting aggregate min link configuration from dut
+		tc.clearAggregateMinlink(t)
 		tc.clearAggregateMembers(t)
 		tc.setupAggregateAtomically(t)
 	}
@@ -212,6 +224,15 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		lacp := &telemetry.Lacp_Interface{Name: ygot.String(tc.aggID)}
 		lacp.LacpMode = telemetry.Lacp_LacpActivityType_ACTIVE
 
+		lacpPath := d.Lacp().Interface(tc.aggID)
+		fptest.LogYgot(t, "LACP", lacpPath, lacp)
+		lacpPath.Replace(t, lacp)
+	}
+
+	//Unset openconfig-lacp:lacp config "Lacp_LacpActivityType_UNSET"
+	if tc.lagType == lagTypeSTATIC {
+		lacp := &telemetry.Lacp_Interface{Name: ygot.String(tc.aggID)}
+		lacp.LacpMode = telemetry.Lacp_LacpActivityType_UNSET
 		lacpPath := d.Lacp().Interface(tc.aggID)
 		fptest.LogYgot(t, "LACP", lacpPath, lacp)
 		lacpPath.Replace(t, lacp)
@@ -226,12 +247,19 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	srcp := tc.dutPorts[0]
 	srci := &telemetry.Interface{Name: ygot.String(srcp.Name())}
 	tc.configSrcDUT(srci, &dutSrc)
+	srci.Type = ethernetCsmacd
 	srciPath := d.Interface(srcp.Name())
 	fptest.LogYgot(t, srcp.String(), srciPath, srci)
 	srciPath.Replace(t, srci)
 
 	for _, port := range tc.dutPorts[1:] {
 		i := &telemetry.Interface{Name: ygot.String(port.Name())}
+		//Adding type configuration "ethernetCsmacd"
+		i.Type = ethernetCsmacd
+
+		if *deviations.InterfaceEnabled {
+			i.Enabled = ygot.Bool(true)
+		}
 		tc.configDstMemberDUT(i, port)
 		iPath := d.Interface(port.Name())
 		fptest.LogYgot(t, port.String(), iPath, i)
