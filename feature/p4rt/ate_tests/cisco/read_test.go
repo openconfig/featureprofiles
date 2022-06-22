@@ -3,6 +3,15 @@ package cisco_p4rt_test
 import (
 	"context"
 	"testing"
+
+	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
+)
+
+var (
+	GDPEntry = wbb.AclWbbIngressTableEntryInfo{
+		EtherType:     0x6007,
+		EtherTypeMask: 0xFFFF,
+	}
 )
 
 var (
@@ -46,7 +55,12 @@ func testReadRPCFromPrimary(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Read that entry
 	// Read ALL and log
-	readProgrammedEntry(ctx, t, deviceID, client)
+	res, err := readProgrammedEntry(ctx, t, deviceID, client)
+	if err != nil {
+		t.Errorf("There is error seen when reading entries, %v", err)
+	}
+
+	checkEntryExist(ctx, t, GDPEntry, res)
 }
 
 // Read RPC-Compliance:002
@@ -70,7 +84,7 @@ func testReadRPCFromBackup(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
-	defer teardownConnection(ctx, t, deviceID, clientA)
+	defer teardownConnection(ctx, t, deviceID, clientB)
 
 	// Programm one entry
 	programmGDPMatchEntry(ctx, t, clientA, false)
@@ -78,38 +92,31 @@ func testReadRPCFromBackup(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Read that entry
 	// Read ALL and log
-	readProgrammedEntry(ctx, t, deviceID, clientB)
+	res, err := readProgrammedEntry(ctx, t, deviceID, clientB)
+	if err != nil {
+		t.Errorf("There is error seen when reading entries, %v", err)
+	}
+
+	checkEntryExist(ctx, t, GDPEntry, res)
 }
 
 // Read RPC-Compliance:002
 func testReadRPCNonExistDeviceID(ctx context.Context, t *testing.T, args *testArgs) {
-	clientA := args.p4rtClientA
-	clientB := args.p4rtClientB
+	client := args.p4rtClientA
 
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), clientA); err != nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
-	defer teardownConnection(ctx, t, deviceID, clientA)
-
-	if err := setupForwardingPipeline(ctx, t, deviceID, clientA); err != nil {
-		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
-	}
-
-	// Setup P4RT Client
-	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID-1), clientB); err != nil {
-		t.Errorf("There is error setting up connection, %s", err)
-	}
-	// Destroy P4RT Client
-	defer teardownConnection(ctx, t, deviceID, clientA)
+	defer teardownConnection(ctx, t, deviceID, client)
 
 	// Programm one entry
-	programmGDPMatchEntry(ctx, t, clientA, false)
-	defer programmGDPMatchEntry(ctx, t, clientA, true)
+	programmGDPMatchEntry(ctx, t, client, false)
+	defer programmGDPMatchEntry(ctx, t, client, true)
 
 	// Read that entry
-	if err := readProgrammedEntry(ctx, t, ^uint64(1), clientA); err == nil {
+	if _, err := readProgrammedEntry(ctx, t, ^uint64(1), client); err == nil {
 		t.Errorf("Expected error is not seen.")
 	}
 }

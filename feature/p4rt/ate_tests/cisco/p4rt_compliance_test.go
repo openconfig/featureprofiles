@@ -11,10 +11,13 @@ import (
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	"google.golang.org/protobuf/testing/protocmp"
+	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
 )
 
 func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
@@ -172,7 +175,7 @@ func setupForwardingPipeline(ctx context.Context, t *testing.T, deviceID uint64,
 	return nil
 }
 
-func readProgrammedEntry(ctx context.Context, t *testing.T, device_id uint64, client *p4rt_client.P4RTClient) error {
+func readProgrammedEntry(ctx context.Context, t *testing.T, device_id uint64, client *p4rt_client.P4RTClient) ([]*p4_v1.TableEntry, error) {
 	stream, err := client.Read(&p4_v1.ReadRequest{
 		DeviceId: device_id,
 		Entities: []*p4_v1.Entity{
@@ -182,10 +185,10 @@ func readProgrammedEntry(ctx context.Context, t *testing.T, device_id uint64, cl
 		},
 	})
 	if err != nil {
-		t.Errorf("There is error when Reading entries...%v", err)
-		return err
+		t.Logf("There is error when Reading entries...%v", err)
+		return nil, err
 	}
-	entities := []*p4_v1.Entity{}
+	entities := []*p4_v1.TableEntry{}
 
 	for {
 		readResp, respErr := stream.Recv()
@@ -194,12 +197,32 @@ func readProgrammedEntry(ctx context.Context, t *testing.T, device_id uint64, cl
 			break
 		} else if respErr != nil {
 			t.Logf("There is error when Reading response...%v", err)
-			return err
+			return entities, err
 		} else {
-			entities = append(entities, readResp.Entities...)
-			// fmt.Println("Read Response: ", readResp)
-			fmt.Println("Read Response: ", readResp.Entities[0].GetTableEntry())
+			for _, entry := range readResp.Entities {
+				t.Logf("Read Response with entry: %v", entry)
+				entities = append(entities, entry.GetTableEntry())
+			}
 		}
 	}
-	return nil
+	return entities, nil
+}
+
+func checkEntryExist(ctx context.Context, t *testing.T, want wbb.AclWbbIngressTableEntryInfo, response []*p4_v1.TableEntry) {
+	t.Helper()
+
+	// TODO: Need to fill the right verification logic
+	found := false
+	opts := []cmp.Option{
+		protocmp.Transform(),
+	}
+
+	for _, r := range response {
+		if cmp.Equal(r, want, opts...) {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("Entry is not found!")
+	}
 }
