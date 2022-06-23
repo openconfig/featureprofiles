@@ -76,7 +76,7 @@ func TestAugmentSystem(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "With  non-conflicting servers",
+		desc: "With non-conflicting servers",
 		ntp:  New().WithServer("1.1.1.1", 1234),
 		inSystem: &fpoc.System{
 			Ntp: &fpoc.System_Ntp{
@@ -99,6 +99,21 @@ func TestAugmentSystem(t *testing.T) {
 					},
 					"1.1.2.1": {
 						Address: ygot.String("1.1.2.1"),
+						Port:    ygot.Uint16(1234),
+					},
+				},
+			},
+		},
+	}, {
+		desc:     "Add same server twice",
+		ntp:      New().WithServer("1.1.1.1", 1234).WithServer("1.1.1.1", 1234),
+		inSystem: &fpoc.System{},
+		wantSystem: &fpoc.System{
+			Ntp: &fpoc.System_Ntp{
+				Enabled: ygot.Bool(true),
+				Server: map[string]*fpoc.System_Ntp_Server{
+					"1.1.1.1": {
+						Address: ygot.String("1.1.1.1"),
 						Port:    ygot.Uint16(1234),
 					},
 				},

@@ -27,7 +27,7 @@ type NTP struct {
 	oc fpoc.System_Ntp
 }
 
-// New returns a new System object.
+// New returns a new NTP object.
 func New() *NTP {
 	return &NTP{
 		oc: fpoc.System_Ntp{
@@ -36,7 +36,7 @@ func New() *NTP {
 	}
 }
 
-// WithServer sets the server address and port values.
+// WithServer adds a new server with address and port.
 func (n *NTP) WithServer(address string, port int) *NTP {
 	n.oc.GetOrCreateServer(address).Port = ygot.Uint16(uint16(port))
 	return n
