@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/gribi/util"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	ft "github.com/openconfig/featureprofiles/tools/inputcisco/feature"
 	oc "github.com/openconfig/ondatra/telemetry"
 

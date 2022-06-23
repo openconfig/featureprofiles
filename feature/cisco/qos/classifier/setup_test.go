@@ -1,0 +1,31 @@
+package qos_test
+
+import (
+	"testing"
+
+	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
+	"github.com/openconfig/ondatra"
+	oc "github.com/openconfig/ondatra/telemetry"
+)
+
+var (
+	testTypeInput []oc.E_Qos_Classifier_Type = []oc.E_Qos_Classifier_Type{
+		oc.E_Qos_Classifier_Type(3), //MPLS
+	}
+	testNameInput []string = []string{
+		"i",
+	}
+)
+
+func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
+	bc := setup.BaseConfig()
+	setup.ResetStruct(bc, []string{"Classifier"})
+	bcClassifier := setup.GetAnyValue(bc.Classifier)
+	setup.ResetStruct(bcClassifier, []string{})
+	dut.Config().Qos().Replace(t, bc)
+	return bc
+}
+
+func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
+	dut.Config().Qos().Delete(t)
+}

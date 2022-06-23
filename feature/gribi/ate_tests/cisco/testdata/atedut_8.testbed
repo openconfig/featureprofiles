@@ -6,6 +6,7 @@
 
 duts {
   id: "dut"
+  vendor: CISCO
   ports {
     id: "port1"
   }

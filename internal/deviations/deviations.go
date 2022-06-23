@@ -26,9 +26,6 @@ var (
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", true,
 		"Device requires interface enabled leaf booleans to be explicitly set to true (b/197141773)")
 
-	OmitL2MTU = flag.Bool("deviation_omit_l2_mtu", true,
-		"Device does not support setting L2 MTU, so only set L3 MTU (b/201112079)")
-
 	AggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", true,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate (b/201574574)")
 )
