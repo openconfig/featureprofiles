@@ -17,10 +17,10 @@ duts {
 ates {
   id: "ate"
   ports {
-    id: "port1"    
+    id: "port1"
   }
   ports {
-    id: "port2"    
+    id: "port2"
   }
 }
 
