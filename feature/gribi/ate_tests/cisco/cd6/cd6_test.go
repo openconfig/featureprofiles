@@ -63,6 +63,8 @@ const (
 	dstPfxMask            = "32"
 	dstPfxMin             = "198.51.100.1"
 	dstPfxCount           = 100
+	dstPfx1               = "11.1.1.1"
+	dstPfxCount1          = 10
 	innersrcPfx           = "200.1.0.1"
 	innerdstPfxMin_bgp    = "202.1.0.1"
 	innerdstPfxCount_bgp  = 100
@@ -2281,7 +2283,7 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2001: 60, 2002: 40}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
 
-	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
+	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx1)
 
 	// LEVEL 2
 
@@ -2298,7 +2300,7 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	args.clientA.NH(t, 210, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 211, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 212, 200, map[uint64]uint64{210: 85, 211: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 212, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.IPv4(t, dstPfx1, dstPfxMask, 212, "TE", instance, "add", dstPfxCount1, fluent.InstalledInRIB)
 
 	// LEVEL 1
 
@@ -2405,7 +2407,7 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2001: 60, 2002: 40}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
 
-	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
+	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx1)
 
 	// LEVEL 2
 
@@ -2422,7 +2424,7 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	args.clientA.NH(t, 110, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 111, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 212, 200, map[uint64]uint64{110: 85, 111: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 212, "VRF1", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.IPv4(t, dstPfx1, dstPfxMask, 212, "VRF1", instance, "add", dstPfxCount1, fluent.InstalledInRIB)
 
 	// LEVEL 1
 
