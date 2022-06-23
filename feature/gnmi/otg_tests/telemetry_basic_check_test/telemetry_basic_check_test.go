@@ -713,7 +713,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	dutOutPktsBeforeTraffic := dut.Telemetry().Interface(dp2.Name()).Counters().OutUnicastPkts().Get(t)
 	t.Log("inPkts and outPkts counters before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 	otg.StartTraffic(t)
-	otgutils.WatchFlowMetrics(t, otg, config, &otgutils.WaitForOpts{Interval: 2 * time.Second, Timeout: 10 * time.Second})
+	time.Sleep(10 * time.Second)
 	otg.StopTraffic(t)
 
 	ds1 := dut.Telemetry().Interface(dp1.Name()).OperStatus().Get(t)
@@ -732,6 +732,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 		}
 	}
 
+	otgutils.PrintFlowMetrics(t, otg, config)
 	ateInPkts := otg.Telemetry().Flow(flowName).Counters().InPkts().Get(t)
 	ateOutPkts := otg.Telemetry().Flow(flowName).Counters().OutPkts().Get(t)
 
@@ -838,10 +839,11 @@ func TestQoSCounterUpdate(t *testing.T) {
 
 	t.Logf("Running traffic on DUT interfaces: %s and %s ", dp1.Name(), dp2.Name())
 	otg.StartTraffic(t)
-	otgutils.WatchFlowMetrics(t, otg, config, &otgutils.WaitForOpts{Interval: 2 * time.Second, Timeout: 10 * time.Second})
+	time.Sleep(10 * time.Second)
 	otg.StopTraffic(t)
 	time.Sleep(60 * time.Second)
 
+	otgutils.PrintFlowMetrics(t, otg, config)
 	for trafficID, data := range trafficFlows {
 		ateOutPkts[data.queue] = otg.Telemetry().Flow(trafficID).Counters().OutPkts().Get(t)
 		lossPct := (ateOutPkts[data.queue] - otg.Telemetry().Flow(trafficID).Counters().InPkts().Get(t)) / ateOutPkts[data.queue] * 100
