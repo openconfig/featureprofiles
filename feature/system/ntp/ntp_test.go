@@ -134,7 +134,7 @@ func TestAugmentSystem(t *testing.T) {
 	}
 }
 
-// TestAugmentSystem_Errors tests the BGP GR augment to BGP neighbor errors.
+// TestAugmentSystem_Errors tests the NTP augment to System errors.
 func TestAugmentSystem_Errors(t *testing.T) {
 	tests := []struct {
 		desc          string

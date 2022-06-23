@@ -44,7 +44,7 @@ func (n *NTP) WithServer(address string, port int) *NTP {
 
 // AugmentSystem implements the system.SystemFeature interface.
 // This method augments the System with NTP feature.
-// Use s.WithFeature(ntp) instead of calling this method directly.
+// Use s.WithFeature(n) instead of calling this method directly.
 func (n *NTP) AugmentSystem(s *fpoc.System) error {
 	if err := n.oc.Validate(); err != nil {
 		return err

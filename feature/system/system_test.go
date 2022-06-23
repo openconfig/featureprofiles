@@ -96,6 +96,92 @@ func TestAugmentDevice(t *testing.T) {
 				},
 			},
 		},
+	}, {
+		desc:   "System with non-conflicting users",
+		system: New().WithUserAuth("user", "user-key"),
+		inDevice: &fpoc.Device{
+			System: &fpoc.System{
+				Aaa: &fpoc.System_Aaa{
+					Authentication: &fpoc.System_Aaa_Authentication{
+						User: map[string]*fpoc.System_Aaa_Authentication_User{
+							"user2": {
+								Username: ygot.String("user2"),
+								SshKey:   ygot.String("user2-key"),
+							},
+						},
+					},
+				},
+			},
+		},
+		wantDevice: &fpoc.Device{
+			System: &fpoc.System{
+				Aaa: &fpoc.System_Aaa{
+					Authentication: &fpoc.System_Aaa_Authentication{
+						User: map[string]*fpoc.System_Aaa_Authentication_User{
+							"user": {
+								Username: ygot.String("user"),
+								SshKey:   ygot.String("user-key"),
+							},
+							"user2": {
+								Username: ygot.String("user2"),
+								SshKey:   ygot.String("user2-key"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}, {
+		desc:   "System with same user twice",
+		system: New().WithUserAuth("user", "user-key").WithUserAuth("user", "user-key"),
+		inDevice: &fpoc.Device{
+			System: &fpoc.System{},
+		},
+		wantDevice: &fpoc.Device{
+			System: &fpoc.System{
+				Aaa: &fpoc.System_Aaa{
+					Authentication: &fpoc.System_Aaa_Authentication{
+						User: map[string]*fpoc.System_Aaa_Authentication_User{
+							"user": {
+								Username: ygot.String("user"),
+								SshKey:   ygot.String("user-key"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}, {
+		desc:   "Add user when user already exists",
+		system: New().WithUserAuth("user", "user-key"),
+		inDevice: &fpoc.Device{
+			System: &fpoc.System{
+				Aaa: &fpoc.System_Aaa{
+					Authentication: &fpoc.System_Aaa_Authentication{
+						User: map[string]*fpoc.System_Aaa_Authentication_User{
+							"user": {
+								Username: ygot.String("user"),
+								SshKey:   ygot.String("user-key"),
+							},
+						},
+					},
+				},
+			},
+		},
+		wantDevice: &fpoc.Device{
+			System: &fpoc.System{
+				Aaa: &fpoc.System_Aaa{
+					Authentication: &fpoc.System_Aaa_Authentication{
+						User: map[string]*fpoc.System_Aaa_Authentication_User{
+							"user": {
+								Username: ygot.String("user"),
+								SshKey:   ygot.String("user-key"),
+							},
+						},
+					},
+				},
+			},
+		},
 	}}
 
 	for _, test := range tests {
