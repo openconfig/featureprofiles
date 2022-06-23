@@ -28,7 +28,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
@@ -77,7 +76,7 @@ var (
 
 	ateSrc = attrs.Attributes{
 		Name:    "atesrc",
-		MAC:     "00:11:01:00:00:01",
+		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
 		IPv4Len: plen4,
@@ -94,7 +93,7 @@ var (
 
 	ateDst = attrs.Attributes{
 		Name:    "atedst",
-		MAC:     "00:12:01:00:00:01",
+		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: plen4,
@@ -257,17 +256,15 @@ func (tc *testCase) configureATE(t *testing.T) {
 	p0 := tc.atePorts[0]
 	tc.top.Ports().Add().SetName(p0.ID())
 	srcDev := tc.top.Devices().Add().SetName(ateSrc.Name)
-	srcEth := srcDev.Ethernets().Add().
-		SetName(ateSrc.Name + ".eth").
-		SetPortName(p0.ID()).
-		SetMac(ateSrc.MAC)
+	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".eth")
+	srcEth.SetPortName(p0.ID()).SetMac(ateSrc.MAC)
 	srcEth.Ipv4Addresses().Add().
-		SetName(ateSrc.Name + ".ipv4").
+		SetName(ateSrc.Name + ".IPv4").
 		SetAddress(ateSrc.IPv4).
 		SetGateway(dutSrc.IPv4).
 		SetPrefix(int32(ateSrc.IPv4Len))
 	srcEth.Ipv6Addresses().Add().
-		SetName(ateSrc.Name + ".ipv6").
+		SetName(ateSrc.Name + ".IPv6").
 		SetAddress(ateSrc.IPv6).
 		SetGateway(dutSrc.IPv6).
 		SetPrefix(int32(ateSrc.IPv6Len))
@@ -284,7 +281,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 		}
 		lagPort.SetPortName(port.Name()).
 			Ethernet().SetMac(newMac).
-			SetName("LagRx-" + strconv.Itoa(i))
+			SetName("LAGRx-" + strconv.Itoa(i))
 		if tc.lagType == lagTypeSTATIC {
 			lagId, _ := strconv.Atoi(tc.aggID)
 			lagPort.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
@@ -377,7 +374,6 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 // configureDUT().
 func (tc *testCase) verifyATE(t *testing.T) {
 	ap := tc.atePorts[0]
-	otgutils.WatchPortMetrics(t, tc.ate.OTG(), tc.top, &otgutils.WaitForOpts{Timeout: 1 * time.Second})
 	// State for the interface.
 	portMetrics := tc.ate.OTG().Telemetry().Port(ap.ID()).Get(t)
 	if portMetrics.GetLink() != otgtelemetry.Port_Link_UP {
