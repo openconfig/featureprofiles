@@ -15,7 +15,6 @@
 package te_1_1_static_arp_test
 
 import (
-	"log"
 	"testing"
 	"time"
 
@@ -72,7 +71,7 @@ const (
 var (
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
-		MAC:     "00:11:01:00:00:01",
+		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
 		IPv4Len: plen4,
@@ -99,7 +98,7 @@ var (
 
 	ateDst = attrs.Attributes{
 		Name:    "ateDst",
-		MAC:     "00:12:01:00:00:01",
+		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: plen4,
@@ -151,7 +150,6 @@ func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peer
 }
 
 func configureDUT(t *testing.T, peermac string) {
-	// interfaceOrder = true
 	dut := ondatra.DUT(t, "dut")
 	d := dut.Config()
 	p1 := dut.Port(t, "port1")
@@ -235,7 +233,7 @@ func checkArpEntry(t *testing.T, ipType string, poisoned bool) {
 	}
 }
 
-func GetInterfaceMacs(t *testing.T, dev *ondatra.Device) map[string]string {
+func getInterfaceMacs(t *testing.T, dev *ondatra.Device) map[string]string {
 	t.Helper()
 	dutMacDetails := make(map[string]string)
 	for _, p := range dev.Ports() {
@@ -250,7 +248,7 @@ func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned b
 	ate := ondatra.ATE(t, "ate")
 	dut := ondatra.DUT(t, "dut")
 	otg := ate.OTG()
-	dutInterfaceMac := GetInterfaceMacs(t, dut.Device)
+	dutInterfaceMac := getInterfaceMacs(t, dut.Device)
 	t.Logf("Mac Addresses of DUT: %v", dutInterfaceMac)
 	expectedMacEntries := []string{}
 	if poisoned == true {
@@ -261,7 +259,7 @@ func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned b
 		}
 	}
 
-	err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.ArpEntriesOk(t, otg, ipType, expectedMacEntries) }, nil)
+	err := otgutils.WaitFor(t, func() bool { return otgutils.ArpEntriesOk(t, otg, ipType, expectedMacEntries) }, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,7 +267,6 @@ func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned b
 
 func testFlow(
 	t *testing.T,
-	want string,
 	ate *ondatra.ATEDevice,
 	config gosnappi.Config,
 	ipType string,
@@ -327,14 +324,12 @@ func testFlow(
 
 	// Starting the traffic
 	otg.StartTraffic(t)
-	err := otgutils.WatchFlowMetrics(t, otg, config, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 5 * time.Second})
-	if err != nil {
-		log.Println(err)
-	}
+	time.Sleep(15 * time.Second)
 	t.Logf("Stop traffic")
 	otg.StopTraffic(t)
 
 	// Get the flow statistics
+	otgutils.PrintFlowMetrics(t, otg, config)
 	for _, f := range config.Flows().Items() {
 		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
 		if recvMetric.GetCounters().GetInPkts() != recvMetric.GetCounters().GetOutPkts() || recvMetric.GetCounters().GetInPkts() != 1000 {
@@ -352,18 +347,17 @@ func TestStaticARP(t *testing.T) {
 	ate, config := configureOTG(t)
 
 	// Default MAC addresses on Ixia are assigned incrementally as:
-	//   - 00:11:01:00:00:01
-	//   - 00:12:01:00:00:01
+	//   - 02:11:01:00:00:01
+	//   - 02:12:01:00:00:01
 	// etc.
 	//
-	// The last 15-bits therefore resolve to "1".
 	t.Run("NotPoisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testFlow(t, "1" /* want */, ate, config, "IPv4", false)
+			testFlow(t, ate, config, "IPv4", false)
 			checkArpEntry(t, "IPv4", false)
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testFlow(t, "1" /* want */, ate, config, "IPv6", false)
+			testFlow(t, ate, config, "IPv6", false)
 			checkArpEntry(t, "IPv6", false)
 		})
 	})
@@ -371,14 +365,13 @@ func TestStaticARP(t *testing.T) {
 	// Reconfigure the DUT with static MAC.
 	configureDUT(t, poisonedMAC)
 
-	// Poisoned MAC address ends with 7a:69, so 0x7a69 = 31337.
 	t.Run("Poisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testFlow(t, "31337" /* want */, ate, config, "IPv4", true)
+			testFlow(t, ate, config, "IPv4", true)
 			checkArpEntry(t, "IPv4", true)
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testFlow(t, "31337" /* want */, ate, config, "IPv6", true)
+			testFlow(t, ate, config, "IPv6", true)
 			checkArpEntry(t, "IPv6", true)
 		})
 	})
