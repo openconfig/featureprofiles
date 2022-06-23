@@ -16,7 +16,6 @@ package base_hierarchical_route_installation_test
 
 import (
 	"context"
-	"log"
 	"testing"
 	"time"
 
@@ -67,7 +66,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
-		MAC:     "00:00:01:01:01:01",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -80,7 +79,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
-		MAC:     "00:00:02:01:01:01",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -131,18 +130,18 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	p1 := ate.Port(t, "port1")
 	top.Ports().Add().SetName(p1.ID())
 	i1 := top.Devices().Add().SetName(p1.ID())
-	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".eth").
+	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").
 		SetPortName(i1.Name()).SetMac(atePort1.MAC)
-	eth1.Ipv4Addresses().Add().SetName(i1.Name() + ".ipv4").
+	eth1.Ipv4Addresses().Add().SetName(i1.Name() + ".IPv4").
 		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
 		SetPrefix(int32(atePort1.IPv4Len))
 
 	p2 := ate.Port(t, "port2")
 	top.Ports().Add().SetName(p2.ID())
 	i2 := top.Devices().Add().SetName(p2.ID())
-	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".eth").
+	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").
 		SetPortName(i2.Name()).SetMac(atePort2.MAC)
-	eth2.Ipv4Addresses().Add().SetName(i2.Name() + ".ipv4").
+	eth2.Ipv4Addresses().Add().SetName(i2.Name() + ".IPv4").
 		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
 		SetPrefix(int32(atePort2.IPv4Len))
 	return top
@@ -170,22 +169,16 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	otg.PushConfig(t, top)
 
 	otg.StartTraffic(t)
-	err := otgutils.WatchFlowMetrics(t, otg, top, &otgutils.WaitForOpts{Interval: 2 * time.Second, Timeout: 15 * time.Second})
-	if err != nil {
-		log.Println(err)
-	}
+	time.Sleep(15 * time.Second)
 	t.Logf("Stop traffic")
 	otg.StopTraffic(t)
 
 	time.Sleep(5 * time.Second)
 
-	fMetrics, err := otgutils.GetFlowMetrics(t, otg, top)
-	if err != nil {
-		t.Fatal("Error while getting the flow metrics")
-	}
-
-	lostPackets := fMetrics.Items()[0].FramesTx() - fMetrics.Items()[0].FramesRx()
-	lossPct := lostPackets * 100 / fMetrics.Items()[0].FramesTx()
+	otgutils.PrintFlowMetrics(t, otg, top)
+	txPkts := otg.Telemetry().Flow("Flow").Counters().OutPkts().Get(t)
+	rxPkts := otg.Telemetry().Flow("Flow").Counters().InPkts().Get(t)
+	lossPct := (txPkts - rxPkts) * 100 / txPkts
 	return float32(lossPct)
 }
 
