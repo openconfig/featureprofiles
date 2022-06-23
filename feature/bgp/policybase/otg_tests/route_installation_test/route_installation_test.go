@@ -15,9 +15,6 @@
 package route_installation_test
 
 import (
-	"log"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -57,38 +54,40 @@ func TestMain(m *testing.M) {
 // Similarly, Traffic is sent for IPv6 destinations.
 
 const (
-	trafficDuration        = 10 * time.Second
-	trafficPacketRate      = 100
-	ipv4SrcTraffic         = "192.0.2.2"
-	ipv6SrcTraffic         = "2001:db8::192:0:2:2"
-	ipv4DstTrafficStart    = "203.0.113.1"
-	ipv4DstTrafficEnd      = "203.0.113.254"
-	ipv6DstTrafficStart    = "2001:db8::203:0:113:1"
-	ipv6DstTrafficEnd      = "2001:db8::203:0:113:fe"
-	advertisedRoutesv4CIDR = "203.0.113.1/32"
-	advertisedRoutesv6CIDR = "2001:db8::203:0:113:1/128"
-	peerGrpName            = "BGP-PEER-GROUP"
-	routeCount             = 254
-	dutAS                  = 64500
-	ateAS                  = 64501
-	badAS                  = 64502
-	plenIPv4               = 30
-	plenIPv6               = 126
-	tolerance              = 50
-	tolerancePct           = 1
-	ipPrefixSet            = "203.0.113.0/29"
-	prefixSubnetRange      = "29..32"
-	allowConnected         = "ALLOW-CONNECTED"
-	prefixSet              = "PREFIX-SET"
-	defaultPolicy          = ""
-	denyPolicy             = "DENY-ALL"
-	acceptPolicy           = "PERMIT-ALL"
-	setLocalPrefPolicy     = "SET-LOCAL-PREF"
-	localPrefValue         = 100
-	setAspathPrependPolicy = "SET-ASPATH-PREPEND"
-	asPathRepeatValue      = 3
-	aclStatement1          = "10"
-	aclStatement2          = "20"
+	trafficDuration          = 1 * time.Minute
+	trafficPacketRate        = 100
+	ipv4SrcTraffic           = "192.0.2.2"
+	ipv6SrcTraffic           = "2001:db8::192:0:2:2"
+	ipv4DstTrafficStart      = "203.0.113.1"
+	ipv4DstTrafficEnd        = "203.0.113.254"
+	ipv6DstTrafficStart      = "2001:db8::203:0:113:1"
+	ipv6DstTrafficEnd        = "2001:db8::203:0:113:fe"
+	advertisedRoutesv4Net    = "203.0.113.1"
+	advertisedRoutesv6Net    = "2001:db8::203:0:113:1"
+	advertisedRoutesv4Prefix = 32
+	advertisedRoutesv6Prefix = 128
+	peerGrpName              = "BGP-PEER-GROUP"
+	routeCount               = 254
+	dutAS                    = 64500
+	ateAS                    = 64501
+	badAS                    = 64502
+	plenIPv4                 = 30
+	plenIPv6                 = 126
+	tolerance                = 50
+	tolerancePct             = 1
+	ipPrefixSet              = "203.0.113.0/29"
+	prefixSubnetRange        = "29..32"
+	allowConnected           = "ALLOW-CONNECTED"
+	prefixSet                = "PREFIX-SET"
+	defaultPolicy            = ""
+	denyPolicy               = "DENY-ALL"
+	acceptPolicy             = "PERMIT-ALL"
+	setLocalPrefPolicy       = "SET-LOCAL-PREF"
+	localPrefValue           = 100
+	setAspathPrependPolicy   = "SET-ASPATH-PREPEND"
+	asPathRepeatValue        = 3
+	aclStatement1            = "10"
+	aclStatement2            = "20"
 )
 
 var (
@@ -101,7 +100,7 @@ var (
 	}
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
-		MAC:     "00:00:01:01:01:01",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::192:0:2:2",
 		IPv4Len: plenIPv4,
@@ -118,7 +117,7 @@ var (
 
 	ateDst = attrs.Attributes{
 		Name:    "atedst",
-		MAC:     "00:00:02:01:01:01",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::192:0:2:6",
 		IPv4Len: plenIPv4,
@@ -261,8 +260,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	estTrans := nbr.GetEstablishedTransitions()
 	t.Logf("Got established transitions: %d", estTrans)
 	if estTrans != 1 {
-		// t.Errorf("Wrong established-transitions: got %v, want 1", estTrans)
-		t.Logf("Wrong established-transitions: got %v, want 1", estTrans)
+		t.Errorf("Wrong established-transitions: got %v, want 1", estTrans)
 	}
 
 	// Check BGP neighbor address from telemetry
@@ -344,94 +342,48 @@ func configureOTG(t *testing.T, otg *ondatra.OTG, expectedRoutes int32) (gosnapp
 	dstPort := config.Ports().Add().SetName("port2")
 
 	srcDev := config.Devices().Add().SetName(ateSrc.Name)
-	srcEth := srcDev.Ethernets().Add().
-		SetName(ateSrc.Name + ".eth").
-		SetPortName(srcPort.Name()).
-		SetMac(ateSrc.MAC)
-	srcIpv4 := srcEth.Ipv4Addresses().Add().
-		SetName(ateSrc.Name + ".ipv4").
-		SetAddress(ateSrc.IPv4).
-		SetGateway(dutSrc.IPv4).
-		SetPrefix(int32(ateSrc.IPv4Len))
-	srcIpv6 := srcEth.Ipv6Addresses().Add().
-		SetName(ateSrc.Name + ".ipv6").
-		SetAddress(ateSrc.IPv6).
-		SetGateway(dutSrc.IPv6).
-		SetPrefix(int32(ateSrc.IPv6Len))
+	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth")
+	srcEth.SetPortName(srcPort.Name()).SetMac(ateSrc.MAC)
+	srcIpv4 := srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
+	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
+	srcIpv6 := srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6")
+	srcIpv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
 	dstDev := config.Devices().Add().SetName(ateDst.Name)
-	dstEth := dstDev.Ethernets().Add().
-		SetName(ateDst.Name + ".eth").
-		SetPortName(dstPort.Name()).
-		SetMac(ateDst.MAC)
-	dstIpv4 := dstEth.Ipv4Addresses().Add().
-		SetName(ateDst.Name + ".ipv4").
-		SetAddress(ateDst.IPv4).
-		SetGateway(dutDst.IPv4).
-		SetPrefix(int32(ateDst.IPv4Len))
-	dstIpv6 := dstEth.Ipv6Addresses().Add().
-		SetName(ateDst.Name + ".ipv6").
-		SetAddress(ateDst.IPv6).
-		SetGateway(dutDst.IPv6).
-		SetPrefix(int32(ateDst.IPv6Len))
+	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth")
+	dstEth.SetPortName(dstPort.Name()).SetMac(ateDst.MAC)
+	dstIpv4 := dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4")
+	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
+	dstIpv6 := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6")
+	dstIpv6.SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
 
-	srcBgp4Name := ateSrc.Name + ".bgp4.peer"
-	srcBgp6Name := ateSrc.Name + ".bgp6.peer"
-	srcBgp := srcDev.Bgp().
-		SetRouterId(srcIpv4.Address())
-	srcBgp4Peer := srcBgp.Ipv4Interfaces().Add().
-		SetIpv4Name(srcIpv4.Name()).
-		Peers().Add().
-		SetName(srcBgp4Name).
-		SetPeerAddress(srcIpv4.Gateway()).
-		SetAsNumber(ateAS).
-		SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	srcBgp6Peer := srcBgp.Ipv6Interfaces().Add().
-		SetIpv6Name(srcIpv6.Name()).
-		Peers().Add().
-		SetName(srcBgp6Name).
-		SetPeerAddress(srcIpv6.Gateway()).
-		SetAsNumber(ateAS).
-		SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	srcBgp := srcDev.Bgp().SetRouterId(srcIpv4.Address())
+	srcBgp4Peer := srcBgp.Ipv4Interfaces().Add().SetIpv4Name(srcIpv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
+	srcBgp4Peer.SetPeerAddress(srcIpv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	srcBgp6Peer := srcBgp.Ipv6Interfaces().Add().SetIpv6Name(srcIpv6.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP6.peer")
+	srcBgp6Peer.SetPeerAddress(srcIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
-	dstBgp4Name := ateDst.Name + ".bgp4.peer"
-	dstBgp6Name := ateDst.Name + ".bgp6.peer"
-	dstBgp := dstDev.Bgp().
-		SetRouterId(dstIpv4.Address())
-	dstBgp4Peer := dstBgp.Ipv4Interfaces().Add().
-		SetIpv4Name(dstIpv4.Name()).
-		Peers().Add().
-		SetName(dstBgp4Name).
-		SetPeerAddress(dstIpv4.Gateway()).
-		SetAsNumber(ateAS).
-		SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	dstBgp6Peer := dstBgp.Ipv6Interfaces().Add().
-		SetIpv6Name(dstIpv6.Name()).
-		Peers().Add().
-		SetName(dstBgp6Name).
-		SetPeerAddress(dstIpv6.Gateway()).
-		SetAsNumber(ateAS).
-		SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	dstBgp := dstDev.Bgp().SetRouterId(dstIpv4.Address())
+	dstBgp4Peer := dstBgp.Ipv4Interfaces().Add().SetIpv4Name(dstIpv4.Name()).Peers().Add().SetName(ateDst.Name + ".BGP4.peer")
+	dstBgp4Peer.SetPeerAddress(dstIpv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	dstBgp6Peer := dstBgp.Ipv6Interfaces().Add().SetIpv6Name(dstIpv6.Name()).Peers().Add().SetName(ateDst.Name + ".BGP6.peer")
+	dstBgp6Peer.SetPeerAddress(dstIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
-	prefixInt4, _ := strconv.Atoi(strings.Split(advertisedRoutesv4CIDR, "/")[1])
-	prefixInt6, _ := strconv.Atoi(strings.Split(advertisedRoutesv6CIDR, "/")[1])
-	dstBgp4PeerRoutes := dstBgp4Peer.V4Routes().Add().
-		SetName(dstBgp4Name + ".rr4").
-		SetNextHopIpv4Address(dstIpv4.Address()).
+	dstBgp4PeerRoutes := dstBgp4Peer.V4Routes().Add().SetName(ateDst.Name + ".BGP4.peer" + ".RR4")
+	dstBgp4PeerRoutes.SetNextHopIpv4Address(dstIpv4.Address()).
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 	dstBgp4PeerRoutes.Addresses().Add().
-		SetAddress(strings.Split(advertisedRoutesv4CIDR, "/")[0]).
-		SetPrefix(int32(prefixInt4)).
+		SetAddress(advertisedRoutesv4Net).
+		SetPrefix(advertisedRoutesv4Prefix).
 		SetCount(routeCount)
-	dstBgp6PeerRoutes := dstBgp6Peer.V6Routes().Add().
-		SetName(dstBgp6Name + ".rr6").
-		SetNextHopIpv6Address(dstIpv6.Address()).
+	dstBgp6PeerRoutes := dstBgp6Peer.V6Routes().Add().SetName(ateDst.Name + ".BGP6.peer" + ".rr6")
+	dstBgp6PeerRoutes.SetNextHopIpv6Address(dstIpv6.Address()).
 		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 	dstBgp6PeerRoutes.Addresses().Add().
-		SetAddress(strings.Split(advertisedRoutesv6CIDR, "/")[0]).
-		SetPrefix(int32(prefixInt6)).
+		SetAddress(advertisedRoutesv6Net).
+		SetPrefix(advertisedRoutesv6Prefix).
 		SetCount(routeCount)
 
 	// ATE Traffic Configuration
@@ -448,7 +400,7 @@ func configureOTG(t *testing.T, otg *ondatra.OTG, expectedRoutes int32) (gosnapp
 	e1.Src().SetValue(srcEth.Mac())
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(srcIpv4.Address())
-	v4.Dst().Increment().SetStart(strings.Split(advertisedRoutesv4CIDR, "/")[0]).SetCount(routeCount)
+	v4.Dst().Increment().SetStart(advertisedRoutesv4Net).SetCount(routeCount)
 
 	flowipv6 := config.Flows().Add().SetName("bgpv6RoutesFlow")
 	flowipv6.Metrics().SetEnable(true)
@@ -462,20 +414,16 @@ func configureOTG(t *testing.T, otg *ondatra.OTG, expectedRoutes int32) (gosnapp
 	e2.Src().SetValue(srcEth.Mac())
 	v6 := flowipv6.Packet().Add().Ipv6()
 	v6.Src().SetValue(srcIpv6.Address())
-	v6.Dst().Increment().SetStart(strings.Split(advertisedRoutesv6CIDR, "/")[0]).SetCount(routeCount)
+	v6.Dst().Increment().SetStart(advertisedRoutesv6Net).SetCount(routeCount)
 
 	expected := otgutils.ExpectedState{
-		Bgp4: map[string]otgutils.ExpectedBgpMetrics{
+		BGP4: map[string]otgutils.ExpectedBgpMetrics{
 			srcBgp4Peer.Name(): {Advertised: 0, Received: expectedRoutes},
 			dstBgp4Peer.Name(): {Advertised: routeCount, Received: 0},
 		},
-		Bgp6: map[string]otgutils.ExpectedBgpMetrics{
+		BGP6: map[string]otgutils.ExpectedBgpMetrics{
 			srcBgp6Peer.Name(): {Advertised: 0, Received: expectedRoutes},
 			dstBgp6Peer.Name(): {Advertised: routeCount, Received: 0},
-		},
-		Flow: map[string]otgutils.ExpectedFlowMetrics{
-			flowipv4.Name(): {FramesRx: 0, FramesRxRate: 0},
-			flowipv6.Name(): {FramesRx: 0, FramesRxRate: 0},
 		},
 	}
 
@@ -489,8 +437,9 @@ func configureOTG(t *testing.T, otg *ondatra.OTG, expectedRoutes int32) (gosnapp
 // depending on wantLoss, +- 2%)
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, wantLoss bool) {
 	otg := ate.OTG()
+	otgutils.PrintFlowMetrics(t, otg, c)
 	for _, f := range c.Flows().Items() {
-		log.Printf("Getting flow metrics for flow %s\n", f.Name())
+		t.Logf("Verifying flow metrics for flow %s\n", f.Name())
 		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
 		txPackets := recvMetric.GetCounters().GetOutPkts()
 		rxPackets := recvMetric.GetCounters().GetInPkts()
@@ -519,10 +468,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, want
 func sendTraffic(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
-	err := otgutils.WatchFlowMetrics(t, otg, c, &otgutils.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
-	if err != nil {
-		log.Println(err)
-	}
+	time.Sleep(trafficDuration)
 	t.Logf("Stop traffic")
 	otg.StopTraffic(t)
 }
@@ -567,11 +513,11 @@ func TestEstablish(t *testing.T) {
 	verifyBgpTelemetry(t, dut)
 
 	t.Logf("Check BGP sessions on OTG")
-	err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 up"})
+	err := otgutils.WaitFor(t, func() bool { return otgutils.AllBGP4Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 up"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 up"})
+	err = otgutils.WaitFor(t, func() bool { return otgutils.AllBGP6Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 up"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -588,11 +534,11 @@ func TestEstablish(t *testing.T) {
 		dutConfPath.Replace(t, bgpCreateNbr(dutAS, badAS, defaultPolicy))
 
 		// Resend traffic
-		err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4Down(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP4 sessions down"})
+		err := otgutils.WaitFor(t, func() bool { return otgutils.AllBGP4Down(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP4 sessions down"})
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6Down(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP6 sessions down"})
+		err = otgutils.WaitFor(t, func() bool { return otgutils.AllBGP6Down(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP6 sessions down"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -663,11 +609,11 @@ func TestBGPPolicy(t *testing.T) {
 			dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
 			// Send and verify traffic.
 
-			err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp4Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 up"})
+			err := otgutils.WaitFor(t, func() bool { return otgutils.AllBGP4Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 up"})
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = otgutils.WaitFor(t, func() (bool, error) { return otgutils.AllBgp6Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 up"})
+			err = otgutils.WaitFor(t, func() bool { return otgutils.AllBGP6Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 up"})
 			if err != nil {
 				t.Fatal(err)
 			}
