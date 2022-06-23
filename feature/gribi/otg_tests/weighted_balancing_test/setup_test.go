@@ -209,7 +209,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 	otg := ate.OTG()
 	config := otg.NewConfig(t)
-	startMac := "00:00:01:01:01:01"
+	startMac := "02:00:01:01:01:01"
 	for i, ap := range ate.Ports() {
 		// DUT and ATE ports are connected by the same names.
 		dutid := fmt.Sprintf("dut:%s", ap.ID())
@@ -219,9 +219,9 @@ func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 		dev := config.Devices().Add().SetName(ateid)
 		macAddress, _ := incrementedMac(startMac, i)
 		ateMac[ateid] = macAddress
-		eth := dev.Ethernets().Add().SetName(ateid + ".eth").
+		eth := dev.Ethernets().Add().SetName(ateid + ".Eth").
 			SetPortName(ap.ID()).SetMac(macAddress)
-		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".ipv4").
+		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4").
 			SetAddress(portsIPv4[ateid]).SetGateway(portsIPv4[dutid]).
 			SetPrefix(plen)
 	}
@@ -303,7 +303,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
-	err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.ArpEntriesPresent(t, ate.OTG(), "ipv4") }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "ARP entries ready"})
+	err := otgutils.WaitFor(t, func() bool { return otgutils.ArpEntriesPresent(t, ate.OTG(), "ipv4") }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "ARP entries ready"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -354,7 +354,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	ate.OTG().StartTraffic(t)
 	t.Logf("Traffic starting at %v for %v", time.Now(), *trafficDuration)
 	// time.Sleep(*trafficDuration)
-	otgutils.WatchPortMetrics(t, ate.OTG(), config, &otgutils.WaitForOpts{Timeout: *trafficDuration, Interval: 2 * time.Second})
+	time.Sleep(*trafficDuration)
 	t.Logf("Traffic stopping at %v", time.Now())
 	ate.OTG().StopTraffic(t)
 
@@ -362,6 +362,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	inPkts = make([]uint64, len(atePorts))
 	outPkts = make([]uint64, len(atePorts))
 
+	otgutils.PrintPortMetrics(t, ate.OTG(), config)
 	for i, ap := range atePorts {
 		for _, p := range config.Ports().Items() {
 			portMetrics := ate.OTG().Telemetry().Port(p.Name()).Get(t)
