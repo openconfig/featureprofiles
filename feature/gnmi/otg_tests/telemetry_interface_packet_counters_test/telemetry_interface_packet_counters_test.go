@@ -173,30 +173,30 @@ func TestIntfCounterUpdate(t *testing.T) {
 	config := otg.NewConfig(t)
 	config.Ports().Add().SetName(ap1.ID())
 	intf1 := config.Devices().Add().SetName(ap1.Name())
-	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".eth").
-		SetPortName(ap1.ID()).SetMac("00:00:01:01:01:01")
-	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".ipv4").
+	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").
+		SetPortName(ap1.ID()).SetMac("02:00:01:01:01:01")
+	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".IPv4").
 		SetAddress("198.51.100.1").SetGateway("198.51.100.0").
 		SetPrefix(31)
-	ip6_1 := eth1.Ipv6Addresses().Add().SetName(intf1.Name() + ".ipv6").
+	ip6_1 := eth1.Ipv6Addresses().Add().SetName(intf1.Name() + ".IPv6").
 		SetAddress("2001:DB8::2").SetGateway("2001:DB8::1").
 		SetPrefix(126)
 	config.Ports().Add().SetName(ap2.ID())
 	intf2 := config.Devices().Add().SetName(ap2.Name())
-	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".eth").
-		SetPortName(ap2.ID()).SetMac("00:00:01:02:01:01")
-	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".ipv4").
+	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").
+		SetPortName(ap2.ID()).SetMac("02:00:01:02:01:01")
+	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".IPv4").
 		SetAddress("198.51.100.3").SetGateway("198.51.100.2").
 		SetPrefix(31)
-	ip6_2 := eth2.Ipv6Addresses().Add().SetName(intf2.Name() + ".ipv6").
+	ip6_2 := eth2.Ipv6Addresses().Add().SetName(intf2.Name() + ".IPv6").
 		SetAddress("2001:DB8::6").SetGateway("2001:DB8::5").
 		SetPrefix(126)
 
 	flowipv4 := config.Flows().Add().SetName("ipv4_test_flow")
 	flowipv4.Metrics().SetEnable(true)
 	flowipv4.TxRx().Device().
-		SetTxNames([]string{intf1.Name() + ".ipv4"}).
-		SetRxNames([]string{intf2.Name() + ".ipv4"})
+		SetTxNames([]string{intf1.Name() + ".IPv4"}).
+		SetRxNames([]string{intf2.Name() + ".IPv4"})
 	flowipv4.Size().SetFixed(100)
 	flowipv4.Rate().SetPps(15)
 	e1 := flowipv4.Packet().Add().Ethernet()
@@ -208,8 +208,8 @@ func TestIntfCounterUpdate(t *testing.T) {
 	flowipv6 := config.Flows().Add().SetName("ipv6_test_flow")
 	flowipv6.Metrics().SetEnable(true)
 	flowipv6.TxRx().Device().
-		SetTxNames([]string{intf1.Name() + ".ipv6"}).
-		SetRxNames([]string{intf2.Name() + ".ipv6"})
+		SetTxNames([]string{intf1.Name() + ".IPv6"}).
+		SetRxNames([]string{intf2.Name() + ".IPv6"})
 	flowipv6.Size().SetFixed(100)
 	flowipv6.Rate().SetPps(15)
 	e2 := flowipv6.Packet().Add().Ethernet()
