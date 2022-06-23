@@ -15,7 +15,6 @@
 package telemetry_interface_packet_counters_test
 
 import (
-	"log"
 	"testing"
 	"time"
 
@@ -241,17 +240,14 @@ func TestIntfCounterUpdate(t *testing.T) {
 	t.Logf("inPkts: %v and outPkts: %v before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 
 	for _, ipType := range []string{"ipv4", "ipv6"} {
-		err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.ArpEntriesPresent(t, otg, ipType) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "ARP entries ready"})
+		err := otgutils.WaitFor(t, func() bool { return otgutils.ArpEntriesPresent(t, otg, ipType) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "ARP entries ready"})
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	otg.StartTraffic(t)
-	err := otgutils.WatchFlowMetrics(t, otg, config, &otgutils.WaitForOpts{Interval: 2 * time.Second, Timeout: 10 * time.Second})
-	if err != nil {
-		log.Println(err)
-	}
+	time.Sleep(10 * time.Second)
 	otg.StopTraffic(t)
 
 	// Check interface status is up.
@@ -273,6 +269,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 
 	// Getting the otg flow metrics
+	otgutils.PrintFlowMetrics(t, otg, config)
 	ateInPkts := map[string]uint64{}
 	ateOutPkts := map[string]uint64{}
 	for _, f := range config.Flows().Items() {
