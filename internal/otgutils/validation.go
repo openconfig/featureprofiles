@@ -2,7 +2,6 @@ package otgutils
 
 import (
 	"fmt"
-	"log"
 	"testing"
 	"time"
 
@@ -53,6 +52,12 @@ type WaitForOpts struct {
 	Timeout   time.Duration
 }
 
+// timer prints time elapsed in ms since a given start time
+func timer(t *testing.T, start time.Time, name string) {
+	elapsed := time.Since(start)
+	t.Log(name, "took", elapsed.Milliseconds(), "ms")
+}
+
 // WaitFor returns nil once the given function param returns true. It will wait and retry for the entire timeout duration
 func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
 	if opts == nil {
@@ -60,7 +65,7 @@ func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
 			Condition: "condition to be true",
 		}
 	}
-	defer timer(time.Now(), fmt.Sprintf("Waiting for %s", opts.Condition))
+	defer timer(t, time.Now(), fmt.Sprintf("Waiting for %s", opts.Condition))
 
 	if opts.Interval == 0 {
 		opts.Interval = 500 * time.Millisecond
@@ -70,7 +75,7 @@ func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
 	}
 
 	start := time.Now()
-	log.Printf("Waiting for %s ...\n", opts.Condition)
+	t.Log("Waiting for", opts.Condition)
 
 	for {
 		done, err := fn()
@@ -78,7 +83,7 @@ func WaitFor(t *testing.T, fn func() (bool, error), opts *WaitForOpts) error {
 			return (fmt.Errorf("error waiting for %s: %v", opts.Condition, err))
 		}
 		if done {
-			log.Printf("Done waiting for %s\n", opts.Condition)
+			t.Log("Done waiting for", opts.Condition)
 			return nil
 		}
 
@@ -101,7 +106,7 @@ func AllBgp4Up(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState 
 				inRoutes := int32(telePeer.GetCounters().GetInRoutes())
 				outRoutes := int32(telePeer.GetCounters().GetOutRoutes())
 				if telePeer.GetSessionState() != otgtelemetry.BgpPeer_SessionState_ESTABLISHED || outRoutes != expectedMetrics.Advertised || inRoutes != expectedMetrics.Received {
-					t.Logf(*telePeer.Name+" not up", telePeer.GetSessionState())
+					t.Log(*telePeer.Name+" not up. State is", telePeer.GetSessionState())
 					expected = false
 				}
 			}
@@ -122,7 +127,7 @@ func AllBgp6Up(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState 
 				inRoutes := int32(telePeer.GetCounters().GetInRoutes())
 				outRoutes := int32(telePeer.GetCounters().GetOutRoutes())
 				if telePeer.GetSessionState() != otgtelemetry.BgpPeer_SessionState_ESTABLISHED || outRoutes != expectedMetrics.Advertised || inRoutes != expectedMetrics.Received {
-					t.Logf(*telePeer.Name+" not up", telePeer.GetSessionState())
+					t.Log(*telePeer.Name+" not up. State is", telePeer.GetSessionState())
 					expected = false
 				}
 			}
@@ -140,7 +145,7 @@ func AllBgp4Down(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool, error
 			for _, configPeer := range ip.Peers().Items() {
 				telePeer := otg.Telemetry().BgpPeer(configPeer.Name()).Get(t)
 				if telePeer.GetSessionState() == otgtelemetry.BgpPeer_SessionState_ESTABLISHED {
-					t.Logf(*telePeer.Name+" not down", telePeer.GetSessionState())
+					t.Log(*telePeer.Name+" not down. State is", telePeer.GetSessionState())
 					expected = false
 				}
 			}
@@ -158,7 +163,7 @@ func AllBgp6Down(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) (bool, error
 			for _, configPeer := range ip.Peers().Items() {
 				telePeer := otg.Telemetry().BgpPeer(configPeer.Name()).Get(t)
 				if telePeer.GetSessionState() == otgtelemetry.BgpPeer_SessionState_ESTABLISHED {
-					t.Logf(*telePeer.Name+" not down", telePeer.GetSessionState())
+					t.Log(*telePeer.Name+" not down. State is", telePeer.GetSessionState())
 					expected = false
 				}
 			}
@@ -198,8 +203,8 @@ func ArpEntriesOk(t *testing.T, otg *ondatra.OTG, ipType string, expectedMacEntr
 		}
 	}
 
-	t.Logf("Expected Mac Entries: %v", expectedMacEntries)
-	t.Logf("OTG Mac Entries: %v", actualMacEntries)
+	t.Log("Expected Mac Entries:", expectedMacEntries)
+	t.Log("OTG Mac Entries:", actualMacEntries)
 
 	expected := true
 	expected = expectedElementsPresent(expectedMacEntries, actualMacEntries)
