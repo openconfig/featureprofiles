@@ -170,11 +170,11 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	// srcEndPoint is atePort1
 	otg := ate.OTG()
 	gwIp := inputMap[srcEndPoint].IPv4
-	err := otgutils.WaitFor(t, func() (bool, error) { return otgutils.ArpEntriesPresent(t, otg, "ipv4") }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "ARP entries ready"})
+	err := otgutils.WaitFor(t, func() bool { return otgutils.ArpEntriesPresent(t, otg, "IPv4") }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "ARP entries ready"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	dstMac := otg.Telemetry().Interface(srcEndPoint.Name + ".eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
+	dstMac := otg.Telemetry().Interface(srcEndPoint.Name + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
 	config.Flows().Clear().Items()
 	flowipv4 := config.Flows().Add().SetName("Flow")
 	flowipv4.Metrics().SetEnable(true)
@@ -194,12 +194,12 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
-	otgutils.WatchFlowMetrics(t, otg, config, &otgutils.WaitForOpts{Interval: 2 * time.Second, Timeout: trafficDuration})
+	time.Sleep(15 * time.Second)
 	t.Logf("Stop traffic")
 	otg.StopTraffic(t)
 
 	// Print Port metrics
-	otgutils.WatchPortMetrics(t, otg, config, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 1})
+	otgutils.PrintPortMetrics(t, otg, config)
 
 	// Check the flow statistics
 	for _, f := range config.Flows().Items() {
