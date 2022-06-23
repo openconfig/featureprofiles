@@ -36,7 +36,7 @@ func programmGDPMatchEntry(ctx context.Context, t *testing.T, client *p4rt_clien
 		actionType = p4_v1.Update_DELETE
 	}
 	err := client.Write(&p4_v1.WriteRequest{
-		DeviceId:   uint64(1),
+		DeviceId:   deviceID,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
 		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
 			&wbb.AclWbbIngressTableEntryInfo{

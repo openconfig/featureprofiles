@@ -111,6 +111,10 @@ func testReadRPCNonExistDeviceID(ctx context.Context, t *testing.T, args *testAr
 	// Destroy P4RT Client
 	defer teardownConnection(ctx, t, deviceID, client)
 
+	if err := setupForwardingPipeline(ctx, t, deviceID, client); err != nil {
+		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
+	}
+
 	// Programm one entry
 	programmGDPMatchEntry(ctx, t, client, false)
 	defer programmGDPMatchEntry(ctx, t, client, true)

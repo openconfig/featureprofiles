@@ -196,8 +196,8 @@ func readProgrammedEntry(ctx context.Context, t *testing.T, device_id uint64, cl
 			t.Logf("Response read done!")
 			break
 		} else if respErr != nil {
-			t.Logf("There is error when Reading response...%v", err)
-			return entities, err
+			t.Logf("There is error when Reading response...%v", respErr)
+			return entities, respErr
 		} else {
 			for _, entry := range readResp.Entities {
 				t.Logf("Read Response with entry: %v", entry)
