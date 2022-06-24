@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -335,7 +336,7 @@ func verifyPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, policy string) 
 
 // configureOTG configures the interfaces and BGP protocols on an OTG, including advertising some
 // (faked) networks over BGP.
-func configureOTG(t *testing.T, otg *ondatra.OTG, expectedRoutes int32) (gosnappi.Config, otgutils.ExpectedState) {
+func configureOTG(t *testing.T, otg *ondatra.OTG) gosnappi.Config {
 
 	config := otg.NewConfig(t)
 	srcPort := config.Ports().Add().SetName("port1")
@@ -416,21 +417,10 @@ func configureOTG(t *testing.T, otg *ondatra.OTG, expectedRoutes int32) (gosnapp
 	v6.Src().SetValue(srcIpv6.Address())
 	v6.Dst().Increment().SetStart(advertisedRoutesv6Net).SetCount(routeCount)
 
-	expected := otgutils.ExpectedState{
-		BGP4: map[string]otgutils.ExpectedBgpMetrics{
-			srcBgp4Peer.Name(): {Advertised: 0, Received: expectedRoutes},
-			dstBgp4Peer.Name(): {Advertised: routeCount, Received: 0},
-		},
-		BGP6: map[string]otgutils.ExpectedBgpMetrics{
-			srcBgp6Peer.Name(): {Advertised: 0, Received: expectedRoutes},
-			dstBgp6Peer.Name(): {Advertised: routeCount, Received: 0},
-		},
-	}
-
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
-	return config, expected
+	return config
 }
 
 // verifyTraffic confirms that every traffic flow has the expected amount of loss (0% or 100%
@@ -473,6 +463,41 @@ func sendTraffic(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 	otg.StopTraffic(t)
 }
 
+func verifyOtgBgpTelemetry(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, ipType, state string) {
+	for _, d := range c.Devices().Items() {
+		switch ipType {
+		case "IPv4":
+			for _, ip := range d.Bgp().Ipv4Interfaces().Items() {
+				for _, configPeer := range ip.Peers().Items() {
+					nbrPath := otg.Telemetry().BgpPeer(configPeer.Name())
+					_, ok := nbrPath.SessionState().Watch(t, time.Minute,
+						func(val *otgtelemetry.QualifiedE_BgpPeer_SessionState) bool {
+							return val.IsPresent() && val.Val(t).String() == state
+						}).Await(t)
+					if !ok {
+						fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
+						t.Fatal("No BGP neighbor formed")
+					}
+				}
+			}
+		case "IPv6":
+			for _, ip := range d.Bgp().Ipv6Interfaces().Items() {
+				for _, configPeer := range ip.Peers().Items() {
+					nbrPath := otg.Telemetry().BgpPeer(configPeer.Name())
+					_, ok := nbrPath.SessionState().Watch(t, time.Minute,
+						func(val *otgtelemetry.QualifiedE_BgpPeer_SessionState) bool {
+							return val.IsPresent() && val.Val(t).String() == state
+						}).Await(t)
+					if !ok {
+						fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
+						t.Fatal("No BGP neighbor formed")
+					}
+				}
+			}
+		}
+	}
+}
+
 type bgpNeighbor struct {
 	as         uint32
 	neighborip string
@@ -504,7 +529,7 @@ func TestEstablish(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	otg := ate.OTG()
-	otgConfig, otgExpected := configureOTG(t, otg, routeCount)
+	otgConfig := configureOTG(t, otg)
 	// Verify Port Status
 	t.Logf("Verifying port status")
 	verifyPortsUp(t, dut.Device)
@@ -512,15 +537,10 @@ func TestEstablish(t *testing.T) {
 	t.Logf("Check BGP parameters")
 	verifyBgpTelemetry(t, dut)
 
-	t.Logf("Check BGP sessions on OTG")
-	err := otgutils.WaitFor(t, func() bool { return otgutils.AllBGP4Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 up"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = otgutils.WaitFor(t, func() bool { return otgutils.AllBGP6Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 up"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Verify the OTG BGP state
+	t.Logf("Verify OTG BGP sessions up")
+	verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv4", "ESTABLISHED")
+	verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv6", "ESTABLISHED")
 
 	// Starting ATE Traffic and verify Traffic Flows and packet loss
 	sendTraffic(t, otg, otgConfig)
@@ -533,15 +553,12 @@ func TestEstablish(t *testing.T) {
 		// Break config with a mismatching AS number
 		dutConfPath.Replace(t, bgpCreateNbr(dutAS, badAS, defaultPolicy))
 
+		// Verify the OTG BGP state
+		t.Logf("Verify OTG BGP sessions down")
+		verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv4", "IDLE")
+		verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv6", "IDLE")
+
 		// Resend traffic
-		err := otgutils.WaitFor(t, func() bool { return otgutils.AllBGP4Down(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP4 sessions down"})
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = otgutils.WaitFor(t, func() bool { return otgutils.AllBGP6Down(t, otg, otgConfig) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "All BGP6 sessions down"})
-		if err != nil {
-			t.Fatal(err)
-		}
 		sendTraffic(t, otg, otgConfig)
 		verifyTraffic(t, ate, otgConfig, true)
 	})
@@ -605,18 +622,15 @@ func TestBGPPolicy(t *testing.T) {
 			bgp := bgpCreateNbr(dutAS, ateAS, tc.policy)
 			// Configure ATE to setup traffic.
 			otg := ate.OTG()
-			otgConfig, otgExpected := configureOTG(t, otg, int32(tc.installed))
+			otgConfig := configureOTG(t, otg)
 			dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
-			// Send and verify traffic.
 
-			err := otgutils.WaitFor(t, func() bool { return otgutils.AllBGP4Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP4 up"})
-			if err != nil {
-				t.Fatal(err)
-			}
-			err = otgutils.WaitFor(t, func() bool { return otgutils.AllBGP6Up(t, otg, otgConfig, otgExpected) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "All BGP6 up"})
-			if err != nil {
-				t.Fatal(err)
-			}
+			// Verify the OTG BGP state
+			t.Logf("Verify OTG BGP sessions up")
+			verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv4", "ESTABLISHED")
+			verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv6", "ESTABLISHED")
+
+			// Send and verify traffic.
 			sendTraffic(t, otg, otgConfig)
 			verifyTraffic(t, ate, otgConfig, tc.wantLoss)
 
