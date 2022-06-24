@@ -42,8 +42,8 @@ func TestAugmentSystem(t *testing.T) {
 			},
 		},
 	}, {
-		desc:     "With one server",
-		ntp:      New().WithServer("192.0.2.1", 1234),
+		desc:     "Add one server",
+		ntp:      New().AddServer("192.0.2.1", 1234),
 		inSystem: &fpoc.System{},
 		wantSystem: &fpoc.System{
 			Ntp: &fpoc.System_Ntp{
@@ -57,8 +57,8 @@ func TestAugmentSystem(t *testing.T) {
 			},
 		},
 	}, {
-		desc:     "With multiple servers",
-		ntp:      New().WithServer("192.0.2.1", 1234).WithServer("192.0.2.2", 1234),
+		desc:     "Add multiple servers",
+		ntp:      New().AddServer("192.0.2.1", 1234).AddServer("192.0.2.2", 1234),
 		inSystem: &fpoc.System{},
 		wantSystem: &fpoc.System{
 			Ntp: &fpoc.System_Ntp{
@@ -76,8 +76,8 @@ func TestAugmentSystem(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "With non-conflicting servers",
-		ntp:  New().WithServer("192.0.2.1", 1234),
+		desc: "Add non-conflicting servers",
+		ntp:  New().AddServer("192.0.2.1", 1234),
 		inSystem: &fpoc.System{
 			Ntp: &fpoc.System_Ntp{
 				Enabled: ygot.Bool(true),
@@ -106,7 +106,7 @@ func TestAugmentSystem(t *testing.T) {
 		},
 	}, {
 		desc:     "Add same server twice",
-		ntp:      New().WithServer("192.0.2.1", 1234).WithServer("192.0.2.1", 1234),
+		ntp:      New().AddServer("192.0.2.1", 1234).AddServer("192.0.2.1", 1234),
 		inSystem: &fpoc.System{},
 		wantSystem: &fpoc.System{
 			Ntp: &fpoc.System_Ntp{
@@ -134,7 +134,7 @@ func TestAugmentSystem(t *testing.T) {
 	}
 }
 
-// TestAugmentSystem_Errors tests the NTP augment to System errors.
+// TestAugmentSystemErrors tests the NTP augment to System errors.
 func TestAugmentSystemErrors(t *testing.T) {
 	tests := []struct {
 		desc          string
@@ -143,7 +143,7 @@ func TestAugmentSystemErrors(t *testing.T) {
 		wantErrSubStr string
 	}{{
 		desc: "System contains NTP with conflicts",
-		ntp:  New().WithServer("192.0.2.1", 1234),
+		ntp:  New().AddServer("192.0.2.1", 1234),
 		inSystem: &fpoc.System{
 			Ntp: &fpoc.System_Ntp{
 				Enabled: ygot.Bool(true),

@@ -36,8 +36,8 @@ func New() *NTP {
 	}
 }
 
-// WithServer adds a new server with address and port.
-func (n *NTP) WithServer(address string, port int) *NTP {
+// AddServer adds a new server with address and port.
+func (n *NTP) AddServer(address string, port int) *NTP {
 	n.oc.GetOrCreateServer(address).Port = ygot.Uint16(uint16(port))
 	return n
 }

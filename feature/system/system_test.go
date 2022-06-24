@@ -68,6 +68,15 @@ func TestAugmentDevice(t *testing.T) {
 			},
 		},
 	}, {
+		desc:     "System with motd-banner",
+		system:   New().WithMOTDBanner("foobar"),
+		inDevice: &fpoc.Device{},
+		wantDevice: &fpoc.Device{
+			System: &fpoc.System{
+				MotdBanner: ygot.String("foobar"),
+			},
+		},
+	}, {
 		desc:     "System with timezone-name",
 		system:   New().WithTimezoneName("foobar"),
 		inDevice: &fpoc.Device{},
@@ -79,8 +88,8 @@ func TestAugmentDevice(t *testing.T) {
 			},
 		},
 	}, {
-		desc:     "System with user-auth",
-		system:   New().WithUserAuth("user", "user-key"),
+		desc:     "Add user with ssh key",
+		system:   New().AddUserWithSSHKey("user", "user-key"),
 		inDevice: &fpoc.Device{},
 		wantDevice: &fpoc.Device{
 			System: &fpoc.System{
@@ -98,7 +107,7 @@ func TestAugmentDevice(t *testing.T) {
 		},
 	}, {
 		desc:   "System with non-conflicting users",
-		system: New().WithUserAuth("user", "user-key"),
+		system: New().AddUserWithSSHKey("user", "user-key"),
 		inDevice: &fpoc.Device{
 			System: &fpoc.System{
 				Aaa: &fpoc.System_Aaa{
@@ -133,7 +142,7 @@ func TestAugmentDevice(t *testing.T) {
 		},
 	}, {
 		desc:   "System with same user twice",
-		system: New().WithUserAuth("user", "user-key").WithUserAuth("user", "user-key"),
+		system: New().AddUserWithSSHKey("user", "user-key").AddUserWithSSHKey("user", "user-key"),
 		inDevice: &fpoc.Device{
 			System: &fpoc.System{},
 		},
@@ -153,7 +162,7 @@ func TestAugmentDevice(t *testing.T) {
 		},
 	}, {
 		desc:   "Add user when user already exists",
-		system: New().WithUserAuth("user", "user-key"),
+		system: New().AddUserWithSSHKey("user", "user-key"),
 		inDevice: &fpoc.Device{
 			System: &fpoc.System{
 				Aaa: &fpoc.System_Aaa{
@@ -196,8 +205,8 @@ func TestAugmentDevice(t *testing.T) {
 	}
 }
 
-// TestAugmentDevice_Errors tests the System augment to Device OC validation.
-func TestAugmentDevice_Errors(t *testing.T) {
+// TestAugmentDeviceErrors tests the System augment to Device OC validation.
+func TestAugmentDeviceErrors(t *testing.T) {
 	tests := []struct {
 		desc          string
 		system        *System
