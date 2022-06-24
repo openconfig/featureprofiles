@@ -6,16 +6,24 @@ Singleton L3 interface (non-LAG) is supported on DUT.
 
 ## Procedure
 
-For each port speed and breakout port configuration that need to be tested, add a new testbed configuration with the desired port types.
-*   Configure ATE port-1 connected to DUT port-1, and ATE port-2 connected to DUT port-2, with the relevant IPv4 and IPv6 addresses.
-*   Configure static MAC address to be 02:1a:WW:XX:YY:ZZ where WW:XX:YY:ZZ are the octets of IPv4.
-    *   Ensure: ARP discovers static MAC address specified when port is configured with static MAC.
-*   TODO: Validate that port speed is reported correctly and that port telemetry matches expected effective speeds.
-    *   TODO: If the port is a breakout, ensure that all breakout ports are correctly reported.
+For each port speed and breakout port configuration that need to be tested, add
+a new testbed configuration with the desired port types.
+
+*   Configure ATE port-1 connected to DUT port-1, and ATE port-2 connected to
+    DUT port-2, with the relevant IPv4 and IPv6 addresses.
+*   Configure static MAC address to be 02:1a:WW:XX:YY:ZZ where WW:XX:YY:ZZ are
+    the octets of IPv4.
+    *   Ensure: ARP discovers static MAC address specified when port is
+        configured with static MAC.
+*   TODO: Validate that port speed is reported correctly and that port telemetry
+    matches expected effective speeds.
+    *   TODO: If the port is a breakout, ensure that all breakout ports are
+        correctly reported.
 *   For IPv4 and IPv6:
     *   With traffic flow from ATE port-1 to ATE port-2, ensure:
         *   For MTUs of 1500, 5000, 9212:
-            *   Packets with size greater than the configured MTU with DF-bit set are not transmitted.
+            *   Packets with size greater than the configured MTU with DF-bit
+                set are not transmitted.
             *   Packets with size of configured MTU are received.
             *   Packets with size less than the configured MTU are received.
 
@@ -31,7 +39,7 @@ For each port speed and breakout port configuration that need to be tested, add 
 *   /interfaces/interface/ethernet/config/port-speed
 *   /interfaces/interface/ethernet/config/duplex-mode
 
-## Telemetry Parameter coverage
+Telemetry Parameter coverage
 
 *   /interfaces/interface/ethernet/state/counters/in-mac-pause-frames
 *   /interfaces/interface/ethernet/state/counters/out-mac-pause-frames
