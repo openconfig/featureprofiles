@@ -15,7 +15,7 @@ import (
 func PrintFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 	var out strings.Builder
 	out.WriteString("\nFlow Metrics\n")
-	for i := 1; i <= 110; i++ {
+	for i := 1; i <= 80; i++ {
 		out.WriteString("-")
 	}
 	out.WriteString("\n")
@@ -28,7 +28,7 @@ func PrintFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 		txRate := ygot.BinaryToFloat32(flowMetrics.GetOutFrameRate())
 		out.WriteString(fmt.Sprintf("%-25v%-15v%-15v%-15v%-15v\n", f.Name(), txPkts, rxPkts, txRate, rxRate))
 	}
-	for i := 1; i <= 110; i++ {
+	for i := 1; i <= 80; i++ {
 		out.WriteString("-")
 	}
 	out.WriteString("\n\n")
