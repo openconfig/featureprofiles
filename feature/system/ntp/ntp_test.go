@@ -135,7 +135,7 @@ func TestAugmentSystem(t *testing.T) {
 }
 
 // TestAugmentSystem_Errors tests the NTP augment to System errors.
-func TestAugmentSystem_Errors(t *testing.T) {
+func TestAugmentSystemErrors(t *testing.T) {
 	tests := []struct {
 		desc          string
 		ntp           *NTP

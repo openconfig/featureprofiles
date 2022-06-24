@@ -51,7 +51,7 @@ func (s *System) WithLoginBanner(banner string) *System {
 }
 
 // WithMotdBanner sets the motd-banner value.
-func (s *System) WithMotdBanner(banner string) *System {
+func (s *System) WithMOTDBanner(banner string) *System {
 	s.oc.MotdBanner = ygot.String(banner)
 	return s
 }
@@ -63,7 +63,7 @@ func (s *System) WithTimezoneName(name string) *System {
 }
 
 // WithUserAuth sets the SSH key for a user.
-func (s *System) WithUserAuth(username, sshkey string) *System {
+func (s *System) AddUserWithSSHKey(username, sshkey string) *System {
 	s.oc.GetOrCreateAaa().GetOrCreateAuthentication().GetOrCreateUser(username).SshKey = ygot.String(sshkey)
 	return s
 }
