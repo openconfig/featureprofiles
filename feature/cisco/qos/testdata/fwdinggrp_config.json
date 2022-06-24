@@ -1,0 +1,50 @@
+{
+    "openconfig-qos:classifiers": {
+      "classifier": [
+        {
+          "state": {
+            "name": "pmap1",
+            "type": "IPV4"
+          },
+          "name": "pmap1",
+          "terms": {
+            "term": [
+              {
+                "actions": {
+                  "state":{
+                    "target-group": "tc7"
+                  },
+                  "remark": {
+                    "state": {
+                      "set-mpls-tc": 6
+                    }
+                  }
+                },
+                "conditions": {
+                  "mpls": {
+                    "state": {
+                      "traffic-class": 5
+                    }
+                  }
+                },
+                "id": "cmap",
+                "state": {
+                  "id": "cmap"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "openconfig-qos:forwarding-groups": {
+      "forwarding-group": [
+        {
+          "name": "tc7",
+          "state": {
+            "output-queue": "tc7"
+          }
+        }
+      ]
+    }
+  }

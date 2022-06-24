@@ -191,11 +191,154 @@
             }
           ]
         }
+      },
+      {
+        "state": {
+          "name": "pmap3",
+          "type": "IPV4"
+        },
+        "name": "pmap3",
+        "terms": {
+          "term": [
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dscp": 8
+                  }
+                }
+              },
+              "conditions": {
+                "ipv4": {
+                  "state": {
+                    "dscp-set": [
+                      1
+                    ]
+                  }
+                }
+              },
+              "id": "cmap_ipv4",
+              "state": {
+                "id": "cmap_ipv4"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dscp": 16
+                  }
+                }
+              },
+              "conditions": {
+                "ipv6": {
+                  "state": {
+                    "dscp-set": [
+                      10
+                    ]
+                  }
+                }
+              },
+              "id": "cmap_ipv6",
+              "state": {
+                "id": "cmap_ipv6"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-mpls-tc": 6
+                  }
+                }
+              },
+              "conditions": {
+                "mpls": {
+                  "state": {
+                    "traffic-class": 5
+                  }
+                }
+              },
+              "id": "cmap_mpls",
+              "state": {
+                "id": "cmap_mpls"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "state": {
+          "name": "pmap1",
+          "type": "IPV4"
+        },
+        "name": "pmap1",
+        "terms": {
+          "term": [
+            {
+              "actions": {
+                "state":{
+                  "target-group": "TC7"
+                },
+                "remark": {
+                  "state": {
+                    "set-mpls-tc": 6
+                  }
+                }
+              },
+              "conditions": {
+                "mpls": {
+                  "state": {
+                    "traffic-class": 5
+                  }
+                }
+              },
+              "id": "cmap",
+              "state": {
+                "id": "cmap"
+              }
+            }
+          ]
+        }
       }
+
     ]
   },
   "openconfig-qos:interfaces": {
     "interface": [
+    {
+      "state": {
+        "interface-id": "FourHundredGigE0/0/0/0"
+      },
+      "interface-id":"FourHundredGigE0/0/0/0",
+      "input": {
+        "classifiers": {
+          "classifier": [
+            {
+              "state": {
+                "name": "pmap3",
+                "type": "IPV4"
+              },
+              "type": "IPV4"
+            },
+            {
+              "state": {
+                "name": "pmap3",
+                "type": "IPV6"
+              },
+              "type": "IPV6"
+            },
+            {
+              "state": {
+                "name": "pmap3",
+                "type": "MPLS"
+              },
+              "type": "MPLS"
+            }
+          ]
+        }
+      }
+    },
     {
       "state": {
         "interface-id": "FourHundredGigE0/0/0/1"
@@ -230,5 +373,106 @@
       }
     }
   ]
+  },
+  "openconfig-qos:queues": {
+    "queue": [
+    {
+      "name": "TC7"
+    },
+    {
+      "name": "TC6"
+    },
+    {
+      "name": "TC5"
+    },
+    {
+      "name": "TC4"
+    },
+    {
+      "name": "TC3"
+    },
+    {
+      "name": "TC2"
+    },
+    {
+      "name": "TC1"
+    }
+    ]
+  },
+  "openconfig-qos:scheduler-policies": {
+    "scheduler-policy": [{
+      "name":"eg_policy1111",
+        "schedulers": {
+          "scheduler": [{
+            "sequence": 1,
+            "state": {
+              "priority":"STRICT"
+            },
+            "inputs": {
+              "input": [
+              {
+                "id":"TC7",
+                "state": {
+                  "queue":"TC7",
+                  "weight": "7"
+                }
+              },
+              {
+                "id":"TC6",
+                "state": {
+                  "queue":"TC6",
+                  "weight": "6"
+                }
+              },
+              {
+                "id":"TC5",
+                "state": {
+                  "queue":"TC5",
+                  "weight": "5"
+                }
+              },
+              {
+                "id":"TC4",
+                "state": {
+                  "queue":"TC4",
+                  "weight": "4"
+                }
+              },
+              {
+                "id":"TC3",
+                "state": {
+                  "queue":"TC3",
+                  "weight": "3"
+                }
+              },
+              {
+                "id":"TC2",
+                "state": {
+                  "queue":"TC2",
+                  "weight": "2"
+                }
+              },
+              {
+                "id":"TC1",
+                "state": {
+                  "queue":"TC1",
+                  "weight": "1"
+                }
+              }
+              ]
+            }
+        }]
+    }
+    }] 
+  },
+  "openconfig-qos:forwarding-groups": {
+    "forwarding-group": [
+      {
+        "name": "TC7",
+        "state": {
+          "output-queue": "TC7"
+        }
+      }
+    ]
   }
 }

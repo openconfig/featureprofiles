@@ -10,23 +10,20 @@ import (
 
 var (
 	testNameInput []string = []string{
-		":",
+		"pmap9_new",
 	}
 	testTypeInput []oc.E_Input_Classifier_Type = []oc.E_Input_Classifier_Type{
-		oc.E_Input_Classifier_Type(7), //IPV6
+		oc.E_Input_Classifier_Type(1),
 	}
 )
 
 func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bc := setup.BaseConfig()
-	setup.ResetStruct(bc, []string{"Interface"})
+	setup.ResetStruct(bc, []string{"Interface", "Classifier"})
+	bcClassifier := setup.GetAnyValue(bc.Classifier)
 	bcInterface := setup.GetAnyValue(bc.Interface)
-	setup.ResetStruct(bcInterface, []string{"Input"})
-	bcInterfaceInput := bcInterface.Input
-	setup.ResetStruct(bcInterfaceInput, []string{"Classifier"})
-	bcInterfaceInputClassifier := setup.GetAnyValue(bcInterfaceInput.Classifier)
-	setup.ResetStruct(bcInterfaceInputClassifier, []string{})
-	dut.Config().Qos().Replace(t, bc)
+	dut.Config().Qos().Classifier(*bcClassifier.Name).Update(t, bcClassifier)
+	dut.Config().Qos().Interface(*bcInterface.InterfaceId).Update(t, bcInterface)
 	return bc
 }
 

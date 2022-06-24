@@ -9,19 +9,19 @@ import (
 )
 
 var (
-	testIdInput []string = []string{
-		"i",
+	testSetDscpInput []uint8 = []uint8{
+		63,
+	}
+	testSetMplsTcInput []uint8 = []uint8{
+		7,
 	}
 )
 
 func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bc := setup.BaseConfig()
 	setup.ResetStruct(bc, []string{"Classifier"})
-	bcClassifier := setup.GetAnyValue(bc.Classifier)
-	setup.ResetStruct(bcClassifier, []string{"Term"})
-	bcClassifierTerm := setup.GetAnyValue(bcClassifier.Term)
-	setup.ResetStruct(bcClassifierTerm, []string{})
-	dut.Config().Qos().Replace(t, bc)
+	dut.Config().Qos().Update(t, bc)
+	// dut.Config().Qos().Replace(t, bc)
 	return bc
 }
 

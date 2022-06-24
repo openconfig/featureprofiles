@@ -9,17 +9,19 @@ import (
 )
 
 var (
+	baseConfigPath                = "base_config_interface.json"
 	testInterfaceIdInput []string = []string{
-		"cs:",
+		"FourHundredGigE0/0/0/1",
 	}
 )
 
 func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bc := setup.BaseConfig()
-	setup.ResetStruct(bc, []string{"Interface"})
+	setup.ResetStruct(bc, []string{"Interface", "Classifier"})
+	bcClassifier := setup.GetAnyValue(bc.Classifier)
 	bcInterface := setup.GetAnyValue(bc.Interface)
-	setup.ResetStruct(bcInterface, []string{})
-	dut.Config().Qos().Replace(t, bc)
+	dut.Config().Qos().Classifier(*bcClassifier.Name).Update(t, bcClassifier)
+	dut.Config().Qos().Interface(*bcInterface.InterfaceId).Update(t, bcInterface)
 	return bc
 }
 

@@ -10,18 +10,16 @@ import (
 
 var (
 	testTypeInput []oc.E_Qos_Classifier_Type = []oc.E_Qos_Classifier_Type{
-		oc.E_Qos_Classifier_Type(3), //MPLS
+		oc.E_Qos_Classifier_Type(2),
 	}
 	testNameInput []string = []string{
-		"i",
+		"pmap_new",
 	}
 )
 
 func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bc := setup.BaseConfig()
 	setup.ResetStruct(bc, []string{"Classifier"})
-	bcClassifier := setup.GetAnyValue(bc.Classifier)
-	setup.ResetStruct(bcClassifier, []string{})
 	dut.Config().Qos().Replace(t, bc)
 	return bc
 }
