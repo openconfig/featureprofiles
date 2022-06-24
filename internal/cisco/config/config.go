@@ -294,7 +294,7 @@ const (
 	DeleteOC setOperation = iota
 	// ReplaceOC represents a SetRequest replace for an oc path.
 	ReplaceOC
-	// 	UpdateOC represents a SetRequest update for an oc path.
+	// UpdateOC represents a SetRequest update for an oc path.
 	UpdateOC
 	// UpdateCLI represents a SetRequest update for a cli text config.
 	UpdateCLI
@@ -302,7 +302,7 @@ const (
 	ReplaceCLI
 )
 
-// BatchRequest is an struct to wrap a batch set request
+// BatchSetRequest is an struct to wrap a batch set request
 type BatchSetRequest struct {
 	req *gnmi.SetRequest
 }
