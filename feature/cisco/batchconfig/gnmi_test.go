@@ -164,7 +164,6 @@ func TestBatchConfig(t *testing.T) {
 	batchSet := config.NewBatchSetRequest()
 	ctx := context.Background()
 	batchSet.Append(ctx, t, hostNamePath, ygot.String(newHostname), config.ReplaceOC)
-	//
 	batchSet.Append(ctx, t, hostNamePath, nil, config.DeleteOC)
 	batchSet.Append(ctx, t, hostNamePath, ygot.String(oldHostName), config.UpdateOC)
 	cli := fmt.Sprintf("hostname %s", newHostname)
