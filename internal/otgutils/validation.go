@@ -5,10 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
-	"github.com/openconfig/ygot/ygot"
 )
 
 // ExpectedBgpMetrics struct used for validating the fetched OTG BGP stats.
@@ -89,94 +86,6 @@ func WaitFor(t *testing.T, fn func() bool, opts *WaitForOpts) error {
 		}
 		time.Sleep(opts.Interval)
 	}
-}
-
-// AllBGP4Up returns true if all BGPv4 sessions are up and the advertised and received routes are matching the expected input.
-func AllBGP4Up(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) bool {
-	expected := true
-	for _, d := range c.Devices().Items() {
-		bgp := d.Bgp()
-		for _, ip := range bgp.Ipv4Interfaces().Items() {
-			for _, configPeer := range ip.Peers().Items() {
-				telePeer := otg.Telemetry().BgpPeer(configPeer.Name()).Get(t)
-				expectedMetrics := expectedState.BGP4[configPeer.Name()]
-				inRoutes := int32(telePeer.GetCounters().GetInRoutes())
-				outRoutes := int32(telePeer.GetCounters().GetOutRoutes())
-				if telePeer.GetSessionState() != otgtelemetry.BgpPeer_SessionState_ESTABLISHED || outRoutes != expectedMetrics.Advertised || inRoutes != expectedMetrics.Received {
-					expected = false
-				}
-			}
-		}
-	}
-	return expected
-}
-
-// AllBGP6Up returns true if all BGPv6 sessions are up and the advertised and received routes are matching the expected input.
-func AllBGP6Up(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) bool {
-	expected := true
-	for _, d := range c.Devices().Items() {
-		bgp := d.Bgp()
-		for _, ip := range bgp.Ipv6Interfaces().Items() {
-			for _, configPeer := range ip.Peers().Items() {
-				telePeer := otg.Telemetry().BgpPeer(configPeer.Name()).Get(t)
-				expectedMetrics := expectedState.BGP6[configPeer.Name()]
-				inRoutes := int32(telePeer.GetCounters().GetInRoutes())
-				outRoutes := int32(telePeer.GetCounters().GetOutRoutes())
-				if telePeer.GetSessionState() != otgtelemetry.BgpPeer_SessionState_ESTABLISHED || outRoutes != expectedMetrics.Advertised || inRoutes != expectedMetrics.Received {
-					expected = false
-				}
-			}
-		}
-	}
-	return expected
-}
-
-// AllBGP4Down returns true if all BGPv4 sessions are down.
-func AllBGP4Down(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) bool {
-	expected := true
-	for _, d := range c.Devices().Items() {
-		bgp := d.Bgp()
-		for _, ip := range bgp.Ipv4Interfaces().Items() {
-			for _, configPeer := range ip.Peers().Items() {
-				telePeer := otg.Telemetry().BgpPeer(configPeer.Name()).Get(t)
-				if telePeer.GetSessionState() == otgtelemetry.BgpPeer_SessionState_ESTABLISHED {
-					expected = false
-				}
-			}
-		}
-	}
-	return expected
-}
-
-// AllBGP6Down returns true if all BGPv6 sessions are down.
-func AllBGP6Down(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) bool {
-	expected := true
-	for _, d := range c.Devices().Items() {
-		bgp := d.Bgp()
-		for _, ip := range bgp.Ipv6Interfaces().Items() {
-			for _, configPeer := range ip.Peers().Items() {
-				telePeer := otg.Telemetry().BgpPeer(configPeer.Name()).Get(t)
-				if telePeer.GetSessionState() == otgtelemetry.BgpPeer_SessionState_ESTABLISHED {
-					expected = false
-				}
-			}
-		}
-	}
-	return expected
-}
-
-// FlowMetricsOk returns true if all the expected flow stats are verified.
-func FlowMetricsOk(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, expectedState ExpectedState) bool {
-	expected := true
-	for _, f := range c.Flows().Items() {
-		flowMetrics := otg.Telemetry().Flow(f.Name()).Get(t)
-		expectedMetrics := expectedState.Flow[f.Name()]
-		if int64(*flowMetrics.Counters.InPkts) != expectedMetrics.FramesRx || ygot.BinaryToFloat32(flowMetrics.GetInFrameRate()) != expectedMetrics.FramesRxRate {
-			expected = false
-
-		}
-	}
-	return expected
 }
 
 // ArpEntriesOk returns true if all the expected mac entries are verified.
