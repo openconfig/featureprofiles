@@ -195,21 +195,32 @@ const (
 	ReplaceCLI
 )
 
-type batchSetRequest struct {
+// BatchRequest is an struct to wrap a batch set request
+type BatchSetRequest struct {
 	req *gpb.SetRequest
 }
 
-type batchRequest interface {
+// BatchRequest unifies the batch request for set and get
+type BatchRequest interface {
 	Send(ctx context.Context, t *testing.T, path *gpb.Path, val interface{}, op setOperation) error
 	Append(ctx context.Context, t *testing.T, path *gpb.Path, val interface{}, op setOperation) error
+	Reset(t *testing.T)
 }
 
-func NewBatchSetRequest() *batchSetRequest {
-	return &batchSetRequest{
+// NewBatchSetRequest initialize a batch rset request
+func NewBatchSetRequest() *BatchSetRequest {
+	return &BatchSetRequest{
 		req: &gpb.SetRequest{},
 	}
 }
-func (batch *batchSetRequest) Append(ctx context.Context, t *testing.T, pathStruct ygot.PathStruct, val interface{}, op setOperation) {
+
+// Reset the batch request
+func (batch *BatchSetRequest) Reset(t *testing.T) {
+	batch.req.Reset()
+}
+
+// Append add a GNMI Update/Delete/Replace request to a batch request
+func (batch *BatchSetRequest) Append(ctx context.Context, t *testing.T, pathStruct ygot.PathStruct, val interface{}, op setOperation) {
 	t.Helper()
 	if op != DeleteOC && val == nil {
 		t.Fatalf("Cannot append a nil value to the batch set request")
@@ -237,19 +248,17 @@ func (batch *batchSetRequest) Append(ctx context.Context, t *testing.T, pathStru
 				},
 			},
 		}
-
-		if op == ReplaceOC {
+		if op == ReplaceCLI {
 			batch.req.Replace = append(batch.req.Replace, textReplaceReq)
 		} else {
 			batch.req.Update = append(batch.req.Update, textReplaceReq)
 		}
 	case ReplaceOC, UpdateOC:
 		path, _, errs := ygot.ResolvePath(pathStruct)
+		path.Origin = "openconfig"
 		if errs != nil {
 			t.Fatalf("Could not resolve the path; %v", errs)
 		}
-		// Since the GoStructs are generated using preferOperationalState, we
-		// need to turn on preferShadowPath to prefer marshalling config paths.
 		js, err := ygot.Marshal7951(val, ygot.JSONIndent("  "), &ygot.RFC7951JSONConfig{AppendModuleName: true, PreferShadowPath: true})
 		if err != nil {
 			t.Fatalf("Could not encode value into JSON format: %v", err)
@@ -271,51 +280,21 @@ func (batch *batchSetRequest) Append(ctx context.Context, t *testing.T, pathStru
 	}
 }
 
-// GNMICommitReplaceWithOC apply the oc config and text config on the device. The result expected to be the merge of both configuations
-func GNMIBatchSet(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, pathStruct ygot.PathStruct, ocVal interface{}) *gpb.SetResponse {
+// Send sends the batchset request  using GNMI. The batch request is mix of cli update replace  and oc replace, oc update, and oc delete.
+func (batch *BatchSetRequest) Send(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) *gpb.SetResponse {
 	t.Helper()
 	gnmiC := dut.RawAPIs().GNMI().New(t)
-	textReplaceReq := &gpb.Update{
-		Path: &gpb.Path{Origin: "cli"},
-		Val: &gpb.TypedValue{
-			Value: &gpb.TypedValue_AsciiVal{
-				AsciiVal: cfg,
-			},
-		},
-	}
-	path, _, errs := ygot.ResolvePath(pathStruct)
-	path.Target = ""
-	//path.Origin = "openconfig"
-	if errs != nil {
-		t.Fatalf("Could not resolve the path; %v", errs)
-	}
-
-	ocJSONVal, err := ygot.Marshal7951(ocVal, ygot.JSONIndent("  "), &ygot.RFC7951JSONConfig{AppendModuleName: true, PreferShadowPath: true})
-	if err != nil {
-		t.Fatalf("Could not encode value (ocVal) into JSON format; %v", err)
-	}
-	ocReplaceReq := &gpb.Update{
-		Path: path,
-		Val: &gpb.TypedValue{
-			Value: &gpb.TypedValue_JsonIetfVal{
-				JsonIetfVal: ocJSONVal,
-			},
-		},
-	}
-
-	setRequest := &gpb.SetRequest{
-		Replace: []*gpb.Update{textReplaceReq, ocReplaceReq},
-	}
-	log.V(1).Info(prettySetRequest(setRequest))
+	log.V(1).Infof("BatchSet Request: \n", prettySetRequest(batch.req))
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
-		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*180)
 		ctx = tmpCtx
 		defer cncl()
 	}
-	resp, err := gnmiC.Set(ctx, setRequest)
+	resp, err := gnmiC.Set(ctx, batch.req)
 	if err != nil {
 		t.Fatalf("GNMI replace is failed; %v", err)
 	}
+	log.V(1).Infof("BatchSet Reply: \n %s", prototext.Format(resp))
 	return resp
 }
 
