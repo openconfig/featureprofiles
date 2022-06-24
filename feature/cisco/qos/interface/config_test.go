@@ -17,12 +17,7 @@ func TestMain(m *testing.M) {
 func TestInterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	baseConfig := setup.BaseConfig()
-	setup.ResetStruct(baseConfig, []string{"Classifier", "Interface"})
-
-	baseConfigClassifier := setup.GetAnyValue(baseConfig.Classifier)
-	dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Update(t, baseConfigClassifier)
-
+	baseConfig := setupQos(t, dut)
 	defer teardownQos(t, dut, baseConfig)
 
 	baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)

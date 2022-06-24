@@ -3,83 +3,10 @@
       "classifier": [
         {
           "state": {
-            "name": "oc_p999"
+            "name": "pmap9",
+            "type": "IPV4"
           },
-          "name": "oc_p999",
-          "terms": {
-            "term": [
-              {
-                "actions": {
-                  "remark": {
-                    "state": {
-                      "set-dscp": 8
-                    }
-                  }
-                },
-                "conditions": {
-                  "ipv4": {
-                    "state": {
-                      "dscp-set": [
-                        1
-                      ]
-                    }
-                  }
-                },
-                "id": "oc_c999",
-                "state": {
-                  "id": "oc_c999"
-                }
-              },
-              {
-                "actions": {
-                  "remark": {
-                    "state": {
-                      "set-dscp": 16
-                    }
-                  }
-                },
-                "conditions": {
-                  "ipv6": {
-                    "state": {
-                      "dscp-set": [
-                        10
-                      ]
-                    }
-                  }
-                },
-                "id": "oc_c888",
-                "state": {
-                  "id": "oc_c888"
-                }
-              },
-              {
-                "actions": {
-                  "remark": {
-                    "state": {
-                      "set-mpls-tc": 6
-                    }
-                  }
-                },
-                "conditions": {
-                  "mpls": {
-                    "state": {
-                      "traffic-class": 5
-                    }
-                  }
-                },
-                "id": "oc_c777",
-                "state": {
-                  "id": "oc_c777"
-                }
-              }
-            ]
-          }
-        },
-        {
-          "state": {
-            "name": "pmap"
-          },
-          "name": "pmap",
+          "name": "pmap9",
           "terms": {
             "term": [
               {
@@ -271,39 +198,6 @@
       "interface": [
       {
         "state": {
-          "interface-id": "FourHundredGigE0/0/0/0"
-        },
-        "interface-id":"FourHundredGigE0/0/0/0",
-        "input": {
-          "classifiers": {
-            "classifier": [
-              {
-                "state": {
-                  "name": "oc_p999",
-                  "type": "IPV4"
-                },
-                "type": "IPV4"
-              },
-              {
-                "state": {
-                  "name": "oc_p999",
-                  "type": "IPV6"
-                },
-                "type": "IPV6"
-              },
-              {
-                "state": {
-                  "name": "oc_p999",
-                  "type": "MPLS"
-                },
-                "type": "MPLS"
-              }
-            ]
-          }
-        }
-      },
-      {
-        "state": {
           "interface-id": "FourHundredGigE0/0/0/1"
         },
         "interface-id":"FourHundredGigE0/0/0/1",
@@ -312,21 +206,21 @@
             "classifier": [
               {
                 "state": {
-                  "name": "pmap",
+                  "name": "pmap9",
                   "type": "IPV4"
                 },
                 "type": "IPV4"
               },
               {
                 "state": {
-                  "name": "pmap",
+                  "name": "pmap9",
                   "type": "IPV6"
                 },
                 "type": "IPV6"
               },
               {
                 "state": {
-                  "name": "pmap",
+                  "name": "pmap9",
                   "type": "MPLS"
                 },
                 "type": "MPLS"
@@ -336,5 +230,5 @@
         }
       }
     ]
-  }
+    }
   }

@@ -3,6 +3,80 @@
     "classifier": [
       {
         "state": {
+          "name": "pmap3"
+        },
+        "name": "pmap3",
+        "terms": {
+          "term": [
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dscp": 8
+                  }
+                }
+              },
+              "conditions": {
+                "ipv4": {
+                  "state": {
+                    "dscp-set": [
+                      1
+                    ]
+                  }
+                }
+              },
+              "id": "cmap_ipv4",
+              "state": {
+                "id": "cmap_ipv4"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dscp": 16
+                  }
+                }
+              },
+              "conditions": {
+                "ipv6": {
+                  "state": {
+                    "dscp-set": [
+                      10
+                    ]
+                  }
+                }
+              },
+              "id": "cmap_ipv6",
+              "state": {
+                "id": "cmap_ipv6"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-mpls-tc": 6
+                  }
+                }
+              },
+              "conditions": {
+                "mpls": {
+                  "state": {
+                    "traffic-class": 5
+                  }
+                }
+              },
+              "id": "cmap_mpls",
+              "state": {
+                "id": "cmap_mpls"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "state": {
           "name": "pmap9",
           "type": "IPV4"
         },

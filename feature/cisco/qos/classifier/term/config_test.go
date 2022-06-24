@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
+	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
@@ -62,7 +62,6 @@ func TestTerm(t *testing.T) {
 }
 
 func TestDeleteMultipleCmaps(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	var baseConfig *oc.Qos = setupQos(t, dut)

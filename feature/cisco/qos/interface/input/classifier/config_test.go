@@ -18,6 +18,7 @@ func TestMain(m *testing.M) {
 // The expectation from XR side is the set request is applied on all the 3 types,
 // which means either ondatra should allow multiple input types or not take type as input.
 func TestInterfaceInputClassifier(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupQos(t, dut)
