@@ -132,7 +132,7 @@ func ValueOrNil(t testing.TB, pth ygot.PathStruct, want interface{}) {
 // a number.
 func NonZero(t testing.TB, pth ygot.PathStruct) {
 	t.Helper()
-	AssertPredicate(t, pth, "!=0", func(got interface{}) bool {
+	Predicate(t, pth, "!=0", func(got interface{}) bool {
 		switch v := reflect.ValueOf(got); v.Kind() {
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			return v.Uint() != 0
@@ -149,5 +149,5 @@ func NonZero(t testing.TB, pth ygot.PathStruct) {
 // Present calls Errorf if the value at a given path is missing.
 func Present(t testing.TB, pth ygot.PathStruct) {
 	t.Helper()
-	AssertPredicate(t, pth, "any value", func(interface{}) bool { return true })
+	Predicate(t, pth, "any value", func(interface{}) bool { return true })
 }
