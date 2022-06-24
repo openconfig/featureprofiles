@@ -185,7 +185,7 @@ var (
 	}
 )
 
-//getL3PBRRule returns an IPv4 or IPv6 policy-forwarding rule configuration populated with protocol and/or DSCPset information.
+// getL3PBRRule returns an IPv4 or IPv6 policy-forwarding rule configuration populated with protocol and/or DSCPset information.
 func getL3PBRRule(networkInstance, iptype string, index uint32, protocol telemetry.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) *telemetry.NetworkInstance_PolicyForwarding_Policy_Rule {
 
 	r := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
@@ -211,6 +211,7 @@ func getL3PBRRule(networkInstance, iptype string, index uint32, protocol telemet
 	return &r
 }
 
+// configurePBR creates policy in network instance default
 func configurePBR(t *testing.T, dut *ondatra.DUTDevice, policyName, networkInstance, iptype string, index uint32, protocol telemetry.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
 
 	r1 := getL3PBRRule(networkInstance, iptype, index, protocol, dscpset)
@@ -221,6 +222,7 @@ func configurePBR(t *testing.T, dut *ondatra.DUTDevice, policyName, networkInsta
 	dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &pf)
 }
 
+// configurePbrDUT assigns policy to the source interface
 func configurePbrDUT(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, source_port string) {
 
 	port := dut.Port(t, source_port)
@@ -265,6 +267,7 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 	return i
 }
 
+// interfaceaction shuts/unshuts provided interface
 func (a *testArgs) interfaceaction(t *testing.T, port string, action bool) {
 	// ateP := a.ate.Port(t, port)
 	dutP := a.dut.Port(t, port)
@@ -394,6 +397,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
+// addAteISISL2 configures ISIS L2 ATE config
 func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, network_name string, metric uint32, v4prefix string, count uint32) {
 
 	intfs := topo.Interfaces()
@@ -409,6 +413,7 @@ func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, netw
 	intfs[atePort].ISIS().WithAreaID(areaId).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
 }
 
+// addAteEBGPPeer configures EBGP ATE config
 func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddress string, localAsn uint32, network_name, nexthop, prefix string, count uint32, useLoopback bool) {
 
 	intfs := topo.Interfaces()
@@ -435,6 +440,7 @@ func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddres
 	bgpPeer.Capabilities().WithIPv4UnicastEnabled(true).WithIPv6UnicastEnabled(true).WithGracefulRestart(true)
 }
 
+// addPrototoAte calls ISIS/BGP api
 func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 
 	// addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+dstPfxMask, uint32(innerdstPfxCount_isis))
@@ -464,6 +470,7 @@ func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEn
 	return flow
 }
 
+// validateTrafficFlows validates traffic loss on tgn side and DUT incoming and outgoing counters
 func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, drop bool, s_port string, d_port []string) {
 	src_port := a.dut.Telemetry().Interface(a.dut.Port(t, s_port).Name())
 	subintf1 := src_port.Subinterface(0)
@@ -531,9 +538,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 	}
 }
 
-// testTraffic generates traffic flow from source network to
-// destination network via srcEndPoint to dstEndPoint and checks for
-// packet loss.
+// testTraffic generates traffic flow from source network to destination network via srcEndPoint to dstEndPoint
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, dstEndPoint []ondatra.Endpoint, drop bool) {
 	ethHeader := ondatra.NewEthernetHeader()
 	// ethHeader.WithSrcAddress("00:11:01:00:00:01")
@@ -587,9 +592,7 @@ type testArgs struct {
 
 func testBackupNHOPCase1(ctx context.Context, t *testing.T, args *testArgs) {
 
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
-
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -600,33 +603,28 @@ func testBackupNHOPCase1(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	// LEVEL 2
-
-	// Creating a backup NHG with ID 101 (bkhgIndex_2), dropping
-	// NH ID 10 (nhbIndex_2_1)
-
+	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
 	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 
-	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
-	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
-	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
+	// Creating NHG ID 100 using backup NHG ID 101
+	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
+	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
 	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
 	// LEVEL 1
-	// VIP1: NHG ID 1000 (nhgIndex_1_1)
-	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
-	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
-	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
-	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
-	// VIP2: NHG ID 2000 (nhgIndex_1_2)
-	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
-	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
-	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
-
+	// VIP1: NHG ID 1000
+	//		- PATH1 NH ID 1000, weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100, weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200, weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300, weight  5, outgoing Port5
+	// VIP2: NHG ID 2000
+	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
 	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
@@ -690,9 +688,7 @@ func testBackupNHOPCase1(ctx context.Context, t *testing.T, args *testArgs) {
 
 func testBackupNHOPCase2(ctx context.Context, t *testing.T, args *testArgs) {
 
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
-
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -703,33 +699,28 @@ func testBackupNHOPCase2(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	// LEVEL 2
-
-	// Creating a backup NHG with ID 101 (bkhgIndex_2), dropping
-	// NH ID 10 (nhbIndex_2_1)
-
+	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
 	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 
-	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
-	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
-	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
+	// Creating NHG ID 100 using backup NHG ID 101
+	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
+	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
 	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
 	// LEVEL 1
-	// VIP1: NHG ID 1000 (nhgIndex_1_1)
-	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
-	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
-	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
-	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
-	// VIP2: NHG ID 2000 (nhgIndex_1_2)
-	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
-	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
-	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
-
+	// VIP1: NHG ID 1000
+	//		- PATH1 NH ID 1000, weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100, weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200, weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300, weight  5, outgoing Port5
+	// VIP2: NHG ID 2000
+	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
 	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
@@ -783,9 +774,7 @@ func testBackupNHOPCase2(ctx context.Context, t *testing.T, args *testArgs) {
 
 func testBackupNHOPCase3(ctx context.Context, t *testing.T, args *testArgs) {
 
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
-
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -796,33 +785,28 @@ func testBackupNHOPCase3(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	// LEVEL 2
-
-	// Creating a backup NHG with ID 101 (bkhgIndex_2), dropping
-	// NH ID 10 (nhbIndex_2_1)
-
+	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
 	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 
-	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
-	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
-	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
+	// Creating NHG ID 100 using backup NHG ID 101
+	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
+	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
 	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
 	// LEVEL 1
-	// VIP1: NHG ID 1000 (nhgIndex_1_1)
-	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
-	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
-	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
-	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
-	// VIP2: NHG ID 2000 (nhgIndex_1_2)
-	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
-	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
-	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
-
+	// VIP1: NHG ID 1000
+	//		- PATH1 NH ID 1000, weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100, weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200, weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300, weight  5, outgoing Port5
+	// VIP2: NHG ID 2000
+	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
 	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
@@ -890,9 +874,7 @@ func testBackupNHOPCase3(ctx context.Context, t *testing.T, args *testArgs) {
 
 func testBackupNHOPCase4(ctx context.Context, t *testing.T, args *testArgs) {
 
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
-
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -903,33 +885,28 @@ func testBackupNHOPCase4(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	// LEVEL 2
-
-	// Creating a backup NHG with ID 101 (bkhgIndex_2), dropping
-	// NH ID 10 (nhbIndex_2_1)
-
+	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
 	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 
-	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
-	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
-	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
+	// Creating NHG ID 100 using backup NHG ID 101
+	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
+	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
 	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
 	// LEVEL 1
-	// VIP1: NHG ID 1000 (nhgIndex_1_1)
-	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
-	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
-	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
-	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
-	// VIP2: NHG ID 2000 (nhgIndex_1_2)
-	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
-	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
-	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
-
+	// VIP1: NHG ID 1000
+	//		- PATH1 NH ID 1000, weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100, weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200, weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300, weight  5, outgoing Port5
+	// VIP2: NHG ID 2000
+	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
 	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
@@ -988,13 +965,11 @@ func testBackupNHOPCase4(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Log("remvoing default route 0.0.0.0/0 as well pointing to a Valid NHOP ")
 	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
 	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
-
 }
 
 func testBackupNHOPCase5(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -1005,34 +980,28 @@ func testBackupNHOPCase5(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	// LEVEL 2
-
-	// Creating a backup NHG with ID 101 (bkhgIndex_2)
-	// NH ID 10 (nhbIndex_2_1)
-
+	// Creating a backup NHG with ID 101 and NH ID 10 pointing to decap
 	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 
-	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
-	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
-	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
+	// Creating NHG ID 100 using backup NHG ID 101
+	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
+	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
 	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
 	// LEVEL 1
-
-	// VIP1: NHG ID 1000 (nhgIndex_1_1)
-	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
-	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
-	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
-	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
-	// VIP2: NHG ID 2000 (nhgIndex_1_2)
-	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
-	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
-	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
-
+	// VIP1: NHG ID 1000
+	//		- PATH1 NH ID 1000, weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100, weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200, weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300, weight  5, outgoing Port5
+	// VIP2: NHG ID 2000
+	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
 	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
@@ -1095,9 +1064,8 @@ func testBackupNHOPCase5(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -1122,10 +1090,7 @@ func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
 	flows = append(flows, bgp_flow, isis_flow)
 
 	// LEVEL 2
-
-	// Creating a backup NHG with ID 101 (bkhgIndex_2)
-	// NH ID 10 (nhbIndex_2_1)
-
+	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a decap
 	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 101, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
@@ -1161,34 +1126,28 @@ func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
 	args.interfaceaction(t, "port7", true)
 
 	// LEVEL 2
-
-	// Creating a backup NHG with ID 101 (bkhgIndex_2)
-	// NH ID 10 (nhbIndex_2_1)
-
+	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a decap
 	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 
-	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
-	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
-	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
+	// Creating NHG ID 100 using backup NHG ID 101
+	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
+	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
 	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
 	// LEVEL 1
-
-	// VIP1: NHG ID 1000 (nhgIndex_1_1)
-	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
-	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
-	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
-	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
-	// VIP2: NHG ID 2000 (nhgIndex_1_2)
-	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
-	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
-	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
-
+	// VIP1: NHG ID 1000
+	//		- PATH1 NH ID 1000, weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100, weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200, weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300, weight  5, outgoing Port5
+	// VIP2: NHG ID 2000
+	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
 	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
@@ -1235,9 +1194,8 @@ func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testBackupNHOPCase7(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -1248,34 +1206,28 @@ func testBackupNHOPCase7(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	// LEVEL 2
-
-	// Creating a backup NHG with ID 101 (bkhgIndex_2), dropping
-	// NH ID 10 (nhbIndex_2_1)
-
+	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
 	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 
-	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
-	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
-	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
+	// Creating NHG ID 100 using backup NHG ID 101
+	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
+	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
 	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
 	// LEVEL 1
-
-	// VIP1: NHG ID 1000 (nhgIndex_1_1)
-	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
-	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
-	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
-	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
-	// VIP2: NHG ID 2000 (nhgIndex_1_2)
-	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
-	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
-	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
-
+	// VIP1: NHG ID 1000
+	//		- PATH1 NH ID 1000, weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100, weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200, weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300, weight  5, outgoing Port5
+	// VIP2: NHG ID 2000
+	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
 	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
@@ -1342,9 +1294,8 @@ func testBackupNHOPCase7(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testBackupNHOPCase8(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -1355,9 +1306,7 @@ func testBackupNHOPCase8(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	// LEVEL 2
-
-	// Creating a backup NHG with ID 101 (bkhgIndex_2), pointing to vrf Repair
-	// NH ID 10 (nhbIndex_2_1)
+	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a decap
 	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 201, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
@@ -1371,17 +1320,15 @@ func testBackupNHOPCase8(ctx context.Context, t *testing.T, args *testArgs) {
 	args.clientA.IPv4(t, dstPfx, dstPfx, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
 	// LEVEL 1
-
-	// VIP1: NHG ID 1000 (nhgIndex_1_1)
-	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
-	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
-	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
-	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
-	// VIP2: NHG ID 2000 (nhgIndex_1_2)
-	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
-	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
-	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
-
+	// VIP1: NHG ID 1000
+	//		- PATH1 NH ID 1000, weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100, weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200, weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300, weight  5, outgoing Port5
+	// VIP2: NHG ID 2000
+	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
 	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
@@ -1420,9 +1367,8 @@ func testBackupNHOPCase8(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testBackupNHOPCase9(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -1433,34 +1379,28 @@ func testBackupNHOPCase9(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	// LEVEL 2
-
-	// Creating a backup NHG with ID 101 (bkhgIndex_2)
-	// NH ID 10 (nhbIndex_2_1)
-
+	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a decap
 	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 
-	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
-	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
-	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
+	// Creating NHG ID 100 using backup NHG ID 101
+	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
+	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
 	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
 	// LEVEL 1
-
-	// VIP1: NHG ID 1000 (nhgIndex_1_1)
-	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
-	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
-	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
-	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
-	// VIP2: NHG ID 2000 (nhgIndex_1_2)
-	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
-	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
-	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
-
+	// VIP1: NHG ID 1000
+	//		- PATH1 NH ID 1000, weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100, weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200, weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300, weight  5, outgoing Port5
+	// VIP2: NHG ID 2000
+	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
 	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
@@ -1479,9 +1419,8 @@ func testBackupNHOPCase9(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testBackupNHOPCase10(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -1499,8 +1438,7 @@ func testBackupNHOPCase10(ctx context.Context, t *testing.T, args *testArgs) {
 	config.TextWithGNMI(args.ctx, t, args.dut, "arp 198.51.100.1  0012.0100.0001 arpa")
 
 	// LEVEL 2
-	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
-
+	// Creating NHG ID 100 using backup NHG ID 101
 	args.clientA.NH(t, 10, atePort8.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 
@@ -1561,9 +1499,8 @@ func testBackupNHOPCase10(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testBackupNHOPCase11(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -1581,8 +1518,7 @@ func testBackupNHOPCase11(ctx context.Context, t *testing.T, args *testArgs) {
 	config.TextWithGNMI(args.ctx, t, args.dut, "arp 198.51.100.1  0012.0100.0001 arpa")
 
 	// LEVEL 2
-	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
-
+	// Creating NHG ID 100 using backup NHG ID 101
 	args.clientA.NH(t, 10, atePort8.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 
@@ -1620,9 +1556,8 @@ func testBackupNHOPCase11(ctx context.Context, t *testing.T, args *testArgs) {
  * links are Up. The traffic shouldnt be impacted
  */
 func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -1633,34 +1568,28 @@ func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArg
 	}
 
 	// LEVEL 2
-
-	// Creating a backup NHG with ID 101 (bkhgIndex_2)
-	// NH ID 10 (nhbIndex_2_1)
-
+	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a decap
 	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 
-	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
-	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
-	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
+	// Creating NHG ID 100 using backup NHG ID 101
+	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
+	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
 	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
 	// LEVEL 1
-
-	// VIP1: NHG ID 1000 (nhgIndex_1_1)
-	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
-	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
-	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
-	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
-	// VIP2: NHG ID 2000 (nhgIndex_1_2)
-	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
-	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
-	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
-
+	// VIP1: NHG ID 1000
+	//		- PATH1 NH ID 1000, weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100, weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200, weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300, weight  5, outgoing Port5
+	// VIP2: NHG ID 2000
+	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
 	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
@@ -1697,9 +1626,8 @@ func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArg
  * down. Traffic should start taking the backup path
  */
 func testIPv4BackUpAddBkNHG(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -1784,9 +1712,8 @@ func testIPv4BackUpAddBkNHG(ctx context.Context, t *testing.T, args *testArgs) {
  * should be recovered during Re-Add
  */
 func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -1872,9 +1799,8 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 }
 
 func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -1957,9 +1883,8 @@ func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) 
  * Packets should be dropped
  */
 func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -2051,9 +1976,8 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
  * Packets should take the backup path
  */
 func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -2144,9 +2068,8 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
  * Packets should be forwarded after decapped
  */
 func testIPv4BackUpModifyDecapNHG(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -2230,9 +2153,8 @@ func testIPv4BackUpModifyDecapNHG(ctx context.Context, t *testing.T, args *testA
 }
 
 func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -2354,9 +2276,8 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 }
 
 func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -2478,9 +2399,8 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 }
 
 func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -2564,9 +2484,8 @@ func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs
 }
 
 func testIPv4MultipleNHG(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -2675,9 +2594,8 @@ func testIPv4MultipleNHG(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
-	// ensure that the entry is active through AFT telemetry and traffic.
 
+	// Elect ClientA as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.clientA.BecomeLeader(t)
 	if _, err := args.clientA.Fluent(t).Flush().
@@ -2744,7 +2662,7 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 		args.interfaceaction(t, intf, false)
 	}
 	// BGP /ISIS peer is in port 8. So flap port 8
-        util.ReloadDUT(t, args.dut)
+	util.ReloadDUT(t, args.dut)
 	// validate traffic passing successfulling via primary Site 2
 	time.Sleep(time.Minute)
 
