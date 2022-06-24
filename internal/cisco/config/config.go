@@ -11,11 +11,87 @@ import (
 	"time"
 
 	log "github.com/golang/glog"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnmi/proto/gnmi"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/protobuf/encoding/prototext"
 )
+
+// Reload excure the hw-module reload on the router. It aslo apply the configs before and after the reload.
+// The reload  will fail if the router is not responsive after max wait time.
+// Part of this code copied from ondtara
+func Reload(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, beforeReloadConfig, afterReloadConfig string, maxTimeout time.Duration) {
+	t.Logf("Realoding router %s", dut.Name())
+	if beforeReloadConfig != "" {
+		TextWithGNMI(ctx, t, dut, beforeReloadConfig)
+		t.Logf("The configuration %s \n is loaded correctly before reloading router %s", beforeReloadConfig, dut.Name())
+	}
+
+	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
+	}
+	_, err := gnoiClient.System().Reboot(ctx, &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Delay:   0,
+		Message: "Reboot chassis without delay",
+		Force:   true,
+	})
+	if err != nil {
+		t.Fatalf("Reboot is failed %v", err)
+	}
+
+	time.Sleep(maxTimeout)
+
+	/*ctx, cncl := context.WithTimeout(context.Background(), time.Second*60)
+	defer cncl()
+	gnoiClient = dut.RawAPIs().GNOI().New(t) // new gno client can not be opended unless the reboot is finished*/
+
+	/*rebootTimeout := maxTimeout
+	switch {
+	case rebootTimeout == 0:
+		rebootTimeout = 6 * time.Minute
+	case rebootTimeout < 0:
+		t.Fatalf("reboot timeout must be a positive duration")
+	}
+	rebootDeadline := time.Now().Add(rebootTimeout)
+	retry := true
+	for retry {
+		if time.Now().After(rebootDeadline) {
+			retry = false
+			break
+		}
+		resp, err := gnoiClient.System().RebootStatus(ctx, &spb.RebootStatusRequest{})
+		switch {
+		case status.Code(err) == codes.Unimplemented:
+			// Unimplemented means we don't have a valid way
+			// to validate health of reboot.
+			t.Fatalf("Can not get the reboot status of dut %s", dut.Name())
+		case err == nil:
+			if !resp.GetActive() {
+				t.Fatalf("Reboot failed for dut  %s", dut.Name())
+			}
+		default:
+			// any other error just sleep.
+		}
+		statusWait := time.Duration(resp.GetWait()) * time.Nanosecond
+		if statusWait <= 0 {
+			statusWait = 30 * time.Second
+		}
+		time.Sleep(statusWait)
+	}
+	t.Fatalf("reboot of %s timed out after %s", dut.Name(), maxTimeout)
+	*/
+	// TODO: use select and channel to detect when the router reload is complete
+
+	if afterReloadConfig != "" {
+		TextWithGNMI(ctx, t, dut, afterReloadConfig)
+		t.Logf("The configuration %s \n is loaded correctly after reloading router %s", beforeReloadConfig, dut.Name())
+	}
+}
 
 // TextWithSSH applies the cli confguration via ssh on the device
 func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) string {
@@ -76,20 +152,51 @@ func checkCLIConfigIsApplied(output string) bool {
 	return false
 }
 
-// TextWithGNMI apply the cfg  (cisco text config)  on the device using gnmi update.
-func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) *gpb.SetResponse {
+// CMDViaGNMI push cli command to cisco router using GNMI, (have not tested well)
+func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
+	gnmiC := dut.RawAPIs().GNMI().New(t)
+	getRequest := &gnmi.GetRequest{
+		Prefix: &gnmi.Path{
+			Origin: "cli",
+		},
+		Path: []*gnmi.Path{
+			{
+				Elem: []*gnmi.PathElem{{
+					Name: cmd,
+				}},
+			},
+		},
+		Encoding: gnmi.Encoding_ASCII,
+	}
+	log.V(1).Infof("get cli (%s) via GNMI: \n %s", cmd, prototext.Format(getRequest))
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
+	}
+	resp, err := gnmiC.Get(ctx, getRequest)
+	if err != nil {
+		t.Fatalf("running cmd (%s) via GNMI is failed: %v", cmd, err)
+	}
+	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(resp))
+	return string(resp.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
+
+}
+
+// TextWithGNMI applies the cfg  (cisco text config)  on the device using gnmi update.
+func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) *gnmi.SetResponse {
 	t.Helper()
 	gnmiC := dut.RawAPIs().GNMI().New(t)
-	textReplaceReq := &gpb.Update{
-		Path: &gpb.Path{Origin: "cli"},
-		Val: &gpb.TypedValue{
-			Value: &gpb.TypedValue_AsciiVal{
+	textReplaceReq := &gnmi.Update{
+		Path: &gnmi.Path{Origin: "cli"},
+		Val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_AsciiVal{
 				AsciiVal: cfg,
 			},
 		},
 	}
-	setRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{textReplaceReq},
+	setRequest := &gnmi.SetRequest{
+		Update: []*gnmi.Update{textReplaceReq},
 	}
 	log.V(1).Info(prettySetRequest(setRequest))
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
@@ -105,19 +212,19 @@ func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg
 }
 
 // GNMICommitReplace replace the router config with the cfg  (cisco text config)  on the device using gnmi replace.
-func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) *gpb.SetResponse {
+func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) *gnmi.SetResponse {
 	t.Helper()
 	gnmiC := dut.RawAPIs().GNMI().New(t)
-	textReplaceReq := &gpb.Update{
-		Path: &gpb.Path{Origin: "cli"},
-		Val: &gpb.TypedValue{
-			Value: &gpb.TypedValue_AsciiVal{
+	textReplaceReq := &gnmi.Update{
+		Path: &gnmi.Path{Origin: "cli"},
+		Val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_AsciiVal{
 				AsciiVal: cfg,
 			},
 		},
 	}
-	setRequest := &gpb.SetRequest{
-		Replace: []*gpb.Update{textReplaceReq},
+	setRequest := &gnmi.SetRequest{
+		Replace: []*gnmi.Update{textReplaceReq},
 	}
 	log.V(1).Info(prettySetRequest(setRequest))
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
@@ -133,13 +240,13 @@ func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 }
 
 // GNMICommitReplaceWithOC apply the oc config and text config on the device. The result expected to be the merge of both configuations
-func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, pathStruct ygot.PathStruct, ocVal interface{}) *gpb.SetResponse {
+func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, pathStruct ygot.PathStruct, ocVal interface{}) *gnmi.SetResponse {
 	t.Helper()
 	gnmiC := dut.RawAPIs().GNMI().New(t)
-	textReplaceReq := &gpb.Update{
-		Path: &gpb.Path{Origin: "cli"},
-		Val: &gpb.TypedValue{
-			Value: &gpb.TypedValue_AsciiVal{
+	textReplaceReq := &gnmi.Update{
+		Path: &gnmi.Path{Origin: "cli"},
+		Val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_AsciiVal{
 				AsciiVal: cfg,
 			},
 		},
@@ -155,17 +262,17 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 	if err != nil {
 		t.Fatalf("Could not encode value (ocVal) into JSON format; %v", err)
 	}
-	ocReplaceReq := &gpb.Update{
+	ocReplaceReq := &gnmi.Update{
 		Path: path,
-		Val: &gpb.TypedValue{
-			Value: &gpb.TypedValue_JsonIetfVal{
+		Val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_JsonIetfVal{
 				JsonIetfVal: ocJSONVal,
 			},
 		},
 	}
 
-	setRequest := &gpb.SetRequest{
-		Replace: []*gpb.Update{textReplaceReq, ocReplaceReq},
+	setRequest := &gnmi.SetRequest{
+		Replace: []*gnmi.Update{textReplaceReq, ocReplaceReq},
 	}
 	log.V(1).Info(prettySetRequest(setRequest))
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
@@ -197,20 +304,20 @@ const (
 
 // BatchRequest is an struct to wrap a batch set request
 type BatchSetRequest struct {
-	req *gpb.SetRequest
+	req *gnmi.SetRequest
 }
 
 // BatchRequest unifies the batch request for set and get
 type BatchRequest interface {
-	Send(ctx context.Context, t *testing.T, path *gpb.Path, val interface{}, op setOperation) error
-	Append(ctx context.Context, t *testing.T, path *gpb.Path, val interface{}, op setOperation) error
+	Send(ctx context.Context, t *testing.T, path *gnmi.Path, val interface{}, op setOperation) error
+	Append(ctx context.Context, t *testing.T, path *gnmi.Path, val interface{}, op setOperation) error
 	Reset(t *testing.T)
 }
 
 // NewBatchSetRequest initialize a batch rset request
 func NewBatchSetRequest() *BatchSetRequest {
 	return &BatchSetRequest{
-		req: &gpb.SetRequest{},
+		req: &gnmi.SetRequest{},
 	}
 }
 
@@ -240,10 +347,10 @@ func (batch *BatchSetRequest) Append(ctx context.Context, t *testing.T, pathStru
 		if !ok {
 			t.Fatalf("The value for cli Set and Update should be an string")
 		}
-		textReplaceReq := &gpb.Update{
-			Path: &gpb.Path{Origin: "cli"},
-			Val: &gpb.TypedValue{
-				Value: &gpb.TypedValue_AsciiVal{
+		textReplaceReq := &gnmi.Update{
+			Path: &gnmi.Path{Origin: "cli"},
+			Val: &gnmi.TypedValue{
+				Value: &gnmi.TypedValue_AsciiVal{
 					AsciiVal: cfg,
 				},
 			},
@@ -263,10 +370,10 @@ func (batch *BatchSetRequest) Append(ctx context.Context, t *testing.T, pathStru
 		if err != nil {
 			t.Fatalf("Could not encode value into JSON format: %v", err)
 		}
-		update := &gpb.Update{
+		update := &gnmi.Update{
 			Path: path,
-			Val: &gpb.TypedValue{
-				Value: &gpb.TypedValue_JsonIetfVal{
+			Val: &gnmi.TypedValue{
+				Value: &gnmi.TypedValue_JsonIetfVal{
 					JsonIetfVal: js,
 				},
 			},
@@ -281,10 +388,10 @@ func (batch *BatchSetRequest) Append(ctx context.Context, t *testing.T, pathStru
 }
 
 // Send sends the batchset request  using GNMI. The batch request is mix of cli update replace  and oc replace, oc update, and oc delete.
-func (batch *BatchSetRequest) Send(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) *gpb.SetResponse {
+func (batch *BatchSetRequest) Send(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetResponse {
 	t.Helper()
 	gnmiC := dut.RawAPIs().GNMI().New(t)
-	log.V(1).Infof("BatchSet Request: \n", prettySetRequest(batch.req))
+	log.V(1).Infof("BatchSet Request: \n %s", prettySetRequest(batch.req))
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
 		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*180)
 		ctx = tmpCtx
@@ -299,11 +406,11 @@ func (batch *BatchSetRequest) Send(ctx context.Context, t *testing.T, dut *ondat
 }
 
 // copied from Ondatra code
-func prettySetRequest(setRequest *gpb.SetRequest) string {
+func prettySetRequest(setRequest *gnmi.SetRequest) string {
 	var buf strings.Builder
 	fmt.Fprintf(&buf, "SetRequest:\n%s\n", prototext.Format(setRequest))
 
-	writePath := func(path *gpb.Path) {
+	writePath := func(path *gnmi.Path) {
 		pathStr, err := ygot.PathToString(path)
 		if err != nil {
 			pathStr = prototext.Format(path)
@@ -311,9 +418,9 @@ func prettySetRequest(setRequest *gpb.SetRequest) string {
 		fmt.Fprintf(&buf, "%s\n", pathStr)
 	}
 
-	writeVal := func(val *gpb.TypedValue) {
+	writeVal := func(val *gnmi.TypedValue) {
 		switch v := val.Value.(type) {
-		case *gpb.TypedValue_JsonIetfVal:
+		case *gnmi.TypedValue_JsonIetfVal:
 			fmt.Fprintf(&buf, "%s\n", v.JsonIetfVal)
 		default:
 			fmt.Fprintf(&buf, "%s\n", prototext.Format(val))
