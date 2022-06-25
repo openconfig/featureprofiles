@@ -1,0 +1,58 @@
+{
+    "openconfig-qos:queues": {
+        "queue": [
+          {
+            "name":"cls111",
+            "config":{
+              "name" : "cls111"
+            }
+          }
+        ]
+      },
+    "openconfig-qos:interfaces": {
+        "interface":[
+            {
+                "state": {
+                  "interface-id": "FourHundredGigE0/0/0/0"
+                },
+                "interface-id":"FourHundredGigE0/0/0/0",
+                "output": {
+                    "scheduler-policy": {
+                        "config": {
+                          "name": "eg_policy1111"
+                        }
+                      }
+                }
+              }
+            ]
+      },
+    "openconfig-qos:scheduler-policies": {
+        "scheduler-policy": [
+            {
+              "name": "eg_policy1111",
+              "schedulers": {
+                "scheduler": [
+                  {
+                    "sequence":1,
+                    "config": {
+                      "sequence":1,
+                      "priority": "STRICT"
+                    },
+                    "inputs": {
+                      "input": [
+                        {
+                          "id": "cls111",
+                          "config": {
+                            "queue": "cls111",
+                            "weight": 1
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+    }

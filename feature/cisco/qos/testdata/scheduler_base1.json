@@ -1,0 +1,114 @@
+{
+    "openconfig-qos:queues": {
+      "queue": [
+        {
+          "name": "tc7"
+        },
+        {
+          "name": "tc6"
+        },
+        {
+          "name": "tc5"
+        },
+        {
+          "name": "tc4"
+        },
+        {
+          "name": "tc3"
+        },
+        {
+          "name": "tc2"
+        },
+        {
+          "name": "tc1"
+        }
+      ]
+    },
+    "openconfig-qos:interfaces": {
+        "interface":[
+            {
+                "state": {
+                  "interface-id": "FourHundredGigE0/0/0/0"
+                },
+                "interface-id":"FourHundredGigE0/0/0/0",
+                "output": {
+                    "scheduler-policy": {
+                        "config": {
+                          "name": "eg_policy1111"
+                        }
+                      }
+                }
+              }
+            ]
+      },
+    "openconfig-qos:scheduler-policies": {
+        "scheduler-policy": [
+          {
+            "name": "eg_policy111",
+            "schedulers": {
+              "scheduler": [
+                {
+                  "sequence": 1,
+                  "config": {
+                    "priority": "STRICT"
+                  },
+                  "inputs": {
+                    "input": [
+                      {
+                        "id": "tc7",
+                        "config": {
+                          "weight": "7",
+                          "queue": "tc7"
+                        }
+                      },
+                      {
+                        "id": "tc6",
+                        "config": {
+                          "weight": "6",
+                          "queue": "tc6"
+                        }
+                      },
+                      {
+                        "id": "tc5",
+                        "config": {
+                          "weight": "5",
+                          "queue": "tc5"
+                        }
+                      },
+                      {
+                        "id": "tc4",
+                        "config": {
+                          "weight": "4",
+                          "queue": "tc4"
+                        }
+                      },
+                      {
+                        "id": "tc3",
+                        "config": {
+                          "weight": "3",
+                          "queue": "tc3"
+                        }
+                      },
+                      {
+                        "id": "tc2",
+                        "config": {
+                          "weight": "2",
+                          "queue": "tc2"
+                        }
+                      },
+                      {
+                        "id": "tc1",
+                        "config": {
+                          "weight": "1",
+                          "queue": "tc1"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
