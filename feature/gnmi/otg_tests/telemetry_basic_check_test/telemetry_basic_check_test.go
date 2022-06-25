@@ -678,16 +678,16 @@ func TestIntfCounterUpdate(t *testing.T) {
 	config := otg.NewConfig(t)
 	config.Ports().Add().SetName(ap1.ID())
 	intf1 := config.Devices().Add().SetName(ap1.Name())
-	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".eth").
-		SetPortName(ap1.ID()).SetMac("00:00:01:01:01:01")
-	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".ipv4").
+	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").
+		SetPortName(ap1.ID()).SetMac("02:00:01:01:01:01")
+	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".IPv4").
 		SetAddress("198.51.100.1").SetGateway("198.51.100.0").
 		SetPrefix(31)
 	config.Ports().Add().SetName(ap2.ID())
 	intf2 := config.Devices().Add().SetName(ap2.Name())
-	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".eth").
-		SetPortName(ap2.ID()).SetMac("00:00:01:02:01:01")
-	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".ipv4").
+	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").
+		SetPortName(ap2.ID()).SetMac("02:00:01:02:01:01")
+	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".IPv4").
 		SetAddress("198.51.100.3").SetGateway("198.51.100.2").
 		SetPrefix(31)
 
@@ -695,8 +695,8 @@ func TestIntfCounterUpdate(t *testing.T) {
 	flowipv4 := config.Flows().Add().SetName(flowName)
 	flowipv4.Metrics().SetEnable(true)
 	flowipv4.TxRx().Device().
-		SetTxNames([]string{intf1.Name() + ".ipv4"}).
-		SetRxNames([]string{intf2.Name() + ".ipv4"})
+		SetTxNames([]string{intf1.Name() + ".IPv4"}).
+		SetRxNames([]string{intf2.Name() + ".IPv4"})
 	flowipv4.Size().SetFixed(100)
 	flowipv4.Rate().SetPercentage(1)
 	e1 := flowipv4.Packet().Add().Ethernet()
@@ -772,14 +772,14 @@ func TestQoSCounterUpdate(t *testing.T) {
 	config.Ports().Add().SetName(ap1.ID())
 	intf1 := config.Devices().Add().SetName(ap1.Name())
 	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").
-		SetPortName(ap1.ID()).SetMac("00:00:01:01:01:01")
+		SetPortName(ap1.ID()).SetMac("02:00:01:01:01:01")
 	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".IPv4").
 		SetAddress("198.51.100.1").SetGateway("198.51.100.0").
 		SetPrefix(31)
 	config.Ports().Add().SetName(ap2.ID())
 	intf2 := config.Devices().Add().SetName(ap2.Name())
 	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").
-		SetPortName(ap2.ID()).SetMac("00:00:01:02:01:01")
+		SetPortName(ap2.ID()).SetMac("02:00:01:02:01:01")
 	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".IPv4").
 		SetAddress("198.51.100.3").SetGateway("198.51.100.2").
 		SetPrefix(31)
