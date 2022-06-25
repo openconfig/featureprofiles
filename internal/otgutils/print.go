@@ -39,7 +39,8 @@ func PrintFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 func PrintPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 	var link string
 	var out strings.Builder
-	for i := 1; i <= 110; i++ {
+	out.WriteString("\nPort Metrics\n")
+	for i := 1; i <= 120; i++ {
 		out.WriteString("-")
 	}
 	out.WriteString("\n")
@@ -64,7 +65,7 @@ func PrintPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 			p.Name(), txFrames, rxFrames, txBytes, rxBytes, txRate, rxRate, link,
 		))
 	}
-	for i := 1; i <= 110; i++ {
+	for i := 1; i <= 120; i++ {
 		out.WriteString("-")
 	}
 	out.WriteString("\n\n")
