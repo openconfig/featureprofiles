@@ -19,6 +19,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -52,18 +53,6 @@ const (
 	peerGrpName = "BGP-PEER-GROUP"
 	netInstance = "DEFAULT"
 )
-
-// Configure network instance with network-instance type and router-id.
-func configureNetworkInstance(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
-	ni1 := d.GetOrCreateNetworkInstance(netInstance)
-	ni1.Type = telemetry.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE(*ygot.Int64(1))
-
-	ni1.RouterId = ygot.String(dutAttrs.IPv4)
-	dutConfPath := dut.Config().NetworkInstance(netInstance)
-	dutConfPath.Replace(t, ni1)
-}
 
 // configureDUT is used to configure interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -248,9 +237,16 @@ func TestEstablish(t *testing.T) {
 	configureDUT(t, dut)
 
 	// Configure BGP Neighbor on the DUT
-	t.Log("Start DUT Network Instance and BGP Config")
-	configureNetworkInstance(t)
+	t.Log("Configure Network Instance")
+	ni := &telemetry.NetworkInstance{
+		Name:     ygot.String(*deviations.DefaultNetworkInstance),
+		Type:     telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+		RouterId: ygot.String(dutAttrs.IPv4),
+	}
+	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Replace(t, ni)
 
+	t.Log("Configure BGP")
 	dutConfPath := dut.Config().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 	dutConfPath.Replace(t, nil)
@@ -286,8 +282,16 @@ func TestDisconnect(t *testing.T) {
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
 	// Configure BGP Neighbor on the DUT
-	t.Log("Start DUT Network Instance and BGP Config")
-	configureNetworkInstance(t)
+	t.Log("Configure Network Instance")
+	ni := &telemetry.NetworkInstance{
+		Name:     ygot.String(*deviations.DefaultNetworkInstance),
+		Type:     telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+		RouterId: ygot.String(dutAttrs.IPv4),
+	}
+	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Replace(t, ni)
+
+	t.Log("Configure BGP")
 	// Clear any existing config
 	fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 	dutConfPath.Replace(t, nil)
@@ -301,7 +305,7 @@ func TestDisconnect(t *testing.T) {
 	iDut1 := topo.AddInterface(ateAttrs.Name).WithPort(port1)
 	iDut1.IPv4().WithAddress(ateAttrs.IPv4CIDR()).WithDefaultGateway(dutAttrs.IPv4)
 	bgpDut1 := iDut1.BGP()
-	bgpDut1.AddPeer().WithPeerAddress(dutAttrs.IPv4).WithLocalASN(ateAS).WithTypeExternal()
+	bgpPeer := bgpDut1.AddPeer().WithPeerAddress(dutAttrs.IPv4).WithLocalASN(ateAS).WithTypeExternal()
 
 	t.Log("Pushing config to ATE and starting protocols...")
 	topo.Push(t)
@@ -311,10 +315,7 @@ func TestDisconnect(t *testing.T) {
 	nbrPath.SessionState().Await(t, time.Second*100, telemetry.Bgp_Neighbor_SessionState_ESTABLISHED)
 
 	t.Log("Send Cease Notification from ATE to DUT")
-	// TODO: waiting for ATE to support notification.
-	// if false {
-	//  	topo.SendBGPPeerNotification(t, 6, 1, bgpDut1)
-	// }
+	ate.Actions().NewBGPPeerNotification().WithCode(6).WithSubCode(6).WithPeers(bgpPeer).Send(t)
 
 	t.Log("Verify BGP session state : ACTIVE")
 	nbrPath.SessionState().Await(t, time.Second*100, telemetry.Bgp_Neighbor_SessionState_ACTIVE)
@@ -336,8 +337,15 @@ func TestParameters(t *testing.T) {
 	dutIP := dutAttrs.IPv4
 	dut := ondatra.DUT(t, "dut")
 
-	//Configure network instance with network-instance type and router-id
-	configureNetworkInstance(t)
+	// Configure BGP Neighbor on the DUT
+	t.Log("Configure Network Instance")
+	ni := &telemetry.NetworkInstance{
+		Name:     ygot.String(*deviations.DefaultNetworkInstance),
+		Type:     telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+		RouterId: ygot.String(dutAttrs.IPv4),
+	}
+	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Replace(t, ni)
 
 	dutConfPath := dut.Config().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	statePath := dut.Telemetry().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
