@@ -16,7 +16,6 @@ package base_leader_election_test
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -52,6 +51,8 @@ const (
 	ipv4PrefixLen   = 30
 	instance        = "default"
 	ateDstNetCIDR   = "198.51.100.0/24"
+	ateDstNetStart  = "198.51.100.0"
+	ateDstNetPrefix = 24
 	nhIndex         = 1
 	nhgIndex        = 42
 	trafficDuration = 10 * time.Second
@@ -66,7 +67,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "port1",
-		MAC:     "00:00:01:01:01:01",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -79,7 +80,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "port2",
-		MAC:     "00:00:02:01:01:01",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -92,7 +93,7 @@ var (
 
 	atePort3 = attrs.Attributes{
 		Name:    "port3",
-		MAC:     "00:00:03:01:01:01",
+		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -147,16 +148,27 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otg := ate.OTG()
 	top := otg.NewConfig(t)
 
-	for ateInput, dutInput := range inputMap {
-		t.Logf("OTG Add Interface: %v with IPv4 %v", ateInput.Name, ateInput.IPv4)
-		top.Ports().Add().SetName(ateInput.Name)
-		dev := top.Devices().Add().SetName(ateInput.Name)
-		eth := dev.Ethernets().Add().SetName(ateInput.Name + ".eth").
-			SetPortName(dev.Name()).SetMac(ateInput.MAC)
-		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".ipv4").
-			SetAddress(ateInput.IPv4).SetGateway(dutInput.IPv4).
-			SetPrefix(int32(ateInput.IPv4Len))
-	}
+	top.Ports().Add().SetName(atePort1.Name)
+	dev := top.Devices().Add().SetName(atePort1.Name)
+	eth := dev.Ethernets().Add().SetName(atePort1.Name + ".Eth")
+	eth.SetPortName(dev.Name()).SetMac(atePort1.MAC)
+	ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+	ip.SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(int32(atePort1.IPv4Len))
+
+	top.Ports().Add().SetName(atePort2.Name)
+	dev = top.Devices().Add().SetName(atePort2.Name)
+	eth = dev.Ethernets().Add().SetName(atePort2.Name + ".Eth")
+	eth.SetPortName(dev.Name()).SetMac(atePort2.MAC)
+	ip = eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+	ip.SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(int32(atePort2.IPv4Len))
+
+	top.Ports().Add().SetName(atePort3.Name)
+	dev = top.Devices().Add().SetName(atePort3.Name)
+	eth = dev.Ethernets().Add().SetName(atePort3.Name + ".Eth")
+	eth.SetPortName(dev.Name()).SetMac(atePort3.MAC)
+	ip = eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+	ip.SetAddress(atePort3.IPv4).SetGateway(dutPort3.IPv4).SetPrefix(int32(atePort3.IPv4Len))
+
 	otg.PushConfig(t, top)
 	otg.StartProtocols(t)
 	return top
@@ -170,7 +182,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	// srcEndPoint is atePort1
 	otg := ate.OTG()
 	gwIp := inputMap[srcEndPoint].IPv4
-	err := otgutils.WaitFor(t, func() bool { return otgutils.ArpEntriesPresent(t, otg, "IPv4") }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "ARP entries ready"})
+	err := otgutils.WaitFor(t, func() bool { return otgutils.ArpEntriesPresent(t, otg, "IPv4") }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "ARP entries ready"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,9 +190,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	config.Flows().Clear().Items()
 	flowipv4 := config.Flows().Add().SetName("Flow")
 	flowipv4.Metrics().SetEnable(true)
-	flowipv4.TxRx().Port().
-		SetTxName(srcEndPoint.Name).
-		SetRxName(dstEndPoint.Name)
+	flowipv4.TxRx().Port().SetTxName(srcEndPoint.Name).SetRxName(dstEndPoint.Name)
 	flowipv4.Size().SetFixed(512)
 	flowipv4.Rate().SetPps(10)
 	flowipv4.Duration().SetChoice("continuous")
@@ -189,7 +199,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(srcEndPoint.IPv4)
-	v4.Dst().Increment().SetStart(strings.Split(ateDstNetCIDR, "/")[0]).SetCount(250)
+	v4.Dst().Increment().SetStart(ateDstNetStart).SetCount(250)
 	otg.PushConfig(t, config)
 
 	t.Logf("Starting traffic")
@@ -202,18 +212,15 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	otgutils.PrintPortMetrics(t, otg, config)
 
 	// Check the flow statistics
+	otgutils.PrintFlowMetrics(t, otg, config)
 	for _, f := range config.Flows().Items() {
 		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
 		lostPackets := recvMetric.GetCounters().GetOutPkts() - recvMetric.GetCounters().GetInPkts()
 		lossPct := lostPackets * 100 / recvMetric.GetCounters().GetOutPkts()
 		if lossPct > 0 && recvMetric.GetCounters().GetOutPkts() > 0 {
-			t.Errorf("Loss Pct for Flow: %s got %v, want 0", f.Name(), lossPct)
-		}
-		if recvMetric.GetCounters().GetInPkts() != recvMetric.GetCounters().GetOutPkts() || recvMetric.GetCounters().GetInPkts() != 1000 {
-			t.Errorf("LossPct for flow %s detected, expected 0", f.Name())
+			t.Errorf("Loss Pct for %s got %v, want 0", f.Name(), lossPct)
 		}
 	}
-
 }
 
 // testArgs holds the objects needed by a test case.
