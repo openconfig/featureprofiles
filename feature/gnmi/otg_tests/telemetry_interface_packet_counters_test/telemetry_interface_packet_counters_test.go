@@ -293,12 +293,12 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 	for _, flow := range []string{flowipv4.Name(), flowipv6.Name()} {
 		lossPct := 0
-		if flowipv4.Name() == "ipv4_test_flow" {
+		if flow == "ipv4_test_flow" {
 			lostPackets := int(ateOutPkts["ipv4"] - ateInPkts["ipv4"])
 			lossPct = lostPackets * 100 / int(ateOutPkts["ipv4"])
 		} else {
-			lostPackets := int(ateOutPkts["ipv4"] - ateInPkts["ipv4"])
-			lossPct = lostPackets * 100 / int(ateOutPkts["ipv4"])
+			lostPackets := int(ateOutPkts["ipv6"] - ateInPkts["ipv6"])
+			lossPct = lostPackets * 100 / int(ateOutPkts["ipv6"])
 		}
 		if lossPct >= 1 {
 			t.Errorf("LossPct per Flow(%v) = %v, want < 1", flow, lossPct)
