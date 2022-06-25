@@ -110,9 +110,9 @@ func ArpEntriesOk(t *testing.T, otg *ondatra.OTG, ipType string, expectedMacEntr
 func ArpEntriesPresent(t *testing.T, otg *ondatra.OTG, ipType string) bool {
 	actualMacEntries := []string{}
 	switch ipType {
-	case "ipv4":
+	case "IPv4":
 		actualMacEntries = otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Get(t)
-	case "ipv6":
+	case "IPv6":
 		actualMacEntries = otg.Telemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Get(t)
 	}
 	if len(actualMacEntries) == 0 {
