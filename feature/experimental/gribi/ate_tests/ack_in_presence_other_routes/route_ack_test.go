@@ -209,7 +209,7 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 	ni1.Description = ygot.String("Static route added by gNMI-OC")
 	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static-1")
 	static.Enabled = ygot.Bool(true)
-	static.Identifier = telemetry.E_PolicyTypes_INSTALL_PROTOCOL_TYPE(*ygot.Int64(10))
+	static.Identifier = telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
 	sr := static.GetOrCreateStatic(prefix)
 	nh := sr.GetOrCreateNextHop("nhg1")
 	nh.NextHop = fpoc.UnionString(nexthop)
@@ -232,7 +232,7 @@ func routeAck(ctx context.Context, t *testing.T, args *testArgs) {
 	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 	}
-	// Verify the entry for 203.0.113.0/24 is active through Traffic.
+	// Verify that static route(203.0.113.0/24) to ATE port-2 is preferred by the traffic.`
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	dstEndPoint := args.top.Interfaces()[atePort2.Name]
 	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
