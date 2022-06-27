@@ -2,20 +2,86 @@ package cisco_p4rt_test
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"net"
 	"testing"
 	"time"
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
 )
 
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, srcEndPoint *ondatra.Interface, duration int, args *testArgs) {
+var (
+	gdpInLayers layers.EthernetType = 0x6007
+)
+
+func readAllPackets(ctx context.Context, t *testing.T, client p4rt_client.P4RTClient) []*p4rt_client.P4RTPacketInfo {
+	t.Helper()
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			packets = append(packets, packet)
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+	return packets
+}
+
+func packetGDPRequestGet(t *testing.T) []byte {
+	t.Helper()
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+	pktEth := &layers.Ethernet{
+		SrcMAC: net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
+		//00:0A:DA:F0:F0:F0
+		DstMAC:       net.HardwareAddr{0x00, 0x0A, 0xDA, 0xF0, 0xF0, 0xF0},
+		EthernetType: gdpInLayers,
+	}
+	payload := []byte{}
+	payLoadLen := 64
+	for i := 0; i < payLoadLen; i++ {
+		payload = append(payload, byte(i))
+	}
+	gopacket.SerializeLayers(buf, opts,
+		pktEth, gopacket.Payload(payload),
+	)
+	return buf.Bytes()
+}
+
+func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType) {
+	t.Helper()
+	packet := gopacket.NewPacket(packetData, layers.LayerTypeEthernet, gopacket.Default)
+	etherHeader := packet.Layer(layers.LayerTypeEthernet)
+	if etherHeader != nil {
+		header, decoded := etherHeader.(*layers.Ethernet)
+		if decoded {
+			return header.DstMAC.String(), header.EthernetType
+		}
+	}
+	return "", layers.EthernetType(0)
+}
+
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, dstMac string, etherType uint32, srcEndPoint *ondatra.Interface, duration int, args *testArgs) {
 	ethHeader := ondatra.NewEthernetHeader()
-	ethHeader.WithSrcAddress("00:11:01:00:00:01")
-	ethHeader.WithDstAddress("00:22:01:00:00:01")
-	ethHeader.WithEtherType(uint32(24583))
+	ethHeader.WithSrcAddress("00:11:00:22:00:33")
+	ethHeader.WithDstAddress(dstMac)
+	ethHeader.WithEtherType(etherType)
 
 	flow := ate.Traffic().NewFlow("GDP").
 		WithSrcEndpoints(srcEndPoint).
@@ -53,7 +119,7 @@ func programmGDPMatchEntry(ctx context.Context, t *testing.T, client *p4rt_clien
 	return nil
 }
 
-func testGDPEntryProgramming(ctx context.Context, t *testing.T, args *testArgs) {
+func testGDPEntryProgrammingPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Program the GDP entry
 	if err := programmGDPMatchEntry(ctx, t, client, false); err != nil {
@@ -63,19 +129,85 @@ func testGDPEntryProgramming(ctx context.Context, t *testing.T, args *testArgs) 
 
 	// Send GDP Packet
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	testTraffic(t, args.ate, srcEndPoint, 10, args)
+	testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
 
 	// Check PacketIn on P4Client
-	_, packets, err := client.StreamChannelGetPacket(&streamName, 0)
-	if err != nil {
-		t.Errorf("There is error when checking packets in PacketIn ")
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 20; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			packets = append(packets, packet)
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
 	}
 
-	if packets != nil {
-		t.Logf("PacketIn: %s", packets.Pkt.String())
-	} else {
-		t.Logf("There is no packets received")
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
 	}
 
-	//TODO check detail packets
+	t.Logf("Start to decode packet.")
+	for _, packet := range packets {
+		if packet != nil {
+			dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+			if dstMac != gdpMAC || etherType != layers.EthernetType(gdpEtherType) {
+				t.Errorf("Packet is not matching GDP packet.")
+			}
+			// TODO: Check Port-id in MetaData
+		}
+	}
+}
+
+func testGDPEntryProgrammingPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Check initial packet counters
+	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := p4_v1.PacketOut{
+		Payload: packetGDPRequestGet(t),
+		Metadata: []*p4_v1.PacketMetadata{
+			&p4_v1.PacketMetadata{
+				MetadataId: 1, // "submit_to_egress"
+				Value:      []byte(fmt.Sprint(portID)),
+			},
+		},
+	}
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: &packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+	// testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+	if counter_1-counter_0 < uint64(float64(packet_count)*0.90) {
+		t.Errorf("There are no enough packets received.")
+	}
 }

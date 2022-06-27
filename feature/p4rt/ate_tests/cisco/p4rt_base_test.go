@@ -17,9 +17,12 @@ import (
 var (
 	p4InfoFile = flag.String("p4info_file_location", "./wbb.p4info.pb.txt",
 		"Path to the p4info file.")
-	electionID = uint64(100)
-	streamName = "Primary"
-	deviceID   = uint64(1)
+	electionID   = uint64(100)
+	streamName   = "Primary"
+	deviceID     = uint64(1)
+	portID       = uint64(1)
+	gdpMAC       = "00:0a:da:f0:f0:f0"
+	gdpEtherType = uint32(24583)
 )
 
 // Testcase defines testcase structure
@@ -78,9 +81,14 @@ func TestMain(m *testing.M) {
 var (
 	P4RTTestcases = []Testcase{
 		{
-			name: "Program GDP Match Entry",
+			name: "Program GDP Match Entry and Check PacketIn",
 			desc: "programm GDP match entry and verify send traffic from tgen to verify PacketIn",
-			fn:   testGDPEntryProgramming,
+			fn:   testGDPEntryProgrammingPacketIn,
+		},
+		{
+			name: "Program GDP Match Entry and Check PacketOut",
+			desc: "programm GDP match entry and verify send traffic from tgen to verify PacketIn",
+			fn:   testGDPEntryProgrammingPacketOut,
 		},
 	}
 )
