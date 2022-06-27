@@ -21,12 +21,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/gribi/util"
 	"github.com/openconfig/featureprofiles/topologies/binding/cisco/config"
+	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -1414,8 +1416,41 @@ func testBackupNHOPCase9(ctx context.Context, t *testing.T, args *testArgs) {
 	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
 
 	// get gribi contents
-	data := args.clientA.Fluent(t).Get()
-	data.AllNetworkInstances()
+	getResponse1, err1 := args.clientA.Fluent(t).Get().AllNetworkInstances().WithAFT(fluent.IPv4).Send()
+	getResponse2, err2 := args.clientA.Fluent(t).Get().AllNetworkInstances().WithAFT(fluent.AllAFTs).Send()
+	getResponse3, err3 := args.clientA.Fluent(t).Get().AllNetworkInstances().WithAFT(fluent.NextHopGroup).Send()
+	getResponse4, err4 := args.clientA.Fluent(t).Get().AllNetworkInstances().WithAFT(fluent.NextHop).Send()
+
+	var prefixes []string
+	if err1 != nil && err2 != nil && err3 != nil && err4 != nil {
+		t.Errorf("Cannot Get")
+	}
+
+	entries1 := getResponse1.GetEntry()
+	entries2 := getResponse2.GetEntry()
+	entries3 := getResponse3.GetEntry()
+	entries4 := getResponse4.GetEntry()
+
+	fmt.Print(entries2, entries3, entries4)
+
+	for _, entry := range entries1 {
+		v := entry.Entry.(*spb.AFTEntry_Ipv4)
+		if prefix := v.Ipv4.GetPrefix(); prefix != "" {
+			prefixes = append(prefixes, prefix)
+		}
+	}
+	var data []string
+	data = append(data, "192.0.2.40/32", "192.0.2.42/32")
+	ip := net.ParseIP(dstPfx)
+	for i := 0; i < dstPfxCount; i++ {
+		ip_v4 := ip.To4()
+		data = append(data, ip_v4.String()+"/32")
+		ip_v4[3]++
+	}
+
+	if diff := cmp.Diff(data, prefixes); diff != "" {
+		t.Errorf("Prefixes differed (-want +got):\n%v", diff)
+	}
 }
 
 func testBackupNHOPCase10(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1518,7 +1553,7 @@ func testBackupNHOPCase11(ctx context.Context, t *testing.T, args *testArgs) {
 	config.TextWithGNMI(args.ctx, t, args.dut, "arp 198.51.100.1  0012.0100.0001 arpa")
 
 	// LEVEL 2
-	// Creating NHG ID 100 using backup NHG ID 101
+	// Creating NHG ID 100 using backup NHG ID 101 (bkhgIndex_2)
 	args.clientA.NH(t, 10, atePort8.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 
@@ -1568,28 +1603,34 @@ func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArg
 	}
 
 	// LEVEL 2
-	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a decap
+
+	// Creating a backup NHG with ID 101 (bkhgIndex_2)
+	// NH ID 10 (nhbIndex_2_1)
+
 	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
 
-	// Creating NHG ID 100 using backup NHG ID 101
-	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
-	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
+	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
+	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
+	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
+
 	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
 	// LEVEL 1
-	// VIP1: NHG ID 1000
-	//		- PATH1 NH ID 1000, weight 50, outgoing Port2
-	//		- PATH2 NH ID 1100, weight 30, outgoing Port3
-	//		- PATH3 NH ID 1200, weight 15, outgoing Port4
-	//		- PATH4 NH ID 1300, weight  5, outgoing Port5
-	// VIP2: NHG ID 2000
-	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
-	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
-	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
+
+	// VIP1: NHG ID 1000 (nhgIndex_1_1)
+	//		- PATH1 NH ID 1000 (nhIndex_1_11), weight 50, outgoing Port2
+	//		- PATH2 NH ID 1100 (nhIndex_1_12), weight 30, outgoing Port3
+	//		- PATH3 NH ID 1200 (nhIndex_1_13), weight 15, outgoing Port4
+	//		- PATH4 NH ID 1300 (nhIndex_1_14), weight  5, outgoing Port5
+	// VIP2: NHG ID 2000 (nhgIndex_1_2)
+	//		- PATH1 NH ID 2000 (nhIndex_1_21), weight 60, outgoing Port6
+	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
+	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
+
 	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
 	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
@@ -2744,21 +2785,21 @@ func TestBackUp(t *testing.T) {
 			desc: "add testcase to flush forwarding chain with backup NHG only and forwarding chain with backup NHG",
 			fn:   testBackupNHOPCase6,
 		},
-		// {
-		// 	name: "Backup change from static to decap",
-		// 	desc: "While Primary Paths are down Modify the Backup from poiniting to a static route to a DECAP chain - Traffic resumes after Decap",
-		// 	fn:   testBackupNHOPCase7,
-		// },
-		// {
-		// 	name: "Multiple NW Instance with different NHG, same NH and different NHG backup",
-		// 	desc: "Multiple NW Instances (VRF's ) pointing to different NHG but same NH Entry but different NHG Backup",
-		// 	fn:   testBackupNHOPCase8,
-		// },
-		// {
-		// 	name: "Get function validation",
-		// 	desc: "add decap NH and related forwarding chain and validate them using GET function",
-		// 	fn:   testBackupNHOPCase9,
-		// },
+		{
+			name: "Backup change from static to decap",
+			desc: "While Primary Paths are down Modify the Backup from poiniting to a static route to a DECAP chain - Traffic resumes after Decap",
+			fn:   testBackupNHOPCase7,
+		},
+		{
+			name: "Multiple NW Instance with different NHG, same NH and different NHG backup",
+			desc: "Multiple NW Instances (VRF's ) pointing to different NHG but same NH Entry but different NHG Backup",
+			fn:   testBackupNHOPCase8,
+		},
+		{
+			name: "Get function validation",
+			desc: "add decap NH and related forwarding chain and validate them using GET function",
+			fn:   testBackupNHOPCase9,
+		},
 		{
 			name: "IPv4BackUpSingleNH",
 			desc: "Single NH Ensure that backup NextHopGroup entries are honoured in gRIBI for NHGs containing a single NH",
