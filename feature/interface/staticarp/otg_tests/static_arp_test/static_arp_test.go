@@ -234,14 +234,23 @@ func checkArpEntry(t *testing.T, ipType string, poisoned bool) {
 	}
 }
 
-func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned bool) {
+func waitOtgArpEntry(t *testing.T, ipType string) {
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
 
-	otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-			return val.IsPresent()
-		}).Await(t)
+	switch ipType {
+	case "IPv4":
+		otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+				return val.IsPresent()
+			}).Await(t)
+	case "IPv6":
+		otg.Telemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Watch(
+			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+				return val.IsPresent()
+			}).Await(t)
+
+	}
 }
 
 func testFlow(
@@ -282,7 +291,7 @@ func testFlow(
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
 		otg.PushConfig(t, config)
-		checkOTGArpEntry(t, config, "IPv4", poisoned)
+		waitOtgArpEntry(t, "IPv4")
 	case "IPv6":
 		flowipv6 := config.Flows().Add().SetName("FlowIpv6")
 		flowipv6.Metrics().SetEnable(true)
@@ -298,7 +307,7 @@ func testFlow(
 		v4.Src().SetValue(ateSrc.IPv6)
 		v4.Dst().SetValue(ateDst.IPv6)
 		otg.PushConfig(t, config)
-		checkOTGArpEntry(t, config, "IPv6", poisoned)
+		waitOtgArpEntry(t, "IPv6")
 	}
 
 	// Starting the traffic
