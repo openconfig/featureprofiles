@@ -534,13 +534,13 @@ func TestEstablish(t *testing.T) {
 	t.Logf("Verifying port status")
 	verifyPortsUp(t, dut.Device)
 
-	t.Logf("Check BGP parameters")
-	verifyBgpTelemetry(t, dut)
-
 	// Verify the OTG BGP state
 	t.Logf("Verify OTG BGP sessions up")
 	verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv4", "ESTABLISHED")
 	verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv6", "ESTABLISHED")
+
+	t.Logf("Check BGP parameters")
+	verifyBgpTelemetry(t, dut)
 
 	// Starting ATE Traffic and verify Traffic Flows and packet loss
 	sendTraffic(t, otg, otgConfig)
