@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -174,6 +175,25 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
+func waitOtgArpEntry(t *testing.T, ipType string) {
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+
+	switch ipType {
+	case "IPv4":
+		otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+				return val.IsPresent()
+			}).Await(t)
+	case "IPv6":
+		otg.Telemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Watch(
+			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+				return val.IsPresent()
+			}).Await(t)
+
+	}
+}
+
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
@@ -182,10 +202,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	// srcEndPoint is atePort1
 	otg := ate.OTG()
 	gwIp := inputMap[srcEndPoint].IPv4
-	err := otgutils.WaitFor(t, func() bool { return otgutils.ArpEntriesPresent(t, otg, "IPv4") }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 30 * time.Second, Condition: "ARP entries ready"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	waitOtgArpEntry(t, "IPv4")
 	dstMac := otg.Telemetry().Interface(srcEndPoint.Name + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
 	config.Flows().Clear().Items()
 	flowipv4 := config.Flows().Add().SetName("Flow")
