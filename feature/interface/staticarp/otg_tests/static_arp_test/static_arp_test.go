@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/ondatra"
@@ -233,36 +234,14 @@ func checkArpEntry(t *testing.T, ipType string, poisoned bool) {
 	}
 }
 
-func getInterfaceMacs(t *testing.T, dev *ondatra.Device) map[string]string {
-	t.Helper()
-	dutMacDetails := make(map[string]string)
-	for _, p := range dev.Ports() {
-		eth := dev.Telemetry().Interface(p.Name()).Ethernet().Get(t)
-		t.Logf("Mac address of Interface %s in DUT: %s", p.Name(), eth.GetMacAddress())
-		dutMacDetails[p.Name()] = eth.GetMacAddress()
-	}
-	return dutMacDetails
-}
-
 func checkOTGArpEntry(t *testing.T, c gosnappi.Config, ipType string, poisoned bool) {
 	ate := ondatra.ATE(t, "ate")
-	dut := ondatra.DUT(t, "dut")
 	otg := ate.OTG()
-	dutInterfaceMac := getInterfaceMacs(t, dut.Device)
-	t.Logf("Mac Addresses of DUT: %v", dutInterfaceMac)
-	expectedMacEntries := []string{}
-	if poisoned == true {
-		expectedMacEntries = append(expectedMacEntries, dutInterfaceMac[dut.Port(t, "port1").Name()])
-	} else {
-		for _, macValue := range dutInterfaceMac {
-			expectedMacEntries = append(expectedMacEntries, macValue)
-		}
-	}
 
-	err := otgutils.WaitFor(t, func() bool { return otgutils.ArpEntriesOk(t, otg, ipType, expectedMacEntries) }, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
 }
 
 func testFlow(
