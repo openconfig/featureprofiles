@@ -55,10 +55,9 @@ func PrintPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 		txRate := ygot.BinaryToFloat32(portMetrics.GetOutRate())
 		rxBytes := portMetrics.GetCounters().GetInOctets()
 		txBytes := portMetrics.GetCounters().GetOutOctets()
+		link = "down"
 		if portMetrics.GetLink() == otgtelemetry.Port_Link_UP {
 			link = "up"
-		} else {
-			link = "down"
 		}
 		out.WriteString(fmt.Sprintf(
 			"%-25v%-15v%-15v%-15v%-15v%-15v%-15v%-15v\n",
