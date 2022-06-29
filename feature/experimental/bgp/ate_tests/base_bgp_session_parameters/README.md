@@ -1,97 +1,79 @@
-## RT-1.1: Base BGP Session Parameters
+# RT-1.1: Base BGP Session Parameters
 
 ## Summary
 
-    Base BGP session establishment, with required capabilities
+BGP session establishment between DUT - ATE and verifiying different session parameters.
+
+## Topology
+
+*   DUT port-1 ------- ATE port-1    
 
 ## Procedure
 
-    Establish BGP session on ATE and DUT with table-based configuration to cover:
-        ○ Explicitly specified Router ID
-        ○ MD5 password
-        ○ Explicitly specified device-global same local AS number and remote AS number - iBGP
-        ○ Explicitly specified device-global same local AS number and remote AS number - eBGP
-        ○ Explicitly specified per-neighbor local AS number and remote AS number - eBGP
-        ○ Explicitly specified local IP address
-        ○ Explicit holdtime and keepalive interval
-        ○ Explicitly specified retry interval
-    ● Validate session state and capabilities received on ATE.
-    ● Validate session state and capabilities received on DUT using telemetry.
-    ● TODO: Terminate BGP session using NOTIFICATION message and ensure that device telemetry correctly   reports the error codes.
+*   Establish eBGP session between DUT and ATE 
 
-## Config Parameter Coverage
+    *   Ensure session state should be Established.
+    *   Verify BGP capabilities like Route refresh, ASN32 and MPBGP.
 
-    For prefix:
-        /network-instances/network-instance/protocols/protocol/bgp/global
-    Parameters:
-        config/as
-        config/router-id
-    For prefixes:
-        /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group
-        /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor
-    Parameters:
-        config/peer-as
-        config/local-as
-        config/description
-        timers/config/hold-time
-        timers/config/keepalive-interval
-        timers/config/minimum-route-advertisement-interval
+*   Verify BGP session disconnect by sending notification message from ATE
 
-## Telemetry Parameter coverage
-    For prefix:
-        /network-instances/network-instance/protocols/protocol/bgp/
-    Parameters:
-        afi-safis/afi-safi/state/active
-        afi-safis/afi-safi/state/afi-safi-name
-        afi-safis/afi-safi/state/enabled
-        afi-safis/afi-safi/state/messages/sent/last-notification-error-code
-        afi-safis/afi-safi/state/messages/sent/last-notification-error-subcode
-        afi-safis/afi-safi/state/messages/sent/last-notification-time
-        state/admin-state
-        state/auth-password
-        state/description
-        state/enabled
-        state/established-transitions
-        state/last-established
-        state/local-as
-        state/messages/received/last-notification-error-code
-        state/messages/received/last-notification-error-subcode
-        state/messages/received/last-notification-time
-        state/messages/received/notification
-        state/messages/received/NOTIFICATION
-        state/messages/received/UPDATE
-        state/messages/sent/NOTIFICATION
-        state/messages/sent/UPDATE
-        state/negotiated-hold-time
-        state/neighbor-address
-        state/peer-as
-        state/peer-group
-        state/peer-type
-        state/queues/input
-        state/queues/output
-        state/remove-private-as
-        state/session-state
-        state/supported-capabilities
-        timers/state/negotiated-hold-time
-        transport/state/local-address
-        transport/state/local-port
-        transport/state/mtu-discovery
-        transport/state/passive-mode
-        transport/state/remote-address
-        transport/state/remote-port
-        state/peer-as
-        transport/state/local-address
-        transport/state/remote-address
-        transport/state/remote-port
+    *   Send Cease notification from ATE. 
+    *   Ensure that DUT telemetry correctly reports the error code.
+
+*   Establish BGP session and verify different session parameters. 
+    BGP session should be established when different session parameters
+    are provided and session parameters are applied correspondingly.
+
+    *   Explicitly specified Router ID under bgp global level.
+    *   Enable MD5 authentication on DUT and ATE.
+    *   iBGP - Explicit same global AS is configured on DUT and ATE.
+    *   eBGP - Explicit different global AS is configured on DUT and ATE.
+    *   Explicit AS is configured on DUT under neighbor level.
+    *   TODO: Explicit holdtime interval and keepalive interval.
+    *   Explicit connect retry interval.
+
+## Config Parameter coverage
+
+*   For prefix:
+
+    *   /network-instances/network-instance/protocols/protocol/bgp/global
+
+*   For Parameters:
+
+    *   config/as
+    *   config/router-id
+    *   config/peer-as
+    *   config/local-as
+    *   config/description
+    *   timers/config/hold-time
+    *   timers/config/keepalive-interval
+    *   timers/config/minimum-route-advertisement-interval
+
+*   For prefixes:    
+
+    *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group
+    *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor
+    
+## Telemetry Parameter coverage   
+    
+*   For prefix:
+    
+    *   /network-instances/network-instance/protocols/protocol/bgp/
+
+*   For Parameters:
+
+    *   state/last-established
+    *   state/messages/received/NOTIFICATION
+    *   state/negotiated-hold-time
+    *   state/supported-capabilities
 
 ## Protocol/RPC Parameter coverage
-    BGP
-        ● OPEN
-            ○ Version
-            ○ My Autonomous System
-            ○ BGP Identifier
-            ○ Hold Time 
 
-## Notes
-
-   Explicit Keep alive timer in not supported. We do calculate relative keepalive timer from holdtimer value. Keepalive will be 1/3rd of negotiated hold timer.
+*   BGP
+    
+    *   OPEN
+    
+        *   Version
+        *   My Autonomous System
+        *   BGP Identifier
+        *   Hold Time

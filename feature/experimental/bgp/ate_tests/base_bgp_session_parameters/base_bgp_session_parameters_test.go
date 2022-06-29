@@ -1,5 +1,3 @@
-// Copyright 2021 Google Inc.
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -51,7 +49,6 @@ const (
 	dutAS       = 64500
 	ateAS       = 64501
 	peerGrpName = "BGP-PEER-GROUP"
-	netInstance = "DEFAULT"
 )
 
 // configureDUT is used to configure interfaces on the DUT.
@@ -82,7 +79,7 @@ type bgpTestParams struct {
 // bgpCreateNbr creates a BGP object with neighbors pointing to ate and returns bgp object.
 func bgpCreateNbr(bgpParams *bgpTestParams) *telemetry.NetworkInstance_Protocol_Bgp {
 	d := &telemetry.Device{}
-	ni1 := d.GetOrCreateNetworkInstance(netInstance)
+	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	bgp := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(bgpParams.localAS)
@@ -125,7 +122,7 @@ func bgpCreateNbr(bgpParams *bgpTestParams) *telemetry.NetworkInstance_Protocol_
 // Verify BGP capabilities like route refresh as32 and mpbgp.
 func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP capabilities")
-	statePath := dut.Telemetry().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
 	capabilities := map[telemetry.E_BgpTypes_BGP_CAPABILITY]bool{
@@ -149,7 +146,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	ifName := dut.Port(t, "port1").Name()
 	lastFlapTime := dut.Telemetry().Interface(ifName).LastChange().Get(t)
 	t.Log("Verifying BGP state")
-	statePath := dut.Telemetry().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 	nbr := statePath.Get(t).GetNeighbor(ateAttrs.IPv4)
 
@@ -247,7 +244,7 @@ func TestEstablish(t *testing.T) {
 	dutConfNIPath.Replace(t, ni)
 
 	t.Log("Configure BGP")
-	dutConfPath := dut.Config().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 	dutConfPath.Replace(t, nil)
 	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS})
@@ -277,8 +274,8 @@ func TestDisconnect(t *testing.T) {
 	t.Log("Start DUT interface Config")
 	configureDUT(t, dut)
 
-	dutConfPath := dut.Config().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	statePath := dut.Telemetry().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
 	// Configure BGP Neighbor on the DUT
@@ -347,8 +344,8 @@ func TestParameters(t *testing.T) {
 	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
 	dutConfNIPath.Replace(t, ni)
 
-	dutConfPath := dut.Config().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	statePath := dut.Telemetry().NetworkInstance(netInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateIP)
 
 	cases := []struct {
