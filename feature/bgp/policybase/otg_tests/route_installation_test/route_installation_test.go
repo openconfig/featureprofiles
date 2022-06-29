@@ -427,7 +427,7 @@ func configureOTG(t *testing.T, otg *ondatra.OTG) gosnappi.Config {
 // depending on wantLoss, +- 2%)
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, wantLoss bool) {
 	otg := ate.OTG()
-	otgutils.PrintFlowMetrics(t, otg, c)
+	otgutils.LogFlowMetrics(t, otg, c)
 	for _, f := range c.Flows().Items() {
 		t.Logf("Verifying flow metrics for flow %s\n", f.Name())
 		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
