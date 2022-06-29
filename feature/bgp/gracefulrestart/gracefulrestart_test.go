@@ -101,8 +101,8 @@ func TestAugmentNeighbor(t *testing.T) {
 	}
 }
 
-// TestAugmentNeighbor_Errors tests the BGP GR augment to BGP neighbor errors.
-func TestAugmentNeighbor_Errors(t *testing.T) {
+// TestAugmentNeighborErrors tests the BGP GR augment to BGP neighbor errors.
+func TestAugmentNeighborErrors(t *testing.T) {
 	tests := []struct {
 		desc          string
 		gr            *GracefulRestart
@@ -208,8 +208,8 @@ func TestAugmentPeerGroup(t *testing.T) {
 	}
 }
 
-// TestAugmentPeerGroup_Errors tests the BGP GR augment to BGP peer-group errors.
-func TestAugmentPeerGroup_Errors(t *testing.T) {
+// TestAugmentPeerGroupErrors tests the BGP GR augment to BGP peer-group errors.
+func TestAugmentPeerGroupErrors(t *testing.T) {
 	tests := []struct {
 		desc          string
 		gr            *GracefulRestart
