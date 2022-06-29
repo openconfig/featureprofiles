@@ -73,7 +73,7 @@ for your contributions!
 The directory tree is organized as follows:
 
 *   `cloudbuild/` contains google cloud build scripts for running virtual
-    routers in containers on [KNE](https://github.com/google/kne)
+    routers in containers on [KNE](https://github.com/openconfig/kne)
 *   `feature/` contains definition and tests of feature profiles.
 *   `feature/experimental` contains new features and tests which are not yet
     proven to be stable

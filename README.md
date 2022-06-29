@@ -21,7 +21,7 @@ or by opening a GitHub [issue](https://github.com/openconfig/featureprofiles/iss
 
 # Examples
 Tests below are implemented using the [ONDATRA](https://github.com/openconfig/ondatra)
-test framework with the [Kubernetes Network Emulation](https://github.com/google/kne) 
+test framework with the [Kubernetes Network Emulation](https://github.com/openconfig/kne) 
 binding.
 
 ### Arista cEOS
