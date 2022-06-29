@@ -175,23 +175,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-func waitOtgArpEntry(t *testing.T, ipType string) {
+func waitOtgArpEntry(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
-
-	switch ipType {
-	case "IPv4":
-		otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
-			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-				return val.IsPresent()
-			}).Await(t)
-	case "IPv6":
-		otg.Telemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Watch(
-			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-				return val.IsPresent()
-			}).Await(t)
-
-	}
+	ate.OTG().Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
 }
 
 // testTraffic generates traffic flow from source network to
@@ -202,7 +191,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	// srcEndPoint is atePort1
 	otg := ate.OTG()
 	gwIp := inputMap[srcEndPoint].IPv4
-	waitOtgArpEntry(t, "IPv4")
+	waitOtgArpEntry(t)
 	dstMac := otg.Telemetry().Interface(srcEndPoint.Name + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
 	config.Flows().Clear().Items()
 	flowipv4 := config.Flows().Add().SetName("Flow")
