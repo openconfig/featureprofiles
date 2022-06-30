@@ -11,15 +11,16 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// PrintFlowMetrics is displaying the otg flow statistics.
-func PrintFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
+// LogFlowMetrics is displaying the otg flow statistics.
+func LogFlowMetrics(t testing.TB, otg *ondatra.OTG, c gosnappi.Config) {
+	t.Helper()
 	var out strings.Builder
 	out.WriteString("\nFlow Metrics\n")
 	for i := 1; i <= 80; i++ {
 		out.WriteString("-")
 	}
 	out.WriteString("\n")
-	out.WriteString(fmt.Sprintf("%-25v%-15v%-15v%-15v%-15v\n", "Name", "Frames Tx", "Frames Rx", "FPS Tx", "FPS Rx"))
+	fmt.Fprintf(&out, "%-25v%-15v%-15v%-15v%-15v\n", "Name", "Frames Tx", "Frames Rx", "FPS Tx", "FPS Rx")
 	for _, f := range c.Flows().Items() {
 		flowMetrics := otg.Telemetry().Flow(f.Name()).Get(t)
 		rxPkts := flowMetrics.GetCounters().GetInPkts()
@@ -28,15 +29,14 @@ func PrintFlowMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 		txRate := ygot.BinaryToFloat32(flowMetrics.GetOutFrameRate())
 		out.WriteString(fmt.Sprintf("%-25v%-15v%-15v%-15v%-15v\n", f.Name(), txPkts, rxPkts, txRate, rxRate))
 	}
-	for i := 1; i <= 80; i++ {
-		out.WriteString("-")
-	}
+	fmt.Fprintln(&out, strings.Repeat("-", 80))
 	out.WriteString("\n\n")
 	t.Log(out.String())
 }
 
-// PrintPortMetrics is displaying otg port stats.
-func PrintPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
+// LogPortMetrics is displaying otg port stats.
+func LogPortMetrics(t testing.TB, otg *ondatra.OTG, c gosnappi.Config) {
+	t.Helper()
 	var link string
 	var out strings.Builder
 	out.WriteString("\nPort Metrics\n")
@@ -44,9 +44,9 @@ func PrintPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 		out.WriteString("-")
 	}
 	out.WriteString("\n")
-	out.WriteString(fmt.Sprintf(
+	fmt.Fprintf(&out,
 		"%-25s%-15s%-15s%-15s%-15s%-15s%-15s%-15s\n",
-		"Name", "Frames Tx", "Frames Rx", "Bytes Tx", "Bytes Rx", "FPS Tx", "FPS Rx", "Link"))
+		"Name", "Frames Tx", "Frames Rx", "Bytes Tx", "Bytes Rx", "FPS Tx", "FPS Rx", "Link")
 	for _, p := range c.Ports().Items() {
 		portMetrics := otg.Telemetry().Port(p.Name()).Get(t)
 		rxFrames := portMetrics.GetCounters().GetInFrames()
@@ -64,9 +64,7 @@ func PrintPortMetrics(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 			p.Name(), txFrames, rxFrames, txBytes, rxBytes, txRate, rxRate, link,
 		))
 	}
-	for i := 1; i <= 120; i++ {
-		out.WriteString("-")
-	}
+	fmt.Fprintln(&out, strings.Repeat("-", 120))
 	out.WriteString("\n\n")
 	t.Log(out.String())
 }
