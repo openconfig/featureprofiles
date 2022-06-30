@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -321,7 +322,9 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		s.Enabled = ygot.Bool(true)
+		if *deviations.InterfaceEnabled {
+			s.Enabled = ygot.Bool(true)
+		}
 		a := s.GetOrCreateAddress(intf.ipv4Addr)
 		a.PrefixLength = ygot.Uint8(intf.ipv4PrefixLen)
 		s6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
@@ -332,7 +335,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 
 		t.Logf("Validate DUT IPv4 and IPv6 subinterface %s are enabled.", intf.intfName)
 		subint := dut.Telemetry().Interface(intf.intfName).Subinterface(0)
-		if !subint.Ipv4().Enabled().Get(t) {
+		if *deviations.InterfaceEnabled && !subint.Ipv4().Enabled().Get(t) {
 			t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
 		}
 		if !subint.Ipv6().Enabled().Get(t) {
