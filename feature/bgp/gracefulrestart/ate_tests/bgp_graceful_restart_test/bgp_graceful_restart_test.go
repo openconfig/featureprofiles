@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/config/acl"
@@ -68,6 +69,7 @@ const (
 	ateAS                    = 64501
 	plenIPv4                 = 30
 	plenIPv6                 = 126
+	peerGrpName              = "BGP-PEER-GROUP"
 )
 
 var (
@@ -99,6 +101,7 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
+	ateCIDR = "192.0.2.4/30"
 )
 
 // configureDUT configures all the interfaces on the DUT.
@@ -144,9 +147,14 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *telemetry.NetworkInstance_Proto
 	bgpgr.RestartTime = ygot.Uint16(grRestartTime)
 	bgpgr.StaleRoutesTime = ygot.Uint16(grStaleRouteTime)
 
+	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
+	pg.PeerAs = ygot.Uint32(ateAS)
+	pg.PeerGroupName = ygot.String(peerGrpName)
+
 	for _, nbr := range nbrs {
 		if nbr.isV4 {
 			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
+			nv4.PeerGroup = ygot.String(peerGrpName)
 			nv4.GetOrCreateTimers().HoldTime = ygot.Uint16(180)
 			nv4.PeerAs = ygot.Uint32(nbr.as)
 			nv4.Enabled = ygot.Bool(true)
@@ -163,7 +171,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *telemetry.NetworkInstance_Proto
 
 func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP state")
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateSrc.IPv4)
 	nbrPathv6 := statePath.Neighbor(ateSrc.IPv6)
 
@@ -322,7 +330,7 @@ func configACL(d *telemetry.Device, name string) *telemetry.Acl_AclSet {
 	tp10.DestinationPort, _ = tp10.To_Acl_AclSet_AclEntry_Transport_DestinationPort_Union(179)
 	a := aclEntry10.GetOrCreateIpv4()
 	a.SourceAddress = ygot.String(aclNullPrefix)
-	a.DestinationAddress = ygot.String(ateDst.IPv4CIDR())
+	a.DestinationAddress = ygot.String(ateCIDR)
 	a.Protocol, _ = a.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
 
 	aclEntry20 := acl.GetOrCreateAclEntry(20)
@@ -331,7 +339,7 @@ func configACL(d *telemetry.Device, name string) *telemetry.Acl_AclSet {
 	tp20 := aclEntry20.GetOrCreateTransport()
 	tp20.SourcePort, _ = tp20.To_Acl_AclSet_AclEntry_Transport_SourcePort_Union(179)
 	a2 := aclEntry20.GetOrCreateIpv4()
-	a2.SourceAddress = ygot.String(ateDst.IPv4CIDR())
+	a2.SourceAddress = ygot.String(ateCIDR)
 	a2.DestinationAddress = ygot.String(aclNullPrefix)
 	a2.Protocol, _ = a.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
 
@@ -373,10 +381,19 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		t.Log("Start DUT interface Config")
 		configureDUT(t, dut)
 	})
+
+	t.Log("Configure Network Instance")
+	d := &telemetry.Device{}
+	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
+	ni.RouterId = ygot.String(dutDst.IPv4)
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Type().Replace(t, ni.Type)
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).RouterId().Replace(t, *ni.RouterId)
+
 	// Configure BGP+Neighbors on the DUT
 	t.Run("configureBGP", func(t *testing.T) {
 		t.Log("Configure BGP with Graceful Restart option under Global Bgp")
-		dutConfPath := dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+		dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 		fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 		dutConfPath.Replace(t, nil)
 		nbrList := buildNbrList(ateAS)
@@ -405,7 +422,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		verifyNoPacketLoss(t, ate, allFlows)
 	})
 	// Configure an ACL to block BGP
-	d := &telemetry.Device{}
+	d = &telemetry.Device{}
 	ifName := dut.Port(t, "port2").Name()
 	iFace := d.GetOrCreateAcl().GetOrCreateInterface(ifName)
 	t.Run("VerifyTrafficPasswithGRTimerWithAclApplied", func(t *testing.T) {
@@ -425,7 +442,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		verifyNoPacketLoss(t, ate, allFlows)
 	})
 
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
 	t.Run("VerifyBGPNOTEstablished", func(t *testing.T) {
 		t.Logf("Waiting for BGP neighbor to establish...")
