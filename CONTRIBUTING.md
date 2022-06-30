@@ -52,6 +52,7 @@ Here is a specific list of test design patterns that we follow:
     except we do not want test cases to run in parallel.
 *   [Testing on the Toilet: Don't Put Logic in Tests](https://testing.googleblog.com/2014/07/testing-on-toilet-dont-put-logic-in.html).
 *   [Code Health: Eliminate YAGNI Smells](https://testing.googleblog.com/2017/08/code-health-eliminate-yagni-smells.html).
+*   [Why does Go not have assertions?](https://go.dev/doc/faq#assertions)
 
 ## Directory Organization
 
