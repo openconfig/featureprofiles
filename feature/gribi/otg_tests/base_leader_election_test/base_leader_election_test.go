@@ -215,10 +215,10 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	otg.StopTraffic(t)
 
 	// Print Port metrics
-	otgutils.PrintPortMetrics(t, otg, config)
+	otgutils.LogPortMetrics(t, otg, config)
 
 	// Check the flow statistics
-	otgutils.PrintFlowMetrics(t, otg, config)
+	otgutils.LogFlowMetrics(t, otg, config)
 	for _, f := range config.Flows().Items() {
 		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
 		lostPackets := recvMetric.GetCounters().GetOutPkts() - recvMetric.GetCounters().GetInPkts()
