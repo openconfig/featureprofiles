@@ -125,16 +125,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Telemetry Get issues on interfaces: %v", badTelem)
 }
 
-func deconfigureDut(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Logf("Unsetting DUT Interface Config")
-	dc := dut.Config()
-	for _, port := range dut.Ports() {
-		intf := &telemetry.Interface{Name: ygot.String(port.Name())}
-		intf.DeleteSubinterface(0)
-		dc.Interface(intf.GetName()).Replace(t, intf)
-	}
-}
-
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otg := ate.OTG()
 	sortedAtePorts := fptest.SortPorts(ate.Ports())
@@ -156,27 +146,14 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-func deconfigureATE(t *testing.T, ate *ondatra.ATEDevice, stopProtocols bool, stopTraffic bool) {
-	otg := ate.OTG()
-	if stopTraffic {
-		otg.StopTraffic(t)
-	}
-	if stopProtocols {
-		otg.StopProtocols(t)
-	}
-	otg.PushConfig(t, otg.NewConfig(t))
-}
-
 func TestTopology(t *testing.T) {
 	// Configure the DUT
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
-	defer deconfigureDut(t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "otg")
 	configureATE(t, ate)
-	defer deconfigureATE(t, ate, true, false)
 
 	// Query Telemetry
 	dutPorts := fptest.SortPorts(dut.Ports())
