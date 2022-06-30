@@ -732,7 +732,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 		}
 	}
 
-	otgutils.PrintFlowMetrics(t, otg, config)
+	otgutils.LogFlowMetrics(t, otg, config)
 	ateInPkts := otg.Telemetry().Flow(flowName).Counters().InPkts().Get(t)
 	ateOutPkts := otg.Telemetry().Flow(flowName).Counters().OutPkts().Get(t)
 
@@ -843,7 +843,7 @@ func TestQoSCounterUpdate(t *testing.T) {
 	otg.StopTraffic(t)
 	time.Sleep(60 * time.Second)
 
-	otgutils.PrintFlowMetrics(t, otg, config)
+	otgutils.LogFlowMetrics(t, otg, config)
 	for trafficID, data := range trafficFlows {
 		ateOutPkts[data.queue] = otg.Telemetry().Flow(trafficID).Counters().OutPkts().Get(t)
 		lossPct := (ateOutPkts[data.queue] - otg.Telemetry().Flow(trafficID).Counters().InPkts().Get(t)) / ateOutPkts[data.queue] * 100
