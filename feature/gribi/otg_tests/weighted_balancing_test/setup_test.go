@@ -360,7 +360,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	inPkts = make([]uint64, len(atePorts))
 	outPkts = make([]uint64, len(atePorts))
 
-	otgutils.PrintPortMetrics(t, ate.OTG(), config)
+	otgutils.LogPortMetrics(t, ate.OTG(), config)
 	for i, ap := range atePorts {
 		for _, p := range config.Ports().Items() {
 			portMetrics := ate.OTG().Telemetry().Port(p.Name()).Get(t)
