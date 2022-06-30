@@ -237,14 +237,12 @@ func TestEstablish(t *testing.T) {
 	configureDUT(t, dut)
 
 	// Configure BGP Neighbor on the DUT
-	t.Log("Configure Network Instance")
-	ni := &telemetry.NetworkInstance{
-		Name:     ygot.String(*deviations.DefaultNetworkInstance),
-		Type:     telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
-		RouterId: ygot.String(dutAttrs.IPv4),
-	}
-	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfNIPath.Replace(t, ni)
+	d := &telemetry.Device{}
+	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
+	ni.RouterId = ygot.String(dutAttrs.IPv4)
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Type().Replace(t, ni.Type)
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).RouterId().Replace(t, *ni.RouterId)
 
 	t.Log("Configure BGP")
 	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -283,13 +281,12 @@ func TestDisconnect(t *testing.T) {
 
 	// Configure BGP Neighbor on the DUT
 	t.Log("Configure Network Instance")
-	ni := &telemetry.NetworkInstance{
-		Name:     ygot.String(*deviations.DefaultNetworkInstance),
-		Type:     telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
-		RouterId: ygot.String(dutAttrs.IPv4),
-	}
-	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfNIPath.Replace(t, ni)
+	d := &telemetry.Device{}
+	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
+	ni.RouterId = ygot.String(dutAttrs.IPv4)
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Type().Replace(t, ni.Type)
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).RouterId().Replace(t, *ni.RouterId)
 
 	t.Log("Configure BGP")
 	// Clear any existing config
@@ -338,14 +335,12 @@ func TestParameters(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// Configure BGP Neighbor on the DUT
-	t.Log("Configure Network Instance")
-	ni := &telemetry.NetworkInstance{
-		Name:     ygot.String(*deviations.DefaultNetworkInstance),
-		Type:     telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
-		RouterId: ygot.String(dutAttrs.IPv4),
-	}
-	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfNIPath.Replace(t, ni)
+	d := &telemetry.Device{}
+	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
+	ni.RouterId = ygot.String(dutAttrs.IPv4)
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Type().Replace(t, ni.Type)
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).RouterId().Replace(t, *ni.RouterId)
 
 	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
