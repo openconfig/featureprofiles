@@ -89,7 +89,7 @@ const (
 	networkInstanceName = "default"
 	staticCIDR          = "198.51.100.192/26"
 	ipv4Prefix          = "203.0.113.0/24"
-	nextHop             = "192.0.2.1/32"
+	unresolvedNextHop   = "192.0.2.254/32"
 )
 
 // configInterfaceDUT configures the interface with the Addrs.
@@ -225,8 +225,8 @@ func configureIPv4ViaClientAInstalled(t *testing.T, args *testArgs) {
 			WithID(nhgIndex).
 			AddNextHop(nhIndex, 1).
 			WithElectionID(12, 0))
-	for ip := range ateDstNetCIDR {
 
+	for ip := range ateDstNetCIDR {
 		args.clientA.Modify().AddEntry(t,
 			fluent.IPv4Entry().
 				WithPrefix(ateDstNetCIDR[ip]).
@@ -256,6 +256,7 @@ func configureIPv4ViaClientAInstalled(t *testing.T, args *testArgs) {
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
+
 	for ip := range ateDstNetCIDR {
 		chk.HasResult(t, args.clientA.Results(t),
 			fluent.OperationResult().
@@ -271,6 +272,7 @@ func configureIPv4ViaClientAInstalled(t *testing.T, args *testArgs) {
 // validateGetRPC issues GET RPC from clientA and clientB and ensure
 // that all entries are returned.
 func validateGetRPC(ctx context.Context, t *testing.T, client *fluent.GRIBIClient) {
+	t.Helper()
 	getResponse, err := client.Get().AllNetworkInstances().WithAFT(fluent.IPv4).Send()
 	var prefixes []string
 	if err != nil {
@@ -332,19 +334,29 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 	}
 
-	//  Inject an entry that cannot be installed into the FIB due to
-	// an unresolved next-hop (203.0.113.0/24 -> unresolved 192.0.2.1/32).
-	// Issue a Get RPC from gRIBI-A and ensure that the entry for 203.0.113.0/24 is not returned.
-	nhg := fluent.NextHopGroupEntry().
-		WithNetworkInstance(networkInstanceName).
-		WithID(1000).
-		AddNextHop(1, 1)
+	// Inject an entry that cannot be installed into the FIB due to an unresolved next-hop
+	// (203.0.113.0/24 -> unresolved 192.0.2.254/32).  Issue a Get RPC from gRIBI-A and ensure
+	// that the entry for 203.0.113.0/24 is not returned.
+	args.clientA.Modify().AddEntry(t,
+		fluent.NextHopEntry().
+			WithNetworkInstance(instance).
+			WithIndex(1000+nhIndex).
+			WithIPAddress(unresolvedNextHop),
+		fluent.NextHopGroupEntry().
+			WithNetworkInstance(instance).
+			WithID(1000+nhgIndex).
+			AddNextHop(1000+nhIndex, 1),
+		fluent.IPv4Entry().
+			WithNetworkInstance(instance).
+			WithPrefix(ipv4Prefix).
+			WithNextHopGroup(1000+nhgIndex),
+	)
 
-	pfx := fluent.IPv4Entry().WithNetworkInstance(networkInstanceName).
-		WithPrefix(ipv4Prefix).WithNextHopGroupNetworkInstance(networkInstanceName).WithNextHopGroup(1000)
-	args.clientA.Modify().AddEntry(t, nhg, pfx)
+	if err := awaitTimeout(args.ctx, args.clientA, t, time.Minute); err != nil {
+		t.Fatalf("Could not program entries via clientA, got err: %v", err)
+	}
+
 	validateGetRPC(ctx, t, args.clientA)
-
 }
 
 func TestElectionID(t *testing.T) {
