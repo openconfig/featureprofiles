@@ -175,7 +175,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 
 	time.Sleep(5 * time.Second)
 
-	otgutils.PrintFlowMetrics(t, otg, top)
+	otgutils.LogFlowMetrics(t, otg, top)
 	txPkts := otg.Telemetry().Flow("Flow").Counters().OutPkts().Get(t)
 	rxPkts := otg.Telemetry().Flow("Flow").Counters().InPkts().Get(t)
 	lossPct := (txPkts - rxPkts) * 100 / txPkts
