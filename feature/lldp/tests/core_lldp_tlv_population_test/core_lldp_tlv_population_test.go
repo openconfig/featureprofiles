@@ -50,7 +50,7 @@ func TestCoreLLDPTLVPopulation(t *testing.T) {
 
 	for _, test := range tests {
 		dut, dutConf := configureNode(t, "dut1", test.lldpEnabled)
-		ate, ateConf := configureNode(t, "dut2", true) //lldp is always enabled for the ATE
+		ate, ateConf := configureNode(t, "dut2", true) // lldp is always enabled for the ATE
 		dutPort := dut.Port(t, "port1")
 		atePort := ate.Port(t, "port1")
 
