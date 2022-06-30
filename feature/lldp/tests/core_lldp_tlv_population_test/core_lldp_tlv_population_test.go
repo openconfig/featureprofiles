@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package lldp_test
+package core_lldp_tlv_population_test
 
 import (
 	"testing"
