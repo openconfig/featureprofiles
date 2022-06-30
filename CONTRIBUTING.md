@@ -46,6 +46,13 @@ It is recommended that tests follow
 [Testing on the Toilet](https://testing.googleblog.com/) for best practices on
 design patterns.
 
+Here is a specific list of test design patterns that we follow:
+
+*   [Table Driven Tests](https://github.com/golang/go/wiki/TableDrivenTests),
+    except we do not want test cases to run in parallel.
+*   [Testing on the Toilet: Don't Put Logic in Tests](https://testing.googleblog.com/2014/07/testing-on-toilet-dont-put-logic-in.html).
+*   [Code Health: Eliminate YAGNI Smells](https://testing.googleblog.com/2017/08/code-health-eliminate-yagni-smells.html).
+
 ## Directory Organization
 
 The directory tree is organized as follows:
