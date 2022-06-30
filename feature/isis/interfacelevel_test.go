@@ -85,7 +85,7 @@ func TestAugmentInterfaceLevel(t *testing.T) {
 					LevelNumber: ygot.Uint8(2),
 					Enabled:     ygot.Bool(true),
 					Af: map[fpoc.NetworkInstance_Protocol_Isis_Interface_Level_Af_Key]*fpoc.NetworkInstance_Protocol_Isis_Interface_Level_Af{
-						{fpoc.IsisTypes_AFI_TYPE_IPV4, fpoc.IsisTypes_SAFI_TYPE_UNICAST}: {
+						{AfiName: fpoc.IsisTypes_AFI_TYPE_IPV4, SafiName: fpoc.IsisTypes_SAFI_TYPE_UNICAST}: {
 							AfiName:  fpoc.IsisTypes_AFI_TYPE_IPV4,
 							SafiName: fpoc.IsisTypes_SAFI_TYPE_UNICAST,
 							Enabled:  ygot.Bool(true),
@@ -104,7 +104,7 @@ func TestAugmentInterfaceLevel(t *testing.T) {
 					LevelNumber: ygot.Uint8(2),
 					Enabled:     ygot.Bool(true),
 					Af: map[fpoc.NetworkInstance_Protocol_Isis_Interface_Level_Af_Key]*fpoc.NetworkInstance_Protocol_Isis_Interface_Level_Af{
-						{fpoc.IsisTypes_AFI_TYPE_IPV4, fpoc.IsisTypes_SAFI_TYPE_UNICAST}: {
+						{AfiName: fpoc.IsisTypes_AFI_TYPE_IPV4, SafiName: fpoc.IsisTypes_SAFI_TYPE_UNICAST}: {
 							AfiName:  fpoc.IsisTypes_AFI_TYPE_IPV4,
 							SafiName: fpoc.IsisTypes_SAFI_TYPE_UNICAST,
 							Enabled:  ygot.Bool(true),
@@ -120,7 +120,7 @@ func TestAugmentInterfaceLevel(t *testing.T) {
 					LevelNumber: ygot.Uint8(2),
 					Enabled:     ygot.Bool(true),
 					Af: map[fpoc.NetworkInstance_Protocol_Isis_Interface_Level_Af_Key]*fpoc.NetworkInstance_Protocol_Isis_Interface_Level_Af{
-						{fpoc.IsisTypes_AFI_TYPE_IPV4, fpoc.IsisTypes_SAFI_TYPE_UNICAST}: {
+						{AfiName: fpoc.IsisTypes_AFI_TYPE_IPV4, SafiName: fpoc.IsisTypes_SAFI_TYPE_UNICAST}: {
 							AfiName:  fpoc.IsisTypes_AFI_TYPE_IPV4,
 							SafiName: fpoc.IsisTypes_SAFI_TYPE_UNICAST,
 							Enabled:  ygot.Bool(true),
@@ -161,7 +161,7 @@ func TestAugmentInterfaceLevelErrors(t *testing.T) {
 					LevelNumber: ygot.Uint8(2),
 					Enabled:     ygot.Bool(true),
 					Af: map[fpoc.NetworkInstance_Protocol_Isis_Interface_Level_Af_Key]*fpoc.NetworkInstance_Protocol_Isis_Interface_Level_Af{
-						{fpoc.IsisTypes_AFI_TYPE_IPV4, fpoc.IsisTypes_SAFI_TYPE_UNICAST}: {
+						{AfiName: fpoc.IsisTypes_AFI_TYPE_IPV4, SafiName: fpoc.IsisTypes_SAFI_TYPE_UNICAST}: {
 							AfiName:  fpoc.IsisTypes_AFI_TYPE_IPV4,
 							SafiName: fpoc.IsisTypes_SAFI_TYPE_UNICAST,
 							Enabled:  ygot.Bool(true),

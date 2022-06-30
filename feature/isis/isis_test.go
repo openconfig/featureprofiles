@@ -80,7 +80,7 @@ func TestAugmentNetworkInstance(t *testing.T) {
 					Isis: &fpoc.NetworkInstance_Protocol_Isis{
 						Global: &fpoc.NetworkInstance_Protocol_Isis_Global{
 							Af: map[fpoc.NetworkInstance_Protocol_Isis_Global_Af_Key]*fpoc.NetworkInstance_Protocol_Isis_Global_Af{
-								{fpoc.IsisTypes_AFI_TYPE_IPV4, fpoc.IsisTypes_SAFI_TYPE_UNICAST}: {
+								{AfiName: fpoc.IsisTypes_AFI_TYPE_IPV4, SafiName: fpoc.IsisTypes_SAFI_TYPE_UNICAST}: {
 									AfiName:  fpoc.IsisTypes_AFI_TYPE_IPV4,
 									SafiName: fpoc.IsisTypes_SAFI_TYPE_UNICAST,
 									Enabled:  ygot.Bool(true),

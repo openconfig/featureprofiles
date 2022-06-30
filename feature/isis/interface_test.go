@@ -100,7 +100,7 @@ func TestInterfaceAugmentGlobal(t *testing.T) {
 					Enabled:     ygot.Bool(true),
 					InterfaceId: ygot.String("Ethernet1"),
 					Af: map[fpoc.NetworkInstance_Protocol_Isis_Interface_Af_Key]*fpoc.NetworkInstance_Protocol_Isis_Interface_Af{
-						{fpoc.IsisTypes_AFI_TYPE_IPV4, fpoc.IsisTypes_SAFI_TYPE_UNICAST}: {
+						{AfiName: fpoc.IsisTypes_AFI_TYPE_IPV4, SafiName: fpoc.IsisTypes_SAFI_TYPE_UNICAST}: {
 							AfiName:  fpoc.IsisTypes_AFI_TYPE_IPV4,
 							SafiName: fpoc.IsisTypes_SAFI_TYPE_UNICAST,
 							Enabled:  ygot.Bool(true),
