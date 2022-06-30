@@ -23,11 +23,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/featureprofiles/internal/gribi/util"
-	"github.com/openconfig/featureprofiles/topologies/binding/cisco/config"
 	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -1319,7 +1319,7 @@ func testBackupNHOPCase8(ctx context.Context, t *testing.T, args *testArgs) {
 	args.clientA.NHG(t, 200, 201, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
 	args.clientA.IPv4(t, dstPfx, dstPfxMask, 200, "REPAIRED", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 35, 200: 65}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfx, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
 
 	// LEVEL 1
 	// VIP1: NHG ID 1000
@@ -1743,8 +1743,11 @@ func testIPv4BackUpAddBkNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
-	//adding back interface configurations
-	configureDUT(t, args.dut)
+	//unshut interfaces
+	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
+	for _, intf := range interface_names {
+		args.interfaceaction(t, intf, true)
+	}
 }
 
 /*
@@ -1835,8 +1838,11 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 	time.Sleep(time.Minute)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
-	//adding back interface configurations
-	configureDUT(t, args.dut)
+	//unshut all the interface
+	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
+	for _, intf := range interface_names {
+		args.interfaceaction(t, intf, true)
+	}
 }
 
 func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1915,8 +1921,11 @@ func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) 
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port6", "port7"})
 
-	//adding back interface configurations
-	configureDUT(t, args.dut)
+	//unshut interfaces
+	interface_names = []string{"port5", "port4", "port3", "port2"}
+	for _, intf := range interface_names {
+		args.interfaceaction(t, intf, true)
+	}
 }
 
 /* Change the Backup NHG index from a Decap NHG to
@@ -2008,8 +2017,12 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 	time.Sleep(time.Minute)
 	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
 
-	//adding back interface configurations
-	configureDUT(t, args.dut)
+	//unshut interfaces
+	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
+	for _, intf := range interface_names {
+		testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint, false)
+		args.interfaceaction(t, intf, true)
+	}
 }
 
 /* Change the Backup NHG index from a Drop NHG to
@@ -2100,8 +2113,12 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	time.Sleep(time.Minute)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
-	//adding back interface configurations
-	configureDUT(t, args.dut)
+	//unshut interfaces
+	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
+	for _, intf := range interface_names {
+		testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint, false)
+		args.interfaceaction(t, intf, true)
+	}
 }
 
 /* Change the Backup NHG index from a Decap NHG to
@@ -2189,8 +2206,11 @@ func testIPv4BackUpModifyDecapNHG(ctx context.Context, t *testing.T, args *testA
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
-	//adding back interface configurations
-	configureDUT(t, args.dut)
+	//unshut interfaces
+	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
+	for _, intf := range interface_names {
+		args.interfaceaction(t, intf, true)
+	}
 }
 
 func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2312,8 +2332,11 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
-	//adding back interface configurations
-	configureDUT(t, args.dut)
+	//unshut interface
+	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
+	for _, intf := range interface_names {
+		args.interfaceaction(t, intf, true)
+	}
 }
 
 func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2435,8 +2458,11 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
-	//adding back interface configurations
-	configureDUT(t, args.dut)
+	//unshut interfaces
+	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
+	for _, intf := range interface_names {
+		args.interfaceaction(t, intf, true)
+	}
 }
 
 func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2520,8 +2546,11 @@ func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
-	//adding back interface configurations
-	configureDUT(t, args.dut)
+	//unshut interfaces
+	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
+	for _, intf := range interface_names {
+		args.interfaceaction(t, intf, true)
+	}
 }
 
 func testIPv4MultipleNHG(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2713,8 +2742,11 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
-	//adding back interface configurations
-	configureDUT(t, args.dut)
+	//unshut interfaces
+	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
+	for _, intf := range interface_names {
+		args.interfaceaction(t, intf, true)
+	}
 }
 
 func TestBackUp(t *testing.T) {
@@ -2861,15 +2893,15 @@ func TestBackUp(t *testing.T) {
 			fn:   testIPv4BackUpFlapBGPISIS,
 		},
 		{
-			name: "IPv4MultipleNHG",
-			desc: "Have same primary and backup decap with multiple nhg",
-			fn:   testIPv4MultipleNHG,
-		},
-		{
 			name: "IPv4BackupLCOIR",
 			desc: "Have Primary and backup configured on same LC and do a shut of primary. Followed by LC reload",
 			fn:   testIPv4BackUpLCOIR,
 		},
+		// {
+		// 	name: "IPv4MultipleNHG",
+		// 	desc: "Have same primary and backup decap with multiple nhg",
+		// 	fn:   testIPv4MultipleNHG,
+		// },
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {

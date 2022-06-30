@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/gribi/util"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
