@@ -239,11 +239,9 @@ func TestIntfCounterUpdate(t *testing.T) {
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	t.Logf("inPkts: %v and outPkts: %v before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 
-	for _, ipType := range []string{"ipv4", "ipv6"} {
-		err := otgutils.WaitFor(t, func() bool { return otgutils.ArpEntriesPresent(t, otg, ipType) }, &otgutils.WaitForOpts{Interval: 1 * time.Second, Timeout: 10 * time.Second, Condition: "ARP entries ready"})
-		if err != nil {
-			t.Fatal(err)
-		}
+	for _, ipType := range []string{"IPv4", "IPv6"} {
+		waitOtgArpEntry(t, ipType)
+		waitOtgArpEntry(t, ipType)
 	}
 
 	otg.StartTraffic(t)
@@ -269,7 +267,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 
 	// Getting the otg flow metrics
-	otgutils.PrintFlowMetrics(t, otg, config)
+	otgutils.LogFlowMetrics(t, otg, config)
 	ateInPkts := map[string]uint64{}
 	ateOutPkts := map[string]uint64{}
 	for _, f := range config.Flows().Items() {
@@ -415,5 +413,25 @@ func TestInterfaceMgmt(t *testing.T) {
 		t.Errorf("mgmt.IsPresent() for path: %q: got false, want true", path)
 	} else {
 		t.Logf("Got path/value: %s:%v", path, mgmt.Val(t))
+	}
+}
+
+// waitOtgArpEntry waits until ARP entries are present on OTG interfaces
+func waitOtgArpEntry(t *testing.T, ipType string) {
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+
+	switch ipType {
+	case "IPv4":
+		otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+				return val.IsPresent()
+			}).Await(t)
+	case "IPv6":
+		otg.Telemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Watch(
+			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+				return val.IsPresent()
+			}).Await(t)
+
 	}
 }
