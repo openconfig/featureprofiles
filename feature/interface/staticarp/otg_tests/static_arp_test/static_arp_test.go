@@ -317,7 +317,7 @@ func testFlow(
 	otg.StopTraffic(t)
 
 	// Get the flow statistics
-	otgutils.PrintFlowMetrics(t, otg, config)
+	otgutils.LogFlowMetrics(t, otg, config)
 	for _, f := range config.Flows().Items() {
 		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
 		if recvMetric.GetCounters().GetInPkts() != recvMetric.GetCounters().GetOutPkts() || recvMetric.GetCounters().GetInPkts() != 1000 {
