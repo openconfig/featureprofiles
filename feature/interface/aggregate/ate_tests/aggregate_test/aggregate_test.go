@@ -182,7 +182,6 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	for _, port := range tc.dutPorts[1:] {
 		i := d.GetOrCreateInterface(port.Name())
 		i.GetOrCreateEthernet().AggregateId = ygot.String(tc.aggID)
-		//Adding type configuration "ethernetCsmacd"
 		i.Type = ethernetCsmacd
 
 		if *deviations.InterfaceEnabled {
@@ -195,16 +194,16 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	p.Update(t, d)
 }
 
-func (tc *testCase) clearAggregateMembers(t *testing.T) {
+func (tc *testCase) clearAggregate(t *testing.T) {
+	// Clear the aggregate minlink.
+	tc.dut.Config().Interface(tc.aggID).Aggregation().MinLinks().Delete(t)
+
+	// Clear the members of the aggregate.
 	for _, port := range tc.dutPorts[1:] {
 		tc.dut.Config().Interface(port.Name()).Ethernet().AggregateId().Delete(t)
 	}
 }
 
-//Deleting aggregate min link configuration from dut
-func (tc *testCase) clearAggregateMinlink(t *testing.T) {
-	tc.dut.Config().Interface(tc.aggID).Aggregation().MinLinks().Delete(t)
-}
 func (tc *testCase) configureDUT(t *testing.T) {
 	t.Logf("dut ports = %v", tc.dutPorts)
 	if len(tc.dutPorts) < 2 {
@@ -214,29 +213,19 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	d := tc.dut.Config()
 
 	if *deviations.AggregateAtomicUpdate {
-		//Deleting aggregate min link configuration from dut
-		tc.clearAggregateMinlink(t)
-		tc.clearAggregateMembers(t)
+		tc.clearAggregate(t)
 		tc.setupAggregateAtomically(t)
 	}
 
+	lacp := &telemetry.Lacp_Interface{Name: ygot.String(tc.aggID)}
 	if tc.lagType == lagTypeLACP {
-		lacp := &telemetry.Lacp_Interface{Name: ygot.String(tc.aggID)}
 		lacp.LacpMode = telemetry.Lacp_LacpActivityType_ACTIVE
-
-		lacpPath := d.Lacp().Interface(tc.aggID)
-		fptest.LogYgot(t, "LACP", lacpPath, lacp)
-		lacpPath.Replace(t, lacp)
-	}
-
-	//Unset openconfig-lacp:lacp config "Lacp_LacpActivityType_UNSET"
-	if tc.lagType == lagTypeSTATIC {
-		lacp := &telemetry.Lacp_Interface{Name: ygot.String(tc.aggID)}
+	} else { 
 		lacp.LacpMode = telemetry.Lacp_LacpActivityType_UNSET
-		lacpPath := d.Lacp().Interface(tc.aggID)
-		fptest.LogYgot(t, "LACP", lacpPath, lacp)
-		lacpPath.Replace(t, lacp)
 	}
+	lacpPath := d.Lacp().Interface(tc.aggID)
+	fptest.LogYgot(t, "LACP", lacpPath, lacp)
+	lacpPath.Replace(t, lacp)
 
 	agg := &telemetry.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg, &dutDst)
@@ -254,7 +243,6 @@ func (tc *testCase) configureDUT(t *testing.T) {
 
 	for _, port := range tc.dutPorts[1:] {
 		i := &telemetry.Interface{Name: ygot.String(port.Name())}
-		//Adding type configuration "ethernetCsmacd"
 		i.Type = ethernetCsmacd
 
 		if *deviations.InterfaceEnabled {
