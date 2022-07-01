@@ -41,7 +41,7 @@ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stabl
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
 # Install KNE
-git clone https://github.com/google/kne.git
+git clone https://github.com/openconfig/kne.git
 pushd kne/kne_cli
 go install -v
 popd

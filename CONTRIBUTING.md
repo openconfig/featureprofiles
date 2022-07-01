@@ -59,7 +59,7 @@ Here is a specific list of test design patterns that we follow:
 The directory tree is organized as follows:
 
 *   `cloudbuild/` contains google cloud build scripts for running virtual
-    routers in containers on [KNE](https://github.com/google/kne)
+    routers in containers on [KNE](https://github.com/openconfig/kne)
 *   `feature/` contains definition and tests of feature profiles.
 *   `feature/experimental` contains new features and tests which are not yet
     categorized or not confirmed to pass.
