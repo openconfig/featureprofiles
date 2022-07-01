@@ -145,6 +145,127 @@ in the code. Steps not covered by code should have a TODO.
 In the PR, please mention any corrections made to the test plan for errors that
 were discovered when implementing the code.
 
+## Test Structure
+
+Generally, a Feature Profiles ONDATRA test has the following stages: configure
+DUT, configure ATE, generate and verify traffic, verify telemetry. The
+configuration stages should be factored out to their own functions, and any
+subtests should be run under `t.Run` so the test output clearly reflects which
+parts of the test passed and which parts failed.
+
+They typically just report the error using `t.Error()` for checks. This way, the
+error message is accurately attributed to the line of code where the error
+occurred.
+
+```
+func TestFoo(t *testing.T) {
+  configureDUT(t) // calls t.Fatal() on error.
+  configureATE(t) // calls t.Fatal() on error.
+  t.Run("Traffic", func(t *testing.T) { ... })
+  t.Run("Telemetry", func(t *testing.T) { ... })
+}
+```
+
+In the above example, `configureDUT` and `configureATE` should not be subtests,
+otherwise they could be skipped when someone specifies a test filter. The
+"Traffic" and "Telemetry" subtests will both run even if there is a fatal
+condition during `t.Run()`.
+
+### Table Driven Tests
+
+Each case in a table driven test should also be delineated with `t.Run()` as a
+subtest and should have a symbolic name and a description. The description text
+should be a direct quote from the test plan. The symbolic name allows test
+filtering, and the description should be logged at the beginning of the subtest.
+
+```
+func TestTableDriven(t *testing.T) {
+  cases := []struct{
+    name, desc string
+    ...
+  }{
+    ...
+  }
+  for _, c := range cases {
+    t.Run(c.name, func(t *testing.T) {
+      t.Log("Description: ", c.desc)
+      configureDUT(t, /* parameterized by c */)
+      configureATE(t, /* parameterized by c */)
+      t.Run("Traffic", func(t *testing.T) { ... })
+      t.Run("Telemetry", func(t *testing.T) { ... })
+    })
+  }
+}
+```
+
+If the table driven test does not change either the DUT or the ATE between
+cases, these stages may be moved out of the for-loop.
+
+### Subtests vs. Test Helpers
+
+When the setup is more involved, it is often necessary to break test code into
+separate functions as subtests, or rely on test helpers. The way we distinguish
+between subtests and test helpers is by their arguments.
+
+#### When to Use a Subtest
+
+A subtest or a portion of a test takes `t *testing.T` as the argument. A portion
+of a test implements what is explicitly described in the test plan procedure,
+typically limited to a single step.
+
+```
+// configureIPv4ViaClientA configures an IPv4 entry via client A with Election ID of 12.
+// Ensure that the entry is installed.
+func configureIPv4ViaClientA(t *testing.T, client *fluent.GRIBIClient) {
+  // Do not call t.Helper()
+}
+```
+
+Generally, most code in `foo_test.go` should be test code.
+
+#### When to Use a Test Helper
+
+On the other hand, a test helper provides an implementation detail below what is
+specified in the test plan. They are often reusable across many tests.
+Generally, test helpers should be a package under `internal`, e.g.
+`internal/gribi`.
+
+It is recommended that a test helper simply [returns error as usual][errors] and
+does not report test errors on its own. When necessary, it may accept `t
+testing.TB` as an argument if it has to report `t.Error()`, in which case it
+must call `t.Helper()` as the first statement, so the test error is attributed
+to the caller instead of to the helper.
+
+[errors]: https://github.com/golang/go/wiki/CodeReviewComments#error-strings
+
+```
+// fooHelper is recommended.
+func fooHelper(...) error {
+  ...
+}
+
+// barHelper is also OK.
+func barHelper(t testing.TB, ...) {
+  t.Helper()
+  // Any t.Error() in the code is attributed to the caller.
+}
+```
+
+Don't do both. If a helper returns an error value and still reports `t.Error()`,
+it creates redundant and possibly divergent error paths that the caller will
+have to remember checking.
+
+```
+// bazHelper is NOT ok because it mixes error reporting.
+func bazHelper(t testing.TB, ...) error {
+  t.Error(...)  // Don't do this.
+}
+```
+
+Do not write [assertion] helpers.
+
+[assertion]: https://go.dev/doc/faq#assertions
+
 ## Allowed File Types
 
 Regular files should be plain text in either ASCII or UTF-8 encoding. Please
