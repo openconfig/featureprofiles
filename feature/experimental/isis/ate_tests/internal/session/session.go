@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package session is scoped only to be used with feature/experimental/isis/ate_tests/*
+// Package session is deprecated and scoped only to be used with
+// feature/experimental/isis/ate_tests/*.  Do not use elsewhere.
 package session
 
 import (
