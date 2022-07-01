@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/ixnet"
 	"github.com/openconfig/ondatra/telemetry/networkinstance"
 	"github.com/openconfig/ygot/ygot"
 
@@ -204,7 +205,7 @@ func (s *TestSession) WithISIS(t testing.TB) *TestSession {
 // an ondatra ATE IS-IS block. The first will be applied to the IS-IS block of ts.DUTConfig; if the
 // ATE is an ATEDevice, the second will be applied to s.ATETop, otherwise the first will be called
 // again on s.ATEConf
-func (s *TestSession) ConfigISIS(t testing.TB, ocFn func(*telemetry.NetworkInstance_Protocol_Isis), ateFn func(*ondatra.ISIS)) {
+func (s *TestSession) ConfigISIS(t testing.TB, ocFn func(*telemetry.NetworkInstance_Protocol_Isis), ateFn func(*ixnet.ISIS)) {
 	ocFn(s.DUTConf.GetOrCreateNetworkInstance("default").GetOrCreateProtocol(PTISIS, ISISName).GetOrCreateIsis())
 	ateFn(s.ATEInterface(t, "port1").ISIS())
 }

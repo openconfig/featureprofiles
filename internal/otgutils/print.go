@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/ondatra"
+	otg "github.com/openconfig/ondatra/otg"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
 // LogFlowMetrics is displaying the otg flow statistics.
-func LogFlowMetrics(t testing.TB, otg *ondatra.OTG, c gosnappi.Config) {
+func LogFlowMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
 	var out strings.Builder
 	out.WriteString("\nFlow Metrics\n")
@@ -35,7 +35,7 @@ func LogFlowMetrics(t testing.TB, otg *ondatra.OTG, c gosnappi.Config) {
 }
 
 // LogPortMetrics is displaying otg port stats.
-func LogPortMetrics(t testing.TB, otg *ondatra.OTG, c gosnappi.Config) {
+func LogPortMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
 	var link string
 	var out strings.Builder
