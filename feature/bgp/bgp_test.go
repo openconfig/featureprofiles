@@ -150,8 +150,8 @@ func TestAugmentNetworkInstance(t *testing.T) {
 	}
 }
 
-// TestAugmentNetworkInstance_Errors tests the BGP augment to NI OC validation.
-func TestAugmentNetworkInstance_Errors(t *testing.T) {
+// TestAugmentNetworkInstanceErrors tests the BGP augment to NI OC validation.
+func TestAugmentNetworkInstanceErrors(t *testing.T) {
 	tests := []struct {
 		desc          string
 		bgp           *BGP
