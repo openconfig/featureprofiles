@@ -181,8 +181,8 @@ func TestFullReplaceRequest(t *testing.T) {
 	}
 }
 
-// TestFullReplaceRequest_Errors tests the FullReplaceRequest method.
-func TestFullReplaceRequest_Errors(t *testing.T) {
+// TestFullReplaceRequestErrors tests the FullReplaceRequest method.
+func TestFullReplaceRequestErrors(t *testing.T) {
 	tests := []struct {
 		name          string
 		device        *Device
