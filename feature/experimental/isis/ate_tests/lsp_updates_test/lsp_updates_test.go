@@ -37,8 +37,8 @@ func TestOverloadBit(t *testing.T) {
 	ts.AwaitAdjacency(t)
 	setBit := telemPth.Global().LspBit().OverloadBit().SetBit()
 	overloads := telemPth.Level(2).SystemLevelCounters().DatabaseOverloads()
-	assert.AssertValueOrNil(t, setBit, false)
-	assert.AssertValueOrNil(t, overloads, uint32(0))
+	assert.ValueOrNil(t, setBit, false)
+	assert.ValueOrNil(t, overloads, uint32(0))
 	ts.DUTConf.
 		GetNetworkInstance("default").
 		GetProtocol(session.PTISIS, session.ISISName).
@@ -49,7 +49,7 @@ func TestOverloadBit(t *testing.T) {
 	ts.PushDUT(t)
 	// TODO: Verify the link state database once device support is added.
 	overloads.Await(t, time.Second*10, 1)
-	assert.AssertValue(t, setBit, true)
+	assert.Value(t, setBit, true)
 	// TODO: Verify the link state database on the ATE once the ATE reports this properly
 	// ateTelemPth := ts.ATEISISTelemetry(t)
 	// ateDB := ateTelemPth.Level(2).LspAny()
@@ -71,7 +71,7 @@ func TestMetric(t *testing.T) {
 	telemPth := ts.DUTISISTelemetry(t)
 	metric := telemPth.Interface(ts.DUT.Port(t, "port1").Name()).Level(2).
 		Af(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Metric()
-	assert.AssertValue(t, metric, uint32(100))
+	assert.Value(t, metric, uint32(100))
 	// TODO: Verify the link state database on the ATE once the ATE reports this properly
 	// ateTelemPth := ts.ATEISISTelemetry(t)
 	// ateDB := ateTelemPth.Level(2).LspAny()
