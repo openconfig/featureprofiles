@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package rt_2_2_lsp_updates implements RT 2.2 from POPGate vendor device plan
-package rt_2_2_lsp_updates_test
+// Package lsp_updates_test implements RT-2.2.
+package lsp_updates_test
 
 import (
 	"testing"
