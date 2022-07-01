@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
+	otg "github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ondatra/telemetry"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
@@ -336,7 +337,7 @@ func verifyPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, policy string) 
 
 // configureOTG configures the interfaces and BGP protocols on an OTG, including advertising some
 // (faked) networks over BGP.
-func configureOTG(t *testing.T, otg *ondatra.OTG) gosnappi.Config {
+func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 	config := otg.NewConfig(t)
 	srcPort := config.Ports().Add().SetName("port1")
@@ -455,7 +456,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, want
 	}
 }
 
-func sendTraffic(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
+func sendTraffic(t *testing.T, otg *otg.OTG, c gosnappi.Config) {
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
 	time.Sleep(trafficDuration)
@@ -463,7 +464,7 @@ func sendTraffic(t *testing.T, otg *ondatra.OTG, c gosnappi.Config) {
 	otg.StopTraffic(t)
 }
 
-func verifyOtgBgpTelemetry(t *testing.T, otg *ondatra.OTG, c gosnappi.Config, ipType, state string) {
+func verifyOtgBgpTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, ipType, state string) {
 	for _, d := range c.Devices().Items() {
 		switch ipType {
 		case "IPv4":
