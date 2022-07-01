@@ -118,8 +118,8 @@ func TestAugmentDevice(t *testing.T) {
 	}
 }
 
-// TestAugmentDevice_Errors tests the error handling of AugmentDevice.
-func TestAugmentDevice_Errors(t *testing.T) {
+// TestAugmentDeviceErrors tests the error handling of AugmentDevice.
+func TestAugmentDeviceErrors(t *testing.T) {
 	tests := []struct {
 		desc          string
 		lldp          *LLDP
