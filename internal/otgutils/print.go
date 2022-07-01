@@ -11,14 +11,12 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// LogFlowMetrics is displaying the otg flow statistics.
+// LogFlowMetrics displays the otg flow statistics.
 func LogFlowMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
 	var out strings.Builder
 	out.WriteString("\nFlow Metrics\n")
-	for i := 1; i <= 80; i++ {
-		out.WriteString("-")
-	}
+	fmt.Fprintln(&out, strings.Repeat("-", 80))
 	out.WriteString("\n")
 	fmt.Fprintf(&out, "%-25v%-15v%-15v%-15v%-15v\n", "Name", "Frames Tx", "Frames Rx", "FPS Tx", "FPS Rx")
 	for _, f := range c.Flows().Items() {
@@ -34,15 +32,13 @@ func LogFlowMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Log(out.String())
 }
 
-// LogPortMetrics is displaying otg port stats.
+// LogPortMetrics displays otg port stats.
 func LogPortMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
 	var link string
 	var out strings.Builder
 	out.WriteString("\nPort Metrics\n")
-	for i := 1; i <= 120; i++ {
-		out.WriteString("-")
-	}
+	fmt.Fprintln(&out, strings.Repeat("-", 120))
 	out.WriteString("\n")
 	fmt.Fprintf(&out,
 		"%-25s%-15s%-15s%-15s%-15s%-15s%-15s%-15s\n",
