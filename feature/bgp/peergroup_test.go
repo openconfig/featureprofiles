@@ -302,8 +302,8 @@ func TestPGAugmentBGP(t *testing.T) {
 	}
 }
 
-// TestPGAugmentBGP_Errors tests the BGP pg augment to BGP pg validation.
-func TestPGAugmentBGP_Errors(t *testing.T) {
+// TestPGAugmentBGPErrors tests the BGP pg augment to BGP pg validation.
+func TestPGAugmentBGPErrors(t *testing.T) {
 	tests := []struct {
 		desc          string
 		pg            *PeerGroup
