@@ -220,7 +220,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	lacp := &telemetry.Lacp_Interface{Name: ygot.String(tc.aggID)}
 	if tc.lagType == lagTypeLACP {
 		lacp.LacpMode = telemetry.Lacp_LacpActivityType_ACTIVE
-	} else { 
+	} else {
 		lacp.LacpMode = telemetry.Lacp_LacpActivityType_UNSET
 	}
 	lacpPath := d.Lacp().Interface(tc.aggID)
