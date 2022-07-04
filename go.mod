@@ -3,9 +3,11 @@ module github.com/openconfig/featureprofiles
 go 1.18
 
 require (
-	github.com/cisco-open/go-p4 v0.0.0-20220613165938-386fc6ef3747
+	github.com/cisco-open/go-p4 v0.0.0-20220703020939-7f2a7d4c62dd
 	github.com/golang/glog v1.0.0
+	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.7
+	github.com/google/gopacket v1.1.19
 	github.com/openconfig/gnmi v0.0.0-20220131173555-39aa74195f0d
 	github.com/openconfig/gnoi v0.0.0-20220131192435-7dd3a95a4f1e
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
@@ -27,8 +29,6 @@ require (
 
 require (
 	github.com/ghodss/yaml v1.0.0 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/kne v0.1.1-0.20220209214853-52a824020cd9 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect

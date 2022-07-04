@@ -12,6 +12,7 @@ import (
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -21,11 +22,11 @@ import (
 )
 
 func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	res := dut.Telemetry().ComponentAny().Get(t)
+	resp := dut.Telemetry().ComponentAny().Get(t)
 	component := telemetry.Component{}
 	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
 	i := uint64(0)
-	for _, c := range res {
+	for _, c := range resp {
 		name := c.GetName()
 		if match, _ := regexp.MatchString(".*-NPU\\d+", name); match && !strings.Contains(name, "FC") {
 			component.Name = ygot.String(name)
@@ -33,6 +34,17 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 			dut.Config().Component(name).Replace(t, &component)
 			i += 1
 		}
+	}
+}
+
+func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	ports := fptest.SortPorts(dut.Ports())
+	for index, port := range ports {
+		// dut.Config().Interface(port.Name()).Id().Update(t, uint32(index)+portID)
+		dut.Config().Interface(port.Name()).Update(t, &telemetry.Interface{
+			Name: ygot.String(port.Name()),
+			Id:   ygot.Uint32(uint32(index) + portID),
+		})
 	}
 }
 
@@ -151,7 +163,7 @@ func teardownConnection(ctx context.Context, t *testing.T, deviceID uint64, clie
 	return nil
 }
 
-func setupForwardingPipeline(ctx context.Context, t *testing.T, deviceID uint64, client *p4rt_client.P4RTClient) error {
+func setupForwardingPipeline(ctx context.Context, t *testing.T, streamParameter p4rt_client.P4RTStreamParameters, client *p4rt_client.P4RTClient) error {
 	p4Info, err := utils.P4InfoLoad(p4InfoFile)
 	if err != nil {
 		t.Logf("There is error when loading p4info file")
@@ -159,8 +171,8 @@ func setupForwardingPipeline(ctx context.Context, t *testing.T, deviceID uint64,
 	}
 
 	if err := client.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
-		DeviceId:   deviceID,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+		DeviceId:   streamParameter.DeviceId,
+		ElectionId: &p4_v1.Uint128{High: streamParameter.ElectionIdH, Low: streamParameter.ElectionIdL},
 		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4_v1.ForwardingPipelineConfig{
 			P4Info: &p4Info,

@@ -38,14 +38,15 @@ var (
 func testReadRPCFromPrimary(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 
+	streamParameter := generateStreamParameter(deviceID, uint64(0), electionID)
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
+	if err := setupConnection(ctx, t, streamParameter, client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
 	defer teardownConnection(ctx, t, deviceID, client)
 
-	if err := setupForwardingPipeline(ctx, t, deviceID, client); err != nil {
+	if err := setupForwardingPipeline(ctx, t, streamParameter, client); err != nil {
 		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
 	}
 
@@ -68,19 +69,21 @@ func testReadRPCFromBackup(ctx context.Context, t *testing.T, args *testArgs) {
 	clientA := args.p4rtClientA
 	clientB := args.p4rtClientB
 
+	streamParameter := generateStreamParameter(deviceID, uint64(0), electionID)
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), clientA); err != nil {
+	if err := setupConnection(ctx, t, streamParameter, clientA); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
 	defer teardownConnection(ctx, t, deviceID, clientA)
 
-	if err := setupForwardingPipeline(ctx, t, deviceID, clientA); err != nil {
+	if err := setupForwardingPipeline(ctx, t, streamParameter, clientA); err != nil {
 		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
 	}
 
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID-1), clientB); err != nil {
+	streamParameter.ElectionIdL -= 1
+	if err := setupConnection(ctx, t, streamParameter, clientB); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
@@ -104,14 +107,16 @@ func testReadRPCFromBackup(ctx context.Context, t *testing.T, args *testArgs) {
 func testReadRPCNonExistDeviceID(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 
+	streamParameter := generateStreamParameter(deviceID, uint64(0), electionID)
+
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, generateStreamParameter(deviceID, uint64(0), electionID), client); err != nil {
+	if err := setupConnection(ctx, t, streamParameter, client); err != nil {
 		t.Errorf("There is error setting up connection, %s", err)
 	}
 	// Destroy P4RT Client
 	defer teardownConnection(ctx, t, deviceID, client)
 
-	if err := setupForwardingPipeline(ctx, t, deviceID, client); err != nil {
+	if err := setupForwardingPipeline(ctx, t, streamParameter, client); err != nil {
 		t.Errorf("There is error sending SetForwardingPipeline, %s", err)
 	}
 
