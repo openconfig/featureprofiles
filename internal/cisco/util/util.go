@@ -195,32 +195,6 @@ func CreateBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName s
 	SetInterfaceState(t, dut, bundleName, true)
 }
 
-//SetInterfaceState sets interface state
-func SetInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, adminState bool) {
-
-	i := &telemetry.Interface{
-		Enabled: ygot.Bool(adminState),
-		Name:    ygot.String(interfaceName),
-	}
-	updateResponse := dut.Config().Interface(interfaceName).Update(t, i)
-	t.Logf("Update response : %v", updateResponse)
-	currEnabledState := dut.Telemetry().Interface(interfaceName).Get(t).GetEnabled()
-	if currEnabledState != adminState {
-		t.Fatalf("Failed to set interface admin_state to :%v", adminState)
-	} else {
-		t.Logf("Interface admin_state set to :%v", adminState)
-	}
-}
-
-// FlapInterface flaps an interface
-func FlapInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, flapDuration time.Duration) {
-
-	initialState := dut.Telemetry().Interface(interfaceName).Get(t).GetEnabled()
-	transientState := !initialState
-	SetInterfaceState(t, dut, interfaceName, transientState)
-	time.Sleep(flapDuration * time.Second)
-	SetInterfaceState(t, dut, interfaceName, initialState)
-}
 
 //GetSubInterface returns subinterface
 func GetSubInterface(ipv4 string, prefixlen uint8, index uint32) *telemetry.Interface_Subinterface {
