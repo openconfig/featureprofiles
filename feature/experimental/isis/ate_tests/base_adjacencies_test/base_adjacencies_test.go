@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/ixnet"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
@@ -271,7 +272,7 @@ func TestHelloPadding(t *testing.T) {
 			ts.ConfigISIS(t, func(isis *telemetry.NetworkInstance_Protocol_Isis) {
 				global := isis.GetOrCreateGlobal()
 				global.HelloPadding = tc.mode
-			}, func(isis *ondatra.ISIS) {
+			}, func(isis *ixnet.ISIS) {
 				isis.WithHelloPaddingEnabled(tc.mode != telemetry.IsisTypes_HelloPaddingType_DISABLE)
 			})
 			ts.PushAndStart(t)
@@ -312,7 +313,7 @@ func TestAuthentication(t *testing.T) {
 						intf.GetLevel(2).GetHelloAuthentication().AuthType = telemetry.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 					}
 				}
-			}, func(isis *ondatra.ISIS) {
+			}, func(isis *ixnet.ISIS) {
 				if tc.enabled {
 					isis.WithAuthPassword("google")
 				} else {
@@ -348,7 +349,7 @@ func TestTraffic(t *testing.T) {
 		// disable global hello padding on the DUT
 		global := isis.GetOrCreateGlobal()
 		global.HelloPadding = telemetry.IsisTypes_HelloPaddingType_DISABLE
-	}, func(isis *ondatra.ISIS) {
+	}, func(isis *ixnet.ISIS) {
 		// disable global hello padding on the ATE
 		isis.WithHelloPaddingEnabled(false)
 	})

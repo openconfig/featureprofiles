@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package assert is scoped only to be used with feature/experimental/isis/ate_tests/*
+// Package assert is deprecated and scoped only to be used with
+// feature/experimental/isis/ate_tests/*.  Do not use elsewhere.
 package assert
 
 import (
@@ -79,9 +80,9 @@ func getVal(t testing.TB, qVal QualifiedValue) (interface{}, error) {
 	return result[0].Interface(), nil
 }
 
-// assertPredicateMaybe calls t.Errorf if the value at the given path doesn't satisfy the given
+// predicateMaybe calls t.Errorf if the value at the given path doesn't satisfy the given
 // predicate. It will also Errorf if the value is missing, unless nilOk is true.
-func assertPredicateMaybe(t testing.TB, pth ygot.PathStruct, wantLabel string, predicate func(interface{}) bool, nilOk bool) {
+func predicateMaybe(t testing.TB, pth ygot.PathStruct, wantLabel string, predicate func(interface{}) bool, nilOk bool) {
 	t.Helper()
 	result, err := callLookup(t, pth)
 	if err != nil {
@@ -108,13 +109,13 @@ func assertPredicateMaybe(t testing.TB, pth ygot.PathStruct, wantLabel string, p
 // given predicate.
 func Predicate(t testing.TB, pth ygot.PathStruct, wantLabel string, predicate func(interface{}) bool) {
 	t.Helper()
-	assertPredicateMaybe(t, pth, wantLabel, predicate, false)
+	predicateMaybe(t, pth, wantLabel, predicate, false)
 }
 
 // Value calls t.Errorf the value at the given path is missing or doesn't equal want.
 func Value(t testing.TB, pth ygot.PathStruct, want interface{}) {
 	t.Helper()
-	assertPredicateMaybe(t, pth, fmt.Sprintf("%[1]T %[1]v", want), func(got interface{}) bool {
+	predicateMaybe(t, pth, fmt.Sprintf("%[1]T %[1]v", want), func(got interface{}) bool {
 		return reflect.DeepEqual(got, want)
 	}, false)
 }
@@ -123,7 +124,7 @@ func Value(t testing.TB, pth ygot.PathStruct, want interface{}) {
 // log an error if the value is unset.
 func ValueOrNil(t testing.TB, pth ygot.PathStruct, want interface{}) {
 	t.Helper()
-	assertPredicateMaybe(t, pth, fmt.Sprintf("%[1]T %[1]v", want), func(got interface{}) bool {
+	predicateMaybe(t, pth, fmt.Sprintf("%[1]T %[1]v", want), func(got interface{}) bool {
 		return reflect.DeepEqual(got, want)
 	}, true)
 }
