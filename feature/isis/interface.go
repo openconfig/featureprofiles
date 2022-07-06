@@ -54,7 +54,7 @@ func (i *Interface) WithCSNPInterval(interval time.Duration) *Interface {
 // WithLSPPacingInterval sets the lsp-pacing-interval on the interface ISIS.
 func (i *Interface) WithLSPPacingInterval(interval time.Duration) *Interface {
 	toc := i.oc.GetOrCreateTimers()
-	toc.LspPacingInterval = ygot.Uint64(uint64(interval.Seconds()))
+	toc.LspPacingInterval = ygot.Uint64(uint64(interval.Milliseconds()))
 	return i
 }
 

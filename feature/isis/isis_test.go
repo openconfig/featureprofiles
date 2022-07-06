@@ -167,7 +167,7 @@ func TestAugmentNetworkInstance(t *testing.T) {
 		},
 	}, {
 		desc: "ISIS with SPF First Interval",
-		isis: New().WithSPFFirstInterval(10 * time.Second),
+		isis: New().WithSPFFirstInterval(10 * time.Millisecond),
 		inNI: &fpoc.NetworkInstance{},
 		wantNI: &fpoc.NetworkInstance{
 			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{
@@ -188,7 +188,7 @@ func TestAugmentNetworkInstance(t *testing.T) {
 		},
 	}, {
 		desc: "ISIS with SPF Hold Interval",
-		isis: New().WithSPFHoldInterval(10 * time.Second),
+		isis: New().WithSPFHoldInterval(10 * time.Millisecond),
 		inNI: &fpoc.NetworkInstance{},
 		wantNI: &fpoc.NetworkInstance{
 			Protocol: map[fpoc.NetworkInstance_Protocol_Key]*fpoc.NetworkInstance_Protocol{

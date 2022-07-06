@@ -80,13 +80,13 @@ func (i *ISIS) WithLSPRefreshInterval(interval time.Duration) *ISIS {
 
 // WithSPFFirstInterval sets the spf-first-interval for ISIS global.
 func (i *ISIS) WithSPFFirstInterval(interval time.Duration) *ISIS {
-	i.oc.GetOrCreateIsis().GetOrCreateGlobal().GetOrCreateTimers().GetOrCreateSpf().SpfFirstInterval = ygot.Uint64(uint64(interval.Seconds()))
+	i.oc.GetOrCreateIsis().GetOrCreateGlobal().GetOrCreateTimers().GetOrCreateSpf().SpfFirstInterval = ygot.Uint64(uint64(interval.Milliseconds()))
 	return i
 }
 
 // WithSPFHoldInterval sets the spf-hold-interval for ISIS global.
 func (i *ISIS) WithSPFHoldInterval(interval time.Duration) *ISIS {
-	i.oc.GetOrCreateIsis().GetOrCreateGlobal().GetOrCreateTimers().GetOrCreateSpf().SpfHoldInterval = ygot.Uint64(uint64(interval.Seconds()))
+	i.oc.GetOrCreateIsis().GetOrCreateGlobal().GetOrCreateTimers().GetOrCreateSpf().SpfHoldInterval = ygot.Uint64(uint64(interval.Milliseconds()))
 	return i
 }
 

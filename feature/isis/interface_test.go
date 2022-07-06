@@ -77,7 +77,7 @@ func TestInterfaceAugmentGlobal(t *testing.T) {
 		},
 	}, {
 		desc:   "ISIS interface with lsp-pacing-interval",
-		intf:   NewInterface("Ethernet1").WithLSPPacingInterval(10 * time.Second),
+		intf:   NewInterface("Ethernet1").WithLSPPacingInterval(10 * time.Millisecond),
 		inISIS: &fpoc.NetworkInstance_Protocol_Isis{},
 		wantISIS: &fpoc.NetworkInstance_Protocol_Isis{
 			Interface: map[string]*fpoc.NetworkInstance_Protocol_Isis_Interface{
@@ -111,7 +111,7 @@ func TestInterfaceAugmentGlobal(t *testing.T) {
 		},
 	}, {
 		desc: "ISIS contains Interface OC with no conflicts",
-		intf: NewInterface("Ethernet1").WithLSPPacingInterval(10 * time.Second),
+		intf: NewInterface("Ethernet1").WithLSPPacingInterval(10 * time.Millisecond),
 		inISIS: &fpoc.NetworkInstance_Protocol_Isis{
 			Interface: map[string]*fpoc.NetworkInstance_Protocol_Isis_Interface{
 				"Ethernet1": {
@@ -158,7 +158,7 @@ func TestInterfaceAugmentGlobalErrors(t *testing.T) {
 		wantErrSubStr string
 	}{{
 		desc: "ISIS contains Interface OC with conflicts",
-		intf: NewInterface("Ethernet1").WithLSPPacingInterval(10 * time.Second),
+		intf: NewInterface("Ethernet1").WithLSPPacingInterval(10 * time.Millisecond),
 		inISIS: &fpoc.NetworkInstance_Protocol_Isis{
 			Interface: map[string]*fpoc.NetworkInstance_Protocol_Isis_Interface{
 				"Ethernet1": {
