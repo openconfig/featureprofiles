@@ -328,8 +328,8 @@ func TestAugmentBGP(t *testing.T) {
 	}
 }
 
-// TestAugmentBGP_Errors tests the BGP neighbor augment to BGP neighbor validation.
-func TestAugmentBGP_Errors(t *testing.T) {
+// TestAugmentBGPErrors tests the BGP neighbor augment to BGP neighbor validation.
+func TestAugmentBGPErrors(t *testing.T) {
 	tests := []struct {
 		desc          string
 		neighbor      *Neighbor

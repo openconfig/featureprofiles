@@ -64,15 +64,16 @@ func TestNeighborAddress(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []string{
-		// "12.13.14.15",
-		// "2008:23::1",
-		"b:04:188:FaB:75:28:b:fd",
+		"1.2.3.4",
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
 	bgpConfig := dut.Config().NetworkInstance(networkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := dut.Telemetry().NetworkInstance(networkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpConfig.Global().As().Update(t, bgp_as)
+	time.Sleep(configApplyTime)
+	config := bgpConfig.Neighbor(neighbor_address).PeerAs()
+	t.Run("Update", func(t *testing.T) { config.Update(t, 34) })
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 

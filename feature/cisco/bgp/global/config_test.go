@@ -101,8 +101,9 @@ func TestRouterId(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedString) bool { return true }).Await(t); qs.IsPresent() { // FIXME: qs.Val(t) != 0.0.0.0
-					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id fail: got %v", qs)
+				stateGot := state.Get(t)
+				if stateGot != "0.0.0.0" {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id fail: got %v, want 0.0.0.0", stateGot)
 				}
 			})
 		})

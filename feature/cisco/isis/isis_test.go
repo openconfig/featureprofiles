@@ -541,6 +541,8 @@ func TestISISState(t *testing.T) {
 	lsp := isisPath.Level(uint8(2)).
 		Lsp(peerIsis.Systemid)
 	tlvExtv6Prefix := lsp.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(peerIsis.Connectedv6Prefix)
+	// Subscribe at a higher YANG path level as per CSCwb73158
+	lsp.Get(t)
 	t.Run("Subscribe//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/metric", func(t *testing.T) {
 		state := tlvExtv6Prefix.Metric()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
