@@ -1,0 +1,253 @@
+{
+   "vport": [
+      {
+         "l1Config": {
+            "aresOneFourHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[1]/l1Config/aresOneFourHundredGigLan"
+            },
+            "novusHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[1]/l1Config/novusHundredGigLan"
+            },
+            "novusTenGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[1]/l1Config/novusTenGigLan"
+            },
+            "xpath": "/vport[1]/l1Config"
+         },
+         "location": "20.0.0.2;1;1",
+         "name": "20.0.0.2/1/1",
+         "protocolStack": {
+            "options": {
+               "mcast_solicit": 8,
+               "retransTime": 7000,
+               "xpath": "/vport[1]/protocolStack/options"
+            },
+            "xpath": "/vport[1]/protocolStack"
+         },
+         "protocols": {
+            "xpath": "/vport[1]/protocols"
+         },
+         "xpath": "/vport[1]"
+      },
+      {
+         "l1Config": {
+            "aresOneFourHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[2]/l1Config/aresOneFourHundredGigLan"
+            },
+            "novusHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[2]/l1Config/novusHundredGigLan"
+            },
+            "novusTenGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[2]/l1Config/novusTenGigLan"
+            },
+            "xpath": "/vport[2]/l1Config"
+         },
+         "location": "20.0.0.2;1;2",
+         "name": "20.0.0.2/1/2",
+         "protocolStack": {
+            "options": {
+               "mcast_solicit": 8,
+               "retransTime": 7000,
+               "xpath": "/vport[2]/protocolStack/options"
+            },
+            "xpath": "/vport[2]/protocolStack"
+         },
+         "protocols": {
+            "xpath": "/vport[2]/protocols"
+         },
+         "xpath": "/vport[2]"
+      },
+      {
+         "l1Config": {
+            "aresOneFourHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[3]/l1Config/aresOneFourHundredGigLan"
+            },
+            "novusHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[3]/l1Config/novusHundredGigLan"
+            },
+            "novusTenGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[3]/l1Config/novusTenGigLan"
+            },
+            "xpath": "/vport[3]/l1Config"
+         },
+         "location": "20.0.0.2;1;3",
+         "name": "20.0.0.2/1/3",
+         "protocolStack": {
+            "options": {
+               "mcast_solicit": 8,
+               "retransTime": 7000,
+               "xpath": "/vport[3]/protocolStack/options"
+            },
+            "xpath": "/vport[3]/protocolStack"
+         },
+         "protocols": {
+            "xpath": "/vport[3]/protocols"
+         },
+         "xpath": "/vport[3]"
+      },
+      {
+         "l1Config": {
+            "aresOneFourHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[4]/l1Config/aresOneFourHundredGigLan"
+            },
+            "novusHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[4]/l1Config/novusHundredGigLan"
+            },
+            "novusTenGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[4]/l1Config/novusTenGigLan"
+            },
+            "xpath": "/vport[4]/l1Config"
+         },
+         "location": "20.0.0.2;1;4",
+         "name": "20.0.0.2/1/4",
+         "protocolStack": {
+            "options": {
+               "mcast_solicit": 8,
+               "retransTime": 7000,
+               "xpath": "/vport[4]/protocolStack/options"
+            },
+            "xpath": "/vport[4]/protocolStack"
+         },
+         "protocols": {
+            "xpath": "/vport[4]/protocols"
+         },
+         "xpath": "/vport[4]"
+      },
+      {
+         "l1Config": {
+            "aresOneFourHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[5]/l1Config/aresOneFourHundredGigLan"
+            },
+            "novusHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[5]/l1Config/novusHundredGigLan"
+            },
+            "novusTenGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[5]/l1Config/novusTenGigLan"
+            },
+            "xpath": "/vport[5]/l1Config"
+         },
+         "location": "20.0.0.2;1;5",
+         "name": "20.0.0.2/1/5",
+         "protocolStack": {
+            "options": {
+               "mcast_solicit": 8,
+               "retransTime": 7000,
+               "xpath": "/vport[5]/protocolStack/options"
+            },
+            "xpath": "/vport[5]/protocolStack"
+         },
+         "protocols": {
+            "xpath": "/vport[5]/protocols"
+         },
+         "xpath": "/vport[5]"
+      },
+      {
+         "l1Config": {
+            "aresOneFourHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[6]/l1Config/aresOneFourHundredGigLan"
+            },
+            "novusHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[6]/l1Config/novusHundredGigLan"
+            },
+            "novusTenGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[6]/l1Config/novusTenGigLan"
+            },
+            "xpath": "/vport[6]/l1Config"
+         },
+         "location": "20.0.0.2;1;6",
+         "name": "20.0.0.2/1/6",
+         "protocolStack": {
+            "options": {
+               "mcast_solicit": 8,
+               "retransTime": 7000,
+               "xpath": "/vport[6]/protocolStack/options"
+            },
+            "xpath": "/vport[6]/protocolStack"
+         },
+         "protocols": {
+            "xpath": "/vport[6]/protocols"
+         },
+         "xpath": "/vport[6]"
+      },
+      {
+         "l1Config": {
+            "aresOneFourHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[7]/l1Config/aresOneFourHundredGigLan"
+            },
+            "novusHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[7]/l1Config/novusHundredGigLan"
+            },
+            "novusTenGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[7]/l1Config/novusTenGigLan"
+            },
+            "xpath": "/vport[7]/l1Config"
+         },
+         "location": "20.0.0.2;1;7",
+         "name": "20.0.0.2/1/7",
+         "protocolStack": {
+            "options": {
+               "mcast_solicit": 8,
+               "retransTime": 7000,
+               "xpath": "/vport[7]/protocolStack/options"
+            },
+            "xpath": "/vport[7]/protocolStack"
+         },
+         "protocols": {
+            "xpath": "/vport[7]/protocols"
+         },
+         "xpath": "/vport[7]"
+      },
+      {
+         "l1Config": {
+            "aresOneFourHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[8]/l1Config/aresOneFourHundredGigLan"
+            },
+            "novusHundredGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[8]/l1Config/novusHundredGigLan"
+            },
+            "novusTenGigLan": {
+               "autoInstrumentation": "floating",
+               "xpath": "/vport[8]/l1Config/novusTenGigLan"
+            },
+            "xpath": "/vport[8]/l1Config"
+         },
+         "location": "20.0.0.2;1;8",
+         "name": "20.0.0.2/1/8",
+         "protocolStack": {
+            "options": {
+               "mcast_solicit": 8,
+               "retransTime": 7000,
+               "xpath": "/vport[8]/protocolStack/options"
+            },
+            "xpath": "/vport[8]/protocolStack"
+         },
+         "protocols": {
+            "xpath": "/vport[8]/protocols"
+         },
+         "xpath": "/vport[8]"
+      }
+   ],
+   "xpath": "/"
+}
