@@ -16,7 +16,7 @@ var (
 		"networkinstance", "lacp", "local-routes", "lldp", "network-instance", "components", "qos", "interface"} // order is important
 )
 
-func findTestDataPath() string {
+func FindTestDataPath() string {
 	path, err := os.Getwd()
 	if err != nil {
 		panic(fmt.Sprintf("Error: %v", err))
@@ -38,7 +38,7 @@ func BaseConfig() *oc.Qos {
 
 func init() {
 	var err error
-	jsonConfig, err = ioutil.ReadFile(findTestDataPath())
+	jsonConfig, err = ioutil.ReadFile(FindTestDataPath())
 	if err != nil {
 		panic(fmt.Sprintf("Cannot load base config: %v", err))
 	}
@@ -56,7 +56,7 @@ func SkipSubscribe() bool {
 
 // SkipGet returns true when the test cases do not need to do subscribe for the leafs
 func SkipGet() bool {
-	return true
+	return false
 }
 
 // GetAnyValue return the first entry from a map
