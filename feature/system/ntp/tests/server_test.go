@@ -17,6 +17,7 @@
 package system_ntp_test
 
 import (
+	"net"
 	"testing"
 
 	"github.com/openconfig/ondatra"
@@ -51,15 +52,15 @@ func TestNtpServerConfigurability(t *testing.T) {
 
 			t.Run("Get NTP Server Config", func(t *testing.T) {
 				configGot := config.Server(testCase.address).Get(t)
-				if address := configGot.GetAddress(); address != testCase.address {
-					t.Errorf("Config NTP Server: got %s, want %s", address, testCase.address)
+				if gotAddress, wantAddress := net.ParseIP(configGot.GetAddress()), net.ParseIP(testCase.address); !wantAddress.Equal(gotAddress) {
+					t.Errorf("Config NTP Server: got %v, want %v", gotAddress, wantAddress)
 				}
 			})
 
 			t.Run("Get NTP Server Telemetry", func(t *testing.T) {
 				stateGot := state.Server(testCase.address).Get(t)
-				if address := stateGot.GetAddress(); address != testCase.address {
-					t.Errorf("Telemetry NTP Server: got %s, want %s", address, testCase.address)
+				if gotAddress, wantAddress := net.ParseIP(stateGot.GetAddress()), net.ParseIP(testCase.address); !wantAddress.Equal(gotAddress) {
+					t.Errorf("Telemetry NTP Server: got %v, want %v", gotAddress, wantAddress)
 				}
 			})
 
