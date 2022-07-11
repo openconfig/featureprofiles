@@ -185,8 +185,10 @@ func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testAr
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
 	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
-        var baseConfig *oc.Qos = setupQos(t,args.dut)
-        println(baseConfig)
+	var baseConfig *oc.Qos = setupQos(t, args.dut)
+	println(baseConfig)
+	var baseConfigEgress *oc.Qos = setupQosEgress(t, args.dut)
+	println(baseConfigEgress)
 }
 
 func testDeleteAndAddUCMP(ctx context.Context, t *testing.T, args *testArgs) {
