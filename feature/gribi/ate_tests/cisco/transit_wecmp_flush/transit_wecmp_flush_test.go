@@ -109,13 +109,13 @@ func testAddIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
 	defer args.topology.StopProtocols(t)
 	baseflow := getBaseFlow(t, portMaps, args.ate, "IPinIP")
 	args.ate.Traffic().Start(t, baseflow)
+	defer args.ate.Traffic().Stop(t)
 
 	// Add same ipv4 entry
 	args.c2.BecomeLeader(t)
 	args.c2.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// traffic verification
-	defer args.ate.Traffic().Stop(t)
 	time.Sleep(60 * time.Second)
 
 	stats := args.ate.Telemetry().FlowAny().Get(t)
@@ -178,13 +178,13 @@ func testAddNHGTrafficCheck(t *testing.T, args *testArgs) {
 	defer args.topology.StopProtocols(t)
 	baseflow := getBaseFlow(t, portMaps, args.ate, "IPinIP")
 	args.ate.Traffic().Start(t, baseflow)
+	defer args.ate.Traffic().Stop(t)
 
 	// Add same NHG entry
 	args.c2.BecomeLeader(t)
 	args.c2.AddNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// traffic verification
-	defer args.ate.Traffic().Stop(t)
 	time.Sleep(60 * time.Second)
 	stats := args.ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
@@ -211,11 +211,11 @@ func testReplaceNHGTrafficCheck(t *testing.T, args *testArgs) {
 	defer args.topology.StopProtocols(t)
 	baseflow := getBaseFlow(t, portMaps, args.ate, "IPinIP")
 	args.ate.Traffic().Start(t, baseflow)
+	defer args.ate.Traffic().Stop(t)
 	// Replace same NHG entry
 	args.c2.BecomeLeader(t)
 	args.c2.ReplaceNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// traffic verification
-
 	time.Sleep(60 * time.Second)
 	stats := args.ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
@@ -243,18 +243,18 @@ func testAddNHTrafficCheck(t *testing.T, args *testArgs) {
 	defer args.topology.StopProtocols(t)
 	baseflow := getBaseFlow(t, portMaps, args.ate, "IPinIP")
 	args.ate.Traffic().Start(t, baseflow)
+	defer args.ate.Traffic().Stop(t)
 
 	// Add same NH entry
 	args.c2.BecomeLeader(t)
 	args.c2.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// traffic verification
-	defer args.ate.Traffic().Stop(t)
 	time.Sleep(60 * time.Second)
 	stats := args.ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
-		t.Error("There is stream failing:", strings.Join(lossStream, ","))
+		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
 	} else {
 		t.Log("There is no traffic loss.")
 	}
@@ -278,13 +278,13 @@ func testReplaceNHTrafficCheck(t *testing.T, args *testArgs) {
 	defer topology.StopProtocols(t)
 	baseflow := getBaseFlow(t, portMaps, ate, "IPinIP")
 	ate.Traffic().Start(t, baseflow)
+	defer ate.Traffic().Stop(t)
 
 	// Replace same NH entry
 	args.c2.BecomeLeader(t)
 	args.c2.ReplaceNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// traffic verification
-	defer ate.Traffic().Stop(t)
 	time.Sleep(60 * time.Second)
 	stats := ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
