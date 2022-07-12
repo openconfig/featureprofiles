@@ -182,6 +182,11 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	for _, port := range tc.dutPorts[1:] {
 		i := d.GetOrCreateInterface(port.Name())
 		i.GetOrCreateEthernet().AggregateId = ygot.String(tc.aggID)
+		i.Type = ethernetCsmacd
+
+		if *deviations.InterfaceEnabled {
+			i.Enabled = ygot.Bool(true)
+		}
 	}
 
 	p := tc.dut.Config()
@@ -189,7 +194,11 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	p.Update(t, d)
 }
 
-func (tc *testCase) clearAggregateMembers(t *testing.T) {
+func (tc *testCase) clearAggregate(t *testing.T) {
+	// Clear the aggregate minlink.
+	tc.dut.Config().Interface(tc.aggID).Aggregation().MinLinks().Delete(t)
+
+	// Clear the members of the aggregate.
 	for _, port := range tc.dutPorts[1:] {
 		tc.dut.Config().Interface(port.Name()).Ethernet().AggregateId().Delete(t)
 	}
@@ -204,18 +213,19 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	d := tc.dut.Config()
 
 	if *deviations.AggregateAtomicUpdate {
-		tc.clearAggregateMembers(t)
+		tc.clearAggregate(t)
 		tc.setupAggregateAtomically(t)
 	}
 
+	lacp := &telemetry.Lacp_Interface{Name: ygot.String(tc.aggID)}
 	if tc.lagType == lagTypeLACP {
-		lacp := &telemetry.Lacp_Interface{Name: ygot.String(tc.aggID)}
 		lacp.LacpMode = telemetry.Lacp_LacpActivityType_ACTIVE
-
-		lacpPath := d.Lacp().Interface(tc.aggID)
-		fptest.LogYgot(t, "LACP", lacpPath, lacp)
-		lacpPath.Replace(t, lacp)
+	} else {
+		lacp.LacpMode = telemetry.Lacp_LacpActivityType_UNSET
 	}
+	lacpPath := d.Lacp().Interface(tc.aggID)
+	fptest.LogYgot(t, "LACP", lacpPath, lacp)
+	lacpPath.Replace(t, lacp)
 
 	agg := &telemetry.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg, &dutDst)
@@ -226,12 +236,18 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	srcp := tc.dutPorts[0]
 	srci := &telemetry.Interface{Name: ygot.String(srcp.Name())}
 	tc.configSrcDUT(srci, &dutSrc)
+	srci.Type = ethernetCsmacd
 	srciPath := d.Interface(srcp.Name())
 	fptest.LogYgot(t, srcp.String(), srciPath, srci)
 	srciPath.Replace(t, srci)
 
 	for _, port := range tc.dutPorts[1:] {
 		i := &telemetry.Interface{Name: ygot.String(port.Name())}
+		i.Type = ethernetCsmacd
+
+		if *deviations.InterfaceEnabled {
+			i.Enabled = ygot.Bool(true)
+		}
 		tc.configDstMemberDUT(i, port)
 		iPath := d.Interface(port.Name())
 		fptest.LogYgot(t, port.String(), iPath, i)
@@ -396,7 +412,7 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 	for _, tf := range tests {
 		t.Run(tf.desc, func(t *testing.T) {
 			for _, port := range tc.atePorts[1 : 1+tf.downCount] {
-				tc.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(port).WithStateEnabled(false).Operate(t)
+				tc.ate.Actions().NewSetPortState().WithPort(port).WithEnabled(false).Send(t)
 				// Linked DUT and ATE ports have the same ID.
 				dp := tc.dut.Port(t, port.ID())
 				dip := tc.dut.Telemetry().Interface(dp.Name())
