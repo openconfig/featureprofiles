@@ -19,25 +19,22 @@ id {
 
 # Global
 config_path {
-  path: "/sampling/sflow/config/enabled"
-}
-config_path {
   path: "/sampling/sflow/config/agent-id-ipv4"
 }
 config_path {
   path: "/sampling/sflow/config/agent-id-ipv6"
 }
 config_path {
-  path: "/sampling/sflow/config/sample-size"
+  path: "/sampling/sflow/config/enabled"
+}
+config_path {
+  path: "/sampling/sflow/config/egress-sampling-rate"
 }
 config_path {
   path: "/sampling/sflow/config/ingress-sampling-rate"
 }
 config_path {
-  path: "/sampling/sflow/config/egress-sampling-rate"
-}
-telemetry_path {
-  path: "/sampling/sflow/state/enabled"
+  path: "/sampling/sflow/config/sample-size"
 }
 telemetry_path {
   path: "/sampling/sflow/state/agent-id-ipv4"
@@ -46,13 +43,16 @@ telemetry_path {
   path: "/sampling/sflow/state/agent-id-ipv6"
 }
 telemetry_path {
-  path: "/sampling/sflow/state/sample-size"
+  path: "/sampling/sflow/state/enabled"
+}
+telemetry_path {
+  path: "/sampling/sflow/state/egress-sampling-rate"
 }
 telemetry_path {
   path: "/sampling/sflow/state/ingress-sampling-rate"
 }
 telemetry_path {
-  path: "/sampling/sflow/state/egress-sampling-rate"
+  path: "/sampling/sflow/state/sample-size"
 }
 
 # Interfaces
@@ -79,6 +79,9 @@ config_path {
 config_path {
   path: "/sampling/sflow/collectors/collector/config/port"
 }
+config_path {
+  path: "/sampling/sflow/collectors/collector/config/source-address"
+}
 telemetry_path {
   path: "/sampling/sflow/collectors/collector/state/address"
 }
@@ -87,4 +90,7 @@ telemetry_path {
 }
 telemetry_path {
   path: "/sampling/sflow/collectors/collector/state/port"
+}
+telemetry_path {
+  path: "/sampling/sflow/collectors/collector/state/source-address"
 }
