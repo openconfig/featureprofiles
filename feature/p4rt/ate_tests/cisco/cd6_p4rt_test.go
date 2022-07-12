@@ -133,31 +133,44 @@ func testGDPEntryProgrammingPacketIn(ctx context.Context, t *testing.T, args *te
 
 	// Check PacketIn on P4Client
 	packets := []*p4rt_client.P4RTPacketInfo{}
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 40; i++ {
 		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
 		if err == io.EOF {
 			t.Logf("EOF error is seen in PacketIn.")
 			break
 		} else if err == nil {
-			packets = append(packets, packet)
+			if packet != nil {
+				packets = append(packets, packet)
+			}
 		} else {
 			t.Logf("There is error seen when receving packets. %v, %s", err, err)
 			break
 		}
 	}
 
+	// t.Logf("Captured packets: %v", len(packets))
 	if len(packets) == 0 {
 		t.Errorf("There is no packets received.")
 	}
 
 	t.Logf("Start to decode packet.")
 	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
 		if packet != nil {
 			dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
 			if dstMac != gdpMAC || etherType != layers.EthernetType(gdpEtherType) {
 				t.Errorf("Packet is not matching GDP packet.")
 			}
 			// TODO: Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(portID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
 		}
 	}
 }

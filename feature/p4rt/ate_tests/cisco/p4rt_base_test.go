@@ -17,12 +17,13 @@ import (
 var (
 	p4InfoFile = flag.String("p4info_file_location", "./wbb.p4info.pb.txt",
 		"Path to the p4info file.")
-	electionID   = uint64(100)
-	streamName   = "Primary"
-	deviceID     = uint64(1)
-	portID       = uint64(1)
-	gdpMAC       = "00:0a:da:f0:f0:f0"
-	gdpEtherType = uint32(24583)
+	electionID            = uint64(100)
+	streamName            = "Primary"
+	deviceID              = uint64(1)
+	portID                = uint32(1)
+	gdpMAC                = "00:0a:da:f0:f0:f0"
+	gdpEtherType          = uint32(24583)
+	METADATA_INGRESS_PORT = uint32(1)
 )
 
 // Testcase defines testcase structure
