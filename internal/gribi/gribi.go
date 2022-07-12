@@ -133,9 +133,9 @@ func (c *Client) AwaitTimeout(ctx context.Context, t testing.TB, timeout time.Du
 	return c.fluentC.Await(subctx, t)
 }
 
-// LearnElectionID learns the current server election id by sending
+// learnElectionID learns the current server election id by sending
 // a dummy modify request with election id 1.
-func (c *Client) LearnElectionID(t testing.TB) (low, high uint64) {
+func (c *Client) learnElectionID(t testing.TB) (low, high uint64) {
 	t.Helper()
 	t.Logf("Learn GRIBI Election ID from dut: %s", c.DUT.Name())
 	c.fluentC.Modify().UpdateElectionID(t, 1, 0)
@@ -166,7 +166,7 @@ func (c *Client) UpdateElectionID(t testing.TB, lowElecID, highElecID uint64) {
 // BecomeLeader learns the latest election id and the make the client leader by increasing the election id by one.
 func (c *Client) BecomeLeader(t testing.TB) {
 	t.Logf("Trying to be a master with increasing the election id by one on dut: %s", c.DUT.Name())
-	low, high := c.LearnElectionID(t)
+	low, high := c.learnElectionID(t)
 	newLow := low + 1
 	if newLow < low {
 		high++ // Carry to high.

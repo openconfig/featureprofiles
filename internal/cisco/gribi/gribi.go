@@ -150,8 +150,11 @@ func (c *Client) BecomeLeader(t testing.TB) {
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
-func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck) {
+func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
+	if bkhgIndex != 0 {
+		nhg.WithBackupNHG(bkhgIndex)
+	}
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
 	}
@@ -188,11 +191,14 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint
 }
 
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
-func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
+func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, nh_Instance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
 	NH := fluent.NextHopEntry().
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex).
 		WithIPAddress(address)
+	if nh_Instance != "" {
+		NH = NH.WithNextHopNetworkInstance(nh_Instance)
+	}
 	if interfaceRef != "" {
 		NH = NH.WithInterfaceRef(interfaceRef)
 	}
@@ -295,8 +301,11 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
-func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck) {
+func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
+	if bkhgIndex != 0 {
+		nhg.WithBackupNHG(bkhgIndex)
+	}
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
 	}
@@ -333,11 +342,14 @@ func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]
 }
 
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
-func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
+func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance string, nh_Instance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
 	NH := fluent.NextHopEntry().
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex).
 		WithIPAddress(address)
+	if nh_Instance != "" {
+		NH = NH.WithNextHopNetworkInstance(nh_Instance)
+	}
 	if interfaceRef != "" {
 		NH = NH.WithInterfaceRef(interfaceRef)
 	}
@@ -402,6 +414,185 @@ func (c *Client) ReplaceIPv4(t testing.TB, prefix string, nhgIndex uint64, insta
 	}
 }
 
+// AddIPv4 adds a list of IPv4Entries mapping  prefixes to a given next hop group index within a given network instance.
+func (c *Client) ReplaceIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expecteFailure bool, check *flags.GRIBICheck) {
+	ipv4Entries := []fluent.GRIBIEntry{}
+	for _, prefix := range prefixes {
+		ipv4Entry := fluent.IPv4Entry().
+			WithNetworkInstance(instance).
+			WithPrefix(prefix).
+			WithNextHopGroup(nhgIndex).
+			WithNextHopGroupNetworkInstance(nhgInstance)
+		if nhgInstance != "" && nhgInstance != instance {
+			ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+		}
+		ipv4Entries = append(ipv4Entries, ipv4Entry)
+	}
+	c.fluentC.Modify().ReplaceEntry(t, ipv4Entries...)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add IPv4 entries: %v", err)
+	}
+	expectedResult := fluent.InstalledInRIB
+	if expecteFailure {
+		expectedResult = fluent.ProgrammingFailed
+	}
+	if check.FIBACK {
+		expectedResult = fluent.InstalledInFIB
+	}
+	for _, prefix := range prefixes {
+		chk.HasResult(t, c.fluentC.Results(t),
+			fluent.OperationResult().WithIPv4Operation(prefix).
+				WithOperationType(constants.Add).
+				WithProgrammingResult(expectedResult).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+}
+
+func (c *Client) DeleteNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck) {
+	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
+	if bkhgIndex != 0 {
+		nhg.WithBackupNHG(bkhgIndex)
+	}
+	c.fluentC.Modify().DeleteEntry(t, nhg)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add NHG: %v", err)
+	}
+	expectedResult := fluent.InstalledInRIB
+	if expecteFailure {
+		expectedResult = fluent.ProgrammingFailed
+	}
+	if check.FIBACK {
+		expectedResult = fluent.InstalledInFIB
+	}
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithNextHopGroupOperation(nhgIndex).
+			WithOperationType(constants.Replace).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+	if check.AFTCheck {
+		nhg := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndex).Get(t)
+		if *nhg.Id != nhgIndex {
+			t.Fatalf("AFT Check failed for aft/nexthopgroup/entry got id %d, want id %d", *nhg.Id, nhgIndex)
+		}
+	}
+}
+
+// AddNH adds a NextHopEntry with a given index to an address within a given network instance.
+func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string, nh_Instance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
+	NH := fluent.NextHopEntry().
+		WithNetworkInstance(instance).
+		WithIndex(nhIndex)
+
+	if address != "" {
+		NH = NH.WithIPAddress(address)
+	}
+	if nh_Instance != "" {
+		NH = NH.WithNextHopNetworkInstance(nh_Instance)
+	}
+	if interfaceRef != "" {
+		NH = NH.WithInterfaceRef(interfaceRef)
+	}
+	c.fluentC.Modify().DeleteEntry(t, NH)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add NH: %v", err)
+	}
+	expectedResult := fluent.InstalledInRIB
+	if expecteFailure {
+		expectedResult = fluent.ProgrammingFailed
+	}
+	if check.FIBACK {
+		expectedResult = fluent.InstalledInFIB
+	}
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithNextHopOperation(nhIndex).
+			WithOperationType(constants.Replace).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+	if check.AFTCheck {
+		nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
+		if *nh.Index != nhIndex {
+			t.Fatalf("AFT Check failed for aft/nexthop-entry got index %d , want index %d", *nh.Index, nhIndex)
+		}
+	}
+}
+
+// AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
+func (c *Client) DeleteIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, expecteFailure bool, check *flags.GRIBICheck) {
+	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
+		WithNetworkInstance(instance).
+		WithNextHopGroup(nhgIndex)
+	if nhgInstance != "" && nhgInstance != instance {
+		ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+	}
+	c.fluentC.Modify().DeleteEntry(t, ipv4Entry)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add IPv4: %v", err)
+	}
+	expectedResult := fluent.InstalledInRIB
+	if expecteFailure {
+		expectedResult = fluent.ProgrammingFailed
+	}
+	if check.FIBACK {
+		expectedResult = fluent.InstalledInFIB
+	}
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithIPv4Operation(prefix).
+			WithOperationType(constants.Replace).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+	if check.AFTCheck {
+		if got, want := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Prefix().Get(t), prefix; got != want {
+			t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", got, want)
+		}
+	}
+}
+
+// AddIPv4 adds a list of IPv4Entries mapping  prefixes to a given next hop group index within a given network instance.
+func (c *Client) DeleteIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expecteFailure bool, check *flags.GRIBICheck) {
+	ipv4Entries := []fluent.GRIBIEntry{}
+	for _, prefix := range prefixes {
+		ipv4Entry := fluent.IPv4Entry().
+			WithNetworkInstance(instance).
+			WithPrefix(prefix).
+			WithNextHopGroup(nhgIndex).
+			WithNextHopGroupNetworkInstance(nhgInstance)
+		if nhgInstance != "" && nhgInstance != instance {
+			ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+		}
+		ipv4Entries = append(ipv4Entries, ipv4Entry)
+	}
+	c.fluentC.Modify().DeleteEntry(t, ipv4Entries...)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add IPv4 entries: %v", err)
+	}
+	expectedResult := fluent.InstalledInRIB
+	if expecteFailure {
+		expectedResult = fluent.ProgrammingFailed
+	}
+	if check.FIBACK {
+		expectedResult = fluent.InstalledInFIB
+	}
+	for _, prefix := range prefixes {
+		chk.HasResult(t, c.fluentC.Results(t),
+			fluent.OperationResult().WithIPv4Operation(prefix).
+				WithOperationType(constants.Add).
+				WithProgrammingResult(expectedResult).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+}
 
 // FlushServer flushes all the gribi entries
 func (c *Client) FlushServer(t testing.TB) {
@@ -410,6 +601,6 @@ func (c *Client) FlushServer(t testing.TB) {
 		WithElectionOverride().
 		WithAllNetworkInstances().
 		Send(); err != nil {
-		t.Fatalf("Could not remove all gribi entries from dut %s, got error: %v", c.DUT.Name(),err)
+		t.Fatalf("Could not remove all gribi entries from dut %s, got error: %v", c.DUT.Name(), err)
 	}
 }

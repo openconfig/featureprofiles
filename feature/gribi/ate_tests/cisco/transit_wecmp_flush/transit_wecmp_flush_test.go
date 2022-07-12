@@ -26,9 +26,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/gribigo/chk"
-	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/gribigo/server"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -62,8 +59,8 @@ func testCD2ConnectedNHIP(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t) // let test to clear the entries at the begining for itself.
 	//Using defer is problamtic since it may cause failuer when the gribi connection drops
 	weights := map[uint64]uint64{3: 15}
-	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, server.DefaultNetworkInstanceName, false, ciscoFlags.GRIBIChecks)
 	if *ciscoFlags.GRIBITrafficCheck {
 		checkTraffic(t, "IPinIPUnConnected", args.ate, false)
@@ -76,8 +73,8 @@ func testCD2RecursiveNonConnectedNHOP(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t)
 	// 192.0.2.42/32  Next-Site
 	weights := map[uint64]uint64{41: 40}
-	args.c1.AddNH(t, 41, "100.129.1.2", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks) // Not connected
-	args.c1.AddNHG(t, 100, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 41, "100.129.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks) // Not connected
+	args.c1.AddNHG(t, 100, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// 11.11.11.0/32 Self-Site
@@ -86,8 +83,8 @@ func testCD2RecursiveNonConnectedNHOP(t *testing.T, args *testArgs) {
 		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.11", i, "32"))
 	}
 	weights = map[uint64]uint64{20: 99}
-	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 1, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	if *ciscoFlags.GRIBITrafficCheck {
 		checkTraffic(t, "IPinIPUnConnected", args.ate, true)
@@ -100,8 +97,8 @@ func testAddIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t)
 
 	weights := map[uint64]uint64{3: 15}
-	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Start Traffic
@@ -134,8 +131,8 @@ func testReplaceIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t)
 
 	weights := map[uint64]uint64{3: 15}
-	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Start Traffic
@@ -169,8 +166,8 @@ func testAddNHGTrafficCheck(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t)
 
 	weights := map[uint64]uint64{3: 15}
-	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Start Traffic
@@ -183,7 +180,7 @@ func testAddNHGTrafficCheck(t *testing.T, args *testArgs) {
 
 	// Add same NHG entry
 	args.c2.BecomeLeader(t)
-	args.c2.AddNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c2.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
@@ -203,8 +200,8 @@ func testReplaceNHGTrafficCheck(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t)
 
 	weights := map[uint64]uint64{3: 15}
-	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// Start Traffic
 	portMaps := args.topology.Interfaces()
@@ -215,7 +212,7 @@ func testReplaceNHGTrafficCheck(t *testing.T, args *testArgs) {
 	defer args.ate.Traffic().Stop(t)
 	// Replace same NHG entry
 	args.c2.BecomeLeader(t)
-	args.c2.ReplaceNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c2.ReplaceNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// traffic verification
 	time.Sleep(60 * time.Second)
 	stats := args.ate.Telemetry().FlowAny().Get(t)
@@ -234,8 +231,8 @@ func testAddNHTrafficCheck(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t)
 
 	weights := map[uint64]uint64{3: 15}
-	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Start Traffic
@@ -248,7 +245,7 @@ func testAddNHTrafficCheck(t *testing.T, args *testArgs) {
 
 	// Add same NH entry
 	args.c2.BecomeLeader(t)
-	args.c2.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.c2.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
@@ -268,8 +265,8 @@ func testReplaceNHTrafficCheck(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t)
 
 	weights := map[uint64]uint64{3: 15}
-	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// Start Traffic
 	ate := ondatra.ATE(t, "ate")
@@ -283,7 +280,7 @@ func testReplaceNHTrafficCheck(t *testing.T, args *testArgs) {
 
 	// Replace same NH entry
 	args.c2.BecomeLeader(t)
-	args.c2.ReplaceNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c2.ReplaceNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
@@ -302,14 +299,13 @@ func testCD2SingleRecursion(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t)
 
 	weights := map[uint64]uint64{3: 15}
-	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		checkTraffic(t, "IPinIP", args.ate, false)
 	}
-
 }
 
 func testCD2DoubleRecursion(t *testing.T, args *testArgs) {
@@ -324,10 +320,10 @@ func testCD2DoubleRecursion(t *testing.T, args *testArgs) {
 		33: 30,
 	}
 	// to do add nh with interfaceref
-	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 40, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// 192.0.2.42/32  Next-Site
@@ -337,11 +333,11 @@ func testCD2DoubleRecursion(t *testing.T, args *testArgs) {
 		43: 20,
 		44: 10,
 	}
-	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 100, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// 11.11.11.0/32
@@ -353,9 +349,9 @@ func testCD2DoubleRecursion(t *testing.T, args *testArgs) {
 		10: 85,
 		20: 15,
 	}
-	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 1, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
@@ -367,15 +363,15 @@ func testReplaceDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t)
 
 	weights := map[uint64]uint64{3: 15}
-	args.c1.AddNH(t, 3, "100.121.1.3", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 11, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 3, "100.121.1.3", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Add New NHG
 	args.c2.BecomeLeader(t)
 	weights = map[uint64]uint64{4: 15}
-	args.c2.AddNH(t, 4, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.c2.AddNHG(t, 12, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c2.AddNH(t, 4, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c2.AddNHG(t, 12, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Replace VRF IPv4 Entry Pointing to different NHG
 	// Todo: why we are using the third client
@@ -395,183 +391,68 @@ func testReplaceDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		checkTraffic(t, "IPinIP", args.ate, false, "default") // to do: make the traffic check to work with array as protocls
 	}
-
 }
 
 // Transit-38 DELETE: VRF IPv4 Entry with single path NHG+NH in default vrf
 func testDeleteVRFIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
-	ops := []func(){
-		func() {
-			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
-				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
-			)
-		},
-	}
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
+	args.c1.FlushServer(t)
 
-	for i := uint64(1); i < 4; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
+	weights := map[uint64]uint64{3: 15}
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	ate := ondatra.ATE(t, "ate")
-	topology := getIXIATopology(t, "ate")
-	portMaps := topology.Interfaces()
-
-	topology.StartProtocols(t)
-	defer topology.StopProtocols(t)
-
-	baseflow := getBaseFlow(t, portMaps, ate, "IPinIP")
-	ate.Traffic().Start(t, baseflow)
-	defer ate.Traffic().Stop(t)
-
-	time.Sleep(60 * time.Second)
-
-	stats := ate.Telemetry().FlowAny().Get(t)
-	lossStream := util.CheckTrafficPassViaRate(stats)
-
-	if len(lossStream) > 0 {
-		t.Error("There is stream failing:", strings.Join(lossStream, ","))
-	} else {
-		t.Log("There is no traffic loss.")
+	if *ciscoFlags.GRIBITrafficCheck {
+		checkTraffic(t, "IPinIP", args.ate, false)
 	}
 
 	// Delete Entry
 	args.c2.BecomeLeader(t)
-	fluentC2 := args.c2.Fluent(t)
-	defer util.FlushServer(fluentC2, t)
-	elecLow2, _ := args.c2.LearnElectionID(t)
-	ops2 := []func(){
-		func() {
-			fluentC2.Modify().DeleteEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11),
-				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-			)
-		},
-	}
-	res2 := util.DoModifyOps(fluentC2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
-
-	for i := uint64(1); i < 4; i++ {
-		chk.HasResult(t, res2, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
-
+	args.c2.FlushServer(t)
+	args.c2.DeleteNH(t, 3, "", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c2.DeleteNHG(t, 11, 0, map[uint64]uint64{}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c2.DeleteIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 }
 
 // Transit-42 DELETE: default VRF IPv4 Entry with single path NHG+NH in default vrf
 func testDeleteDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
-	ops := []func(){
-		func() {
-			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(6).WithIPAddress("100.121.1.2"),
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("11.11.11.11/32").WithNextHopGroup(16).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(16).AddNextHop(6, 15),
-			)
-		},
-	}
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
+	args.c1.FlushServer(t)
 
-	for i := uint64(1); i < 4; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
+	weights := map[uint64]uint64{6: 15}
+	args.c1.AddNH(t, 6, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 16, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "11.11.11.11/32", 16, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	ate := ondatra.ATE(t, "ate")
-	topology := getIXIATopology(t, "ate")
-	portMaps := topology.Interfaces()
-
-	topology.StartProtocols(t)
-	defer topology.StopProtocols(t)
-
-	baseflow := getBaseFlow(t, portMaps, ate, "IPinIP", "default")
-	ate.Traffic().Start(t, baseflow)
-	defer ate.Traffic().Stop(t)
-
-	time.Sleep(60 * time.Second)
-
-	stats := ate.Telemetry().FlowAny().Get(t)
-	lossStream := util.CheckTrafficPassViaRate(stats)
-
-	if len(lossStream) > 0 {
-		t.Error("There is stream failing:", strings.Join(lossStream, ","))
-	} else {
-		t.Log("There is no traffic loss.")
+	if *ciscoFlags.GRIBITrafficCheck {
+		checkTraffic(t, "IPinIP", args.ate, false, "default")
 	}
 
 	// Delete Entry
 	args.c2.BecomeLeader(t)
-	fluentC2 := args.c2.Fluent(t)
-	defer util.FlushServer(fluentC2, t)
-	elecLow2, _ := args.c2.LearnElectionID(t)
-	ops2 := []func(){
-		func() {
-			fluentC2.Modify().DeleteEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(6),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(16),
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("11.11.11.11/32").WithNextHopGroup(16).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-			)
-		},
-	}
-	res2 := util.DoModifyOps(fluentC2, t, ops2, fluent.InstalledInRIB, false, elecLow2+1)
-
-	for i := uint64(1); i < 3; i++ {
-		chk.HasResult(t, res2, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
-
+	args.c2.FlushServer(t)
+	args.c2.DeleteNH(t, 6, "", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c2.DeleteNHG(t, 16, 0, map[uint64]uint64{}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c2.DeleteIPv4(t, "11.11.11.11/32", 16, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 }
 
 //Transit TC 066 - Two prefixes with NHGs with backup pointing to the each other's NHG
 func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
-	ops := []func(){
-		func() {
-			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
-				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("12.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-			)
-		},
-		func() {
-			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.122.1.2"),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(14).WithBackupNHG(11).AddNextHop(4, 15),
-				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("12.11.11.12/32").WithNextHopGroup(14).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-			)
-		},
-		func() {
-			fluentC1.Modify().AddEntry(t, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).WithBackupNHG(14).AddNextHop(3, 15))
-		},
-	}
-	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
+	args.c1.FlushServer(t)
 
-	for i := uint64(1); i < uint64(len(results)-2); i++ {
-		chk.HasResult(t, results, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
+	weights_1 := map[uint64]uint64{3: 15}
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "12.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	weights_2 := map[uint64]uint64{4: 15}
+	args.c1.AddNH(t, 4, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 14, 11, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "12.11.11.12/32", 14, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	args.c1.AddNHG(t, 11, 14, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	ate := ondatra.ATE(t, "ate")
 	topology := getIXIATopology(t, "ate")
@@ -589,36 +470,19 @@ func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) 
 //Transit TC 067 - Same forwarding entries across multiple vrfs
 func testSameForwardingEntriesAcrossMultipleVrfs(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		func() {
-			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.122.1.2"),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(14).WithBackupNHG(11).AddNextHop(4, 15),
-				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("12.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("12.11.11.12/32").WithNextHopGroup(14).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-			)
-		},
-		func() {
-			//Add previously used prefixes in a different vrf
-			fluentC1.Modify().AddEntry(t, fluent.IPv4Entry().WithNetworkInstance("VRF1").WithPrefix("12.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-				fluent.IPv4Entry().WithNetworkInstance("VRF1").WithPrefix("12.11.11.12/32").WithNextHopGroup(14).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-			)
-		},
-	}
-	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
+	weights_1 := map[uint64]uint64{3: 15}
+	weights_2 := map[uint64]uint64{4: 15}
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 4, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 14, 11, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "12.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "12.11.11.12/32", 14, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	for i := uint64(1); i < uint64(len(results)-2); i++ {
-		chk.HasResult(t, results, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
+	args.c1.AddIPv4(t, "12.11.11.11/32", 11, "VRF1", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "12.11.11.12/32", 14, "VRF1", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	ate := ondatra.ATE(t, "ate")
 	topology := getIXIATopology(t, "ate")
@@ -639,262 +503,159 @@ func testSameForwardingEntriesAcrossMultipleVrfs(t *testing.T, args *testArgs) {
 func testNHInterfaceInDifferentVRF(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Next Hop resoultion with interface in different VRF of NH_network_instance")
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121").WithNextHopNetworkInstance("TE"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 10).
-					AddNextHop(42, 20).
-					AddNextHop(43, 30).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
 	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.NonDefaultNetworkInstance, "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 13+1000; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 10,
+		42: 20,
+		43: 30,
+		44: 40,
 	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Correct the related NH and verify traffic
-	ops = []func(){
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-			)
-		},
-	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 
-	res = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+2)
-
-	chk.HasResult(t, res, fluent.OperationResult().
-		WithOperationID(1015).
-		WithProgrammingResult(fluent.InstalledInRIB).
-		AsResult(),
-	)
-
-	performATEAction(t, "ate", 1000, true)
+	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 }
 
 // Transit-13: Next Hop resolution with interface+IP out of that interface subnet
 func testNHIPOutOfInterfaceSubnet(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Next Hop resolution with interface+IP out of that interface subnet")
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 30).
-					AddNextHop(32, 30).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.2.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 10).
-					AddNextHop(42, 20).
-					AddNextHop(43, 30).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 30,
+		32: 30,
+		33: 30,
 	}
+	args.c1.AddNH(t, 31, "100.121.2.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 13+1000; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 10,
+		42: 20,
+		43: 30,
+		44: 40,
 	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Correct the related NH and verify traffic
-	ops = []func(){
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-			)
-		},
-	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 
-	res = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+2)
-
-	chk.HasResult(t, res, fluent.OperationResult().
-		WithOperationID(1015).
-		WithProgrammingResult(fluent.InstalledInRIB).
-		AsResult(),
-	)
-
-	performATEAction(t, "ate", 1000, true)
+	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 }
 
 // Transit-16:Changing IP address on I/F making NHOP unreachable and changing it back
 func testChangeNHToUnreachableAndChangeBack(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Changing IP address on I/F making NHOP unreachable and changing it back")
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
-	ops := []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 15).
-					AddNextHop(32, 25).
-					AddNextHop(33, 35),
-				// Setting Index 31 IP out of the related subnet
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 10).
-					AddNextHop(42, 20).
-					AddNextHop(43, 30).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
+	args.c1.FlushServer(t)
 
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 15,
+		32: 25,
+		33: 35,
 	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 13+1000; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 10,
+		42: 20,
+		43: 30,
+		44: 40,
 	}
-	// Correct the related NH and verify traffic
-	ops = []func(){
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("1.2.3.4"),
-			)
-		},
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
 	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	res = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+2)
-
-	chk.HasResult(t, res, fluent.OperationResult().
-		WithOperationID(1015).
-		WithProgrammingResult(fluent.InstalledInRIB).
-		AsResult(),
-	)
+	// Set InCorrect related NH
+	args.c1.AddNH(t, 31, "1.2.3.4", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 
 	// Correct the related NH and verify traffic
-	ops = []func(){
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-			)
-		},
-	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 
-	res = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+3)
-
-	chk.HasResult(t, res, fluent.OperationResult().
-		WithOperationID(1016).
-		WithProgrammingResult(fluent.InstalledInRIB).
-		AsResult(),
-	)
-
-	performATEAction(t, "ate", 1000, true)
+	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 
 }
 
@@ -902,93 +663,58 @@ func testChangeNHToUnreachableAndChangeBack(t *testing.T, args *testArgs) {
 func testChangeNHFromRecursiveToNonRecursive(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Next Hop Group resolution change NH from recursive and non-recursive")
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
-			)
-		},
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				// Setting Index 31 IP out of the related subnet
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 15).
-					AddNextHop(42, 25).
-					AddNextHop(43, 35).
-					AddNextHop(44, 45),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	weights_1 := map[uint64]uint64{
+		3: 15,
 	}
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 13+1000; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.40/32  Self-Site
+	weights_2 := map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
 	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 192.0.2.42/32  Next-Site
+	weights_3 := map[uint64]uint64{
+		41: 15,
+		42: 25,
+		43: 35,
+		44: 45,
+	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_4 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
 	// Correct the related NH and verify traffic
-	ops = []func(){
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
-	}
+	args.c1.AddIPv4Batch(t, prefixes, 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	res = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+2)
-
-	for i := uint64(1017); i < 1015+1000; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
-
-	performATEAction(t, "ate", 1000, true)
+	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 
 }
 
@@ -996,145 +722,92 @@ func testChangeNHFromRecursiveToNonRecursive(t *testing.T, args *testArgs) {
 func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Add, Replace, Delete operations with related interface flap")
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
-	scale := 100
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		//Add all entries
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 15).
-					AddNextHop(42, 25).
-					AddNextHop(43, 35).
-					AddNextHop(44, 45),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
-		//Replace all entries
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().ReplaceEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().ReplaceEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 10).
-					AddNextHop(42, 20).
-					AddNextHop(43, 30).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().ReplaceEntry(t, entries...)
-		},
-		//Delete all entries
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().DeleteEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().DeleteEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 10).
-					AddNextHop(42, 20).
-					AddNextHop(43, 30).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().DeleteEntry(t, entries...)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
 	}
-	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	for i := 1; i <= 3*(scale+14); i++ {
-		chk.HasResult(t, results, fluent.OperationResult().
-			WithOperationID(uint64(i)).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 15,
+		42: 25,
+		43: 35,
+		44: 45,
 	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	//Replace all entries
+	// 192.0.2.40/32  Self-Site
+	args.c1.ReplaceNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 192.0.2.42/32  Next-Site
+	args.c1.ReplaceNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	args.c1.ReplaceNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	//Delete all entries
+	// 192.0.2.40/32  Self-Site
+	args.c2.DeleteNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c2.DeleteNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c2.DeleteIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 192.0.2.42/32  Next-Site
+	args.c1.DeleteNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	args.c1.DeleteNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
 	//Flap interfaces
 	interfaceNames := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
 	for _, interfaceName := range interfaceNames {
@@ -1145,302 +818,185 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 		util.SetInterfaceState(t, args.dut, interfaceName, true)
 	}
 
-	ops = []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 15).
-					AddNextHop(32, 25).
-					AddNextHop(33, 35),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 10).
-					AddNextHop(42, 20).
-					AddNextHop(43, 30).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
+	// 192.0.2.40/32  Self-Site
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
-	}
+	// 192.0.2.42/32  Next-Site
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	results = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := 3*(scale+14) + 1; i <= 4*(scale+14); i++ {
-		chk.HasResult(t, results, fluent.OperationResult().
-			WithOperationID(uint64(i)).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
+	// 11.11.11.0/32
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Configure ATE and Verify traffic
-	performATEAction(t, "ate", scale, true)
+	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 }
 
-//Transit-40	DELETE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf
+//Transit-40  DELETE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf
 func testDeleteVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 15).
-					AddNextHop(42, 25).
-					AddNextHop(43, 35).
-					AddNextHop(44, 45),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
 	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 13+1000; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 15,
+		42: 25,
+		43: 35,
+		44: 45,
 	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	performATEAction(t, "ate", 1000, true)
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 
 	// Delete
-	ops2 := []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().DeleteEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().DeleteEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40).
-					AddNextHop(42, 30).
-					AddNextHop(43, 20).
-					AddNextHop(44, 10),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
+	// 192.0.2.40/32  Self-Site
+	args.c2.DeleteNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c2.DeleteNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c2.DeleteIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-			fluentC1.Modify().DeleteEntry(t, entries...)
-		},
+	// 192.0.2.42/32  Next-Site
+	weights_2 = map[uint64]uint64{
+		41: 40,
+		42: 30,
+		43: 20,
+		44: 10,
 	}
+	args.c1.DeleteNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res2 := util.DoModifyOps(fluentC1, t, ops2, fluent.InstalledInRIB, false, elecLow1+2)
+	// 11.11.11.0/32
+	args.c1.DeleteNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	for i := uint64(1015); i < 1015+1000; i++ {
-		chk.HasResult(t, res2, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
 	// Expect traffic to fail
-	performATEAction(t, "ate", 1000, false)
-
+	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), false)
 }
 
-//Transit-45	DELETE: default VRF IPv4 Entry with ECMP+backup path NHG+NH in default vrf
+//Transit-45  DELETE: default VRF IPv4 Entry with ECMP+backup path NHG+NH in default vrf
 func testDeleteDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		func() {
-			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.122.1.2"),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(14).WithBackupNHG(11).AddNextHop(4, 15),
-				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("12.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.0/32").WithNextHopGroup(14).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-			)
-		},
+	weights_1 := map[uint64]uint64{
+		3: 15,
 	}
-
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 7; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	weights_2 := map[uint64]uint64{
+		4: 15,
 	}
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 4, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 14, 11, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "12.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "11.11.11.0/32", 14, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	performATEAction(t, "ate", 1, true)
 
 	// Delete
-	ops2 := []func(){
-		func() {
-			fluentC1.Modify().DeleteEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.122.1.2"),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(14).WithBackupNHG(11).AddNextHop(4, 15),
-				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("12.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.0/32").WithNextHopGroup(14).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-			)
-		},
-	}
-	res2 := util.DoModifyOps(fluentC1, t, ops2, fluent.InstalledInRIB, false, elecLow1+2)
+	args.c1.DeleteNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNHG(t, 11, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 4, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNHG(t, 14, 11, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteIPv4(t, "12.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteIPv4(t, "11.11.11.0/32", 14, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	for i := uint64(7); i < 13; i++ {
-		chk.HasResult(t, res2, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
-
-	// Expect traffic to fail
 	performATEAction(t, "ate", 1, false)
-
 }
 
 //Transit-32 REPLACE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf
 func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40).
-					AddNextHop(42, 30).
-					AddNextHop(43, 20).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
 	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 13+1000; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 40,
+		42: 30,
+		43: 20,
+		44: 40,
 	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Traffic start
 	ate := ondatra.ATE(t, "ate")
@@ -1450,29 +1006,8 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	defer topology.StopProtocols(t)
 	scaleflow := getScaleFlow(t, portMaps, ate, "IPinIPWithScale", 1000)
 	ate.Traffic().Start(t, scaleflow)
-
 	// Replace same ipv4 entry
-	ops2 := []func(){
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-
-			fluentC1.Modify().ReplaceEntry(t, entries...)
-		},
-	}
-
-	res2 := util.DoModifyOps(fluentC1, t, ops2, fluent.InstalledInRIB, false, elecLow1+2)
-
-	for i := uint64(1015); i < 1015+1000; i++ {
-		chk.HasResult(t, res2, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
+	args.c1.ReplaceIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// traffic verification
 	defer ate.Traffic().Stop(t)
@@ -1484,139 +1019,72 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	} else {
 		t.Error("Traffic doesn't work as expected")
 	}
-
 }
 
 //Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf
 func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40).
-					AddNextHop(42, 30).
-					AddNextHop(43, 20).
-					AddNextHop(44, 10),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
 	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 13+1000; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 40,
+		42: 30,
+		43: 20,
+		44: 40,
 	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Replace same ipv4 entry
-	ops2 := []func(){
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
+	args.c1.ReplaceIPv4Batch(t, prefixes, 1, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-			fluentC1.Modify().ReplaceEntry(t, entries...)
-		},
+	if *ciscoFlags.GRIBITrafficCheck {
+		checkTraffic(t, "IPinIPWithScale", args.ate, false, "default")
 	}
-
-	res2 := util.DoModifyOps(fluentC1, t, ops2, fluent.InstalledInRIB, false, elecLow1+2)
-
-	for i := uint64(1015); i < 1015+1000; i++ {
-		chk.HasResult(t, res2, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
-	// Traffic start
-	ate := ondatra.ATE(t, "ate")
-	topology := getIXIATopology(t, "ate")
-	portMaps := topology.Interfaces()
-	topology.StartProtocols(t)
-	defer topology.StopProtocols(t)
-	scaleflow := getScaleFlow(t, portMaps, ate, "IPinIPWithScale", 1000, "default")
-	ate.Traffic().Start(t, scaleflow)
-
-	// traffic verification
-	defer ate.Traffic().Stop(t)
-	time.Sleep(60 * time.Second)
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats)
-	if trafficPass == true {
-		t.Log("Traffic works as expected")
-	} else {
-		t.Error("Traffic doesn't work as expected")
-	}
-
 }
 
-// Transit-52	ADD/REPLACE change NH from single path to ECMP
+// Transit-52 ADD/REPLACE change NH from single path to ECMP
 func testReplaceSinglePathtoECMP(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		func() {
-			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
-				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.11/32").WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 30),
-			)
-		},
+	weights_1 := map[uint64]uint64{
+		3: 30,
 	}
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 4; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Start Traffic
 	ate := ondatra.ATE(t, "ate")
@@ -1626,25 +1094,13 @@ func testReplaceSinglePathtoECMP(t *testing.T, args *testArgs) {
 	defer topology.StopProtocols(t)
 	baseflow := getBaseFlow(t, portMaps, ate, "IPinIP")
 	ate.Traffic().Start(t, baseflow)
-
 	// Add New NHG
-	ops2 := []func(){
-		func() {
-			fluentC1.Modify().AddEntry(t, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(4).WithIPAddress("100.122.1.2"),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(4, 30).AddNextHop(3, 30),
-			)
-		},
+	weights_1 = map[uint64]uint64{
+		3: 30,
+		4: 30,
 	}
-	res2 := util.DoModifyOps(fluentC1, t, ops2, fluent.InstalledInRIB, false, elecLow1+2)
-
-	for i := uint64(4); i < 6; i++ {
-		chk.HasResult(t, res2, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
-
+	args.c1.AddNH(t, 4, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// traffic verification
 	defer ate.Traffic().Stop(t)
 	time.Sleep(60 * time.Second)
@@ -1655,76 +1111,60 @@ func testReplaceSinglePathtoECMP(t *testing.T, args *testArgs) {
 	} else {
 		t.Error("Traffic doesn't work as expected")
 	}
-
 }
 
 // Transit TC 068 - Verify ISIS/BGP control plane doesn’t  affect gRIBI related traffic with connected NHOP
 func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Verify ISIS/BGP control plane doesn’t  affect gRIBI related traffic with connected NHOP")
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
-	scale := 100
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		//Add all entries
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 30).
-					AddNextHop(32, 20).
-					AddNextHop(33, 10),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 10).
-					AddNextHop(42, 20).
-					AddNextHop(43, 30).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 30,
+		32: 20,
+		33: 10,
 	}
-	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	for i := 1; i <= scale+14; i++ {
-		chk.HasResult(t, results, fluent.OperationResult().
-			WithOperationID(uint64(i)).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 10,
+		42: 20,
+		43: 30,
+		44: 40,
 	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
 	//Generate flows over ISIS and BGP sessions.
 	ate := ondatra.ATE(t, "ate")
 	topo := getIXIATopology(t, "ate")
 	isisFlow := util.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "isis_network1", "isis_network2", "isis", 16)
 	bgpFlow := util.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "bgp_network", "bgp_network", "bgp", 16)
-	scaleFlow := getScaleFlow(t, topo.Interfaces(), ate, "IPinIPWithScale", scale)
+	scaleFlow := getScaleFlow(t, topo.Interfaces(), ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.90, isisFlow, bgpFlow, scaleFlow)
 }
@@ -1733,47 +1173,38 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Verify protocol (BGP) over gribi transit fwding entry")
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		// 192.0.2.40/32  for east-to-west flow
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).AddNextHop(31, 100),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.120.1.2").WithInterfaceRef("Bundle-Ether120"),
-			)
-		},
-		// 192.0.2.140/32  for west-to-east flow
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.140/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).AddNextHop(41, 100),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-			)
-		},
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("11.11.11.1/32").WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 100),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"),
-				fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix("12.12.12.1/32").WithNextHopGroup(2).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(2).AddNextHop(20, 100),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.140"),
-			)
-		},
+	// 192.0.2.40/32  for east-to-west flow
+	weights_1 := map[uint64]uint64{
+		31: 100,
 	}
-	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
+	args.c1.AddNH(t, 31, "100.120.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether120", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	for i := 1; i <= 12; i++ {
-		chk.HasResult(t, results, fluent.OperationResult().
-			WithOperationID(uint64(i)).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.140/32  for west-to-east flow
+	weights_2 := map[uint64]uint64{
+		41: 100,
 	}
+	args.c1.AddNH(t, 41, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.140/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	weights_3 := map[uint64]uint64{
+		10: 100,
+	}
+	weights_4 := map[uint64]uint64{
+		20: 100,
+	}
+	args.c1.AddIPv4(t, "11.11.11.1/32", 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "12.12.12.1/32", 2, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 2, 0, weights_4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.140", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+
 	//Configure BGP on TGN
 	ate := ondatra.ATE(t, "ate")
 	topo := getIXIATopology(t, "ate")
@@ -1782,366 +1213,217 @@ func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.99, bgpFlow)
-
 }
 
 // Transit TC 075 - ADD/REPLACE/DELETE with same Prefix with varying prefix lengths
 func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Add, Replace, Delete operations with same prefix with varying prefix lengths and traffic verification")
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	//create ipv4Entry for subnet 11.0.0.0/8 through 11.11.11.1/32
-	start := 8
-	end := 32
-	prefix := "11.11.11.1"
-
-	ops := []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 10).
-					AddNextHop(42, 20).
-					AddNextHop(43, 30).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := start; i <= end; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIpv4Net(prefix, i)).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := start; i <= end; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIpv4Net(prefix, i)).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().ReplaceEntry(t, entries...)
-		},
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().ReplaceEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().ReplaceEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 10).
-					AddNextHop(42, 20).
-					AddNextHop(43, 30).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-			for i := start; i <= end; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIpv4Net(prefix, i)).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			fluentC1.Modify().DeleteEntry(t, entries...)
-		},
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().DeleteEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().DeleteEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 10).
-					AddNextHop(42, 20).
-					AddNextHop(43, 30).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
 	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := 1; i <= (end-start+15)*3; i++ {
-		chk.HasResult(t, results, fluent.OperationResult().
-			WithOperationID(uint64(i)).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 10,
+		42: 20,
+		43: 30,
+		44: 40,
 	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 8; i <= 32; i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.1", i, "32"))
+	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	args.c1.ReplaceNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	args.c1.ReplaceNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	args.c1.ReplaceNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	args.c1.DeleteNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	args.c2.DeleteNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c2.DeleteNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c2.DeleteIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	args.c1.DeleteNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Add back all entries
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	ops = []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 10).
-					AddNextHop(42, 20).
-					AddNextHop(43, 30).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := start; i <= end; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIpv4Net(prefix, i)).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
-	}
-
-	results = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+2)
-
-	for i := (end-start+15)*3 + 1; i <= (end-start+15)*4; i++ {
-		chk.HasResult(t, results, fluent.OperationResult().
-			WithOperationID(uint64(i)).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	ate := ondatra.ATE(t, "ate")
 	topo := getIXIATopology(t, "ate")
 	scaleFlow := getScaleFlow(t, topo.Interfaces(), ate, "IPinIPWithScale", 1000)
 	performATEActionForMultipleFlows(t, "ate", true, 0.99, scaleFlow)
-
 }
 
 // Transit-18: Next Hop Group resolution change NH from non-recursive and recursive
 func testChangeNHFromNonRecursiveToRecursive(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Next Hop Group resolution change NH from recursive and non-recursive")
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(3).WithIPAddress("100.121.1.2"),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(11).AddNextHop(3, 15),
-			)
-		},
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 30).
-					AddNextHop(32, 20).
-					AddNextHop(33, 10),
-				// Setting Index 31 IP out of the related subnet
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40).
-					AddNextHop(42, 30).
-					AddNextHop(43, 20).
-					AddNextHop(44, 10),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(11).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	weights_1 := map[uint64]uint64{
+		3: 15,
 	}
+	args.c1.AddNH(t, 3, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 11, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 13+1000; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.40/32  Self-Site
+	weights_2 := map[uint64]uint64{
+		31: 30,
+		32: 20,
+		33: 10,
 	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 192.0.2.42/32  Next-Site
+	weights_3 := map[uint64]uint64{
+		41: 40,
+		42: 30,
+		43: 20,
+		44: 10,
+	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_4 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
 	// Correct the related NH and verify traffic
-	ops = []func(){
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
-	}
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	res = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+2)
-
-	for i := uint64(1017); i < 1015+1000; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
-
-	performATEAction(t, "ate", 1000, true)
-
+	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 }
 
 // Transit- Set ISIS overload bit and then verify traffic
 func testSetISISOverloadBit(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
-	scale := 100
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 30).
-					AddNextHop(32, 20).
-					AddNextHop(33, 10),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40).
-					AddNextHop(42, 30).
-					AddNextHop(43, 20).
-					AddNextHop(44, 10),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 30,
+		32: 20,
+		33: 10,
 	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 13+100; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 40,
+		42: 30,
+		43: 20,
+		44: 10,
 	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < 100; i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Configure ISIS overload bit
 	config := args.dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
@@ -2154,64 +1436,47 @@ func testSetISISOverloadBit(t *testing.T, args *testArgs) {
 // Transit- Change peer ip/mac address and then verify traffic
 func testChangePeerAddress(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	scale := 1000
-
-	ops := []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 30).
-					AddNextHop(32, 20).
-					AddNextHop(33, 10),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40).
-					AddNextHop(42, 30).
-					AddNextHop(43, 20).
-					AddNextHop(44, 10),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 30,
+		32: 20,
+		33: 10,
 	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 13+100; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 40,
+		42: 30,
+		43: 20,
+		44: 10,
 	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Try to change peer mac or fallback to peer address
 	topology := getIXIATopology(t, "ate")
@@ -2221,7 +1486,7 @@ func testChangePeerAddress(t *testing.T, args *testArgs) {
 	// portMaps["1/2"].IPv4().WithAddress(fmt.Sprintf("100.%d.1.3/24", 120+i)).WithDefaultGateway(fmt.Sprintf("100.%d.1.1", 120+i))
 	// topology.Update(t)
 
-	performATEAction(t, "ate", scale, true)
+	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 
 	// Undo
 	portMaps["1/2"].IPv4().WithAddress(fmt.Sprintf("100.%d.1.2/24", 120+i)).WithDefaultGateway(fmt.Sprintf("100.%d.1.1", 120+i))
@@ -2231,127 +1496,100 @@ func testChangePeerAddress(t *testing.T, args *testArgs) {
 // Transit- LC OIR
 func testLCOIR(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	scale := 1000
-
-	ops := []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 30).
-					AddNextHop(32, 20).
-					AddNextHop(33, 10),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40).
-					AddNextHop(42, 30).
-					AddNextHop(43, 20).
-					AddNextHop(44, 10),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 30,
+		32: 20,
+		33: 10,
 	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 13+100; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 40,
+		42: 30,
+		43: 20,
+		44: 10,
 	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LC OIR
-	//dut1.Config().New().WithCiscoText(" do reload location 0/0/CPU0 noprompt \n").Append(t)
-	//t.Log(" Reload the LC")
+	args.dut.Config().New().WithCiscoText(" do reload location 0/0/CPU0 noprompt \n").Append(t)
+	t.Log(" Reload the LC")
 
-	performATEAction(t, "ate", scale, true)
+	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 }
 
 // Transit TC 072 - Verify dataplane fields(TTL, DSCP) with gribi transit fwding entry
 func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs) {
 	t.Log("Testcase:  Verify dataplane fields(TTL, DSCP) with gribi transit fwding entry")
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	scale := 100
-
-	ops := []func(){
-		// 192.0.2.40/32  for east-to-west flow
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).AddNextHop(31, 100),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.120.1.2").WithInterfaceRef("Bundle-Ether120"),
-			)
-		},
-		// 192.0.2.140/32  for west-to-east flow
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.140/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).AddNextHop(41, 100),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-			)
-		},
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("101.1.1.1", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 100))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("102.1.1.1", i, "32")).WithNextHopGroup(2).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(2).AddNextHop(20, 100))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.140"))
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.40/32  for east-to-west flow
+	weights_1 := map[uint64]uint64{
+		31: 100,
 	}
-	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
+	args.c1.AddNH(t, 31, "100.120.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether120", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	for i := 1; i <= 2*scale+10; i++ {
-		chk.HasResult(t, results, fluent.OperationResult().
-			WithOperationID(uint64(i)).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.140/32  for west-to-east flow
+	weights_2 := map[uint64]uint64{
+		41: 100,
 	}
+	args.c1.AddNH(t, 41, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.140/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	weights_3 := map[uint64]uint64{
+		10: 100,
+	}
+	prefixes1 := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes1 = append(prefixes1, util.GetIPPrefix("101.1.1.1", i, "32"))
+	}
+	weights_4 := map[uint64]uint64{
+		20: 100,
+	}
+	prefixes2 := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes2 = append(prefixes2, util.GetIPPrefix("102.1.1.1", i, "32"))
+	}
+
+	args.c1.AddIPv4Batch(t, prefixes1, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes2, 2, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 2, 0, weights_4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.140", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+
 	//Outer header TTL decrements by 1, DSCP stays same over gRIBI forwarding entry.
 	ate := ondatra.ATE(t, "ate")
 	topo := getIXIATopology(t, "ate")
@@ -2384,146 +1622,101 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	t.Log("Testcase: Add, Replace, Delete operations with related configuration change")
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	scale := 100
-
-	ops := []func(){
-		//Add all entries
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40).
-					AddNextHop(42, 20).
-					AddNextHop(43, 30).
-					AddNextHop(44, 10),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
-		//Replace all entries
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().ReplaceEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 30).
-					AddNextHop(32, 30).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().ReplaceEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40).
-					AddNextHop(42, 40).
-					AddNextHop(43, 40).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().ReplaceEntry(t, entries...)
-		},
-		//Delete all entries
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().DeleteEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 30).
-					AddNextHop(32, 30).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().DeleteEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40).
-					AddNextHop(42, 40).
-					AddNextHop(43, 40).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().DeleteEntry(t, entries...)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
 	}
-	results := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	for i := 1; i <= 3*(scale+14); i++ {
-		chk.HasResult(t, results, fluent.OperationResult().
-			WithOperationID(uint64(i)).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 40,
+		42: 30,
+		43: 20,
+		44: 10,
 	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	//Replace all entries
+	// 192.0.2.40/32  Self-Site
+	weights_1 = map[uint64]uint64{
+		31: 30,
+		32: 30,
+		33: 30,
+	}
+	args.c1.ReplaceNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 192.0.2.42/32  Self-Site
+	weights_2 = map[uint64]uint64{
+		41: 40,
+		42: 40,
+		43: 40,
+		44: 40,
+	}
+	args.c1.ReplaceNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	args.c1.ReplaceNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	//Delete all entries
+	// 192.0.2.40/32  Self-Site
+	args.c2.DeleteNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c2.DeleteNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c2.DeleteIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 192.0.2.42/32  Self-Site
+	args.c1.DeleteNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	args.c1.DeleteNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
 	//Change interface configurations and revert back
 	interfaceNames := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
 	//Store current config
@@ -2547,103 +1740,54 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 		t.Logf("Restored configuration of interface %s", interfaceName)
 	}
 	//Config change end
-	ops = []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 30).
-					AddNextHop(32, 30).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40).
-					AddNextHop(42, 40).
-					AddNextHop(43, 40).
-					AddNextHop(44, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		func() {
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
 
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
-	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	results = util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	for i := 3*(scale+14) + 1; i <= 4*(scale+14); i++ {
-		chk.HasResult(t, results, fluent.OperationResult().
-			WithOperationID(uint64(i)).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
-	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Configure ATE and Verify traffic
-	performATEAction(t, "ate", scale, true, 0.99)
+	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true, 0.99)
 }
 
 //Static Arp Resolution
 func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.121.1.3").WithInterfaceRef("Bundle-Ether121"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			scale := 1
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.11", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(20, 99))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.42/32  Next-Site
+	weights_1 := map[uint64]uint64{
+		41: 40,
 	}
+	args.c1.AddNH(t, 41, "100.121.1.3", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 7; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.11", i, "32"))
 	}
+	weights_2 := map[uint64]uint64{
+		20: 99,
+	}
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
 	t.Log("going to program Static ARP different from Ixia ")
 	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.3  0000.0012.0011 arpa")
 
@@ -2693,44 +1837,28 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 //Initially Dynamic arp and then static arp to be resolved
 func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			scale := 1
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.11", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(20, 99))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.42/32  Next-Site
+	weights_1 := map[uint64]uint64{
+		41: 40,
 	}
+	args.c1.AddNH(t, 41, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 7; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.11", i, "32"))
 	}
+	weights_2 := map[uint64]uint64{
+		20: 99,
+	}
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
 	t.Log("going to start Ixia protocols to bring up dynamic arp entry and start traffic  ")
 
 	ate := ondatra.ATE(t, "ate")
@@ -2782,118 +1910,81 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 // Transit- Clearing ARP and then verify traffic
 func testClearingARP(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-		// 192.0.2.40/32  Self-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.40/32").WithNextHopGroup(40),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(40).
-					AddNextHop(31, 10).
-					AddNextHop(32, 20).
-					AddNextHop(33, 30),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(31).WithIPAddress("100.121.1.2").WithInterfaceRef("Bundle-Ether121"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(32).WithIPAddress("100.122.1.2").WithInterfaceRef("Bundle-Ether122"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(33).WithIPAddress("100.123.1.2").WithInterfaceRef("Bundle-Ether123"),
-			)
-		},
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40).
-					AddNextHop(42, 30).
-					AddNextHop(43, 20).
-					AddNextHop(44, 10),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.124.1.2").WithInterfaceRef("Bundle-Ether124"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(42).WithIPAddress("100.125.1.2").WithInterfaceRef("Bundle-Ether125"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(43).WithIPAddress("100.126.1.2").WithInterfaceRef("Bundle-Ether126"),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(44).WithIPAddress("100.127.1.2").WithInterfaceRef("Bundle-Ether127"),
-			)
-		},
-		// 11.11.11.0/32
-		func() {
-			scale := 1000
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.0", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(10, 85).AddNextHop(20, 15))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(10).WithIPAddress("192.0.2.40"))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.40/32  Self-Site
+	weights_1 := map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
 	}
+	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 40, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 13+1000; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 192.0.2.42/32  Next-Site
+	weights_2 := map[uint64]uint64{
+		41: 40,
+		42: 30,
+		43: 20,
+		44: 10,
 	}
+	args.c1.AddNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+	}
+	weights_3 := map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
+	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Clear ARP
 	config.TextWithGNMI(args.ctx, t, args.dut, "do clear arp-cache location all")
-
 	time.Sleep(10 * time.Second)
-
 	t.Log("Cleared ARP")
-
 	time.Sleep(1 * time.Second)
-
-	performATEAction(t, "ate", 1000, true)
-
+	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 }
 
 //Static Arp Resolution
 func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
-	fluentC1 := args.c1.Fluent(t)
-	defer util.FlushServer(fluentC1, t)
-	elecLow1, _ := args.c1.LearnElectionID(t)
+	args.c1.FlushServer(t)
 
-	ops := []func(){
-
-		// 192.0.2.42/32  Next-Site
-		func() {
-			fluentC1.Modify().AddEntry(t,
-				fluent.IPv4Entry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithPrefix("192.0.2.42/32").WithNextHopGroup(100),
-				fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(100).
-					AddNextHop(41, 40),
-				fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(41).WithIPAddress("100.121.1.3").WithInterfaceRef("Bundle-Ether121"),
-			)
-		},
-		// 11.11.11.1132
-		func() {
-			scale := 1
-			entries := []fluent.GRIBIEntry{}
-			for i := 0; i < scale; i++ {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance("TE").WithPrefix(util.GetIPPrefix("11.11.11.11", i, "32")).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(server.DefaultNetworkInstanceName))
-			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithID(1).AddNextHop(20, 99))
-			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(server.DefaultNetworkInstanceName).WithIndex(20).WithIPAddress("192.0.2.42"))
-
-			fluentC1.Modify().AddEntry(t, entries...)
-		},
+	// 192.0.2.42/32  Next-Site
+	weights_1 := map[uint64]uint64{
+		41: 40,
 	}
+	args.c1.AddNH(t, 41, "100.121.1.3", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights_1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	res := util.DoModifyOps(fluentC1, t, ops, fluent.InstalledInRIB, false, elecLow1+1)
-
-	for i := uint64(1); i < 7; i++ {
-		chk.HasResult(t, res, fluent.OperationResult().
-			WithOperationID(i).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		)
+	// 11.11.11.0/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.11", i, "32"))
 	}
+	weights_2 := map[uint64]uint64{
+		20: 99,
+	}
+	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights_2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
 	t.Log("going to program Static ARP different from Ixia ")
 	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.3  0000.0012.0011 arpa")
 
@@ -3043,13 +2134,13 @@ func TestTransitWECMPFlush(t *testing.T) {
 		},
 		{
 			name: "DeleteVRFIPv4EntryECMPPath",
-			desc: "Transit-40	DELETE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
-			fn: testDeleteVRFIPv4EntryECMPPath,
+			desc: "Transit-40 DELETE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
+			fn:   testDeleteVRFIPv4EntryECMPPath,
 		},
 		{
 			name: "DeleteDefaultIPv4EntryECMPPath",
-			desc: "Transit-45	DELETE: default VRF IPv4 Entry with ECMP+backup path NHG+NH in default vrf",
-			fn: testDeleteDefaultIPv4EntryECMPPath,
+			desc: "Transit-45 DELETE: default VRF IPv4 Entry with ECMP+backup path NHG+NH in default vrf",
+			fn:   testDeleteDefaultIPv4EntryECMPPath,
 		},
 		{
 			name: "ReplaceVRFIPv4EntryECMPPath",
@@ -3063,8 +2154,8 @@ func TestTransitWECMPFlush(t *testing.T) {
 		},
 		{
 			name: "ReplaceSinglePathtoECMP",
-			desc: "Transit-52	ADD/REPLACE change NH from single path to ECMP",
-			fn: testReplaceSinglePathtoECMP,
+			desc: "Transit-52 ADD/REPLACE change NH from single path to ECMP",
+			fn:   testReplaceSinglePathtoECMP,
 		},
 		{
 			name: "IsisBgpControlPlaneInteractionWithGribi",
