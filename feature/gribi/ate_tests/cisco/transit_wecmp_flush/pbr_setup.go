@@ -22,8 +22,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-
-
 const (
 	pbrName = "PBR"
 )
@@ -67,4 +65,3 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 
 	dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
 }
-
