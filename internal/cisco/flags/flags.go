@@ -30,7 +30,7 @@ type GRIBICheck struct {
 	AFTCheck bool
 }
 
-// GRIBICheck variable
+// GRIBIChecks variable
 var GRIBIChecks *GRIBICheck
 
 func init() {
