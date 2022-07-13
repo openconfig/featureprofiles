@@ -269,14 +269,12 @@ func testReplaceNHTrafficCheck(t *testing.T, args *testArgs) {
 	args.c1.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// Start Traffic
-	ate := ondatra.ATE(t, "ate")
-	topology := getIXIATopology(t, "ate")
-	portMaps := topology.Interfaces()
-	topology.StartProtocols(t)
-	defer topology.StopProtocols(t)
-	baseflow := getBaseFlow(t, portMaps, ate, "IPinIP")
-	ate.Traffic().Start(t, baseflow)
-	defer ate.Traffic().Stop(t)
+	portMaps := args.topology.Interfaces()
+	args.topology.StartProtocols(t)
+	defer args.topology.StopProtocols(t)
+	baseflow := getBaseFlow(t, portMaps, args.ate, "IPinIP")
+	args.ate.Traffic().Start(t, baseflow)
+	defer args.ate.Traffic().Stop(t)
 
 	// Replace same NH entry
 	args.c2.BecomeLeader(t)
@@ -284,7 +282,7 @@ func testReplaceNHTrafficCheck(t *testing.T, args *testArgs) {
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := ate.Telemetry().FlowAny().Get(t)
+	stats := args.ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -454,17 +452,15 @@ func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) 
 
 	args.c1.AddNHG(t, 11, 14, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	ate := ondatra.ATE(t, "ate")
-	topology := getIXIATopology(t, "ate")
-	portMaps := topology.Interfaces()
+	portMaps := args.topology.Interfaces()
 
-	topology.StartProtocols(t)
-	defer topology.StopProtocols(t)
+	args.topology.StartProtocols(t)
+	defer args.topology.StopProtocols(t)
 
-	dscp16Flow := getDSCPFlow(t, portMaps, ate, "DSCP16", 1, 16, "12.11.11.12", "1/3")
-	dscp10Flow := getDSCPFlow(t, portMaps, ate, "DSCP10", 1, 10, "12.11.11.11", "1/2")
+	dscp16Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP16", 1, 16, "12.11.11.12", "1/3")
+	dscp10Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP10", 1, 10, "12.11.11.11", "1/2")
 
-	checkTrafficFlows(t, ate, 60, dscp16Flow, dscp10Flow)
+	checkTrafficFlows(t, args.ate, 60, dscp16Flow, dscp10Flow)
 }
 
 //Transit TC 067 - Same forwarding entries across multiple vrfs
@@ -484,19 +480,17 @@ func testSameForwardingEntriesAcrossMultipleVrfs(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4(t, "12.11.11.11/32", 11, "VRF1", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "12.11.11.12/32", 14, "VRF1", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	ate := ondatra.ATE(t, "ate")
-	topology := getIXIATopology(t, "ate")
-	portMaps := topology.Interfaces()
+	portMaps := args.topology.Interfaces()
 
-	topology.StartProtocols(t)
-	defer topology.StopProtocols(t)
+	args.topology.StartProtocols(t)
+	defer args.topology.StopProtocols(t)
 
-	dscp16FlowVrfTE := getDSCPFlow(t, portMaps, ate, "DSCP16_vrf_TE", 1, 16, "12.11.11.12", "1/3")
-	dscp10FlowVrfTE := getDSCPFlow(t, portMaps, ate, "DSCP10_vrf_TE", 1, 10, "12.11.11.11", "1/2")
-	dscp18Flow1VrfVRF1 := getDSCPFlow(t, portMaps, ate, "DSCP16_vrf_VRF1", 1, 18, "12.11.11.12", "1/3")
-	dscp18Flow2VrfVRF1 := getDSCPFlow(t, portMaps, ate, "DSCP10_vrf_VRF1", 1, 18, "12.11.11.11", "1/2")
+	dscp16FlowVrfTE := getDSCPFlow(t, portMaps, args.ate, "DSCP16_vrf_TE", 1, 16, "12.11.11.12", "1/3")
+	dscp10FlowVrfTE := getDSCPFlow(t, portMaps, args.ate, "DSCP10_vrf_TE", 1, 10, "12.11.11.11", "1/2")
+	dscp18Flow1VrfVRF1 := getDSCPFlow(t, portMaps, args.ate, "DSCP16_vrf_VRF1", 1, 18, "12.11.11.12", "1/3")
+	dscp18Flow2VrfVRF1 := getDSCPFlow(t, portMaps, args.ate, "DSCP10_vrf_VRF1", 1, 18, "12.11.11.11", "1/2")
 
-	checkTrafficFlows(t, ate, 60, dscp16FlowVrfTE, dscp10FlowVrfTE, dscp18Flow1VrfVRF1, dscp18Flow2VrfVRF1)
+	checkTrafficFlows(t, args.ate, 60, dscp16FlowVrfTE, dscp10FlowVrfTE, dscp18Flow1VrfVRF1, dscp18Flow2VrfVRF1)
 }
 
 // Transit-11: Next Hop resoultion with interface in different VRF of NH_network_instance
@@ -999,20 +993,18 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Traffic start
-	ate := ondatra.ATE(t, "ate")
-	topology := getIXIATopology(t, "ate")
-	portMaps := topology.Interfaces()
-	topology.StartProtocols(t)
-	defer topology.StopProtocols(t)
-	scaleflow := getScaleFlow(t, portMaps, ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
-	ate.Traffic().Start(t, scaleflow)
-	defer ate.Traffic().Stop(t)
+	portMaps := args.topology.Interfaces()
+	args.topology.StartProtocols(t)
+	defer args.topology.StopProtocols(t)
+	scaleflow := getScaleFlow(t, portMaps, args.ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
+	args.ate.Traffic().Start(t, scaleflow)
+	defer args.ate.Traffic().Stop(t)
 	// Replace same ipv4 entry
 	args.c1.ReplaceIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := ate.Telemetry().FlowAny().Get(t)
+	stats := args.ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -1067,21 +1059,19 @@ func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Traffic start
-	ate := ondatra.ATE(t, "ate")
-	topology := getIXIATopology(t, "ate")
-	portMaps := topology.Interfaces()
-	topology.StartProtocols(t)
-	defer topology.StopProtocols(t)
-	scaleflow := getScaleFlow(t, portMaps, ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
-	ate.Traffic().Start(t, scaleflow)
-	defer ate.Traffic().Stop(t)
+	portMaps := args.topology.Interfaces()
+	args.topology.StartProtocols(t)
+	defer args.topology.StopProtocols(t)
+	scaleflow := getScaleFlow(t, portMaps, args.ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
+	args.ate.Traffic().Start(t, scaleflow)
+	defer args.ate.Traffic().Stop(t)
 
 	// Replace same ipv4 entry
 	args.c1.ReplaceIPv4Batch(t, prefixes, 1, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := ate.Telemetry().FlowAny().Get(t)
+	stats := args.ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -1103,14 +1093,12 @@ func testReplaceSinglePathtoECMP(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Start Traffic
-	ate := ondatra.ATE(t, "ate")
-	topology := getIXIATopology(t, "ate")
-	portMaps := topology.Interfaces()
-	topology.StartProtocols(t)
-	defer topology.StopProtocols(t)
-	baseflow := getBaseFlow(t, portMaps, ate, "IPinIP")
-	ate.Traffic().Start(t, baseflow)
-	defer ate.Traffic().Stop(t)
+	portMaps := args.topology.Interfaces()
+	args.topology.StartProtocols(t)
+	defer args.topology.StopProtocols(t)
+	baseflow := getBaseFlow(t, portMaps, args.ate, "IPinIP")
+	args.ate.Traffic().Start(t, baseflow)
+	defer args.ate.Traffic().Stop(t)
 	// Add New NHG
 	weights1 = map[uint64]uint64{
 		3: 30,
@@ -1120,7 +1108,7 @@ func testReplaceSinglePathtoECMP(t *testing.T, args *testArgs) {
 	args.c1.AddNHG(t, 11, 0, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := args.ate.Telemetry().InterfaceAny().Counters().Get(t)
 	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats)
 	if trafficPass == true {
 		t.Log("Traffic works as expected")
@@ -1176,11 +1164,9 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//Generate flows over ISIS and BGP sessions.
-	ate := ondatra.ATE(t, "ate")
-	topo := getIXIATopology(t, "ate")
-	isisFlow := util.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "isis_network1", "isis_network2", "isis", 16)
-	bgpFlow := util.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "bgp_network", "bgp_network", "bgp", 16)
-	scaleFlow := getScaleFlow(t, topo.Interfaces(), ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
+	isisFlow := util.GetBoundedFlow(t, args.ate, args.topology, "1/1", "1/2", "isis_network1", "isis_network2", "isis", 16)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, "1/1", "1/2", "bgp_network", "bgp_network", "bgp", 16)
+	scaleFlow := getScaleFlow(t, args.topology.Interfaces(), args.ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.90, isisFlow, bgpFlow, scaleFlow)
 }
@@ -1222,10 +1208,8 @@ func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4(t, "12.12.12.1/32", 2, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//Configure BGP on TGN
-	ate := ondatra.ATE(t, "ate")
-	topo := getIXIATopology(t, "ate")
 	//Generate DSCP48 flow
-	bgpFlow := util.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "bgp_transit_network", "bgp_transit_network", "bgp", 48)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, "1/1", "1/2", "bgp_transit_network", "bgp_transit_network", "bgp", 48)
 
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.99, bgpFlow)
@@ -1332,9 +1316,7 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 	args.c1.AddNHG(t, 1, 0, weights3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	ate := ondatra.ATE(t, "ate")
-	topo := getIXIATopology(t, "ate")
-	scaleFlow := getScaleFlow(t, topo.Interfaces(), ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
+	scaleFlow := getScaleFlow(t, args.topology.Interfaces(), args.ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
 	performATEActionForMultipleFlows(t, "ate", true, 0.99, scaleFlow)
 }
 
@@ -1502,11 +1484,11 @@ func testChangePeerAddress(t *testing.T, args *testArgs) {
 	// portMaps["1/2"].IPv4().WithAddress(fmt.Sprintf("100.%d.1.3/24", 120+i)).WithDefaultGateway(fmt.Sprintf("100.%d.1.1", 120+i))
 	// topology.Update(t)
 
-	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
-
 	// Undo
-	portMaps["1/2"].IPv4().WithAddress(fmt.Sprintf("100.%d.1.2/24", 120+i)).WithDefaultGateway(fmt.Sprintf("100.%d.1.1", 120+i))
-	topology.Update(t)
+	defer portMaps["1/2"].IPv4().WithAddress(fmt.Sprintf("100.%d.1.2/24", 120+i)).WithDefaultGateway(fmt.Sprintf("100.%d.1.1", 120+i))
+	defer topology.Update(t)
+
+	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 }
 
 // Transit- LC OIR
@@ -1609,15 +1591,14 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 	args.c1.AddIPv4Batch(t, prefixes2, 2, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//Outer header TTL decrements by 1, DSCP stays same over gRIBI forwarding entry.
-	ate := ondatra.ATE(t, "ate")
-	topo := getIXIATopology(t, "ate")
-
 	//flow with dscp=48, ttl=100
-	dscpTTLFlow := util.GetBoundedFlow(t, ate, topo, "1/1", "1/2", "network101", "network102", "dscpTtlFlow", 48, 100)
+	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, "1/1", "1/2", "network101", "network102", "dscpTtlFlow", 48, 100)
 	//add acl with dscp=48, ttl=99. Transit traffic will have ttl decremented by 1
 	aclName := "ttl_dscp"
 	aclConfig := util.GetIpv4Acl(aclName, 10, 48, 99, telemetry.Acl_FORWARDING_ACTION_ACCEPT)
 	args.dut.Config().Acl().Update(t, aclConfig)
+	//delete acl
+	defer args.dut.Config().Acl().AclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
 	//apply egress acl on all interfaces of interest
 	interfaceNames := []string{"Bundle-Ether120", "Bundle-Ether121"}
 	for _, interfaceName := range interfaceNames {
@@ -1631,9 +1612,6 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 	for _, interfaceName := range interfaceNames {
 		args.dut.Config().Acl().Interface(interfaceName).EgressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
 	}
-	//delete acl
-	args.dut.Config().Acl().AclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
-
 }
 
 // Transit TC 074 - ADD/REPLACE/DELETE during related configuration change
@@ -1811,11 +1789,10 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 
 	time.Sleep(10 * time.Second)
 
-	topology := getIXIATopology(t, "ate")
-	portMaps := topology.Interfaces()
+	portMaps := args.topology.Interfaces()
 
-	topology.StartProtocols(t)
-	defer topology.StopProtocols(t)
+	args.topology.StartProtocols(t)
+	defer args.topology.StopProtocols(t)
 	baseflow := getBaseFlow(t, portMaps, args.ate, "IPinIP")
 	t.Log("Traffic starting from Ixia should go with Next hop and Static ARP  ")
 	args.ate.Traffic().Start(t, baseflow)
@@ -1878,18 +1855,16 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 
 	t.Log("going to start Ixia protocols to bring up dynamic arp entry and start traffic  ")
 
-	ate := ondatra.ATE(t, "ate")
-	topology := getIXIATopology(t, "ate")
-	portMaps := topology.Interfaces()
+	portMaps := args.topology.Interfaces()
 
-	topology.StartProtocols(t)
+	args.topology.StartProtocols(t)
 
-	baseflow := getBaseFlow(t, portMaps, ate, "IPinIPDynamic")
-	ate.Traffic().Start(t, baseflow)
-	defer ate.Traffic().Stop(t)
+	baseflow := getBaseFlow(t, portMaps, args.ate, "IPinIPDynamic")
+	args.ate.Traffic().Start(t, baseflow)
+	defer args.ate.Traffic().Stop(t)
 
 	time.Sleep(60 * time.Second)
-	stats := ate.Telemetry().FlowAny().Get(t)
+	stats := args.ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
 
 	if len(lossStream) > 0 {
@@ -1898,7 +1873,7 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 		t.Log("There is no traffic loss.")
 	}
 	t.Log("going to stop protocols to make sure static arp works ")
-	topology.StopProtocols(t)
+	args.topology.StopProtocols(t)
 
 	t.Log("going to clear dynamic arp entry ")
 	config.TextWithGNMI(args.ctx, t, args.dut, "do clear arp-cache bundle-Ether 121 location 0/RP0/CPU0")
@@ -1912,7 +1887,7 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.2  0000.0012.0011 arpa")
 
-	statsb := ate.Telemetry().FlowAny().Get(t)
+	statsb := args.ate.Telemetry().FlowAny().Get(t)
 	lossStreamb := util.CheckTrafficPassViaRate(statsb)
 
 	if len(lossStreamb) > 0 {
@@ -2004,30 +1979,11 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 
 	t.Log("going to program Static ARP different from Ixia ")
 	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.3  0000.0012.0011 arpa")
-
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.3  0000.0012.0011 arpa")
 	time.Sleep(10 * time.Second)
 
-	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.3  0000.0012.0011 arpa")
-
-	ate := ondatra.ATE(t, "ate")
-	topology := getIXIATopology(t, "ate")
-	portMaps := topology.Interfaces()
-
-	topology.StartProtocols(t)
-	defer topology.StopProtocols(t)
-	baseflow := getBaseFlow(t, portMaps, ate, "IPinIP")
-	t.Log("Traffic starting from Ixia should go with Next hop and Static ARP  ")
-	ate.Traffic().Start(t, baseflow)
-	defer ate.Traffic().Stop(t)
-	time.Sleep(60 * time.Second)
-
-	stats := ate.Telemetry().FlowAny().Get(t)
-	lossStream := util.CheckTrafficPassViaRate(stats)
-
-	if len(lossStream) > 0 {
-		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
-	} else {
-		t.Log("There is no traffic loss.")
+	if *ciscoFlags.GRIBITrafficCheck {
+		checkTraffic(t, "IPinIP", args.ate, false, "default")
 	}
 
 	// dut1.Telemetry().NetworkInstance().Afts().Ipv4Entry().Get(t)
