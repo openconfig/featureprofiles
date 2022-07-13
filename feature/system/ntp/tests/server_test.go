@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
 )
 
@@ -42,7 +42,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 			config := dut.Config().System().Ntp()
 			state := dut.Telemetry().System().Ntp()
 
-			ntpServer := oc.System_Ntp_Server{
+			ntpServer := telemetry.System_Ntp_Server{
 				Address: &testCase.address,
 			}
 			config.Server(testCase.address).Replace(t, &ntpServer)
