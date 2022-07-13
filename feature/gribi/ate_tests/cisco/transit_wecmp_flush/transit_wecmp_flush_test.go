@@ -1556,9 +1556,8 @@ func testLCOIR(t *testing.T, args *testArgs) {
 
 	// LC OIR
 	t.Log(" Reload the LC")
-	// args.dut.Config().New().WithCiscoText(" do reload location 0/0/CPU0 noprompt \n").Append(t)
-	// time.Sleep(10 * time.Minute)
 	//config.Reload(args.ctx, t, args.dut, "", "", 6*time.Minute)
+	config.CMDViaGNMI(args.ctx, t, args.dut, "reload location 0/0/CPU0 noprompt \n")
 
 	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 }
