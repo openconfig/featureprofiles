@@ -24,11 +24,13 @@ var (
 	NonDefaultNetworkInstance = flag.String("nondefault_vrf", "TE", "The name used for the nondefault network instance for VRF.")
 )
 
+// GRIBICheck struct
 type GRIBICheck struct {
 	FIBACK   bool
 	AFTCheck bool
 }
 
+// GRIBICheck variable
 var GRIBIChecks *GRIBICheck
 
 func init() {

@@ -191,13 +191,13 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeigh
 }
 
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
-func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, nh_Instance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
+func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
 	NH := fluent.NextHopEntry().
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex).
 		WithIPAddress(address)
-	if nh_Instance != "" {
-		NH = NH.WithNextHopNetworkInstance(nh_Instance)
+	if nhInstance != "" {
+		NH = NH.WithNextHopNetworkInstance(nhInstance)
 	}
 	if interfaceRef != "" {
 		NH = NH.WithInterfaceRef(interfaceRef)
@@ -263,7 +263,7 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 	}
 }
 
-// AddIPv4 adds a list of IPv4Entries mapping  prefixes to a given next hop group index within a given network instance.
+// AddIPv4Batch adds a list of IPv4Entries mapping  prefixes to a given next hop group index within a given network instance.
 func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expecteFailure bool, check *flags.GRIBICheck) {
 	ipv4Entries := []fluent.GRIBIEntry{}
 	for _, prefix := range prefixes {
@@ -299,7 +299,7 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 	}
 }
 
-// AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
+// ReplaceNHG replaces a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
 func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
@@ -341,14 +341,14 @@ func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhW
 	}
 }
 
-// AddNH adds a NextHopEntry with a given index to an address within a given network instance.
-func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance string, nh_Instance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
+// ReplaceNH replaces a NextHopEntry with a given index to an address within a given network instance.
+func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
 	NH := fluent.NextHopEntry().
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex).
 		WithIPAddress(address)
-	if nh_Instance != "" {
-		NH = NH.WithNextHopNetworkInstance(nh_Instance)
+	if nhInstance != "" {
+		NH = NH.WithNextHopNetworkInstance(nhInstance)
 	}
 	if interfaceRef != "" {
 		NH = NH.WithInterfaceRef(interfaceRef)
@@ -380,7 +380,7 @@ func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance strin
 	}
 }
 
-// AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
+// ReplaceIPv4 replace an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
 func (c *Client) ReplaceIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, expecteFailure bool, check *flags.GRIBICheck) {
 	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
 		WithNetworkInstance(instance).
@@ -414,7 +414,7 @@ func (c *Client) ReplaceIPv4(t testing.TB, prefix string, nhgIndex uint64, insta
 	}
 }
 
-// AddIPv4 adds a list of IPv4Entries mapping  prefixes to a given next hop group index within a given network instance.
+// ReplaceIPv4Batch replace a list of IPv4Entries mapping  prefixes to a given next hop group index within a given network instance.
 func (c *Client) ReplaceIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expecteFailure bool, check *flags.GRIBICheck) {
 	ipv4Entries := []fluent.GRIBIEntry{}
 	for _, prefix := range prefixes {
@@ -450,6 +450,8 @@ func (c *Client) ReplaceIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint
 	}
 }
 
+// DeleteNHG deletes a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
+// in a given network instance.
 func (c *Client) DeleteNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	if bkhgIndex != 0 {
@@ -487,8 +489,8 @@ func (c *Client) DeleteNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWe
 	}
 }
 
-// AddNH adds a NextHopEntry with a given index to an address within a given network instance.
-func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string, nh_Instance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
+// DeleteNH delete a NextHopEntry with a given index to an address within a given network instance.
+func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
 	NH := fluent.NextHopEntry().
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex)
@@ -496,8 +498,8 @@ func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string
 	if address != "" {
 		NH = NH.WithIPAddress(address)
 	}
-	if nh_Instance != "" {
-		NH = NH.WithNextHopNetworkInstance(nh_Instance)
+	if nhInstance != "" {
+		NH = NH.WithNextHopNetworkInstance(nhInstance)
 	}
 	if interfaceRef != "" {
 		NH = NH.WithInterfaceRef(interfaceRef)
@@ -529,7 +531,7 @@ func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string
 	}
 }
 
-// AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
+// DeleteIPv4 deletes an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
 func (c *Client) DeleteIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, expecteFailure bool, check *flags.GRIBICheck) {
 	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
 		WithNetworkInstance(instance).
@@ -563,7 +565,7 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, nhgIndex uint64, instan
 	}
 }
 
-// AddIPv4 adds a list of IPv4Entries mapping  prefixes to a given next hop group index within a given network instance.
+// DeleteIPv4Batch deletes a list of IPv4Entries mapping  prefixes to a given next hop group index within a given network instance.
 func (c *Client) DeleteIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expecteFailure bool, check *flags.GRIBICheck) {
 	ipv4Entries := []fluent.GRIBIEntry{}
 	for _, prefix := range prefixes {
