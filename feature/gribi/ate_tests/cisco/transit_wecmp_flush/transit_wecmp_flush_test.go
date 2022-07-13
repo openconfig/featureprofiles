@@ -702,13 +702,13 @@ func testChangeNHFromRecursiveToNonRecursive(t *testing.T, args *testArgs) {
 	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
 		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
 	}
-	weights_4 := map[uint64]uint64{
+	weights4 := map[uint64]uint64{
 		10: 85,
 		20: 15,
 	}
 	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 1, 0, weights_4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Correct the related NH and verify traffic
@@ -1211,14 +1211,14 @@ func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 	weights3 := map[uint64]uint64{
 		10: 100,
 	}
-	weights_4 := map[uint64]uint64{
+	weights4 := map[uint64]uint64{
 		20: 100,
 	}
 	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNHG(t, 1, 0, weights3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "11.11.11.1/32", 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 20, "192.0.2.140", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 2, 0, weights_4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 2, 0, weights4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "12.12.12.1/32", 2, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//Configure BGP on TGN
@@ -1381,13 +1381,13 @@ func testChangeNHFromNonRecursiveToRecursive(t *testing.T, args *testArgs) {
 	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
 		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
 	}
-	weights_4 := map[uint64]uint64{
+	weights4 := map[uint64]uint64{
 		10: 85,
 		20: 15,
 	}
 	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 1, 0, weights_4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 1, 0, weights4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4Batch(t, prefixes, 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Correct the related NH and verify traffic
@@ -1592,7 +1592,7 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
 		prefixes1 = append(prefixes1, util.GetIPPrefix("101.1.1.1", i, "32"))
 	}
-	weights_4 := map[uint64]uint64{
+	weights4 := map[uint64]uint64{
 		20: 100,
 	}
 	prefixes2 := []string{}
@@ -1605,7 +1605,7 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 	args.c1.AddIPv4Batch(t, prefixes1, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	args.c1.AddNH(t, 20, "192.0.2.140", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 2, 0, weights_4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 2, 0, weights4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4Batch(t, prefixes2, 2, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//Outer header TTL decrements by 1, DSCP stays same over gRIBI forwarding entry.
