@@ -33,7 +33,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 	}{
 		{"IPv4 Basic Server", "192.0.2.1"},
 		{"IPv6 Basic Server", "2001:DB8::1"},
-		{"IPv6 RFC5952", "2001:db9::1"},
+		{"IPv6 RFC5952", "2001:db8::2"},
 	}
 
 	dut := ondatra.DUT(t, "dut")
