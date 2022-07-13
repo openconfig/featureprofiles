@@ -79,21 +79,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-var (
-	P4RTTestcases = []Testcase{
-		{
-			name: "Program GDP Match Entry and Check PacketIn",
-			desc: "programm GDP match entry and verify send traffic from tgen to verify PacketIn",
-			fn:   testGDPEntryProgrammingPacketIn,
-		},
-		{
-			name: "Program GDP Match Entry and Check PacketOut",
-			desc: "programm GDP match entry and verify send traffic from tgen to verify PacketIn",
-			fn:   testGDPEntryProgrammingPacketOut,
-		},
-	}
-)
-
 func TestP4RTPacketIO(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -169,6 +154,9 @@ func TestP4RTPacketIO(t *testing.T) {
 	if err := setupP4RTClient(ctx, t, args); err != nil {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
+
+	P4RTTestcases := []Testcase{}
+	P4RTTestcases = append(P4RTTestcases, GDPTestcases...)
 
 	for _, tt := range P4RTTestcases {
 		// Each case will run with its own gRIBI fluent client.
