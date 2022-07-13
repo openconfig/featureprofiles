@@ -442,7 +442,7 @@ func (c *Client) ReplaceIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint
 	for _, prefix := range prefixes {
 		chk.HasResult(t, c.fluentC.Results(t),
 			fluent.OperationResult().WithIPv4Operation(prefix).
-				WithOperationType(constants.Add).
+				WithOperationType(constants.Replace).
 				WithProgrammingResult(expectedResult).
 				AsResult(),
 			chk.IgnoreOperationID(),
@@ -454,6 +454,11 @@ func (c *Client) DeleteNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWe
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	if bkhgIndex != 0 {
 		nhg.WithBackupNHG(bkhgIndex)
+	}
+	if len(nhWeights) != 0 {
+		for nhIndex, weight := range nhWeights {
+			nhg.AddNextHop(nhIndex, weight)
+		}
 	}
 	c.fluentC.Modify().DeleteEntry(t, nhg)
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
@@ -469,7 +474,7 @@ func (c *Client) DeleteNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWe
 	chk.HasResult(t, c.fluentC.Results(t),
 		fluent.OperationResult().
 			WithNextHopGroupOperation(nhgIndex).
-			WithOperationType(constants.Replace).
+			WithOperationType(constants.Delete).
 			WithProgrammingResult(expectedResult).
 			AsResult(),
 		chk.IgnoreOperationID(),
@@ -511,7 +516,7 @@ func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string
 	chk.HasResult(t, c.fluentC.Results(t),
 		fluent.OperationResult().
 			WithNextHopOperation(nhIndex).
-			WithOperationType(constants.Replace).
+			WithOperationType(constants.Delete).
 			WithProgrammingResult(expectedResult).
 			AsResult(),
 		chk.IgnoreOperationID(),
@@ -546,7 +551,7 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, nhgIndex uint64, instan
 	chk.HasResult(t, c.fluentC.Results(t),
 		fluent.OperationResult().
 			WithIPv4Operation(prefix).
-			WithOperationType(constants.Replace).
+			WithOperationType(constants.Delete).
 			WithProgrammingResult(expectedResult).
 			AsResult(),
 		chk.IgnoreOperationID(),
