@@ -187,7 +187,7 @@ func testAddNHGTrafficCheck(t *testing.T, args *testArgs) {
 	stats := args.ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
-		t.Error("There is stream failing:", strings.Join(lossStream, ","))
+		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
 	} else {
 		t.Log("There is no traffic loss.")
 	}
@@ -218,7 +218,7 @@ func testReplaceNHGTrafficCheck(t *testing.T, args *testArgs) {
 	stats := args.ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
-		t.Error("There is stream failing:", strings.Join(lossStream, ","))
+		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
 	} else {
 		t.Log("There is no traffic loss.")
 	}
@@ -287,7 +287,7 @@ func testReplaceNHTrafficCheck(t *testing.T, args *testArgs) {
 	stats := ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
-		t.Error("There is stream failing:", strings.Join(lossStream, ","))
+		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
 	} else {
 		t.Log("There is no traffic loss.")
 	}
@@ -1015,7 +1015,7 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	stats := ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
-		t.Error("There is stream failing:", strings.Join(lossStream, ","))
+		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
 	} else {
 		t.Log("There is no traffic loss.")
 	}
@@ -1084,7 +1084,7 @@ func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	stats := ate.Telemetry().FlowAny().Get(t)
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
-		t.Error("There is stream failing:", strings.Join(lossStream, ","))
+		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
 	} else {
 		t.Log("There is no traffic loss.")
 	}
@@ -1125,7 +1125,7 @@ func testReplaceSinglePathtoECMP(t *testing.T, args *testArgs) {
 	if trafficPass == true {
 		t.Log("Traffic works as expected")
 	} else {
-		t.Error("Traffic doesn't work as expected")
+		t.Fatal("Traffic doesn't work as expected")
 	}
 }
 
@@ -1827,7 +1827,7 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 	lossStream := util.CheckTrafficPassViaRate(stats)
 
 	if len(lossStream) > 0 {
-		t.Error("There is stream failing:", strings.Join(lossStream, ","))
+		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
 	} else {
 		t.Log("There is no traffic loss.")
 	}
@@ -1842,7 +1842,7 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 	lossStreamb := util.CheckTrafficPassViaRate(statsb)
 
 	if len(lossStreamb) > 0 {
-		t.Error("There is stream failing after configuring static arp :", strings.Join(lossStreamb, ","))
+		t.Fatal("There is stream failing after configuring static arp :", strings.Join(lossStreamb, ","))
 	} else {
 		t.Log("There is no traffic loss even after adding static arp ")
 	}
@@ -1893,7 +1893,7 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 	lossStream := util.CheckTrafficPassViaRate(stats)
 
 	if len(lossStream) > 0 {
-		t.Error("There is stream failing:", strings.Join(lossStream, ","))
+		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
 	} else {
 		t.Log("There is no traffic loss.")
 	}
@@ -1916,7 +1916,7 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 	lossStreamb := util.CheckTrafficPassViaRate(statsb)
 
 	if len(lossStreamb) > 0 {
-		t.Error("There is stream failing after configuring static arp :", strings.Join(lossStreamb, ","))
+		t.Fatal("There is stream failing after configuring static arp :", strings.Join(lossStreamb, ","))
 	} else {
 		t.Log("There is no traffic loss even after adding static arp ")
 	}
@@ -2025,7 +2025,7 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 	lossStream := util.CheckTrafficPassViaRate(stats)
 
 	if len(lossStream) > 0 {
-		t.Error("There is stream failing:", strings.Join(lossStream, ","))
+		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
 	} else {
 		t.Log("There is no traffic loss.")
 	}
