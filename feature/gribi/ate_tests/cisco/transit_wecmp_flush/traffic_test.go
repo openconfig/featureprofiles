@@ -207,8 +207,8 @@ func checkTraffic(t *testing.T, protocl string, ate *ondatra.ATEDevice, expectFa
 
 	topology.StartProtocols(t)
 	defer topology.StopProtocols(t)
-	var baseflow *ondatra.Flow
-	baseflow = getBaseFlow(t, portMaps, ate, protocl, vrf...)
+
+	baseflow := getBaseFlow(t, portMaps, ate, protocl, vrf...)
 
 	ate.Traffic().Start(t, baseflow)
 	defer ate.Traffic().Stop(t)
