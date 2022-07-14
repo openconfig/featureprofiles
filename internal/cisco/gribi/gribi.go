@@ -148,6 +148,18 @@ func (c *Client) BecomeLeader(t testing.TB) {
 	c.UpdateElectionID(t, newLow, high)
 }
 
+//
+func (c *Client) checkNHGResult(t testing.TB, expectedResult fluent.ProgrammingResult, operation constants.OpType, nhgIndex uint64) {
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithNextHopGroupOperation(nhgIndex).
+			WithOperationType(operation).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+}
+
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
 func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck) {
@@ -162,21 +174,14 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeigh
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NHG: %v", err)
 	}
-	expectedResult := fluent.InstalledInRIB
 	if expecteFailure {
-		expectedResult = fluent.ProgrammingFailed
+		c.checkNHGResult(t, fluent.ProgrammingFailed, constants.Add, nhgIndex)
+	} else {
+		c.checkNHGResult(t, fluent.InstalledInRIB, constants.Add, nhgIndex)
+		if check.FIBACK {
+			c.checkNHGResult(t, fluent.InstalledInFIB, constants.Add, nhgIndex)
+		}
 	}
-	if check.FIBACK {
-		expectedResult = fluent.InstalledInFIB
-	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopGroupOperation(nhgIndex).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
 	if check.AFTCheck {
 		nhg := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndex).Get(t)
 		if *nhg.Id != nhgIndex {
@@ -188,6 +193,18 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeigh
 			}
 		}
 	}
+}
+
+//
+func (c *Client) checkNHResult(t testing.TB, expectedResult fluent.ProgrammingResult, operation constants.OpType, nhIndex uint64) {
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithNextHopOperation(nhIndex).
+			WithOperationType(operation).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
 }
 
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
@@ -206,21 +223,14 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NH: %v", err)
 	}
-	expectedResult := fluent.InstalledInRIB
 	if expecteFailure {
-		expectedResult = fluent.ProgrammingFailed
+		c.checkNHResult(t, fluent.ProgrammingFailed, constants.Add, nhIndex)
+	} else {
+		c.checkNHResult(t, fluent.InstalledInRIB, constants.Add, nhIndex)
+		if check.FIBACK {
+			c.checkNHResult(t, fluent.InstalledInFIB, constants.Add, nhIndex)
+		}
 	}
-	if check.FIBACK {
-		expectedResult = fluent.InstalledInFIB
-	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopOperation(nhIndex).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
 	if check.AFTCheck {
 		nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
 		if (*nh.Index != nhIndex) || (*nh.IpAddress != address) {
@@ -241,21 +251,14 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4: %v", err)
 	}
-	expectedResult := fluent.InstalledInRIB
 	if expecteFailure {
-		expectedResult = fluent.ProgrammingFailed
+		c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Add, prefix)
+	} else {
+		c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Add, prefix)
+		if check.FIBACK {
+			c.checkIPV4Result(t, fluent.InstalledInFIB, constants.Add, prefix)
+		}
 	}
-	if check.FIBACK {
-		expectedResult = fluent.InstalledInFIB
-	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithIPv4Operation(prefix).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
 	if check.AFTCheck {
 		if got, want := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Prefix().Get(t), prefix; got != want {
 			t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", got, want)
@@ -281,21 +284,15 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4 entries: %v", err)
 	}
-	expectedResult := fluent.InstalledInRIB
-	if expecteFailure {
-		expectedResult = fluent.ProgrammingFailed
-	}
-	if check.FIBACK {
-		expectedResult = fluent.InstalledInFIB
-	}
 	for _, prefix := range prefixes {
-		chk.HasResult(t, c.fluentC.Results(t),
-			fluent.OperationResult().WithIPv4Operation(prefix).
-				WithOperationType(constants.Add).
-				WithProgrammingResult(expectedResult).
-				AsResult(),
-			chk.IgnoreOperationID(),
-		)
+		if expecteFailure {
+			c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Add, prefix)
+		} else {
+			c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Add, prefix)
+			if check.FIBACK {
+				c.checkIPV4Result(t, fluent.InstalledInFIB, constants.Add, prefix)
+			}
+		}
 	}
 }
 
@@ -313,21 +310,15 @@ func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhW
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NHG: %v", err)
 	}
-	expectedResult := fluent.InstalledInRIB
 	if expecteFailure {
-		expectedResult = fluent.ProgrammingFailed
+		c.checkNHGResult(t, fluent.ProgrammingFailed, constants.Replace, nhgIndex)
+	} else {
+		c.checkNHGResult(t, fluent.InstalledInRIB, constants.Replace, nhgIndex)
+		if check.FIBACK {
+			c.checkNHGResult(t, fluent.InstalledInFIB, constants.Replace, nhgIndex)
+		}
 	}
-	if check.FIBACK {
-		expectedResult = fluent.InstalledInFIB
-	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopGroupOperation(nhgIndex).
-			WithOperationType(constants.Replace).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
+
 	if check.AFTCheck {
 		nhg := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndex).Get(t)
 		if *nhg.Id != nhgIndex {
@@ -357,27 +348,32 @@ func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance strin
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NH: %v", err)
 	}
-	expectedResult := fluent.InstalledInRIB
 	if expecteFailure {
-		expectedResult = fluent.ProgrammingFailed
+		c.checkNHResult(t, fluent.ProgrammingFailed, constants.Replace, nhIndex)
+	} else {
+		c.checkNHResult(t, fluent.InstalledInRIB, constants.Replace, nhIndex)
+		if check.FIBACK {
+			c.checkNHResult(t, fluent.InstalledInFIB, constants.Replace, nhIndex)
+		}
 	}
-	if check.FIBACK {
-		expectedResult = fluent.InstalledInFIB
-	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopOperation(nhIndex).
-			WithOperationType(constants.Replace).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
 	if check.AFTCheck {
 		nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
 		if (*nh.Index != nhIndex) || (*nh.IpAddress != address) {
 			t.Fatalf("AFT Check failed for aft/nexthop-entry got ip %s, want ip %s; got index %d , want index %d", *nh.IpAddress, address, *nh.Index, nhIndex)
 		}
 	}
+}
+
+//
+func (c *Client) checkIPV4Result(t testing.TB, expectedResult fluent.ProgrammingResult, operation constants.OpType, prefix string) {
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithIPv4Operation(prefix).
+			WithOperationType(operation).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
 }
 
 // ReplaceIPv4 replace an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
@@ -392,21 +388,16 @@ func (c *Client) ReplaceIPv4(t testing.TB, prefix string, nhgIndex uint64, insta
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4: %v", err)
 	}
-	expectedResult := fluent.InstalledInRIB
+
 	if expecteFailure {
-		expectedResult = fluent.ProgrammingFailed
+		c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Replace, prefix)
+	} else {
+		c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Replace, prefix)
+		if check.FIBACK {
+			c.checkIPV4Result(t, fluent.InstalledInFIB, constants.Replace, prefix)
+		}
 	}
-	if check.FIBACK {
-		expectedResult = fluent.InstalledInFIB
-	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithIPv4Operation(prefix).
-			WithOperationType(constants.Replace).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
+
 	if check.AFTCheck {
 		if got, want := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Prefix().Get(t), prefix; got != want {
 			t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", got, want)
@@ -432,21 +423,15 @@ func (c *Client) ReplaceIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4 entries: %v", err)
 	}
-	expectedResult := fluent.InstalledInRIB
-	if expecteFailure {
-		expectedResult = fluent.ProgrammingFailed
-	}
-	if check.FIBACK {
-		expectedResult = fluent.InstalledInFIB
-	}
 	for _, prefix := range prefixes {
-		chk.HasResult(t, c.fluentC.Results(t),
-			fluent.OperationResult().WithIPv4Operation(prefix).
-				WithOperationType(constants.Replace).
-				WithProgrammingResult(expectedResult).
-				AsResult(),
-			chk.IgnoreOperationID(),
-		)
+		if expecteFailure {
+			c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Replace, prefix)
+		} else {
+			c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Replace, prefix)
+			if check.FIBACK {
+				c.checkIPV4Result(t, fluent.InstalledInFIB, constants.Replace, prefix)
+			}
+		}
 	}
 }
 
@@ -466,21 +451,14 @@ func (c *Client) DeleteNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWe
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NHG: %v", err)
 	}
-	expectedResult := fluent.InstalledInRIB
 	if expecteFailure {
-		expectedResult = fluent.ProgrammingFailed
+		c.checkNHGResult(t, fluent.ProgrammingFailed, constants.Delete, nhgIndex)
+	} else {
+		c.checkNHGResult(t, fluent.InstalledInRIB, constants.Delete, nhgIndex)
+		if check.FIBACK {
+			c.checkNHGResult(t, fluent.InstalledInFIB, constants.Delete, nhgIndex)
+		}
 	}
-	if check.FIBACK {
-		expectedResult = fluent.InstalledInFIB
-	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopGroupOperation(nhgIndex).
-			WithOperationType(constants.Delete).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
 	if check.AFTCheck {
 		nhg := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndex).Get(t)
 		if *nhg.Id != nhgIndex {
@@ -508,21 +486,14 @@ func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NH: %v", err)
 	}
-	expectedResult := fluent.InstalledInRIB
 	if expecteFailure {
-		expectedResult = fluent.ProgrammingFailed
+		c.checkNHResult(t, fluent.ProgrammingFailed, constants.Delete, nhIndex)
+	} else {
+		c.checkNHResult(t, fluent.InstalledInRIB, constants.Delete, nhIndex)
+		if check.FIBACK {
+			c.checkNHResult(t, fluent.InstalledInFIB, constants.Delete, nhIndex)
+		}
 	}
-	if check.FIBACK {
-		expectedResult = fluent.InstalledInFIB
-	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopOperation(nhIndex).
-			WithOperationType(constants.Delete).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
 	if check.AFTCheck {
 		nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
 		if *nh.Index != nhIndex {
@@ -543,21 +514,14 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, nhgIndex uint64, instan
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4: %v", err)
 	}
-	expectedResult := fluent.InstalledInRIB
 	if expecteFailure {
-		expectedResult = fluent.ProgrammingFailed
+		c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Delete, prefix)
+	} else {
+		c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Delete, prefix)
+		if check.FIBACK {
+			c.checkIPV4Result(t, fluent.InstalledInFIB, constants.Delete, prefix)
+		}
 	}
-	if check.FIBACK {
-		expectedResult = fluent.InstalledInFIB
-	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithIPv4Operation(prefix).
-			WithOperationType(constants.Delete).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
 	if check.AFTCheck {
 		if got, want := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Prefix().Get(t), prefix; got != want {
 			t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", got, want)
@@ -583,21 +547,15 @@ func (c *Client) DeleteIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint6
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4 entries: %v", err)
 	}
-	expectedResult := fluent.InstalledInRIB
-	if expecteFailure {
-		expectedResult = fluent.ProgrammingFailed
-	}
-	if check.FIBACK {
-		expectedResult = fluent.InstalledInFIB
-	}
 	for _, prefix := range prefixes {
-		chk.HasResult(t, c.fluentC.Results(t),
-			fluent.OperationResult().WithIPv4Operation(prefix).
-				WithOperationType(constants.Add).
-				WithProgrammingResult(expectedResult).
-				AsResult(),
-			chk.IgnoreOperationID(),
-		)
+		if expecteFailure {
+			c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Delete, prefix)
+		} else {
+			c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Delete, prefix)
+			if check.FIBACK {
+				c.checkIPV4Result(t, fluent.InstalledInFIB, constants.Delete, prefix)
+			}
+		}
 	}
 }
 
