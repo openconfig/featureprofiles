@@ -199,7 +199,7 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeigh
 func (c *Client) checkNHResult(t testing.TB, expectedResult fluent.ProgrammingResult, operation constants.OpType, nhIndex uint64) {
 	chk.HasResult(t, c.fluentC.Results(t),
 		fluent.OperationResult().
-			WithNextHopGroupOperation(nhIndex).
+			WithNextHopOperation(nhIndex).
 			WithOperationType(operation).
 			WithProgrammingResult(expectedResult).
 			AsResult(),
