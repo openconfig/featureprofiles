@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.8
+	github.com/google/goexpect v0.0.0-20210430020637-ab937bf7fd6f
 	github.com/open-traffic-generator/snappi/gosnappi v0.7.37
 	github.com/openconfig/gnmi v0.0.0-20220131173555-39aa74195f0d
 	github.com/openconfig/gnoi v0.0.0-20220131192435-7dd3a95a4f1e
@@ -25,6 +26,7 @@ require (
 require (
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/goterm v0.0.0-20190703233501-fc88cf888a3f // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
