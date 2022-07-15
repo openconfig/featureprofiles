@@ -71,6 +71,11 @@ var (
 			fn:   testGDPEntryProgrammingPacketInDowngradePrimaryController,
 		},
 		{
+			name: "Program GDP Match Entry and Recover previous primary controller and check PacketIn",
+			desc: "Packet I/O-GDP-PacketIn:013 Programm match EtherType 0x6007 entry, send traffic with 0x6007 packets with google MAC from tgen, downgrade/fail primary controller then recover the controller, verify GDP packets sends to the same controller",
+			fn:   testGDPEntryProgrammingPacketInRecoverPrimaryController,
+		},
+		{
 			name: "Program GDP Match Entry and Check PacketOut",
 			desc: "Packet I/O-GDP-PacketOut:001 Ingress:  Inject EtherType 0x6007 packets and verify traffic behavior in case of EtherType 0x6007 entry programmed",
 			fn:   testGDPEntryProgrammingPacketOut,
@@ -794,4 +799,141 @@ func testGDPEntryProgrammingPacketInDowngradePrimaryController(ctx context.Conte
 			}
 		}
 	}
+}
+
+func testGDPEntryProgrammingPacketInRecoverPrimaryController(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// Program the GDP entry
+	if err := programmGDPMatchEntry(ctx, t, client, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmGDPMatchEntry(ctx, t, client, true)
+
+	// Send GDP Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	t.Logf("Start to decode packet.")
+	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
+		if packet != nil {
+			dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+			if dstMac != gdpMAC || etherType != layers.EthernetType(gdpEtherType) {
+				t.Errorf("Packet is not matching GDP packet.")
+			}
+			// TODO: Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(portID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
+		}
+	}
+
+	// Downgrade Primary Controller
+	if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
+		Update: &p4_v1.StreamMessageRequest_Arbitration{
+			Arbitration: &p4_v1.MasterArbitrationUpdate{
+				DeviceId: deviceID,
+				ElectionId: &p4_v1.Uint128{
+					High: uint64(0),
+					Low:  uint64(1),
+				},
+			},
+		},
+	}); err != nil {
+		t.Errorf("There is error when sending arbitration message, %s", err)
+	}
+	if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
+		t.Errorf("There is error when downgrading the client, %s", arbErr)
+	}
+
+	testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
+
+	// Recover Primary Controller
+	client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
+		Update: &p4_v1.StreamMessageRequest_Arbitration{
+			Arbitration: &p4_v1.MasterArbitrationUpdate{
+				DeviceId: deviceID,
+				ElectionId: &p4_v1.Uint128{
+					High: uint64(0),
+					Low:  electionID,
+				},
+			},
+		},
+	})
+	if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
+		t.Errorf("There is error when downgrading the client, %s", arbErr)
+	}
+
+	testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
+	// Check PacketIn on P4Client
+	packets = []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	t.Logf("Start to decode packet.")
+	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
+		if packet != nil {
+			dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+			if dstMac != gdpMAC || etherType != layers.EthernetType(gdpEtherType) {
+				t.Errorf("Packet is not matching GDP packet.")
+			}
+			// TODO: Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(portID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
+		}
+	}
+
 }
