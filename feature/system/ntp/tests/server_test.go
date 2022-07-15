@@ -60,6 +60,9 @@ func TestNtpServerConfigurability(t *testing.T) {
 
 			t.Run("Delete NTP Server", func(t *testing.T) {
 				config.Server(testCase.address).Delete(t)
+				if qs := config.Server(testCase.address).Lookup(t); qs.IsPresent() == true {
+					t.Errorf("Delete NTP Server fail: got %v", qs)
+				}
 			})
 		})
 	}
