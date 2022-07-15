@@ -225,25 +225,6 @@ func configurePBR(t *testing.T, dut *ondatra.DUTDevice, policyName, networkInsta
 	dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &pf)
 }
 
-// configurePbrDUT assigns policy to the source interface
-func configurePbrDUT(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, source_port string) {
-
-	port := dut.Port(t, source_port)
-	pfpath := dut.Config().NetworkInstance("default").PolicyForwarding()
-	//defer cleaning policy-forwarding
-	defer pfpath.Delete(t)
-
-	t.Log("Match IPinIP protocol to VRF10. Drop IPv4 and IPv6 traffic in VRF10.")
-	configurePBR(t, dut, "Transit", "TE", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	//defer pbr policy deletion
-	defer pfpath.Policy("Transit").Delete(t)
-
-	//configure PBR on ingress port
-	pfpath.Interface(port.Name()).ApplyVrfSelectionPolicy().Replace(t, "Transit")
-	//defer deletion of policy from interface
-	defer pfpath.Interface(port.Name()).ApplyVrfSelectionPolicy().Delete(t)
-}
-
 // configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
 	i.Description = ygot.String(a.Desc)
@@ -536,49 +517,6 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 				if got, want := dutOutPktsAfterTraffic[k]-dutOutPktsBeforeTraffic[k], ateRxPkts[k]; got <= want {
 					t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
 				}
-			}
-		}
-	}
-}
-
-// testTraffic generates traffic flow from source network to destination network via srcEndPoint to dstEndPoint
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, dstEndPoint []ondatra.Endpoint, drop bool) {
-	ethHeader := ondatra.NewEthernetHeader()
-	// ethHeader.WithSrcAddress("00:11:01:00:00:01")
-	// ethHeader.WithDstAddress("00:01:00:02:00:00")
-
-	flow := []*ondatra.Flow{}
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.DstAddressRange().
-		WithMin("198.51.100.1").
-		WithMax("198.51.100.254").
-		WithCount(1)
-
-	innerIpv4Header := ondatra.NewIPv4Header()
-	innerIpv4Header.WithSrcAddress("200.1.0.2")
-	innerIpv4Header.DstAddressRange().WithMin("201.1.0.2").WithCount(1).WithStep("0.0.0.1")
-
-	flow = append(flow, ate.Traffic().NewFlow(fmt.Sprintf("Flow")).
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint...).
-		WithHeaders(ethHeader, ipv4Header, innerIpv4Header).WithFrameRateFPS(10).WithFrameSize(300))
-
-	ate.Traffic().Start(t, flow...)
-	time.Sleep(15 * time.Second)
-	ate.Traffic().Stop(t)
-
-	time.Sleep(time.Minute)
-
-	for _, f := range flow {
-		flowPath := ate.Telemetry().Flow(f.Name())
-		got := flowPath.LossPct().Get(t)
-		if drop {
-			if got != 0 {
-				t.Errorf("Traffic passing for flow %s got %g, want 100 percent loss", f.Name(), got)
-			}
-		} else {
-			if got > 0 {
-				t.Errorf("LossPct for flow %s got %g, want 0", f.Name(), got)
 			}
 		}
 	}
@@ -2025,10 +1963,9 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 		}
 	}
 
-	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
+	//shutdown primary path one by one
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
-		testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint, false)
 		args.interfaceaction(t, intf, false)
 		defer args.interfaceaction(t, intf, true)
 	}
@@ -2119,10 +2056,9 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 		}
 	}
 
-	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
+	//shutdown primary path one by one
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
-		testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint, false)
 		args.interfaceaction(t, intf, false)
 		defer args.interfaceaction(t, intf, true)
 	}
