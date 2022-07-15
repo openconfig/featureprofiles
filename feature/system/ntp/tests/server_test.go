@@ -15,12 +15,10 @@
 package system_ntp_test
 
 import (
-	"net"
 	"testing"
 
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/testt"
 )
 
 // TestNtpServerConfigurability tests basic configurability of NTP server paths.
@@ -32,8 +30,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 		address     string
 	}{
 		{"IPv4 Basic Server", "192.0.2.1"},
-		{"IPv6 Basic Server", "2001:DB8::1"},
-		{"IPv6 RFC5952", "2001:db8::2"},
+		{"IPv6 Basic Server (RFC5952)", "2001:db8::1"},
 	}
 
 	dut := ondatra.DUT(t, "dut")
@@ -48,48 +45,21 @@ func TestNtpServerConfigurability(t *testing.T) {
 			config.Server(testCase.address).Replace(t, &ntpServer)
 
 			t.Run("Get NTP Server Config", func(t *testing.T) {
-				wantAddress := net.ParseIP(testCase.address)
-				address := config.Server(testCase.address).Address().Lookup(t)
-				if address.IsPresent() == false {
-					address = config.Server(wantAddress.String()).Address().Lookup(t)
-					if address.IsPresent() == false {
-						t.Errorf("Config NTP Server Failed Lookup: %v and %v", testCase.address, wantAddress.String())
-					}
-				}
-				if gotAddress := net.ParseIP(address.Val(t)); gotAddress == nil || !wantAddress.Equal(gotAddress) {
-					t.Errorf("Config NTP Server Address: got %v, want %v", gotAddress, wantAddress)
+				configGot := config.Server(testCase.address).Get(t)
+				if address := configGot.GetAddress(); address != testCase.address {
+					t.Errorf("Config NTP Server: got %s, want %s", address, testCase.address)
 				}
 			})
 
 			t.Run("Get NTP Server Telemetry", func(t *testing.T) {
-				wantAddress := net.ParseIP(testCase.address)
-				address := state.Server(testCase.address).Address().Lookup(t)
-				if address.IsPresent() == false {
-					address = state.Server(wantAddress.String()).Address().Lookup(t)
-					if address.IsPresent() == false {
-						t.Errorf("Telemetry NTP Server Failed Lookup: %v and %v", testCase.address, wantAddress.String())
-					}
-				}
-				if gotAddress := net.ParseIP(address.Val(t)); gotAddress == nil || !wantAddress.Equal(gotAddress) {
-					t.Errorf("Telemetry NTP Server Address: got %v, want %v", gotAddress, wantAddress)
+				stateGot := state.Server(testCase.address).Get(t)
+				if address := stateGot.GetAddress(); address != testCase.address {
+					t.Errorf("Telemetry NTP Server: got %s, want %s", address, testCase.address)
 				}
 			})
 
 			t.Run("Delete NTP Server", func(t *testing.T) {
-				address := net.ParseIP(testCase.address)
-				testt.CaptureFatal(t, func(t testing.TB) {
-					config.Server(address.String()).Delete(t)
-				})
-				testt.CaptureFatal(t, func(t testing.TB) {
-					config.Server(testCase.address).Delete(t)
-				})
-
-				if qs := config.Server(address.String()).Lookup(t); qs.IsPresent() == true {
-					t.Errorf("Delete NTP Server fail: got %v", qs)
-				}
-				if qs := config.Server(testCase.address).Lookup(t); qs.IsPresent() == true {
-					t.Errorf("Delete NTP Server fail: got %v", qs)
-				}
+				config.Server(testCase.address).Delete(t)
 			})
 		})
 	}
