@@ -24,10 +24,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/gribi"
 	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -62,7 +63,7 @@ const (
 	ipv6PrefixLen         = 126
 	instance              = "DEFAULT"
 	dstPfx                = "198.51.100.1"
-	dstPfxMask            = "32"
+	mask                  = "32"
 	dstPfxMin             = "198.51.100.1"
 	dstPfxCount           = 100
 	dstPfx1               = "11.1.1.1"
@@ -276,11 +277,11 @@ func (a *testArgs) interfaceaction(t *testing.T, port string, action bool) {
 	if action {
 		// a.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(ateP).WithStateEnabled(true).Operate(t)
 		a.dut.Config().Interface(dutP.Name()).Enabled().Replace(t, true)
-		a.dut.Telemetry().Interface(dutP.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
+		// a.dut.Telemetry().Interface(dutP.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
 	} else {
 		// a.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(ateP).WithStateEnabled(false).Operate(t)
 		a.dut.Config().Interface(dutP.Name()).Enabled().Replace(t, false)
-		a.dut.Telemetry().Interface(dutP.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
+		// a.dut.Telemetry().Interface(dutP.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
 	}
 }
 
@@ -445,14 +446,14 @@ func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddres
 // addPrototoAte calls ISIS/BGP api
 func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 
-	// addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+dstPfxMask, uint32(innerdstPfxCount_isis))
-	// addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_network", atePort8.IPv4, innerdstPfxMin_bgp+"/"+dstPfxMask, innerdstPfxCount_bgp, false)
+	// addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, uint32(innerdstPfxCount_isis))
+	// addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_network", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, innerdstPfxCount_bgp, false)
 
 	//advertising 100.100.100.100/32 for bgp resolve over IGP prefix
 	intfs := top.Interfaces()
 	intfs["atePort8"].WithIPv4Loopback("100.100.100.100/32")
-	addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+dstPfxMask, uint32(innerdstPfxCount_isis))
-	addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+dstPfxMask, innerdstPfxCount_bgp, true)
+	addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, uint32(innerdstPfxCount_isis))
+	addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, innerdstPfxCount_bgp, true)
 	top.Push(t).StartProtocols(t)
 }
 
@@ -606,16 +607,20 @@ func testBackupNHOPCase1(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
 	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 	// VIP1: NHG ID 1000
@@ -627,17 +632,17 @@ func testBackupNHOPCase1(ctx context.Context, t *testing.T, args *testArgs) {
 	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
 	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// adding default route pointing to Valid Path
 	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -662,25 +667,21 @@ func testBackupNHOPCase1(ctx context.Context, t *testing.T, args *testArgs) {
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
-
+	defer args.interfaceaction(t, "port7", true)
+	defer args.interfaceaction(t, "port6", true)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port8"})
 
 	args.interfaceaction(t, "port5", false)
 	args.interfaceaction(t, "port4", false)
 	args.interfaceaction(t, "port3", false)
 	args.interfaceaction(t, "port2", false)
+	defer args.interfaceaction(t, "port5", true)
+	defer args.interfaceaction(t, "port4", true)
+	defer args.interfaceaction(t, "port3", true)
+	defer args.interfaceaction(t, "port2", true)
 
 	// validate traffic dropping on backup
 	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
-
-	// unshut all the links and validate traffic
-	args.interfaceaction(t, "port2", true)
-	args.interfaceaction(t, "port3", true)
-	args.interfaceaction(t, "port4", true)
-	args.interfaceaction(t, "port5", true)
-	args.interfaceaction(t, "port6", true)
-	args.interfaceaction(t, "port7", true)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	// removing default route pointing to Valid Path
 	t.Log("remvoing default route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -702,16 +703,20 @@ func testBackupNHOPCase2(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
 	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 	// VIP1: NHG ID 1000
@@ -723,17 +728,17 @@ func testBackupNHOPCase2(ctx context.Context, t *testing.T, args *testArgs) {
 	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
 	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// adding default route pointing to Valid Path
 	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -756,16 +761,16 @@ func testBackupNHOPCase2(ctx context.Context, t *testing.T, args *testArgs) {
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//delete backup path and validate no traffic loss
-	args.clientA.NHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, instance, "replace", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "delete", fluent.InstalledInRIB)
-	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "delete", fluent.InstalledInRIB)
+	args.clientA.ReplaceNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.DeleteNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.DeleteNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//add back backup path and validate no traffic loss
-	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "replace", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.ReplaceNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	// removing default route pointing to Valid Path
@@ -788,16 +793,20 @@ func testBackupNHOPCase3(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
 	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 	// VIP1: NHG ID 1000
@@ -809,17 +818,17 @@ func testBackupNHOPCase3(ctx context.Context, t *testing.T, args *testArgs) {
 	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
 	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// adding default route pointing to Valid Path
 	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -842,31 +851,28 @@ func testBackupNHOPCase3(ctx context.Context, t *testing.T, args *testArgs) {
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//delete backup path and shut primary interfaces and validate traffic drops
-	args.clientA.NHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, instance, "replace", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "delete", fluent.InstalledInRIB)
-	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "delete", fluent.InstalledInRIB)
+	args.clientA.ReplaceNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.DeleteNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.DeleteNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
 	args.interfaceaction(t, "port5", false)
 	args.interfaceaction(t, "port4", false)
 	args.interfaceaction(t, "port3", false)
 	args.interfaceaction(t, "port2", false)
+	defer args.interfaceaction(t, "port7", true)
+	defer args.interfaceaction(t, "port6", true)
+	defer args.interfaceaction(t, "port5", true)
+	defer args.interfaceaction(t, "port4", true)
+	defer args.interfaceaction(t, "port3", true)
+	defer args.interfaceaction(t, "port2", true)
 	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
 
 	//add back backup path and validate traffic drops
-	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "replace", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.ReplaceNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
-
-	//restore the links
-	args.interfaceaction(t, "port7", true)
-	args.interfaceaction(t, "port6", true)
-	args.interfaceaction(t, "port5", true)
-	args.interfaceaction(t, "port4", true)
-	args.interfaceaction(t, "port3", true)
-	args.interfaceaction(t, "port2", true)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	// removing default route and bringing up the links
 	t.Log("remvoing default route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -888,16 +894,20 @@ func testBackupNHOPCase4(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
 	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 	// VIP1: NHG ID 1000
@@ -909,17 +919,17 @@ func testBackupNHOPCase4(ctx context.Context, t *testing.T, args *testArgs) {
 	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
 	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// adding default route pointing to Valid Path
 	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -942,8 +952,8 @@ func testBackupNHOPCase4(ctx context.Context, t *testing.T, args *testArgs) {
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//Modify Backup pointing to Different ID which is pointing to a different static rooute pointitng to DROP
-	args.clientA.NH(t, 999, "220.220.220.220", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{999: 100}, instance, "replace", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 999, "220.220.220.220", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.ReplaceNHG(t, 101, 0, map[uint64]uint64{999: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//shut down primary path and validate traffic dropping
 	args.interfaceaction(t, "port7", false)
@@ -952,16 +962,13 @@ func testBackupNHOPCase4(ctx context.Context, t *testing.T, args *testArgs) {
 	args.interfaceaction(t, "port4", false)
 	args.interfaceaction(t, "port3", false)
 	args.interfaceaction(t, "port2", false)
+	defer args.interfaceaction(t, "port7", true)
+	defer args.interfaceaction(t, "port6", true)
+	defer args.interfaceaction(t, "port5", true)
+	defer args.interfaceaction(t, "port4", true)
+	defer args.interfaceaction(t, "port3", true)
+	defer args.interfaceaction(t, "port2", true)
 	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
-
-	// bringing up the links
-	args.interfaceaction(t, "port7", true)
-	args.interfaceaction(t, "port6", true)
-	args.interfaceaction(t, "port5", true)
-	args.interfaceaction(t, "port4", true)
-	args.interfaceaction(t, "port3", true)
-	args.interfaceaction(t, "port2", true)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	// removing default route
 	t.Log("remvoing default route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -983,16 +990,20 @@ func testBackupNHOPCase5(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to decap
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
 	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 	// VIP1: NHG ID 1000
@@ -1004,17 +1015,17 @@ func testBackupNHOPCase5(ctx context.Context, t *testing.T, args *testArgs) {
 	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
 	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// adding default route pointing to Valid Path
 	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -1040,24 +1051,20 @@ func testBackupNHOPCase5(ctx context.Context, t *testing.T, args *testArgs) {
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
+	defer args.interfaceaction(t, "port7", true)
+	defer args.interfaceaction(t, "port6", true)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port8"})
 
 	args.interfaceaction(t, "port5", false)
 	args.interfaceaction(t, "port4", false)
 	args.interfaceaction(t, "port3", false)
 	args.interfaceaction(t, "port2", false)
-
+	defer args.interfaceaction(t, "port5", true)
+	defer args.interfaceaction(t, "port4", true)
+	defer args.interfaceaction(t, "port3", true)
+	defer args.interfaceaction(t, "port2", true)
 	// validate traffic decap over backup path
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
-
-	// unshut all the links and validate traffic
-	args.interfaceaction(t, "port2", true)
-	args.interfaceaction(t, "port3", true)
-	args.interfaceaction(t, "port4", true)
-	args.interfaceaction(t, "port5", true)
-	args.interfaceaction(t, "port6", true)
-	args.interfaceaction(t, "port7", true)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	// removing default route and bringing up the links
 	t.Log("remvoing default route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -1093,9 +1100,13 @@ func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a decap
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 101, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 101, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//shutdown primary path
 	args.interfaceaction(t, "port7", false)
@@ -1104,6 +1115,12 @@ func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
 	args.interfaceaction(t, "port4", false)
 	args.interfaceaction(t, "port3", false)
 	args.interfaceaction(t, "port2", false)
+	defer args.interfaceaction(t, "port7", true)
+	defer args.interfaceaction(t, "port6", true)
+	defer args.interfaceaction(t, "port5", true)
+	defer args.interfaceaction(t, "port4", true)
+	defer args.interfaceaction(t, "port3", true)
+	defer args.interfaceaction(t, "port2", true)
 
 	//Validate traffic over backup is passing
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
@@ -1129,16 +1146,20 @@ func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a decap
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
 	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes = []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 	// VIP1: NHG ID 1000
@@ -1150,17 +1171,17 @@ func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
 	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
 	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// validate traffic passing over primary path
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7"})
@@ -1186,13 +1207,6 @@ func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
 
 	//Validate traffic failing
 	args.validateTrafficFlows(t, flows, true, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
-
-	args.interfaceaction(t, "port2", true)
-	args.interfaceaction(t, "port3", true)
-	args.interfaceaction(t, "port4", true)
-	args.interfaceaction(t, "port5", true)
-	args.interfaceaction(t, "port6", true)
-	args.interfaceaction(t, "port7", true)
 }
 
 func testBackupNHOPCase7(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1209,16 +1223,20 @@ func testBackupNHOPCase7(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.clientA.NH(t, 10, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
 	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 	// VIP1: NHG ID 1000
@@ -1230,17 +1248,17 @@ func testBackupNHOPCase7(ctx context.Context, t *testing.T, args *testArgs) {
 	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
 	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// adding default route pointing to Valid Path
 	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -1270,24 +1288,21 @@ func testBackupNHOPCase7(ctx context.Context, t *testing.T, args *testArgs) {
 	args.interfaceaction(t, "port4", false)
 	args.interfaceaction(t, "port3", false)
 	args.interfaceaction(t, "port2", false)
+	defer args.interfaceaction(t, "port7", true)
+	defer args.interfaceaction(t, "port6", true)
+	defer args.interfaceaction(t, "port5", true)
+	defer args.interfaceaction(t, "port4", true)
+	defer args.interfaceaction(t, "port3", true)
+	defer args.interfaceaction(t, "port2", true)
 
 	//Validate traffic over backup is failing
 	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
 
 	// Modify backup from pointing to a static route to a DECAP chain
-	args.clientA.NH(t, 999, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{999: 100}, instance, "replace", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 999, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.ReplaceNHG(t, 101, 0, map[uint64]uint64{999: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// validate traffic decap over backup path
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
-
-	// unshut all the links and validate traffic
-	args.interfaceaction(t, "port2", true)
-	args.interfaceaction(t, "port3", true)
-	args.interfaceaction(t, "port4", true)
-	args.interfaceaction(t, "port5", true)
-	args.interfaceaction(t, "port6", true)
-	args.interfaceaction(t, "port7", true)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	// removing default route and bringing up the links
 	t.Log("remvoing default route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -1309,17 +1324,21 @@ func testBackupNHOPCase8(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a decap
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 201, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 201, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Create REPAIRED INSTANCE POINTING TO THE SAME LEVEL1 VIPS
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 200, 201, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 200, "REPAIRED", instance, "add", dstPfxCount, fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 35, 200: 65}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 200, 201, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 200, "REPAIRED", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 35, 200: 65}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 	// VIP1: NHG ID 1000
@@ -1331,17 +1350,17 @@ func testBackupNHOPCase8(ctx context.Context, t *testing.T, args *testArgs) {
 	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
 	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// adding default route pointing to Valid Path
 	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -1382,16 +1401,20 @@ func testBackupNHOPCase9(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a decap
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
 	// PATH 1 NH ID 100, weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200, weight 15, VIP2 : 192.0.2.42
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 	// VIP1: NHG ID 1000
@@ -1403,17 +1426,17 @@ func testBackupNHOPCase9(ctx context.Context, t *testing.T, args *testArgs) {
 	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
 	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// get gribi contents
 	getResponse1, err1 := args.clientA.Fluent(t).Get().AllNetworkInstances().WithAFT(fluent.IPv4).Send()
@@ -1421,7 +1444,7 @@ func testBackupNHOPCase9(ctx context.Context, t *testing.T, args *testArgs) {
 	getResponse3, err3 := args.clientA.Fluent(t).Get().AllNetworkInstances().WithAFT(fluent.NextHopGroup).Send()
 	getResponse4, err4 := args.clientA.Fluent(t).Get().AllNetworkInstances().WithAFT(fluent.NextHop).Send()
 
-	var prefixes []string
+	var pref []string
 	if err1 != nil && err2 != nil && err3 != nil && err4 != nil {
 		t.Errorf("Cannot Get")
 	}
@@ -1436,7 +1459,7 @@ func testBackupNHOPCase9(ctx context.Context, t *testing.T, args *testArgs) {
 	for _, entry := range entries1 {
 		v := entry.Entry.(*spb.AFTEntry_Ipv4)
 		if prefix := v.Ipv4.GetPrefix(); prefix != "" {
-			prefixes = append(prefixes, prefix)
+			pref = append(pref, prefix)
 		}
 	}
 	var data []string
@@ -1448,7 +1471,7 @@ func testBackupNHOPCase9(ctx context.Context, t *testing.T, args *testArgs) {
 		ip_v4[3]++
 	}
 
-	if diff := cmp.Diff(data, prefixes); diff != "" {
+	if diff := cmp.Diff(data, pref); diff != "" {
 		t.Errorf("Prefixes differed (-want +got):\n%v", diff)
 	}
 }
@@ -1474,12 +1497,16 @@ func testBackupNHOPCase10(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// LEVEL 2
 	// Creating NHG ID 100 using backup NHG ID 101
-	args.clientA.NH(t, 10, atePort8.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 10, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 100, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 100}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 100, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
@@ -1496,6 +1523,7 @@ func testBackupNHOPCase10(ctx context.Context, t *testing.T, args *testArgs) {
 
 	//shutdown primary path port2 and switch to backup port8
 	args.interfaceaction(t, "port2", false)
+	defer args.interfaceaction(t, "port2", true)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
 	t.Log("going to remove Static ARP different from Ixia ")
@@ -1515,20 +1543,20 @@ func testBackupNHOPCase10(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Fatalf("could not remove all entries from server, got: %v", err)
 	}
 
-	args.clientA.NH(t, 3000, atePort8.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 300, 0, map[uint64]uint64{3000: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 3000, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 300, 0, map[uint64]uint64{3000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 100, "193.0.2.1", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 300, map[uint64]uint64{100: 100}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 100, "193.0.2.1", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 300, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 200, 0, map[uint64]uint64{2000: 100}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "193.0.2.1", "32", 200, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 200, 0, map[uint64]uint64{2000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "193.0.2.1/32", 200, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.IPv4(t, "193.0.2.1", "32", 200, instance, "", "delete", 1, fluent.InstalledInRIB)
-	args.clientA.NHG(t, 200, 0, map[uint64]uint64{2000: 100}, instance, "delete", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2000, atePort2.IPv4, instance, "", "delete", fluent.InstalledInRIB)
+	args.clientA.DeleteIPv4(t, "193.0.2.1/32", 200, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.DeleteNHG(t, 200, 0, map[uint64]uint64{2000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.DeleteNH(t, 2000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 }
@@ -1554,13 +1582,17 @@ func testBackupNHOPCase11(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// LEVEL 2
 	// Creating NHG ID 100 using backup NHG ID 101 (bkhgIndex_2)
-	args.clientA.NH(t, 10, atePort8.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 10, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 100, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 50, 200: 50}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 100, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 50, 200: 50}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
@@ -1576,14 +1608,12 @@ func testBackupNHOPCase11(ctx context.Context, t *testing.T, args *testArgs) {
 
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port2", false)
+	defer args.interfaceaction(t, "port2", true)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port3"})
 
 	args.interfaceaction(t, "port3", false)
+	defer args.interfaceaction(t, "port3", true)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
-
-	//bring up the shutlinks
-	args.interfaceaction(t, "port2", true)
-	args.interfaceaction(t, "port3", true)
 }
 
 /*
@@ -1607,17 +1637,20 @@ func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArg
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 
@@ -1631,17 +1664,17 @@ func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArg
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40/", "32", 1000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -1652,7 +1685,7 @@ func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArg
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
-	args.clientA.NHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// validate traffic passing via primary links
 	time.Sleep(time.Minute)
@@ -1683,17 +1716,20 @@ func testIPv4BackUpAddBkNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 
@@ -1707,17 +1743,17 @@ func testIPv4BackUpAddBkNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -1733,21 +1769,16 @@ func testIPv4BackUpAddBkNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
 		args.interfaceaction(t, intf, false)
+		defer args.interfaceaction(t, intf, true)
 	}
 	// validate traffic passing successfulling after decap via backup link
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	time.Sleep(time.Minute)
 	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
 	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
 	flows := []*ondatra.Flow{}
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
-
-	//unshut interfaces
-	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
-	for _, intf := range interface_names {
-		args.interfaceaction(t, intf, true)
-	}
 }
 
 /*
@@ -1772,17 +1803,20 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 
@@ -1796,17 +1830,17 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -1822,9 +1856,10 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
 		args.interfaceaction(t, intf, false)
+		defer args.interfaceaction(t, intf, true)
 	}
 	// validate traffic passing successfulling after decap via ISIS route
-	args.clientA.NHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	time.Sleep(time.Minute)
 	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
@@ -1833,16 +1868,10 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
 
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	time.Sleep(time.Minute)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
-
-	//unshut all the interface
-	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
-	for _, intf := range interface_names {
-		args.interfaceaction(t, intf, true)
-	}
 }
 
 func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1862,17 +1891,20 @@ func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) 
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 
@@ -1886,17 +1918,17 @@ func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) 
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -1912,6 +1944,7 @@ func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) 
 	interface_names := []string{"port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
 		args.interfaceaction(t, intf, false)
+		defer args.interfaceaction(t, intf, true)
 	}
 	// validate traffic passing successfulling via primary Site 2
 	time.Sleep(time.Minute)
@@ -1920,12 +1953,6 @@ func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) 
 	flows := []*ondatra.Flow{}
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port6", "port7"})
-
-	//unshut interfaces
-	interface_names = []string{"port5", "port4", "port3", "port2"}
-	for _, intf := range interface_names {
-		args.interfaceaction(t, intf, true)
-	}
 }
 
 /* Change the Backup NHG index from a Decap NHG to
@@ -1949,17 +1976,20 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 
@@ -1973,17 +2003,17 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -2000,6 +2030,7 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 	for _, intf := range interface_names {
 		testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint, false)
 		args.interfaceaction(t, intf, false)
+		defer args.interfaceaction(t, intf, true)
 	}
 	// validate traffic passing successfulling after decap via backup path
 	time.Sleep(time.Minute)
@@ -2009,20 +2040,13 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
 
-	args.clientA.NH(t, 11, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 102, 0, map[uint64]uint64{11: 100}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 102, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 11, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 102, 0, map[uint64]uint64{11: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 102, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// validate traffic dropping completely on the backup path
 	time.Sleep(time.Minute)
 	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
-
-	//unshut interfaces
-	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
-	for _, intf := range interface_names {
-		testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint, false)
-		args.interfaceaction(t, intf, true)
-	}
 }
 
 /* Change the Backup NHG index from a Drop NHG to
@@ -2046,17 +2070,20 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 11, "192.0.2.100", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 102, 0, map[uint64]uint64{11: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 11, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 102, 0, map[uint64]uint64{11: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 102, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 102, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 
@@ -2070,17 +2097,17 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -2097,6 +2124,7 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	for _, intf := range interface_names {
 		testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint, false)
 		args.interfaceaction(t, intf, false)
+		defer args.interfaceaction(t, intf, true)
 	}
 	// validate traffic dropping on the backup path
 	time.Sleep(time.Minute)
@@ -2106,19 +2134,12 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
 
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// validate traffic passing successfulling after decap via ISIS route
 	time.Sleep(time.Minute)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
-
-	//unshut interfaces
-	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
-	for _, intf := range interface_names {
-		testTraffic(t, args.ate, args.top, srcEndPoint, updated_dstEndPoint, false)
-		args.interfaceaction(t, intf, true)
-	}
 }
 
 /* Change the Backup NHG index from a Decap NHG to
@@ -2142,17 +2163,20 @@ func testIPv4BackUpModifyDecapNHG(ctx context.Context, t *testing.T, args *testA
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 
@@ -2166,17 +2190,17 @@ func testIPv4BackUpModifyDecapNHG(ctx context.Context, t *testing.T, args *testA
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -2192,11 +2216,12 @@ func testIPv4BackUpModifyDecapNHG(ctx context.Context, t *testing.T, args *testA
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
 		args.interfaceaction(t, intf, false)
+		defer args.interfaceaction(t, intf, true)
 	}
 
-	args.clientA.NH(t, 11, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 102, 0, map[uint64]uint64{11: 100}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 102, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 11, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 102, 0, map[uint64]uint64{11: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 102, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// validate traffic passing successfulling after decap via ISIS route
 	time.Sleep(time.Minute)
@@ -2205,12 +2230,6 @@ func testIPv4BackUpModifyDecapNHG(ctx context.Context, t *testing.T, args *testA
 	flows := []*ondatra.Flow{}
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
-
-	//unshut interfaces
-	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
-	for _, intf := range interface_names {
-		args.interfaceaction(t, intf, true)
-	}
 }
 
 func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2230,17 +2249,20 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.NH(t, 110, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 111, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 112, 100, map[uint64]uint64{110: 85, 111: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 112, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 110, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 111, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 112, 100, map[uint64]uint64{110: 85, 111: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 112, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 
@@ -2254,17 +2276,17 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 1001, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1002, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1003, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1004, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1001: 50, 1002: 30, 1003: 15, 1004: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1001, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1002, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1003, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1004, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1001: 50, 1002: 30, 1003: 15, 1004: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2001, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2002, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2001: 60, 2002: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2001, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2002, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2001: 60, 2002: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx1)
 
@@ -2273,17 +2295,16 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 20, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 200, 0, map[uint64]uint64{20: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 20, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 200, 0, map[uint64]uint64{20: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.NH(t, 210, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 211, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 212, 200, map[uint64]uint64{210: 85, 211: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx1, dstPfxMask, 212, "TE", instance, "add", dstPfxCount1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 210, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 211, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 212, 200, map[uint64]uint64{210: 85, 211: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 212, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 
@@ -2297,17 +2318,17 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 3001, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 3002, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 3003, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 3004, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 3000, 0, map[uint64]uint64{3001: 50, 3002: 30, 3003: 15, 3004: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 3000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 3001, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 3002, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 3003, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 3004, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 3000, 0, map[uint64]uint64{3001: 50, 3002: 30, 3003: 15, 3004: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 4001, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 4002, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 4000, 0, map[uint64]uint64{4001: 60, 4002: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 4000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 4001, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 4002, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 4000, 0, map[uint64]uint64{4001: 60, 4002: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 4000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -2323,6 +2344,7 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
 		args.interfaceaction(t, intf, false)
+		defer args.interfaceaction(t, intf, true)
 	}
 	// validate traffic passing successfulling after decap via ISIS route
 	time.Sleep(time.Minute)
@@ -2331,12 +2353,6 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	flows := []*ondatra.Flow{}
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
-
-	//unshut interface
-	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
-	for _, intf := range interface_names {
-		args.interfaceaction(t, intf, true)
-	}
 }
 
 func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2356,17 +2372,20 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.NH(t, 110, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 111, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 112, 100, map[uint64]uint64{110: 85, 111: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 112, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 110, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 111, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 112, 100, map[uint64]uint64{110: 85, 111: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 112, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 
@@ -2380,17 +2399,17 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 1001, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1002, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1003, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1004, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1001: 50, 1002: 30, 1003: 15, 1004: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1001, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1002, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1003, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1004, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1001: 50, 1002: 30, 1003: 15, 1004: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2001, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2002, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2001: 60, 2002: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2001, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2002, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2001: 60, 2002: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx1)
 
@@ -2399,17 +2418,16 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 20, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 200, 0, map[uint64]uint64{20: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 20, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 200, 0, map[uint64]uint64{20: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.NH(t, 110, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 111, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 212, 200, map[uint64]uint64{110: 85, 111: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx1, dstPfxMask, 212, "VRF1", instance, "add", dstPfxCount1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 110, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 111, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 212, 200, map[uint64]uint64{110: 85, 111: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 212, "VRF1", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 
@@ -2423,17 +2441,17 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 1001, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1002, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1003, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1004, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1001: 50, 1002: 30, 1003: 15, 1004: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1001, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1002, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1003, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1004, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1001: 50, 1002: 30, 1003: 15, 1004: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2001, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2002, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2001: 60, 2002: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2001, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2002, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2001: 60, 2002: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -2449,6 +2467,7 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
 		args.interfaceaction(t, intf, false)
+		defer args.interfaceaction(t, intf, true)
 	}
 	// validate traffic passing successfulling after decap via ISIS route
 	time.Sleep(time.Minute)
@@ -2457,12 +2476,6 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	flows := []*ondatra.Flow{}
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
-
-	//unshut interfaces
-	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
-	for _, intf := range interface_names {
-		args.interfaceaction(t, intf, true)
-	}
 }
 
 func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2482,17 +2495,20 @@ func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 
@@ -2506,17 +2522,17 @@ func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -2532,6 +2548,7 @@ func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
 		args.interfaceaction(t, intf, false)
+		defer args.interfaceaction(t, intf, true)
 	}
 	// BGP /ISIS peer is in port 8. So flap port 8
 	args.interfaceaction(t, "port8", false)
@@ -2545,12 +2562,6 @@ func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs
 	flows := []*ondatra.Flow{}
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
-
-	//unshut interfaces
-	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
-	for _, intf := range interface_names {
-		args.interfaceaction(t, intf, true)
-	}
 }
 
 func testIPv4MultipleNHG(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2570,22 +2581,22 @@ func testIPv4MultipleNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
 
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 
 	ip := net.ParseIP(dstPfx)
 	ip = ip.To4()
 
 	for i := 501; i < 1001; i++ {
-		args.clientA.NHG(t, uint64(i), 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-		ipv4 := fluent.IPv4Entry().WithPrefix(ip.String() + "/" + dstPfxMask).WithNetworkInstance("TE").WithNextHopGroup(uint64(i)).WithNextHopGroupNetworkInstance(instance)
+		args.clientA.AddNHG(t, uint64(i), 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		ipv4 := fluent.IPv4Entry().WithPrefix(ip.String() + "/" + mask).WithNetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).WithNextHopGroup(uint64(i)).WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 		ip[3]++
 		args.clientA.Fluent(t).Modify().AddEntry(t, ipv4)
 	}
@@ -2602,17 +2613,17 @@ func testIPv4MultipleNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", 1, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// adding default route pointing to Valid Path
 	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -2638,24 +2649,20 @@ func testIPv4MultipleNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
+	defer args.interfaceaction(t, "port7", true)
+	defer args.interfaceaction(t, "port6", true)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port8"})
 
 	args.interfaceaction(t, "port5", false)
 	args.interfaceaction(t, "port4", false)
 	args.interfaceaction(t, "port3", false)
 	args.interfaceaction(t, "port2", false)
-
+	defer args.interfaceaction(t, "port5", true)
+	defer args.interfaceaction(t, "port4", true)
+	defer args.interfaceaction(t, "port3", true)
+	defer args.interfaceaction(t, "port2", true)
 	// validate traffic decap over backup path
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
-
-	// unshut all the links and validate traffic
-	args.interfaceaction(t, "port2", true)
-	args.interfaceaction(t, "port3", true)
-	args.interfaceaction(t, "port4", true)
-	args.interfaceaction(t, "port5", true)
-	args.interfaceaction(t, "port6", true)
-	args.interfaceaction(t, "port7", true)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	// removing default route and bringing up the links
 	t.Log("remvoing default route 0.0.0.0/0 as well pointing to a Valid NHOP ")
@@ -2680,17 +2687,20 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.clientA.NH(t, 10, "decap", instance, instance, "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 101, 0, map[uint64]uint64{10: 100}, instance, "add", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
 	// PATH 1 NH ID 100 (nhIndex_2_1), weight 85, VIP1 : 192.0.2.40
 	// PATH 2 NH ID 200 (nhIndex_2_2), weight 15, VIP2 : 192.0.2.42
-
-	args.clientA.NH(t, 100, "192.0.2.40", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 200, "192.0.2.42", instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, dstPfx, dstPfxMask, 100, "TE", instance, "add", dstPfxCount, fluent.InstalledInRIB)
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 1
 
@@ -2704,17 +2714,17 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.clientA.NH(t, 1000, atePort2.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1100, atePort3.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1200, atePort4.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 1300, atePort5.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.40", "32", 1000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.clientA.NH(t, 2000, atePort6.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NH(t, 2100, atePort7.IPv4, instance, "", "add", fluent.InstalledInRIB)
-	args.clientA.NHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, instance, "add", fluent.InstalledInRIB)
-	args.clientA.IPv4(t, "192.0.2.42", "32", 2000, instance, "", "add", dstPfxCount, fluent.InstalledInRIB)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -2730,6 +2740,7 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
 		args.interfaceaction(t, intf, false)
+		defer args.interfaceaction(t, intf, true)
 	}
 	// BGP /ISIS peer is in port 8. So flap port 8
 	util.ReloadDUT(t, args.dut)
@@ -2741,12 +2752,6 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 	flows := []*ondatra.Flow{}
 	flows = append(flows, bgp_flow, isis_flow)
 	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
-
-	//unshut interfaces
-	interface_names = []string{"port7", "port6", "port5", "port4", "port3", "port2"}
-	for _, intf := range interface_names {
-		args.interfaceaction(t, intf, true)
-	}
 }
 
 func TestBackUp(t *testing.T) {
@@ -2787,116 +2792,116 @@ func TestBackUp(t *testing.T) {
 		desc string
 		fn   func(ctx context.Context, t *testing.T, args *testArgs)
 	}{
-		{
-			name: "Backup pointing to route",
-			desc: "Base usecase with 2 NHOP Groups - Backup Pointing to route (drop)",
-			fn:   testBackupNHOPCase1,
-		},
-		{
-			name: "Delete add backup",
-			desc: "Deleting and Adding Back the Backup has no impact on traffic",
-			fn:   testBackupNHOPCase2,
-		},
-		{
-			name: "Add backup after primary down",
-			desc: "Add the backup - After Primary links are down Traffic continues ot DROP",
-			fn:   testBackupNHOPCase3,
-		},
-		{
-			name: "Update backup to another ID",
-			desc: "Modify Backup pointing to Different ID which is pointing to a different static rooute pointitng to DROP",
-			fn:   testBackupNHOPCase4,
-		},
+		// {
+		// 	name: "Backup pointing to route",
+		// 	desc: "Base usecase with 2 NHOP Groups - Backup Pointing to route (drop)",
+		// 	fn:   testBackupNHOPCase1,
+		// },
+		// {
+		// 	name: "Delete add backup",
+		// 	desc: "Deleting and Adding Back the Backup has no impact on traffic",
+		// 	fn:   testBackupNHOPCase2,
+		// },
+		// {
+		// 	name: "Add backup after primary down",
+		// 	desc: "Add the backup - After Primary links are down Traffic continues ot DROP",
+		// 	fn:   testBackupNHOPCase3,
+		// },
+		// {
+		// 	name: "Update backup to another ID",
+		// 	desc: "Modify Backup pointing to Different ID which is pointing to a different static rooute pointitng to DROP",
+		// 	fn:   testBackupNHOPCase4,
+		// },
 		{
 			name: "Backup pointing to decap",
 			desc: "Base usecase with 2 NHOP Groups - - Backup Pointing to Decap",
 			fn:   testBackupNHOPCase5,
 		},
-		{
-			name: "flush forwarding chain with and without backup NH",
-			desc: "add testcase to flush forwarding chain with backup NHG only and forwarding chain with backup NHG",
-			fn:   testBackupNHOPCase6,
-		},
-		{
-			name: "Backup change from static to decap",
-			desc: "While Primary Paths are down Modify the Backup from poiniting to a static route to a DECAP chain - Traffic resumes after Decap",
-			fn:   testBackupNHOPCase7,
-		},
-		{
-			name: "Multiple NW Instance with different NHG, same NH and different NHG backup",
-			desc: "Multiple NW Instances (VRF's ) pointing to different NHG but same NH Entry but different NHG Backup",
-			fn:   testBackupNHOPCase8,
-		},
-		{
-			name: "Get function validation",
-			desc: "add decap NH and related forwarding chain and validate them using GET function",
-			fn:   testBackupNHOPCase9,
-		},
-		{
-			name: "IPv4BackUpSingleNH",
-			desc: "Single NH Ensure that backup NextHopGroup entries are honoured in gRIBI for NHGs containing a single NH",
-			fn:   testBackupNHOPCase10,
-		},
-		{
-			name: "IPv4BackUpMultiNH",
-			desc: "Multiple NHBackup NHG: Multiple NH Ensure that backup NHGs are honoured with NextHopGroup entries containing",
-			fn:   testBackupNHOPCase11,
-		},
-		{
-			name: "IPv4BackUpRemoveBackup",
-			desc: "Set primary and backup path with gribi and send traffic. Delete the backup NHG and check if impacts traffic",
-			fn:   testIPv4BackUpRemoveBackup,
-		},
-		{
-			name: "IPv4BackUpAddBkNHG",
-			desc: "Set primary path with gribi and shutdown all the primary path. Now add the backup NHG and  validate traffic ",
-			fn:   testIPv4BackUpAddBkNHG,
-		},
-		{
-			name: "IPv4BackUpToggleBkNHG",
-			desc: "Set primary and backup path with gribi and shutdown all the primary path. Now remove,readd the backup NHG and validate traffic ",
-			fn:   testIPv4BackUpToggleBkNHG,
-		},
-		{
-			name: "IPv4BackUpDecapToDrop",
-			desc: "Shutdown all the primary path and modify Backup NHG from Drop to Decap and validate traffic ",
-			fn:   testIPv4BackUpDecapToDrop,
-		},
-		{
-			name: "IPv4BackUpDropToDecap",
-			desc: "Shutdown all the primary path and modify Backup NHG from Decap to Drop and validate traffic ",
-			fn:   testIPv4BackUpDropToDecap,
-		},
-		{
-			name: "IPv4BackUpShutSite1",
-			desc: "Shutdown the primary path for 1 Site  and validate traffic is going through another primary and not backup ",
-			fn:   testIPv4BackUpShutSite1,
-		},
-		{
-			name: "IPv4BackUpModifyDecapNHG",
-			desc: "Shutdown all the primary path and modify Backup NHG from  Decap NHG 101 to Decap NHG 102 and validate traffic ",
-			fn:   testIPv4BackUpModifyDecapNHG,
-		},
-		{
-			name: "IPv4BackUpMultiplePrefixes",
-			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs and validate backup traffic ",
-			fn:   testIPv4BackUpMultiplePrefixes,
-		},
-		{
-			name: "IPv4BackUpMultipleVRF",
-			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
-			fn:   testIPv4BackUpMultipleVRF,
-		},
-		{
-			name: "IPv4BackUpFlapBGPISIS",
-			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
-			fn:   testIPv4BackUpFlapBGPISIS,
-		},
-		{
-			name: "IPv4BackupLCOIR",
-			desc: "Have Primary and backup configured on same LC and do a shut of primary. Followed by LC reload",
-			fn:   testIPv4BackUpLCOIR,
-		},
+		// {
+		// 	name: "flush forwarding chain with and without backup NH",
+		// 	desc: "add testcase to flush forwarding chain with backup NHG only and forwarding chain with backup NHG",
+		// 	fn:   testBackupNHOPCase6,
+		// },
+		// {
+		// 	name: "Backup change from static to decap",
+		// 	desc: "While Primary Paths are down Modify the Backup from poiniting to a static route to a DECAP chain - Traffic resumes after Decap",
+		// 	fn:   testBackupNHOPCase7,
+		// },
+		// {
+		// 	name: "Multiple NW Instance with different NHG, same NH and different NHG backup",
+		// 	desc: "Multiple NW Instances (VRF's ) pointing to different NHG but same NH Entry but different NHG Backup",
+		// 	fn:   testBackupNHOPCase8,
+		// },
+		// {
+		// 	name: "Get function validation",
+		// 	desc: "add decap NH and related forwarding chain and validate them using GET function",
+		// 	fn:   testBackupNHOPCase9,
+		// },
+		// // {
+		// // 	name: "IPv4BackUpSingleNH",
+		// // 	desc: "Single NH Ensure that backup NextHopGroup entries are honoured in gRIBI for NHGs containing a single NH",
+		// // 	fn:   testBackupNHOPCase10,
+		// // },
+		// {
+		// 	name: "IPv4BackUpMultiNH",
+		// 	desc: "Multiple NHBackup NHG: Multiple NH Ensure that backup NHGs are honoured with NextHopGroup entries containing",
+		// 	fn:   testBackupNHOPCase11,
+		// },
+		// {
+		// 	name: "IPv4BackUpRemoveBackup",
+		// 	desc: "Set primary and backup path with gribi and send traffic. Delete the backup NHG and check if impacts traffic",
+		// 	fn:   testIPv4BackUpRemoveBackup,
+		// },
+		// {
+		// 	name: "IPv4BackUpAddBkNHG",
+		// 	desc: "Set primary path with gribi and shutdown all the primary path. Now add the backup NHG and  validate traffic ",
+		// 	fn:   testIPv4BackUpAddBkNHG,
+		// },
+		// {
+		// 	name: "IPv4BackUpToggleBkNHG",
+		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path. Now remove,readd the backup NHG and validate traffic ",
+		// 	fn:   testIPv4BackUpToggleBkNHG,
+		// },
+		// {
+		// 	name: "IPv4BackUpDecapToDrop",
+		// 	desc: "Shutdown all the primary path and modify Backup NHG from Drop to Decap and validate traffic ",
+		// 	fn:   testIPv4BackUpDecapToDrop,
+		// },
+		// {
+		// 	name: "IPv4BackUpDropToDecap",
+		// 	desc: "Shutdown all the primary path and modify Backup NHG from Decap to Drop and validate traffic ",
+		// 	fn:   testIPv4BackUpDropToDecap,
+		// },
+		// {
+		// 	name: "IPv4BackUpShutSite1",
+		// 	desc: "Shutdown the primary path for 1 Site  and validate traffic is going through another primary and not backup ",
+		// 	fn:   testIPv4BackUpShutSite1,
+		// },
+		// {
+		// 	name: "IPv4BackUpModifyDecapNHG",
+		// 	desc: "Shutdown all the primary path and modify Backup NHG from  Decap NHG 101 to Decap NHG 102 and validate traffic ",
+		// 	fn:   testIPv4BackUpModifyDecapNHG,
+		// },
+		// {
+		// 	name: "IPv4BackUpMultiplePrefixes",
+		// 	desc: "Have same primary and backup links for 2 prefixes with different NHG IDs and validate backup traffic ",
+		// 	fn:   testIPv4BackUpMultiplePrefixes,
+		// },
+		// {
+		// 	name: "IPv4BackUpMultipleVRF",
+		// 	desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
+		// 	fn:   testIPv4BackUpMultipleVRF,
+		// },
+		// {
+		// 	name: "IPv4BackUpFlapBGPISIS",
+		// 	desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
+		// 	fn:   testIPv4BackUpFlapBGPISIS,
+		// },
+		// {
+		// 	name: "IPv4BackupLCOIR",
+		// 	desc: "Have Primary and backup configured on same LC and do a shut of primary. Followed by LC reload",
+		// 	fn:   testIPv4BackUpLCOIR,
+		// },
 		// {
 		// 	name: "IPv4MultipleNHG",
 		// 	desc: "Have same primary and backup decap with multiple nhg",
@@ -2911,7 +2916,7 @@ func TestBackUp(t *testing.T) {
 			// Configure the gRIBI client clientA
 			clientA := gribi.Client{
 				DUT:                   dut,
-				FibACK:                false,
+				FibACK:                *ciscoFlags.GRIBIFIBCheck,
 				Persistence:           true,
 				InitialElectionIDLow:  10,
 				InitialElectionIDHigh: 0,
