@@ -213,7 +213,7 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex)
 
-	if "decap" == address {
+	if address == "decap" {
 		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
 	} else if address != "" {
 		NH = NH.WithIPAddress(address)
@@ -344,7 +344,7 @@ func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance strin
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex)
 
-	if "decap" == address {
+	if address == "decap" {
 		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
 	} else if address != "" {
 		NH = NH.WithIPAddress(address)
@@ -485,7 +485,7 @@ func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex)
 
-	if "decap" == address {
+	if address == "decap" {
 		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
 	} else if address != "" {
 		NH = NH.WithIPAddress(address)
