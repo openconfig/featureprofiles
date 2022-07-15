@@ -591,7 +591,7 @@ func testBackupNHOPCase1(ctx context.Context, t *testing.T, args *testArgs) {
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -687,7 +687,7 @@ func testBackupNHOPCase2(ctx context.Context, t *testing.T, args *testArgs) {
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -777,7 +777,7 @@ func testBackupNHOPCase3(ctx context.Context, t *testing.T, args *testArgs) {
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -878,7 +878,7 @@ func testBackupNHOPCase4(ctx context.Context, t *testing.T, args *testArgs) {
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -975,7 +975,7 @@ func testBackupNHOPCase5(ctx context.Context, t *testing.T, args *testArgs) {
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -1026,7 +1026,7 @@ func testBackupNHOPCase6(ctx context.Context, t *testing.T, args *testArgs) {
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -1208,7 +1208,7 @@ func testBackupNHOPCase7(ctx context.Context, t *testing.T, args *testArgs) {
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -1309,7 +1309,7 @@ func testBackupNHOPCase8(ctx context.Context, t *testing.T, args *testArgs) {
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -1448,7 +1448,7 @@ func testBackupNHOPCase10(ctx context.Context, t *testing.T, args *testArgs) {
 
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -1534,7 +1534,7 @@ func testBackupNHOPCase11(ctx context.Context, t *testing.T, args *testArgs) {
 
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -1619,7 +1619,7 @@ func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArg
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -1698,7 +1698,7 @@ func testIPv4BackUpAddBkNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -1785,7 +1785,7 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -1873,7 +1873,7 @@ func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) 
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -1958,7 +1958,7 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -2051,7 +2051,7 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -2143,7 +2143,7 @@ func testIPv4BackUpModifyDecapNHG(ctx context.Context, t *testing.T, args *testA
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -2271,7 +2271,7 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -2394,7 +2394,7 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -2475,7 +2475,7 @@ func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -2571,7 +2571,7 @@ func testIPv4MultipleNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
@@ -2667,7 +2667,7 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 	dstEndPoint := args.top.Interfaces()
 	updated_dstEndPoint := []ondatra.Endpoint{}
 	for intf, intf_data := range dstEndPoint {
-		if "atePort1" != intf {
+		if intf != "atePort1" {
 			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
 		}
 	}
