@@ -3,6 +3,7 @@ package cisco_gribi_test
 import (
 	"fmt"
 	"io/ioutil"
+	"sort"
 	"strings"
 	"testing"
 
@@ -69,16 +70,29 @@ func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 func setupQosEgress(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bce := BaseConfigEgress()
 	fmt.Printf("%+v\n", bce.Queue)
-	for k, v := range bce.Queue {
-		fmt.Println("KEY: ", k, "VAL: ", v)
-		dut.Config().Qos().Queue(k).Update(t, v)
+	var keys []string
+	for ke, _ := range bce.Queue {
+		keys = append(keys, ke)
+	}
+
+	sort.Sort(sort.Reverse(sort.StringSlice(keys)))
+
+	for _, k := range keys {
+		fmt.Println("KEY: ", k, "VAL: ", bce.Queue[k])
+		//val, ok := bce.Queue[k]
+		dut.Config().Qos().Queue(k).Update(t, bce.Queue[k])
 	}
 	setup.ResetStruct(bce, []string{"SchedulerPolicy", "Interface"})
 
 	bcSchedulerPolicy := setup.GetAnyValue(bce.SchedulerPolicy)
-	bcInterface := setup.GetAnyValue(bce.Interface)
+	//bcInterface := setup.GetAnyValue(bce.Interface)
 	dut.Config().Qos().SchedulerPolicy(*bcSchedulerPolicy.Name).Update(t, bcSchedulerPolicy)
-	dut.Config().Qos().Interface(*bcInterface.InterfaceId).Update(t, bcInterface)
+	//dut.Config().Qos().Interface(*bcInterface.InterfaceId).Update(t, bcInterface)
+	for inter, value := range bce.Interface {
+		dut.Config().Qos().Interface(inter).Update(t, value)
+
+	}
+
 	return bce
 
 }
