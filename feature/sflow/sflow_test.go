@@ -18,6 +18,7 @@
 package sflow
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -167,5 +168,52 @@ func TestAugmentDeviceErrors(t *testing.T) {
 				t.Errorf("Error sub-string does not match: %v", err)
 			}
 		})
+	}
+}
+
+type FakeFeature struct {
+	Err           error
+	augmentCalled bool
+	oc            *fpoc.Sampling_Sflow
+}
+
+func (f *FakeFeature) AugmentSflow(oc *fpoc.Sampling_Sflow) error {
+	f.oc = oc
+	f.augmentCalled = true
+	return f.Err
+}
+
+// TestWithFeature tests the WithFeature method.
+func TestWithFeature(t *testing.T) {
+	tests := []struct {
+		desc    string
+		wantErr error
+	}{{
+		desc: "error not expected",
+	}, {
+		desc:    "error expected",
+		wantErr: errors.New("some error"),
+	}}
+
+	for _, test := range tests {
+		b := New().WithAgentIDIPv4("192.0.2.1")
+		ff := &FakeFeature{Err: test.wantErr}
+		gotErr := b.WithFeature(ff)
+		if !ff.augmentCalled {
+			t.Errorf("AugmentSflow was not called")
+		}
+		if ff.oc != &b.oc {
+			t.Errorf("Sflow ptr is not equal")
+		}
+		if test.wantErr != nil {
+			if gotErr != nil {
+				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+					t.Errorf("Error strings are not equal: %v", gotErr)
+				}
+			}
+			if gotErr == nil {
+				t.Errorf("Expecting error but got none")
+			}
+		}
 	}
 }
