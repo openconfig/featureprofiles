@@ -1,4 +1,4 @@
-# RT-3.2: Mutliple Protocol Dscp Rules Based Vrf Selection
+# RT-3.2: Multiple <Protocol, DSCP> Rules for VRF Selection
 
 ## Summary
 
