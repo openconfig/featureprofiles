@@ -33,10 +33,10 @@ type iF struct {
 var (
 	loopback1 = iF{
 		name:             "Loopback12",
-		ipv4Address:      "1.1.1.1",
-		ipv4PrefixLength: 24,
-		ipv6Address:      "1::1",
-		ipv6PrefixLength: 128,
+		ipv4Address:      "192.0.2.50",
+		ipv4PrefixLength: 30,
+		ipv6Address:      "2001:DB8::50",
+		ipv6PrefixLength: 64,
 	}
 )
 
