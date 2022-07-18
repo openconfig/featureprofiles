@@ -72,12 +72,6 @@ func (i *Interface) WithDuplexMode(mode fpoc.E_IfEthernet_Ethernet_DuplexMode) *
 	return i
 }
 
-// WithAggregateID sets aggregate-id on the specified interface.
-func (i *Interface) WithAggregateID(id string) *Interface {
-	i.oc.GetOrCreateEthernet().AggregateId = ygot.String(id)
-	return i
-}
-
 // WithEnableFlowControl sets enable-flow-control on the specified interface.
 func (i *Interface) WithEnableFlowControl(value bool) *Interface {
 	i.oc.GetOrCreateEthernet().EnableFlowControl = ygot.Bool(value)

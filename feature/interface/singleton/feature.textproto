@@ -142,12 +142,6 @@ telemetry_path {
   path: "/interfaces/interface/ethernet/state/duplex-mode"
 }
 config_path {
-  path: "/interfaces/interface/ethernet/config/aggregate-id"
-}
-telemetry_path {
-  path: "/interfaces/interface/ethernet/state/aggregate-id"
-}
-config_path {
   path: "/interfaces/interface/ethernet/config/enable-flow-control"
 }
 telemetry_path {

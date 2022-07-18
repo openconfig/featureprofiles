@@ -133,23 +133,6 @@ func TestAugmentDevice(t *testing.T) {
 			},
 		},
 	}, {
-		desc:     "Aggregate ID",
-		intf:     New("Ethernet1", "Ethernet interface", fpoc.IETFInterfaces_InterfaceType_ethernetCsmacd).WithAggregateID("Port-Channel1"),
-		inDevice: &fpoc.Device{},
-		wantDevice: &fpoc.Device{
-			Interface: map[string]*fpoc.Interface{
-				"Ethernet1": {
-					Name:        ygot.String("Ethernet1"),
-					Description: ygot.String("Ethernet interface"),
-					Type:        fpoc.IETFInterfaces_InterfaceType_ethernetCsmacd,
-					Enabled:     ygot.Bool(true),
-					Ethernet: &fpoc.Interface_Ethernet{
-						AggregateId: ygot.String("Port-Channel1"),
-					},
-				},
-			},
-		},
-	}, {
 		desc:     "Enable flow control",
 		intf:     New("Ethernet1", "Ethernet interface", fpoc.IETFInterfaces_InterfaceType_ethernetCsmacd).WithEnableFlowControl(true),
 		inDevice: &fpoc.Device{},
