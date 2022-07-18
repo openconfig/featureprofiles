@@ -41,6 +41,12 @@ func New(name, description string, t fpoc.E_IETFInterfaces_InterfaceType) *Inter
 	}
 }
 
+// WithEnabled sets enabled on the specified interface.
+func (i *Interface) WithEnabled(value bool) *Interface {
+	i.oc.Enabled = ygot.Bool(value)
+	return i
+}
+
 // WithForwardingViable sets forwarding-viable on the specified interface.
 func (i *Interface) WithForwardingViable(viable bool) *Interface {
 	i.oc.ForwardingViable = ygot.Bool(viable)

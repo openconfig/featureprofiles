@@ -74,3 +74,14 @@ func (s *SubInterface) AugmentInterface(ioc *fpoc.Interface) error {
 	}
 	return ygot.MergeStructInto(soc, &s.oc)
 }
+
+// SubInterfaceFeature provides interface to augment SubInterface with additional features.
+type SubInterfaceFeature interface {
+	// AugmentSubInterface augments SubInterface with additional features.
+	AugmentSubInterface(oc *fpoc.Interface_Subinterface) error
+}
+
+// WithFeature augments SubInterface with provided feature.
+func (s *SubInterface) WithFeature(f SubInterfaceFeature) error {
+	return f.AugmentSubInterface(&s.oc)
+}

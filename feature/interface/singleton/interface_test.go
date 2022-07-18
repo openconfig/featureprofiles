@@ -49,6 +49,20 @@ func TestAugmentDevice(t *testing.T) {
 			},
 		},
 	}, {
+		desc:     "Enabled",
+		intf:     New("Ethernet1", "Ethernet interface", fpoc.IETFInterfaces_InterfaceType_ethernetCsmacd).WithEnabled(false),
+		inDevice: &fpoc.Device{},
+		wantDevice: &fpoc.Device{
+			Interface: map[string]*fpoc.Interface{
+				"Ethernet1": {
+					Name:        ygot.String("Ethernet1"),
+					Description: ygot.String("Ethernet interface"),
+					Type:        fpoc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+					Enabled:     ygot.Bool(false),
+				},
+			},
+		},
+	}, {
 		desc:     "Forwarding viable",
 		intf:     New("Ethernet1", "Ethernet interface", fpoc.IETFInterfaces_InterfaceType_ethernetCsmacd).WithForwardingViable(true),
 		inDevice: &fpoc.Device{},

@@ -17,6 +17,7 @@
 package intf
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -185,5 +186,52 @@ func TestAugmentInterfaceErrors(t *testing.T) {
 				t.Errorf("Error sub-string does not match: %v", err)
 			}
 		})
+	}
+}
+
+type FakeSIFeature struct {
+	Err           error
+	augmentCalled bool
+	oc            *fpoc.Interface_Subinterface
+}
+
+func (f *FakeSIFeature) AugmentSubInterface(oc *fpoc.Interface_Subinterface) error {
+	f.oc = oc
+	f.augmentCalled = true
+	return f.Err
+}
+
+// TestSubInterfaceWithFeature tests the WithFeature method.
+func TestSubInterfaceWithFeature(t *testing.T) {
+	tests := []struct {
+		desc    string
+		wantErr error
+	}{{
+		desc: "error not expected",
+	}, {
+		desc:    "error expected",
+		wantErr: errors.New("some error"),
+	}}
+
+	for _, test := range tests {
+		i := NewSubInterface(1, "Ethernet sub-interface").WithIPv6MTU(9012)
+		ff := &FakeSIFeature{Err: test.wantErr}
+		gotErr := i.WithFeature(ff)
+		if !ff.augmentCalled {
+			t.Errorf("AugmentSubInterface was not called")
+		}
+		if ff.oc != &i.oc {
+			t.Errorf("Interface ptr is not equal")
+		}
+		if test.wantErr != nil {
+			if gotErr != nil {
+				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+					t.Errorf("Error strings are not equal: %v", gotErr)
+				}
+			}
+			if gotErr == nil {
+				t.Errorf("Expecting error but got none")
+			}
+		}
 	}
 }
