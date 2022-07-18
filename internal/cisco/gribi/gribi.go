@@ -211,8 +211,14 @@ func (c *Client) checkNHResult(t testing.TB, expectedResult fluent.ProgrammingRe
 func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
 	NH := fluent.NextHopEntry().
 		WithNetworkInstance(instance).
-		WithIndex(nhIndex).
-		WithIPAddress(address)
+		WithIndex(nhIndex)
+
+	if address == "decap" {
+		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
+	} else if address != "" {
+		NH = NH.WithIPAddress(address)
+	}
+
 	if nhInstance != "" {
 		NH = NH.WithNextHopNetworkInstance(nhInstance)
 	}
@@ -336,8 +342,14 @@ func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhW
 func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
 	NH := fluent.NextHopEntry().
 		WithNetworkInstance(instance).
-		WithIndex(nhIndex).
-		WithIPAddress(address)
+		WithIndex(nhIndex)
+
+	if address == "decap" {
+		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
+	} else if address != "" {
+		NH = NH.WithIPAddress(address)
+	}
+
 	if nhInstance != "" {
 		NH = NH.WithNextHopNetworkInstance(nhInstance)
 	}
@@ -473,7 +485,9 @@ func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex)
 
-	if address != "" {
+	if address == "decap" {
+		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
+	} else if address != "" {
 		NH = NH.WithIPAddress(address)
 	}
 	if nhInstance != "" {
