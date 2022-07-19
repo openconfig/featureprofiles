@@ -18,8 +18,8 @@ Feedback and suggestions to improve OpenConfig Feature Profiles is welcomed on t
 [public mailing list](https://groups.google.com/forum/?hl=en#!forum/netopenconfig),
 or by opening a GitHub [issue](https://github.com/openconfig/featureprofiles/issues).
 
-
 # Examples
+
 Tests below are implemented using the [ONDATRA](https://github.com/openconfig/ondatra)
 test framework with the [Kubernetes Network Emulation](https://github.com/openconfig/kne) 
 binding.
@@ -90,8 +90,8 @@ topology to the actual hardware as well as the dial options.
 Testing:
 
 ```
-cd ./topologies/topology_test
-go test -v . -testbed ../atedut_12.testbed -binding ../atedut_12.binding
+cd ./topologies/ate_tests/topology_test
+go test -v . -testbed ../../atedut_12.testbed -binding ../../atedut_12.binding
 ```
 
 > :exclamation: **NOTE**: when `go test` runs a test, the current working

@@ -310,27 +310,33 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		ipv6PrefixLen: 126,
 	}}
 
-	// Configure the interfaces.
+	// Configure IPv4 and IPv6 addresses under subinterface.
 	for _, intf := range dutIntfs {
 		t.Logf("Configure DUT interface %s with attributes %v", intf.intfName, intf)
 		i := &telemetry.Interface{
 			Name:        ygot.String(intf.intfName),
 			Description: ygot.String(intf.desc),
 			Type:        telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
-			Enabled:     ygot.Bool(true),
 		}
 		i.GetOrCreateEthernet()
-		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		s.Enabled = ygot.Bool(true)
-		a := s.GetOrCreateAddress(intf.ipv4Addr)
-		a.PrefixLength = ygot.Uint8(intf.ipv4PrefixLen)
-		s6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-		s6.Enabled = ygot.Bool(true)
-		a6 := s6.GetOrCreateAddress(intf.ipv6Addr)
+		s := i.GetOrCreateSubinterface(0)
+		v4 := s.GetOrCreateIpv4()
+		a4 := v4.GetOrCreateAddress(intf.ipv4Addr)
+		a4.PrefixLength = ygot.Uint8(intf.ipv4PrefixLen)
+		v6 := s.GetOrCreateIpv6()
+		a6 := v6.GetOrCreateAddress(intf.ipv6Addr)
 		a6.PrefixLength = ygot.Uint8(intf.ipv6PrefixLen)
+
+		// We are testing that "enabled" is accepted by device when explicitly set to true,
+		// per: https://github.com/openconfig/featureprofiles/issues/253
+		i.Enabled = ygot.Bool(true)
+		s.Enabled = ygot.Bool(true)
+		v4.Enabled = ygot.Bool(true)
+		v6.Enabled = ygot.Bool(true)
+
 		dut.Config().Interface(intf.intfName).Replace(t, i)
 
-		t.Logf("Validate DUT IPv4 and IPv6 subinterface %s are enabled.", intf.intfName)
+		t.Logf("Validate that IPv4 and IPv6 addresses are enabled: %s", intf.intfName)
 		subint := dut.Telemetry().Interface(intf.intfName).Subinterface(0)
 		if !subint.Ipv4().Enabled().Get(t) {
 			t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
