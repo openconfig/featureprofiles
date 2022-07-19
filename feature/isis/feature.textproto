@@ -21,12 +21,33 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/global/state/level-capability"
 }
 
-# AFI-SAFI enabled
+# AFI-SAFI
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/afi-name"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/state/afi-name"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/safi-name"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/state/safi-name"
+}
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled"
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/state/enabled"
+}
+
+# Transport
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/transport/config/lsp-mtu-size"
+}
+
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/transport/state/lsp-mtu-size"
 }
 
 # Levels
@@ -37,6 +58,12 @@ config_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/state/level-number"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/config/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/state/enabled"
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/metric"
@@ -60,9 +87,6 @@ telemetry_path {
 }
 
 # Interfaces enabled
-config_path {
-  path: "/network-instances/network-instance/interfaces/interface/config/id"
-}
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled"
 }
@@ -94,12 +118,44 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/state/lsp-pacing-interval"
 }
 
+# Interfaces afi name
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/afi-name"
+}
+
+# Interfaces safi name
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/safi-name"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/safi-name"
+}
+
+# Interfaces afi-safi enabled
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/enabled"
+}
+
 # Interfaces level number
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/level-number"
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/state/level-number"
+}
+
+# Interfaces level enabled
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/state/enabled"
 }
 
 # Interfaces hello timers interval
@@ -120,37 +176,34 @@ telemetry_path {
 
 # Interfaces afi name
 config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/afi-name"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/afi-name"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/afi-name"
 }
 
 # Interfaces safi name
 config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/safi-name"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/safi-name"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/safi-name"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/safi-name"
+}
+
+# Interfaces afi-safi enabled
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/enabled"
 }
 
 # Interfaces afi-safi metric
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric"
 }
-config_path {
-    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric"
-}
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric"
-}
-
-# Interfaces afi-safi enabled
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/enabled"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/enabled"
 }
 
 # IPv6 Reachability
@@ -173,11 +226,6 @@ telemetry_path {
 # System Level
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/part-changes"
-}
-
-# Transport
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/global/transport/config/lsp-mtu-size"
 }
 
 # Interface counters
@@ -343,3 +391,12 @@ telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/spf-runs"
 }
 
+feature_profile_dependency {
+  name: "networkinstance"
+  version: 1
+}
+
+feature_profile_dependency {
+  name: "interface_singleton"
+  version: 1
+}
