@@ -222,7 +222,7 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) 
 
 	awaitChan := make(chan error)
 	go func() {
-		err := watchStatus(t, ic, tc.dualSup)
+		err := watchStatus(t, ic, standby)
 		awaitChan <- err
 	}()
 
