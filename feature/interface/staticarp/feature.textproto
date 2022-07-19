@@ -17,27 +17,59 @@ id {
   version: 1
 }
 
+# IPv4
 config_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip"
 }
 config_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length"
 }
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/prefix-length"
+}
 config_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/config/ip"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/ip"
 }
 config_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/config/link-layer-address"
 }
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address"
+}
+
+# IPv6
 config_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip"
 }
 config_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length"
 }
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/prefix-length"
+}
 config_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/config/ip"
 }
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/ip"
+}
 config_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/config/link-layer-address"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/link-layer-address"
+}
+
+feature_profile_dependency {
+  name: "interface_singleton"
+  version: 1
 }
