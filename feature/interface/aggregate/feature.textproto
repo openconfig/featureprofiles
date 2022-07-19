@@ -17,34 +17,69 @@ id {
   version: 1
 }
 
-config_path {
-  path: "/interfaces/interface/ethernet/config/aggregate-id"
-}
+# Interface settings for aggregate interface.
 config_path {
   path: "/interfaces/interface/aggregation/config/lag-type"
+}
+telemetry_path {
+  path: "/interfaces/interface/aggregation/state/lag-type"
 }
 config_path {
   path: "/interfaces/interface/aggregation/config/min-links"
 }
+telemetry_path {
+  path: "/interfaces/interface/aggregation/state/min-links"
+}
+
+# Interface settings for member interface.
+config_path {
+  path: "/interfaces/interface/ethernet/config/aggregate-id"
+}
+telemetry_path {
+  path: "/interfaces/interface/ethernet/state/aggregate-id"
+}
+
+# LACP global config
 config_path {
   path: "/lacp/config/system-priority"
 }
+telemetry_path {
+  path: "/lacp/state/system-priority"
+}
+
+# LACP interface config
 config_path {
   path: "/lacp/interfaces/interface/config/name"
+}
+telemetry_path {
+  path: "/lacp/interfaces/interface/state/name"
 }
 config_path {
   path: "/lacp/interfaces/interface/config/interval"
 }
+telemetry_path {
+  path: "/lacp/interfaces/interface/state/interval"
+}
 config_path {
   path: "/lacp/interfaces/interface/config/lacp-mode"
+}
+telemetry_path {
+  path: "/lacp/interfaces/interface/state/lacp-mode"
 }
 config_path {
   path: "/lacp/interfaces/interface/config/system-id-mac"
 }
+telemetry_path {
+  path: "/lacp/interfaces/interface/state/system-id-mac"
+}
 config_path {
   path: "/lacp/interfaces/interface/config/system-priority"
 }
+telemetry_path {
+  path: "/lacp/interfaces/interface/state/system-priority"
+}
 
+# LACP telemetry-only
 telemetry_path {
   path: "/lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts"
 }
@@ -66,6 +101,8 @@ telemetry_path {
 telemetry_path {
   path: "/lacp/interfaces/interface/members/member/state/port-num"
 }
-telemetry_path {
-  path: "/interfaces/interface/ethernet/state/aggregate-id"
+
+feature_profile_dependency {
+  name: "interface_singleton"
+  version: 1
 }
