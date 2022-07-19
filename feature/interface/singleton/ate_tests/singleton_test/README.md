@@ -27,7 +27,7 @@ a new testbed configuration with the desired port types.
             *   Packets with size of configured MTU are received.
             *   Packets with size less than the configured MTU are received.
 
-## Config Parameter coverage
+## Config Parameter Coverage
 
 *   /interfaces/interface/config/name
 *   /interfaces/interface/config/description
@@ -39,7 +39,7 @@ a new testbed configuration with the desired port types.
 *   /interfaces/interface/ethernet/config/port-speed
 *   /interfaces/interface/ethernet/config/duplex-mode
 
-Telemetry Parameter coverage
+## Telemetry Parameter Coverage
 
 *   /interfaces/interface/ethernet/state/counters/in-mac-pause-frames
 *   /interfaces/interface/ethernet/state/counters/out-mac-pause-frames
@@ -82,10 +82,10 @@ Telemetry Parameter coverage
 *   /interfaces/interface/state/id
 *   /interfaces/interface/state/counters/in-fcs-errors
 
-## Protocol/RPC Parameter coverage
+## Protocol/RPC Parameter Coverage
 
 None
 
-## Minimum DUT platform requirement
+## Minimum DUT Platform Requirement
 
 vRX
