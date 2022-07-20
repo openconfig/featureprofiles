@@ -1,18 +1,16 @@
-/*
- Copyright 2022 Google LLC
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      https://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-*/
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package system_ntp_test
 
@@ -20,22 +18,19 @@ import (
 	"testing"
 
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/telemetry"
 )
 
 // TestNtpServerConfigurability tests basic configurability of NTP server paths.
 //
 // TODO(bstoll): port is a configurable path not tested here.
-//
-// config_path:/system/ntp/servers/server/config/address
-// telemetry_path:/system/ntp/servers/server/state/address
 func TestNtpServerConfigurability(t *testing.T) {
 	testCases := []struct {
 		description string
 		address     string
 	}{
 		{"IPv4 Basic Server", "192.0.2.1"},
-		{"IPv6 Basic Server", "2001:DB8::1"},
+		{"IPv6 Basic Server (RFC5952)", "2001:db8::1"},
 	}
 
 	dut := ondatra.DUT(t, "dut")
@@ -44,7 +39,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 			config := dut.Config().System().Ntp()
 			state := dut.Telemetry().System().Ntp()
 
-			ntpServer := oc.System_Ntp_Server{
+			ntpServer := telemetry.System_Ntp_Server{
 				Address: &testCase.address,
 			}
 			config.Server(testCase.address).Replace(t, &ntpServer)
