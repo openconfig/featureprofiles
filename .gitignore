@@ -1,5 +1,6 @@
 *~
+topologies/kne/testbed.kne.yml
 .vscode/
 # used by `make validate_paths`
-topologies/kne/testbed.kne.yml
+openconfig_public/
 *.log

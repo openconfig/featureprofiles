@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package assert is scoped only to be used with feature/experimental/isis/ate_tests/*
+// Package assert is deprecated and scoped only to be used with
+// feature/experimental/isis/ate_tests/*.  Do not use elsewhere.
 package assert
 
 import (
@@ -79,9 +80,9 @@ func getVal(t testing.TB, qVal QualifiedValue) (interface{}, error) {
 	return result[0].Interface(), nil
 }
 
-// assertPredicateMaybe calls t.Errorf if the value at the given path doesn't satisfy the given
+// predicateMaybe calls t.Errorf if the value at the given path doesn't satisfy the given
 // predicate. It will also Errorf if the value is missing, unless nilOk is true.
-func assertPredicateMaybe(t testing.TB, pth ygot.PathStruct, wantLabel string, predicate func(interface{}) bool, nilOk bool) {
+func predicateMaybe(t testing.TB, pth ygot.PathStruct, wantLabel string, predicate func(interface{}) bool, nilOk bool) {
 	t.Helper()
 	result, err := callLookup(t, pth)
 	if err != nil {
@@ -104,35 +105,35 @@ func assertPredicateMaybe(t testing.TB, pth ygot.PathStruct, wantLabel string, p
 
 }
 
-// AssertPredicate calls t.Errorf if the value at the given path is missing or doesn't satisfy the
+// Predicate calls t.Errorf if the value at the given path is missing or doesn't satisfy the
 // given predicate.
-func AssertPredicate(t testing.TB, pth ygot.PathStruct, wantLabel string, predicate func(interface{}) bool) {
+func Predicate(t testing.TB, pth ygot.PathStruct, wantLabel string, predicate func(interface{}) bool) {
 	t.Helper()
-	assertPredicateMaybe(t, pth, wantLabel, predicate, false)
+	predicateMaybe(t, pth, wantLabel, predicate, false)
 }
 
-// AssertValue calls t.Errorf the value at the given path is missing or doesn't equal want.
-func AssertValue(t testing.TB, pth ygot.PathStruct, want interface{}) {
+// Value calls t.Errorf the value at the given path is missing or doesn't equal want.
+func Value(t testing.TB, pth ygot.PathStruct, want interface{}) {
 	t.Helper()
-	assertPredicateMaybe(t, pth, fmt.Sprintf("%[1]T %[1]v", want), func(got interface{}) bool {
+	predicateMaybe(t, pth, fmt.Sprintf("%[1]T %[1]v", want), func(got interface{}) bool {
 		return reflect.DeepEqual(got, want)
 	}, false)
 }
 
-// AssertValueOrNil calls Errorf if the value at the given path doesn't equal want; it will NOT
+// ValueOrNil calls Errorf if the value at the given path doesn't equal want; it will NOT
 // log an error if the value is unset.
-func AssertValueOrNil(t testing.TB, pth ygot.PathStruct, want interface{}) {
+func ValueOrNil(t testing.TB, pth ygot.PathStruct, want interface{}) {
 	t.Helper()
-	assertPredicateMaybe(t, pth, fmt.Sprintf("%[1]T %[1]v", want), func(got interface{}) bool {
+	predicateMaybe(t, pth, fmt.Sprintf("%[1]T %[1]v", want), func(got interface{}) bool {
 		return reflect.DeepEqual(got, want)
 	}, true)
 }
 
-// AssertNonZero calls Errorf if the value at the given path is missing, is numerically 0, or is not
+// NonZero calls Errorf if the value at the given path is missing, is numerically 0, or is not
 // a number.
-func AssertNonZero(t testing.TB, pth ygot.PathStruct) {
+func NonZero(t testing.TB, pth ygot.PathStruct) {
 	t.Helper()
-	AssertPredicate(t, pth, "!=0", func(got interface{}) bool {
+	Predicate(t, pth, "!=0", func(got interface{}) bool {
 		switch v := reflect.ValueOf(got); v.Kind() {
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			return v.Uint() != 0
@@ -146,8 +147,8 @@ func AssertNonZero(t testing.TB, pth ygot.PathStruct) {
 	})
 }
 
-// AssertPresent calls Errorf if the value at a given path is missing.
-func AssertPresent(t testing.TB, pth ygot.PathStruct) {
+// Present calls Errorf if the value at a given path is missing.
+func Present(t testing.TB, pth ygot.PathStruct) {
 	t.Helper()
-	AssertPredicate(t, pth, "any value", func(interface{}) bool { return true })
+	Predicate(t, pth, "any value", func(interface{}) bool { return true })
 }
