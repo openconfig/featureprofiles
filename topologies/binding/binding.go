@@ -25,7 +25,7 @@ import (
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/encoding/prototext"
 
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -269,7 +269,9 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 func (b *staticBind) reset(ctx context.Context) error {
 	for _, dut := range b.resv.DUTs {
 		if sdut, ok := dut.(*staticDUT); ok {
-			sdut.reset(ctx)
+			if err := sdut.reset(ctx); err != nil {
+				return fmt.Errorf("could not reset device %s: %w", sdut.Name(), err)
+			}
 		}
 	}
 	return nil
@@ -297,7 +299,7 @@ func readGNMI(path string) (*gpb.SetRequest, error) {
 	}
 
 	req := &gpb.SetRequest{}
-	if err := proto.Unmarshal(data, req); err != nil {
+	if err := prototext.Unmarshal(data, req); err != nil {
 		return nil, err
 	}
 	return req, nil
