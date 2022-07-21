@@ -181,6 +181,9 @@ func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T) {
 }
 
 func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	ic, err := tc.osc.Install(ctx)
 	if err != nil {
 		t.Fatalf("OS.Install client request failed: %s", err)
