@@ -1,4 +1,4 @@
-package gribi_mpls_compliance_test
+package gribi_mpls_dataplane_test
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	mplscompliance "github.com/openconfig/featureprofiles/feature/gribi/tests/mpls"
 )
 
 const (
@@ -36,7 +37,8 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 	baseLabel := 42
 	for i := 1; i <= 20; i++ {
 		t.Run(fmt.Sprintf("push %d labels", i), func(t *testing.T) {
-			EgressLabelStack(t, c, baseLabel, defNIName, i, nil)
+			// TODO(robjs): define the traffic validation function here.
+			mplscompliance.EgressLabelStack(t, c, baseLabel, defNIName, i, nil)
 		})
 	}
 }
