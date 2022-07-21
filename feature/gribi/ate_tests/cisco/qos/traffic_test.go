@@ -3,6 +3,7 @@ package cisco_gribi_test
 import (
 	"testing"
 	"time"
+//"fmt"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
@@ -98,7 +99,7 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
       }
 
 	ate.Traffic().Start(t, ondatraFlowList...)
-	time.Sleep(15 * time.Second)
+	time.Sleep(60 * time.Second)
         threshold := 0.90
 	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
         trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
@@ -108,6 +109,14 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 	} else {
 		t.Error("Traffic doesn't work as expected")
 	}
+        //for _, trflow := range ondatraFlowList {
+	//	flowstats := ate.Telemetry().Flow(trflow.Name()).Counters().Get(t)
+
+	//	fmt.Println("number of out packets in flow is", flowstats.OutPkts)
+
+	//}
+
+
 
 	// if expectPass {
 	// 	tolerance := float64(0.03)
@@ -116,9 +125,16 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 	// 		CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out[:len(weights)], weights, interval, tolerance)
 	// 	}
 	// }
-	//ate.Traffic().Stop(t)
+	ate.Traffic().Stop(t)
 
-	//time.Sleep(time.Minute)
+	time.Sleep(time.Minute)
+        //flowstats:= ate.Telemetry().FlowAny().Counters().Get(t)
+        //for _, s  := range flowstats {
+        //       fmt.Println("number of out packets in flow is",*s.OutPkts)
+
+
+        //}
+
 
 	// flowPath := ate.Telemetry().Flow(flow.Name())
 	// if got := flowPath.LossPct().Get(t); got > 0 {

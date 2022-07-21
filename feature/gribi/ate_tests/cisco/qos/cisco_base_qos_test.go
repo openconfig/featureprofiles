@@ -8,6 +8,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/ondatra"
+        "github.com/openconfig/featureprofiles/internal/cisco/config"
+        //"github.com/openconfig/ygot/ygot"
+        oc "github.com/openconfig/ondatra/telemetry"
 )
 
 // Testcase defines testcase structure
@@ -178,6 +181,55 @@ var (
 		},
 	}
 )
+
+func TestNameAtContainer(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+        var baseConfigEgress *oc.Qos = setupQosEgress(t, dut)
+        println(baseConfigEgress)
+}
+
+func TestNameAsciCli(t *testing.T) {
+     dut := ondatra.DUT(t, "dut")
+//     batchSet := config.NewBatchSetRequest()
+  //   ctx := context.Background()
+     //var intip string
+     //intip = "100.121.10.1/24"
+    // policyName := "egress" 
+     configToChange := 
+`
+policy-map egress
+ class oc_queue_tc3
+  priority level 5
+ !
+ class oc_queue_tc4
+  priority level 4
+ !
+ class oc_queue_tc5
+  priority level 3
+ !
+ class oc_queue_tc6
+  priority level 2
+ !
+ class oc_queue_tc7
+  priority level 1
+ !
+ class oc_queue_tc1
+  no priority level 7
+ !
+ class oc_queue_tc2
+  priority level 6
+ !
+ class class-default
+ !
+ end-policy-map
+
+`
+ 
+       //configToChange := "policy-map egress\nclass oc_queue_tc1\nno priority level 7\nbandwidth remaining ratio 10"
+    fmt.Println("****",configToChange)                      
+     config.TextWithGNMI(context.Background(), t, dut, configToChange )
+}
+
 
 func TestTransitWCMPFlush(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")

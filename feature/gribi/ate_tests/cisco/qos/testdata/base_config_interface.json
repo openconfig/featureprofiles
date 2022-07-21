@@ -168,26 +168,6 @@
                 "state": {
                   "id": "cmap8"
                 }
-              },
-              {
-                "actions": {
-                  "remark": {
-                    "state": {
-                      "set-mpls-tc": 6
-                    }
-                  }
-                },
-                "conditions": {
-                  "mpls": {
-                    "state": {
-                      "traffic-class": 7
-                    }
-                  }
-                },
-                "id": "cmap9",
-                "state": {
-                  "id": "cmap9"
-                }
               }
             ]
           }

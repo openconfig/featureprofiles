@@ -3,9 +3,10 @@ package cisco_gribi_test
 import (
 	"context"
 	"testing"
-
+        "fmt"
+        "github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/internal/attrs"
-
+        //"github.com/openconfig/ondatra"
 	"github.com/openconfig/gribigo/fluent"
 	oc "github.com/openconfig/ondatra/telemetry"
 )
@@ -174,6 +175,11 @@ var (
 
 func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testArgs) {
 	// defer flushServer(t, args)
+        var baseConfig *oc.Qos = setupQos(t,args.dut)
+        println(baseConfig)
+        var baseConfigEgress *oc.Qos = setupQosEgress(t, args.dut)
+        println(baseConfigEgress)
+
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
@@ -185,10 +191,36 @@ func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testAr
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
 	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
-	var baseConfig *oc.Qos = setupQos(t, args.dut)
-	println(baseConfig)
-	var baseConfigEgress *oc.Qos = setupQosEgress(t, args.dut)
-	println(baseConfigEgress)
+        
+
+        outpackets:= []uint64{}
+	flowstats := args.ate.Telemetry().FlowAny().Counters().Get(t)
+        for _, s  := range flowstats {
+               fmt.Println("number of out packets in flow is",*s.OutPkts)
+			   outpackets = append(outpackets,*s.OutPkts)
+            }
+       outpupacket:= outpackets[0]
+       baseConfigTele := setupQosTele(t, args.dut)
+       baseConfigInterface := setup.GetAnyValue(baseConfigTele.Interface)
+       interfaceTelemetryPath := args.dut.Telemetry().Qos().Interface("Bundle-Ether120")
+
+
+        t.Run(fmt.Sprintf("Get Interface Telemetry %s", *baseConfigInterface.InterfaceId), func(t *testing.T) {
+                got := interfaceTelemetryPath.Get(t)
+                for classifierType, classifier := range got.Input.Classifier {
+                        for termId, term := range classifier.Term {
+                                t.Run(fmt.Sprintf("Verify Matched-Packets of %v %s", classifierType, termId), func(t *testing.T) {
+                                        if !(*term.MatchedPackets >= outpupacket) {
+                                                t.Errorf("Get Interface Telemetry fail: got %+v", *got)
+                                        }
+                                })
+                        }
+                }
+			})
+       // var baseConfig *oc.Qos = setupQos(t,args.dut)
+       // println(baseConfig)
+       //var baseConfigEgress *oc.Qos = setupQosEgress(t, args.dut)
+       //println(baseConfigEgress)
 }
 
 func testDeleteAndAddUCMP(ctx context.Context, t *testing.T, args *testArgs) {
