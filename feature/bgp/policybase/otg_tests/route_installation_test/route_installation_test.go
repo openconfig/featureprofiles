@@ -508,7 +508,6 @@ type bgpNeighbor struct {
 // TestEstablish sets up a basic BGP connection and confirms that traffic is forwarded according to
 // it.
 func TestEstablish(t *testing.T) {
-
 	// DUT configurations.
 	t.Logf("Start DUT config load:")
 	dut := ondatra.DUT(t, "dut")

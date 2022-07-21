@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package route_ack_test
+package base_leader_election_test
 
 import (
 	"context"
@@ -23,7 +23,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -44,13 +43,12 @@ func TestMain(m *testing.M) {
 //   * ate:port2 -> dut:port2 subnet 192.0.2.4/30
 //   * ate:port3 -> dut:port3 subnet 192.0.2.8/30
 //
-//   * Destination network: 203.0.113.0/24
+//   * Destination network: 198.51.100.0/24
 
 const (
 	ipv4PrefixLen = 30
-	instance      = "DEFAULT"
-	ateDstNetCIDR = "203.0.113.0/24"
-	staticNH      = "192.0.2.6"
+	instance      = "default"
+	ateDstNetCIDR = "198.51.100.0/24"
 	nhIndex       = 1
 	nhgIndex      = 42
 )
@@ -161,8 +159,8 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.DstAddressRange().
-		WithMin("203.0.113.0").
-		WithMax("203.0.113.254").
+		WithMin("198.51.100.0").
+		WithMax("198.51.100.254").
 		WithCount(250)
 
 	flow := ate.Traffic().NewFlow("Flow").
@@ -174,6 +172,8 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
+	time.Sleep(time.Minute)
+
 	flowPath := ate.Telemetry().Flow(flow.Name())
 	if got := flowPath.LossPct().Get(t); got > 0 {
 		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
@@ -184,62 +184,66 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 type testArgs struct {
 	ctx     context.Context
 	clientA *gribi.Client
+	clientB *gribi.Client
 	dut     *ondatra.DUTDevice
 	ate     *ondatra.ATEDevice
 	top     *ondatra.ATETopology
 }
 
-//Configure network instance
-func configureNetworkInstance(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
-	ni1 := d.GetOrCreateNetworkInstance(instance)
-	ni1.Type = telemetry.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE(*ygot.Int64(1))
+// testIPv4LeaderActiveChange first configures an IPV4 Entry through clientB
+// and ensures that the entry is active by checking AFT Telemetry and traffic.
+// It then configures an IPv4 entry through clientA without updating the election
+// and ensures that the installation fails. Finally, it updated the ClientA election
+// id to 12, configures an IPV4 through clinetA and ensures that the entry is active
+// by checking AFT Telemetry and traffic.
+func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArgs) {
+	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
+	// ensure that the entry is active through AFT telemetry and traffic.
+	t.Logf("an IPv4Entry for %s pointing to ATE port-3 via gRIBI-B", ateDstNetCIDR)
+	args.clientB.AddNH(t, nhIndex, atePort3.IPv4, instance, fluent.InstalledInRIB)
+	args.clientB.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.InstalledInRIB)
+	args.clientB.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.InstalledInRIB)
 
-	dutConfPath := dut.Config().NetworkInstance(instance)
-	dutConfPath.Replace(t, ni1)
-}
-
-// configStaticRoute configures a static route.
-func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) *telemetry.NetworkInstance_Protocol_Static {
-	d := &telemetry.Device{}
-	ni1 := d.GetOrCreateNetworkInstance(instance)
-	ni1.Enabled = ygot.Bool(true)
-	ni1.Name = ygot.String(instance)
-	ni1.Description = ygot.String("Static route added by gNMI-OC")
-	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static-1")
-	static.Enabled = ygot.Bool(true)
-	static.Identifier = telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
-	sr := static.GetOrCreateStatic(prefix)
-	nh := sr.GetOrCreateNextHop("nhg1")
-	nh.NextHop = fpoc.UnionString(nexthop)
-
-	return sr
-}
-
-// routeAck configures a IPv4 entry through clientA. Ensure that the entry via ClientA
-// is active through AFT Telemetry.
-func routeAck(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 203.0.113.0/24 pointing to ATE port-3 via gRIBI-A,
-	// ensure that the entry is active through AFT telemetry
-	t.Logf("Add an IPv4Entry for %s pointing to ATE port-3 via gRIBI-A", ateDstNetCIDR)
-	args.clientA.AddNH(t, nhIndex, atePort3.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.InstalledInRIB)
-
-	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
+	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
 	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
 	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 	}
-	// Verify that static route(203.0.113.0/24) to ATE port-2 is preferred by the traffic.`
+
+	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()[atePort2.Name]
+	dstEndPoint := args.top.Interfaces()[atePort3.Name]
 	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
 
+	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-2 via gRIBI-A,
+	// ensure that the entry is ignored by the DUT.
+	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via gRIBI-A", ateDstNetCIDR)
+	args.clientA.AddNH(t, nhIndex+1, atePort2.IPv4, instance, fluent.ProgrammingFailed)
+	args.clientA.AddNHG(t, nhgIndex+1, map[uint64]uint64{nhIndex + 1: 1}, instance, fluent.ProgrammingFailed)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+1, instance, "", fluent.ProgrammingFailed)
+
+	// Send a ModifyRequest from gRIBI-A specifying election_id 12,
+	// followed by a ModifyRequest updating 198.51.100.0/24 pointing to ATE port-2,
+	// ensure that routing is updated to receive packets for 198.51.100.0/24 at ATE port-2.
+	args.clientA.UpdateElectionID(t, 12, 0)
+	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via client gRIBI-A", ateDstNetCIDR)
+	args.clientA.AddNH(t, nhIndex+2, atePort2.IPv4, instance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex+2, map[uint64]uint64{nhIndex + 2: 1}, instance, fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+2, instance, "", fluent.InstalledInRIB)
+
+	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
+	ipv4Path = args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
+		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+	}
+
+	// Verify with traffic that the entry for 198.51.100.0/24 is installed through the ATE port-2.
+	srcEndPoint = args.top.Interfaces()[atePort1.Name]
+	dstEndPoint = args.top.Interfaces()[atePort2.Name]
+	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
 }
 
-func TestRouteAck(t *testing.T) {
+func TestElectionIDChange(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 
@@ -250,19 +254,6 @@ func TestRouteAck(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
-
-	// Configure the DUT with static route 203.0.113.0/24
-	configureNetworkInstance(t)
-	t.Logf("Configure the DUT with static route 203.0.113.0/24...")
-	dutConf := configStaticRoute(t, dut, ateDstNetCIDR, staticNH)
-	dut.Config().NetworkInstance(instance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").Static(ateDstNetCIDR).Replace(t, dutConf)
-	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	ipv4Path := dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
-	} else {
-		t.Logf("Prefix %s installed in DUT as static...", got)
-	}
 
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
@@ -276,15 +267,26 @@ func TestRouteAck(t *testing.T) {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
 
+	// Configure the gRIBI client clientB
+	clientB := gribi.Client{
+		DUT:                  dut,
+		FibACK:               false,
+		Persistence:          true,
+		InitialElectionIDLow: 11,
+	}
+	defer clientB.Close(t)
+	if err := clientB.Start(t); err != nil {
+		t.Fatalf("gRIBI Connection can not be established")
+	}
+
 	args := &testArgs{
 		ctx:     ctx,
 		clientA: &clientA,
+		clientB: &clientB,
 		dut:     dut,
 		ate:     ate,
 		top:     top,
 	}
 
-	routeAck(ctx, t, args)
-	top.StopProtocols(t)
-	dut.Config().NetworkInstance(instance).Delete(t)
+	testIPv4LeaderActiveChange(ctx, t, args)
 }
