@@ -297,7 +297,7 @@ and `PacketMatchTypes_IP_PROTOCOL_IP_TCP` in [enum.go] actually has the value
 
 [IP_PROTOCOL]: http://ops.openconfig.net/branches/models/master/docs/openconfig-acl.html#ident-ip_protocol
 [protocol numbers]: https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml
-[enum.go]: https://github.com/openconfig/ondatra/blob/28aa4630d8484489731d855b548446cba5d466b4/telemetry/enum.go
+[enum.go]: https://github.com/openconfig/ondatra/blob/main/telemetry/enum.go
 
 This is okay:
 
