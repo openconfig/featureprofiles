@@ -581,6 +581,8 @@ github.com/openconfig/gribi v0.1.1-0.20210423184541-ce37eb4ba92f/go.mod h1:OoH46
 github.com/openconfig/gribi v0.1.1-0.20220126144445-1634932f9fd8/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
 github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56 h1:IndsqbKNjq5UkF4aZ7Iy25bFTJrjOXOlhm5Q3a7SkBY=
 github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
+github.com/openconfig/gribi v0.1.1-0.20220622162620-08d53dffce45 h1:pmwzRJYdvc+CQDrIw6NF0XBnTng6SvMYBdZz9CeRbCk=
+github.com/openconfig/gribi v0.1.1-0.20220622162620-08d53dffce45/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
 github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e h1:TXNaXJyaMLQSDEyFBH9gEWGaOD7RMWG/DY/YBv+GmE0=
 github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e/go.mod h1:Sh6fskyzLzDNOymhPCbHY8IniqYjj/auL4F/3xnPh28=
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d h1:zrs4U92QEAadFotQyidT4U8iZDJO67pXsS4r64uAHik=

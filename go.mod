@@ -10,7 +10,7 @@ require (
 	github.com/openconfig/gnoi v0.0.0-20220131192435-7dd3a95a4f1e
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.0.0
-	github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56
+	github.com/openconfig/gribi v0.1.1-0.20220622162620-08d53dffce45
 	github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e
 	github.com/openconfig/ondatra v0.0.0-20220629205534-35d4f8159d8f
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
@@ -40,3 +40,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	lukechampine.com/uint128 v1.1.1 // indirect
 )
+
+replace github.com/openconfig/gribigo => /usr/local/google/home/robjs/go/src/github.com/openconfig/gribigo
