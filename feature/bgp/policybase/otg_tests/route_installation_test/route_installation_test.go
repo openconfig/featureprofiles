@@ -57,7 +57,6 @@ func TestMain(m *testing.M) {
 
 const (
 	trafficDuration          = 1 * time.Minute
-	trafficPacketRate        = 100
 	ipv4SrcTraffic           = "192.0.2.2"
 	ipv6SrcTraffic           = "2001:db8::192:0:2:2"
 	ipv4DstTrafficStart      = "203.0.113.1"
@@ -76,7 +75,7 @@ const (
 	plenIPv4                 = 30
 	plenIPv6                 = 126
 	tolerance                = 50
-	tolerancePct             = 1
+	tolerancePct             = 2
 	ipPrefixSet              = "203.0.113.0/29"
 	prefixSubnetRange        = "29..32"
 	allowConnected           = "ALLOW-CONNECTED"
@@ -396,7 +395,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetTxNames([]string{srcIpv4.Name()}).
 		SetRxNames([]string{dstBgp4PeerRoutes.Name()})
 	flowipv4.Size().SetFixed(512)
-	flowipv4.Rate().SetPps(trafficPacketRate)
+	flowipv4.Rate().SetPps(100)
 	flowipv4.Duration().SetChoice("continuous")
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(srcEth.Mac())
@@ -410,7 +409,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetTxNames([]string{srcIpv6.Name()}).
 		SetRxNames([]string{dstBgp6PeerRoutes.Name()})
 	flowipv6.Size().SetFixed(512)
-	flowipv6.Rate().SetPps(trafficPacketRate)
+	flowipv6.Rate().SetPps(100)
 	flowipv6.Duration().SetChoice("continuous")
 	e2 := flowipv6.Packet().Add().Ethernet()
 	e2.Src().SetValue(srcEth.Mac())
