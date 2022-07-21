@@ -332,7 +332,7 @@ func TestClassifierForwardingGroupQueueSchedulerInterface(t *testing.T) {
 		baseConfig  = setupInitQos1(t, dut, Params{filename : "scheduler_base4.json"})
 	})
 	//now add another queue 
-		defer teardownQos(t, dut, baseConfig)
+	defer teardownQos(t, dut, baseConfig)
 }
 
 
