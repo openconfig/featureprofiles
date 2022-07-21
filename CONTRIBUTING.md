@@ -286,7 +286,7 @@ Do not write [assertion] helpers.
 
 [assertion]: https://go.dev/doc/faq#assertions
 
-## Enum {#enum}
+## Enum
 
 Sometimes a test may need to set a ygot field with an OpenConfig enum type, e.g.
 [IP_PROTOCOL]. The constant for `IP_TCP` has the description "Transmission
