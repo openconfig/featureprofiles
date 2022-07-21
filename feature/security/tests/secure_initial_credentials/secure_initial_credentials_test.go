@@ -2,18 +2,16 @@ package secure_boot_test
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	expect "github.com/google/goexpect"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
-	"google.golang.org/grpc/codes"
+	"golang.org/x/crypto/ssh"
 )
 
 func TestMain(m *testing.M) {
@@ -47,23 +45,6 @@ var (
 	}
 	ipv4Pattern = "([0-9]{1,3}[\\.]){3}[0-9]{1,3}"
 )
-
-// expectCLI creates an expect handle for CLI Executed over SSH
-func expectCLI(client ondatra.StreamClient, timeout time.Duration, opts ...expect.Option) (expect.Expecter, <-chan error, error) {
-	resCh := make(chan error)
-	return expect.SpawnGeneric(&expect.GenOptions{
-		In:  client.Stdin(),
-		Out: client.Stdout(),
-		Wait: func() error {
-			return <-resCh
-		},
-		Close: func() error {
-			close(resCh)
-			return client.Close()
-		},
-		Check: func() bool { return true },
-	}, timeout, opts...)
-}
 
 // buildInterfaceConfig implements a builder for interface config model
 func buildInterfaceConfig(intf *iF, intftype oc.E_IETFInterfaces_InterfaceType) *oc.Interface {
@@ -139,93 +120,34 @@ func mgmtAddress(t *testing.T, dut *ondatra.DUTDevice, stc ondatra.StreamClient)
 	return ifs
 }
 
-// verifyLogin verifies that login attempts with correct credentials are allowed
-func verifyLogin(intf iF, t *testing.T, dut *ondatra.DUTDevice, userName string, password string) {
-	stc := dut.RawAPIs().CLI(t)
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		exp, _, err := expectCLI(stc, 10, expect.Verbose(true))
-		if err != nil {
-			t.Error("CLI Interactive channel creation failed: %w", err)
-		}
-		defer func() {
-			if err := exp.Close(); err != nil {
-				t.Error("CLI Interactive channel Close failed: %w", err)
-			}
-		}()
-		timeout := 15 * time.Second
-		loginCMD := fmt.Sprintf("ssh %s username %s", intf.ipv4Address, userName)
-		_, err = exp.ExpectBatch([]expect.Batcher{
-			&expect.BExp{R: "#"},
-			&expect.BSnd{S: loginCMD + "\n"},
-			&expect.BExp{R: "Password:"},
-			&expect.BSnd{S: password + "\n\n"},
-			&expect.BExp{R: "#"},
-			&expect.BSnd{S: "show user " + "\n"},
-			&expect.BExp{R: userName},
-		}, timeout)
-		if err != nil {
-			t.Error("ssh verification  with correct credentials failed: %w", err)
-		}
+// verifyLogin verifies that login attempts are allowed/denied
+func verifyLogin(ipssh string, t *testing.T, dut *ondatra.DUTDevice, userName string, password string, exceptPass bool, sshdisable bool) {
+	config := &ssh.ClientConfig{
+		User: userName,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(password),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-}
-
-// verifyLoginDenied verifies that login attempts with incorrect credentials are denied
-func verifyLoginDenied(intf iF, t *testing.T, dut *ondatra.DUTDevice, userName string, password string) {
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		stc := dut.RawAPIs().CLI(t)
-		exp, _, err := expectCLI(stc, 10, expect.Verbose(true))
+	client, err := ssh.Dial("tcp", ipssh, config)
+	if exceptPass {
 		if err != nil {
-			t.Error("CLI Interactive channel creation failed: %w", err)
+			t.Fatalf("Error dialing server")
 		}
-		defer func() {
-			if err := exp.Close(); err != nil {
-				t.Error("CLI Interactive channel Close failed: %w", err)
-			}
-		}()
-		timeout := 15 * time.Second
-		loginCMD := fmt.Sprintf("ssh %s username %s", intf.ipv4Address, userName)
-		res, err := exp.ExpectBatch([]expect.Batcher{
-			&expect.BExp{R: "#"},
-			&expect.BSnd{S: loginCMD + "\n"},
-			&expect.BCas{C: []expect.Caser{
-				&expect.Case{R: regexp.MustCompile(`Password`), S: password + "#$@#\n",
-					T: expect.Continue(expect.NewStatus(codes.PermissionDenied, "wrong password")), Rt: 4}},
-			},
-		}, timeout)
-		if err == nil || strings.Contains(fmt.Sprintf("%v", res), "denied") == false {
-			t.Error("ssh verification  with incorrect password failed: %w ", err)
-		}
-	}
-}
-
-// verifyLoginRefused verifies that login attempts are refused
-func verifyLoginRefused(intf iF, t *testing.T, dut *ondatra.DUTDevice, stc ondatra.StreamClient, userName string, password string) {
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		defer stc.Close()
-		exp, _, err := expectCLI(stc, 10, expect.Verbose(true))
+		session, err := client.NewSession()
 		if err != nil {
-			t.Error("CLI Interactive channel creation failed: %w", err)
+			t.Fatalf("Error Creating NewSession")
 		}
-		defer func() {
-			if err := exp.Close(); err != nil {
-				t.Error("CLI Interactive channel Close failed: %w", err)
+		defer session.Close()
+	} else {
+		if sshdisable {
+			if strings.Contains(string(err.Error()), "connection refused") == false {
+				t.Fatalf("ssh verification with ssh disabled failed")
 			}
-		}()
-		timeout := 15 * time.Second
-		loginCMD := fmt.Sprintf("ssh %s username %s", intf.ipv4Address, userName)
-		res, err := exp.ExpectBatch([]expect.Batcher{
-			&expect.BExp{R: "#"},
-			&expect.BSnd{S: loginCMD + "\n"},
-			&expect.BCas{C: []expect.Caser{
-				&expect.Case{R: regexp.MustCompile(`Password`), S: password + "#$@#\n",
-					T: expect.Continue(expect.NewStatus(codes.PermissionDenied, "refused")), Rt: 4}},
-			},
-		}, timeout)
-		if err == nil || strings.Contains(fmt.Sprintf("%v", res), "refused") == false {
-			t.Errorf("cliSpawn.ExpectBatch for ssh verification  with incorrect password failed: %v , res: %v", err, res)
+		} else {
+			if strings.Contains(string(err.Error()), "unable to authenticate") == false {
+				t.Fatalf("ssh verification with incorrect credentials failed")
+			}
 		}
 	}
 }
@@ -238,7 +160,7 @@ func TestDisableSSH(t *testing.T) {
 	defer dut.Config().System().SshServer().Enable().Update(t, true)
 	handle := dut.RawAPIs().CLI(t)
 	defer handle.Close()
-	addresses := mgmtAddress(t, dut, handle)
+	mgmtinterface := mgmtAddress(t, dut, handle)
 	dut.Config().System().SshServer().Enable().Update(t, false)
 	userName := "tempUser"
 	userPass := "tempPassword"
@@ -249,15 +171,18 @@ func TestDisableSSH(t *testing.T) {
 		Role:     oc.UnionString("root-lr"),
 	}
 	dut.Config().System().Aaa().Authentication().User(userName).Update(t, config)
-	for _, intf := range addresses {
-		fmt.Println(intf.ipv4Address)
-		time.Sleep(10 * time.Second)
-		verifyLoginRefused(intf, t, dut, handle, userName, userPass)
+	for _, intf := range mgmtinterface {
+		addresses := intf.ipv4Address
+		verifyLogin(addresses+":22", t, dut, userName, userPass, false, true)
 	}
+
 	time.Sleep(10 * time.Second)
 	dut.Config().System().SshServer().Enable().Update(t, true)
 	t.Logf("Attempting to Login with SSH Enabled ")
-	dut.RawAPIs().CLI(t)
+	for _, intf := range mgmtinterface {
+		addresses := intf.ipv4Address
+		verifyLogin(addresses+":22", t, dut, userName, userPass, true, false)
+	}
 }
 
 func TestAddUsernamePassword(t *testing.T) {
@@ -277,23 +202,23 @@ func TestAddUsernamePassword(t *testing.T) {
 	dut.Config().System().Aaa().Authentication().User(userName).Update(t, config)
 	handle := dut.RawAPIs().CLI(t)
 	defer handle.Close()
-	addresses := mgmtAddress(t, dut, handle)
+	mgmtinterface := mgmtAddress(t, dut, handle)
 	t.Run("VerifyLogin", func(t *testing.T) {
-		verifyLogin(loopback1, t, dut, userName, userPass)
-		for _, intf := range addresses {
-			verifyLogin(intf, t, dut, userName, userPass)
+		for _, intf := range mgmtinterface {
+			addresses := intf.ipv4Address
+			verifyLogin(addresses+":22", t, dut, userName, userPass, true, false)
 		}
 	})
 	t.Run("VerifyLoginDeniedIncorrectPassword", func(t *testing.T) {
-		verifyLoginDenied(loopback1, t, dut, userName, userPass+"@#$!")
-		for _, intf := range addresses {
-			verifyLoginDenied(intf, t, dut, userName, userPass)
+		for _, intf := range mgmtinterface {
+			addresses := intf.ipv4Address
+			verifyLogin(addresses+":22", t, dut, userName, userPass+"@#$!", false, false)
 		}
 	})
 	t.Run("VerifyLoginDeniedIncorrectUsername", func(t *testing.T) {
-		verifyLoginDenied(loopback1, t, dut, userName+"123", userPass)
-		for _, intf := range addresses {
-			verifyLoginDenied(intf, t, dut, userName, userPass)
+		for _, intf := range mgmtinterface {
+			addresses := intf.ipv4Address
+			verifyLogin(addresses+":22", t, dut, userName+"123", userPass, false, false)
 		}
 	})
 }

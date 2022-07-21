@@ -25,6 +25,8 @@ var (
 
 func TestSecureBootEnable(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+	// TO-DO : No model support for secure boot as of now , So implemented in cli (specific to vendor).
+	// Need to modify once model support is available
 	switch dut.Vendor() {
 	case ondatra.CISCO:
 		resp := cmdViaGNMI(context.Background(), t, dut, cliSecureBootStatus[ondatra.CISCO])
