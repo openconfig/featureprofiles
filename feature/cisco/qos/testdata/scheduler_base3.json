@@ -28,9 +28,20 @@
       "interface":[
           {
               "state": {
+                "interface-id": "FourHundredGigE0/0/0/1"
+              },
+              "output": {
+                  "scheduler-policy": {
+                      "state": {
+                        "name": "eg_policy2222"
+                      }
+                    }
+              }
+            },
+            {
+              "state": {
                 "interface-id": "FourHundredGigE0/0/0/0"
               },
-              "interface-id":"FourHundredGigE0/0/0/0",
               "output": {
                   "scheduler-policy": {
                       "state": {
@@ -57,21 +68,21 @@
                     {
                       "id": "tc7",
                       "state": {
-                        "weight": "7",
+                        "weight": "1",
                         "queue": "tc7"
                       }
                     },
                     {
                       "id": "tc6",
                       "state": {
-                        "weight": "6",
+                        "weight": "2",
                         "queue": "tc6"
                       }
                     },
                     {
                       "id": "tc5",
                       "state": {
-                        "weight": "5",
+                        "weight": "3",
                         "queue": "tc5"
                       }
                     },
@@ -85,21 +96,87 @@
                     {
                       "id": "tc3",
                       "state": {
-                        "weight": "3",
+                        "weight": "5",
                         "queue": "tc3"
                       }
                     },
                     {
                       "id": "tc2",
                       "state": {
-                        "weight": "2",
+                        "weight": "6",
                         "queue": "tc2"
                       }
                     },
                     {
                       "id": "tc1",
                       "state": {
+                        "weight": "7",
+                        "queue": "tc1"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "eg_policy2222",
+          "schedulers": {
+            "scheduler": [
+              {
+                "sequence": 1,
+                "state": {
+                  "priority": "STRICT"
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "id": "tc7",
+                      "state": {
                         "weight": "1",
+                        "queue": "tc7"
+                      }
+                    },
+                    {
+                      "id": "tc6",
+                      "state": {
+                        "weight": "2",
+                        "queue": "tc6"
+                      }
+                    },
+                    {
+                      "id": "tc5",
+                      "state": {
+                        "weight": "3",
+                        "queue": "tc5"
+                      }
+                    },
+                    {
+                      "id": "tc4",
+                      "state": {
+                        "weight": "4",
+                        "queue": "tc4"
+                      }
+                    },
+                    {
+                      "id": "tc3",
+                      "state": {
+                        "weight": "5",
+                        "queue": "tc3"
+                      }
+                    },
+                    {
+                      "id": "tc2",
+                      "state": {
+                        "weight": "6",
+                        "queue": "tc2"
+                      }
+                    },
+                    {
+                      "id": "tc1",
+                      "state": {
+                        "weight": "7",
                         "queue": "tc1"
                       }
                     }

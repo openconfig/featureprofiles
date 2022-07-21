@@ -30,10 +30,9 @@
                 "state": {
                   "interface-id": "FourHundredGigE0/0/0/0"
                 },
-                "interface-id":"FourHundredGigE0/0/0/0",
                 "output": {
                     "scheduler-policy": {
-                        "config": {
+                        "state": {
                           "name": "eg_policy1111"
                         }
                       }
@@ -44,62 +43,62 @@
     "openconfig-qos:scheduler-policies": {
         "scheduler-policy": [
           {
-            "name": "eg_policy111",
+            "name": "eg_policy1111",
             "schedulers": {
               "scheduler": [
                 {
                   "sequence": 1,
-                  "config": {
+                  "state": {
                     "priority": "STRICT"
                   },
                   "inputs": {
                     "input": [
                       {
                         "id": "tc7",
-                        "config": {
-                          "weight": "7",
+                        "state": {
+                          "weight": "1",
                           "queue": "tc7"
                         }
                       },
                       {
                         "id": "tc6",
-                        "config": {
-                          "weight": "6",
+                        "state": {
+                          "weight": "2",
                           "queue": "tc6"
                         }
                       },
                       {
                         "id": "tc5",
-                        "config": {
-                          "weight": "5",
+                        "state": {
+                          "weight": "3",
                           "queue": "tc5"
                         }
                       },
                       {
                         "id": "tc4",
-                        "config": {
+                        "state": {
                           "weight": "4",
                           "queue": "tc4"
                         }
                       },
                       {
                         "id": "tc3",
-                        "config": {
-                          "weight": "3",
+                        "state": {
+                          "weight": "5",
                           "queue": "tc3"
                         }
                       },
                       {
                         "id": "tc2",
-                        "config": {
-                          "weight": "2",
+                        "state": {
+                          "weight": "6",
                           "queue": "tc2"
                         }
                       },
                       {
                         "id": "tc1",
-                        "config": {
-                          "weight": "1",
+                        "state": {
+                          "weight": "7",
                           "queue": "tc1"
                         }
                       }

@@ -1,0 +1,108 @@
+{
+    "openconfig-qos:classifiers": {
+      "classifier": [
+        {
+          "state": {
+            "name": "pmap",
+            "type": "IPV4"
+          },
+          "name": "pmap",
+          "terms": {
+            "term": [
+              {
+                "actions": {
+                  "state": {
+                    "target-group": "tc1"
+                  },
+                  "remark": {
+                    "state": {
+                      "set-dscp": 8
+                    }
+                  }
+                },
+                "conditions": {
+                  "ipv4": {
+                    "state": {
+                      "dscp-set": [
+                        1
+                      ]
+                    }
+                  }
+                },
+                "state": {
+                  "id": "cmap_ipv4"
+                },
+                "id": "cmap_ipv4"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "openconfig-qos:forwarding-groups": {
+      "forwarding-group": [
+        {
+          "name": "tc1",
+          "state": {
+            "name": "tc1",
+            "output-queue": "tc1"
+          }
+        }
+      ]
+    },
+    "openconfig-qos:queues": {
+      "queue": [
+        {
+          "state": {
+            "name": "tc1"
+          },
+          "name": "tc1"
+        }
+      ]
+    },
+    "openconfig-qos:interfaces": {
+      "interface":[
+          {
+              "state": {
+                "interface-id": "FourHundredGigE0/0/0/0"
+              },
+              "interface-id":"FourHundredGigE0/0/0/0",
+              "output": {
+                  "scheduler-policy": {
+                      "state": {
+                        "name": "eg_policy1111"
+                      }
+                    }
+              }
+            }
+          ]
+    },
+  "openconfig-qos:scheduler-policies": {
+      "scheduler-policy": [
+          {
+            "name": "eg_policy1111",
+            "schedulers": {
+              "scheduler": [
+                { 
+                  "sequence" :1,            
+                  "state": {
+                    "priority": "STRICT"
+                  },
+                  "inputs": {
+                    "input": [
+                      {
+                        "id": "tc1",
+                        "state": {
+                          "queue": "tc1",
+                          "weight": "7"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+}
