@@ -156,7 +156,8 @@ func TestTextConfigWithGNMI(t *testing.T) {
 }
 
 func TestBatchConfig(t *testing.T) {
-	//t.Skip() // skiped since this can cuase issues for other test cases
+	// skiped since this can cuase issues for other test cases
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	oldHostName := dut.Telemetry().System().Hostname().Get(t)
 	newHostname := oldHostName + "new"
