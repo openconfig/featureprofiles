@@ -19,13 +19,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -46,11 +49,13 @@ func TestMain(m *testing.M) {
 //   * Destination network: 198.51.100.0/24
 
 const (
-	ipv4PrefixLen = 30
-	instance      = "default"
-	ateDstNetCIDR = "198.51.100.0/24"
-	nhIndex       = 1
-	nhgIndex      = 42
+	ipv4PrefixLen   = 30
+	instance        = "default"
+	ateDstNetCIDR   = "198.51.100.0/24"
+	ateDstNetStart  = "198.51.100.0"
+	nhIndex         = 1
+	nhgIndex        = 42
+	trafficDuration = 10 * time.Second
 )
 
 var (
@@ -61,7 +66,8 @@ var (
 	}
 
 	atePort1 = attrs.Attributes{
-		Name:    "atePort1",
+		Name:    "port1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -73,7 +79,8 @@ var (
 	}
 
 	atePort2 = attrs.Attributes{
-		Name:    "atePort2",
+		Name:    "port2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -85,11 +92,18 @@ var (
 	}
 
 	atePort3 = attrs.Attributes{
-		Name:    "atePort3",
+		Name:    "port3",
+		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: ipv4PrefixLen,
 	}
 )
+
+var gatewayMap = map[attrs.Attributes]attrs.Attributes{
+	atePort1: dutPort1,
+	atePort2: dutPort2,
+	atePort3: dutPort3,
+}
 
 // configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
@@ -128,55 +142,85 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
-	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
+	otg := ate.OTG()
+	top := otg.NewConfig(t)
 
-	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
+	top.Ports().Add().SetName(atePort1.Name)
+	dev := top.Devices().Add().SetName(atePort1.Name)
+	eth := dev.Ethernets().Add().SetName(atePort1.Name + ".Eth")
+	eth.SetPortName(dev.Name()).SetMac(atePort1.MAC)
+	ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+	ip.SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(int32(atePort1.IPv4Len))
 
-	p3 := ate.Port(t, "port3")
-	i3 := top.AddInterface(atePort3.Name).WithPort(p3)
-	i3.IPv4().
-		WithAddress(atePort3.IPv4CIDR()).
-		WithDefaultGateway(dutPort3.IPv4)
+	top.Ports().Add().SetName(atePort2.Name)
+	dev = top.Devices().Add().SetName(atePort2.Name)
+	eth = dev.Ethernets().Add().SetName(atePort2.Name + ".Eth")
+	eth.SetPortName(dev.Name()).SetMac(atePort2.MAC)
+	ip = eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+	ip.SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(int32(atePort2.IPv4Len))
 
+	top.Ports().Add().SetName(atePort3.Name)
+	dev = top.Devices().Add().SetName(atePort3.Name)
+	eth = dev.Ethernets().Add().SetName(atePort3.Name + ".Eth")
+	eth.SetPortName(dev.Name()).SetMac(atePort3.MAC)
+	ip = eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+	ip.SetAddress(atePort3.IPv4).SetGateway(dutPort3.IPv4).SetPrefix(int32(atePort3.IPv4Len))
+
+	otg.PushConfig(t, top)
+	otg.StartProtocols(t)
 	return top
+}
+
+func waitOTGARPEntry(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	ate.OTG().Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
 }
 
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface) {
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.DstAddressRange().
-		WithMin("198.51.100.0").
-		WithMax("198.51.100.254").
-		WithCount(250)
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, srcEndPoint, dstEndPoint attrs.Attributes) {
 
-	flow := ate.Traffic().NewFlow("Flow").
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint).
-		WithHeaders(ethHeader, ipv4Header)
+	// srcEndPoint is atePort1
+	otg := ate.OTG()
+	gwIp := gatewayMap[srcEndPoint].IPv4
+	waitOTGARPEntry(t)
+	dstMac := otg.Telemetry().Interface(srcEndPoint.Name + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
+	config.Flows().Clear().Items()
+	flowipv4 := config.Flows().Add().SetName("Flow")
+	flowipv4.Metrics().SetEnable(true)
+	flowipv4.TxRx().Port().SetTxName(srcEndPoint.Name).SetRxName(dstEndPoint.Name)
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(srcEndPoint.MAC)
+	e1.Dst().SetChoice("value").SetValue(dstMac)
+	v4 := flowipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(srcEndPoint.IPv4)
+	v4.Dst().Increment().SetStart(ateDstNetStart).SetCount(250)
+	otg.PushConfig(t, config)
 
-	ate.Traffic().Start(t, flow)
+	t.Logf("Starting traffic")
+	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
-	ate.Traffic().Stop(t)
+	t.Logf("Stop traffic")
+	otg.StopTraffic(t)
 
-	time.Sleep(time.Minute)
+	// Print Port metrics
+	otgutils.LogPortMetrics(t, otg, config)
 
-	flowPath := ate.Telemetry().Flow(flow.Name())
-	if got := flowPath.LossPct().Get(t); got > 0 {
-		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
+	// Check the flow statistics
+	otgutils.LogFlowMetrics(t, otg, config)
+	for _, f := range config.Flows().Items() {
+		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
+		lostPackets := recvMetric.GetCounters().GetOutPkts() - recvMetric.GetCounters().GetInPkts()
+		lossPct := lostPackets * 100 / recvMetric.GetCounters().GetOutPkts()
+		if lossPct > 0 && recvMetric.GetCounters().GetOutPkts() > 0 {
+			t.Errorf("Loss Pct for %s got %v, want 0", f.Name(), lossPct)
+		}
 	}
 }
 
@@ -187,7 +231,7 @@ type testArgs struct {
 	clientB *gribi.Client
 	dut     *ondatra.DUTDevice
 	ate     *ondatra.ATEDevice
-	top     *ondatra.ATETopology
+	top     gosnappi.Config
 }
 
 // testIPv4LeaderActiveChange first configures an IPV4 Entry through clientB
@@ -211,9 +255,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	}
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()[atePort3.Name]
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+	testTraffic(t, args.ate, args.top, atePort1, atePort3)
 
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-2 via gRIBI-A,
 	// ensure that the entry is ignored by the DUT.
@@ -238,9 +280,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	}
 
 	// Verify with traffic that the entry for 198.51.100.0/24 is installed through the ATE port-2.
-	srcEndPoint = args.top.Interfaces()[atePort1.Name]
-	dstEndPoint = args.top.Interfaces()[atePort2.Name]
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+	testTraffic(t, args.ate, args.top, atePort1, atePort2)
 }
 
 func TestElectionIDChange(t *testing.T) {
@@ -253,7 +293,6 @@ func TestElectionIDChange(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
 
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
