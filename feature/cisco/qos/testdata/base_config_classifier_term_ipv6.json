@@ -3,46 +3,34 @@
       "classifier": [
         {
           "state": {
-            "name": "pmap1",
-            "type": "IPV4"
+            "name": "pmap"
           },
-          "name": "pmap1",
+          "name": "pmap",
           "terms": {
             "term": [
               {
                 "actions": {
-                  "state":{
-                    "target-group": "tc7"
-                  },
                   "remark": {
                     "state": {
-                      "set-mpls-tc": 6
+                      "set-dscp": 16
                     }
                   }
                 },
                 "conditions": {
-                  "mpls": {
+                  "ipv6": {
                     "state": {
-                      "traffic-class": 5
+                      "dscp-set": [
+                        10
+                      ]
                     }
                   }
                 },
-                "id": "cmap",
+                "id": "cmap_ipv6",
                 "state": {
-                  "id": "cmap"
+                  "id": "cmap_ipv6"
                 }
               }
             ]
-          }
-        }
-      ]
-    },
-    "openconfig-qos:forwarding-groups": {
-      "forwarding-group": [
-        {
-          "name": "tc7",
-          "state": {
-            "output-queue": "tc7"
           }
         }
       ]

@@ -1,0 +1,38 @@
+{
+    "openconfig-qos:classifiers": {
+      "classifier": [
+        {
+          "state": {
+            "name": "pmap"
+          },
+          "name": "pmap",
+          "terms": {
+            "term": [
+              {
+                "actions": {
+                  "remark": {
+                    "state": {
+                      "set-dscp": 8
+                    }
+                  }
+                },
+                "conditions": {
+                  "ipv4": {
+                    "state": {
+                      "dscp-set": [
+                        2
+                      ]
+                    }
+                  }
+                },
+                "id": "cmap_ipv4",
+                "state": {
+                  "id": "cmap_ipv4"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }

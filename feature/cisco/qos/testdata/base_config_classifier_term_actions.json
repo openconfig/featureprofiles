@@ -1,0 +1,128 @@
+{
+  "openconfig-qos:classifiers": {
+    "classifier": [
+      {
+        "state": {
+          "name": "pmap",
+          "type": "IPV4"
+        },
+        "name": "pmap",
+        "terms": {
+          "term": [
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dscp": 8
+                  }
+                },
+                "state": {
+                  "target-group": "tc7"
+                }
+              },
+              "conditions": {
+                "ipv4": {
+                  "state": {
+                    "dscp-set": [
+                      1
+                    ]
+                  }
+                }
+              },
+              "id": "cmap_ipv4",
+              "state": {
+                "id": "cmap_ipv4"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dscp": 16
+                  }
+                },
+                "state": {
+                  "target-group": "tc6"
+                }
+              },
+              "conditions": {
+                "ipv6": {
+                  "state": {
+                    "dscp-set": [
+                      10
+                    ]
+                  }
+                }
+              },
+              "id": "cmap_ipv6",
+              "state": {
+                "id": "cmap_ipv6"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-mpls-tc": 6
+                  }
+                },
+                "state": {
+                  "target-group": "tc5"
+                }
+              },
+              "conditions": {
+                "mpls": {
+                  "state": {
+                    "traffic-class": 5
+                  }
+                }
+              },
+              "id": "cmap_mpls",
+              "state": {
+                "id": "cmap_mpls"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "openconfig-qos:forwarding-groups": {
+    "forwarding-group": [
+    {
+      "state": {
+        "name": "tc7",
+        "output-queue": "tc7"
+      },
+      "name": "tc7"
+    },
+    {
+      "state": {
+        "name": "tc6",
+        "output-queue": "tc6"
+      },
+      "name": "tc6"
+    },
+    {
+      "state": {
+        "name": "tc5",
+        "output-queue": "tc5"
+      },
+      "name": "tc5"
+    }
+    ]
+  },
+  "openconfig-qos:queues": {
+    "queue": [
+      {
+        "name": "tc7"
+      },
+      {
+        "name": "tc6"
+      },
+      {
+        "name": "tc5"
+      }
+    ]
+  }
+}

@@ -1,9 +1,6 @@
 package qos_test
 
 import (
-	"fmt"
-	"io/ioutil"
-	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
@@ -12,7 +9,9 @@ import (
 )
 
 var (
-	baseConfigFile           = "base_config_classifier_term.json"
+	testIdInput []string = []string{
+		"cmap_ipv4",
+	}
 	testSetDscpInput []uint8 = []uint8{
 		63,
 	}
@@ -21,27 +20,10 @@ var (
 	}
 )
 
-func BaseConfig() *oc.Qos {
-	sl := strings.Split(setup.FindTestDataPath(), "/")
-	sl = sl[:len(sl)-1]
-	baseConfigPath := strings.Join(sl, "/") + "/" + baseConfigFile
-	jsonConfig, err := ioutil.ReadFile(baseConfigPath)
-	if err != nil {
-		panic(fmt.Sprintf("Cannot load base config: %v", err))
-	}
-
-	baseConfig := new(oc.Qos)
-	if err := oc.Unmarshal(jsonConfig, baseConfig); err != nil {
-		panic(fmt.Sprintf("Cannot unmarshal base config: %v", err))
-	}
-	return baseConfig
-}
-
-func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
-	bc := BaseConfig()
+func setupQos(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *oc.Qos {
+	bc := setup.BaseConfig(baseConfigFile)
 	setup.ResetStruct(bc, []string{"Classifier"})
-	dut.Config().Qos().Update(t, bc)
-	// dut.Config().Qos().Replace(t, bc)
+	dut.Config().Qos().Replace(t, bc)
 	return bc
 }
 

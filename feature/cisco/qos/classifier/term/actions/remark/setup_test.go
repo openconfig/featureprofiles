@@ -9,15 +9,17 @@ import (
 )
 
 var (
-	testInterfaceIdInput []string = []string{
-		"FourHundredGigE0/0/0/1",
-		"Bundle-Ether120",
+	testSetDscpInput []uint8 = []uint8{
+		63,
+	}
+	testSetMplsTcInput []uint8 = []uint8{
+		7,
 	}
 )
 
 func setupQos(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *oc.Qos {
 	bc := setup.BaseConfig(baseConfigFile)
-	setup.ResetStruct(bc, []string{"Interface", "Classifier", "SchedulerPolicy", "ForwardingGroup", "Queue"})
+	setup.ResetStruct(bc, []string{"Classifier"})
 	dut.Config().Qos().Replace(t, bc)
 	return bc
 }

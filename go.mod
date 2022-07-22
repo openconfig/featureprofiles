@@ -41,5 +41,3 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	lukechampine.com/uint128 v1.1.1 // indirect
 )
-
-replace github.com/openconfig/ondatra => /auto/ops-tool/ws-agvarghe/B4/Github/CD6/SFLOW/ondatra
