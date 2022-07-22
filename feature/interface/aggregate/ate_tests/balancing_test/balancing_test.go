@@ -327,9 +327,10 @@ var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.01 /* absolute */)
 // portWants converts the nextHop wanted weights to per-port wanted
 // weights listed in the same order as atePorts.
 func (tc *testCase) portWants() []float64 {
-	weights := make([]float64, len(tc.dutPorts))
-	for i := range tc.dutPorts[1:] {
-		weights[i] = float64(1 / len(tc.dutPorts[1:]))
+	numPorts := len(tc.dutPorts[1:])
+	weights := []float64{}
+	for i := 0; i < numPorts; i++ {
+		weights = append(weights, 1/float64(numPorts))
 	}
 	return weights
 }
@@ -340,8 +341,8 @@ func (tc *testCase) verifyCounterDiff(t *testing.T, before, after map[string]*te
 
 	fmt.Fprint(w, "Interface Counter Deltas\n\n")
 	fmt.Fprint(w, "Name\tInPkts\tInOctets\tOutPkts\tOutOctets\n")
-	allInPkts := make([]uint64, len(tc.dutPorts[1:]))
-	allOutPkts := make([]uint64, len(tc.dutPorts[1:]))
+	allInPkts := []uint64{}
+	allOutPkts := []uint64{}
 
 	for port := range before {
 		inPkts := after[port].GetInUnicastPkts() - before[port].GetInUnicastPkts()
