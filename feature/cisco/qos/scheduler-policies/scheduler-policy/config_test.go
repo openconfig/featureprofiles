@@ -1,9 +1,8 @@
 package qos_test
 
 import (
-	
 	"testing"
-    
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/topologies/binding"
@@ -19,9 +18,9 @@ func TestMain(m *testing.M) {
 func TestQueueSchedule(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	baseConfig := setup.BaseConfig() // this is not setting anything in Router just return config.
+	baseConfig := setup.BaseConfig("scheduler_base.json") // this is not setting anything in Router just return config.
 	defer teardownQos(t, dut, baseConfig)
-	
+
 	baseConfigQueue := setup.GetAnyValue(baseConfig.Queue)
 	config := dut.Config().Qos().Queue(*baseConfigQueue.Name)
 	t.Run("Create Queue ", func(t *testing.T) {
@@ -36,12 +35,12 @@ func TestQueueSchedule(t *testing.T) {
 			}
 		})
 	}
-    
+
 	baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 	config1 := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name)
 	t.Run("Create Policy ", func(t *testing.T) {
 		config1.Update(t, baseConfigSchedulerPolicy)
-	})	
+	})
 	if !setup.SkipGet() {
 		t.Run("Get Policy Config", func(t *testing.T) {
 			configGot := config1.Get(t)
@@ -59,7 +58,7 @@ func TestQueueSchedule(t *testing.T) {
 	t.Run("Update with interface config ", func(t *testing.T) {
 		config2.Update(t, baseConfigInterface)
 	})
-	
+
 	if !setup.SkipSubscribe() {
 		t.Run("Get interface queue Telemetry", func(t *testing.T) {
 			stateGot := state2.Lookup(t)
@@ -69,9 +68,8 @@ func TestQueueSchedule(t *testing.T) {
 		})
 	}
 
-	//delete interface 
-	//configure root level 
+	//delete interface
+	//configure root level
 	//defer which gonna delete root level.
-	
-	
+
 }

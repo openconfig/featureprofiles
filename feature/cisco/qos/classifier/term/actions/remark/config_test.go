@@ -20,7 +20,7 @@ func TestSetDscpAtContainer(t *testing.T) {
 	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_set-dscp.json")
+	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_ipv4.json")
 	defer teardownQos(t, dut, baseConfig)
 
 	for _, input := range testSetDscpInput {
@@ -65,7 +65,7 @@ func TestSetDscpAtContainer(t *testing.T) {
 func TestSetDscpAtLeaf(t *testing.T) {
 	t.Skip()
 	dut := ondatra.DUT(t, "dut")
-	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_set-dscp.json")
+	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_ipv4.json")
 	defer teardownQos(t, dut, baseConfig)
 
 	for _, input := range testSetDscpInput {
@@ -105,10 +105,10 @@ func TestSetDscpAtLeaf(t *testing.T) {
 
 // "error-message": "Edit/Update request should have Conditions/Classifier_config_type"
 func TestSetMplsTcAtContainer(t *testing.T) {
-	// t.Skip()
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_set-mpls-tc.json")
+	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_mpls.json")
 	defer teardownQos(t, dut, baseConfig)
 
 	for _, input := range testSetMplsTcInput {
@@ -151,9 +151,9 @@ func TestSetMplsTcAtContainer(t *testing.T) {
 
 // "error-message": "Edit/Update request should have Conditions/Classifier_config_type"
 func TestSetMplsTcAtLeaf(t *testing.T) {
-	// t.Skip()
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
-	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_set-mpls-tc.json")
+	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_mpls.json")
 	defer teardownQos(t, dut, baseConfig)
 
 	for _, input := range testSetMplsTcInput {

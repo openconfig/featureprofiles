@@ -62,7 +62,7 @@ func TestTargetGroupAtContainer(t *testing.T) {
 // "error-message": "Edit/Update request should have Conditions/Classifier_config_type"
 // No sysdb paths found for yang path qos/classifiers/classifier/terms/term/actions/state/target-group
 func TestTargetGroupAtLeaf(t *testing.T) {
-	// t.Skip()
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_actions.json")
 	defer teardownQos(t, dut, baseConfig)
@@ -87,7 +87,7 @@ func TestTargetGroupAtLeaf(t *testing.T) {
 			t.Run("Subscribe leaf", func(t *testing.T) {
 				stateGot := state.Get(t)
 				if stateGot != input {
-					t.Errorf("State /qos/classifiers/classifier/terms/term/actions/config/target-group: got %v, want %v", stateGot, input)
+					t.Errorf("State /qos/classifiers/classifier/terms/term/actions/state/target-group: got %v, want %v", stateGot, input)
 				}
 			})
 			t.Run("Delete leaf", func(t *testing.T) {

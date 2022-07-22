@@ -16,8 +16,6 @@ func TestMain(m *testing.M) {
 	ondatra.RunTests(m, binding.New)
 }
 
-// Fails if "type" field in base_config
-// CSCwc13851
 func TestIdAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -36,14 +34,12 @@ func TestIdAtContainer(t *testing.T) {
 			t.Run("Replace container", func(t *testing.T) {
 				config.Replace(t, baseConfigClassifierTerm)
 			})
-			if !setup.SkipGet() {
-				t.Run("Get container", func(t *testing.T) {
-					configGot := config.Get(t)
-					if diff := cmp.Diff(*configGot, *baseConfigClassifierTerm); diff != "" {
-						t.Errorf("Config /qos/classifiers/classifier/terms/term/config/id: %v", diff)
-					}
-				})
-			}
+			t.Run("Get container", func(t *testing.T) {
+				configGot := config.Get(t)
+				if diff := cmp.Diff(*configGot, *baseConfigClassifierTerm); diff != "" {
+					t.Errorf("Config /qos/classifiers/classifier/terms/term/config/id: %v", diff)
+				}
+			})
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
 					stateGot := state.Get(t)
@@ -185,14 +181,12 @@ func TestSetMplsTc(t *testing.T) {
 			t.Run("Replace leaf", func(t *testing.T) {
 				config.Replace(t, baseConfigClassifierTerm)
 			})
-			if !setup.SkipGet() {
-				t.Run("Get leaf", func(t *testing.T) {
-					configGot := config.Get(t)
-					if diff := cmp.Diff(*configGot, *baseConfigClassifierTerm); diff != "" {
-						t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/remark/config/set-mpls-tc fail:\n%v", diff)
-					}
-				})
-			}
+			t.Run("Get leaf", func(t *testing.T) {
+				configGot := config.Get(t)
+				if diff := cmp.Diff(*configGot, *baseConfigClassifierTerm); diff != "" {
+					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/remark/config/set-mpls-tc fail:\n%v", diff)
+				}
+			})
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
 					stateGot := state.Get(t)

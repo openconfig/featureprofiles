@@ -50,7 +50,7 @@ func SkipSubscribe() bool {
 
 // SkipGet returns true when the test cases do not need to do subscribe for the leafs
 func SkipGet() bool {
-	return false
+	return true
 }
 
 // GetAnyValue return the first entry from a map

@@ -3,7 +3,6 @@ package qos_test
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
@@ -16,7 +15,6 @@ func TestMain(m *testing.M) {
 	ondatra.RunTests(m, binding.New)
 }
 
-// Fail
 func TestTrafficClassAtContainer(t *testing.T) {
 	t.Skip()
 	dut := ondatra.DUT(t, "dut")
@@ -47,7 +45,7 @@ func TestTrafficClassAtContainer(t *testing.T) {
 				}
 			})
 			// ERR:No sysdb paths found for yang path qos/classifiers/classifier/terms/term/conditions/mpls\x00"} (*gnmi.SubscribeResponse_Error)
-			if setup.SkipSubscribe() {
+			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
 					stateGot := state.Get(t)
 					if diff := cmp.Diff(*stateGot, *baseConfigClassifierTermConditionsMpls); diff != "" {
@@ -55,11 +53,10 @@ func TestTrafficClassAtContainer(t *testing.T) {
 					}
 				})
 			}
-			// Delete gives no error but nothing is getting deleted actually
+			// Delete request goes through fine but nothing is getting deleted actually.
 			t.Run("Delete container", func(t *testing.T) {
-				time.Sleep(1 * time.Minute)
 				config.Delete(t)
-				if setup.SkipSubscribe() {
+				if !setup.SkipSubscribe() {
 					if qs := config.Lookup(t); qs.Val(t).TrafficClass != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class fail: got %v", qs)
 					}
@@ -69,10 +66,10 @@ func TestTrafficClassAtContainer(t *testing.T) {
 	}
 }
 func TestTrafficClassAtLeaf(t *testing.T) {
-	t.Skip()
+	// t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_mpls.json")
-	// defer teardownQos(t, dut, baseConfig)
+	defer teardownQos(t, dut, baseConfig)
 
 	for _, input := range testTrafficClassInput {
 		t.Run(fmt.Sprintf("Testing /qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class using value %v", input), func(t *testing.T) {
@@ -96,7 +93,7 @@ func TestTrafficClassAtLeaf(t *testing.T) {
 				t.Run("Subscribe leaf", func(t *testing.T) {
 					stateGot := state.Get(t)
 					if stateGot != input {
-						t.Errorf("State /qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class: got %v, want %v", stateGot, input)
+						t.Errorf("State /qos/classifiers/classifier/terms/term/conditions/mpls/state/traffic-class: got %v, want %v", stateGot, input)
 					}
 				})
 			}
