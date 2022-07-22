@@ -107,7 +107,6 @@ var gatewayMap = map[attrs.Attributes]attrs.Attributes{
 
 // configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
-	deviations.InterfaceEnabled = ygot.Bool(true)
 	i.Description = ygot.String(a.Desc)
 	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
