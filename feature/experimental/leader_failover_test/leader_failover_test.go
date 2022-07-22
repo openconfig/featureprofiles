@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package master_failover_test
+package leader_failover_test
 
 import (
 	"context"
@@ -43,12 +43,12 @@ func TestMain(m *testing.M) {
 //   * ate:port1 -> dut:port1 subnet 192.0.2.0/30
 //   * ate:port2 -> dut:port2 subnet 192.0.2.4/30
 //
-//   * Destination network: -> 1.0.0.0/8
+//   * Destination network: -> 203.0.113.0/24
 
 const (
 	ipv4PrefixLen = 30
 	instance      = "DEFAULT"
-	ateDstNetCIDR = "1.0.0.0/8"
+	ateDstNetCIDR = "203.0.113.0/24"
 	nhIndex       = 1
 	nhgIndex      = 42
 )
@@ -138,8 +138,8 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.DstAddressRange().
-		WithMin("1.0.0.1").
-		WithMax("1.0.0.250").
+		WithMin("203.0.113.1").
+		WithMax("203.0.113.250").
 		WithCount(250)
 
 	flow := ate.Traffic().NewFlow("Flow").
@@ -182,28 +182,28 @@ type testArgs struct {
 // and ensures that the entry is active by checking AFT Telemetry and Traffic.
 func testIPv4RouteAdd(ctx context.Context, t *testing.T, args *testArgs, clientA *gribi.Client) {
 
-	// Add an IPv4Entry for 1.0.0.0/8 pointing to ATE port-2 via gRIBI.
+	// Add an IPv4Entry for 203.0.113.0/24 pointing to ATE port-2 via gRIBI.
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via clientA", ateDstNetCIDR)
 	clientA.AddNH(t, nhIndex, atePort2.IPv4, instance, fluent.InstalledInRIB)
 	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.InstalledInRIB)
 	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.InstalledInRIB)
 
-	// Verify the entry for 1.0.0.0/8 is active through AFT Telemetry.
-	t.Logf("Verify through AFT Telemetry that 1.0.0.0/8 is active")
+	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
+	t.Logf("Verify through AFT Telemetry that 203.0.113.0/24 is active")
 	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
 	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 	}
 
-	// Verify by running traffic that the route entry for 1.0.0.0/8 is installed and active.
-	t.Logf("Verify by running traffic that 1.0.0.0/8 is active")
+	// Verify by running traffic that the route entry for 203.0.113.0/24 is installed and active.
+	t.Logf("Verify by running traffic that 203.0.113.0/24 is active")
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	dstEndPoint := args.top.Interfaces()[atePort2.Name]
 
 	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint, false)
 }
 
-func TestMasterFailover(t *testing.T) {
+func TestLeaderFailover(t *testing.T) {
 
 	start := time.Now()
 	dut := ondatra.DUT(t, "dut")
@@ -236,45 +236,49 @@ func TestMasterFailover(t *testing.T) {
 		InitialElectionIDLow: 10,
 	}
 
-	defer clientA.Close(t)
+	t.Run("SINGLE_PRIMARY/PERSISTENCE=DELETE", func(t *testing.T) {
 
-	// Establish gRIBI client connection.
-	t.Logf("Establish gRIBI client connection with PERSISTENCE set to FALSE/DELETE")
-	if err := clientA.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection for clientA could not be established")
-	}
+		defer clientA.Close(t)
 
-	// Add a route to 1.0.0.0/8 through gRIBI and verify through telemetry and traffic.
-	t.Logf("Add gRIBI route to 1.0.0.0/8 and verify through Telemetry and Traffic")
-	testIPv4RouteAdd(ctx, t, args, clientA)
+		// Establish gRIBI client connection.
+		t.Logf("Establish gRIBI client connection with PERSISTENCE set to FALSE/DELETE")
+		if err := clientA.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection for clientA could not be established")
+		}
 
-	t.Logf("Time check: %s", time.Since(start))
+		// Add a route to 203.0.113.0/24 through gRIBI and verify through telemetry and traffic.
+		t.Logf("Add gRIBI route to 203.0.113.0/24 and verify through Telemetry and Traffic")
+		testIPv4RouteAdd(ctx, t, args, clientA)
 
-	// Close gRIBI client connection.
-	t.Logf("Close gRIBI client connection")
-	clientA.Close(t)
+		t.Logf("Time check: %s", time.Since(start))
 
-	// Verify through AFT Telemetry that the entry for 1.0.0.0/8 has been deleted.
-	t.Logf("Verify through Telemetry that the route to 1.0.0.0/8 has been deleted after gRIBI client disconnected")
-	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
-	got2 := ipv4Path.Prefix().Lookup(t)
-	t.Logf("After gRIBI client disconnect, telemetry got is %s, want is <nil>", got2)
-	if got2 != nil {
-		t.Errorf("After gRIBI client disconnect, lookup of ipv4-entry/state/prefix got %s, want nil", got2)
-	}
+		// Close gRIBI client connection.
+		t.Logf("Close gRIBI client connection")
+		clientA.Close(t)
+	})
 
-	t.Logf("Time check: %s", time.Since(start))
+	t.Run("Verify Route Is Deleted When Client Disconnects", func(t *testing.T) {
 
-	// Verify that traffic incurs 100% loss since the route to 1.0.0.0/8 was deleted.
-	t.Logf("Verify traffic to 1.0.0.0/8 is dropped")
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()[atePort2.Name]
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint, true)
+		// Verify through AFT Telemetry that the entry for 203.0.113.0/24 has been deleted.
+		t.Logf("Verify through Telemetry that the route to 203.0.113.0/24 has been deleted after gRIBI client disconnected")
+		ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
+		got2 := ipv4Path.Prefix().Lookup(t)
+		t.Logf("After gRIBI client disconnect, telemetry got is %s, want is <nil>", got2)
+		if got2 != nil {
+			t.Errorf("After gRIBI client disconnect, lookup of ipv4-entry/state/prefix got %s, want nil", got2)
+		}
 
-	t.Logf("Time check: %s", time.Since(start))
+		t.Logf("Time check: %s", time.Since(start))
 
-	// Reconnect gRIBI client with persistence set to preserve.
-	t.Logf("Reconnect clientA, with PERSISTENCE set to TRUE/PRESERVE")
+		// Verify that traffic incurs 100% loss since the route to 203.0.113.0/24 was deleted.
+		t.Logf("Verify traffic to 203.0.113.0/24 is dropped")
+		srcEndPoint := args.top.Interfaces()[atePort1.Name]
+		dstEndPoint := args.top.Interfaces()[atePort2.Name]
+		testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint, true)
+
+		t.Logf("Time check: %s", time.Since(start))
+
+	})
 
 	// Change parameters for gRIBI client clientA.
 	// Set Persistence to true.
@@ -285,60 +289,83 @@ func TestMasterFailover(t *testing.T) {
 		InitialElectionIDLow: 10,
 	}
 
-	defer clientA.Close(t)
+	t.Run("SINGLE_PRIMARY/PERSISTENCE=PRESERVE", func(t *testing.T) {
 
-	// Reconnect gRIBI client.
-	if err := clientA.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection for clientA could not be re-established")
-	}
+		// Reconnect gRIBI client with persistence set to preserve.
+		t.Logf("Reconnect clientA, with PERSISTENCE set to TRUE/PRESERVE")
 
-	// Add the route to 1.0.0.0/8 back and verify through telemetry and traffic.
-	t.Logf("Add gRIBI route again to 1.0.0.0/8 and verify through Telemetry and Traffic")
-	testIPv4RouteAdd(ctx, t, args, clientA)
+		// Reconnect gRIBI client.
+		if err := clientA.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection for clientA could not be re-established")
+		}
 
-	t.Logf("Time check: %s", time.Since(start))
+		defer clientA.Close(t)
 
-	// Close the gRIBI client connection again.
-	t.Logf("Close gRIBI client connection again")
-	clientA.Close(t)
+		// Add the route to 203.0.113.0/24 back and verify through telemetry and traffic.
+		t.Logf("Add gRIBI route again to 203.0.113.0/24 and verify through Telemetry and Traffic")
+		testIPv4RouteAdd(ctx, t, args, clientA)
 
-	// Verify the entry for 1.0.0.0/8 is active through Traffic
-	// since the route will be left intact after gRIBI client disconnects
-	// due to PERSISTENCE being set to PRESERVE mode.
-	t.Logf("Verify with traffic that the route to 1.0.0.0/8 is present")
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint, false)
+		t.Logf("Time check: %s", time.Since(start))
 
-	t.Logf("Time check: %s", time.Since(start))
+		// Close the gRIBI client connection again.
+		t.Logf("Close gRIBI client connection again")
+		clientA.Close(t)
 
-	// Verify the entry for 1.0.0.0/8 is active through Telemetry.
-	t.Logf("Verify through telemetry that the route to 1.0.0.0/8 is present")
-	if got3, want3 := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got3 != want3 {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got3, want3)
-	}
+	})
 
-	// Reconnect client.
-	t.Logf("Reconnect clientA again")
-	if err := clientA.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection for clientA could not be re-established")
-	}
+	t.Run("Verify Route Is Preserved When Client Disconnects", func(t *testing.T) {
 
-	// Delete the route to 1.0.0.0/8 that was added through the previous session.
-	t.Logf("Delete gRIBI route 1.0.0.0/8 and verify through Telemetry and Traffic")
-	ipv4Entry := fluent.IPv4Entry().WithPrefix(ateDstNetCIDR).WithNetworkInstance(instance)
-	clientA.DeleteIpv4Entry(t, ipv4Entry)
+		// Verify the entry for 203.0.113.0/24 is active through Traffic
+		// since the route will be left intact after gRIBI client disconnects
+		// due to PERSISTENCE being set to PRESERVE mode.
+		t.Logf("Verify with traffic that the route to 203.0.113.0/24 is present")
+		srcEndPoint := args.top.Interfaces()[atePort1.Name]
+		dstEndPoint := args.top.Interfaces()[atePort2.Name]
+		testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint, false)
 
-	// Verify the entry for 1.0.0.0/8 is inactive through AFT Telemetry.
-	got4 := ipv4Path.Prefix().Lookup(t)
-	t.Logf("After delete, telemetry got is %s, want is <nil>", got4)
-	if got4 != nil {
-		t.Errorf("After delete, lookup of ipv4-entry/state/prefix got %s, want nil", got4)
-	}
+		t.Logf("Time check: %s", time.Since(start))
 
-	t.Logf("Time check: %s", time.Since(start))
+		// Verify the entry for 203.0.113.0/24 is active through Telemetry.
+		t.Logf("Verify through telemetry that the route to 203.0.113.0/24 is present")
+		ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
+		if got3, want3 := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got3 != want3 {
+			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got3, want3)
+		}
 
-	// Verify that to 1.0.0.0/8 gets dropped since the route has been deleted.
-	t.Logf("Verify traffic to 1.0.0.0/8 is dropped")
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint, true)
+	})
+
+	t.Run("Reconnect Client, Delete Route and Verify No Traffic", func(t *testing.T) {
+
+		// Reconnect client.
+		t.Logf("Reconnect clientA again")
+		if err := clientA.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection for clientA could not be re-established")
+		}
+
+		defer clientA.Close(t)
+
+		// Delete the route to 203.0.113.0/24 that was added through the previous session.
+		t.Logf("Delete gRIBI route 203.0.113.0/24 and verify through Telemetry and Traffic")
+		ipv4Entry := fluent.IPv4Entry().WithPrefix(ateDstNetCIDR).WithNetworkInstance(instance)
+		clientA.DeleteIpv4Entry(t, ipv4Entry)
+
+		// Verify the entry for 203.0.113.0/24 is inactive through AFT Telemetry.
+		ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
+		got4 := ipv4Path.Prefix().Lookup(t)
+		t.Logf("After delete, telemetry got is %s, want is <nil>", got4)
+		if got4 != nil {
+			t.Errorf("After delete, lookup of ipv4-entry/state/prefix got %s, want nil", got4)
+		}
+
+		t.Logf("Time check: %s", time.Since(start))
+
+		// Verify that traffic to 203.0.113.0/24 gets dropped since the route has been deleted.
+		t.Logf("Verify traffic to 203.0.113.0/24 is dropped")
+		srcEndPoint := args.top.Interfaces()[atePort1.Name]
+		dstEndPoint := args.top.Interfaces()[atePort2.Name]
+		testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint, true)
+
+	})
 
 	t.Logf("Test run time: %s", time.Since(start))
 }
