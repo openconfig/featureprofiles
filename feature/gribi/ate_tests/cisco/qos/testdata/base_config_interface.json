@@ -11,6 +11,9 @@
             "term": [
               {
                 "actions": {
+                  "state": {
+                    "target-group": "tc1"
+                  },
                   "remark": {
                     "state": {
                       "set-dscp": 20
@@ -31,6 +34,10 @@
               },
               {
                 "actions": {
+                  "state": {
+                    "target-group": "tc2"
+                  },
+
                   "remark": {
                     "state": {
                       "set-dscp": 21
@@ -51,6 +58,10 @@
               },
               {
                 "actions": {
+                  "state": {
+                    "target-group": "tc3"
+                  },
+
                   "remark": {
                     "state": {
                       "set-dscp": 32
@@ -71,6 +82,10 @@
               },
               {
                 "actions": {
+                  "state": {
+                    "target-group": "tc4"
+                  },
+
                   "remark": {
                     "state": {
                       "set-dscp": 33
@@ -91,6 +106,10 @@
               },
               {
                 "actions": {
+                  "state": {
+                    "target-group": "tc5"
+                  },
+
                   "remark": {
                     "state": {
                       "set-dscp": 41 
@@ -111,6 +130,10 @@
               },
               {
                 "actions": {
+                  "state": {
+                    "target-group": "tc6"
+                  },
+
                   "remark": {
                     "state": {
                       "set-dscp": 30
@@ -131,6 +154,10 @@
               },
               {
                 "actions": {
+                  "state": {
+                    "target-group": "tc7"
+                  },
+
                   "remark": {
                     "state": {
                       "set-dscp": 20
@@ -151,6 +178,7 @@
               },
               {
                 "actions": {
+
                   "remark": {
                     "state": {
                       "set-dscp": 21
@@ -174,6 +202,59 @@
         }
       ]
     },
+    "openconfig-qos:forwarding-groups": {
+        "forwarding-group": [
+          {
+            "name": "tc1",
+            "state": {
+              "name": "tc1",
+              "output-queue": "tc1"
+            }
+          },
+          {
+            "name": "tc2",
+            "state": {
+              "name": "tc2",
+              "output-queue": "tc2"
+            }
+          },
+          {
+            "name": "tc3",
+            "state": {
+              "name": "tc3",
+              "output-queue": "tc3"
+            }
+          },
+          {
+            "name": "tc4",
+            "state": {
+              "name": "tc4",
+              "output-queue": "tc4"
+            }
+          },
+          {
+            "name": "tc5",
+            "state": {
+              "name": "tc5",
+              "output-queue": "tc5"
+            }
+          },
+          {
+            "name": "tc6",
+            "state": {
+              "name": "tc6",
+              "output-queue": "tc6"
+            }
+          },
+          {
+            "name": "tc7",
+            "state": {
+              "name": "tc7",
+              "output-queue": "tc7"
+            }
+          }
+        ]
+      },
     "openconfig-qos:interfaces": {
       "interface": [
       {
