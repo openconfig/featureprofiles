@@ -20,7 +20,7 @@ func init() {
 	electionID.Store(1)
 }
 
-func flushServer(c *fluent.GRIBIClient, t testing.TB) {
+func flushServer(c *fluent.GRIBIClient, t *testing.T) {
 	ctx := context.Background()
 	c.Start(ctx, t)
 	defer c.Stop(t)
@@ -33,9 +33,9 @@ func flushServer(c *fluent.GRIBIClient, t testing.TB) {
 	}
 }
 
-type TrafficFunc func(t testing.TB, outerLabel int)
+type TrafficFunc func(t *testing.T, outerLabel int)
 
-func EgressLabelStack(t testing.TB, c *fluent.GRIBIClient, baseLabel int, defaultNIName string, numLabels int, trafficFunc TrafficFunc) {
+func EgressLabelStack(t *testing.T, c *fluent.GRIBIClient, baseLabel int, defaultNIName string, numLabels int, trafficFunc TrafficFunc) {
 	defer electionID.Inc()
 	defer flushServer(c, t)
 
@@ -105,4 +105,10 @@ func EgressLabelStack(t testing.TB, c *fluent.GRIBIClient, baseLabel int, defaul
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
+
+	if trafficFunc != nil {
+		t.Run("%d labels, traffic test", func(t *testing.T) {
+			trafficFunc(t, baseLabel+numLabels)
+		})
+	}
 }
