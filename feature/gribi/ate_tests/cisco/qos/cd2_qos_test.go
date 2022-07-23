@@ -4,8 +4,10 @@ import (
 	"context"
 	"testing"
         "fmt"
+        "time"
         "github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+        "github.com/openconfig/featureprofiles/internal/cisco/config"
         //"github.com/openconfig/ondatra"
 	"github.com/openconfig/gribigo/fluent"
 	oc "github.com/openconfig/ondatra/telemetry"
@@ -175,8 +177,8 @@ var (
 
 func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testArgs) {
 	// defer flushServer(t, args)
-        var baseConfig *oc.Qos = setupQos(t,args.dut)
-        println(baseConfig)
+        //var baseConfig *oc.Qos = setupQos(t,args.dut)
+        //println(baseConfig)
         var baseConfigEgress *oc.Qos = setupQosEgress(t, args.dut)
         println(baseConfigEgress)
 
@@ -186,20 +188,44 @@ func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testAr
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+        cfg := 
+`interface Bundle-Ether122
+shutdown
+!
+interface Bundle-Ether123
+shutdown
+!         
+interface Bundle-Ether124
+shutdown 
+!         
+interface Bundle-Ether125
+shutdown 
+!  
+interface Bundle-Ether126
+shutdown
+!
+      
+`
+        config.TextWithGNMI(context.Background(), t, args.dut, cfg )
+        time.Sleep(time.Minute)
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+        dstEndPoint := args.top.Interfaces()[atePort2.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTrafficqos(t, true, args.ate, args.top, srcEndPoint, dstEndPoint , args.prefix.scale, args.prefix.host, args, 0, weights...)
         
 
         outpackets:= []uint64{}
+        inpackets:=[]uint64{}
 	flowstats := args.ate.Telemetry().FlowAny().Counters().Get(t)
         for _, s  := range flowstats {
                fmt.Println("number of out packets in flow is",*s.OutPkts)
 			   outpackets = append(outpackets,*s.OutPkts)
+                           inpackets = append(inpackets,*s.InPkts)
             }
        outpupacket:= outpackets[0]
+       inpacket:= inpackets[0]
        baseConfigTele := setupQosTele(t, args.dut)
        baseConfigInterface := setup.GetAnyValue(baseConfigTele.Interface)
        interfaceTelemetryPath := args.dut.Telemetry().Qos().Interface("Bundle-Ether120")
@@ -216,6 +242,18 @@ func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testAr
                                 })
                         }
                 }
+			})
+        EgressInterface := "Bundle-Ether121"
+			interfaceTelemetryEgrPath := args.dut.Telemetry().Qos().Interface("Bundle-Ether121")
+			t.Run(fmt.Sprintf("Get Interface Telemetry %s",EgressInterface ), func(t *testing.T) {
+				gote:= interfaceTelemetryEgrPath.Get(t)
+				for queueName, queue := range gote.Output.Queue {
+					t.Run(fmt.Sprintf("Verify Transmit-Packets of %s", queueName), func(t *testing.T) {
+						if !(*queue.TransmitPkts >= inpacket) {
+								t.Errorf("Get Interface Telemetry fail: got %+v", *gote) 
+						}
+					})
+				}
 			})
        // var baseConfig *oc.Qos = setupQos(t,args.dut)
        // println(baseConfig)

@@ -82,13 +82,13 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 	innerIpv4Header := ondatra.NewIPv4Header()
 	innerIpv4Header.WithSrcAddress("200.1.0.2")
 	innerIpv4Header.DstAddressRange().WithMin("201.1.0.2").WithCount(10000).WithStep("0.0.0.1")
-	dstEndPoint := []ondatra.Endpoint{}
+        dstEndPoint := []ondatra.Endpoint{}
 
-	for _, v := range allPorts {
-		if *v != *srcEndPoint {
-			dstEndPoint = append(dstEndPoint, v)
+		for _, v := range allPorts {
+			if *v != *srcEndPoint {
+				dstEndPoint = append(dstEndPoint, v)
+			}
 		}
-	}
 
 	flow := ate.Traffic().NewFlow("Flow").
 		WithSrcEndpoints(srcEndPoint).
@@ -133,13 +133,59 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
         //       fmt.Println("number of out packets in flow is",*s.OutPkts)
 
 
-        //}
+        }
+        func testTrafficqos(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, dstEndPoint *ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
+        dscpList := []uint8{1, 9, 17, 25,33,41,49,57}
+        ondatraFlowList := []*ondatra.Flow{}
+        for _, dscp := range dscpList {
+
+        ethHeader := ondatra.NewEthernetHeader()
+        ethHeader.WithSrcAddress("00:11:01:00:00:01")
+        ethHeader.WithDstAddress("00:01:00:02:00:00")
+
+        ipv4Header := ondatra.NewIPv4Header()
+        ipv4Header.SrcAddressRange().
+                WithMin("198.51.100.0").
+                WithMax("198.51.100.254").
+                WithCount(250)
+        ipv4Header.WithDSCP(dscp)
+        ipv4Header.DstAddressRange().WithMin(hostIP).WithCount(uint32(scale)).WithStep("0.0.0.1")
+
+        innerIpv4Header := ondatra.NewIPv4Header()
+        innerIpv4Header.WithSrcAddress("200.1.0.2")
+        innerIpv4Header.DstAddressRange().WithMin("201.1.0.2").WithCount(10000).WithStep("0.0.0.1")
+
+        flow := ate.Traffic().NewFlow("Flow").
+                WithSrcEndpoints(srcEndPoint).
+                WithDstEndpoints(dstEndPoint)
+
+        flow.WithFrameSize(300).WithFrameRateFPS(100).WithHeaders(ethHeader, ipv4Header, innerIpv4Header)
+        ondatraFlowList = append(ondatraFlowList, flow)
+      }
+
+        ate.Traffic().Start(t, ondatraFlowList...)
+        time.Sleep(60 * time.Second)
+        threshold := 0.90
+        stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+        trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
+
+        if trafficPass == expectPass {
+                t.Log("Traffic works as expected")
+        } else {
+                t.Error("Traffic doesn't work as expected")
+        }
+        //for _, trflow := range ondatraFlowList {
+
 
 
 	// flowPath := ate.Telemetry().Flow(flow.Name())
 	// if got := flowPath.LossPct().Get(t); got > 0 {
 	// 	t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
 	// }
+        ate.Traffic().Stop(t)
+
+        time.Sleep(time.Minute)
+
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.

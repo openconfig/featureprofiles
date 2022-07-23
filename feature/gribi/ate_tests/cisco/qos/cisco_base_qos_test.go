@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+        "time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -186,6 +187,10 @@ func TestNameAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
         var baseConfigEgress *oc.Qos = setupQosEgress(t, dut)
         println(baseConfigEgress)
+        time.Sleep(2 * time.Minute)
+        var baseConfig *oc.Qos = setupQos(t,dut)
+        println(baseConfig)
+
 }
 
 func TestNameAsciCli(t *testing.T) {

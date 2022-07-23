@@ -56,13 +56,18 @@ func BaseConfigEgress() *oc.Qos {
 }
 
 func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
-        bc := BaseConfig()
-        setup.ResetStruct(bc, []string{"Interface", "Classifier"})
-        bcClassifier := setup.GetAnyValue(bc.Classifier)
-        bcInterface := setup.GetAnyValue(bc.Interface)
-        dut.Config().Qos().Classifier(*bcClassifier.Name).Update(t, bcClassifier)
-        dut.Config().Qos().Interface(*bcInterface.InterfaceId).Update(t, bcInterface)
-        return bc
+       bc := BaseConfig()
+       setup.ResetStruct(bc, []string{"Interface", "Classifier","ForwardingGroup"})
+      // for fwd, val := range bc.ForwardingGroup {
+//			dut.Config().Qos().ForwardingGroup(fwd).Update(t,val)
+//		}
+ //      setup.ResetStruct(bc, []string{"Interface", "Classifier"})
+  //     bcClassifier := setup.GetAnyValue(bc.Classifier)
+   //    bcInterface := setup.GetAnyValue(bc.Interface)
+    //   dut.Config().Qos().Classifier(*bcClassifier.Name).Update(t, bcClassifier)
+     //  dut.Config().Qos().Interface(*bcInterface.InterfaceId).Update(t, bcInterface)
+         dut.Config().Qos().Update(t,bc)
+       return bc
 
 }
 func setupQosTele(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
