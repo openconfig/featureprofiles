@@ -205,3 +205,83 @@ func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, b
 		})
 	}
 }
+
+func PopTopLabel(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, trafficFunc TrafficFunc) {
+	defer electionID.Inc()
+	defer flushServer(c, t)
+
+	c.Connection().
+		WithRedundancyMode(fluent.ElectedPrimaryClient).
+		WithInitialElectionID(electionID.Load(), 0)
+
+	ctx := context.Background()
+	c.Start(ctx, t)
+	defer c.Stop(t)
+
+	c.StartSending(ctx, t)
+
+	c.Modify().AddEntry(t,
+		fluent.NextHopEntry().
+			WithNetworkInstance(defaultNIName).
+			WithIndex(1).
+			WithIPAddress("192.0.2.2").
+			WithPopTopLabel())
+
+	c.Modify().AddEntry(t,
+		fluent.NextHopGroupEntry().
+			WithNetworkInstance(defaultNIName).
+			WithID(1).
+			AddNextHop(1, 1))
+
+	// Specify MPLS label that is pointed to our pop next-hop.
+	c.Modify().AddEntry(t,
+		fluent.LabelEntry().
+			WithLabel(100).
+			WithNetworkInstance(defaultNIName).
+			WithNextHopGroupNetworkInstance(defaultNIName).
+			WithNextHopGroup(1))
+
+	// Specify IP prefix that is pointed to our pop next-hop.
+	c.Modify().AddEntry(t,
+		fluent.IPv4Entry().
+			WithPrefix("10.0.0.0/24").
+			WithNetworkInstance(defaultNIName).
+			WithNextHopGroup(1))
+
+	subctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	c.Await(subctx, t)
+
+	res := c.Results(t)
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithIPv4Operation("10.0.0.0/24").
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopGroupOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	if trafficFunc != nil {
+		t.Run("pop-top-label, traffic test", func(t *testing.T) {
+			trafficFunc(t, nil)
+		})
+	}
+
+}
