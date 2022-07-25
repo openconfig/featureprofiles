@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	telemetry "github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -47,7 +48,6 @@ func TestMain(m *testing.M) {
 //
 const (
 	ipv4PrefixLen     = 30
-	instance          = "default"
 	ateDstNetCIDR     = "198.51.100.0/24"
 	ateIndirectNH     = "203.0.113.1"
 	ateIndirectNHCIDR = ateIndirectNH + "/32"
@@ -65,7 +65,7 @@ var (
 	}
 
 	atePort1 = attrs.Attributes{
-		Name:    "atePort1",
+		Name:    "port1",
 		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
@@ -78,16 +78,16 @@ var (
 	}
 
 	atePort2 = attrs.Attributes{
-		Name:    "atePort2",
+		Name:    "port2",
 		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 	}
 )
 
-var inputMap = map[string]attrs.Attributes{
-	"port1": atePort1,
-	"port2": atePort2,
+var gatewayMap = map[attrs.Attributes]attrs.Attributes{
+	atePort1: dutPort1,
+	atePort2: dutPort2,
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
@@ -127,18 +127,16 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otg := ate.OTG()
 	top := otg.NewConfig(t)
 
-	p1 := ate.Port(t, "port1")
-	top.Ports().Add().SetName(p1.ID())
-	i1 := top.Devices().Add().SetName(p1.ID())
+	top.Ports().Add().SetName(atePort1.Name)
+	i1 := top.Devices().Add().SetName(atePort1.Name)
 	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").
 		SetPortName(i1.Name()).SetMac(atePort1.MAC)
 	eth1.Ipv4Addresses().Add().SetName(i1.Name() + ".IPv4").
 		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
 		SetPrefix(int32(atePort1.IPv4Len))
 
-	p2 := ate.Port(t, "port2")
-	top.Ports().Add().SetName(p2.ID())
-	i2 := top.Devices().Add().SetName(p2.ID())
+	top.Ports().Add().SetName(atePort2.Name)
+	i2 := top.Devices().Add().SetName(atePort2.Name)
 	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").
 		SetPortName(i2.Name()).SetMac(atePort2.MAC)
 	eth2.Ipv4Addresses().Add().SetName(i2.Name() + ".IPv4").
@@ -147,23 +145,34 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
+func waitOTGARPEntry(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	ate.OTG().Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
+}
+
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss and returns loss percentage as float.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcEndPoint, dstEndPoint *ondatra.Port) float32 {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcEndPoint, dstEndPoint attrs.Attributes) float32 {
 	otg := ate.OTG()
+	gwIp := gatewayMap[srcEndPoint].IPv4
+	waitOTGARPEntry(t)
+	dstMac := otg.Telemetry().Interface(srcEndPoint.Name + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
 	top.Flows().Clear().Items()
 	flowipv4 := top.Flows().Add().SetName("Flow")
 	flowipv4.Metrics().SetEnable(true)
-	flowipv4.TxRx().Device().
-		SetTxNames([]string{srcEndPoint.Name()}).
-		SetRxNames([]string{dstEndPoint.Name()})
+	flowipv4.TxRx().Port().
+		SetTxName(srcEndPoint.Name).
+		SetRxName(dstEndPoint.Name)
 	flowipv4.Duration().SetChoice("continuous")
 	e1 := flowipv4.Packet().Add().Ethernet()
-	srcMac := inputMap[srcEndPoint.Name()].MAC
-	e1.Src().SetValue(srcMac)
+	e1.Src().SetValue(srcEndPoint.MAC)
+	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flowipv4.Packet().Add().Ipv4()
-	srcIpv4 := inputMap[srcEndPoint.Name()].IPv4
+	srcIpv4 := srcEndPoint.IPv4
 	v4.Src().SetValue(srcIpv4)
 	v4.Dst().Increment().SetStart("198.51.100.0").SetCount(250)
 	otg.PushConfig(t, top)
@@ -207,20 +216,20 @@ func setupRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to 203.0.113.1/32.
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithIndex(nhIndex).
 			WithIPAddress(ateIndirectNH))
 
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithID(nhgIndex).
 			AddNextHop(nhIndex, 1))
 
 	args.c.Modify().AddEntry(t,
 		fluent.IPv4Entry().
 			WithPrefix(ateDstNetCIDR).
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithNextHopGroup(nhgIndex))
 
 	if err := awaitTimeout(args.ctx, args.c, t, time.Minute); err != nil {
@@ -230,20 +239,20 @@ func setupRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	// Add an IPv4Entry for 203.0.113.1/32 pointing to 192.0.2.6.
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithIndex(2).
 			WithIPAddress(atePort2.IPv4))
 
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithID(nhgIndex2).
 			AddNextHop(nhIndex2, 1))
 
 	args.c.Modify().AddEntry(t,
 		fluent.IPv4Entry().
 			WithPrefix(ateIndirectNHCIDR).
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithNextHopGroup(nhgIndex2))
 
 	if err := awaitTimeout(args.ctx, args.c, t, time.Minute); err != nil {
@@ -275,7 +284,7 @@ func deleteRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	args.c.Modify().DeleteEntry(t,
 		fluent.IPv4Entry().
 			WithPrefix(ateIndirectNHCIDR).
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithNextHopGroup(nhgIndex2))
 
 	if err := awaitTimeout(args.ctx, args.c, t, time.Minute); err != nil {
@@ -297,25 +306,25 @@ func deleteRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	setupRecursiveIPv4Entry(t, args)
 
-	aftsPath := args.dut.Telemetry().NetworkInstance(instance).Afts()
+	aftsPath := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts()
 	fptest.LogYgot(t, "AFTs", aftsPath, aftsPath.Get(t))
 
 	// Verify that the entry for 198.51.100.0/24 is installed through AFT Telemetry.
-	ipv4Entry := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR).Get(t)
+	ipv4Entry := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR).Get(t)
 	if got, want := ipv4Entry.GetPrefix(), ateDstNetCIDR; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/prefix = %v, want %v", got, want)
 	}
 	if got, want := ipv4Entry.GetOriginProtocol(), telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/origin-protocol = %v, want %v", got, want)
 	}
-	if got, want := ipv4Entry.GetNextHopGroupNetworkInstance(), instance; got != want {
+	if got, want := ipv4Entry.GetNextHopGroupNetworkInstance(), *deviations.DefaultNetworkInstance; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/next-hop-group-network-instance = %v, want %v", got, want)
 	}
 	nhgIndexInst := ipv4Entry.GetNextHopGroup()
 	if nhgIndexInst == 0 {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/next-hop-group is not present")
 	}
-	nhg := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndexInst).Get(t)
+	nhg := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhgIndexInst).Get(t)
 	if got, want := nhg.GetProgrammedId(), uint64(nhgIndex); got != want {
 		t.Errorf("TestRecursiveIPv4Entry: next-hop-group/state/programmed-id = %v, want %v", got, want)
 	}
@@ -324,7 +333,7 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 		if got, want := nhgNH.GetIndex(), uint64(nhIndexInst); got != want {
 			t.Errorf("next-hop index is incorrect: got %v, want %v", got, want)
 		}
-		nh := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndexInst).Get(t)
+		nh := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(nhIndexInst).Get(t)
 		if got, want := nh.GetIpAddress(), ateIndirectNH; got != want {
 			t.Errorf("next-hop is incorrect: got %v, want %v", got, want)
 		}
@@ -334,21 +343,21 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	}
 
 	// Verify that the entry for 203.0.113.1/32 is installed through AFT Telemetry.
-	ipv4Entry = args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateIndirectNHCIDR).Get(t)
+	ipv4Entry = args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateIndirectNHCIDR).Get(t)
 	if got, want := ipv4Entry.GetPrefix(), ateIndirectNHCIDR; got != want {
 		t.Errorf("TestRecursiveIPv4Entry = %v: ipv4-entry/state/prefix, want %v", got, want)
 	}
 	if got, want := ipv4Entry.GetOriginProtocol(), telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/origin-protocol = %v, want %v", got, want)
 	}
-	if got, want := ipv4Entry.GetNextHopGroupNetworkInstance(), instance; got != want {
+	if got, want := ipv4Entry.GetNextHopGroupNetworkInstance(), *deviations.DefaultNetworkInstance; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/next-hop-group-network-instance = %v, want %v", got, want)
 	}
 	nhgIndexInst = ipv4Entry.GetNextHopGroup()
 	if nhgIndexInst == 0 {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/next-hop-group is not present")
 	}
-	nhg = args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndexInst).Get(t)
+	nhg = args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhgIndexInst).Get(t)
 	if got, want := nhg.GetProgrammedId(), uint64(nhgIndex2); got != want {
 		t.Errorf("TestRecursiveIPv4Entry: next-hop-group/state/programmed-id = %v, want %v", got, want)
 	}
@@ -357,7 +366,7 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 		if got, want := nhgNH.GetIndex(), uint64(nhIndexInst); got != want {
 			t.Errorf("next-hop index is incorrect: got %v, want %v", got, want)
 		}
-		nh := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndexInst).Get(t)
+		nh := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(nhIndexInst).Get(t)
 		if got, want := nh.GetIpAddress(), atePort2.IPv4; got != want {
 			t.Errorf("next-hop is incorrect: got %v, want %v", got, want)
 		}
@@ -367,8 +376,8 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	}
 
 	// Verify with traffic that the entry is installed through the ATE port-2.
-	srcEndPoint := args.ate.Port(t, "port1")
-	dstEndPoint := args.ate.Port(t, "port2")
+	srcEndPoint := atePort1
+	dstEndPoint := atePort2
 
 	// Verify that there should be no traffic loss
 	loss := testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
@@ -385,7 +394,7 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	time.Sleep(30 * time.Second)
 
 	// Verify that the entry for 198.51.100.0/24 is not installed through AFT Telemetry.
-	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateIndirectNHCIDR)
+	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateIndirectNHCIDR)
 	if ipv4Path.Lookup(t).IsPresent() {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/prefix: Found route %s that should not exist", ateIndirectNHCIDR)
 	}
