@@ -206,7 +206,7 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 	baseLabel := 42
 	for i := 1; i <= maximumStackDepth; i++ {
 		t.Run(fmt.Sprintf("push %d labels", i), func(t *testing.T) {
-			mplscompliance.EgressLabelStack(t, c, baseLabel, defNIName, i, testMPLSFlow)
+			mplscompliance.EgressLabelStack(t, c, defNIName, baseLabel, i, testMPLSFlow)
 		})
 	}
 }

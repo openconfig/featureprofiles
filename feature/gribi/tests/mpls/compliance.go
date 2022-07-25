@@ -48,7 +48,7 @@ type TrafficFunc func(t *testing.T, labelStack []uint32)
 // label forwarding entry within defaultNIName, with a label stack with
 // numLabels in it, starting at baseLabel. After the DUT has been programmed
 // if trafficFunc is non-nil it is run to validate the dataplane.
-func EgressLabelStack(t *testing.T, c *fluent.GRIBIClient, baseLabel int, defaultNIName string, numLabels int, trafficFunc TrafficFunc) {
+func EgressLabelStack(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, baseLabel, numLabels int, trafficFunc TrafficFunc) {
 	defer electionID.Inc()
 	defer flushServer(c, t)
 

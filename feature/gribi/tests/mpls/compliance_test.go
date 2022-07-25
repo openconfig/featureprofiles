@@ -10,7 +10,9 @@ import (
 )
 
 const (
+	// defNIName specifies the default network instance name to be used.
 	defNIName = "default"
+	// baseLabel specifies the lower bound label used within a stack.
 	baseLabel = 42
 )
 
@@ -36,7 +38,7 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 	baseLabel := 42
 	for i := 1; i <= 20; i++ {
 		t.Run(fmt.Sprintf("push %d labels", i), func(t *testing.T) {
-			EgressLabelStack(t, c, baseLabel, defNIName, i, nil)
+			EgressLabelStack(t, c, defNIName, baseLabel, i, nil)
 		})
 	}
 }
