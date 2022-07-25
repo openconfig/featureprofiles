@@ -105,7 +105,7 @@ var (
 	}
 )
 
-// configureDUT configures all the interfaces on the DUT.
+// configureDUT configures all the interfaces and network instance on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := dut.Config()
 	i1 := dutSrc.NewInterface(dut.Port(t, "port1").Name())
@@ -113,6 +113,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	i2 := dutDst.NewInterface(dut.Port(t, "port2").Name())
 	dc.Interface(i2.GetName()).Replace(t, i2)
+
+	t.Log("Configure/update Network Instance")
+	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	dutConfNIPath.RouterId().Replace(t, dutDst.IPv4)
 }
 
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
@@ -381,14 +386,6 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	t.Run("configureDut", func(t *testing.T) {
 		t.Log("Start DUT interface Config")
 		configureDUT(t, dut)
-	})
-
-	// Configure Network Instance on the DUT
-	t.Run("configureNetworkInstance", func(t *testing.T) {
-		t.Log("Configure/update Network Instance")
-		dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-		dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-		dutConfNIPath.RouterId().Replace(t, dutDst.IPv4)
 	})
 
 	// Configure BGP+Neighbors on the DUT
