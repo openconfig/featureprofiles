@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.8
-	github.com/open-traffic-generator/snappi/gosnappi v0.7.37
+	github.com/open-traffic-generator/snappi/gosnappi v0.7.18
 	github.com/openconfig/gnmi v0.0.0-20220131173555-39aa74195f0d
 	github.com/openconfig/gnoi v0.0.0-20220131192435-7dd3a95a4f1e
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b

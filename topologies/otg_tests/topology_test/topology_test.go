@@ -23,11 +23,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	otgoc "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -140,6 +142,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 			SetAddress(ipv4Addr).SetGateway(dutPortIP(i)).
 			SetPrefix(int32(plen))
 	}
+
 	otg.PushConfig(t, top)
 	t.Logf("Start ATE Protocols")
 	otg.StartProtocols(t)
@@ -152,7 +155,7 @@ func TestTopology(t *testing.T) {
 	configureDUT(t, dut)
 
 	// Configure the ATE
-	ate := ondatra.ATE(t, "otg")
+	ate := ondatra.ATE(t, "ate")
 	configureATE(t, ate)
 
 	// Query Telemetry
@@ -167,5 +170,13 @@ func TestTopology(t *testing.T) {
 			}
 		}
 
+	})
+
+	// Query ATE telemetry.
+	t.Run("ATE Telemetry", func(t *testing.T) {
+		want := []otgoc.E_Port_Link{otgoc.Port_Link_UP, otgoc.Port_Link_UP}
+		if got := ate.OTG().Telemetry().PortAny().Link().Get(t); !cmp.Equal(got, want) {
+			t.Errorf("did not get expected ATE telemetry, got: %v, want: %v", got, want)
+		}
 	})
 }
