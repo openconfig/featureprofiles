@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/telemetry"
 )
 
 const (
@@ -583,3 +584,55 @@ func (c *Client) FlushServer(t testing.TB) {
 		t.Fatalf("Could not remove all gribi entries from dut %s, got error: %v", c.DUT.Name(), err)
 	}
 }
+
+func (c *Client) checkAFTNHG(t testing.TB, aftNHG *telemetry.NetworkInstance_Afts_NextHopGroup, instance string, prefix string, want string) {
+	if got := len(aftNHG.NextHop); got != 1 {
+		t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", prefix, got)
+	}
+
+	for i := range aftNHG.NextHop {
+		aftNH := c.DUT.Telemetry().NetworkInstance(instance).
+			Afts().NextHop(i).Get(t)
+		if got := aftNH.GetIpAddress(); got != want {
+			t.Fatalf("Prefix %s next-hop IP: got %s, want %s", prefix, got, want)
+		}
+	}
+}
+
+func (c *Client) CheckAFTIPv4(t testing.TB, instance string, prefix string, want string) {
+	aftIPv4e := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Get(t)
+	aftNHG := c.DUT.Telemetry().NetworkInstance(aftIPv4e.GetNextHopGroupNetworkInstance()).
+		Afts().NextHopGroup(aftIPv4e.GetNextHopGroup()).Get(t)
+	c.checkAFTNHG(t, aftNHG, aftIPv4e.GetNextHopGroupNetworkInstance(), prefix, want)
+}
+
+func (c *Client) CheckAFTIPv6(t testing.TB, instance string, prefix string, want string) {
+	aftIPv6e := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv6Entry(prefix).Get(t)
+	aftNHG := c.DUT.Telemetry().NetworkInstance(aftIPv6e.GetNextHopGroupNetworkInstance()).
+		Afts().NextHopGroup(aftIPv6e.GetNextHopGroup()).Get(t)
+	c.checkAFTNHG(t, aftNHG, aftIPv6e.GetNextHopGroupNetworkInstance(), prefix, want)
+}
+
+// func (c *Client) CheckAFT(t testing.TB, instance string, nhgInstance string, nextHops map[string]string) {
+// 	aft := c.DUT.Telemetry().NetworkInstance(instance).Afts().Get(t)
+// 	for k, ipv4e := range aft.Ipv4Entry {
+// 		if want, ok := nextHops[k]; ok {
+// 			aftNHG := c.DUT.Telemetry().NetworkInstance(nhgInstance).Afts().NextHopGroup(ipv4e.GetNextHopGroup()).Get(t)
+// 			if got := len(aftNHG.NextHop); got != 1 {
+// 				t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", k, got)
+// 			}
+
+// 			for i := range aftNHG.NextHop {
+// 				aftNH := c.DUT.Telemetry().NetworkInstance(nhgInstance).Afts().NextHop(i).Get(t)
+// 				if got := aftNH.GetIpAddress(); got != want {
+// 					t.Fatalf("Prefix %s next-hop IP: got %s, want %s", k, got, want)
+// 				}
+// 			}
+// 			delete(nextHops, k)
+// 		}
+// 	}
+
+// 	for k := range nextHops {
+// 		t.Fatalf("No IPV4 entry with prefix %s", k)
+// 	}
+// }
