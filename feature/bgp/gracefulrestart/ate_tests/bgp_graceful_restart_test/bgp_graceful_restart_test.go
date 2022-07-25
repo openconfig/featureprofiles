@@ -68,6 +68,7 @@ const (
 	ateAS                    = 64501
 	plenIPv4                 = 30
 	plenIPv6                 = 126
+	bgpPort                  = 179
 )
 
 var (
@@ -319,21 +320,21 @@ func configACL(d *telemetry.Device, name string) *telemetry.Acl_AclSet {
 	aclEntry10.SequenceId = ygot.Uint32(10)
 	aclEntry10.GetOrCreateActions().ForwardingAction = telemetry.Acl_FORWARDING_ACTION_DROP
 	tp10 := aclEntry10.GetOrCreateTransport()
-	tp10.DestinationPort, _ = tp10.To_Acl_AclSet_AclEntry_Transport_DestinationPort_Union(179)
+	tp10.DestinationPort = telemetry.UnionUint16(bgpPort)
 	a := aclEntry10.GetOrCreateIpv4()
 	a.SourceAddress = ygot.String(aclNullPrefix)
 	a.DestinationAddress = ygot.String(ateDst.IPv4CIDR())
-	a.Protocol, _ = a.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
+	a.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_TCP
 
 	aclEntry20 := acl.GetOrCreateAclEntry(20)
 	aclEntry20.SequenceId = ygot.Uint32(20)
 	aclEntry20.GetOrCreateActions().ForwardingAction = telemetry.Acl_FORWARDING_ACTION_DROP
 	tp20 := aclEntry20.GetOrCreateTransport()
-	tp20.SourcePort, _ = tp20.To_Acl_AclSet_AclEntry_Transport_SourcePort_Union(179)
+	tp20.SourcePort = telemetry.UnionUint16(bgpPort)
 	a2 := aclEntry20.GetOrCreateIpv4()
 	a2.SourceAddress = ygot.String(ateDst.IPv4CIDR())
 	a2.DestinationAddress = ygot.String(aclNullPrefix)
-	a2.Protocol, _ = a.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
+	a2.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_TCP
 
 	aclEntry30 := acl.GetOrCreateAclEntry(30)
 	aclEntry30.SequenceId = ygot.Uint32(30)
