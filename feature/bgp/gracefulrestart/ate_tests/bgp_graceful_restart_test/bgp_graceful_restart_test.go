@@ -71,7 +71,7 @@ const (
 	plenIPv6                 = 126
 	bgpPort                  = 179
 	peerGrpName              = "BGP-PEER-GROUP"
-	ateCIDR                  = "192.0.2.6/32"
+	ateDstCIDR               = "192.0.2.6/32"
 )
 
 var (
@@ -115,7 +115,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc.Interface(i2.GetName()).Replace(t, i2)
 
 	t.Log("Configure/update Network Instance")
-	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance)
 	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	dutConfNIPath.RouterId().Replace(t, dutDst.IPv4)
 }
@@ -336,7 +336,7 @@ func configACL(d *telemetry.Device, name string) *telemetry.Acl_AclSet {
 	tp10.DestinationPort = telemetry.UnionUint16(bgpPort)
 	a := aclEntry10.GetOrCreateIpv4()
 	a.SourceAddress = ygot.String(aclNullPrefix)
-	a.DestinationAddress = ygot.String(ateCIDR)
+	a.DestinationAddress = ygot.String(ateDstCIDR)
 	a.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_TCP
 
 	aclEntry20 := acl.GetOrCreateAclEntry(20)
@@ -345,7 +345,7 @@ func configACL(d *telemetry.Device, name string) *telemetry.Acl_AclSet {
 	tp20 := aclEntry20.GetOrCreateTransport()
 	tp20.SourcePort = telemetry.UnionUint16(bgpPort)
 	a2 := aclEntry20.GetOrCreateIpv4()
-	a2.SourceAddress = ygot.String(ateCIDR)
+	a2.SourceAddress = ygot.String(ateDstCIDR)
 	a2.DestinationAddress = ygot.String(aclNullPrefix)
 	a2.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_TCP
 
