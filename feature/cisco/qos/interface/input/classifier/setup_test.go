@@ -9,9 +9,8 @@ import (
 )
 
 var (
-	baseConfigFile          = "base_config_interface.json"
-	testNameInput  []string = []string{
-		"pmap9",
+	testNameInput []string = []string{
+		"pmap3",
 	}
 	testTypeInput []oc.E_Input_Classifier_Type = []oc.E_Input_Classifier_Type{
 		oc.E_Input_Classifier_Type(1),

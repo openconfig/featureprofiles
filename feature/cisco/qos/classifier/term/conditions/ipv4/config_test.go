@@ -202,7 +202,6 @@ func TestDscpSetAtContainer(t *testing.T) {
 	}
 }
 func TestDscpSetAtLeaf(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_ipv4.json")
 	defer teardownQos(t, dut, baseConfig)

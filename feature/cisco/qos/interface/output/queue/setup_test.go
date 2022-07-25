@@ -16,11 +16,17 @@ var (
 
 func setupQos(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *oc.Qos {
 	bc := setup.BaseConfig(baseConfigFile)
-	setup.ResetStruct(bc, []string{"Interface", "SchedulerPolicy", "Queue"})
+	// setup.ResetStruct(bc, []string{"Interface", "SchedulerPolicy", "Queue"})
 	dut.Config().Qos().Replace(t, bc)
 	return bc
 }
 
 func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
 	dut.Config().Qos().Delete(t)
+}
+
+func deleteQueues(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
+	for queueName, _ := range baseConfig.Queue {
+		dut.Config().Qos().Queue(queueName).Delete(t)
+	}
 }

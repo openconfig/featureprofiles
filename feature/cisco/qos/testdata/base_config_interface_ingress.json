@@ -3,8 +3,7 @@
       "classifier": [
         {
           "state": {
-            "name": "pmap9",
-            "type": "IPV4"
+            "name": "pmap9"
           },
           "name": "pmap9",
           "terms": {

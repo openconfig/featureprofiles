@@ -1,4 +1,29 @@
 {
+  "openconfig-qos:queues": {
+    "queue": [
+      {
+        "name": "tc7"
+      },
+      {
+        "name": "tc6"
+      },
+      {
+        "name": "tc5"
+      },
+      {
+        "name": "tc4"
+      },
+      {
+        "name": "tc3"
+      },
+      {
+        "name": "tc2"
+      },
+      {
+        "name": "tc1"
+      }
+    ]
+  },
   "openconfig-qos:classifiers": {
     "classifier": [
       {
@@ -10,6 +35,9 @@
           "term": [
             {
               "actions": {
+                "state":{
+                  "target-group": "tc7"
+                },
                 "remark": {
                   "state": {
                     "set-dscp": 20
@@ -30,6 +58,9 @@
             },
             {
               "actions": {
+                "state":{
+                  "target-group": "tc7"
+                },
                 "remark": {
                   "state": {
                     "set-dscp": 21
@@ -50,6 +81,9 @@
             },
             {
               "actions": {
+                "state":{
+                  "target-group": "tc7"
+                },
                 "remark": {
                   "state": {
                     "set-dscp": 32
@@ -70,6 +104,9 @@
             },
             {
               "actions": {
+                "state":{
+                  "target-group": "tc7"
+                },
                 "remark": {
                   "state": {
                     "set-dscp": 33
@@ -90,6 +127,9 @@
             },
             {
               "actions": {
+                "state":{
+                  "target-group": "tc7"
+                },
                 "remark": {
                   "state": {
                     "set-mpls-tc": 6
@@ -110,6 +150,9 @@
             },
             {
               "actions": {
+                "state":{
+                  "target-group": "tc7"
+                },
                 "remark": {
                   "state": {
                     "set-dscp": 30
@@ -130,6 +173,9 @@
             },
             {
               "actions": {
+                "state":{
+                  "target-group": "tc7"
+                },
                 "remark": {
                   "state": {
                     "set-dscp": 20
@@ -167,29 +213,62 @@
               "state": {
                 "id": "cmap8"
               }
-            },
-            {
-              "actions": {
-                "remark": {
-                  "state": {
-                    "set-mpls-tc": 6
-                  }
-                }
-              },
-              "conditions": {
-                "mpls": {
-                  "state": {
-                    "traffic-class": 7
-                  }
-                }
-              },
-              "id": "cmap9",
-              "state": {
-                "id": "cmap9"
-              }
             }
           ]
         }
+      }
+    ]
+  },
+  "openconfig-qos:forwarding-groups": {
+    "forwarding-group": [
+    {
+      "state": {
+        "name": "tc7",
+        "output-queue": "tc7"
+      },
+      "name": "tc7"
+    },
+    {
+      "state": {
+        "name": "tc6",
+        "output-queue": "tc6"
+      },
+      "name": "tc6"
+    },
+    {
+      "state": {
+        "name": "tc5",
+        "output-queue": "tc5"
+      },
+      "name": "tc5"
+    },
+    {
+        "state": {
+          "name": "tc4",
+          "output-queue": "tc4"
+        },
+        "name": "tc4"
+      },
+      {
+        "state": {
+          "name": "tc3",
+          "output-queue": "tc3"
+        },
+        "name": "tc3"
+      },
+      {
+        "state": {
+          "name": "tc2",
+          "output-queue": "tc2"
+        },
+        "name": "tc2"
+      },
+      {
+        "state": {
+          "name": "tc1",
+          "output-queue": "tc1"
+        },
+        "name": "tc1"
       }
     ]
   }

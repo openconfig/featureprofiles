@@ -66,7 +66,7 @@ func TestTrafficClassAtContainer(t *testing.T) {
 	}
 }
 func TestTrafficClassAtLeaf(t *testing.T) {
-	// t.Skip()
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_mpls.json")
 	defer teardownQos(t, dut, baseConfig)

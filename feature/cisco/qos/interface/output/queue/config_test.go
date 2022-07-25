@@ -15,7 +15,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestInterfaceOutputTelemetry(t *testing.T) {
-	t.Skip()
 	// /qos/interfaces/interface/
 	// // /qos/interfaces/interface/output/
 	// /qos/interfaces/interface/output/queues/queue/
@@ -24,12 +23,14 @@ func TestInterfaceOutputTelemetry(t *testing.T) {
 	// /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
 
 	dut := ondatra.DUT(t, "dut")
-	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface.json")
-	defer teardownQos(t, dut, baseConfig)
+	// dut.Config().Qos().Delete(t)
+	// var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface_egress1.json")
+	var baseConfig *oc.Qos = setup.BaseConfig("base_config_interface_egress1.json")
+	// defer deleteQueues(t, dut, baseConfig)
+	// defer teardownQos(t, dut, baseConfig)
 
 	baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
-	// interfaceTelemetryPath := dut.Telemetry().Qos().Interface(*baseConfigInterface.InterfaceId)
-	interfaceTelemetryPath := dut.Telemetry().Qos().Interface("FourHundredGigE0_0_0_0")
+	interfaceTelemetryPath := dut.Telemetry().Qos().Interface(*baseConfigInterface.InterfaceId)
 
 	t.Run(fmt.Sprintf("Get Interface Telemetry %s", *baseConfigInterface.InterfaceId), func(t *testing.T) {
 		got := interfaceTelemetryPath.Get(t)
@@ -59,7 +60,7 @@ func TestInterfaceOutputTelemetry(t *testing.T) {
 	baseConfigSchedulerPolicy := baseConfig.SchedulerPolicy[*baseConfigInterfaceOutputSchedulerPolicy.Name]
 	baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
 	baseConfigSchedulerPolicySchedulerInput := setup.GetAnyValue(baseConfigSchedulerPolicyScheduler.Input)
-	ocQueueName := fmt.Sprintf("oc_queue_%s", *baseConfigSchedulerPolicySchedulerInput.Queue)
+	ocQueueName := *baseConfigSchedulerPolicySchedulerInput.Queue
 	interfaceOutputQueueTelemetryPath := interfaceOutputTelemetryPath.Queue(ocQueueName)
 
 	t.Run(fmt.Sprintf("Get Interface Output Queue Telemetry %s %s", *baseConfigInterface.InterfaceId, ocQueueName), func(t *testing.T) {

@@ -16,6 +16,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestNameAtContainer(t *testing.T) {
+	// dscp and dscp-set causing error
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier.json")
 	defer teardownQos(t, dut, baseConfig)
@@ -55,6 +56,36 @@ func TestNameAtContainer(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestNameAtLeaf(t *testing.T) {
+	// dscp and dscp-set causing error
+	dut := ondatra.DUT(t, "dut")
+	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier.json")
+	defer teardownQos(t, dut, baseConfig)
+
+	t.Run("Testing /qos/classifiers/classifier/config/name", func(t *testing.T) {
+		baseConfigClassifier := setup.GetAnyValue(baseConfig.Classifier)
+
+		config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Name()
+		state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Name()
+
+		t.Run("Get container", func(t *testing.T) {
+			configGot := config.Get(t)
+			if configGot != *baseConfigClassifier.Name {
+				t.Errorf("Config /qos/classifiers/classifier/config/name: need %s got %s", *baseConfigClassifier.Name, configGot)
+			}
+		})
+		// ERR:No sysdb paths found for yang path qos/classifiers/classifier\x00"} (*gnmi.SubscribeResponse_Error)
+		if !setup.SkipSubscribe() {
+			t.Run("Subscribe container", func(t *testing.T) {
+				stateGot := state.Get(t)
+				if stateGot != *baseConfigClassifier.Name {
+					t.Errorf("Config /qos/classifiers/classifier/state/name: need %s got %s", *baseConfigClassifier.Name, stateGot)
+				}
+			})
+		}
+	})
 }
 
 // XR doesn't use classifier/type - CSCwc13851

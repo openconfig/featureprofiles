@@ -19,7 +19,7 @@ func TestInterfaceInputClassifier(t *testing.T) {
 	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface.json")
+	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface_ingress1.json")
 	defer teardownQos(t, dut, baseConfig)
 
 	baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
@@ -34,19 +34,18 @@ func TestInterfaceInputClassifier(t *testing.T) {
 
 		// Classifier has to be applied for all 3 types
 		t.Run("Replace container", func(t *testing.T) {
+			t.Skip()
 			config.Replace(t, baseConfigInterfaceInputClassifier)
 		})
 
-		if !setup.SkipGet() {
-			t.Run("Get Interface Input Classifier Config", func(t *testing.T) {
-				configGot := config.Get(t)
-				if diff := cmp.Diff(*configGot, *baseConfigInterfaceInputClassifier); diff != "" {
-					t.Errorf("Config Interface Input Classifier fail:\n%v", diff)
-				}
-			})
-		}
+		t.Run("Get Interface Input Classifier Config", func(t *testing.T) {
+			configGot := config.Get(t)
+			if diff := cmp.Diff(*configGot, *baseConfigInterfaceInputClassifier); diff != "" {
+				t.Errorf("Config Interface Input Classifier fail:\n%v", diff)
+			}
+		})
 		// Returns telemetry data which will not be present in the baseConfig struct
-		if setup.SkipSubscribe() {
+		if !setup.SkipSubscribe() {
 			t.Run("Get Interface Input Classifier Telemetry", func(t *testing.T) {
 				stateGot := state.Get(t)
 				if diff := cmp.Diff(*stateGot, *baseConfigInterfaceInputClassifier); diff != "" {
@@ -70,7 +69,7 @@ func TestInterfaceInputClassifierAtLeaf(t *testing.T) {
 	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface.json")
+	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface_ingress1.json")
 	defer teardownQos(t, dut, baseConfig)
 
 	baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
@@ -85,17 +84,16 @@ func TestInterfaceInputClassifierAtLeaf(t *testing.T) {
 
 		// classifier has to applied for all 3 types
 		t.Run("Replace container", func(t *testing.T) {
+			t.Skip()
 			config.Replace(t, input)
 		})
 
-		if !setup.SkipGet() {
-			t.Run("Get Interface Input Classifier Config", func(t *testing.T) {
-				configGot := config.Get(t)
-				if configGot != input {
-					t.Errorf("Config Interface Input Classifier: got %v want %v", configGot, input)
-				}
-			})
-		}
+		t.Run("Get Interface Input Classifier Config", func(t *testing.T) {
+			configGot := config.Get(t)
+			if configGot != input {
+				t.Errorf("Config Interface Input Classifier: got %v want %v", configGot, input)
+			}
+		})
 		if setup.SkipSubscribe() {
 			t.Run("Get Interface Input Classifier Telemetry", func(t *testing.T) {
 				stateGot := state.Get(t)
@@ -108,7 +106,6 @@ func TestInterfaceInputClassifierAtLeaf(t *testing.T) {
 }
 
 func TestInterfaceInputTelemetry(t *testing.T) {
-	t.Skip()
 
 	// /qos/interfaces/interface/
 	// // /qos/interfaces/interface/input/
@@ -118,13 +115,11 @@ func TestInterfaceInputTelemetry(t *testing.T) {
 	// /qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-octets
 
 	dut := ondatra.DUT(t, "dut")
-
-	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface.json")
+	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface_ingress1.json")
 	defer teardownQos(t, dut, baseConfig)
 
 	baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
-	// interfaceTelemetryPath := dut.Telemetry().Qos().Interface(*baseConfigInterface.InterfaceId)
-	interfaceTelemetryPath := dut.Telemetry().Qos().Interface("FourHundredGigE0_0_0_1")
+	interfaceTelemetryPath := dut.Telemetry().Qos().Interface(*baseConfigInterface.InterfaceId)
 
 	t.Run(fmt.Sprintf("Get Interface Telemetry %s", *baseConfigInterface.InterfaceId), func(t *testing.T) {
 		got := interfaceTelemetryPath.Get(t)
@@ -167,7 +162,16 @@ func TestInterfaceInputTelemetry(t *testing.T) {
 	})
 
 	baseConfigClassifier := baseConfig.Classifier[*baseConfigInterfaceInputClassifier.Name]
-	baseConfigClassifierTerm := setup.GetAnyValue(baseConfigClassifier.Term)
+	var termId string
+	switch baseConfigInterfaceInputClassifier.Type {
+	case 1:
+		termId = "cmap_ipv4"
+	case 2:
+		termId = "cmap_ipv6"
+	case 3:
+		termId = "cmap_mpls"
+	}
+	baseConfigClassifierTerm := baseConfigClassifier.Term[termId]
 	interfaceInputClassifierTermTelemetryPath := interfaceInputClassifierTelemetryPath.Term(*baseConfigClassifierTerm.Id)
 
 	t.Run(fmt.Sprintf("Get Interface Input Classifier Telemetry %s %v %s", *baseConfigInterface.InterfaceId, baseConfigInterfaceInputClassifier.Type, *baseConfigClassifierTerm.Id), func(t *testing.T) {
