@@ -1,3 +1,5 @@
+// Package gRIBI MPLS Dataplane Test implements tests of the MPLS dataplane that
+// use gRIBI as the programming mechanism.
 package gribi_mpls_dataplane_test
 
 import (
@@ -18,21 +20,26 @@ import (
 )
 
 const (
-	defNIName = "default"
-	baseLabel = 42
+	defNIName         = "default"
+	baseLabel         = 42
+	destinationLabel  = 100
+	maximumStackDepth = 20
 )
 
 var (
+	// ateSrc describes the configuration parameters for the ATE port sourcing
+	// a flow.
 	ateSrc = &attrs.Attributes{
 		Name:    "port1",
 		Desc:    "ATE_SRC_PORT",
 		IPv4:    "192.0.2.0",
 		IPv4Len: 31,
 		MAC:     "02:00:01:01:01:01",
-		// Don't really want IPv6, but OTG might need it.
 		IPv6:    "2001:db8::0",
 		IPv6Len: 127,
 	}
+	// dutSrc describes the configuration parameters for the DUT port connected
+	// to the ATE src port.
 	dutSrc = &attrs.Attributes{
 		Desc:    "DUT_SRC_PORT",
 		IPv4:    "192.0.2.1",
@@ -40,6 +47,8 @@ var (
 		IPv6:    "2001:db8::1",
 		IPv6Len: 127,
 	}
+	// ateDst describes the configuration parameters for the ATE port that acts
+	// as the traffic sink.
 	ateDst = &attrs.Attributes{
 		Name:    "port2",
 		Desc:    "ATE_DST_PORT",
@@ -49,6 +58,8 @@ var (
 		IPv6:    "2001:db8::2",
 		IPv6Len: 127,
 	}
+	// dutDst describes the configuration parameters for the DUT port that is
+	// connected to the ate destination port.
 	dutDst = &attrs.Attributes{
 		Desc:    "DUT_DST_PORT",
 		IPv4:    "192.0.2.3",
@@ -62,12 +73,15 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// Test cases to write:
+// TODO(robjs):  Test cases to write:
 //	* push(N) labels, N = 1-20.
 //	* pop(1) - terminating action
 //	* pop(1) + push(N)
 //	* pop(all) + push(N)
 
+// dutIntf generates the configuration for an interface on the DUT in OpenConfig.
+// It returns the generated configuration, or an error if the config could not be
+// generated.
 func dutIntf(intf *attrs.Attributes) (*telemetry.Interface, error) {
 	if intf == nil {
 		return nil, fmt.Errorf("invalid nil interface, %v", intf)
@@ -86,6 +100,9 @@ func dutIntf(intf *attrs.Attributes) (*telemetry.Interface, error) {
 	return i, nil
 }
 
+// configureATEInterfaces configures all the interfaces of the ATE according to the
+// supplied ports (srcATE, srcDUT, dstATE, dstDUT) attributes. It returns the gosnappi
+// OTG configuration that was applied to the ATE, or an error.
 func configureATEInterfaces(t *testing.T, ate *ondatra.ATEDevice, srcATE, srcDUT, dstATE, dstDUT *attrs.Attributes) (gosnappi.Config, error) {
 	otg := ate.OTG()
 	topology := otg.NewConfig(t)
@@ -139,7 +156,7 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
 
-	testMPLSFlow := func(t *testing.T, outerLabel int) {
+	testMPLSFlow := func(t *testing.T, _ []uint32) {
 		// We configure a traffic flow from ateSrc -> ateDst (passes through
 		// ateSrc -> [ dutSrc -- dutDst ] --> ateDst.
 		//
@@ -165,15 +182,14 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		mplsFlow.Metrics().SetEnable(true)
 		mplsFlow.TxRx().Port().SetTxName(ateSrc.Name).SetRxName(ateDst.Name)
 
-		// set up ethernet layer
+		// Set up ethernet layer.
 		eth := mplsFlow.Packet().Add().Ethernet()
 		eth.Src().SetValue(ateSrc.MAC)
 		eth.Dst().SetChoice("value").SetValue(dstMAC)
 
-		// set up mpls layer with label 100
+		// Set up MPLS layer with destination label 100.
 		mpls := mplsFlow.Packet().Add().Mpls()
-		// TODO(robjs): move this to a const
-		mpls.Label().SetChoice("value").SetValue(100)
+		mpls.Label().SetChoice("value").SetValue(destinationLabel)
 		mpls.BottomOfStack().SetChoice("value").SetValue(1)
 
 		otg.PushConfig(t, testTopo)
@@ -188,9 +204,8 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 	}
 
 	baseLabel := 42
-	for i := 1; i <= 20; i++ {
+	for i := 1; i <= maximumStackDepth; i++ {
 		t.Run(fmt.Sprintf("push %d labels", i), func(t *testing.T) {
-			// TODO(robjs): define the traffic validation function here.
 			mplscompliance.EgressLabelStack(t, c, baseLabel, defNIName, i, testMPLSFlow)
 		})
 	}

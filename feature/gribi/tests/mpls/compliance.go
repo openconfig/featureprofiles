@@ -1,7 +1,10 @@
+// Package gribi_mpls_compliance_test defines additional compliance
+// tests for gRIBI that relate to programming MPLS entries.
 package gribi_mpls_compliance_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,6 +15,7 @@ import (
 )
 
 var (
+	// electionID is the global election ID used between test cases.
 	electionID = atomic.Uint64{}
 )
 
@@ -20,6 +24,8 @@ func init() {
 	electionID.Store(1)
 }
 
+// flushServer removes all entries from the server and can be called between
+// test cases in order to remove the server's RIB contents.
 func flushServer(c *fluent.GRIBIClient, t *testing.T) {
 	ctx := context.Background()
 	c.Start(ctx, t)
@@ -33,8 +39,15 @@ func flushServer(c *fluent.GRIBIClient, t *testing.T) {
 	}
 }
 
-type TrafficFunc func(t *testing.T, outerLabel int)
+// TrafficFunc defines a function that can be run following the compliance
+// test. Functions are called with two arguments, a testing.T that is called
+// with test results, and the packet's label stack.
+type TrafficFunc func(t *testing.T, labelStack []uint32)
 
+// EgressLabelStack defines a test that programs a DUT via gRIBI with a
+// label forwarding entry within defaultNIName, with a label stack with
+// numLabels in it, starting at baseLabel. After the DUT has been programmed
+// if trafficFunc is non-nil it is run to validate the dataplane.
 func EgressLabelStack(t *testing.T, c *fluent.GRIBIClient, baseLabel int, defaultNIName string, numLabels int, trafficFunc TrafficFunc) {
 	defer electionID.Inc()
 	defer flushServer(c, t)
@@ -107,8 +120,8 @@ func EgressLabelStack(t *testing.T, c *fluent.GRIBIClient, baseLabel int, defaul
 	)
 
 	if trafficFunc != nil {
-		t.Run("%d labels, traffic test", func(t *testing.T) {
-			trafficFunc(t, baseLabel+numLabels)
+		t.Run(fmt.Sprintf("%d labels, traffic test", numLabels), func(t *testing.T) {
+			trafficFunc(t, labels)
 		})
 	}
 }
