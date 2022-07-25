@@ -128,7 +128,6 @@ var (
 
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	deviations.InterfaceEnabled = ygot.Bool(true)
 	dc := dut.Config()
 	i1 := dutSrc.NewInterface(dut.Port(t, "port1").Name())
 	dc.Interface(i1.GetName()).Replace(t, i1)
@@ -463,38 +462,35 @@ func sendTraffic(t *testing.T, otg *otg.OTG, c gosnappi.Config) {
 	otg.StopTraffic(t)
 }
 
-func verifyOtgBgpTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, ipType, state string) {
+func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state string) {
 	for _, d := range c.Devices().Items() {
-		switch ipType {
-		case "IPv4":
-			for _, ip := range d.Bgp().Ipv4Interfaces().Items() {
-				for _, configPeer := range ip.Peers().Items() {
-					nbrPath := otg.Telemetry().BgpPeer(configPeer.Name())
-					_, ok := nbrPath.SessionState().Watch(t, time.Minute,
-						func(val *otgtelemetry.QualifiedE_BgpPeer_SessionState) bool {
-							return val.IsPresent() && val.Val(t).String() == state
-						}).Await(t)
-					if !ok {
-						fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
-						t.Fatal("No BGP neighbor formed")
-					}
-				}
-			}
-		case "IPv6":
-			for _, ip := range d.Bgp().Ipv6Interfaces().Items() {
-				for _, configPeer := range ip.Peers().Items() {
-					nbrPath := otg.Telemetry().BgpPeer(configPeer.Name())
-					_, ok := nbrPath.SessionState().Watch(t, time.Minute,
-						func(val *otgtelemetry.QualifiedE_BgpPeer_SessionState) bool {
-							return val.IsPresent() && val.Val(t).String() == state
-						}).Await(t)
-					if !ok {
-						fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
-						t.Fatal("No BGP neighbor formed")
-					}
+		for _, ip := range d.Bgp().Ipv4Interfaces().Items() {
+			for _, configPeer := range ip.Peers().Items() {
+				nbrPath := otg.Telemetry().BgpPeer(configPeer.Name())
+				_, ok := nbrPath.SessionState().Watch(t, time.Minute,
+					func(val *otgtelemetry.QualifiedE_BgpPeer_SessionState) bool {
+						return val.IsPresent() && val.Val(t).String() == state
+					}).Await(t)
+				if !ok {
+					fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
+					t.Errorf("No BGP neighbor formed for peer %s", configPeer.Name())
 				}
 			}
 		}
+		for _, ip := range d.Bgp().Ipv6Interfaces().Items() {
+			for _, configPeer := range ip.Peers().Items() {
+				nbrPath := otg.Telemetry().BgpPeer(configPeer.Name())
+				_, ok := nbrPath.SessionState().Watch(t, time.Minute,
+					func(val *otgtelemetry.QualifiedE_BgpPeer_SessionState) bool {
+						return val.IsPresent() && val.Val(t).String() == state
+					}).Await(t)
+				if !ok {
+					fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
+					t.Errorf("No BGP neighbor formed for peer %s", configPeer.Name())
+				}
+			}
+		}
+
 	}
 }
 
@@ -515,13 +511,18 @@ func TestEstablish(t *testing.T) {
 	t.Logf("Start DUT interface Config")
 	configureDUT(t, dut)
 
+	t.Log("Configure Network Instance")
+
+	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.RouterId().Replace(t, dutDst.IPv4)
+
 	// Configure BGP+Neighbors on the DUT
 	t.Logf("Start DUT BGP Config")
-	dutConfPath := dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
+	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	dutConfPath.Replace(t, nil)
 	dutConf := bgpCreateNbr(dutAS, ateAS, defaultPolicy)
 	dutConfPath.Replace(t, dutConf)
+	fptest.LogYgot(t, "DUT BGP Config", dutConfPath, dutConfPath.Get(t))
 
 	// ATE Configuration.
 	t.Logf("Start ATE Config")
@@ -535,8 +536,8 @@ func TestEstablish(t *testing.T) {
 
 	// Verify the OTG BGP state
 	t.Logf("Verify OTG BGP sessions up")
-	verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv4", "ESTABLISHED")
-	verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv6", "ESTABLISHED")
+	verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
+	verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
 
 	t.Logf("Check BGP parameters")
 	verifyBgpTelemetry(t, dut)
@@ -554,8 +555,8 @@ func TestEstablish(t *testing.T) {
 
 		// Verify the OTG BGP state
 		t.Logf("Verify OTG BGP sessions down")
-		verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv4", "IDLE")
-		verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv6", "IDLE")
+		verifyOTGBGPTelemetry(t, otg, otgConfig, "IDLE")
+		verifyOTGBGPTelemetry(t, otg, otgConfig, "IDLE")
 
 		// Resend traffic
 		sendTraffic(t, otg, otgConfig)
@@ -571,6 +572,11 @@ func TestBGPPolicy(t *testing.T) {
 	// Configure interface on the DUT
 	t.Logf("Start DUT interface Config")
 	configureDUT(t, dut)
+
+	t.Log("Configure Network Instance")
+
+	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.RouterId().Replace(t, dutDst.IPv4)
 
 	cases := []struct {
 		desc                      string
@@ -612,7 +618,7 @@ func TestBGPPolicy(t *testing.T) {
 			ate := ondatra.ATE(t, "ate")
 
 			// Configure Routing Policy on the DUT
-			dutConfPath := dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+			dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 			fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 			d := &telemetry.Device{}
 			t.Log("Configure BGP Policy with BGP actions on the neighbor")
@@ -622,12 +628,12 @@ func TestBGPPolicy(t *testing.T) {
 			// Configure ATE to setup traffic.
 			otg := ate.OTG()
 			otgConfig := configureOTG(t, otg)
-			dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
+			dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
 
 			// Verify the OTG BGP state
 			t.Logf("Verify OTG BGP sessions up")
-			verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv4", "ESTABLISHED")
-			verifyOtgBgpTelemetry(t, otg, otgConfig, "IPv6", "ESTABLISHED")
+			verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
+			verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
 
 			// Send and verify traffic.
 			sendTraffic(t, otg, otgConfig)
