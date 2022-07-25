@@ -384,7 +384,6 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	})
 
 	// Configure Network Instance on the DUT
-	// Configure BGP+Neighbors on the DUT
 	t.Run("configureNetworkInstance", func(t *testing.T) {
 		t.Log("Configure/update Network Instance")
 		dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
