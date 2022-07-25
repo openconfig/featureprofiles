@@ -71,7 +71,7 @@ func EgressLabelStack(t *testing.T, c *fluent.GRIBIClient, defaultNIName string,
 		fluent.NextHopEntry().
 			WithNetworkInstance(defaultNIName).
 			WithIndex(1).
-			WithIPAddress("1.1.1.1").
+			WithIPAddress("192.0.2.2").
 			WithPushedLabelStack(labels...))
 
 	c.Modify().AddEntry(t,
@@ -121,6 +121,86 @@ func EgressLabelStack(t *testing.T, c *fluent.GRIBIClient, defaultNIName string,
 
 	if trafficFunc != nil {
 		t.Run(fmt.Sprintf("%d labels, traffic test", numLabels), func(t *testing.T) {
+			trafficFunc(t, labels)
+		})
+	}
+}
+
+// PushToIPPacket programs a gRIBI entry for an ingress LER function whereby MPLS labels are
+// pushed to an IP packet. The entries are programmed into defaultNIName, with the stack
+// imposed being a stack of numLabels labels, starting with baseLabel. After the programming
+// has been verified trafficFunc is run to allow validation of the dataplane.
+func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, baseLabel, numLabels int, trafficFunc TrafficFunc) {
+	defer electionID.Inc()
+	defer flushServer(c, t)
+
+	c.Connection().
+		WithRedundancyMode(fluent.ElectedPrimaryClient).
+		WithInitialElectionID(electionID.Load(), 0)
+
+	ctx := context.Background()
+	c.Start(ctx, t)
+	defer c.Stop(t)
+
+	c.StartSending(ctx, t)
+
+	labels := []uint32{}
+	for n := 1; n <= numLabels; n++ {
+		labels = append(labels, uint32(baseLabel+n))
+	}
+
+	c.Modify().AddEntry(t,
+		fluent.NextHopEntry().
+			WithNetworkInstance(defaultNIName).
+			WithIndex(1).
+			WithIPAddress("192.0.2.2").
+			WithPushedLabelStack(labels...))
+
+	c.Modify().AddEntry(t,
+		fluent.NextHopGroupEntry().
+			WithNetworkInstance(defaultNIName).
+			WithID(1).
+			AddNextHop(1, 1))
+
+	c.Modify().AddEntry(t,
+		fluent.IPv4Entry().
+			WithPrefix("10.0.0.0/24").
+			WithNetworkInstance(defaultNIName).
+			WithNextHopGroupNetworkInstance(defaultNIName).
+			WithNextHopGroup(1))
+
+	subctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	c.Await(subctx, t)
+
+	res := c.Results(t)
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithIPv4Operation("10.0.0.0/24").
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopGroupOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	if trafficFunc != nil {
+		t.Run(fmt.Sprintf("%d label push, traffic test", numLabels), func(t *testing.T) {
 			trafficFunc(t, labels)
 		})
 	}
