@@ -560,6 +560,8 @@ github.com/onsi/gomega v1.10.3/go.mod h1:V9xEwhxec5O8UDM77eCW8vLymOMltsqPVYWrpDs
 github.com/onsi/gomega v1.13.0/go.mod h1:lRk9szgn8TxENtWd0Tp4c3wjlRfMTMH27I+3Je41yGY=
 github.com/open-traffic-generator/ixia-c-operator v0.1.89/go.mod h1:qHIu+7E0sxr7tAa42qJPyrYvhYAKSMerS8NrDo2OZb8=
 github.com/open-traffic-generator/snappi/gosnappi v0.7.6/go.mod h1:yy1mdBicujeM24qLEEz+DDqCazoeg4yXTJjOKeiSUr4=
+github.com/open-traffic-generator/snappi/gosnappi v0.7.18 h1:RCyCtbvc6Qx11vp0Ec3BxZ76xcOMAzPTzrh6Y9Fywr4=
+github.com/open-traffic-generator/snappi/gosnappi v0.7.18/go.mod h1:yy1mdBicujeM24qLEEz+DDqCazoeg4yXTJjOKeiSUr4=
 github.com/open-traffic-generator/snappi/gosnappi v0.7.37 h1:OZdJ6qYR0v3crCLuIqjNagkKUko2mGVj+qifSujnLpA=
 github.com/open-traffic-generator/snappi/gosnappi v0.7.37/go.mod h1:KsV29REx12Exw7BLWN/kI3m7euS4Vyyymh/63mrVl+s=
 github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
@@ -736,6 +738,7 @@ github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UV
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5cxcmMvtA=
 github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
+github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.7.1 h1:5TQK59W5E3v0r2duFAb7P95B6hEeOyEnHRa8MjYSMTY=
 github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
