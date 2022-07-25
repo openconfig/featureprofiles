@@ -69,7 +69,9 @@ const (
 	ateAS                    = 64501
 	plenIPv4                 = 30
 	plenIPv6                 = 126
+	bgpPort                  = 179
 	peerGrpName              = "BGP-PEER-GROUP"
+	ateCIDR                  = "192.0.2.6/32"
 )
 
 var (
@@ -101,7 +103,6 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
-	ateCIDR = "192.0.2.4/30"
 )
 
 // configureDUT configures all the interfaces on the DUT.
@@ -327,21 +328,21 @@ func configACL(d *telemetry.Device, name string) *telemetry.Acl_AclSet {
 	aclEntry10.SequenceId = ygot.Uint32(10)
 	aclEntry10.GetOrCreateActions().ForwardingAction = telemetry.Acl_FORWARDING_ACTION_DROP
 	tp10 := aclEntry10.GetOrCreateTransport()
-	tp10.DestinationPort, _ = tp10.To_Acl_AclSet_AclEntry_Transport_DestinationPort_Union(179)
+	tp10.DestinationPort = telemetry.UnionUint16(bgpPort)
 	a := aclEntry10.GetOrCreateIpv4()
 	a.SourceAddress = ygot.String(aclNullPrefix)
 	a.DestinationAddress = ygot.String(ateCIDR)
-	a.Protocol, _ = a.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
+	a.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_TCP
 
 	aclEntry20 := acl.GetOrCreateAclEntry(20)
 	aclEntry20.SequenceId = ygot.Uint32(20)
 	aclEntry20.GetOrCreateActions().ForwardingAction = telemetry.Acl_FORWARDING_ACTION_DROP
 	tp20 := aclEntry20.GetOrCreateTransport()
-	tp20.SourcePort, _ = tp20.To_Acl_AclSet_AclEntry_Transport_SourcePort_Union(179)
+	tp20.SourcePort = telemetry.UnionUint16(bgpPort)
 	a2 := aclEntry20.GetOrCreateIpv4()
 	a2.SourceAddress = ygot.String(ateCIDR)
 	a2.DestinationAddress = ygot.String(aclNullPrefix)
-	a2.Protocol, _ = a.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
+	a2.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_TCP
 
 	aclEntry30 := acl.GetOrCreateAclEntry(30)
 	aclEntry30.SequenceId = ygot.Uint32(30)
@@ -382,13 +383,14 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		configureDUT(t, dut)
 	})
 
-	t.Log("Configure Network Instance")
-	d := &telemetry.Device{}
-	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
-	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
-	ni.RouterId = ygot.String(dutDst.IPv4)
-	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Type().Replace(t, ni.Type)
-	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).RouterId().Replace(t, *ni.RouterId)
+	// Configure Network Instance on the DUT
+	// Configure BGP+Neighbors on the DUT
+	t.Run("configureNetworkInstance", func(t *testing.T) {
+		t.Log("Configure/update Network Instance")
+		dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+		dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		dutConfNIPath.RouterId().Replace(t, dutDst.IPv4)
+	})
 
 	// Configure BGP+Neighbors on the DUT
 	t.Run("configureBGP", func(t *testing.T) {
@@ -422,7 +424,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		verifyNoPacketLoss(t, ate, allFlows)
 	})
 	// Configure an ACL to block BGP
-	d = &telemetry.Device{}
+	d := &telemetry.Device{}
 	ifName := dut.Port(t, "port2").Name()
 	iFace := d.GetOrCreateAcl().GetOrCreateInterface(ifName)
 	t.Run("VerifyTrafficPasswithGRTimerWithAclApplied", func(t *testing.T) {
