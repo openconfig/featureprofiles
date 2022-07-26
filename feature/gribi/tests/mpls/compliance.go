@@ -283,5 +283,40 @@ func PopTopLabel(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, traf
 			trafficFunc(t, nil)
 		})
 	}
+}
+
+func PopNLabels(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, popLabels []uint32, trafficFunc) {
+	defer electionID.Inc()
+	defer flushServer(c, t)
+
+	c.Connection().
+		WithRedundancyMode(fluent.ElectedPrimaryClient).
+		WithInitialElectionID(electionID.Load(), 0)
+
+	ctx := context.Background()
+	c.Start(ctx, t)
+	defer c.Stop(t)
+
+	c.StartSending(ctx, t)
+
+	c.Modify().AddEntry(t,
+		fluent.NextHopEntry().
+			WithNetworkInstance(defaultNIName).
+			WithIndex(1).
+			WithIPAddress("192.0.2.2").
+			WithPoppedLabelStack(popLabels...))
+
+	c.Modify().AddEntry(t,
+		fluent.NextHopGroupEntry().
+			WithNetworkInstance(defaultNIName).
+			WithID(1).
+			AddNextHop(1,1))
+
+	c.Modify().AddEntry(t,
+		fluent.LabelEntry().
+			WithLabel(100).
+			WithNetworkInstance(defaultNIName).
+			WithNextHopGroup(1))
+
 
 }
