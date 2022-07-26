@@ -205,49 +205,39 @@ func PopTopLabel(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, traf
 	defer electionID.Inc()
 	defer flushServer(c, t)
 
-	c.Connection().
-		WithRedundancyMode(fluent.ElectedPrimaryClient).
-		WithInitialElectionID(electionID.Load(), 0)
+	ops := []func(){
+		func() {
+			c.Modify().AddEntry(t,
+				fluent.NextHopEntry().
+					WithNetworkInstance(defaultNIName).
+					WithIndex(1).
+					WithIPAddress("192.0.2.2").
+					WithPopTopLabel())
 
-	ctx := context.Background()
-	c.Start(ctx, t)
-	defer c.Stop(t)
+			c.Modify().AddEntry(t,
+				fluent.NextHopGroupEntry().
+					WithNetworkInstance(defaultNIName).
+					WithID(1).
+					AddNextHop(1, 1))
 
-	c.StartSending(ctx, t)
+			// Specify MPLS label that is pointed to our pop next-hop.
+			c.Modify().AddEntry(t,
+				fluent.LabelEntry().
+					WithLabel(100).
+					WithNetworkInstance(defaultNIName).
+					WithNextHopGroupNetworkInstance(defaultNIName).
+					WithNextHopGroup(1))
 
-	c.Modify().AddEntry(t,
-		fluent.NextHopEntry().
-			WithNetworkInstance(defaultNIName).
-			WithIndex(1).
-			WithIPAddress("192.0.2.2").
-			WithPopTopLabel())
+			// Specify IP prefix that is pointed to our pop next-hop.
+			c.Modify().AddEntry(t,
+				fluent.IPv4Entry().
+					WithPrefix("10.0.0.0/24").
+					WithNetworkInstance(defaultNIName).
+					WithNextHopGroup(1))
+		},
+	}
 
-	c.Modify().AddEntry(t,
-		fluent.NextHopGroupEntry().
-			WithNetworkInstance(defaultNIName).
-			WithID(1).
-			AddNextHop(1, 1))
-
-	// Specify MPLS label that is pointed to our pop next-hop.
-	c.Modify().AddEntry(t,
-		fluent.LabelEntry().
-			WithLabel(100).
-			WithNetworkInstance(defaultNIName).
-			WithNextHopGroupNetworkInstance(defaultNIName).
-			WithNextHopGroup(1))
-
-	// Specify IP prefix that is pointed to our pop next-hop.
-	c.Modify().AddEntry(t,
-		fluent.IPv4Entry().
-			WithPrefix("10.0.0.0/24").
-			WithNetworkInstance(defaultNIName).
-			WithNextHopGroup(1))
-
-	subctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	c.Await(subctx, t)
-
-	res := c.Results(t)
+	res := modify(context.Background(), t, c, ops)
 
 	chk.HasResult(t, res,
 		fluent.OperationResult().
