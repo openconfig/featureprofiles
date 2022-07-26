@@ -22,7 +22,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
-	"github.com/openconfig/ondatra/netutil/netutil"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra"
 )
 
