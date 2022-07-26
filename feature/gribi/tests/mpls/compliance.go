@@ -286,8 +286,7 @@ func PopNLabels(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, popLa
 				fluent.NextHopEntry().
 					WithNetworkInstance(defaultNIName).
 					WithIndex(1).
-					WithIPAddress("192.0.2.2").
-					WithPoppedLabelStack(popLabels...))
+					WithIPAddress("192.0.2.2"))
 
 			c.Modify().AddEntry(t,
 				fluent.NextHopGroupEntry().
@@ -298,6 +297,7 @@ func PopNLabels(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, popLa
 			c.Modify().AddEntry(t,
 				fluent.LabelEntry().
 					WithLabel(100).
+					WithPoppedLabelStack(popLabels...).
 					WithNetworkInstance(defaultNIName).
 					WithNextHopGroup(1))
 		},
@@ -307,7 +307,7 @@ func PopNLabels(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, popLa
 
 	chk.HasResult(t, res,
 		fluent.OperationResult().
-			WithLabelOperation(100).
+			WithMPLSOperation(100).
 			WithProgrammingResult(fluent.InstalledInRIB).
 			WithOperationType(constants.Add).
 			AsResult(),
@@ -373,7 +373,7 @@ func PopOnePushN(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, push
 
 	chk.HasResult(t, res,
 		fluent.OperationResult().
-			WithNextHopGroupOperatiobn(1).
+			WithNextHopGroupOperation(1).
 			WithProgrammingResult(fluent.InstalledInRIB).
 			WithOperationType(constants.Add).
 			AsResult(),
@@ -387,14 +387,14 @@ func PopOnePushN(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, push
 			AsResult(),
 		chk.IgnoreOperationID())
 
-	for _, label := range []uint32{100, 200} {
+	for _, label := range []uint64{100, 200} {
 		chk.HasResult(t, res,
 			fluent.OperationResult().
-				WithLabelOperation(label).
+				WithMPLSOperation(label).
 				WithProgrammingResult(fluent.InstalledInRIB).
 				WithOperationType(constants.Add).
 				AsResult(),
-			chk, IgnoreOperationID())
+			chk.IgnoreOperationID())
 	}
 
 	if trafficFunc != nil {
