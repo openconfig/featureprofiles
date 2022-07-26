@@ -22,6 +22,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
+	"github.com/openconfig/ondatra/netutil/netutil"
 	"github.com/openconfig/ondatra"
 )
 
@@ -63,7 +64,6 @@ func TestMain(m *testing.M) {
 //     - Echo reply contains echo reply source, RTT time, bytes received, packet sequence and ttl.
 //  - Verify ping summary stats in the response.
 //     - source: Source of received bytes. It is the source address of ping request.
-//     - time: Ping operation time.
 //     - sent: Total packets sent.
 //     - received: Total packets received.
 //     - min_time: Minimum round trip time in nanoseconds.
@@ -97,7 +97,8 @@ func TestMain(m *testing.M) {
 func TestGNOIPing(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	lo0 := dut.Telemetry().Interface("Loopback0").Subinterface(0)
+	lbIntf := netutil.LoopbackInterface(t, dut, 0)
+	lo0 := dut.Telemetry().Interface(lbIntf).Subinterface(0)
 	ipv4Addrs := lo0.Ipv4().AddressAny().Get(t)
 	ipv6Addrs := lo0.Ipv6().AddressAny().Get(t)
 	t.Logf("Got DUT %s IPv4 loopback address: %+v", dut.Name(), ipv4Addrs)
@@ -402,11 +403,6 @@ func TestGNOIPing(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Logf("Sent ping request: %v\n\n", tc.pingRequest)
 
-			// TODO: Remove t.Skipf() after DoNotResolve issue is supported.
-			if tc.pingRequest.DoNotResolve {
-				t.Skipf("do_not_resolve option is not supported due to known bug.")
-			}
-
 			pingClient, err := gnoiClient.System().Ping(context.Background(), tc.pingRequest)
 			if err != nil {
 				t.Fatalf("Failed to query gnoi endpoint: %v", err)
@@ -435,17 +431,21 @@ func TestGNOIPing(t *testing.T) {
 				if responses[i].Source != tc.expectedReply.Source {
 					t.Errorf("Ping reply source: got %v, want %v", responses[i].Source, tc.expectedReply.Source)
 				}
-				if responses[i].Time < tc.expectedReply.Time {
-					t.Errorf("Ping time: got %v, want >= %v", responses[i].Time, tc.expectedReply.Time)
-				}
-				if responses[i].Bytes < tc.expectedReply.Bytes {
-					t.Errorf("Ping Bytes: got %v, want >= %v", responses[i].Bytes, tc.expectedReply.Bytes)
-				}
-				if responses[i].Sequence < tc.expectedReply.Sequence {
-					t.Errorf("Ping time: got %v, want >= %v", responses[i].Sequence, tc.expectedReply.Sequence)
-				}
-				if responses[i].Ttl < tc.expectedReply.Ttl {
-					t.Errorf("Ping TTL: got %v, want >= %v", responses[i].Ttl, tc.expectedReply.Ttl)
+
+				if i < len(responses)-1 {
+					t.Logf("Check the following fields in echo response and skip them in summary stats.\n")
+					if responses[i].Time < tc.expectedReply.Time {
+						t.Errorf("Ping time: got %v, want >= %v", responses[i].Time, tc.expectedReply.Time)
+					}
+					if responses[i].Bytes < tc.expectedReply.Bytes {
+						t.Errorf("Ping Bytes: got %v, want >= %v", responses[i].Bytes, tc.expectedReply.Bytes)
+					}
+					if responses[i].Sequence < tc.expectedReply.Sequence {
+						t.Errorf("Ping time: got %v, want >= %v", responses[i].Sequence, tc.expectedReply.Sequence)
+					}
+					if responses[i].Ttl < tc.expectedReply.Ttl {
+						t.Errorf("Ping TTL: got %v, want >= %v", responses[i].Ttl, tc.expectedReply.Ttl)
+					}
 				}
 
 				if i == len(responses)-1 {
