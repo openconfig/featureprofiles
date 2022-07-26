@@ -104,23 +104,53 @@ func TestFwdingrp1(t *testing.T) {
 	// verify traffic
 }
 func TestDeleteOneQueue(t *testing.T) {
-	t.Skip()
+	// t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	var baseConfig *oc.Qos = setupQosEgress(t, dut, "base_config_interface_egress.json")
 	defer teardownQos(t, dut, baseConfig)
-	// test traffic
-	// verify transmit-pkts on default queue = 0
-	baseConfigQueue := baseConfig.Queue["tc1"]
 
-	t.Run("Delete the Queue with lowest priority", func(t *testing.T) {
-		config := dut.Config().Qos().Queue(*baseConfigQueue.Name)
-		if qs := config.Lookup(t); qs != nil {
-			t.Errorf("Delete fail: got %v", qs)
+	queuNameInput := "tc1"
+	baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
+	baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
+	baseConfigSchedulerPolicySchedulerInput := baseConfigSchedulerPolicyScheduler.Input[queuNameInput]
+	config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).Input(*baseConfigSchedulerPolicySchedulerInput.Id)
+
+	t.Run(fmt.Sprintf("Delete Queue %s", queuNameInput), func(t *testing.T) {
+		config.Delete(t)
+		// Lookup is not working after Delete - guess Nishant opened a bug for this
+		// if configGot := config.Lookup(t); configGot != nil {
+		// 	t.Errorf("Delete fail: got %+v", configGot)
+		// }
+	})
+	t.Run(fmt.Sprintf("Add back Queue %s", queuNameInput), func(t *testing.T) {
+		config.Update(t, baseConfigSchedulerPolicySchedulerInput)
+		configGot := config.Get(t)
+		if diff := cmp.Diff(configGot, baseConfigSchedulerPolicySchedulerInput); diff != "" {
+			t.Errorf("Get Config BaseConfig SchedulerPolicy Scheduler Input: %+v", diff)
 		}
 	})
-	// test traffic
-	// verify transmit-pkts on default queue > 0
+
+	// pull stats and verify
+	baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
+	t.Run(fmt.Sprintf("Get Interface Output Queue Telemetry %s %s", *baseConfigInterface.InterfaceId, queuNameInput), func(t *testing.T) {
+		got := dut.Telemetry().Qos().Interface(*baseConfigInterface.InterfaceId).Output().Queue(queuNameInput).Get(t)
+		t.Run("Verify Transmit-Octets", func(t *testing.T) {
+			if !(*got.TransmitOctets == 0) {
+				t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
+			}
+		})
+		t.Run("Verify Transmit-Packets", func(t *testing.T) {
+			if !(*got.TransmitPkts == 0) {
+				t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
+			}
+		})
+		t.Run("Verify Dropped-Packets", func(t *testing.T) {
+			if !(*got.DroppedPkts == 0) {
+				t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
+			}
+		})
+	})
 }
 
 // fine

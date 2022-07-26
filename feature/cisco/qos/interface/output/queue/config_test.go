@@ -23,11 +23,8 @@ func TestInterfaceOutputTelemetry(t *testing.T) {
 	// /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
 
 	dut := ondatra.DUT(t, "dut")
-	// dut.Config().Qos().Delete(t)
-	// var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface_egress1.json")
-	var baseConfig *oc.Qos = setup.BaseConfig("base_config_interface_egress1.json")
-	// defer deleteQueues(t, dut, baseConfig)
-	// defer teardownQos(t, dut, baseConfig)
+	var baseConfig *oc.Qos = setupQosEgress(t, dut, "base_config_interface_egress.json")
+	defer teardownQos(t, dut, baseConfig)
 
 	baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 	interfaceTelemetryPath := dut.Telemetry().Qos().Interface(*baseConfigInterface.InterfaceId)
