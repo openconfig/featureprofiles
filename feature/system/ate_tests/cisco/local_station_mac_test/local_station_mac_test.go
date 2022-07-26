@@ -290,7 +290,7 @@ func TestStationMacConfig(t *testing.T) {
 			modifyStationMac(ctx, t, dut, c.op, c.want)
 			got := getStationMacConfig(ctx, t, dut)
 			if diff := cmp.Diff(c.want, got, protocmp.Transform()); diff != "" {
-				t.Errorf("Error detected (-want +got):\n%s", diff)
+				t.Fatalf("Error detected (-want +got):\n%s", diff)
 			}
 		})
 	}
