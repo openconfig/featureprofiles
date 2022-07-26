@@ -201,6 +201,9 @@ func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, b
 	}
 }
 
+// PopTopLabel creates a test whereby the top label of an input packet is popped. The
+// next-hop specifying the pop is referenced by an IPv4Entry for the 10.0.0.0/24 prefix
+// and an MPLS label forwarding entry with outer label 100.
 func PopTopLabel(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, trafficFunc TrafficFunc) {
 	defer electionID.Inc()
 	defer flushServer(c, t)
