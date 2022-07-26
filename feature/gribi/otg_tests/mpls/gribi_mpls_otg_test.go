@@ -232,7 +232,7 @@ func TestMPLSPushToIP(t *testing.T) {
 	numLabels := 20
 	for i := 1; i <= numLabels; i++ {
 		t.Run(fmt.Sprintf("push %d labels to IP", i), func(t *testing.T) {
-			PushToIPPacket(t, c, defNIName, baseLabel, i, nil)
+			mplscompliance.PushToIPPacket(t, c, defNIName, baseLabel, i, nil)
 		})
 	}
 }
@@ -244,7 +244,7 @@ func TestPopTopLabelMPLSInner(t *testing.T) {
 	c.Connection().WithStub(gribic)
 
 	// TODO(robjs): define trafficFunc
-	PopTopLabel(t, c, defNIName, nil)
+	mplscompliance.PopTopLabel(t, c, defNIName, nil)
 }
 
 func TestPopTopLabelIPInner(t *testing.T) {
@@ -254,7 +254,7 @@ func TestPopTopLabelIPInner(t *testing.T) {
 	c.Connection().WithStub(gribic)
 
 	// TODO(robjs): define trafficFunc
-	PopTopLabel(t, c, defNIName, nil)
+	mplscompliance.PopTopLabel(t, c, defNIName, nil)
 }
 
 func TestPopNLabels(t *testing.T) {
@@ -267,7 +267,7 @@ func TestPopNLabels(t *testing.T) {
 		// TODO(robjs): define trafficFunc
 
 		t.Run(fmt.Sprintf("pop N labels, stack %v", stack), func(t *testing.T) {
-			PopNLabels(t, c, defNIName, stack, nil)
+			mplscompliance.PopNLabels(t, c, defNIName, stack, nil)
 		})
 	}
 }
@@ -286,7 +286,7 @@ func TestPopOnePushN(t *testing.T) {
 	for _, stack := range stacks {
 		// TODO(robjs): define trafficFunc
 		t.Run(fmt.Sprintf("pop one, push N, stack: %v", stack), func(t *testing.T) {
-			PopOnePushN(t, c, defNIName, stack, nil)
+			mplscompliance.PopOnePushN(t, c, defNIName, stack, nil)
 		})
 	}
 }
