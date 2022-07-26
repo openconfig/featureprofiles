@@ -22,7 +22,7 @@ func setupQosFull(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *
 	bc := setup.BaseConfig(baseConfigFile)
 
 	keys := make([]string, 0, len(bc.Queue))
-	for ke, _ := range bc.Queue {
+	for ke := range bc.Queue {
 		keys = append(keys, ke)
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(keys)))
@@ -53,7 +53,7 @@ func setupQosEgress(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string)
 	bc := setup.BaseConfig(baseConfigFile)
 
 	keys := make([]string, 0, len(bc.Queue))
-	for ke, _ := range bc.Queue {
+	for ke := range bc.Queue {
 		keys = append(keys, ke)
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(keys)))
@@ -74,7 +74,7 @@ func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
 	for attempt := 1; attempt <= 2; attempt++ {
 		err = testt.CaptureFatal(t, func(t testing.TB) {
 			dut.Config().Qos().Delete(t)
-			for queueName, _ := range baseConfig.Queue {
+			for queueName := range baseConfig.Queue {
 				dut.Config().Qos().Queue(queueName).Delete(t)
 			}
 		})

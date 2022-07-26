@@ -105,7 +105,7 @@ func TestDeleteAllClassMaps(t *testing.T) {
 	baseConfigClassifier := setup.GetAnyValue(baseConfig.Classifier)
 
 	t.Run(fmt.Sprintf("Delete class-maps one-by-one from %s", *baseConfigClassifier.Name), func(t *testing.T) {
-		for termId, _ := range baseConfigClassifier.Term {
+		for termId := range baseConfigClassifier.Term {
 			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(termId)
 			config.Delete(t)
 		}

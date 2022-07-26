@@ -23,7 +23,7 @@ func setupQos(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *oc.Q
 
 func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
 	dut.Config().Qos().Delete(t)
-	for queueName, _ := range baseConfig.Queue {
+	for queueName := range baseConfig.Queue {
 		dut.Config().Qos().Queue(queueName).Delete(t)
 	}
 }

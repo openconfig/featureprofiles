@@ -76,7 +76,7 @@ func TestDeleteLastClassMap(t *testing.T) {
 
 	termIds := func() []string {
 		var keys []string
-		for k, _ := range baseConfigClassifier.Term {
+		for k := range baseConfigClassifier.Term {
 			keys = append(keys, k)
 		}
 		return keys
@@ -185,7 +185,7 @@ func TestDeleteSharedQueues(t *testing.T) {
 	}
 
 	t.Run("Deleting Queues", func(t *testing.T) {
-		for qName, _ := range baseConfig.Queue {
+		for qName := range baseConfig.Queue {
 			config := dut.Config().Qos().Queue(qName)
 			config.Delete(t)
 			if qs := config.Get(t); qs != nil {

@@ -58,11 +58,11 @@ func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
 
 func init() {
 	testNameInterface = []interfaceScheduler{
-		interfaceScheduler{
+		{
 			interfaceId: "FourHundredGigE0/0/0/0",
 			policyName:  "eg_policy1111",
 		},
-		interfaceScheduler{
+		{
 			interfaceId: "FourHundredGigE0/0/0/1",
 			policyName:  "eg_policy2222",
 		},
