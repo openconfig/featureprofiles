@@ -360,7 +360,7 @@ func getStationMacConfig(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 
 	res, err := dut.RawAPIs().GNMI().Default(t).Get(ctx, r)
 	if err != nil {
-		t.Error("There is error when getting configuration: ", err)
+		t.Fatal("There is error when getting configuration: ", err)
 
 	}
 
