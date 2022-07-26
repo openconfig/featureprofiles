@@ -29,7 +29,6 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
 )
 
 const (
@@ -183,16 +182,9 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeigh
 			c.checkNHGResult(t, fluent.InstalledInFIB, constants.Add, nhgIndex)
 		}
 	}
+
 	if check.AFTCheck {
-		nhg := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndex).Get(t)
-		if *nhg.Id != nhgIndex {
-			t.Fatalf("AFT Check failed for aft/nexthopgroup/entry got id %d, want id %d", *nhg.Id, nhgIndex)
-		}
-		for nhIndex, weight := range nhWeights {
-			if nhg.GetNextHop(nhIndex).Weight != &weight {
-				t.Fatalf("AFT Check failed for aft/nexthopgroup/entry got nh:weight %d:%d, want id %d:%d", nhIndex, nhg.GetNextHop(nhIndex).Weight, nhgIndex, weight)
-			}
-		}
+		c.checkAftNHG(t, nhgIndex, bkhgIndex, instance, nhWeights)
 	}
 }
 
@@ -238,11 +230,9 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 			c.checkNHResult(t, fluent.InstalledInFIB, constants.Add, nhIndex)
 		}
 	}
+
 	if check.AFTCheck {
-		nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
-		if (*nh.Index != nhIndex) || (*nh.IpAddress != address) {
-			t.Fatalf("AFT Check failed for aft/nexthop-entry got ip %s, want ip %s; got index %d , want index %d", *nh.IpAddress, address, *nh.Index, nhIndex)
-		}
+		c.checkAftNH(t, nhIndex, address, instance, nhInstance, interfaceRef)
 	}
 }
 
@@ -267,9 +257,7 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 		}
 	}
 	if check.AFTCheck {
-		if got, want := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Prefix().Get(t), prefix; got != want {
-			t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", got, want)
-		}
+		c.checkAftIPv4(t, prefix, nhgIndex, instance, nhgInstance)
 	}
 }
 
@@ -301,6 +289,11 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 			}
 		}
 	}
+	if check.AFTCheck {
+		for _, prefix := range prefixes {
+			c.checkAftIPv4(t, prefix, nhgIndex, instance, nhgInstance)
+		}
+	}
 }
 
 // ReplaceNHG replaces a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
@@ -327,15 +320,7 @@ func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhW
 	}
 
 	if check.AFTCheck {
-		nhg := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndex).Get(t)
-		if *nhg.Id != nhgIndex {
-			t.Fatalf("AFT Check failed for aft/nexthopgroup/entry got id %d, want id %d", *nhg.Id, nhgIndex)
-		}
-		for nhIndex, weight := range nhWeights {
-			if nhg.GetNextHop(nhIndex).Weight != &weight {
-				t.Fatalf("AFT Check failed for aft/nexthopgroup/entry got nh:weight %d:%d, want id %d:%d", nhIndex, nhg.GetNextHop(nhIndex).Weight, nhgIndex, weight)
-			}
-		}
+		c.checkAftNHG(t, nhgIndex, bkhgIndex, instance, nhWeights)
 	}
 }
 
@@ -369,11 +354,9 @@ func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance strin
 			c.checkNHResult(t, fluent.InstalledInFIB, constants.Replace, nhIndex)
 		}
 	}
+
 	if check.AFTCheck {
-		nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
-		if (*nh.Index != nhIndex) || (*nh.IpAddress != address) {
-			t.Fatalf("AFT Check failed for aft/nexthop-entry got ip %s, want ip %s; got index %d , want index %d", *nh.IpAddress, address, *nh.Index, nhIndex)
-		}
+		c.checkAftNH(t, nhIndex, address, instance, nhInstance, interfaceRef)
 	}
 }
 
@@ -412,9 +395,7 @@ func (c *Client) ReplaceIPv4(t testing.TB, prefix string, nhgIndex uint64, insta
 	}
 
 	if check.AFTCheck {
-		if got, want := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Prefix().Get(t), prefix; got != want {
-			t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", got, want)
-		}
+		c.checkAftIPv4(t, prefix, nhgIndex, instance, nhgInstance)
 	}
 }
 
@@ -446,6 +427,12 @@ func (c *Client) ReplaceIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint
 			}
 		}
 	}
+
+	if check.AFTCheck {
+		for _, prefix := range prefixes {
+			c.checkAftIPv4(t, prefix, nhgIndex, instance, nhgInstance)
+		}
+	}
 }
 
 // DeleteNHG deletes a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
@@ -473,10 +460,10 @@ func (c *Client) DeleteNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWe
 		}
 	}
 	if check.AFTCheck {
-		nhg := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndex).Get(t)
-		if *nhg.Id != nhgIndex {
-			t.Fatalf("AFT Check failed for aft/nexthopgroup/entry got id %d, want id %d", *nhg.Id, nhgIndex)
-		}
+		// nhg := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndex).Get(t)
+		// if *nhg.Id != nhgIndex {
+		// 	t.Fatalf("AFT Check failed for aft/nexthopgroup/entry got id %d, want id %d", *nhg.Id, nhgIndex)
+		// }
 	}
 }
 
@@ -510,10 +497,10 @@ func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string
 		}
 	}
 	if check.AFTCheck {
-		nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
-		if *nh.Index != nhIndex {
-			t.Fatalf("AFT Check failed for aft/nexthop-entry got index %d , want index %d", *nh.Index, nhIndex)
-		}
+		// nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
+		// if *nh.Index != nhIndex {
+		// 	t.Fatalf("AFT Check failed for aft/nexthop-entry got index %d , want index %d", *nh.Index, nhIndex)
+		// }
 	}
 }
 
@@ -538,9 +525,9 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, nhgIndex uint64, instan
 		}
 	}
 	if check.AFTCheck {
-		if got, want := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Prefix().Get(t), prefix; got != want {
-			t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", got, want)
-		}
+		// if got, want := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Prefix().Get(t), prefix; got != want {
+		// 	t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", got, want)
+		// }
 	}
 }
 
@@ -585,54 +572,86 @@ func (c *Client) FlushServer(t testing.TB) {
 	}
 }
 
-func (c *Client) checkAFTNHG(t testing.TB, aftNHG *telemetry.NetworkInstance_Afts_NextHopGroup, instance string, prefix string, want string) {
-	if got := len(aftNHG.NextHop); got != 1 {
-		t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", prefix, got)
-	}
-
-	for i := range aftNHG.NextHop {
-		aftNH := c.DUT.Telemetry().NetworkInstance(instance).
-			Afts().NextHop(i).Get(t)
-		if got := aftNH.GetIpAddress(); got != want {
-			t.Fatalf("Prefix %s next-hop IP: got %s, want %s", prefix, got, want)
+func (c *Client) checkAftNH(t testing.TB, nhIndex uint64, address, instance, nhInstance, interfaceRef string) {
+	t.Helper()
+	aftNHs := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopAny().Get(t)
+	found := false
+	for _, nh := range aftNHs {
+		if nh.GetProgrammedIndex() == nhIndex {
+			if nh.GetIpAddress() != address {
+				t.Fatalf("AFT Check failed for aft/next-hop/state/ip-address got %s, want %s", nh.GetIpAddress(), address)
+			}
+			if nh.GetNetworkInstance() != nhInstance {
+				t.Fatalf("AFT Check failed for aft/next-hop/state/network-instance got %s, want %s", nh.GetNetworkInstance(), nhInstance)
+			}
+			if iref := nh.GetInterfaceRef(); iref != nil {
+				if iref.GetInterface() != interfaceRef {
+					t.Fatalf("AFT Check failed for aft/next-hop/interface-ref/state/interface got %s, want %s", iref.GetInterface(), interfaceRef)
+				}
+			} else if interfaceRef != "" {
+				t.Fatalf("AFT Check failed for aft/next-hop/interface-ref got none, want interface ref %s", interfaceRef)
+			}
+			found = true
+			break
 		}
 	}
+	if !found {
+		t.Fatalf("AFT Check failed for aft/next-hop/state/programmed-index got none want %d", nhIndex)
+	}
 }
 
-func (c *Client) CheckAFTIPv4(t testing.TB, instance string, prefix string, want string) {
+func (c *Client) checkAftNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance string, nhWeights map[uint64]uint64) {
+	t.Helper()
+	aftNHGs := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroupAny().Get(t)
+	found := false
+	for _, nhg := range aftNHGs {
+		if nhg.GetProgrammedId() == nhgIndex {
+			if nhg.GetBackupNextHopGroup() != bkhgIndex {
+				t.Fatalf("AFT Check failed for aft/next-hop-group/state/backup-next-hop-group got %d, want %d", nhg.GetBackupNextHopGroup(), bkhgIndex)
+			}
+
+			for nhIndex, nh := range nhg.NextHop {
+				// can be avoided by caching indices in client 'c'
+				nhPIndex := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).ProgrammedIndex().Get(t)
+
+				if weight, ok := nhWeights[nhPIndex]; ok {
+					if weight != nh.GetWeight() {
+						t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got nh:weight %d:%d, want nh:weight %d:%d", nhPIndex, nh.GetWeight(), nhPIndex, weight)
+					}
+					delete(nhWeights, nhPIndex)
+				} else {
+					// extra entry in NHG
+					t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got nh:weight %d:%d, want none", nhPIndex, nh.GetWeight())
+				}
+			}
+
+			for nhIndex, weight := range nhWeights {
+				// extra entry in nhWeights
+				t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got none, want nh:weight %d:%d", nhIndex, weight)
+			}
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("AFT Check failed for aft/next-hop-group/state/programmed-id got none, want %d", nhgIndex)
+	}
+}
+
+func (c *Client) checkAftIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string) {
+	t.Helper()
 	aftIPv4e := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Get(t)
-	aftNHG := c.DUT.Telemetry().NetworkInstance(aftIPv4e.GetNextHopGroupNetworkInstance()).
-		Afts().NextHopGroup(aftIPv4e.GetNextHopGroup()).Get(t)
-	c.checkAFTNHG(t, aftNHG, aftIPv4e.GetNextHopGroupNetworkInstance(), prefix, want)
+	if aftIPv4e.GetPrefix() != prefix {
+		t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", aftIPv4e.GetPrefix(), prefix)
+	}
+	gotNhgInstance := aftIPv4e.GetNextHopGroupNetworkInstance()
+	if gotNhgInstance != nhgInstance {
+		t.Fatalf("AFT Check failed for ipv4-entry/state/next-hope-group-network-instance got %s, want %s", gotNhgInstance, nhgInstance)
+	}
+
+	gotNhgIndex := aftIPv4e.GetNextHopGroup()
+	nhgPId := c.DUT.Telemetry().NetworkInstance(gotNhgInstance).Afts().NextHopGroup(gotNhgIndex).ProgrammedId().Get(t)
+	if nhgPId != nhgIndex {
+		t.Fatalf("AFT Check failed for ipv4-entry/state/next-hope-group/state/programmed-id got %d, want %d", nhgPId, nhgIndex)
+	}
 }
-
-func (c *Client) CheckAFTIPv6(t testing.TB, instance string, prefix string, want string) {
-	aftIPv6e := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv6Entry(prefix).Get(t)
-	aftNHG := c.DUT.Telemetry().NetworkInstance(aftIPv6e.GetNextHopGroupNetworkInstance()).
-		Afts().NextHopGroup(aftIPv6e.GetNextHopGroup()).Get(t)
-	c.checkAFTNHG(t, aftNHG, aftIPv6e.GetNextHopGroupNetworkInstance(), prefix, want)
-}
-
-// func (c *Client) CheckAFT(t testing.TB, instance string, nhgInstance string, nextHops map[string]string) {
-// 	aft := c.DUT.Telemetry().NetworkInstance(instance).Afts().Get(t)
-// 	for k, ipv4e := range aft.Ipv4Entry {
-// 		if want, ok := nextHops[k]; ok {
-// 			aftNHG := c.DUT.Telemetry().NetworkInstance(nhgInstance).Afts().NextHopGroup(ipv4e.GetNextHopGroup()).Get(t)
-// 			if got := len(aftNHG.NextHop); got != 1 {
-// 				t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", k, got)
-// 			}
-
-// 			for i := range aftNHG.NextHop {
-// 				aftNH := c.DUT.Telemetry().NetworkInstance(nhgInstance).Afts().NextHop(i).Get(t)
-// 				if got := aftNH.GetIpAddress(); got != want {
-// 					t.Fatalf("Prefix %s next-hop IP: got %s, want %s", k, got, want)
-// 				}
-// 			}
-// 			delete(nextHops, k)
-// 		}
-// 	}
-
-// 	for k := range nextHops {
-// 		t.Fatalf("No IPV4 entry with prefix %s", k)
-// 	}
-// }
