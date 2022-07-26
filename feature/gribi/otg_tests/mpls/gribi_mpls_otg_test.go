@@ -73,12 +73,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// TODO(robjs):  Test cases to write:
-//	* push(N) labels, N = 1-20.
-//	* pop(1) - terminating action
-//	* pop(1) + push(N)
-//	* pop(all) + push(N)
-
 // dutIntf generates the configuration for an interface on the DUT in OpenConfig.
 // It returns the generated configuration, or an error if the config could not be
 // generated.
@@ -128,16 +122,12 @@ func configureATEInterfaces(t *testing.T, ate *ondatra.ATEDevice, srcATE, srcDUT
 	return topology, nil
 }
 
-// TestMPLSLabelPushDepth validates the gRIBI actions that are used to push N labels onto
-// as part of routing towards a next-hop. Note that this test does not validate against the
-// dataplane, but solely the gRIBI control-plane support.
-func TestMPLSLabelPushDepth(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	// update our interface specifications with the allocated ports.
+// pushBaseConfigs pushes the base configuration to the ATE and DUT devices in
+// the test topology.
+func pushBaseConfigs(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) gosnappi.Config {
 	dutSrc.Name = dut.Port(t, "port1").Name()
 	dutDst.Name = dut.Port(t, "port2").Name()
 
-	ate := ondatra.ATE(t, "ate")
 	testTopo, err := configureATEInterfaces(t, ate, ateSrc, dutSrc, ateDst, dutDst)
 	if err != nil {
 		t.Fatalf("cannot configure ATE interfaces via OTG, %v", err)
@@ -152,7 +142,16 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		dut.Config().Interface(i.Name).Replace(t, cfg)
 	}
 
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	return testTopo
+}
+
+// TestMPLSLabelPushDepth validates the gRIBI actions that are used to push N labels onto
+// as part of routing towards a next-hop. Note that this test does not validate against the
+// dataplane, but solely the gRIBI control-plane support.
+func TestMPLSLabelPushDepth(t *testing.T) {
+	otgCfg := pushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+
+	gribic := ondatra.DUT(t, "dut").RawAPIs().GRIBI().Default(t)
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
 
@@ -168,7 +167,7 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		// received label stack is as we expected.
 
 		// wait for ARP to resolve.
-		otg := ate.OTG()
+		otg := ondatra.ATE("ate").OTG()
 		otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
 			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
 				return val.IsPresent()
@@ -177,7 +176,7 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		dstMAC := otg.Telemetry().Interface(fmt.Sprintf("%s_ETH", ateSrc.Name)).Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().Get(t)
 
 		// Remove any stale flows.
-		testTopo.Flows().Clear().Items()
+		otgCfg.Flows().Clear().Items()
 		mplsFlow := testTopo.Flows().Add().SetName("MPLS_FLOW")
 		mplsFlow.Metrics().SetEnable(true)
 		mplsFlow.TxRx().Port().SetTxName(ateSrc.Name).SetRxName(ateDst.Name)
@@ -201,12 +200,93 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		otg.StopTraffic(t)
 
 		otgutils.LogPortMetrics(t, otg, testTopo)
+
+		// TODO(robjs): validate traffic counters and received headers.
 	}
 
 	baseLabel := 42
 	for i := 1; i <= maximumStackDepth; i++ {
 		t.Run(fmt.Sprintf("push %d labels", i), func(t *testing.T) {
 			mplscompliance.EgressLabelStack(t, c, defNIName, baseLabel, i, testMPLSFlow)
+		})
+	}
+}
+
+// TestMPLSPushToIP - inject IP flow from OTG, packet capture to validate that MPLS label stack was applied
+//		      as expected.
+// TestPopTopLabel - inject MPLS flow with multiple labels and validate that top-most label was removed.
+//		   - inject MPLS flow with 1 label, and validate IP packet was exposed.
+// TestPopNLabels  - inject MPLS flow with multiple labels and validate that the popped labels were removed.
+// TestPopOnePushN - inject MPLS flow with multiple labels, and validate that one label was popped and N were pushed.
+//		   - inject MPLS flow with 1 label, and validate that one label was popped and N were pushed.
+
+func TestMPLSPushToIP(t *testing.T) {
+	otgCfg := pushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+	gribic := ondatra.DUT(t, "dut").RawAPIs().GRIBI().Default(t)
+	c := fluent.NewClient()
+	c.Connection().WithStub(gribic)
+
+	// TODO(robjs): define trafficFunc
+
+	baseLabel := 42
+	numLabels := 20
+	for i := 1; i <= numLabels; i++ {
+		t.Run(fmt.Sprintf("push %d labels to IP", i), func(t *testing.T) {
+			PushToIPPacket(t, c, defNIName, baseLabel, i, nil)
+		})
+	}
+}
+
+func TestPopTopLabelMPLSInner(t *testing.T) {
+	otgCfg := pushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+	gribic := ondatra.DUT(t, "dut").RawAPIs().GRIBI().Default(t)
+	c := fluent.NewClient()
+	c.Connection().WithStub(gribic)
+
+	// TODO(robjs): define trafficFunc
+	PopTopLabel(t, c, defNIName, nil)
+}
+
+func TestPopTopLabelIPInner(t *testing.T) {
+	otgCfg := pushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+	gribic := ondatra.DUT(t, "dut").RawAPIs().GRIBI().Default(t)
+	c := fluent.NewClient()
+	c.Connection().WithStub(gribic)
+
+	// TODO(robjs): define trafficFunc
+	PopTopLabel(t, c, defNIName, nil)
+}
+
+func TestPopNLabels(t *testing.T) {
+	otgCfg := pushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+	gribic := ondatra.DUT(t, "dut").RawAPIs().GRIBI().Default(t)
+	c := fluent.NewClient()
+	c.Connection().WithStub(gribic)
+
+	for _, stack := range [][]uint32{{100}, {100, 42}, {100, 42, 43, 44, 45}} {
+		// TODO(robjs): define trafficFunc
+
+		t.Run(fmt.Sprintf("pop N labels, stack %v", stack), func(t *testing.T) {
+			PopNLabels(t, c, defNIName, stack, nil)
+		})
+	}
+}
+
+func TestPopOnePushN(t *testing.T) {
+	otgCfg := pushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+	gribic := ondatra.DUT(t, "dut").RawAPIs().GRIBI().Default(t)
+	c := fluent.NewClient()
+	c.Connection().WithStub(gribic)
+
+	stacks := [][]uint32{
+		{100}, // swap for label 100, pop+push for label 200
+		{100, 200, 300, 400},
+		{100, 200, 300, 400, 500, 600},
+	}
+	for _, stack := range stacks {
+		// TODO(robjs): define trafficFunc
+		t.Run(fmt.Sprintf("pop one, push N, stack: %v", stack), func(t *testing.T) {
+			PopOnePushN(t, c, defNIName, stack, nil)
 		})
 	}
 }
