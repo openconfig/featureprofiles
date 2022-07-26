@@ -111,7 +111,6 @@ var (
 // of peer.  Note that peermac is used for static ARP, and not
 // peer.MAC.
 func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peermac string) *telemetry.Interface {
-	deviations.InterfaceEnabled = ygot.Bool(true)
 	i.Description = ygot.String(me.Desc)
 	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
@@ -153,14 +152,16 @@ func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peer
 func configureDUT(t *testing.T, peermac string) {
 	dut := ondatra.DUT(t, "dut")
 	d := dut.Config()
+
 	p1 := dut.Port(t, "port1")
-	p2 := dut.Port(t, "port2")
 	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
 	if peermac == "" {
 		d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
 	}
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
+	p2 := dut.Port(t, "port2")
+	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
+	d.Interface(p2.Name()).Replace(t,
+		configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
 }
 
 func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
@@ -179,12 +180,12 @@ func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
 		SetPortName(srcPort.Name()).
 		SetMac(ateSrc.MAC)
 	srcEth.Ipv4Addresses().Add().
-		SetName(ateSrc.Name + ".ipv4").
+		SetName(ateSrc.Name + ".IPv4").
 		SetAddress(ateSrc.IPv4).
 		SetGateway(dutSrc.IPv4).
 		SetPrefix(int32(ateSrc.IPv4Len))
 	srcEth.Ipv6Addresses().Add().
-		SetName(ateSrc.Name + ".ipv6").
+		SetName(ateSrc.Name + ".IPv6").
 		SetAddress(ateSrc.IPv6).
 		SetGateway(dutSrc.IPv6).
 		SetPrefix(int32(ateSrc.IPv6Len))
@@ -195,12 +196,12 @@ func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
 		SetPortName(dstPort.Name()).
 		SetMac(ateDst.MAC)
 	dstEth.Ipv4Addresses().Add().
-		SetName(ateDst.Name + ".ipv4").
+		SetName(ateDst.Name + ".IPv4").
 		SetAddress(ateDst.IPv4).
 		SetGateway(dutDst.IPv4).
 		SetPrefix(int32(ateDst.IPv4Len))
 	dstEth.Ipv6Addresses().Add().
-		SetName(ateDst.Name + ".ipv6").
+		SetName(ateDst.Name + ".IPv6").
 		SetAddress(ateDst.IPv6).
 		SetGateway(dutDst.IPv6).
 		SetPrefix(int32(ateDst.IPv6Len))
@@ -234,23 +235,23 @@ func checkArpEntry(t *testing.T, ipType string, poisoned bool) {
 	}
 }
 
-func waitOtgArpEntry(t *testing.T, ipType string) {
+func waitOTGARPEntry(t *testing.T, ipType string) {
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
 
 	switch ipType {
 	case "IPv4":
-		otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
-			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+		otg.Telemetry().InterfaceAny().Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().Watch(
+			t, 10*time.Second, func(val *otgtelemetry.QualifiedString) bool {
 				return val.IsPresent()
 			}).Await(t)
 	case "IPv6":
-		otg.Telemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Watch(
-			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+		otg.Telemetry().InterfaceAny().Ipv6Neighbor(dutSrc.IPv6).LinkLayerAddress().Watch(
+			t, 10*time.Second, func(val *otgtelemetry.QualifiedString) bool {
 				return val.IsPresent()
 			}).Await(t)
-
 	}
+
 }
 
 func testFlow(
@@ -277,11 +278,11 @@ func testFlow(
 	config.Flows().Clear().Items()
 	switch ipType {
 	case "IPv4":
-		flowipv4 := config.Flows().Add().SetName("FlowIpv4")
+		flowipv4 := config.Flows().Add().SetName("FlowIPv4")
 		flowipv4.Metrics().SetEnable(true)
 		flowipv4.TxRx().Device().
-			SetTxNames([]string{i1 + ".ipv4"}).
-			SetRxNames([]string{i2 + ".ipv4"})
+			SetTxNames([]string{i1 + ".IPv4"}).
+			SetRxNames([]string{i2 + ".IPv4"})
 		flowipv4.Duration().SetChoice("fixed_packets")
 		flowipv4.Duration().FixedPackets().SetPackets(1000)
 		flowipv4.Size().SetFixed(100)
@@ -291,14 +292,13 @@ func testFlow(
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
 		otg.PushConfig(t, config)
-		waitOtgArpEntry(t, "IPv4")
-		waitOtgArpEntry(t, "IPv4")
+		waitOTGARPEntry(t, "IPv4")
 	case "IPv6":
-		flowipv6 := config.Flows().Add().SetName("FlowIpv6")
+		flowipv6 := config.Flows().Add().SetName("FlowIPv6")
 		flowipv6.Metrics().SetEnable(true)
 		flowipv6.TxRx().Device().
-			SetTxNames([]string{i1 + ".ipv6"}).
-			SetRxNames([]string{i2 + ".ipv6"})
+			SetTxNames([]string{i1 + ".IPv6"}).
+			SetRxNames([]string{i2 + ".IPv6"})
 		flowipv6.Duration().SetChoice("fixed_packets")
 		flowipv6.Duration().FixedPackets().SetPackets(1000)
 		flowipv6.Size().SetFixed(100)
@@ -308,8 +308,7 @@ func testFlow(
 		v4.Src().SetValue(ateSrc.IPv6)
 		v4.Dst().SetValue(ateDst.IPv6)
 		otg.PushConfig(t, config)
-		waitOtgArpEntry(t, "IPv6")
-		waitOtgArpEntry(t, "IPv6")
+		waitOTGARPEntry(t, "IPv6")
 	}
 
 	// Starting the traffic
