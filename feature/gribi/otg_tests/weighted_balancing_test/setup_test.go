@@ -304,7 +304,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
-	waitOtgArpEntry(t)
+	waitOTGARPEntry(t)
 	dstMac := ate.OTG().Telemetry().Interface(ateSrcPort + ".eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
 	config.Flows().Clear().Items()
 	flow := config.Flows().Add().SetName("flow")
@@ -444,7 +444,7 @@ func incrementedMac(mac string, i int) (string, error) {
 }
 
 // waitOtgArpEntry ensures that ARP entries are present on otg interfaces and traffic could be started
-func waitOtgArpEntry(t *testing.T) {
+func waitOTGARPEntry(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ate.OTG().Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
 		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
