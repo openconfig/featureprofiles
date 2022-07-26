@@ -19,9 +19,10 @@ func TestMain(m *testing.M) {
 }
 
 func TestInterfaceIdAtContainer(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface_ingress.json")
+	var baseConfig *oc.Qos = setupQosIngress(t, dut, "base_config_interface_ingress.json")
 	defer teardownQos(t, dut, baseConfig)
 
 	for _, input := range testInterfaceIdInput {
@@ -46,9 +47,10 @@ func TestInterfaceIdAtContainer(t *testing.T) {
 }
 
 func TestDeleteClassifier(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface_ingress.json")
+	var baseConfig *oc.Qos = setupQosIngress(t, dut, "base_config_interface_ingress.json")
 	defer teardownQos(t, dut, baseConfig)
 
 	baseConfigClassifier := setup.GetAnyValue(baseConfig.Classifier)
@@ -64,9 +66,10 @@ func TestDeleteClassifier(t *testing.T) {
 }
 
 func TestDeleteLastClassMap(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface_ingress.json")
+	var baseConfig *oc.Qos = setupQosIngress(t, dut, "base_config_interface_ingress.json")
 	defer teardownQos(t, dut, baseConfig)
 
 	baseConfigClassifier := setup.GetAnyValue(baseConfig.Classifier)
@@ -96,7 +99,7 @@ func TestFwdingrp1(t *testing.T) {
 	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	// set traffic
-	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_fwdingrp1.json")
+	var baseConfig *oc.Qos = setupQosFull(t, dut, "base_config_interface_full.json")
 	defer teardownQos(t, dut, baseConfig)
 	// verify traffic
 }
@@ -119,16 +122,17 @@ func TestDeleteOneQueue(t *testing.T) {
 	// test traffic
 	// verify transmit-pkts on default queue > 0
 }
+
+// fine
 func TestDeleteClassifierScheduler(t *testing.T) {
 	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfigIngress *oc.Qos = setupQosIngress(t, dut, "base_config_interface_ingress.json")
-	var baseConfigEgress *oc.Qos = setupQosEgress(t, dut, "base_config_interface_egress.json")
-	defer dut.Config().Qos().Delete(t)
+	var baseConfig *oc.Qos = setupQosFull(t, dut, "base_config_interface_full.json")
+	defer teardownQos(t, dut, baseConfig)
 
-	baseConfigClassifier := setup.GetAnyValue(baseConfigIngress.Classifier)
-	baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfigEgress.SchedulerPolicy)
+	baseConfigClassifier := setup.GetAnyValue(baseConfig.Classifier)
+	baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 
 	t.Run("Delete a Classifier Policy attached to an interface", func(t *testing.T) {
 		if got := testt.ExpectFatal(t, func(t testing.TB) {
@@ -150,6 +154,7 @@ func TestDeleteClassifierScheduler(t *testing.T) {
 	// testTraffic func might work
 }
 
+// If delete should fail, fine.
 func TestDeleteSharedQueues(t *testing.T) {
 	t.Skip()
 	dut := ondatra.DUT(t, "dut")
@@ -189,6 +194,8 @@ func TestDeleteSharedQueues(t *testing.T) {
 		}
 	})
 }
+
+// fine
 func TestDetachSchedulerPolicy(t *testing.T) {
 	t.Skip()
 	dut := ondatra.DUT(t, "dut")
