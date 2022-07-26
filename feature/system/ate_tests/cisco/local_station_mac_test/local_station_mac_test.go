@@ -91,9 +91,7 @@ func TestMain(m *testing.M) {
 func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peermac string) *telemetry.Interface {
 	i.Description = ygot.String(me.Desc)
 	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
-		i.Enabled = ygot.Bool(true)
-	}
+	i.Enabled = ygot.Bool(true)
 
 	if me.MAC != "" {
 		e := i.GetOrCreateEthernet()
