@@ -102,9 +102,9 @@ func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peer
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	// if *deviations.InterfaceEnabled {
-	// 	s4.Enabled = ygot.Bool(true)
-	// }
+	if *deviations.InterfaceEnabled {
+		s4.Enabled = ygot.Bool(true)
+	}
 	a := s4.GetOrCreateAddress(me.IPv4)
 	a.PrefixLength = ygot.Uint8(plen4)
 
