@@ -63,7 +63,7 @@ func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDev
 }
 
 func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
-        dscpList := []uint8{1, 9, 17, 25,33,41,49,57}
+        dscpList := []uint8{1, 9, 17, 25,33,41,49}
         ondatraFlowList := []*ondatra.Flow{}
         for _, dscp := range dscpList {
 
@@ -135,7 +135,7 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 
         }
         func testTrafficqos(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, dstEndPoint *ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
-        dscpList := []uint8{1, 9, 17, 25,33,41,49,57}
+        dscpList := []uint8{1, 9, 17, 25,33,41,49}
         ondatraFlowList := []*ondatra.Flow{}
         for _, dscp := range dscpList {
 

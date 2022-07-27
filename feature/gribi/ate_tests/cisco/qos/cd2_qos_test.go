@@ -7,7 +7,7 @@ import (
         "time"
         "github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/internal/attrs"
-        "github.com/openconfig/featureprofiles/internal/cisco/config"
+        //"github.com/openconfig/featureprofiles/internal/cisco/config"
         //"github.com/openconfig/ondatra"
 	"github.com/openconfig/gribigo/fluent"
 	oc "github.com/openconfig/ondatra/telemetry"
@@ -181,6 +181,9 @@ func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testAr
         //println(baseConfig)
         var baseConfigEgress *oc.Qos = setupQosEgress(t, args.dut)
         println(baseConfigEgress)
+        var baseConfig *oc.Qos = setupQos(t,args.dut)
+        println(baseConfig)
+        time.Sleep(2*time.Minute)
 
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
@@ -188,32 +191,32 @@ func testDoubleRecursionWithUCMP(ctx context.Context, t *testing.T, args *testAr
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-        cfg := 
-`interface Bundle-Ether122
-shutdown
-!
-interface Bundle-Ether123
-shutdown
-!         
-interface Bundle-Ether124
-shutdown 
-!         
-interface Bundle-Ether125
-shutdown 
-!  
-interface Bundle-Ether126
-shutdown
-!
+        //cfg := 
+//`interface Bundle-Ether122
+//shutdown
+//!
+//interface Bundle-Ether123
+//shutdown
+//!         
+//interface Bundle-Ether124
+//shutdown 
+//!         
+//interface Bundle-Ether125
+//shutdown 
+//!  
+//interface Bundle-Ether126
+//shutdown
+//!
       
-`
-        config.TextWithGNMI(context.Background(), t, args.dut, cfg )
-        time.Sleep(time.Minute)
+//`
+ //       config.TextWithGNMI(context.Background(), t, args.dut, cfg )
+  //      time.Sleep(time.Minute)
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-        dstEndPoint := args.top.Interfaces()[atePort2.Name]
+        //dstEndPoint := args.top.Interfaces()[atePort2.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTrafficqos(t, true, args.ate, args.top, srcEndPoint, dstEndPoint , args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces() , args.prefix.scale, args.prefix.host, args, 0, weights...)
         
 
         outpackets:= []uint64{}
@@ -225,7 +228,9 @@ shutdown
                            inpackets = append(inpackets,*s.InPkts)
             }
        outpupacket:= outpackets[0]
-       inpacket:= inpackets[0]
+       fmt.Printf("*********************oupackets is %+v",outpackets)
+       fmt.Printf("*********************inputpackets is %+v", inpackets)
+       //time.Sleep(2*time.Minute)
        baseConfigTele := setupQosTele(t, args.dut)
        baseConfigInterface := setup.GetAnyValue(baseConfigTele.Interface)
        interfaceTelemetryPath := args.dut.Telemetry().Qos().Interface("Bundle-Ether120")
@@ -243,18 +248,38 @@ shutdown
                         }
                 }
 			})
-        EgressInterface := "Bundle-Ether121"
-			interfaceTelemetryEgrPath := args.dut.Telemetry().Qos().Interface("Bundle-Ether121")
-			t.Run(fmt.Sprintf("Get Interface Telemetry %s",EgressInterface ), func(t *testing.T) {
-				gote:= interfaceTelemetryEgrPath.Get(t)
-				for queueName, queue := range gote.Output.Queue {
-					t.Run(fmt.Sprintf("Verify Transmit-Packets of %s", queueName), func(t *testing.T) {
-						if !(*queue.TransmitPkts >= inpacket) {
-								t.Errorf("Get Interface Telemetry fail: got %+v", *gote) 
-						}
-					})
-				}
-			})
+       interfaceList := []string{}
+	for i := 121; i < 128; i++ {
+		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
+	}
+	queuestats := make(map[string]uint64)
+	ixiastats := make(map[string]uint64)
+	queueNames := []string{}
+        for _, EgressInterface := range interfaceList {
+		interfaceTelemetryEgrPath := args.dut.Telemetry().Qos().Interface(EgressInterface)
+		t.Run(fmt.Sprintf("Get Interface Telemetry %s", EgressInterface), func(t *testing.T) {
+			gote := interfaceTelemetryEgrPath.Get(t)
+			for queueName, queue := range gote.Output.Queue {
+				queuestats[queueName] += *queue.TransmitPkts
+
+				queueNames = append(queueNames, queueName)
+
+			}
+		})
+	}
+        for index, inPkt := range inpackets {
+		ixiastats[queueNames[index]] = inPkt
+	}
+        fmt.Printf("queuestats is %+v",queuestats)
+        fmt.Printf("ixiastats is %+v",ixiastats)
+	for name, _ := range queuestats {
+		if !(queuestats[name] >= ixiastats[name] ){
+			t.Errorf("Stats not matching for queue %+v",name)
+
+		}
+
+	}
+
        // var baseConfig *oc.Qos = setupQos(t,args.dut)
        // println(baseConfig)
        //var baseConfigEgress *oc.Qos = setupQosEgress(t, args.dut)

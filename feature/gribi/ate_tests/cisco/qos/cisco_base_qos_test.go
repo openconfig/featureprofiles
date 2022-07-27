@@ -188,8 +188,8 @@ func TestNameAtContainer(t *testing.T) {
         var baseConfigEgress *oc.Qos = setupQosEgress(t, dut)
         println(baseConfigEgress)
         time.Sleep(2 * time.Minute)
-        var baseConfig *oc.Qos = setupQos(t,dut)
-        println(baseConfig)
+       var baseConfig *oc.Qos = setupQos(t,dut)
+       println(baseConfig)
 
 }
 
@@ -238,6 +238,9 @@ policy-map egress
 
 func TestTransitWCMPFlush(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+        //Configure IPv6 addresses and VLANS on DUT
+        configureIpv6AndVlans(t, dut)
+
 
 	// Dial gRIBI
 	ctx := context.Background()
