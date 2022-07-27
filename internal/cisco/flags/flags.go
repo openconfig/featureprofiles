@@ -22,6 +22,8 @@ var (
 	DefaultNetworkInstance = flag.String("default_vrf", "default", "The name used for the default network instance for VRF.")
 
 	NonDefaultNetworkInstance = flag.String("nondefault_vrf", "TE", "The name used for the nondefault network instance for VRF.")
+
+	PbrInstance = flag.String("vrf_name", "DEFAULT", "Vrf name under which policy needs to be configured")
 )
 
 // GRIBICheck struct

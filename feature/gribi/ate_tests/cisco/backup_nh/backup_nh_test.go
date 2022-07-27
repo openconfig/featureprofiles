@@ -2033,11 +2033,11 @@ func TestBackUp(t *testing.T) {
 			desc: "Have Primary and backup configured on same LC and do a shut of primary. Followed by LC reload",
 			fn:   testIPv4BackUpLCOIR,
 		},
-		{
-			name: "IPv4MultipleNHG",
-			desc: "Have same primary and backup decap with multiple nhg",
-			fn:   testIPv4MultipleNHG,
-		},
+		// {
+		// 	name: "IPv4MultipleNHG",
+		// 	desc: "Have same primary and backup decap with multiple nhg",
+		// 	fn:   testIPv4MultipleNHG,
+		// },
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
