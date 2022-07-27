@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
@@ -192,7 +191,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 		SetAddress("2001:DB8::6").SetGateway("2001:DB8::5").
 		SetPrefix(126)
 
-	flowipv4 := config.Flows().Add().SetName("ipv4_test_flow")
+	flowipv4 := config.Flows().Add().SetName("IPv4_test_flow")
 	flowipv4.Metrics().SetEnable(true)
 	flowipv4.TxRx().Device().
 		SetTxNames([]string{intf1.Name() + ".IPv4"}).
@@ -205,7 +204,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	v4.Src().SetValue(ip4_1.Address())
 	v4.Dst().SetValue(ip4_2.Address())
 
-	flowipv6 := config.Flows().Add().SetName("ipv6_test_flow")
+	flowipv6 := config.Flows().Add().SetName("IPv6_test_flow")
 	flowipv6.Metrics().SetEnable(true)
 	flowipv6.TxRx().Device().
 		SetTxNames([]string{intf1.Name() + ".IPv6"}).
@@ -238,11 +237,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	t.Logf("inPkts: %v and outPkts: %v before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
-
-	for _, ipType := range []string{"IPv4", "IPv6"} {
-		waitOtgArpEntry(t, ipType)
-		waitOtgArpEntry(t, ipType)
-	}
+	waitOTGARPEntry(t)
 
 	otg.StartTraffic(t)
 	time.Sleep(10 * time.Second)
@@ -272,17 +267,17 @@ func TestIntfCounterUpdate(t *testing.T) {
 	ateOutPkts := map[string]uint64{}
 	for _, f := range config.Flows().Items() {
 		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
-		if f.Name() == "ipv4_test_flow" {
-			ateInPkts["ipv4"] = recvMetric.GetCounters().GetInPkts()
-			ateOutPkts["ipv4"] = recvMetric.GetCounters().GetOutPkts()
+		if f.Name() == "IPv4_test_flow" {
+			ateInPkts["IPv4"] = recvMetric.GetCounters().GetInPkts()
+			ateOutPkts["IPv4"] = recvMetric.GetCounters().GetOutPkts()
 		}
-		if f.Name() == "ipv6_test_flow" {
-			ateInPkts["ipv6"] = recvMetric.GetCounters().GetInPkts()
-			ateOutPkts["ipv6"] = recvMetric.GetCounters().GetOutPkts()
+		if f.Name() == "IPv6_test_flow" {
+			ateInPkts["IPv6"] = recvMetric.GetCounters().GetInPkts()
+			ateOutPkts["IPv6"] = recvMetric.GetCounters().GetOutPkts()
 		}
 	}
-	ateInPkts["parent"] = ateInPkts["ipv4"] + ateInPkts["ipv6"]
-	ateOutPkts["parent"] = ateOutPkts["ipv4"] + ateOutPkts["ipv6"]
+	ateInPkts["parent"] = ateInPkts["IPv4"] + ateInPkts["IPv6"]
+	ateOutPkts["parent"] = ateOutPkts["IPv4"] + ateOutPkts["IPv6"]
 
 	for k, v := range ateOutPkts {
 		if v == 0 {
@@ -291,12 +286,12 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 	for _, flow := range []string{flowipv4.Name(), flowipv6.Name()} {
 		lossPct := 0
-		if flow == "ipv4_test_flow" {
-			lostPackets := int(ateOutPkts["ipv4"] - ateInPkts["ipv4"])
-			lossPct = lostPackets * 100 / int(ateOutPkts["ipv4"])
+		if flow == "IPv4_test_flow" {
+			lostPackets := int(ateOutPkts["IPv4"] - ateInPkts["IPv4"])
+			lossPct = lostPackets * 100 / int(ateOutPkts["IPv4"])
 		} else {
-			lostPackets := int(ateOutPkts["ipv6"] - ateInPkts["ipv6"])
-			lossPct = lostPackets * 100 / int(ateOutPkts["ipv6"])
+			lostPackets := int(ateOutPkts["IPv6"] - ateInPkts["IPv6"])
+			lossPct = lostPackets * 100 / int(ateOutPkts["IPv6"])
 		}
 		if lossPct >= 1 {
 			t.Errorf("LossPct per Flow(%v) = %v, want < 1", flow, lossPct)
@@ -354,28 +349,33 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		ipv6PrefixLen: 126,
 	}}
 
-	// Configure the interfaces.
-	deviations.InterfaceEnabled = ygot.Bool(true)
+	// Configure IPv4 and IPv6 addresses under subinterface.
 	for _, intf := range dutIntfs {
 		t.Logf("Configure DUT interface %s with attributes %v", intf.intfName, intf)
 		i := &telemetry.Interface{
 			Name:        ygot.String(intf.intfName),
 			Description: ygot.String(intf.desc),
 			Type:        telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
-			Enabled:     ygot.Bool(true),
 		}
 		i.GetOrCreateEthernet()
-		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		s.Enabled = ygot.Bool(true)
-		a := s.GetOrCreateAddress(intf.ipv4Addr)
-		a.PrefixLength = ygot.Uint8(intf.ipv4PrefixLen)
-		s6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-		s6.Enabled = ygot.Bool(true)
-		a6 := s6.GetOrCreateAddress(intf.ipv6Addr)
+		s := i.GetOrCreateSubinterface(0)
+		v4 := s.GetOrCreateIpv4()
+		a4 := v4.GetOrCreateAddress(intf.ipv4Addr)
+		a4.PrefixLength = ygot.Uint8(intf.ipv4PrefixLen)
+		v6 := s.GetOrCreateIpv6()
+		a6 := v6.GetOrCreateAddress(intf.ipv6Addr)
 		a6.PrefixLength = ygot.Uint8(intf.ipv6PrefixLen)
+
+		// We are testing that "enabled" is accepted by device when explicitly set to true,
+		// per: https://github.com/openconfig/featureprofiles/issues/253
+		i.Enabled = ygot.Bool(true)
+		s.Enabled = ygot.Bool(true)
+		v4.Enabled = ygot.Bool(true)
+		v6.Enabled = ygot.Bool(true)
+
 		dut.Config().Interface(intf.intfName).Replace(t, i)
 
-		t.Logf("Validate DUT IPv4 and IPv6 subinterface %s are enabled.", intf.intfName)
+		t.Logf("Validate that IPv4 and IPv6 addresses are enabled: %s", intf.intfName)
 		subint := dut.Telemetry().Interface(intf.intfName).Subinterface(0)
 		if !subint.Ipv4().Enabled().Get(t) {
 			t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
@@ -417,21 +417,17 @@ func TestInterfaceMgmt(t *testing.T) {
 }
 
 // waitOtgArpEntry waits until ARP entries are present on OTG interfaces
-func waitOtgArpEntry(t *testing.T, ipType string) {
+func waitOTGARPEntry(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
 
-	switch ipType {
-	case "IPv4":
-		otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
-			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-				return val.IsPresent()
-			}).Await(t)
-	case "IPv6":
-		otg.Telemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Watch(
-			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-				return val.IsPresent()
-			}).Await(t)
+	otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
+	otg.Telemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
 
-	}
 }
