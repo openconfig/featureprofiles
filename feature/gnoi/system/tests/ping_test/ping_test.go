@@ -399,28 +399,7 @@ func TestGNOIPing(t *testing.T) {
 	}}
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
-	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			t.Logf("Sent ping request: %v\n\n", tc.pingRequest)
-
-			pingClient, err := gnoiClient.System().Ping(context.Background(), tc.pingRequest)
-			if err != nil {
-				t.Fatalf("Failed to query gnoi endpoint: %v", err)
-			}
-
-			responses, err := fetchResponses(pingClient)
-			if err != nil {
-				t.Fatalf("Failed to handle gnoi ping client stream: %v", err)
-			}
-			t.Logf("Got ping responses: Items: %v\n, Content: %v\n\n", len(responses), responses)
-			if len(responses) == 0 {
-				t.Errorf("Number of responses to %v: got 0, want > 0", tc.pingRequest.Destination)
-			}
-
-			StdDevZero := true
-			pingTime := responses[len(responses)-1].Time
-
-			for i := 0; i < len(responses); i++ {
+			for i := 0; i < len(responses)-1; i++ {
 				t.Logf("Check each ping reply %v out of %v.\n  %v\n", i+1, len(responses), responses[i])
 
 				// Check StdDev if ping time is different
@@ -432,43 +411,40 @@ func TestGNOIPing(t *testing.T) {
 					t.Errorf("Ping reply source: got %v, want %v", responses[i].Source, tc.expectedReply.Source)
 				}
 
-				if i < len(responses)-1 {
-					t.Logf("Check the following fields in echo response and skip them in summary stats.\n")
-					if responses[i].Time < tc.expectedReply.Time {
-						t.Errorf("Ping time: got %v, want >= %v", responses[i].Time, tc.expectedReply.Time)
-					}
-					if responses[i].Bytes < tc.expectedReply.Bytes {
-						t.Errorf("Ping Bytes: got %v, want >= %v", responses[i].Bytes, tc.expectedReply.Bytes)
-					}
-					if responses[i].Sequence < tc.expectedReply.Sequence {
-						t.Errorf("Ping time: got %v, want >= %v", responses[i].Sequence, tc.expectedReply.Sequence)
-					}
-					if responses[i].Ttl < tc.expectedReply.Ttl {
-						t.Errorf("Ping TTL: got %v, want >= %v", responses[i].Ttl, tc.expectedReply.Ttl)
-					}
+				t.Logf("Check the following fields in echo response and skip them in summary stats.\n")
+				if responses[i].Time < tc.expectedReply.Time {
+					t.Errorf("Ping time: got %v, want >= %v", responses[i].Time, tc.expectedReply.Time)
 				}
+				if responses[i].Bytes < tc.expectedReply.Bytes {
+					t.Errorf("Ping Bytes: got %v, want >= %v", responses[i].Bytes, tc.expectedReply.Bytes)
+				}
+				if responses[i].Sequence < tc.expectedReply.Sequence {
+					t.Errorf("Ping time: got %v, want >= %v", responses[i].Sequence, tc.expectedReply.Sequence)
+				}
+				if responses[i].Ttl < tc.expectedReply.Ttl {
+					t.Errorf("Ping TTL: got %v, want >= %v", responses[i].Ttl, tc.expectedReply.Ttl)
+				}
+			}
 
-				if i == len(responses)-1 {
-					t.Logf("Check ping reply summary stats.\n")
-					if responses[i].Sent < tc.expectedStats.Sent {
-						t.Errorf("Ping Sent: got %v, want >= %v", responses[i].Sent, tc.expectedStats.Sent)
-					}
-					if responses[i].Received < tc.expectedStats.Received {
-						t.Errorf("Ping Sent: got %v, want >= %v", responses[i].Received, tc.expectedStats.Received)
-					}
-					if responses[i].MinTime < tc.expectedStats.MinTime {
-						t.Errorf("Ping Received: got %v, want >= %v", responses[i].MinTime, tc.expectedStats.MinTime)
-					}
-					if responses[i].AvgTime < tc.expectedStats.AvgTime {
-						t.Errorf("Ping AvgTime: got %v, want >= %v", responses[i].AvgTime, tc.expectedStats.AvgTime)
-					}
-					if responses[i].MaxTime < tc.expectedStats.MaxTime {
-						t.Errorf("Ping MaxTime: got %v, want >= %v", responses[i].MaxTime, tc.expectedStats.MaxTime)
-					}
-					if responses[i].StdDev < tc.expectedStats.StdDev && !StdDevZero {
-						t.Errorf("Ping MaxTime: got %v, want >= %v", responses[i].StdDev, tc.expectedStats.StdDev)
-					}
-				}
+			summary := responses[len(responses)-1]
+			t.Logf("Check ping reply summary stats.\n")
+			if summary.Sent < tc.expectedStats.Sent {
+				t.Errorf("Ping Sent: got %v, want >= %v", summary.Sent, tc.expectedStats.Sent)
+			}
+			if summary.Received < tc.expectedStats.Received {
+				t.Errorf("Ping Sent: got %v, want >= %v", summary.Received, tc.expectedStats.Received)
+			}
+			if summary.MinTime < tc.expectedStats.MinTime {
+				t.Errorf("Ping Received: got %v, want >= %v", summary.MinTime, tc.expectedStats.MinTime)
+			}
+			if summary.AvgTime < tc.expectedStats.AvgTime {
+				t.Errorf("Ping AvgTime: got %v, want >= %v", summary.AvgTime, tc.expectedStats.AvgTime)
+			}
+			if summary.MaxTime < tc.expectedStats.MaxTime {
+				t.Errorf("Ping MaxTime: got %v, want >= %v", summary.MaxTime, tc.expectedStats.MaxTime)
+			}
+			if summary.StdDev < tc.expectedStats.StdDev && !StdDevZero {
+				t.Errorf("Ping MaxTime: got %v, want >= %v", summary.StdDev, tc.expectedStats.StdDev)
 			}
 		})
 	}
