@@ -138,6 +138,7 @@ func (c *Client) UpdateElectionID(t testing.TB, lowElecID, highElecID uint64) {
 
 // BecomeLeader learns the latest election id and the make the client leader by increasing the election id by one.
 func (c *Client) BecomeLeader(t testing.TB) {
+	t.Helper()
 	t.Logf("Trying to be a master with increasing the election id by one on dut: %s", c.DUT.Name())
 	low, high := c.learnElectionID(t)
 	newLow := low + 1
@@ -150,6 +151,7 @@ func (c *Client) BecomeLeader(t testing.TB) {
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
 func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
@@ -170,6 +172,7 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint
 
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
 func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
 	c.fluentC.Modify().AddEntry(t,
 		fluent.NextHopEntry().
 			WithNetworkInstance(instance).
@@ -190,6 +193,7 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, e
 
 // AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
 func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
 	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
 		WithNetworkInstance(instance).
 		WithNextHopGroup(nhgIndex)
@@ -210,7 +214,20 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 	)
 }
 
-// DeleteIpv4Entry deletes a given ipv4 route entry
-func (c *Client) DeleteIpv4Entry(t testing.TB, ipv4Entry fluent.GRIBIEntry) {
+// DeleteIpv4 deletes an IPv4Entry within a network instance, given the route's prefix
+func (c *Client) DeleteIPv4(t testing.TB, prefix string, instance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
+	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).WithNetworkInstance(instance)
 	c.fluentC.Modify().DeleteEntry(t, ipv4Entry)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to delete IPv4: %v", err)
+	}
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithIPv4Operation(prefix).
+			WithOperationType(constants.Delete).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
 }
