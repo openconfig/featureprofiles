@@ -19,7 +19,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestInterfaceIdAtContainer(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	var baseConfig *oc.Qos = setupQosIngress(t, dut, "base_config_interface_ingress.json")
@@ -47,7 +46,6 @@ func TestInterfaceIdAtContainer(t *testing.T) {
 }
 
 func TestDeleteClassifier(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	var baseConfig *oc.Qos = setupQosIngress(t, dut, "base_config_interface_ingress.json")
@@ -66,7 +64,6 @@ func TestDeleteClassifier(t *testing.T) {
 }
 
 func TestDeleteLastClassMap(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	var baseConfig *oc.Qos = setupQosIngress(t, dut, "base_config_interface_ingress.json")
@@ -95,22 +92,13 @@ func TestDeleteLastClassMap(t *testing.T) {
 	})
 }
 
-func TestFwdingrp1(t *testing.T) {
-	t.Skip()
-	dut := ondatra.DUT(t, "dut")
-	// set traffic
-	var baseConfig *oc.Qos = setupQosFull(t, dut, "base_config_interface_full.json")
-	defer teardownQos(t, dut, baseConfig)
-	// verify traffic
-}
 func TestDeleteOneQueue(t *testing.T) {
-	// t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	var baseConfig *oc.Qos = setupQosEgress(t, dut, "base_config_interface_egress.json")
 	defer teardownQos(t, dut, baseConfig)
 
-	queuNameInput := "tc1"
+	queuNameInput := "tc1" // low priority queue
 	baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 	baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
 	baseConfigSchedulerPolicySchedulerInput := baseConfigSchedulerPolicyScheduler.Input[queuNameInput]
@@ -153,9 +141,7 @@ func TestDeleteOneQueue(t *testing.T) {
 	})
 }
 
-// fine
 func TestDeleteClassifierScheduler(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	var baseConfig *oc.Qos = setupQosFull(t, dut, "base_config_interface_full.json")
@@ -180,13 +166,9 @@ func TestDeleteClassifierScheduler(t *testing.T) {
 			t.Errorf("Delete did not fail fatally as expected")
 		}
 	})
-	// Verify that traffic through the interface is not disturbed
-	// testTraffic func might work
 }
 
-// If delete should fail, fine.
 func TestDeleteSharedQueues(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	var baseConfig *oc.Qos = setupQosEgress(t, dut, "base_config_interface_egress.json")
@@ -206,28 +188,36 @@ func TestDeleteSharedQueues(t *testing.T) {
 		},
 	}
 	for _, intfsch := range InterfaceSchedulerPolicyInfo {
-		baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
+		var baseConfigSchedulerPolicy = new(oc.Qos_SchedulerPolicy)
+		baseConfigSchedulerPolicy = setup.GetAnyValue(baseConfig.SchedulerPolicy)
 		*baseConfigSchedulerPolicy.Name = intfsch.schedulerPolicyName
+		baseConfig.SchedulerPolicy[*baseConfigSchedulerPolicy.Name] = baseConfigSchedulerPolicy
 		dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Update(t, baseConfigSchedulerPolicy)
-		baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
+		var baseConfigInterface = new(oc.Qos_Interface)
+		baseConfigInterface = setup.GetAnyValue(baseConfig.Interface)
 		*baseConfigInterface.InterfaceId = intfsch.interfaceId
+		baseConfig.Interface[*baseConfigInterface.InterfaceId] = baseConfigInterface
 		dut.Config().Qos().Interface(*baseConfigInterface.InterfaceId).Update(t, baseConfigInterface)
 	}
 
-	t.Run("Deleting Queues", func(t *testing.T) {
-		for qName := range baseConfig.Queue {
-			config := dut.Config().Qos().Queue(qName)
-			config.Delete(t)
-			if qs := config.Get(t); qs != nil {
-				t.Errorf("Delete Queue %s fail: got %v", qName, qs)
+	testqueuNameInput := []string{"tc1", "tc2", "tc3"}
+	t.Run(fmt.Sprintf("Deleting Shared Queues %v", testqueuNameInput), func(t *testing.T) {
+		batchSet := config.NewBatchSetRequest()
+		ctx := context.Background()
+		for _, qName := range testqueuNameInput {
+			for _, intfsch := range InterfaceSchedulerPolicyInfo {
+				tmpSchedulerPolicy := baseConfig.SchedulerPolicy[intfsch.schedulerPolicyName]
+				tmpSchedulerPolicyScheduler := setup.GetAnyValue(tmpSchedulerPolicy.Scheduler)
+				tmpSchedulerPolicySchedulerInput := tmpSchedulerPolicyScheduler.Input[qName]
+				queuePath := dut.Config().Qos().SchedulerPolicy(intfsch.schedulerPolicyName).Scheduler(*tmpSchedulerPolicyScheduler.Sequence).Input(*tmpSchedulerPolicySchedulerInput.Id)
+				batchSet.Append(ctx, t, queuePath, nil, config.DeleteOC)
 			}
 		}
+		batchSet.Send(ctx, t, dut)
 	})
 }
 
-// fine
 func TestDetachSchedulerPolicy(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	var baseConfig *oc.Qos = setupQosEgress(t, dut, "base_config_interface_egress.json")

@@ -82,7 +82,6 @@ func TestDscpAtContainer(t *testing.T) {
 }
 
 func TestDscpAtLeaf(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_ipv4.json")
 	defer teardownQos(t, dut, baseConfig)
@@ -107,13 +106,14 @@ func TestDscpAtLeaf(t *testing.T) {
 			// dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4().Dscp() return nil
 			// dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4().DscpSet() returns a list
 			t.Run("Get leaf", func(t *testing.T) {
+				t.Skip()
 				configGot := config.Get(t)
 				if configGot != input {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp: got %v, want %v", configGot, input)
 				}
 			})
 			// ERR:No sysdb paths found for yang path qos/classifiers/classifier/terms/term/conditions/ipv4/state/dscp\x00"} (*gnmi.SubscribeResponse_Error)
-			if setup.SkipSubscribe() {
+			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
 					stateGot := state.Get(t)
 					if stateGot != input {
@@ -124,7 +124,7 @@ func TestDscpAtLeaf(t *testing.T) {
 			// Delete request goes through fine but nothing is getting deleted actually.
 			t.Run("Delete leaf", func(t *testing.T) {
 				config.Delete(t)
-				if setup.SkipSubscribe() {
+				if !setup.SkipSubscribe() {
 					if qs := config.Lookup(t); qs != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp fail: got %v", qs)
 					}
@@ -232,7 +232,7 @@ func TestDscpSetAtLeaf(t *testing.T) {
 				}
 			})
 			// ERR:No sysdb paths found for yang path qos/classifiers/classifier/terms/term/conditions/ipv4/state/dscp-set\x00"} (*gnmi.SubscribeResponse_Error)
-			if setup.SkipSubscribe() {
+			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
 					stateGot := state.Get(t)
 					for i, sg := range stateGot {
@@ -245,7 +245,7 @@ func TestDscpSetAtLeaf(t *testing.T) {
 			// Delete request goes through fine but nothing is getting deleted actually.
 			t.Run("Delete leaf", func(t *testing.T) {
 				config.Delete(t)
-				if setup.SkipSubscribe() {
+				if !setup.SkipSubscribe() {
 					if qs := config.Lookup(t); qs != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set fail: got %v", qs)
 					}

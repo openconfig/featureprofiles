@@ -132,7 +132,7 @@ func TestMultipleDeleteQueueSchedulerPolicy(t *testing.T) {
 	// Step 5  Defer called to delete all.
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig1 *oc.Qos = setupQos(t, dut, "scheduler_base1.json")
-	//defer teardownQos(t, dut, baseConfig1)
+	defer teardownQos(t, dut, baseConfig1)
 	// Delete 1 class from Policy
 
 	for _, input := range testNameInputReverse {
@@ -206,7 +206,7 @@ func TestRandomDeleteQueueSchedulerPolicy(t *testing.T) {
 func TestUpdateWrongSchedulerPolicyWeight(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig *oc.Qos = setup.BaseConfig("scheduler_base2.json")
-	defer teardownQos(t, dut, baseConfig)
+	// defer teardownQos(t, dut, baseConfig)
 	t.Run(" Delete the queue from Input queue", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			dut.Config().Qos().Update(t, baseConfig)

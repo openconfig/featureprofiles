@@ -12,9 +12,6 @@ var (
 	testNameInput []string = []string{
 		"pmap3",
 	}
-	testTypeInput []oc.E_Input_Classifier_Type = []oc.E_Input_Classifier_Type{
-		oc.E_Input_Classifier_Type(1),
-	}
 )
 
 func setupQos(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *oc.Qos {

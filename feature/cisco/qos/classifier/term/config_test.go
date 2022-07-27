@@ -32,7 +32,7 @@ func TestIdAtLeaf(t *testing.T) {
 		t.Run("Get container", func(t *testing.T) {
 			configGot := config.Get(t)
 			if configGot != *baseConfigClassifierTerm.Id {
-				t.Errorf("Config /qos/classifiers/classifier/terms/term/config/id: need %s got %s", *baseConfigClassifierTerm.Id, configGot)
+				t.Errorf("Config /qos/classifiers/classifier/terms/term/config/id: want %s got %s", *baseConfigClassifierTerm.Id, configGot)
 			}
 		})
 		// No sysdb paths found for yang path qos/classifiers/classifier/terms/term/state/id
@@ -40,7 +40,7 @@ func TestIdAtLeaf(t *testing.T) {
 			t.Run("Subscribe container", func(t *testing.T) {
 				stateGot := state.Get(t)
 				if stateGot != *baseConfigClassifierTerm.Id {
-					t.Errorf("Config /qos/classifiers/classifier/terms/term/state/id: need %s got %s", *baseConfigClassifierTerm.Id, stateGot)
+					t.Errorf("Config /qos/classifiers/classifier/terms/term/state/id: want %s got %s", *baseConfigClassifierTerm.Id, stateGot)
 				}
 			})
 		}

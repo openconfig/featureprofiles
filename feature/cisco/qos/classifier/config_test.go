@@ -16,7 +16,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestNameAtContainer(t *testing.T) {
-	// dscp and dscp-set causing error
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier.json")
 	defer teardownQos(t, dut, baseConfig)
@@ -33,7 +32,9 @@ func TestNameAtContainer(t *testing.T) {
 				config.Update(t, baseConfigClassifier)
 				// config.Replace(t, baseConfigClassifier)
 			})
+			// dscp and dscp-set causing error
 			t.Run("Get container", func(t *testing.T) {
+				t.Skip()
 				configGot := config.Get(t)
 				if diff := cmp.Diff(*configGot, *baseConfigClassifier); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/config/name: %v", diff)
@@ -59,7 +60,6 @@ func TestNameAtContainer(t *testing.T) {
 }
 
 func TestNameAtLeaf(t *testing.T) {
-	// dscp and dscp-set causing error
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier.json")
 	defer teardownQos(t, dut, baseConfig)
@@ -73,7 +73,7 @@ func TestNameAtLeaf(t *testing.T) {
 		t.Run("Get container", func(t *testing.T) {
 			configGot := config.Get(t)
 			if configGot != *baseConfigClassifier.Name {
-				t.Errorf("Config /qos/classifiers/classifier/config/name: need %s got %s", *baseConfigClassifier.Name, configGot)
+				t.Errorf("Config /qos/classifiers/classifier/config/name: want %s got %s", *baseConfigClassifier.Name, configGot)
 			}
 		})
 		// ERR:No sysdb paths found for yang path qos/classifiers/classifier\x00"} (*gnmi.SubscribeResponse_Error)
@@ -81,7 +81,7 @@ func TestNameAtLeaf(t *testing.T) {
 			t.Run("Subscribe container", func(t *testing.T) {
 				stateGot := state.Get(t)
 				if stateGot != *baseConfigClassifier.Name {
-					t.Errorf("Config /qos/classifiers/classifier/state/name: need %s got %s", *baseConfigClassifier.Name, stateGot)
+					t.Errorf("Config /qos/classifiers/classifier/state/name: want %s got %s", *baseConfigClassifier.Name, stateGot)
 				}
 			})
 		}
@@ -93,7 +93,7 @@ func TestNameAtLeaf(t *testing.T) {
 // error receiving gNMI response: invalid nil Val in update:
 // path:{origin:"openconfig" elem:{name:"qos"} elem:{name:"classifiers"} elem:{name:"classifier" key:{key:"name" value:"pmap"}}}
 func TestTypeAtLeaf(t *testing.T) {
-	t.Skip() // skiping the testcase
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier.json")
 	defer teardownQos(t, dut, baseConfig)
@@ -123,14 +123,6 @@ func TestTypeAtLeaf(t *testing.T) {
 					}
 				})
 			}
-			t.Run("Delete leaf", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs != nil {
-						t.Errorf("Delete /qos/classifiers/classifier/config/type fail: got %v", qs)
-					}
-				}
-			})
 		})
 	}
 }

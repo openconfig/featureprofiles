@@ -66,7 +66,6 @@ func TestTrafficClassAtContainer(t *testing.T) {
 	}
 }
 func TestTrafficClassAtLeaf(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_mpls.json")
 	defer teardownQos(t, dut, baseConfig)
@@ -89,7 +88,7 @@ func TestTrafficClassAtLeaf(t *testing.T) {
 				}
 			})
 			// ERR:No sysdb paths found for yang path qos/classifiers/classifier/terms/term/conditions/mpls/state/traffic-class\x00"} (*gnmi.SubscribeResponse_Error)
-			if setup.SkipSubscribe() {
+			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
 					stateGot := state.Get(t)
 					if stateGot != input {
@@ -100,7 +99,7 @@ func TestTrafficClassAtLeaf(t *testing.T) {
 			// Delete gives no error but nothing is getting deleted actually
 			t.Run("Delete leaf", func(t *testing.T) {
 				config.Delete(t)
-				if setup.SkipSubscribe() {
+				if !setup.SkipSubscribe() {
 					if qs := config.Lookup(t); qs != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class fail: got %v", qs)
 					}

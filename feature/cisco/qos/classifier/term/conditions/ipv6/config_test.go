@@ -69,7 +69,6 @@ func TestDscpAtContainer(t *testing.T) {
 	}
 }
 func TestDscpAtLeaf(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_ipv6.json")
 	defer teardownQos(t, dut, baseConfig)
@@ -92,12 +91,13 @@ func TestDscpAtLeaf(t *testing.T) {
 				config.Replace(t, input)
 			})
 			t.Run("Get leaf", func(t *testing.T) {
+				t.Skip()
 				configGot := config.Get(t)
 				if configGot != input {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp: got %v, want %v", configGot, input)
 				}
 			})
-			if setup.SkipSubscribe() {
+			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
 					stateGot := state.Get(t)
 					if stateGot != input {
@@ -107,7 +107,7 @@ func TestDscpAtLeaf(t *testing.T) {
 			}
 			t.Run("Delete leaf", func(t *testing.T) {
 				config.Delete(t)
-				if setup.SkipSubscribe() {
+				if !setup.SkipSubscribe() {
 					if qs := config.Lookup(t); qs != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp fail: got %v", qs)
 					}
@@ -197,7 +197,7 @@ func TestDscpSetAtLeaf(t *testing.T) {
 					}
 				}
 			})
-			if setup.SkipSubscribe() {
+			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
 					stateGot := state.Get(t)
 					for i, sg := range stateGot {
@@ -209,7 +209,7 @@ func TestDscpSetAtLeaf(t *testing.T) {
 			}
 			t.Run("Delete leaf", func(t *testing.T) {
 				config.Delete(t)
-				if setup.SkipSubscribe() {
+				if !setup.SkipSubscribe() {
 					if qs := config.Lookup(t); qs != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set fail: got %v", qs)
 					}

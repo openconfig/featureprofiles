@@ -16,7 +16,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestInterfaceInputClassifier(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface_ingress1.json")
@@ -66,7 +65,6 @@ func TestInterfaceInputClassifier(t *testing.T) {
 }
 
 func TestInterfaceInputClassifierAtLeaf(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_interface_ingress1.json")
