@@ -214,7 +214,7 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 	)
 }
 
-// DeleteIpv4 deletes an IPv4Entry within a network instance, given the route's prefix
+// DeleteIPv4 deletes an IPv4Entry within a network instance, given the route's prefix
 func (c *Client) DeleteIPv4(t testing.TB, prefix string, instance string, expectedResult fluent.ProgrammingResult) {
 	t.Helper()
 	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).WithNetworkInstance(instance)
