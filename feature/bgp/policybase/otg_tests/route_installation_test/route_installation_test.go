@@ -157,7 +157,7 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string) *telemetry.NetworkInsta
 	nbrs := []*bgpNeighbor{nbr1v4, nbr2v4, nbr1v6, nbr2v6}
 
 	d := &telemetry.Device{}
-	ni1 := d.GetOrCreateNetworkInstance("default")
+	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	bgp := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(localAs)
@@ -227,7 +227,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	ifName := dut.Port(t, "port1").Name()
 	lastFlapTime := dut.Telemetry().Interface(ifName).LastChange().Get(t)
 	t.Logf("Verifying BGP state")
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateSrc.IPv4)
 	nbrPathv6 := statePath.Neighbor(ateSrc.IPv6)
 	nbr := statePath.Get(t).GetNeighbor(ateSrc.IPv4)
@@ -292,7 +292,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 // received IPv4 prefixes
 // TODO: Need to refactor and compare using cmp.diff
 func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled, wantRx, wantSent uint32) {
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(ateDst.IPv4).AfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 	if gotInstalled := prefixesv4.Installed().Get(t); gotInstalled != wantInstalled {
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
@@ -308,7 +308,7 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled
 // verifyPrefixesTelemetryV6 confirms that the dut shows the correct numbers of installed, sent and
 // received IPv6 prefixes
 func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, wantInstalledv6, wantRxv6, wantSentv6 uint32) {
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv6 := statePath.Neighbor(ateDst.IPv6).AfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 
 	if gotInstalledv6 := prefixesv6.Installed().Get(t); gotInstalledv6 != wantInstalledv6 {
@@ -324,7 +324,7 @@ func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 
 // verifyPolicyTelemetry confirms that the dut policy is set as expected.
 func verifyPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, policy string) {
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	policytel := statePath.PeerGroup(peerGrpName).ApplyPolicy().ImportPolicy().Get(t)
 	for _, val := range policytel {
 		if val != policy {
@@ -537,7 +537,6 @@ func TestEstablish(t *testing.T) {
 	// Verify the OTG BGP state
 	t.Logf("Verify OTG BGP sessions up")
 	verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
-	verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
 
 	t.Logf("Check BGP parameters")
 	verifyBgpTelemetry(t, dut)
@@ -555,7 +554,6 @@ func TestEstablish(t *testing.T) {
 
 		// Verify the OTG BGP state
 		t.Logf("Verify OTG BGP sessions down")
-		verifyOTGBGPTelemetry(t, otg, otgConfig, "IDLE")
 		verifyOTGBGPTelemetry(t, otg, otgConfig, "IDLE")
 
 		// Resend traffic
@@ -632,7 +630,6 @@ func TestBGPPolicy(t *testing.T) {
 
 			// Verify the OTG BGP state
 			t.Logf("Verify OTG BGP sessions up")
-			verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
 			verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
 
 			// Send and verify traffic.
