@@ -3,26 +3,12 @@ package qos_test
 import (
 	"testing"
 
-	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
 )
 
-var (
-	testNameInput []string = []string{
-		"aa",
-	}
-)
-
-func setupQos(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *oc.Qos {
-	bc := setup.BaseConfig(baseConfigFile)
-	setup.ResetStruct(bc, []string{"SchedulerPolicy"})
-	bcSchedulerPolicy := setup.GetAnyValue(bc.SchedulerPolicy)
-	setup.ResetStruct(bcSchedulerPolicy, []string{})
-	dut.Config().Qos().Replace(t, bc)
-	return bc
-}
+var ()
 
 func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
 	var err *string

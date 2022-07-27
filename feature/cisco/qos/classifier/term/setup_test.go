@@ -10,9 +10,6 @@ import (
 )
 
 var (
-	testIdInput []string = []string{
-		"cmap_ipv4",
-	}
 	testSetDscpInput []uint8 = []uint8{
 		63,
 	}

@@ -93,13 +93,13 @@ func TestNameAtLeaf(t *testing.T) {
 // error receiving gNMI response: invalid nil Val in update:
 // path:{origin:"openconfig" elem:{name:"qos"} elem:{name:"classifiers"} elem:{name:"classifier" key:{key:"name" value:"pmap"}}}
 func TestTypeAtLeaf(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier.json")
 	defer teardownQos(t, dut, baseConfig)
 
 	for _, input := range testTypeInput {
 		t.Run(fmt.Sprintf("Testing /qos/classifiers/classifier/config/type using value %v", input), func(t *testing.T) {
+			t.Skip()
 			baseConfigClassifier := setup.GetAnyValue(baseConfig.Classifier)
 
 			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Type()

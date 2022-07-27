@@ -108,7 +108,6 @@ func TestSetDscpAtLeaf(t *testing.T) {
 
 // "error-message": "Edit/Update request should have Conditions/Classifier_config_type"
 func TestSetMplsTcAtContainer(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	var baseConfig *oc.Qos = setupQos(t, dut, "base_config_classifier_term_mpls.json")
@@ -116,6 +115,7 @@ func TestSetMplsTcAtContainer(t *testing.T) {
 
 	for _, input := range testSetMplsTcInput {
 		t.Run(fmt.Sprintf("Testing /qos/classifiers/classifier/terms/term/actions/remark/config/set-mpls-tc using value %v", input), func(t *testing.T) {
+			t.Skip()
 			baseConfigClassifier := setup.GetAnyValue(baseConfig.Classifier)
 			baseConfigClassifierTerm := setup.GetAnyValue(baseConfigClassifier.Term)
 			baseConfigClassifierTermActions := baseConfigClassifierTerm.Actions
