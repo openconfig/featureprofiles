@@ -36,14 +36,13 @@ const (
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	dut                    *ondatra.DUTDevice
-	ate                    *ondatra.ATEDevice
-	top                    *ondatra.ATETopology
-	srcEndPoint            *ondatra.Interface
-	policyName             string
-	iptype                 string
-	protocol               oc.E_PacketMatchTypes_IP_PROTOCOL
-	defaultNetworkInstance string
+	dut         *ondatra.DUTDevice
+	ate         *ondatra.ATEDevice
+	top         *ondatra.ATETopology
+	srcEndPoint *ondatra.Interface
+	policyName  string
+	iptype      string
+	protocol    oc.E_PacketMatchTypes_IP_PROTOCOL
 }
 
 var (
@@ -398,14 +397,13 @@ func TestPBR(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	args := &testArgs{
-		dut:                    dut,
-		ate:                    ate,
-		top:                    top,
-		srcEndPoint:            top.Interfaces()["atePort1"],
-		policyName:             "L3",
-		iptype:                 "ipv4",
-		protocol:               oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
-		defaultNetworkInstance: *deviations.DefaultNetworkInstance,
+		dut:         dut,
+		ate:         ate,
+		top:         top,
+		srcEndPoint: top.Interfaces()["atePort1"],
+		policyName:  "L3",
+		iptype:      "ipv4",
+		protocol:    oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 	}
 
 	allFlows := getAllFlows(args)
@@ -467,10 +465,10 @@ func TestPBR(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Log(tc.desc)
-			pfpath := args.dut.Config().NetworkInstance(args.defaultNetworkInstance).PolicyForwarding()
+			pfpath := args.dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding()
 
 			//configure pbr policy-forwarding
-			dut.Config().NetworkInstance(args.defaultNetworkInstance).PolicyForwarding().Replace(t, tc.policy)
+			dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Replace(t, tc.policy)
 			// defer cleaning policy-forwarding
 			defer pfpath.Delete(t)
 
