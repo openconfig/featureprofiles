@@ -10,8 +10,6 @@ import (
 	"github.com/openconfig/testt"
 )
 
-var ()
-
 func setupQosEgress(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *oc.Qos {
 	bc := setup.BaseConfig(baseConfigFile)
 

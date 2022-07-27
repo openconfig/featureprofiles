@@ -8,8 +8,6 @@ import (
 	"github.com/openconfig/testt"
 )
 
-var ()
-
 func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
 	var err *string
 	for attempt := 1; attempt <= 2; attempt++ {
