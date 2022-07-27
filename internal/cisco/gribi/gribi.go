@@ -459,12 +459,12 @@ func (c *Client) DeleteNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWe
 			c.checkNHGResult(t, fluent.InstalledInFIB, constants.Delete, nhgIndex)
 		}
 	}
-	if check.AFTCheck {
+	//if check.AFTCheck {
 		// nhg := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndex).Get(t)
 		// if *nhg.Id != nhgIndex {
 		// 	t.Fatalf("AFT Check failed for aft/nexthopgroup/entry got id %d, want id %d", *nhg.Id, nhgIndex)
 		// }
-	}
+	//}
 }
 
 // DeleteNH delete a NextHopEntry with a given index to an address within a given network instance.
@@ -496,12 +496,12 @@ func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string
 			c.checkNHResult(t, fluent.InstalledInFIB, constants.Delete, nhIndex)
 		}
 	}
-	if check.AFTCheck {
+	//if check.AFTCheck {
 		// nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
 		// if *nh.Index != nhIndex {
 		// 	t.Fatalf("AFT Check failed for aft/nexthop-entry got index %d , want index %d", *nh.Index, nhIndex)
 		// }
-	}
+	//}
 }
 
 // DeleteIPv4 deletes an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
@@ -524,11 +524,11 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, nhgIndex uint64, instan
 			c.checkIPV4Result(t, fluent.InstalledInFIB, constants.Delete, prefix)
 		}
 	}
-	if check.AFTCheck {
+	//if check.AFTCheck {
 		// if got, want := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Prefix().Get(t), prefix; got != want {
 		// 	t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", got, want)
 		// }
-	}
+	//}
 }
 
 // DeleteIPv4Batch deletes a list of IPv4Entries mapping  prefixes to a given next hop group index within a given network instance.
