@@ -275,28 +275,30 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
 }
 
 func verifyPrefixLimitTelemetry(t *testing.T, n *telemetry.NetworkInstance_Protocol_Bgp_Neighbor, wantEstablished bool) {
-	// TODO(ankursaikia): Remove skip when Telemetry Parameters are supported
-	t.Skip("Skipped since Telemetry parameters are not supported")
-	plv4 := n.GetAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimit()
-	plv6 := n.GetAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimit()
+	t.Run("verifyPrefixLimitTelemetry", func(t *testing.T) {
+		// TODO(ankursaikia): Remove skip when Telemetry Parameters are supported
+		t.Skip("Skipped since Telemetry parameters are not supported")
+		plv4 := n.GetAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimit()
+		plv6 := n.GetAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimit()
 
-	maxPrefix := plv4.GetMaxPrefixes()
-	limitExceeded := plv4.GetPrefixLimitExceeded()
-	if maxPrefix != prefixLimit {
-		t.Errorf("PrefixLimit max-prefixes v4 mismatch: got %d, want %d", maxPrefix, prefixLimit)
-	}
-	if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
-		t.Errorf("PrefixLimitExceeded v4 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
-	}
+		maxPrefix := plv4.GetMaxPrefixes()
+		limitExceeded := plv4.GetPrefixLimitExceeded()
+		if maxPrefix != prefixLimit {
+			t.Errorf("PrefixLimit max-prefixes v4 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+		}
+		if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
+			t.Errorf("PrefixLimitExceeded v4 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
+		}
 
-	maxPrefix = plv6.GetMaxPrefixes()
-	limitExceeded = plv6.GetPrefixLimitExceeded()
-	if maxPrefix != prefixLimit {
-		t.Errorf("PrefixLimit max-prefixes v6 mismatch: got %d, want %d", maxPrefix, prefixLimit)
-	}
-	if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
-		t.Errorf("PrefixLimitExceeded v6 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
-	}
+		maxPrefix = plv6.GetMaxPrefixes()
+		limitExceeded = plv6.GetPrefixLimitExceeded()
+		if maxPrefix != prefixLimit {
+			t.Errorf("PrefixLimit max-prefixes v6 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+		}
+		if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
+			t.Errorf("PrefixLimitExceeded v6 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
+		}
+	})
 }
 
 func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
@@ -311,7 +313,6 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	compare := func(val *telemetry.QualifiedUint32) bool {
 		return val.IsPresent() && val.Val(t) == installedRoutes
 	}
-
 	t.Log("Verifying BGP state")
 	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixes := statePath.Neighbor(ateDst.IPv4).AfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
@@ -333,6 +334,7 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	nv6 := statePath.Neighbor(ateDst.IPv6).Get(t)
 	verifyPrefixLimitTelemetry(t, nv6, tc.wantEstablished)
+	time.Sleep(grRestartTime * time.Second)
 }
 
 func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
@@ -454,25 +456,26 @@ func TestTrafficBGPPrefixLimit(t *testing.T) {
 		numRoutes:        prefixLimit - 1,
 		wantEstablished:  true,
 		wantNoPacketLoss: true,
-	}, {
-		name:             "AtLimit",
-		desc:             "BGP Prefixes at threshold of expected limit",
-		numRoutes:        prefixLimit,
-		wantEstablished:  true,
-		wantNoPacketLoss: true,
-	}, {
-		name:             "OverLimit",
-		desc:             "BGP Prefixes outside expected limit",
-		numRoutes:        prefixLimit + 1,
-		wantEstablished:  false,
-		wantNoPacketLoss: false,
-	}, {
-		name:             "ReestablishedAtLimit",
-		desc:             "BGP Session ReEstablished after prefixes are within limits",
-		numRoutes:        prefixLimit,
-		wantEstablished:  true,
-		wantNoPacketLoss: true,
-	}}
+	},
+		{
+			name:             "AtLimit",
+			desc:             "BGP Prefixes at threshold of expected limit",
+			numRoutes:        prefixLimit,
+			wantEstablished:  true,
+			wantNoPacketLoss: true,
+		}, {
+			name:             "OverLimit",
+			desc:             "BGP Prefixes outside expected limit",
+			numRoutes:        prefixLimit + 1,
+			wantEstablished:  false,
+			wantNoPacketLoss: false,
+		}, {
+			name:             "ReestablishedAtLimit",
+			desc:             "BGP Session ReEstablished after prefixes are within limits",
+			numRoutes:        prefixLimit,
+			wantEstablished:  true,
+			wantNoPacketLoss: true,
+		}}
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
