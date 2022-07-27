@@ -133,17 +133,17 @@ func TestSetDscp(t *testing.T) {
 			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id)
 			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id)
 
-			t.Run("Replace leaf", func(t *testing.T) {
+			t.Run("Replace container", func(t *testing.T) {
 				config.Replace(t, baseConfigClassifierTerm)
 			})
-			t.Run("Get leaf", func(t *testing.T) {
+			t.Run("Get container", func(t *testing.T) {
 				configGot := config.Get(t)
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTerm); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/remark/config/set-dscp fail:\n%v", diff)
 				}
 			})
 			if !setup.SkipSubscribe() {
-				t.Run("Subscribe leaf", func(t *testing.T) {
+				t.Run("Subscribe container", func(t *testing.T) {
 					stateGot := state.Get(t)
 					if diff := cmp.Diff(*stateGot, *baseConfigClassifierTerm); diff != "" {
 						t.Errorf("State /qos/classifiers/classifier/terms/term/actions/remark/state/set-dscp fail:\n%v", diff)
@@ -168,17 +168,17 @@ func TestSetMplsTc(t *testing.T) {
 			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id)
 			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id)
 
-			t.Run("Replace leaf", func(t *testing.T) {
+			t.Run("Replace container", func(t *testing.T) {
 				config.Replace(t, baseConfigClassifierTerm)
 			})
-			t.Run("Get leaf", func(t *testing.T) {
+			t.Run("Get container", func(t *testing.T) {
 				configGot := config.Get(t)
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTerm); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/remark/config/set-mpls-tc fail:\n%v", diff)
 				}
 			})
 			if !setup.SkipSubscribe() {
-				t.Run("Subscribe leaf", func(t *testing.T) {
+				t.Run("Subscribe container", func(t *testing.T) {
 					stateGot := state.Get(t)
 					if diff := cmp.Diff(*stateGot, *baseConfigClassifierTerm); diff != "" {
 						t.Errorf("State /qos/classifiers/classifier/terms/term/actions/remark/state/set-mpls-tc fail:\n%v", diff)
