@@ -106,6 +106,7 @@ jobs:
 
         exit "${fail}"
     - name: Default NetworkInstance
+      run: |
         if find . -path ./yang/fpoc -prune -o \
           -name \*.go -exec egrep -n '"default"' \{} +
         then
