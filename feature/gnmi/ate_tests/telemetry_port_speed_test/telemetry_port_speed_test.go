@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package telemetry_port_speed_test implements RT 1.5 from go/wbb:vendor-testplan.
+// Package telemetry_port_speed_test implements tests that cover port-speed related
+// telemetry variables.
 package telemetry_port_speed_test
 
 import (
