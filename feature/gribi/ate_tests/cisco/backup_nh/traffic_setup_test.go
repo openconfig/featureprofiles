@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
 )
 
@@ -151,19 +152,28 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 	//advertising 100.100.100.100/32 for bgp resolve over IGP prefix
 	intfs := top.Interfaces()
 	intfs["atePort8"].WithIPv4Loopback("100.100.100.100/32")
-	addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, uint32(innerdstPfxCount_isis))
-	addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, innerdstPfxCount_bgp, true)
+	if innerdstPfxCount_isis > uint32(*ciscoFlags.GRIBIScale) || innerdstPfxCount_bgp > uint32(*ciscoFlags.GRIBIScale) {
+		addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, innerdstPfxCount_isis)
+		addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, innerdstPfxCount_bgp, true)
+	} else {
+		addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, uint32(*ciscoFlags.GRIBIScale))
+		addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, uint32(*ciscoFlags.GRIBIScale), true)
+	}
 	top.Push(t).StartProtocols(t)
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.
 func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEndPoint []ondatra.Endpoint, innerdstPfxMin string, innerdstPfxCount uint32) *ondatra.Flow {
 	hdr := ondatra.NewIPv4Header()
-	hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dstPfxMin).WithCount(dstPfxCount).WithStep("0.0.0.1")
+	hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dstPfxMin).WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
 
 	innerIpv4Header := ondatra.NewIPv4Header()
 	innerIpv4Header.WithSrcAddress(innersrcPfx)
-	innerIpv4Header.DstAddressRange().WithMin(innerdstPfxMin).WithCount(innerdstPfxCount).WithStep("0.0.0.1")
+	if innerdstPfxCount > uint32(*ciscoFlags.GRIBIScale) {
+		innerIpv4Header.DstAddressRange().WithMin(innerdstPfxMin).WithCount(innerdstPfxCount).WithStep("0.0.0.1")
+	} else {
+		innerIpv4Header.DstAddressRange().WithMin(innerdstPfxMin).WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
+	}
 	flow := a.ate.Traffic().NewFlow(name).
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...).
@@ -172,15 +182,31 @@ func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEn
 	return flow
 }
 
+// allFlows designs all the flows needed for the backup testing
+func (a *testArgs) allFlows() []*ondatra.Flow {
+	srcEndPoint := a.top.Interfaces()[atePort1.Name]
+	dstEndPoint := []ondatra.Endpoint{}
+	for intf, intf_data := range a.top.Interfaces() {
+		if intf != "atePort1" {
+			dstEndPoint = append(dstEndPoint, intf_data)
+		}
+	}
+	bgp_flow := a.createFlow("BaseFlow_BGP", srcEndPoint, dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
+	isis_flow := a.createFlow("BaseFlow_ISIS", srcEndPoint, dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
+	flows := []*ondatra.Flow{}
+	flows = append(flows, bgp_flow, isis_flow)
+	return flows
+}
+
 // validateTrafficFlows validates traffic loss on tgn side and DUT incoming and outgoing counters
-func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, drop bool, s_port string, d_port []string) {
-	src_port := a.dut.Telemetry().Interface(a.dut.Port(t, s_port).Name())
+func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, drop bool, d_port []string) {
+	src_port := a.dut.Telemetry().Interface("Bundle-Ether120")
 	subintf1 := src_port.Subinterface(0)
 	dutOutPktsBeforeTraffic := map[string]uint64{"ipv4": subintf1.Ipv4().Counters().InPkts().Get(t)}
 
 	dutInPktsBeforeTraffic := make(map[string][]uint64)
 	for _, dp := range d_port {
-		dst_port := a.dut.Telemetry().Interface(a.dut.Port(t, dp).Name())
+		dst_port := a.dut.Telemetry().Interface(dp)
 		subintf2 := dst_port.Subinterface(0)
 		dutInPktsBeforeTraffic["ipv4"] = append(dutInPktsBeforeTraffic["ipv4"], subintf2.Ipv4().Counters().OutPkts().Get(t))
 	}
@@ -217,7 +243,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 			dutOutPktsAfterTraffic := map[string]uint64{"ipv4": subintf1.Ipv4().Counters().InPkts().Get(t)}
 			dutInPktsAfterTraffic := make(map[string][]uint64)
 			for _, dp := range d_port {
-				dst_port := a.dut.Telemetry().Interface(a.dut.Port(t, dp).Name())
+				dst_port := a.dut.Telemetry().Interface(dp)
 				subintf2 := dst_port.Subinterface(0)
 				dutInPktsAfterTraffic["ipv4"] = append(dutInPktsAfterTraffic["ipv4"], subintf2.Ipv4().Counters().OutPkts().Get(t))
 			}
