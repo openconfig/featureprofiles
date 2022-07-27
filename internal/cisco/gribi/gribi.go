@@ -460,10 +460,10 @@ func (c *Client) DeleteNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWe
 		}
 	}
 	//if check.AFTCheck {
-		// nhg := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndex).Get(t)
-		// if *nhg.Id != nhgIndex {
-		// 	t.Fatalf("AFT Check failed for aft/nexthopgroup/entry got id %d, want id %d", *nhg.Id, nhgIndex)
-		// }
+	// nhg := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndex).Get(t)
+	// if *nhg.Id != nhgIndex {
+	// 	t.Fatalf("AFT Check failed for aft/nexthopgroup/entry got id %d, want id %d", *nhg.Id, nhgIndex)
+	// }
 	//}
 }
 
@@ -497,10 +497,10 @@ func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string
 		}
 	}
 	//if check.AFTCheck {
-		// nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
-		// if *nh.Index != nhIndex {
-		// 	t.Fatalf("AFT Check failed for aft/nexthop-entry got index %d , want index %d", *nh.Index, nhIndex)
-		// }
+	// nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
+	// if *nh.Index != nhIndex {
+	// 	t.Fatalf("AFT Check failed for aft/nexthop-entry got index %d , want index %d", *nh.Index, nhIndex)
+	// }
 	//}
 }
 
@@ -525,9 +525,9 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, nhgIndex uint64, instan
 		}
 	}
 	//if check.AFTCheck {
-		// if got, want := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Prefix().Get(t), prefix; got != want {
-		// 	t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", got, want)
-		// }
+	// if got, want := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Prefix().Get(t), prefix; got != want {
+	// 	t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", got, want)
+	// }
 	//}
 }
 
