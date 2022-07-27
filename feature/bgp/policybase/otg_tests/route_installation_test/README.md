@@ -7,9 +7,9 @@ Base BGP policy configuration and route installation.
 ## Procedure
 
 *   Establish BGP sessions between:
-    *   ATE port-1 and DUT port-1
+    *   OTG port-1 and DUT port-1
 *   For IPv4 and IPv6 routes:
-    *   Advertise prefixes from ATE port-1, observe received prefixes at ATE
+    *   Advertise prefixes from OTG port-1, observe received prefixes at OTG
         port-2.
     *   Specify table based policy configuration to cover:
         *   Default accept for policies.
@@ -19,10 +19,10 @@ Base BGP policy configuration and route installation.
         *   Explicitly prepending AS for advertisement with a specified AS
             number.
     *   Validate that traffic can be forwarded to **all** installed routes
-        between ATE port-1 and ATE port-2, validate that flows between all
+        between OTG port-1 and OTG port-2, validate that flows between all
         denied routes cannot be forwarded.
-    *   Validate that traffic is not forwarded to withdrawn routes between ATE
-        port-1 and ATE port-2.
+    *   Validate that traffic is not forwarded to withdrawn routes between OTG
+        port-1 and OTG port-2.
 
 ## Config Parameter Coverage
 
