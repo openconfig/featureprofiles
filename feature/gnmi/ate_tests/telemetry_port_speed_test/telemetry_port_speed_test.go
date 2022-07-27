@@ -78,7 +78,6 @@ const (
 
 type testCase struct {
 	minlinks uint16
-	speed    telemetry.E_IfEthernet_ETHERNET_SPEED
 	lagType  telemetry.E_IfAggregate_AggregationType
 
 	dut *ondatra.DUTDevice
