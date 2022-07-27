@@ -399,6 +399,27 @@ func TestGNOIPing(t *testing.T) {
 	}}
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Logf("Sent ping request: %v\n\n", tc.pingRequest)
+
+			pingClient, err := gnoiClient.System().Ping(context.Background(), tc.pingRequest)
+			if err != nil {
+				t.Fatalf("Failed to query gnoi endpoint: %v", err)
+			}
+
+			responses, err := fetchResponses(pingClient)
+			if err != nil {
+				t.Fatalf("Failed to handle gnoi ping client stream: %v", err)
+			}
+			t.Logf("Got ping responses: Items: %v\n, Content: %v\n\n", len(responses), responses)
+			if len(responses) == 0 {
+				t.Errorf("Number of responses to %v: got 0, want > 0", tc.pingRequest.Destination)
+			}
+
+			StdDevZero := true
+			pingTime := responses[len(responses)-1].Time
+
 			for i := 0; i < len(responses)-1; i++ {
 				t.Logf("Check each ping reply %v out of %v.\n  %v\n", i+1, len(responses), responses[i])
 
