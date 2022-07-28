@@ -1,0 +1,1713 @@
+package cisco_p4rt_test
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"testing"
+	"time"
+
+	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
+	"github.com/google/gopacket/layers"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygot/ygot"
+	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
+)
+
+type TrafficFlow interface {
+	GetSrcMAC() string
+	SetSrcMAC(srcMAC string)
+	GetDstMAC() string
+	SetDstMAC(dstMAC string)
+	GetEtherType() uint32
+	SetEtherType(etherType uint32)
+	GetSrcIP() string
+	SetSrcIP(srcIP string)
+	GetDstIP() string
+	SetDstIP(dstIP string)
+	GetTTL() uint32
+	SetTTL(ttl uint32)
+	GetTrafficFlow(t *testing.T) *ondatra.Flow
+}
+
+type PacketIO interface {
+	GetTableEntry(t *testing.T, delete bool) *wbb.AclWbbIngressTableEntryInfo
+	ApplyConfig(t *testing.T, dut *ondatra.DUTDevice, delete bool)
+	GetPacketOut(t *testing.T, portID uint32, submitIngress bool) *p4_v1.PacketOut
+	GetPacketTemplate(t *testing.T) *PacketIOPacket
+	GetTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) *ondatra.Flow
+}
+
+type PacketIOPacket struct {
+	SrcMAC, DstMAC *string
+	EthernetType   *uint32
+	SrcIP, DstIP   *string
+	TTL            *uint32
+}
+
+func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool) error {
+
+	err := client.Write(&p4_v1.WriteRequest{
+		DeviceId:   deviceID,
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
+		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
+			packetIO.GetTableEntry(t, delete),
+		}),
+		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func testP4RTTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow, srcEndPoint *ondatra.Interface, duration int) {
+	flow.WithSrcEndpoints(srcEndPoint).WithDstEndpoints(srcEndPoint)
+
+	ate.Traffic().Start(t, flow)
+	time.Sleep(time.Duration(duration) * time.Second)
+
+	ate.Traffic().Stop(t)
+}
+
+func testEntryProgrammingPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	t.Logf("Start to decode packet.")
+	wantPacket := args.packetIO.GetPacketTemplate(t)
+	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
+		if packet != nil {
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+					t.Errorf("Packet is not matching wanted packet.")
+				}
+			}
+
+			// TODO: Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(portID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
+		}
+	}
+}
+
+func testEntryProgrammingPacketInWithUnicastMAC(ctx context.Context, t *testing.T, args *testArgs) {
+	testEntryProgrammingPacketInWithNewMAC(ctx, t, args, "00:aa:bb:cc:dd:ee", false)
+}
+
+func testEntryProgrammingPacketInWithBroadcastMAC(ctx context.Context, t *testing.T, args *testArgs) {
+	testEntryProgrammingPacketInWithNewMAC(ctx, t, args, "ff:ff:ff:ff:ff:ff", false)
+}
+
+func testProgrammingPacketInWithInvalidSrcMAC(ctx context.Context, t *testing.T, args *testArgs) {
+	testEntryProgrammingPacketInWithNewMAC(ctx, t, args, "ff:ff:ff:ff:ff:ff", true)
+}
+
+func testEntryProgrammingPacketInWithNewMAC(ctx context.Context, t *testing.T, args *testArgs, macAddress string, src bool) {
+	client := args.p4rtClientA
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Modify Traffic DstMAC to Unicast MAC
+	mac := args.packetIO.GetPacketTemplate(t).DstMAC
+	if src {
+		mac = args.packetIO.GetPacketTemplate(t).SrcMAC
+	}
+	currentMAC := *mac
+	*mac = macAddress
+	defer func() { *mac = currentMAC }()
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received")
+	}
+}
+
+func testPacketInWithoutEntryProgramming(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received")
+		for _, packet := range packets {
+			// t.Logf("Packet: %v", packet)
+			if packet != nil {
+				// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				t.Logf(dstMac, etherType)
+				// if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+				// 	t.Errorf("Packet is not matching wanted packet.")
+				// }
+
+			}
+		}
+	}
+}
+
+func testPacketInWithoutEntryProgrammingWithNewMAC(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	macAddress := "00:aa:bb:cc:dd:ee"
+	// Modify Traffic DstMAC to Unicast MAC
+	mac := args.packetIO.GetPacketTemplate(t).DstMAC
+	currentMAC := *mac
+	*mac = macAddress
+	defer func() { *mac = currentMAC }()
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received")
+	}
+}
+
+func testEntryProgrammingPacketInThenRemoveEntry(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+
+	// Send GDP Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	t.Logf("Start to decode packet.")
+	wantPacket := args.packetIO.GetPacketTemplate(t)
+	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
+		if packet != nil {
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+					t.Errorf("Packet is not matching wanted packet.")
+				}
+			}
+
+			// Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(portID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
+		}
+	}
+
+	programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets = []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received.")
+	}
+}
+
+func testEntryProgrammingPacketInAndChangeDeviceID(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	componentName := getComponentID(ctx, t, args.dut)
+	component := telemetry.Component{}
+	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
+	component.Name = ygot.String(componentName)
+	component.IntegratedCircuit.NodeId = ygot.Uint64(^deviceID)
+	args.dut.Config().Component(componentName).Replace(t, &component)
+
+	// Setup P4RT ClientB to be primary
+	newStreamName := "new_primary"
+	setupPrimaryP4RTClient(ctx, t, args.p4rtClientB, ^deviceID, electionID, newStreamName)
+
+	defer func() {
+		args.p4rtClientA.StreamChannelDestroy(&streamName)
+		args.p4rtClientB.StreamChannelDestroy(&streamName)
+		args.p4rtClientC.StreamChannelDestroy(&streamName)
+		args.p4rtClientD.StreamChannelDestroy(&streamName)
+
+		componentName := getComponentID(ctx, t, args.dut)
+		component := telemetry.Component{}
+		component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
+		component.Name = ygot.String(componentName)
+		component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
+		args.dut.Config().Component(componentName).Replace(t, &component)
+		args.p4rtClientB.StreamChannelDestroy(&newStreamName)
+
+		setupP4RTClient(ctx, t, args)
+	}()
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets are received.")
+	}
+
+	// Capture packets on clientB
+	packets = []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := args.p4rtClientB.StreamChannelGetPacket(&newStreamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+	t.Logf("Start to decode packet.")
+	wantPacket := args.packetIO.GetPacketTemplate(t)
+	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
+		if packet != nil {
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+					t.Errorf("Packet is not matching wanted packet.")
+				}
+			}
+
+			// Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(portID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
+		}
+	}
+}
+
+func testEntryProgrammingPacketInAndChangePortID(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	t.Logf("Start to decode packet.")
+	wantPacket := args.packetIO.GetPacketTemplate(t)
+	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
+		if packet != nil {
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+					t.Errorf("Packet is not matching wanted packet.")
+				}
+			}
+
+			// Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(portID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
+		}
+	}
+
+	newPortID := ^portID
+	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+		Name: ygot.String(portName),
+		Id:   ygot.Uint32(newPortID),
+	})
+
+	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+		Name: ygot.String(portName),
+		Id:   ygot.Uint32(portID),
+	})
+
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets = []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	t.Logf("Start to decode packet.")
+	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
+		if packet != nil {
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+					t.Errorf("Packet is not matching wanted packet.")
+				}
+			}
+
+			// TODO: Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(newPortID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
+		}
+	}
+}
+
+func testProgrammingPacketInWithInterfaceMACAsGDPMac(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Change mac address for the related bundle interface MAC
+	newMAC := gdpMAC
+	currentMAC := args.dut.Telemetry().Interface(args.interfaces.in[0]).Ethernet().MacAddress().Get(t)
+	args.dut.Config().Interface(args.interfaces.in[0]).Ethernet().MacAddress().Replace(t, newMAC)
+	defer args.dut.Config().Interface(args.interfaces.in[0]).Ethernet().MacAddress().Replace(t, currentMAC)
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received.")
+	}
+}
+
+func testEntryProgrammingPacketInDowngradePrimaryController(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	t.Logf("Start to decode packet.")
+	wantPacket := args.packetIO.GetPacketTemplate(t)
+	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
+		if packet != nil {
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+					t.Errorf("Packet is not matching wanted packet.")
+				}
+			}
+
+			// Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(portID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
+		}
+	}
+
+	// Downgrade Primary Controller
+	if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
+		Update: &p4_v1.StreamMessageRequest_Arbitration{
+			Arbitration: &p4_v1.MasterArbitrationUpdate{
+				DeviceId: deviceID,
+				ElectionId: &p4_v1.Uint128{
+					High: uint64(0),
+					Low:  uint64(1),
+				},
+			},
+		},
+	}); err != nil {
+		t.Errorf("There is error when sending arbitration message, %s", err)
+	}
+	if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
+		t.Errorf("There is error when downgrading the client, %s", arbErr)
+	}
+
+	defer client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
+		Update: &p4_v1.StreamMessageRequest_Arbitration{
+			Arbitration: &p4_v1.MasterArbitrationUpdate{
+				DeviceId: deviceID,
+				ElectionId: &p4_v1.Uint128{
+					High: uint64(0),
+					Low:  electionID,
+				},
+			},
+		},
+	})
+
+	newClient := args.p4rtClientB
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets = []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := newClient.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	t.Logf("Start to decode packet.")
+	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
+		if packet != nil {
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+					t.Errorf("Packet is not matching wanted packet.")
+				}
+			}
+
+			// Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(portID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
+		}
+	}
+}
+
+func testEntryProgrammingPacketInDowngradePrimaryControllerWithoutStandby(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	args.p4rtClientB.StreamChannelDestroy(&streamName)
+	args.p4rtClientC.StreamChannelDestroy(&streamName)
+	args.p4rtClientD.StreamChannelDestroy(&streamName)
+	defer func() {
+		setupPrimaryP4RTClient(ctx, t, args.p4rtClientA, deviceID, electionID, streamName)
+		setupBackupP4RTClient(ctx, t, args.p4rtClientB, deviceID, electionID-1, streamName)
+		setupBackupP4RTClient(ctx, t, args.p4rtClientB, deviceID, electionID-2, streamName)
+		setupBackupP4RTClient(ctx, t, args.p4rtClientB, deviceID, electionID-3, streamName)
+	}()
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	t.Logf("Start to decode packet.")
+	wantPacket := args.packetIO.GetPacketTemplate(t)
+	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
+		if packet != nil {
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+					t.Errorf("Packet is not matching wanted packet.")
+				}
+			}
+
+			// Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(portID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
+		}
+	}
+
+	client.StreamChannelDestroy(&streamName)
+
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+}
+
+func testEntryProgrammingPacketInRecoverPrimaryController(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	t.Logf("Start to decode packet.")
+	wantPacket := args.packetIO.GetPacketTemplate(t)
+	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
+		if packet != nil {
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+					t.Errorf("Packet is not matching wanted packet.")
+				}
+			}
+
+			// Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(portID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
+		}
+	}
+
+	// Downgrade Primary Controller
+	if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
+		Update: &p4_v1.StreamMessageRequest_Arbitration{
+			Arbitration: &p4_v1.MasterArbitrationUpdate{
+				DeviceId: deviceID,
+				ElectionId: &p4_v1.Uint128{
+					High: uint64(0),
+					Low:  uint64(1),
+				},
+			},
+		},
+	}); err != nil {
+		t.Errorf("There is error when sending arbitration message, %s", err)
+	}
+	if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
+		t.Errorf("There is error when downgrading the client, %s", arbErr)
+	}
+
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Recover Primary Controller
+	client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
+		Update: &p4_v1.StreamMessageRequest_Arbitration{
+			Arbitration: &p4_v1.MasterArbitrationUpdate{
+				DeviceId: deviceID,
+				ElectionId: &p4_v1.Uint128{
+					High: uint64(0),
+					Low:  electionID,
+				},
+			},
+		},
+	})
+	if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
+		t.Errorf("There is error when downgrading the client, %s", arbErr)
+	}
+
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+	// Check PacketIn on P4Client
+	packets = []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	t.Logf("Start to decode packet.")
+	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
+		if packet != nil {
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+					t.Errorf("Packet is not matching wanted packet.")
+				}
+			}
+
+			// Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(portID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
+		}
+	}
+}
+
+func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	tableEntry := args.packetIO.GetTableEntry(t, false)
+	tableEntry.IsIpv4 = uint8(1)
+	client.Write(&p4_v1.WriteRequest{
+		DeviceId:   deviceID,
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
+			tableEntry,
+		}),
+		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+	})
+
+	defer func() {
+		tableEntry.Type = p4_v1.Update_DELETE
+		client.Write(&p4_v1.WriteRequest{
+			DeviceId:   deviceID,
+			ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+			Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
+				tableEntry,
+			}),
+			Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+		})
+	}()
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets are received.")
+	}
+}
+
+func testEntryProgrammingPacketInWithouthPortID(ctx context.Context, t *testing.T, args *testArgs) {
+	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	args.dut.Config().Interface(portName).Id().Delete(t)
+	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+		Name: ygot.String(portName),
+		Id:   ygot.Uint32(portID),
+	})
+
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 40; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received.")
+	}
+}
+
+func testEntryProgrammingPacketInScaleRate(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 1000), srcEndPoint, 5)
+
+	// Check PacketIn on P4Client
+	packets := []*p4rt_client.P4RTPacketInfo{}
+	for i := 0; i < 6000; i++ {
+		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
+		if err == io.EOF {
+			t.Logf("EOF error is seen in PacketIn.")
+			break
+		} else if err == nil {
+			if packet != nil {
+				packets = append(packets, packet)
+			}
+		} else {
+			t.Logf("There is error seen when receving packets. %v, %s", err, err)
+			break
+		}
+	}
+
+	// t.Logf("Captured packets: %v", len(packets))
+	t.Logf("Start to decode packet.")
+	wantPacket := args.packetIO.GetPacketTemplate(t)
+	for _, packet := range packets {
+		// t.Logf("Packet: %v", packet)
+		if packet != nil {
+			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+					t.Errorf("Packet is not matching wanted packet.")
+				}
+			}
+
+			// TODO: Check Port-id in MetaData
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					if string(data.GetValue()) != fmt.Sprint(portID) {
+						t.Errorf("Ingress Port Id is not matching expectation...")
+					}
+				}
+			}
+		}
+	}
+}
+
+//-----------------------------//
+
+func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Check initial packet counters
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := args.packetIO.GetPacketOut(t, portID, true)
+
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+
+	if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+		t.Errorf("Unexpected packets are received.")
+	}
+}
+
+func testPacketOutWithoutMatchEntry(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Check initial packet counters
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := args.packetIO.GetPacketOut(t, portID, true)
+
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+
+	if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+		t.Errorf("Not all the packets are received.")
+	}
+}
+
+func testPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Check initial packet counters
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := args.packetIO.GetPacketOut(t, portID, false)
+
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+
+	if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+		t.Errorf("Not all the packets are received.")
+	}
+}
+
+func testPacketOutEgressWithoutMatchEntry(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Check initial packet counters
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := args.packetIO.GetPacketOut(t, portID, false)
+
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+
+	if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+		t.Errorf("Not all the packets are received.")
+	}
+}
+
+func testPacketOutEgressWithInvalidPortId(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Check initial packet counters
+	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := args.packetIO.GetPacketOut(t, ^portID, false)
+
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+	// testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+	if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
+		t.Errorf("Unexpected packets are received.")
+	}
+}
+
+func testPacketOutEgressWithChangePortId(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	newPortID := ^portID
+	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+		Name: ygot.String(portName),
+		Id:   ygot.Uint32(newPortID),
+	})
+
+	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+		Name: ygot.String(portName),
+		Id:   ygot.Uint32(portID),
+	})
+
+	// Check initial packet counters
+	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := args.packetIO.GetPacketOut(t, newPortID, false)
+
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+	// testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+	if counter_1-counter_0 < uint64(float64(packet_count)*0.90) {
+		t.Errorf("There are not enought packets recived.")
+	}
+}
+
+func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	newPortID := ^portID
+	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+		Name: ygot.String(portName),
+		Id:   ygot.Uint32(newPortID),
+	})
+
+	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+		Name: ygot.String(portName),
+		Id:   ygot.Uint32(portID),
+	})
+
+	// Check initial packet counters
+	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := args.packetIO.GetPacketOut(t, portID, false)
+
+	// Change metadata
+	packet.Metadata[1].MetadataId = uint32(10)
+	packet.Metadata[1].Value = []byte{1, 2, 3, 4, 5, 6, 7, 8}
+
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+	// testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+	if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
+		t.Errorf("Unexpected packets are received.")
+	}
+}
+
+func testPacketOutIngressWithInterfaceFlap(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Check initial packet counters
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := args.packetIO.GetPacketOut(t, portID, true)
+
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+
+	if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
+		t.Errorf("Unexpected packets are received.")
+	}
+
+	// Flap interface
+	util.SetInterfaceState(t, args.dut, port, false)
+	defer util.SetInterfaceState(t, args.dut, port, true)
+
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_2 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_2-counter_1, port)
+
+	if counter_2-counter_1 > uint64(float64(packet_count)*0.10) {
+		t.Errorf("Unexpected packets are received.")
+	}
+}
+
+func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Check initial packet counters
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := args.packetIO.GetPacketOut(t, portID, false)
+
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+
+	if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+		t.Errorf("Not all the packets are received.")
+	}
+
+	// Flap interface
+	util.SetInterfaceState(t, args.dut, port, false)
+	defer util.SetInterfaceState(t, args.dut, port, true)
+
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_2 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_2-counter_1, port)
+
+	if counter_2-counter_1 > uint64(float64(packet_count)*0.15) {
+		t.Errorf("Unexpected packets are received.")
+	}
+}
+
+// func testPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
+// 	client := args.p4rtClientA
+
+// 	// Program the entry
+// 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+// 		t.Errorf("There is error when inserting the GDP entry")
+// 	}
+// 	defer programmTableEntry(ctx, t, client, args.packetIO, false)
+
+// 	// Check initial packet counters
+// 	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+// 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+// 	packet := args.packetIO.GetPacketOut(t, portID, true)
+
+// 	packet_count := 100
+// 	for i := 0; i < packet_count; i++ {
+// 		if err := client.StreamChannelSendMsg(
+// 			&streamName, &p4_v1.StreamMessageRequest{
+// 				Update: &p4_v1.StreamMessageRequest_Packet{
+// 					Packet: packet,
+// 				},
+// 			}); err != nil {
+// 			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+// 		}
+// 	}
+
+// 	// Wait for ate stats to be populated
+// 	time.Sleep(60 * time.Second)
+
+// 	// Check packet counters after packet out
+// 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+// 	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+// 	// Verify InPkts stats to check P4RT stream
+// 	// fmt.Println(counter_0)
+// 	// fmt.Println(counter_1)
+
+// 	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+
+// 	if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+// 		t.Errorf("Not all the packets are received.")
+// 	}
+// }
+
+func testPacketOutEgressScale(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, false)
+
+	// Check initial packet counters
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := args.packetIO.GetPacketOut(t, portID, false)
+
+	packet_count := 1000
+	thread_number := 200
+	for x := 0; x < thread_number; x++ {
+		// Spawn a thread for each iteration in the loop.
+		// Pass 'i' into the goroutine's function
+		//   in order to make sure each goroutine
+		//   uses a different value for 'i'.
+		go func() {
+			// At the end of the goroutine, tell the WaitGroup
+			//   that another thread has completed.
+			for i := 0; i < packet_count; i++ {
+				if err := client.StreamChannelSendMsg(
+					&streamName, &p4_v1.StreamMessageRequest{
+						Update: &p4_v1.StreamMessageRequest_Packet{
+							Packet: packet,
+						},
+					}); err != nil {
+					t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+				}
+			}
+		}()
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+
+	if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+		t.Errorf("Not all the packets are received.")
+	}
+}

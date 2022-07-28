@@ -11,6 +11,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
@@ -20,10 +21,14 @@ var (
 	electionID            = uint64(100)
 	streamName            = "Primary"
 	deviceID              = uint64(1)
-	portID                = uint32(1)
+	portID                = uint32(10)
 	gdpMAC                = "00:0a:da:f0:f0:f0"
 	gdpEtherType          = uint32(24583)
+	lldpMAC               = "01:80:c2:00:00:0e"
+	lldpEtherType         = uint32(35020)
 	METADATA_INGRESS_PORT = uint32(1)
+	SUBMIT_TO_INGRESS     = uint32(1)
+	SUBMIT_TO_EGRESS      = uint32(0)
 )
 
 // Testcase defines testcase structure
@@ -47,6 +52,7 @@ type testArgs struct {
 	interfaces  *interfaces
 	usecase     int
 	prefix      *gribiPrefix
+	packetIO    PacketIO
 }
 
 type interfaces struct {
@@ -79,6 +85,27 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func getGDPParameter(t *testing.T) PacketIO {
+	return &GDPPacketIO{
+		PacketIOPacket: PacketIOPacket{
+			SrcMAC:       ygot.String("00:01:00:02:00:00"),
+			DstMAC:       &gdpMAC,
+			EthernetType: &gdpEtherType,
+		},
+	}
+}
+
+func getLLDPParameter(t *testing.T) PacketIO {
+	return &LLDPPacketIO{
+		PacketIOPacket: PacketIOPacket{
+			SrcMAC:       ygot.String("00:01:00:02:00:00"),
+			DstMAC:       &lldpMAC,
+			EthernetType: &lldpEtherType,
+		},
+		NeedConfig: ygot.Bool(false),
+	}
+}
+
 func TestP4RTPacketIO(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -89,6 +116,9 @@ func TestP4RTPacketIO(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
+
+	// configureDeviceID(ctx, t, dut)
+	configurePortID(ctx, t, dut)
 
 	p4rtClientA := p4rt_client.P4RTClient{}
 	if err := p4rtClientA.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
@@ -155,10 +185,18 @@ func TestP4RTPacketIO(t *testing.T) {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 
-	P4RTTestcases := []Testcase{}
-	P4RTTestcases = append(P4RTTestcases, GDPTestcases...)
+	args.packetIO = getGDPParameter(t)
 
-	for _, tt := range P4RTTestcases {
+	for _, tt := range PublicTestcases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Name: %s", tt.name)
+			t.Logf("Description: %s", tt.desc)
+
+			tt.fn(ctx, t, args)
+		})
+	}
+
+	for _, tt := range OODGDPTestcases {
 		// Each case will run with its own gRIBI fluent client.
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
@@ -167,6 +205,30 @@ func TestP4RTPacketIO(t *testing.T) {
 			tt.fn(ctx, t, args)
 		})
 	}
+
+	// args.packetIO = getLLDPParameter(t)
+	// for _, tt := range OODLLDPDisabledTestcases {
+	// 	// Each case will run with its own gRIBI fluent client.
+	// 	t.Run(tt.name, func(t *testing.T) {
+	// 		t.Logf("Name: %s", tt.name)
+	// 		t.Logf("Description: %s", tt.desc)
+
+	// 		tt.fn(ctx, t, args)
+	// 	})
+	// }
+
+	// for _, tt := range LLDPEndabledTestcases {
+	// 	dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(true))
+	// 	// Each case will run with its own gRIBI fluent client.
+	// 	t.Run(tt.name, func(t *testing.T) {
+	// 		t.Logf("Name: %s", tt.name)
+	// 		t.Logf("Description: %s", tt.desc)
+
+	// 		tt.fn(ctx, t, args)
+	// 	})
+	// 	dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(false))
+	// }
+
 }
 
 func setupP4RTClient(ctx context.Context, t *testing.T, args *testArgs) error {
@@ -230,6 +292,73 @@ func setupP4RTClient(ctx context.Context, t *testing.T, args *testArgs) error {
 	if err != nil {
 		t.Logf("There is error seen when setting SetForwardingPipelineConfig")
 		return err
+	}
+	return nil
+}
+
+func setupPrimaryP4RTClient(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, deviceID, electionID uint64, streamName string) error {
+	return p4rtClientSetup(ctx, t, client, deviceID, electionID, streamName, true)
+}
+
+func setupBackupP4RTClient(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, deviceID, electionID uint64, streamName string) error {
+	return p4rtClientSetup(ctx, t, client, deviceID, electionID, streamName, false)
+}
+
+func p4rtClientSetup(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, deviceID, electionID uint64, streamName string, primary bool) error {
+	// Setup P4RT ClientA
+	streamParameter := p4rt_client.P4RTStreamParameters{
+		Name:        streamName,
+		DeviceId:    deviceID,
+		ElectionIdH: uint64(0),
+		ElectionIdL: electionID,
+	}
+
+	// Send client arbitration message
+	client.StreamChannelCreate(&streamParameter)
+	if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
+		Update: &p4_v1.StreamMessageRequest_Arbitration{
+			Arbitration: &p4_v1.MasterArbitrationUpdate{
+				DeviceId: streamParameter.DeviceId,
+				ElectionId: &p4_v1.Uint128{
+					High: streamParameter.ElectionIdH,
+					Low:  streamParameter.ElectionIdL,
+				},
+			},
+		},
+	}); err != nil {
+		t.Logf("There is error when setting up p4rtClientA")
+		return err
+	}
+	_, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1)
+
+	if arbErr != nil {
+		t.Logf("There is error at Arbitration time: %v", arbErr)
+		return arbErr
+	}
+
+	if primary {
+		p4Info, err := utils.P4InfoLoad(p4InfoFile)
+		if err != nil {
+			t.Logf("There is error when loading p4info file")
+			return err
+		}
+
+		// SetForwardingPipeline for p4rtClientA which is Primary Client
+		err = client.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
+			DeviceId:   deviceID,
+			ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+			Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
+			Config: &p4_v1.ForwardingPipelineConfig{
+				P4Info: &p4Info,
+				Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
+					Cookie: 159,
+				},
+			},
+		})
+		if err != nil {
+			t.Logf("There is error seen when setting SetForwardingPipelineConfig")
+			return err
+		}
 	}
 	return nil
 }
@@ -412,41 +541,41 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 		WithAddress(atePort2.IPv4CIDR()).
 		WithDefaultGateway(dutPort2.IPv4)
 
-	p3 := ate.Port(t, "port3")
-	i3 := top.AddInterface(atePort3.Name).WithPort(p3)
-	i3.IPv4().
-		WithAddress(atePort3.IPv4CIDR()).
-		WithDefaultGateway(dutPort3.IPv4)
+	// p3 := ate.Port(t, "port3")
+	// i3 := top.AddInterface(atePort3.Name).WithPort(p3)
+	// i3.IPv4().
+	// 	WithAddress(atePort3.IPv4CIDR()).
+	// 	WithDefaultGateway(dutPort3.IPv4)
 
-	p4 := ate.Port(t, "port4")
-	i4 := top.AddInterface(atePort4.Name).WithPort(p4)
-	i4.IPv4().
-		WithAddress(atePort4.IPv4CIDR()).
-		WithDefaultGateway(dutPort4.IPv4)
+	// p4 := ate.Port(t, "port4")
+	// i4 := top.AddInterface(atePort4.Name).WithPort(p4)
+	// i4.IPv4().
+	// 	WithAddress(atePort4.IPv4CIDR()).
+	// 	WithDefaultGateway(dutPort4.IPv4)
 
-	p5 := ate.Port(t, "port5")
-	i5 := top.AddInterface(atePort5.Name).WithPort(p5)
-	i5.IPv4().
-		WithAddress(atePort5.IPv4CIDR()).
-		WithDefaultGateway(dutPort5.IPv4)
+	// p5 := ate.Port(t, "port5")
+	// i5 := top.AddInterface(atePort5.Name).WithPort(p5)
+	// i5.IPv4().
+	// 	WithAddress(atePort5.IPv4CIDR()).
+	// 	WithDefaultGateway(dutPort5.IPv4)
 
-	p6 := ate.Port(t, "port6")
-	i6 := top.AddInterface(atePort6.Name).WithPort(p6)
-	i6.IPv4().
-		WithAddress(atePort6.IPv4CIDR()).
-		WithDefaultGateway(dutPort6.IPv4)
+	// p6 := ate.Port(t, "port6")
+	// i6 := top.AddInterface(atePort6.Name).WithPort(p6)
+	// i6.IPv4().
+	// 	WithAddress(atePort6.IPv4CIDR()).
+	// 	WithDefaultGateway(dutPort6.IPv4)
 
-	p7 := ate.Port(t, "port7")
-	i7 := top.AddInterface(atePort7.Name).WithPort(p7)
-	i7.IPv4().
-		WithAddress(atePort7.IPv4CIDR()).
-		WithDefaultGateway(dutPort7.IPv4)
+	// p7 := ate.Port(t, "port7")
+	// i7 := top.AddInterface(atePort7.Name).WithPort(p7)
+	// i7.IPv4().
+	// 	WithAddress(atePort7.IPv4CIDR()).
+	// 	WithDefaultGateway(dutPort7.IPv4)
 
-	p8 := ate.Port(t, "port8")
-	i8 := top.AddInterface(atePort8.Name).WithPort(p8)
-	i8.IPv4().
-		WithAddress(atePort8.IPv4CIDR()).
-		WithDefaultGateway(dutPort8.IPv4)
+	// p8 := ate.Port(t, "port8")
+	// i8 := top.AddInterface(atePort8.Name).WithPort(p8)
+	// i8.IPv4().
+	// 	WithAddress(atePort8.IPv4CIDR()).
+	// 	WithDefaultGateway(dutPort8.IPv4)
 
 	return top
 }

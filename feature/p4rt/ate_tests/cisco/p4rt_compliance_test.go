@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +21,23 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
 )
+
+func getComponentID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) string {
+	resp := dut.Telemetry().ComponentAny().Get(t)
+	component := telemetry.Component{}
+	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
+	names := []string{}
+	for _, c := range resp {
+		name := c.GetName()
+		if match, _ := regexp.MatchString(".*-NPU\\d+", name); match && !strings.Contains(name, "FC") {
+			names = append(names, name)
+		}
+	}
+	sort.Slice(names, func(i, j int) bool {
+		return names[i] < names[j]
+	})
+	return names[0]
+}
 
 func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	resp := dut.Telemetry().ComponentAny().Get(t)
@@ -103,10 +121,14 @@ func TestP4RTCompliance(t *testing.T) {
 	}
 
 	configureDeviceID(ctx, t, dut)
+	configurePortID(ctx, t, dut)
 
 	P4RTComplianceTestcases := []Testcase{}
 	P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceWriteRPC...)
 	P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceReadRPC...)
+	P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceClientArbitration...)
+	P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceSetForwardingPipelineConfig...)
+	P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceGetForwardingPipelineConfig...)
 
 	for _, tt := range P4RTComplianceTestcases {
 		// Each case will run with its own gRIBI fluent client.
@@ -121,19 +143,19 @@ func TestP4RTCompliance(t *testing.T) {
 	}
 }
 
-func generateStreamParameter(DeviceId, electionIDH, electionIDL uint64) p4rt_client.P4RTStreamParameters {
+func generateStreamParameter(device_ID, election_ID_High, election_ID_Low uint64) p4rt_client.P4RTStreamParameters {
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
-		DeviceId:    deviceID,
-		ElectionIdH: electionIDH,
-		ElectionIdL: electionIDL,
+		DeviceId:    device_ID,
+		ElectionIdH: election_ID_High,
+		ElectionIdL: election_ID_Low,
 	}
 	return streamParameter
 }
 
 func setupConnection(ctx context.Context, t *testing.T, streamParameter p4rt_client.P4RTStreamParameters, client *p4rt_client.P4RTClient) error {
 	client.StreamChannelCreate(&streamParameter)
-	if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
+	if err := client.StreamChannelSendMsg(&streamParameter.Name, &p4_v1.StreamMessageRequest{
 		Update: &p4_v1.StreamMessageRequest_Arbitration{
 			Arbitration: &p4_v1.MasterArbitrationUpdate{
 				DeviceId: streamParameter.DeviceId,
@@ -185,6 +207,19 @@ func setupForwardingPipeline(ctx context.Context, t *testing.T, streamParameter 
 	}
 
 	return nil
+}
+
+func getForwardingPipeline(ctx context.Context, t *testing.T, streamParameter p4rt_client.P4RTStreamParameters, client *p4rt_client.P4RTClient, responseType p4_v1.GetForwardingPipelineConfigRequest_ResponseType) (*p4_v1.GetForwardingPipelineConfigResponse, error) {
+	// Get Forwarding pipeline (for now, we just log it)
+	resp, err := client.GetForwardingPipelineConfig(&p4_v1.GetForwardingPipelineConfigRequest{
+		DeviceId:     streamParameter.DeviceId,
+		ResponseType: responseType,
+	})
+	if err != nil {
+		t.Logf("There is error in case of GetForwardingPipeline ...%s", err)
+		return nil, err
+	}
+	return resp, nil
 }
 
 func readProgrammedEntry(ctx context.Context, t *testing.T, device_id uint64, client *p4rt_client.P4RTClient) ([]*p4_v1.TableEntry, error) {

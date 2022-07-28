@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"testing"
 	"time"
 
@@ -17,10 +16,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
-)
-
-var (
-	gdpInLayers layers.EthernetType = 0x6007
 )
 
 var (
@@ -76,9 +71,34 @@ var (
 			fn:   testGDPEntryProgrammingPacketInRecoverPrimaryController,
 		},
 		{
-			name: "Program GDP Match Entry and Check PacketOut",
+			name: "Program GDP Match Entry and Check PacketOut(submit_to_ingress)",
 			desc: "Packet I/O-GDP-PacketOut:001 Ingress:  Inject EtherType 0x6007 packets and verify traffic behavior in case of EtherType 0x6007 entry programmed",
+			fn:   testGDPEntryProgrammingPacketOutWithGDP,
+		},
+		{
+			name: "Check PacketOut(submit_to_ingress)",
+			desc: "Packet I/O-GDP-PacketOut:002 Ingress:  Inject EtherType 0x6007 packets and verify traffic sends to related port in case of EtherType 0x6007 entry NOT programmed",
 			fn:   testGDPEntryProgrammingPacketOut,
+		},
+		{
+			name: "Program GDP Match Entry and Check PacketOut(submit_to_egress)",
+			desc: "Packet I/O-GDP-PacketOut:003 Egress: Inject EtherType 0x6007 packets and verify traffic behavior in case of EtherType 0x6007 entry programmed",
+			fn:   testGDPEntryProgrammingPacketOutWithGDPEgress,
+		},
+		{
+			name: "Check PacketOut(submit_to_egress)",
+			desc: "Packet I/O-GDP-PacketOut:004 Egress: Inject EtherType 0x6007 packets and verify traffic sends to related port in case of EtherType 0x6007 entry NOT programmed",
+			fn:   testGDPEntryProgrammingPacketOutEgress,
+		},
+		{
+			name: "Check PacketOut(submit_to_egress) With Invalid port-id",
+			desc: "Packet I/O-GDP-PacketOut:005 Egress: Inject EtherType 0x6007 packets with invalid port-id and verify packet is dropped",
+			fn:   testGDPEntryProgrammingPacketOutWithInvalidPortId,
+		},
+		{
+			name: "Change port-id and Check PacketOut(submit_to_egress)",
+			desc: "Packet I/O-GDP-PacketOut:009 Egress: Inject EtherType 0x6007 packets on existing port-id and then change related port-id and verify device behavior",
+			fn:   testGDPEntryProgrammingPacketOutWithInvalidPortId,
 		},
 	}
 )
@@ -100,30 +120,6 @@ func readAllPackets(ctx context.Context, t *testing.T, client p4rt_client.P4RTCl
 		}
 	}
 	return packets
-}
-
-func packetGDPRequestGet(t *testing.T) []byte {
-	t.Helper()
-	buf := gopacket.NewSerializeBuffer()
-	opts := gopacket.SerializeOptions{
-		FixLengths:       true,
-		ComputeChecksums: true,
-	}
-	pktEth := &layers.Ethernet{
-		SrcMAC: net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
-		//00:0A:DA:F0:F0:F0
-		DstMAC:       net.HardwareAddr{0x00, 0x0A, 0xDA, 0xF0, 0xF0, 0xF0},
-		EthernetType: gdpInLayers,
-	}
-	payload := []byte{}
-	payLoadLen := 64
-	for i := 0; i < payLoadLen; i++ {
-		payload = append(payload, byte(i))
-	}
-	gopacket.SerializeLayers(buf, opts,
-		pktEth, gopacket.Payload(payload),
-	)
-	return buf.Bytes()
 }
 
 func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType) {
@@ -238,56 +234,6 @@ func testGDPEntryProgrammingPacketIn(ctx context.Context, t *testing.T, args *te
 				}
 			}
 		}
-	}
-}
-
-func testGDPEntryProgrammingPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
-	client := args.p4rtClientA
-
-	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
-
-	// Check initial packet counters
-	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
-	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
-
-	packet := p4_v1.PacketOut{
-		Payload: packetGDPRequestGet(t),
-		Metadata: []*p4_v1.PacketMetadata{
-			&p4_v1.PacketMetadata{
-				MetadataId: 1, // "submit_to_egress"
-				Value:      []byte(fmt.Sprint(portID)),
-			},
-		},
-	}
-	packet_count := 100
-	for i := 0; i < packet_count; i++ {
-		if err := client.StreamChannelSendMsg(
-			&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Packet{
-					Packet: &packet,
-				},
-			}); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-		}
-	}
-
-	// Wait for ate stats to be populated
-	time.Sleep(60 * time.Second)
-	// testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
-
-	// Check packet counters after packet out
-	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
-
-	// Verify InPkts stats to check P4RT stream
-	// fmt.Println(counter_0)
-	// fmt.Println(counter_1)
-
-	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
-	if counter_1-counter_0 < uint64(float64(packet_count)*0.90) {
-		t.Errorf("There are no enough packets received.")
 	}
 }
 
@@ -936,4 +882,322 @@ func testGDPEntryProgrammingPacketInRecoverPrimaryController(ctx context.Context
 		}
 	}
 
+}
+
+func testGDPEntryProgrammingPacketOutWithGDP(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	if err := programmGDPMatchEntry(ctx, t, client, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmGDPMatchEntry(ctx, t, client, true)
+	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Check initial packet counters
+	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := p4_v1.PacketOut{
+		Payload: packetGDPRequestGet(t),
+		Metadata: []*p4_v1.PacketMetadata{
+			&p4_v1.PacketMetadata{
+				MetadataId: SUBMIT_TO_INGRESS, // "submit_to_egress"
+				Value:      []byte(fmt.Sprint(portID)),
+			},
+		},
+	}
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: &packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+	// testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+	if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
+		t.Errorf("Unexpected packets are received.")
+	}
+}
+
+func testGDPEntryProgrammingPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Check initial packet counters
+	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := p4_v1.PacketOut{
+		Payload: packetGDPRequestGet(t),
+		Metadata: []*p4_v1.PacketMetadata{
+			&p4_v1.PacketMetadata{
+				MetadataId: SUBMIT_TO_INGRESS, // "submit_to_egress"
+				Value:      []byte(fmt.Sprint(portID)),
+			},
+		},
+	}
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: &packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+	// testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+	if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
+		t.Errorf("Unexpected packets are received.")
+	}
+}
+
+func testGDPEntryProgrammingPacketOutWithGDPEgress(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	if err := programmGDPMatchEntry(ctx, t, client, false); err != nil {
+		t.Errorf("There is error when inserting the GDP entry")
+	}
+	defer programmGDPMatchEntry(ctx, t, client, true)
+	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Check initial packet counters
+	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := p4_v1.PacketOut{
+		Payload: packetGDPRequestGet(t),
+		Metadata: []*p4_v1.PacketMetadata{
+			&p4_v1.PacketMetadata{
+				MetadataId: SUBMIT_TO_EGRESS, // "submit_to_egress"
+				Value:      []byte(fmt.Sprint(portID)),
+			},
+		},
+	}
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: &packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+	// testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+	if counter_1-counter_0 < uint64(float64(packet_count)*0.90) {
+		t.Errorf("There are no enough packets received.")
+	}
+}
+
+func testGDPEntryProgrammingPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Check initial packet counters
+	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := p4_v1.PacketOut{
+		Payload: packetGDPRequestGet(t),
+		Metadata: []*p4_v1.PacketMetadata{
+			&p4_v1.PacketMetadata{
+				MetadataId: SUBMIT_TO_EGRESS, // "submit_to_egress"
+				Value:      []byte(fmt.Sprint(portID)),
+			},
+		},
+	}
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: &packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+	// testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+	if counter_1-counter_0 < uint64(float64(packet_count)*0.90) {
+		t.Errorf("There are no enough packets received.")
+	}
+}
+
+func testGDPEntryProgrammingPacketOutWithInvalidPortId(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Check initial packet counters
+	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := p4_v1.PacketOut{
+		Payload: packetGDPRequestGet(t),
+		Metadata: []*p4_v1.PacketMetadata{
+			&p4_v1.PacketMetadata{
+				MetadataId: SUBMIT_TO_EGRESS, // "submit_to_egress"
+				Value:      []byte(fmt.Sprint(^portID)),
+			},
+		},
+	}
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: &packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+	// testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+	if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
+		t.Errorf("Unexpected packets are received.")
+	}
+}
+
+func testGDPEntryProgrammingPacketOutAndChangePortId(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	newPortID := ^portID
+	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+		Name: ygot.String(portName),
+		Id:   ygot.Uint32(newPortID),
+	})
+
+	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+		Name: ygot.String(portName),
+		Id:   ygot.Uint32(portID),
+	})
+
+	// Check initial packet counters
+	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	packet := p4_v1.PacketOut{
+		Payload: packetGDPRequestGet(t),
+		Metadata: []*p4_v1.PacketMetadata{
+			&p4_v1.PacketMetadata{
+				MetadataId: SUBMIT_TO_EGRESS, // "submit_to_egress"
+				Value:      []byte(fmt.Sprint(newPortID)),
+			},
+		},
+	}
+	packet_count := 100
+	for i := 0; i < packet_count; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: &packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+	// testTraffic(t, args.ate, gdpMAC, gdpEtherType, srcEndPoint, 10, args)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+	if counter_1-counter_0 < uint64(float64(packet_count)*0.90) {
+		t.Errorf("There are not enought packets recived.")
+	}
 }
