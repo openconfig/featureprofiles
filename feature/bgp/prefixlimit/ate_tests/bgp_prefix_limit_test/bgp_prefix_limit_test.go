@@ -408,7 +408,6 @@ func configureBGPRoutes(t *testing.T, topo *ondatra.ATETopology, allNets []*onda
 		}
 	}
 	topo.UpdateNetworks(t)
-	topo.UpdateBGPPeerStates(t)
 }
 
 type testCase struct {
