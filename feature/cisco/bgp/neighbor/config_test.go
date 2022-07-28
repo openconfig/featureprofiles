@@ -16,7 +16,7 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	telemetryTimeout time.Duration = 10 * time.Second
+	telemetryTimeout time.Duration = 30 * time.Second
 	configApplyTime  time.Duration = 5 * time.Second // FIXME: Workaround
 	configDeleteTime time.Duration = 5 * time.Second // FIXME: Workaround
 	dutName          string        = "dut"
