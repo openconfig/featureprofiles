@@ -109,6 +109,45 @@ func TestInterfaceCfgs(t *testing.T) {
 		path.Update(t, iut.Name())
 
 	})
+	// port-speed and duplex-mode supported for GigabitEthernet/FastEthernet type interfaces
+	t.Run("Replace//interfaces/interface/ethernet/config/port-speed", func(t *testing.T) {
+		path := dut.Config().Interface("GigabitEthernet0/0/0/1").Ethernet().PortSpeed()
+		defer observer.RecordYgot(t, "REPLACE", path)
+		path.Replace(t, oc.IfEthernet_ETHERNET_SPEED_SPEED_1GB)
+
+	})
+	t.Run("Replace//interfaces/interface/ethernet/config/duplex-mode", func(t *testing.T) {
+		path := dut.Config().Interface("GigabitEthernet0/0/0/1").Ethernet().DuplexMode()
+		defer observer.RecordYgot(t, "REPLACE", path)
+		path.Replace(t, oc.Ethernet_DuplexMode_FULL)
+
+	})
+
+	t.Run("Update//interfaces/interface/ethernet/config/port-speed", func(t *testing.T) {
+		path := dut.Config().Interface("GigabitEthernet0/0/0/1").Ethernet().PortSpeed()
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Update(t, oc.IfEthernet_ETHERNET_SPEED_SPEED_1GB)
+
+	})
+	t.Run("Update//interfaces/interface/ethernet/config/duplex-mode", func(t *testing.T) {
+		path := dut.Config().Interface("GigabitEthernet0/0/0/1").Ethernet().DuplexMode()
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Update(t, oc.Ethernet_DuplexMode_FULL)
+
+	})
+
+	t.Run("Delete//interfaces/interface/ethernet/config/port-speed", func(t *testing.T) {
+		path := dut.Config().Interface("GigabitEthernet0/0/0/1").Ethernet().PortSpeed()
+		defer observer.RecordYgot(t, "DELETE", path)
+		path.Delete(t)
+
+	})
+	t.Run("Delete//interfaces/interface/ethernet/config/duplex-mode", func(t *testing.T) {
+		path := dut.Config().Interface("GigabitEthernet0/0/0/1").Ethernet().DuplexMode()
+		defer observer.RecordYgot(t, "DELETE", path)
+		path.Delete(t)
+
+	})
 
 }
 

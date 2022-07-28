@@ -46,11 +46,11 @@ func Test_Type(t *testing.T) {
 		policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Replace(t, &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Type().Delete(t)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Type().Delete(t)
 		})
 	})
 }
@@ -82,11 +82,11 @@ func Test_Policy_id(t *testing.T) {
 		policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Replace(t, &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Delete(t)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Delete(t)
 		})
 	})
 }
@@ -118,11 +118,11 @@ func Test_Sequence_id(t *testing.T) {
 		policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Replace(t, &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Delete(t)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Delete(t)
 		})
 	})
 }
@@ -153,11 +153,11 @@ func Test_Ethertype(t *testing.T) {
 		policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Replace(t, &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Delete(t)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Delete(t)
 		})
 	})
 }
@@ -187,13 +187,13 @@ func Test_Ipv4_Dscp_set(t *testing.T) {
 		policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Replace(t, &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Delete(t)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Delete(t)
 		})
-		dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Delete(t)
+		dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Delete(t)
 	})
 }
 
@@ -222,11 +222,11 @@ func Test_Ipv6_Dscp_set(t *testing.T) {
 		policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Replace(t, &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Delete(t)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Delete(t)
 		})
 	})
 }
@@ -256,11 +256,11 @@ func Test_Ipv4_Protocol(t *testing.T) {
 		policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Replace(t, &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Delete(t)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Delete(t)
 		})
 	})
 }
@@ -290,11 +290,11 @@ func Test_Ipv6_Protocol(t *testing.T) {
 		policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Replace(t, &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Delete(t)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Delete(t)
 		})
 	})
 }
@@ -324,11 +324,11 @@ func Test_Network_instance(t *testing.T) {
 		policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Replace(t, &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Delete(t)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Delete(t)
 		})
 	})
 }
@@ -357,16 +357,16 @@ func Test_Interface_ApplyVrfSelectionPolicy(t *testing.T) {
 		policy := telemetry.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
-		dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+		dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Replace(t, &policy)
 		// openconfig-network-instance:network-instances/network-instance/policy-forwarding/interfaces/interface/interface-id
 		// openconfig-network-instance:network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy
 		t.Run("Replace", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Interface(InterfaceName).ApplyVrfSelectionPolicy().Update(t, pbrName)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Interface(InterfaceName).ApplyVrfSelectionPolicy().Update(t, pbrName)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-			//dut.Config().NetworkInstance("default").PolicyForwarding().Delete(t)
-			dut.Config().NetworkInstance("default").PolicyForwarding().Interface(InterfaceName).Delete(t)
+			//dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Delete(t)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Interface(InterfaceName).Delete(t)
 		})
 	})
 }
@@ -404,15 +404,15 @@ func Test_Interface_InterfaceId(t *testing.T) {
 		policy.Interface = store
 		policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
-		dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+		dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Replace(t, &policy)
 
 		t.Run("Replace", func(t *testing.T) {
-			dut.Config().NetworkInstance("default").PolicyForwarding().Interface(InterfaceName).ApplyVrfSelectionPolicy().Update(t, pbrName)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Interface(InterfaceName).ApplyVrfSelectionPolicy().Update(t, pbrName)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-			//dut.Config().NetworkInstance("default").PolicyForwarding().Delete(t)
-			dut.Config().NetworkInstance("default").PolicyForwarding().Interface(InterfaceName).Delete(t)
+			//dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Delete(t)
+			dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Interface(InterfaceName).Delete(t)
 		})
 
 	})
