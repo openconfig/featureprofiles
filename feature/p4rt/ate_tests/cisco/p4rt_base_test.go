@@ -117,7 +117,7 @@ func TestP4RTPacketIO(t *testing.T) {
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
 
-	// configureDeviceID(ctx, t, dut)
+	configureDeviceID(ctx, t, dut)
 	configurePortID(ctx, t, dut)
 
 	p4rtClientA := p4rt_client.P4RTClient{}

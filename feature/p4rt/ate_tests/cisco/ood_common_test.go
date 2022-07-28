@@ -771,13 +771,13 @@ func testEntryProgrammingPacketInDowngradePrimaryControllerWithoutStandby(ctx co
 		setupBackupP4RTClient(ctx, t, args.p4rtClientB, deviceID, electionID-1, streamName)
 		setupBackupP4RTClient(ctx, t, args.p4rtClientB, deviceID, electionID-2, streamName)
 		setupBackupP4RTClient(ctx, t, args.p4rtClientB, deviceID, electionID-3, streamName)
+		programmTableEntry(ctx, t, args.p4rtClientA, args.packetIO, true)
 	}()
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
 		t.Errorf("There is error when inserting the GDP entry")
 	}
-	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
 	// Send Packet
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -1424,8 +1424,8 @@ func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, ar
 	packet := args.packetIO.GetPacketOut(t, portID, false)
 
 	// Change metadata
-	packet.Metadata[1].MetadataId = uint32(10)
-	packet.Metadata[1].Value = []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	packet.Metadata[0].MetadataId = uint32(10)
+	packet.Metadata[0].Value = []byte{1, 2, 3, 4, 5, 6, 7, 8}
 
 	packet_count := 100
 	for i := 0; i < packet_count; i++ {
