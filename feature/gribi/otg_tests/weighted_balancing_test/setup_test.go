@@ -151,7 +151,6 @@ type nextHop struct {
 // according to portsIPv4.  Returns nil if the port has no IP address
 // mapping.
 func dutInterface(p *ondatra.Port) *telemetry.Interface {
-	deviations.InterfaceEnabled = ygot.Bool(true)
 	id := fmt.Sprintf("%s:%s", p.Device().ID(), p.ID())
 	i := &telemetry.Interface{
 		Name:        ygot.String(p.Name()),
@@ -305,7 +304,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
 	waitOTGARPEntry(t)
-	dstMac := ate.OTG().Telemetry().Interface(ateSrcPort + ".eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
+	dstMac := ate.OTG().Telemetry().Interface(ateSrcPort + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
 	config.Flows().Clear().Items()
 	flow := config.Flows().Add().SetName("flow")
 	flow.Metrics().SetEnable(true)
@@ -351,7 +350,6 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 
 	ate.OTG().StartTraffic(t)
 	t.Logf("Traffic starting at %v for %v", time.Now(), *trafficDuration)
-	// time.Sleep(*trafficDuration)
 	time.Sleep(*trafficDuration)
 	t.Logf("Traffic stopping at %v", time.Now())
 	ate.OTG().StopTraffic(t)
@@ -443,10 +441,10 @@ func incrementedMac(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-// waitOtgArpEntry ensures that ARP entries are present on otg interfaces and traffic could be started
+// waitOtgArpEntry ensures that ARP entries are present on the tx otg interface and traffic could be started
 func waitOTGARPEntry(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
-	ate.OTG().Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+	ate.OTG().Telemetry().Interface(ateSrcPort+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
 		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
 			return val.IsPresent()
 		}).Await(t)
