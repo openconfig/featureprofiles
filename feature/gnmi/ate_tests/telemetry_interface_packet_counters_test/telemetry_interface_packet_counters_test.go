@@ -139,8 +139,8 @@ func TestInterfaceCounters(t *testing.T) {
 		// counter: ipv6Counters.InDiscardedPkts().Lookup(t),
 	}, {
 		// desc: "IPv6OutDiscardedPkts",
-		// TODO: Uncomment counter out-discarded-pkts after the issue fixed.
 		path:    ipv6CounterPath + "out-discarded-pkts",
+		// TODO: Uncomment counter out-discarded-pkts after the issue fixed.
 		// counter: ipv6Counters.OutDiscardedPkts().Lookup(t),
 	}}
 
