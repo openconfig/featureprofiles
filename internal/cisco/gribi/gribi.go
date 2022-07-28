@@ -655,3 +655,127 @@ func (c *Client) checkAftIPv4(t testing.TB, prefix string, nhgIndex uint64, inst
 		t.Fatalf("AFT Check failed for ipv4-entry/state/next-hope-group/state/programmed-id got %d, want %d", nhgPId, nhgIndex)
 	}
 }
+
+// AGNEL TO-DO
+// func (c *Client) AddNHSubIntf(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
+// 	NH := fluent.NextHopEntry().
+// 		WithNetworkInstance(instance).
+// 		WithIndex(nhIndex)
+
+// 	if address == "decap" {
+// 		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
+// 	} else if address != "" {
+// 		NH = NH.WithIPAddress(address)
+// 	}
+
+// 	if nhInstance != "" {
+// 		NH = NH.WithNextHopNetworkInstance(nhInstance)
+// 	}
+// 	if interfaceRef != "" {
+// 		//NH = NH.WithInterfaceRef(interfaceRef)
+// 		NH = NH.WithSubinterfaceRef(interfaceRef, 1)
+// 	}
+// 	c.fluentC.Modify().AddEntry(t, NH)
+// 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+// 		t.Fatalf("Error waiting to add NH: %v", err)
+// 	}
+// 	if expecteFailure {
+// 		c.checkNHResult(t, fluent.ProgrammingFailed, constants.Add, nhIndex)
+// 	} else {
+// 		c.checkNHResult(t, fluent.InstalledInRIB, constants.Add, nhIndex)
+// 		if check.FIBACK {
+// 			c.checkNHResult(t, fluent.InstalledInFIB, constants.Add, nhIndex)
+// 		}
+// 	}
+// 	//if check.AFTCheck {
+// 	aftcheck := false
+// 	if aftcheck {
+// 		nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
+// 		if (*nh.Index != nhIndex) || (*nh.IpAddress != address) {
+// 			//t.Fatalf("AFT Check failed for aft/nexthop-entry got ip %s, want ip %s; got index %d , want index %d", *nh.IpAddress, address, *nh.Index, nhIndex)
+// 			t.Logf("AFT Check failed for aft/nexthop-entry got ip %s, want ip %s; got index %d , want index %d", *nh.IpAddress, address, *nh.Index, nhIndex)
+// 		}
+// 	}
+// }
+
+// func (c *Client) AddNHAGN(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, interfaceRef string, ipinip bool, expecteFailure bool, check *flags.GRIBICheck) {
+// 	NH := fluent.NextHopEntry().
+// 		WithNetworkInstance(instance).
+// 		WithIndex(nhIndex)
+
+// 	if address == "encap" {
+// 		NH = NH.WithEncapsulateHeader(fluent.IPinIP)
+// 	} else if address != "" {
+// 		if ipinip {
+// 			NH = NH.WithIPAddress(address).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP("20.20.20.1", "10.10.10.1")
+// 		} else {
+// 			NH = NH.WithIPAddress(address)
+// 		}
+// 	}
+// 	//NH = NH.WithIPAddress("100.121.1.2").WithIPinIP("2.2.2.2", "1.1.1.1")
+// 	if nhInstance != "" {
+// 		NH = NH.WithNextHopNetworkInstance(nhInstance)
+// 	}
+// 	if interfaceRef != "" {
+// 		//t.Log("WithSubinterfaceRef")
+// 		NH = NH.WithSubinterfaceRef(interfaceRef, 1)
+// 	}
+// 	c.fluentC.Modify().AddEntry(t, NH)
+// 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+// 		t.Fatalf("Error waiting to add NH: %v", err)
+// 	}
+// 	if expecteFailure {
+// 		c.checkNHResult(t, fluent.ProgrammingFailed, constants.Add, nhIndex)
+// 	} else {
+// 		c.checkNHResult(t, fluent.InstalledInRIB, constants.Add, nhIndex)
+// 		if check.FIBACK {
+// 			c.checkNHResult(t, fluent.InstalledInFIB, constants.Add, nhIndex)
+// 		}
+// 	}
+// 	if check.AFTCheck {
+// 		nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
+// 		if (*nh.Index != nhIndex) || (*nh.IpAddress != address) {
+// 			t.Fatalf("AFT Check failed for aft/nexthop-entry got ip %s, want ip %s; got index %d , want index %d", *nh.IpAddress, address, *nh.Index, nhIndex)
+// 		}
+// 	}
+// }
+
+func (c *Client) AddNHWithIPinIP(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, subinterfaceRef string, ipinip bool, expecteFailure bool, check *flags.GRIBICheck) {
+	NH := fluent.NextHopEntry().
+		WithNetworkInstance(instance).
+		WithIndex(nhIndex)
+
+	if address == "encap" {
+		NH = NH.WithEncapsulateHeader(fluent.IPinIP)
+	} else if address != "" {
+		if ipinip {
+			NH = NH.WithIPAddress(address).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP("20.20.20.1", "10.10.10.1")
+		} else {
+			NH = NH.WithIPAddress(address)
+		}
+	}
+	if nhInstance != "" {
+		NH = NH.WithNextHopNetworkInstance(nhInstance)
+	}
+	if subinterfaceRef != "" {
+		NH = NH.WithSubinterfaceRef(subinterfaceRef, 1)
+	}
+	c.fluentC.Modify().AddEntry(t, NH)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add NH: %v", err)
+	}
+	if expecteFailure {
+		c.checkNHResult(t, fluent.ProgrammingFailed, constants.Add, nhIndex)
+	} else {
+		c.checkNHResult(t, fluent.InstalledInRIB, constants.Add, nhIndex)
+		if check.FIBACK {
+			c.checkNHResult(t, fluent.InstalledInFIB, constants.Add, nhIndex)
+		}
+	}
+	if check.AFTCheck {
+		nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
+		if (*nh.Index != nhIndex) || (*nh.IpAddress != address) {
+			t.Fatalf("AFT Check failed for aft/nexthop-entry got ip %s, want ip %s; got index %d , want index %d", *nh.IpAddress, address, *nh.Index, nhIndex)
+		}
+	}
+}
