@@ -15,16 +15,16 @@ import (
 
 var (
 	PublicTestcases = []Testcase{
-		// {
-		// 	name: "TE-3.1 Program GDP Match Entry and Check PacketIn",
-		// 	desc: "TE 3.1",
-		// 	fn:   testGDPEntryProgrammingPacketIn,
-		// },
-		// {
-		// 	name: "TE-3.2 Program GDP Match Entry and Check PacketOut",
-		// 	desc: "TE 3.2",
-		// 	fn:   testGDPPacketOut,
-		// },
+		{
+			name: "TE-3.1 Program GDP Match Entry and Check PacketIn",
+			desc: "TE 3.1",
+			fn:   testGDPEntryProgrammingPacketIn,
+		},
+		{
+			name: "TE-3.2 Program GDP Match Entry and Check PacketOut",
+			desc: "TE 3.2",
+			fn:   testGDPPacketOut,
+		},
 	}
 )
 
