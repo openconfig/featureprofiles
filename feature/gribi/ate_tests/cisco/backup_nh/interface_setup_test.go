@@ -140,7 +140,7 @@ var (
 // configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
 	i.Description = ygot.String(a.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = telemetry.IETFInterfaces_InterfaceType_ieee8023adLag
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -183,34 +183,59 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := dut.Config()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutPort1))
+	i1 := &telemetry.Interface{Name: ygot.String("Bundle-Ether120")}
+	d.Interface(*i1.Name).Replace(t, configInterfaceDUT(i1, &dutPort1))
+	BE120 := generateBundleMemberInterfaceConfig(t, p1.Name(), *i1.Name)
+	dut.Config().Interface(p1.Name()).Replace(t, BE120)
 
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutPort2))
+	i2 := &telemetry.Interface{Name: ygot.String("Bundle-Ether121")}
+	d.Interface(*i2.Name).Replace(t, configInterfaceDUT(i2, &dutPort2))
+	BE121 := generateBundleMemberInterfaceConfig(t, p2.Name(), *i2.Name)
+	dut.Config().Interface(p2.Name()).Replace(t, BE121)
 
 	p3 := dut.Port(t, "port3")
-	i3 := &telemetry.Interface{Name: ygot.String(p3.Name())}
-	d.Interface(p3.Name()).Replace(t, configInterfaceDUT(i3, &dutPort3))
+	i3 := &telemetry.Interface{Name: ygot.String("Bundle-Ether122")}
+	d.Interface(*i3.Name).Replace(t, configInterfaceDUT(i3, &dutPort3))
+	BE122 := generateBundleMemberInterfaceConfig(t, p3.Name(), *i3.Name)
+	dut.Config().Interface(p3.Name()).Replace(t, BE122)
 
 	p4 := dut.Port(t, "port4")
-	i4 := &telemetry.Interface{Name: ygot.String(p4.Name())}
-	d.Interface(p4.Name()).Replace(t, configInterfaceDUT(i4, &dutPort4))
+	i4 := &telemetry.Interface{Name: ygot.String("Bundle-Ether123")}
+	d.Interface(*i4.Name).Replace(t, configInterfaceDUT(i4, &dutPort4))
+	BE123 := generateBundleMemberInterfaceConfig(t, p4.Name(), *i4.Name)
+	dut.Config().Interface(p4.Name()).Replace(t, BE123)
 
 	p5 := dut.Port(t, "port5")
-	i5 := &telemetry.Interface{Name: ygot.String(p5.Name())}
-	d.Interface(p5.Name()).Replace(t, configInterfaceDUT(i5, &dutPort5))
+	i5 := &telemetry.Interface{Name: ygot.String("Bundle-Ether124")}
+	d.Interface(*i5.Name).Replace(t, configInterfaceDUT(i5, &dutPort5))
+	BE124 := generateBundleMemberInterfaceConfig(t, p5.Name(), *i5.Name)
+	dut.Config().Interface(p5.Name()).Replace(t, BE124)
 
 	p6 := dut.Port(t, "port6")
-	i6 := &telemetry.Interface{Name: ygot.String(p6.Name())}
-	d.Interface(p6.Name()).Replace(t, configInterfaceDUT(i6, &dutPort6))
+	i6 := &telemetry.Interface{Name: ygot.String("Bundle-Ether125")}
+	d.Interface(*i6.Name).Replace(t, configInterfaceDUT(i6, &dutPort6))
+	BE125 := generateBundleMemberInterfaceConfig(t, p6.Name(), *i6.Name)
+	dut.Config().Interface(p6.Name()).Replace(t, BE125)
 
 	p7 := dut.Port(t, "port7")
-	i7 := &telemetry.Interface{Name: ygot.String(p7.Name())}
-	d.Interface(p7.Name()).Replace(t, configInterfaceDUT(i7, &dutPort7))
+	i7 := &telemetry.Interface{Name: ygot.String("Bundle-Ether126")}
+	d.Interface(*i7.Name).Replace(t, configInterfaceDUT(i7, &dutPort7))
+	BE126 := generateBundleMemberInterfaceConfig(t, p7.Name(), *i7.Name)
+	dut.Config().Interface(p7.Name()).Replace(t, BE126)
 
 	p8 := dut.Port(t, "port8")
-	i8 := &telemetry.Interface{Name: ygot.String(p8.Name())}
-	d.Interface(p8.Name()).Replace(t, configInterfaceDUT(i8, &dutPort8))
+	i8 := &telemetry.Interface{Name: ygot.String("Bundle-Ether127")}
+	d.Interface(*i8.Name).Replace(t, configInterfaceDUT(i8, &dutPort8))
+	BE127 := generateBundleMemberInterfaceConfig(t, p8.Name(), *i8.Name)
+	dut.Config().Interface(p8.Name()).Replace(t, BE127)
+}
+
+func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *telemetry.Interface {
+	i := &telemetry.Interface{Name: ygot.String(name)}
+	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	e := i.GetOrCreateEthernet()
+	e.AutoNegotiate = ygot.Bool(false)
+	e.AggregateId = ygot.String(bundleID)
+	return i
 }

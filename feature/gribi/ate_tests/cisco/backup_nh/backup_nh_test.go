@@ -58,18 +58,16 @@ func TestMain(m *testing.M) {
 const (
 	ipv4PrefixLen         = 30
 	ipv6PrefixLen         = 126
-	instance              = "DEFAULT"
 	dstPfx                = "198.51.100.1"
 	mask                  = "32"
 	dstPfxMin             = "198.51.100.1"
-	dstPfxCount           = 100
 	dstPfx1               = "11.1.1.1"
 	dstPfxCount1          = 10
 	innersrcPfx           = "200.1.0.1"
 	innerdstPfxMin_bgp    = "202.1.0.1"
-	innerdstPfxCount_bgp  = 100
+	innerdstPfxCount_bgp  = 10
 	innerdstPfxMin_isis   = "201.1.0.1"
-	innerdstPfxCount_isis = 100
+	innerdstPfxCount_isis = 10
 )
 
 // testArgs holds the objects needed by a test case.
@@ -134,27 +132,18 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
-
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
 	defer args.interfaceaction(t, "port7", true)
 	defer args.interfaceaction(t, "port6", true)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether127"})
+	}
 
 	args.interfaceaction(t, "port5", false)
 	args.interfaceaction(t, "port4", false)
@@ -166,7 +155,9 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.interfaceaction(t, "port2", true)
 
 	// validate traffic dropping on backup
-	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	}
 }
 
 func testDeleteAddBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
@@ -222,33 +213,26 @@ func testDeleteAddBackupToDrop(ctx context.Context, t *testing.T, args *testArgs
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
-
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//delete backup path and validate no traffic loss
 	args.client.ReplaceNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.DeleteNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.DeleteNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
+	}
 
 	//add back backup path and validate no traffic loss
 	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.ReplaceNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
+	}
 }
 
 func testBackupToTrafficLoss(ctx context.Context, t *testing.T, args *testArgs) {
@@ -304,20 +288,9 @@ func testBackupToTrafficLoss(ctx context.Context, t *testing.T, args *testArgs) 
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
-
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//delete backup path and shut primary interfaces and validate traffic drops
 	args.client.ReplaceNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -335,13 +308,17 @@ func testBackupToTrafficLoss(ctx context.Context, t *testing.T, args *testArgs) 
 	defer args.interfaceaction(t, "port4", true)
 	defer args.interfaceaction(t, "port3", true)
 	defer args.interfaceaction(t, "port2", true)
-	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	}
 
 	//add back backup path and validate traffic drops
 	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.ReplaceNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	}
 }
 
 func testUpdateBackUpToDropID(ctx context.Context, t *testing.T, args *testArgs) {
@@ -397,20 +374,9 @@ func testUpdateBackUpToDropID(ctx context.Context, t *testing.T, args *testArgs)
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
-
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//Modify Backup pointing to Different ID which is pointing to a different static rooute pointitng to DROP
 	args.client.AddNH(t, 999, "220.220.220.220", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
@@ -429,7 +395,9 @@ func testUpdateBackUpToDropID(ctx context.Context, t *testing.T, args *testArgs)
 	defer args.interfaceaction(t, "port4", true)
 	defer args.interfaceaction(t, "port3", true)
 	defer args.interfaceaction(t, "port2", true)
-	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	}
 }
 
 func testBackupToDecap(ctx context.Context, t *testing.T, args *testArgs) {
@@ -486,27 +454,18 @@ func testBackupToDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
-
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
 	defer args.interfaceaction(t, "port7", true)
 	defer args.interfaceaction(t, "port6", true)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether127"})
+	}
 
 	args.interfaceaction(t, "port5", false)
 	args.interfaceaction(t, "port4", false)
@@ -517,7 +476,9 @@ func testBackupToDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.interfaceaction(t, "port3", true)
 	defer args.interfaceaction(t, "port2", true)
 	// validate traffic decap over backup path
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 }
 
 func testFlushForwarding(ctx context.Context, t *testing.T, args *testArgs) {
@@ -526,20 +487,6 @@ func testFlushForwarding(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
-
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
 
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a decap
@@ -566,13 +513,17 @@ func testFlushForwarding(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.interfaceaction(t, "port2", true)
 
 	//Validate traffic over backup is passing
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 
 	//flush all the entries
 	args.client.FlushServer(t)
 
 	//Validate traffic dropping after deleting forwarding
-	args.validateTrafficFlows(t, flows, true, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"})
+	}
 
 	//unshut links
 	args.interfaceaction(t, "port2", true)
@@ -622,7 +573,9 @@ func testFlushForwarding(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// validate traffic passing over primary path
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"})
+	}
 
 	//shutdown primary path
 	args.interfaceaction(t, "port7", false)
@@ -633,13 +586,17 @@ func testFlushForwarding(ctx context.Context, t *testing.T, args *testArgs) {
 	args.interfaceaction(t, "port2", false)
 
 	//Validate traffic over backup
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 
 	//flush the entries
 	args.client.FlushServer(t)
 
 	//Validate traffic failing
-	args.validateTrafficFlows(t, flows, true, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
+	}
 }
 
 func testBackupSwitchFromDropToDecap(ctx context.Context, t *testing.T, args *testArgs) {
@@ -696,20 +653,9 @@ func testBackupSwitchFromDropToDecap(ctx context.Context, t *testing.T, args *te
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
-
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//shutdown primary path
 	args.interfaceaction(t, "port7", false)
@@ -726,13 +672,17 @@ func testBackupSwitchFromDropToDecap(ctx context.Context, t *testing.T, args *te
 	defer args.interfaceaction(t, "port2", true)
 
 	//Validate traffic over backup is failing
-	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	}
 
 	// Modify backup from pointing to a static route to a DECAP chain
 	args.client.AddNH(t, 999, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.ReplaceNHG(t, 101, 0, map[uint64]uint64{999: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// validate traffic decap over backup path
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 }
 
 func testUpdateBackupToDifferentNHG(ctx context.Context, t *testing.T, args *testArgs) {
@@ -789,19 +739,9 @@ func testUpdateBackupToDifferentNHG(ctx context.Context, t *testing.T, args *tes
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 }
 
 func testValidateForwardingChain(ctx context.Context, t *testing.T, args *testArgs) {
@@ -877,7 +817,7 @@ func testValidateForwardingChain(ctx context.Context, t *testing.T, args *testAr
 	var data []string
 	data = append(data, "192.0.2.40/32", "192.0.2.42/32")
 	ip := net.ParseIP(dstPfx)
-	for i := 0; i < dstPfxCount; i++ {
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
 		ip_v4 := ip.To4()
 		data = append(data, ip_v4.String()+"/32")
 		ip_v4[3]++
@@ -896,8 +836,6 @@ func testBackupSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.FlushServer(t)
 
 	// Verify the entry for 198.51.100.1/32 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
 
 	t.Log("going to program Static ARP different from Ixia ")
 	config.TextWithGNMI(args.ctx, t, args.dut, "arp 198.51.100.1  0012.0100.0001 arpa")
@@ -916,30 +854,25 @@ func testBackupSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddNHG(t, 100, 101, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121"})
 	}
-
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2"})
 
 	//shutdown primary path port2 and switch to backup port8
 	args.interfaceaction(t, "port2", false)
 	defer args.interfaceaction(t, "port2", true)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 
 	t.Log("going to remove Static ARP different from Ixia ")
 	config.TextWithGNMI(args.ctx, t, args.dut, "no arp 198.51.100.1 0012.0100.0001 arpa")
 	config.TextWithGNMI(args.ctx, t, args.dut, "interface HundredGigE0/0/0/1 arp learning disable")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no interface HundredGigE0/0/0/1 arp learning disable")
 
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 
 	//adding back port2 configurations
 	args.interfaceaction(t, "port2", true)
@@ -962,7 +895,9 @@ func testBackupSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.DeleteNHG(t, 200, 0, map[uint64]uint64{2000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.DeleteNH(t, 2000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 }
 
 func testBackupMultiNH(ctx context.Context, t *testing.T, args *testArgs) {
@@ -973,8 +908,6 @@ func testBackupMultiNH(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.FlushServer(t)
 
 	// Verify the entry for 198.51.100.1/32 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
 
 	t.Log("going to program Static ARP different from Ixia ")
 	config.TextWithGNMI(args.ctx, t, args.dut, "arp 198.51.100.1  0012.0100.0001 arpa")
@@ -994,26 +927,22 @@ func testBackupMultiNH(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddNHG(t, 100, 101, map[uint64]uint64{100: 50, 200: 50}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122"})
 	}
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3"})
 
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port2", false)
 	defer args.interfaceaction(t, "port2", true)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port3"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether122"})
+	}
 
 	args.interfaceaction(t, "port3", false)
 	defer args.interfaceaction(t, "port3", true)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 }
 
 /*
@@ -1072,23 +1001,13 @@ func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArg
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
 	args.client.AddNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// validate traffic passing via primary links
 	time.Sleep(time.Minute)
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"})
+	}
 }
 
 /* Add a backup path when primary links are
@@ -1146,15 +1065,6 @@ func testIPv4BackUpAddBkNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
@@ -1164,11 +1074,9 @@ func testIPv4BackUpAddBkNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	// validate traffic passing successfulling after decap via backup link
 	args.client.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	time.Sleep(time.Minute)
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 }
 
 /*
@@ -1228,15 +1136,6 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
@@ -1247,16 +1146,16 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 	args.client.AddNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	time.Sleep(time.Minute)
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	}
 
 	args.client.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	time.Sleep(time.Minute)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 }
 
 func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1311,15 +1210,6 @@ func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) 
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	interface_names := []string{"port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
@@ -1328,11 +1218,9 @@ func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) 
 	}
 	// validate traffic passing successfulling via primary Site 2
 	time.Sleep(time.Minute)
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port6", "port7"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether125", "Bundle-Ether126"})
+	}
 }
 
 /* Change the Backup NHG index from a Decap NHG to
@@ -1391,15 +1279,6 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-
 	//shutdown primary path one by one
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
@@ -1408,11 +1287,9 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 	}
 	// validate traffic passing successfulling after decap via backup path
 	time.Sleep(time.Minute)
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 
 	args.client.AddNH(t, 11, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 102, 0, map[uint64]uint64{11: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -1420,7 +1297,9 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 
 	// validate traffic dropping completely on the backup path
 	time.Sleep(time.Minute)
-	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	}
 }
 
 /* Change the Backup NHG index from a Drop NHG to
@@ -1479,15 +1358,6 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-
 	//shutdown primary path one by one
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
@@ -1496,18 +1366,18 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	}
 	// validate traffic dropping on the backup path
 	time.Sleep(time.Minute)
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, true, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	}
 
 	args.client.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// validate traffic passing successfulling after decap via ISIS route
 	time.Sleep(time.Minute)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 }
 
 /* Change the Backup NHG index from a Decap NHG to
@@ -1566,15 +1436,6 @@ func testIPv4BackUpModifyDecapNHG(ctx context.Context, t *testing.T, args *testA
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
@@ -1588,11 +1449,9 @@ func testIPv4BackUpModifyDecapNHG(ctx context.Context, t *testing.T, args *testA
 
 	// validate traffic passing successfulling after decap via ISIS route
 	time.Sleep(time.Minute)
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 }
 
 func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1689,15 +1548,6 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	args.client.AddIPv4(t, "192.0.2.42/32", 4000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
@@ -1706,11 +1556,9 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	}
 	// validate traffic passing successfulling after decap via ISIS route
 	time.Sleep(time.Minute)
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 }
 
 func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1807,15 +1655,6 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
@@ -1824,11 +1663,9 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	}
 	// validate traffic passing successfulling after decap via ISIS route
 	time.Sleep(time.Minute)
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 }
 
 func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1883,15 +1720,6 @@ func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
@@ -1905,11 +1733,9 @@ func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs
 	// validate traffic passing successfulling via primary Site 2
 	time.Sleep(time.Minute)
 
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 }
 
 func testIPv4MultipleNHG(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1976,27 +1802,18 @@ func testIPv4MultipleNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
-
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"})
 
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
 	defer args.interfaceaction(t, "port7", true)
 	defer args.interfaceaction(t, "port6", true)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port2", "port3", "port4", "port5", "port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether127"})
+	}
 
 	args.interfaceaction(t, "port5", false)
 	args.interfaceaction(t, "port4", false)
@@ -2007,7 +1824,9 @@ func testIPv4MultipleNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.interfaceaction(t, "port3", true)
 	defer args.interfaceaction(t, "port2", true)
 	// validate traffic decap over backup path
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 }
 
 func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2062,15 +1881,6 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()
-	updated_dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range dstEndPoint {
-		if intf != "atePort1" {
-			updated_dstEndPoint = append(updated_dstEndPoint, intf_data)
-		}
-	}
-
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	interface_names := []string{"port7", "port6", "port5", "port4", "port3", "port2"}
 	for _, intf := range interface_names {
@@ -2082,11 +1892,9 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 	// validate traffic passing successfulling via primary Site 2
 	time.Sleep(time.Minute)
 
-	bgp_flow := args.createFlow("BaseFlow_BGP", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := args.createFlow("BaseFlow_ISIS", srcEndPoint, updated_dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	args.validateTrafficFlows(t, flows, false, "port1", []string{"port8"})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
 }
 
 func TestBackUp(t *testing.T) {
@@ -2101,11 +1909,14 @@ func TestBackUp(t *testing.T) {
 	// Configure the DUT
 	configureDUT(t, dut)
 	configbasePBR(t, dut, "TE", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	defer unconfigbasePBR(t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	addPrototoAte(t, top)
+	if *ciscoFlags.GRIBITrafficCheck {
+		addPrototoAte(t, top)
+	}
 
 	test := []struct {
 		name string
