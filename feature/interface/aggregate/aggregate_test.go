@@ -25,6 +25,12 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+const (
+	aggID   = "AggregateInterfaceName"
+	member1 = "MemberInterface1"
+	member2 = "MemberInterface2"
+)
+
 // TestAugmentDevice tests the features of Interface config.
 func TestAugmentDevice(t *testing.T) {
 	tests := []struct {
@@ -34,20 +40,20 @@ func TestAugmentDevice(t *testing.T) {
 		wantDevice *fpoc.Device
 	}{{
 		desc:     "New aggregate interface",
-		agg:      New("Port-Channel1", fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST),
+		agg:      New(aggID, fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST),
 		inDevice: &fpoc.Device{},
 		wantDevice: &fpoc.Device{
 			Lacp: &fpoc.Lacp{
 				Interface: map[string]*fpoc.Lacp_Interface{
-					"Port-Channel1": {
-						Name:     ygot.String("Port-Channel1"),
+					aggID: {
+						Name:     ygot.String(aggID),
 						Interval: fpoc.Lacp_LacpPeriodType_FAST,
 					},
 				},
 			},
 			Interface: map[string]*fpoc.Interface{
-				"Port-Channel1": {
-					Name: ygot.String("Port-Channel1"),
+				aggID: {
+					Name: ygot.String(aggID),
 					Aggregation: &fpoc.Interface_Aggregation{
 						LagType: fpoc.IfAggregate_AggregationType_LACP,
 					},
@@ -56,20 +62,20 @@ func TestAugmentDevice(t *testing.T) {
 		},
 	}, {
 		desc:     "Min links",
-		agg:      New("Port-Channel1", fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).WithMinLinks(2),
+		agg:      New(aggID, fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).WithMinLinks(2),
 		inDevice: &fpoc.Device{},
 		wantDevice: &fpoc.Device{
 			Lacp: &fpoc.Lacp{
 				Interface: map[string]*fpoc.Lacp_Interface{
-					"Port-Channel1": {
-						Name:     ygot.String("Port-Channel1"),
+					aggID: {
+						Name:     ygot.String(aggID),
 						Interval: fpoc.Lacp_LacpPeriodType_FAST,
 					},
 				},
 			},
 			Interface: map[string]*fpoc.Interface{
-				"Port-Channel1": {
-					Name: ygot.String("Port-Channel1"),
+				aggID: {
+					Name: ygot.String(aggID),
 					Aggregation: &fpoc.Interface_Aggregation{
 						LagType:  fpoc.IfAggregate_AggregationType_LACP,
 						MinLinks: ygot.Uint16(2),
@@ -79,21 +85,21 @@ func TestAugmentDevice(t *testing.T) {
 		},
 	}, {
 		desc:     "LACP mode",
-		agg:      New("Port-Channel1", fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).WithLACPMode(fpoc.Lacp_LacpActivityType_ACTIVE),
+		agg:      New(aggID, fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).WithLACPMode(fpoc.Lacp_LacpActivityType_ACTIVE),
 		inDevice: &fpoc.Device{},
 		wantDevice: &fpoc.Device{
 			Lacp: &fpoc.Lacp{
 				Interface: map[string]*fpoc.Lacp_Interface{
-					"Port-Channel1": {
-						Name:     ygot.String("Port-Channel1"),
+					aggID: {
+						Name:     ygot.String(aggID),
 						Interval: fpoc.Lacp_LacpPeriodType_FAST,
 						LacpMode: fpoc.Lacp_LacpActivityType_ACTIVE,
 					},
 				},
 			},
 			Interface: map[string]*fpoc.Interface{
-				"Port-Channel1": {
-					Name: ygot.String("Port-Channel1"),
+				aggID: {
+					Name: ygot.String(aggID),
 					Aggregation: &fpoc.Interface_Aggregation{
 						LagType: fpoc.IfAggregate_AggregationType_LACP,
 					},
@@ -102,21 +108,21 @@ func TestAugmentDevice(t *testing.T) {
 		},
 	}, {
 		desc:     "System ID MAC",
-		agg:      New("Port-Channel1", fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).WithSystemIDMAC("52:fe:7c:91:6e:c1"),
+		agg:      New(aggID, fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).WithSystemIDMAC("52:fe:7c:91:6e:c1"),
 		inDevice: &fpoc.Device{},
 		wantDevice: &fpoc.Device{
 			Lacp: &fpoc.Lacp{
 				Interface: map[string]*fpoc.Lacp_Interface{
-					"Port-Channel1": {
-						Name:        ygot.String("Port-Channel1"),
+					aggID: {
+						Name:        ygot.String(aggID),
 						Interval:    fpoc.Lacp_LacpPeriodType_FAST,
 						SystemIdMac: ygot.String("52:fe:7c:91:6e:c1"),
 					},
 				},
 			},
 			Interface: map[string]*fpoc.Interface{
-				"Port-Channel1": {
-					Name: ygot.String("Port-Channel1"),
+				aggID: {
+					Name: ygot.String(aggID),
 					Aggregation: &fpoc.Interface_Aggregation{
 						LagType: fpoc.IfAggregate_AggregationType_LACP,
 					},
@@ -125,21 +131,21 @@ func TestAugmentDevice(t *testing.T) {
 		},
 	}, {
 		desc:     "Interface system priority",
-		agg:      New("Port-Channel1", fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).WithInterfaceSystemPriority(2),
+		agg:      New(aggID, fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).WithInterfaceSystemPriority(2),
 		inDevice: &fpoc.Device{},
 		wantDevice: &fpoc.Device{
 			Lacp: &fpoc.Lacp{
 				Interface: map[string]*fpoc.Lacp_Interface{
-					"Port-Channel1": {
-						Name:           ygot.String("Port-Channel1"),
+					aggID: {
+						Name:           ygot.String(aggID),
 						Interval:       fpoc.Lacp_LacpPeriodType_FAST,
 						SystemPriority: ygot.Uint16(2),
 					},
 				},
 			},
 			Interface: map[string]*fpoc.Interface{
-				"Port-Channel1": {
-					Name: ygot.String("Port-Channel1"),
+				aggID: {
+					Name: ygot.String(aggID),
 					Aggregation: &fpoc.Interface_Aggregation{
 						LagType: fpoc.IfAggregate_AggregationType_LACP,
 					},
@@ -148,21 +154,21 @@ func TestAugmentDevice(t *testing.T) {
 		},
 	}, {
 		desc:     "Global system priority",
-		agg:      New("Port-Channel1", fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).WithGlobalSystemPriority(2),
+		agg:      New(aggID, fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).WithGlobalSystemPriority(2),
 		inDevice: &fpoc.Device{},
 		wantDevice: &fpoc.Device{
 			Lacp: &fpoc.Lacp{
 				SystemPriority: ygot.Uint16(2),
 				Interface: map[string]*fpoc.Lacp_Interface{
-					"Port-Channel1": {
-						Name:     ygot.String("Port-Channel1"),
+					aggID: {
+						Name:     ygot.String(aggID),
 						Interval: fpoc.Lacp_LacpPeriodType_FAST,
 					},
 				},
 			},
 			Interface: map[string]*fpoc.Interface{
-				"Port-Channel1": {
-					Name: ygot.String("Port-Channel1"),
+				aggID: {
+					Name: ygot.String(aggID),
 					Aggregation: &fpoc.Interface_Aggregation{
 						LagType: fpoc.IfAggregate_AggregationType_LACP,
 					},
@@ -171,109 +177,109 @@ func TestAugmentDevice(t *testing.T) {
 		},
 	}, {
 		desc:     "Add one member",
-		agg:      New("Port-Channel1", fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).AddMember("Ethernet1"),
+		agg:      New(aggID, fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).AddMember(member1),
 		inDevice: &fpoc.Device{},
 		wantDevice: &fpoc.Device{
 			Lacp: &fpoc.Lacp{
 				Interface: map[string]*fpoc.Lacp_Interface{
-					"Port-Channel1": {
-						Name:     ygot.String("Port-Channel1"),
+					aggID: {
+						Name:     ygot.String(aggID),
 						Interval: fpoc.Lacp_LacpPeriodType_FAST,
 					},
 				},
 			},
 			Interface: map[string]*fpoc.Interface{
-				"Port-Channel1": {
-					Name: ygot.String("Port-Channel1"),
+				aggID: {
+					Name: ygot.String(aggID),
 					Aggregation: &fpoc.Interface_Aggregation{
 						LagType: fpoc.IfAggregate_AggregationType_LACP,
 					},
 				},
-				"Ethernet1": {
-					Name: ygot.String("Ethernet1"),
+				member1: {
+					Name: ygot.String(member1),
 					Ethernet: &fpoc.Interface_Ethernet{
-						AggregateId: ygot.String("Port-Channel1"),
+						AggregateId: ygot.String(aggID),
 					},
 				},
 			},
 		},
 	}, {
 		desc:     "Add multiple members",
-		agg:      New("Port-Channel1", fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).AddMember("Ethernet1").AddMember("Ethernet2"),
+		agg:      New(aggID, fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).AddMember(member1).AddMember(member2),
 		inDevice: &fpoc.Device{},
 		wantDevice: &fpoc.Device{
 			Lacp: &fpoc.Lacp{
 				Interface: map[string]*fpoc.Lacp_Interface{
-					"Port-Channel1": {
-						Name:     ygot.String("Port-Channel1"),
+					aggID: {
+						Name:     ygot.String(aggID),
 						Interval: fpoc.Lacp_LacpPeriodType_FAST,
 					},
 				},
 			},
 			Interface: map[string]*fpoc.Interface{
-				"Port-Channel1": {
-					Name: ygot.String("Port-Channel1"),
+				aggID: {
+					Name: ygot.String(aggID),
 					Aggregation: &fpoc.Interface_Aggregation{
 						LagType: fpoc.IfAggregate_AggregationType_LACP,
 					},
 				},
-				"Ethernet1": {
-					Name: ygot.String("Ethernet1"),
+				member1: {
+					Name: ygot.String(member1),
 					Ethernet: &fpoc.Interface_Ethernet{
-						AggregateId: ygot.String("Port-Channel1"),
+						AggregateId: ygot.String(aggID),
 					},
 				},
-				"Ethernet2": {
-					Name: ygot.String("Ethernet2"),
+				member2: {
+					Name: ygot.String(member2),
 					Ethernet: &fpoc.Interface_Ethernet{
-						AggregateId: ygot.String("Port-Channel1"),
+						AggregateId: ygot.String(aggID),
 					},
 				},
 			},
 		},
 	}, {
 		desc:     "Add same members twice",
-		agg:      New("Port-Channel1", fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).AddMember("Ethernet1").AddMember("Ethernet1"),
+		agg:      New(aggID, fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST).AddMember(member1).AddMember(member1),
 		inDevice: &fpoc.Device{},
 		wantDevice: &fpoc.Device{
 			Lacp: &fpoc.Lacp{
 				Interface: map[string]*fpoc.Lacp_Interface{
-					"Port-Channel1": {
-						Name:     ygot.String("Port-Channel1"),
+					aggID: {
+						Name:     ygot.String(aggID),
 						Interval: fpoc.Lacp_LacpPeriodType_FAST,
 					},
 				},
 			},
 			Interface: map[string]*fpoc.Interface{
-				"Port-Channel1": {
-					Name: ygot.String("Port-Channel1"),
+				aggID: {
+					Name: ygot.String(aggID),
 					Aggregation: &fpoc.Interface_Aggregation{
 						LagType: fpoc.IfAggregate_AggregationType_LACP,
 					},
 				},
-				"Ethernet1": {
-					Name: ygot.String("Ethernet1"),
+				member1: {
+					Name: ygot.String(member1),
 					Ethernet: &fpoc.Interface_Ethernet{
-						AggregateId: ygot.String("Port-Channel1"),
+						AggregateId: ygot.String(aggID),
 					},
 				},
 			},
 		},
 	}, {
 		desc: "Device contains Aggregate Interface config, no conflicts",
-		agg:  New("Port-Channel1", fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST),
+		agg:  New(aggID, fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST),
 		inDevice: &fpoc.Device{
 			Lacp: &fpoc.Lacp{
 				Interface: map[string]*fpoc.Lacp_Interface{
-					"Port-Channel1": {
-						Name:     ygot.String("Port-Channel1"),
+					aggID: {
+						Name:     ygot.String(aggID),
 						Interval: fpoc.Lacp_LacpPeriodType_FAST,
 					},
 				},
 			},
 			Interface: map[string]*fpoc.Interface{
-				"Port-Channel1": {
-					Name: ygot.String("Port-Channel1"),
+				aggID: {
+					Name: ygot.String(aggID),
 					Aggregation: &fpoc.Interface_Aggregation{
 						LagType: fpoc.IfAggregate_AggregationType_LACP,
 					},
@@ -283,15 +289,15 @@ func TestAugmentDevice(t *testing.T) {
 		wantDevice: &fpoc.Device{
 			Lacp: &fpoc.Lacp{
 				Interface: map[string]*fpoc.Lacp_Interface{
-					"Port-Channel1": {
-						Name:     ygot.String("Port-Channel1"),
+					aggID: {
+						Name:     ygot.String(aggID),
 						Interval: fpoc.Lacp_LacpPeriodType_FAST,
 					},
 				},
 			},
 			Interface: map[string]*fpoc.Interface{
-				"Port-Channel1": {
-					Name: ygot.String("Port-Channel1"),
+				aggID: {
+					Name: ygot.String(aggID),
 					Aggregation: &fpoc.Interface_Aggregation{
 						LagType: fpoc.IfAggregate_AggregationType_LACP,
 					},
@@ -321,19 +327,19 @@ func TestAugmentDeviceErrors(t *testing.T) {
 		wantErrSubStr string
 	}{{
 		desc: "Device contains Aggregate Interface config with conflicts",
-		agg:  New("Port-Channel1", fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST),
+		agg:  New(aggID, fpoc.IfAggregate_AggregationType_LACP, fpoc.Lacp_LacpPeriodType_FAST),
 		inDevice: &fpoc.Device{
 			Lacp: &fpoc.Lacp{
 				Interface: map[string]*fpoc.Lacp_Interface{
-					"Port-Channel1": {
-						Name:     ygot.String("Port-Channel1"),
+					aggID: {
+						Name:     ygot.String(aggID),
 						Interval: fpoc.Lacp_LacpPeriodType_SLOW,
 					},
 				},
 			},
 			Interface: map[string]*fpoc.Interface{
-				"Port-Channel1": {
-					Name: ygot.String("Port-Channel1"),
+				aggID: {
+					Name: ygot.String(aggID),
 					Aggregation: &fpoc.Interface_Aggregation{
 						LagType: fpoc.IfAggregate_AggregationType_LACP,
 					},
