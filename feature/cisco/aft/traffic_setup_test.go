@@ -16,7 +16,6 @@ package aft_test
 
 import (
 	"testing"
-	"time"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
@@ -123,7 +122,6 @@ func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddres
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
 	}
-	//
 
 	network := intfs[atePort].AddNetwork(network_name)
 	bgpAttribute := network.BGP()
@@ -146,9 +144,6 @@ func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddres
 // addPrototoAte calls ISIS/BGP api
 func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 
-	// addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, uint32(innerdstPfxCount_isis))
-	// addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_network", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, innerdstPfxCount_bgp, false)
-
 	//advertising 100.100.100.100/32 for bgp resolve over IGP prefix
 	intfs := top.Interfaces()
 	intfs["atePort8"].WithIPv4Loopback("100.100.100.100/32")
@@ -160,108 +155,4 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 		addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, uint32(*ciscoFlags.GRIBIScale), true)
 	}
 	top.Push(t).StartProtocols(t)
-}
-
-// createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.
-func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEndPoint []ondatra.Endpoint, innerdstPfxMin string, innerdstPfxCount uint32) *ondatra.Flow {
-	hdr := ondatra.NewIPv4Header()
-	hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dstPfxMin).WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
-
-	innerIpv4Header := ondatra.NewIPv4Header()
-	innerIpv4Header.WithSrcAddress(innersrcPfx)
-	if innerdstPfxCount > uint32(*ciscoFlags.GRIBIScale) {
-		innerIpv4Header.DstAddressRange().WithMin(innerdstPfxMin).WithCount(innerdstPfxCount).WithStep("0.0.0.1")
-	} else {
-		innerIpv4Header.DstAddressRange().WithMin(innerdstPfxMin).WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
-	}
-	flow := a.ate.Traffic().NewFlow(name).
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint...).
-		WithHeaders(ondatra.NewEthernetHeader(), hdr, innerIpv4Header).WithFrameRateFPS(10).WithFrameSize(300)
-
-	return flow
-}
-
-// allFlows designs all the flows needed for the backup testing
-func (a *testArgs) allFlows() []*ondatra.Flow {
-	srcEndPoint := a.top.Interfaces()[atePort1.Name]
-	dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range a.top.Interfaces() {
-		if intf != "atePort1" {
-			dstEndPoint = append(dstEndPoint, intf_data)
-		}
-	}
-	bgp_flow := a.createFlow("BaseFlow_BGP", srcEndPoint, dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := a.createFlow("BaseFlow_ISIS", srcEndPoint, dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	return flows
-}
-
-// validateTrafficFlows validates traffic loss on tgn side and DUT incoming and outgoing counters
-func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, drop bool, d_port []string) {
-	src_port := a.dut.Telemetry().Interface("Bundle-Ether120")
-	subintf1 := src_port.Subinterface(0)
-	dutOutPktsBeforeTraffic := map[string]uint64{"ipv4": subintf1.Ipv4().Counters().InPkts().Get(t)}
-
-	dutInPktsBeforeTraffic := make(map[string][]uint64)
-	for _, dp := range d_port {
-		dst_port := a.dut.Telemetry().Interface(dp)
-		subintf2 := dst_port.Subinterface(0)
-		dutInPktsBeforeTraffic["ipv4"] = append(dutInPktsBeforeTraffic["ipv4"], subintf2.Ipv4().Counters().OutPkts().Get(t))
-	}
-	//aggregriate dst_port counter
-	totalInPktsBeforeTraffic := map[string]uint64{"ipv4": 0}
-	for _, data := range dutInPktsBeforeTraffic["ipv4"] {
-		totalInPktsBeforeTraffic["ipv4"] = totalInPktsBeforeTraffic["ipv4"] + uint64(data)
-	}
-
-	a.ate.Traffic().Start(t, flows...)
-	time.Sleep(60 * time.Second)
-	a.ate.Traffic().Stop(t)
-
-	// sleeping while DUT interface counters are updated
-	time.Sleep(20 * time.Second)
-
-	for _, f := range flows {
-		ateTxPkts := map[string]uint64{"ipv4": a.ate.Telemetry().Flow(f.Name()).Counters().OutPkts().Get(t)}
-		ateRxPkts := map[string]uint64{"ipv4": a.ate.Telemetry().Flow(f.Name()).Counters().InPkts().Get(t)}
-
-		flowPath := a.ate.Telemetry().Flow(f.Name())
-		got := flowPath.LossPct().Get(t)
-		if drop {
-			if got != 100 {
-				t.Errorf("Traffic passing for flow %s got %g, want 100 percent loss", f.Name(), got)
-			}
-		} else {
-			if got > 0 {
-				t.Errorf("LossPct for flow %s got %g, want 0", f.Name(), got)
-			}
-		}
-
-		if !drop {
-			dutOutPktsAfterTraffic := map[string]uint64{"ipv4": subintf1.Ipv4().Counters().InPkts().Get(t)}
-			dutInPktsAfterTraffic := make(map[string][]uint64)
-			for _, dp := range d_port {
-				dst_port := a.dut.Telemetry().Interface(dp)
-				subintf2 := dst_port.Subinterface(0)
-				dutInPktsAfterTraffic["ipv4"] = append(dutInPktsAfterTraffic["ipv4"], subintf2.Ipv4().Counters().OutPkts().Get(t))
-			}
-
-			//aggregriate dst_port counter
-			totalInPktsAfterTraffic := map[string]uint64{"ipv4": 0}
-			for _, data := range dutInPktsAfterTraffic["ipv4"] {
-				totalInPktsAfterTraffic["ipv4"] = totalInPktsAfterTraffic["ipv4"] + uint64(data)
-			}
-
-			for k := range dutInPktsAfterTraffic {
-				if got, want := totalInPktsAfterTraffic[k]-totalInPktsBeforeTraffic[k], ateTxPkts[k]; got <= want {
-					t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", got, want)
-				}
-				if got, want := dutOutPktsAfterTraffic[k]-dutOutPktsBeforeTraffic[k], ateRxPkts[k]; got <= want {
-					t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
-				}
-			}
-		}
-	}
 }

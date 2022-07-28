@@ -21,6 +21,7 @@ import (
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
+	"github.com/openconfig/ondatra/telemetry"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -398,7 +399,8 @@ func TestOCAFT(t *testing.T) {
 
 	// Configure the DUT
 	configureDUT(t, dut)
-	//configbasePBR(t, dut, "TE", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	configbasePBR(t, dut, "TE", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	defer unconfigbasePBR(t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")

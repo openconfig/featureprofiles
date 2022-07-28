@@ -163,21 +163,6 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 	return i
 }
 
-// interfaceaction shuts/unshuts provided interface
-func (a *testArgs) interfaceaction(t *testing.T, port string, action bool) {
-	// ateP := a.ate.Port(t, port)
-	dutP := a.dut.Port(t, port)
-	if action {
-		// a.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(ateP).WithStateEnabled(true).Operate(t)
-		a.dut.Config().Interface(dutP.Name()).Enabled().Replace(t, true)
-		// a.dut.Telemetry().Interface(dutP.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
-	} else {
-		// a.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(ateP).WithStateEnabled(false).Operate(t)
-		a.dut.Config().Interface(dutP.Name()).Enabled().Replace(t, false)
-		// a.dut.Telemetry().Interface(dutP.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
-	}
-}
-
 // configureDUT configures port1, port2 and port3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := dut.Config()
