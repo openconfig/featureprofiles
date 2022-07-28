@@ -67,6 +67,9 @@ func EgressLabelStack(t *testing.T, c *fluent.GRIBIClient, defaultNIName string,
 	for n := 1; n <= numLabels; n++ {
 		labels = append(labels, uint32(baseLabel+n))
 	}
+	// add a label that is the top of the stack that is
+	// the one that is forwarded on.
+	labels = append(labels, uint32(32768))
 
 	ops := []func(){
 		func() {
@@ -145,12 +148,12 @@ func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, b
 	}
 
 	ops := []func(){
+		// Set up, ensure that the label that we will use to forward is resolvable.
 		func() {
 			c.Modify().AddEntry(t,
 				fluent.NextHopEntry().
 					WithNetworkInstance(defaultNIName).
 					WithIndex(1).
-					WithIPAddress("192.0.2.2").
 					WithPushedLabelStack(labels...))
 
 			c.Modify().AddEntry(t,
@@ -169,6 +172,7 @@ func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, b
 	}
 
 	res := modify(context.Background(), t, c, ops)
+	t.Logf("received gRIBI results from server, %v", res)
 
 	chk.HasResult(t, res,
 		fluent.OperationResult().

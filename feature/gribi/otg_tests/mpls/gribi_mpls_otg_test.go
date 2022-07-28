@@ -4,6 +4,7 @@ package gribi_mpls_dataplane_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -76,7 +77,7 @@ func TestMain(m *testing.M) {
 // dutIntf generates the configuration for an interface on the DUT in OpenConfig.
 // It returns the generated configuration, or an error if the config could not be
 // generated.
-func dutIntf(intf *attrs.Attributes) (*telemetry.Interface, error) {
+func dutIntf(intf *attrs.Attributes) ([]*telemetry.Interface, error) {
 	if intf == nil {
 		return nil, fmt.Errorf("invalid nil interface, %v", intf)
 	}
@@ -87,11 +88,27 @@ func dutIntf(intf *attrs.Attributes) (*telemetry.Interface, error) {
 		Type:        telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		Enabled:     ygot.Bool(true),
 	}
-	v4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+
+	// TODO(robjs): make neutral.
+	aggName := fmt.Sprintf("Port-Channel%s", strings.Replace(intf.Name, "Ethernet", "", -1))
+	i.GetOrCreateEthernet().AggregateId = ygot.String(aggName)
+
+	pc := &telemetry.Interface{
+		Name:        ygot.String(aggName),
+		Description: ygot.String(fmt.Sprintf("LAG for %s", intf.Name)),
+		Type:        telemetry.IETFInterfaces_InterfaceType_ieee8023adLag,
+		Enabled:     ygot.Bool(true),
+	}
+	pc.GetOrCreateAggregation().LagType = telemetry.IfAggregate_AggregationType_STATIC
+
+	v4 := pc.GetOrCreateSubinterface(0).GetOrCreateIpv4()
 	v4.Enabled = ygot.Bool(true)
 	v4Addr := v4.GetOrCreateAddress(intf.IPv4)
 	v4Addr.PrefixLength = ygot.Uint8(intf.IPv4Len)
-	return i, nil
+
+	// Note, order matters here, since we need to configure the LAG before the member intf.
+	// Consider changing this configuration to push both in one set.
+	return []*telemetry.Interface{pc, i}, nil
 }
 
 // configureATEInterfaces configures all the interfaces of the ATE according to the
@@ -128,21 +145,41 @@ func pushBaseConfigs(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 	dutSrc.Name = dut.Port(t, "port1").Name()
 	dutDst.Name = dut.Port(t, "port2").Name()
 
-	testTopo, err := configureATEInterfaces(t, ate, ateSrc, dutSrc, ateDst, dutDst)
+	otgCfg, err := configureATEInterfaces(t, ate, ateSrc, dutSrc, ateDst, dutDst)
 	if err != nil {
 		t.Fatalf("cannot configure ATE interfaces via OTG, %v", err)
 	}
 
-	// configure ports on the DUT.
+	dut.Config().New().WithAristaText(`
+	mpls routing
+	mpls ip
+	router traffic-engineering
+	   segment-routing
+	!
+	platform tfa personality arfa
+	`).Append(t)
+
+	d := &telemetry.Device{}
+	// configure ports on the DUT. note that each port maps to two interfaces
+	// because we create a LAG.
 	for _, i := range []*attrs.Attributes{dutSrc, dutDst} {
-		cfg, err := dutIntf(i)
+		cfgs, err := dutIntf(i)
 		if err != nil {
 			t.Fatalf("cannot generate configuration for interface %s, err: %v", i.Name, err)
 		}
-		dut.Config().Interface(i.Name).Replace(t, cfg)
+		/*for _, cfg := range cfgs {
+			t.Logf("replacing interface %s config...", *cfg.Name)
+			fptest.LogYgot(t, *cfg.Name, dut.Config().Interface(*cfg.Name), cfg)
+			dut.Config().Interface(*cfg.Name).Replace(t, cfg)
+		}*/
+		for _, intf := range cfgs {
+			d.AppendInterface(intf)
+		}
 	}
+	fptest.LogYgot(t, "", dut.Config(), d)
+	dut.Config().Update(t, d)
 
-	return testTopo
+	return otgCfg
 }
 
 // TestMPLSLabelPushDepth validates the gRIBI actions that are used to push N labels onto
@@ -167,17 +204,18 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		// received label stack is as we expected.
 
 		// wait for ARP to resolve.
-		otg := ondatra.ATE("ate").OTG()
-		otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+		otg := ondatra.ATE(t, "ate").OTG()
+		var dstMAC string
+		otg.Telemetry().Interface(fmt.Sprintf("%s_ETH", ateSrc.Name)).Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().Watch(
 			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+				dstMAC = val.Val(t)
 				return val.IsPresent()
 			}).Await(t)
 
-		dstMAC := otg.Telemetry().Interface(fmt.Sprintf("%s_ETH", ateSrc.Name)).Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().Get(t)
-
-		// Remove any stale flows.
+		// TODO(robjs): MPLS is currently not supported in OTG.
+		/*// Remove any stale flows.
 		otgCfg.Flows().Clear().Items()
-		mplsFlow := testTopo.Flows().Add().SetName("MPLS_FLOW")
+		mplsFlow := otgCfg.Flows().Add().SetName("MPLS_FLOW")
 		mplsFlow.Metrics().SetEnable(true)
 		mplsFlow.TxRx().Port().SetTxName(ateSrc.Name).SetRxName(ateDst.Name)
 
@@ -191,7 +229,7 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		mpls.Label().SetChoice("value").SetValue(destinationLabel)
 		mpls.BottomOfStack().SetChoice("value").SetValue(1)
 
-		otg.PushConfig(t, testTopo)
+		otg.PushConfig(t, otgCfg)
 
 		t.Logf("Starting MPLS traffic...")
 		otg.StartTraffic(t)
@@ -199,7 +237,11 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		t.Logf("Stopping MPLS traffic...")
 		otg.StopTraffic(t)
 
-		otgutils.LogPortMetrics(t, otg, testTopo)
+		otgutils.LogPortMetrics(t, otg, otgCfg)
+		*/
+		_ = otgCfg
+		_ = dstMAC
+		time.Sleep(2 * time.Minute)
 
 		// TODO(robjs): validate traffic counters and received headers.
 	}
@@ -226,13 +268,60 @@ func TestMPLSPushToIP(t *testing.T) {
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
 
-	// TODO(robjs): define trafficFunc
+	testIPFlow := func(t *testing.T, _ []uint32) {
+		// We configure a traffic flow from ateSrc -> ateDst (passes through
+		// ateSrc -> [ dutSrc -- dutDst ] --> ateDst.
+		//
+		// Since EgressLabelStack pushes N labels but has a label forwarding
+		// entry of 100 that points at that next-hop, we only need this value
+		// to check whether traffic is forwarded.
+		//
+		// TODO(robjs): in the future, extend this test to check that the
+		// received label stack is as we expected.
+
+		// wait for ARP to resolve.
+		otg := ondatra.ATE(t, "ate").OTG()
+		var dstMAC string
+		otg.Telemetry().Interface(fmt.Sprintf("%s_ETH", ateSrc.Name)).Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().Watch(
+			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+				dstMAC = val.Val(t)
+				return val.IsPresent()
+			}).Await(t)
+
+		// Remove any stale flows.
+		otgCfg.Flows().Clear().Items()
+		ipFlow := otgCfg.Flows().Add().SetName("MPLS_FLOW")
+		ipFlow.Metrics().SetEnable(true)
+		ipFlow.TxRx().Port().SetTxName(ateSrc.Name).SetRxName(ateDst.Name)
+
+		// Set up ethernet layer.
+		eth := ipFlow.Packet().Add().Ethernet()
+		eth.Src().SetValue(ateSrc.MAC)
+		eth.Dst().SetChoice("value").SetValue(dstMAC)
+
+		ip4 := ipFlow.Packet().Add().Ipv4()
+		ip4.Src().SetValue(ateSrc.IPv4)
+		ip4.Dst().SetValue("10.0.0.1") // this must be in 10/8.
+
+		otg.PushConfig(t, otgCfg)
+
+		t.Logf("Starting IP traffic...")
+		otg.StartTraffic(t)
+		time.Sleep(120 * time.Second)
+		t.Logf("Stopping IP traffic...")
+		otg.StopTraffic(t)
+
+		otgutils.LogPortMetrics(t, otg, otgCfg)
+		otgutils.LogFlowMetrics(t, otg, otgCfg)
+
+		// TODO(robjs): validate traffic counters and received headers.
+	}
 
 	baseLabel := 42
 	numLabels := 20
 	for i := 1; i <= numLabels; i++ {
 		t.Run(fmt.Sprintf("push %d labels to IP", i), func(t *testing.T) {
-			mplscompliance.PushToIPPacket(t, c, defNIName, baseLabel, i, nil)
+			mplscompliance.PushToIPPacket(t, c, defNIName, baseLabel, i, testIPFlow)
 		})
 	}
 }
@@ -242,6 +331,7 @@ func TestPopTopLabelMPLSInner(t *testing.T) {
 	gribic := ondatra.DUT(t, "dut").RawAPIs().GRIBI().Default(t)
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
+	_ = otgCfg
 
 	// TODO(robjs): define trafficFunc
 	mplscompliance.PopTopLabel(t, c, defNIName, nil)
@@ -252,6 +342,7 @@ func TestPopTopLabelIPInner(t *testing.T) {
 	gribic := ondatra.DUT(t, "dut").RawAPIs().GRIBI().Default(t)
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
+	_ = otgCfg
 
 	// TODO(robjs): define trafficFunc
 	mplscompliance.PopTopLabel(t, c, defNIName, nil)
@@ -262,6 +353,7 @@ func TestPopNLabels(t *testing.T) {
 	gribic := ondatra.DUT(t, "dut").RawAPIs().GRIBI().Default(t)
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
+	_ = otgCfg
 
 	for _, stack := range [][]uint32{{100}, {100, 42}, {100, 42, 43, 44, 45}} {
 		// TODO(robjs): define trafficFunc
@@ -277,6 +369,7 @@ func TestPopOnePushN(t *testing.T) {
 	gribic := ondatra.DUT(t, "dut").RawAPIs().GRIBI().Default(t)
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
+	_ = otgCfg
 
 	stacks := [][]uint32{
 		{100}, // swap for label 100, pop+push for label 200

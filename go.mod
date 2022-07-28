@@ -17,6 +17,7 @@ require (
 	github.com/openconfig/ygot v0.23.1
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220131092820-39736dd543b4
+	go.uber.org/atomic v1.7.0
 	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.0
@@ -32,7 +33,6 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/net v0.0.0-20220403103023-749bd193bc2b // indirect
 	golang.org/x/sys v0.0.0-20220406163625-3f8b81556e12 // indirect
 	golang.org/x/text v0.3.7 // indirect

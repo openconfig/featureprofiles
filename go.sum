@@ -579,12 +579,8 @@ github.com/openconfig/goyang v1.0.0 h1:nYaFu7BOAk/eQn4CgAUjgYPfp3J6CdXrBryp32E5C
 github.com/openconfig/goyang v1.0.0/go.mod h1:vX61x01Q46AzbZUzG617vWqh/cB+aisc+RrNkXRd3W8=
 github.com/openconfig/gribi v0.1.1-0.20210423184541-ce37eb4ba92f/go.mod h1:OoH46A2kV42cIXGyviYmAlGmn6cHjGduyC2+I9d/iVs=
 github.com/openconfig/gribi v0.1.1-0.20220126144445-1634932f9fd8/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
-github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56 h1:IndsqbKNjq5UkF4aZ7Iy25bFTJrjOXOlhm5Q3a7SkBY=
-github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
 github.com/openconfig/gribi v0.1.1-0.20220622162620-08d53dffce45 h1:pmwzRJYdvc+CQDrIw6NF0XBnTng6SvMYBdZz9CeRbCk=
 github.com/openconfig/gribi v0.1.1-0.20220622162620-08d53dffce45/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
-github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e h1:TXNaXJyaMLQSDEyFBH9gEWGaOD7RMWG/DY/YBv+GmE0=
-github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e/go.mod h1:Sh6fskyzLzDNOymhPCbHY8IniqYjj/auL4F/3xnPh28=
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d h1:zrs4U92QEAadFotQyidT4U8iZDJO67pXsS4r64uAHik=
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d/go.mod h1:x9tAZ4EwqCQ0jI8D6S8Yhw9Z0ee7/BxWQX0k0Uib5Q8=
 github.com/openconfig/kne v0.1.1 h1:gfXhGjxPqIGsSGfPmYHS6c9gmbFvxymQq+VJrVdHyS4=
@@ -737,7 +733,6 @@ github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UV
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5cxcmMvtA=
 github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.8.0 h1:pSgiaMZlXftHpm5L7V1+rVB+AZJydKsMxsQBIJw4PKk=
@@ -1151,11 +1146,6 @@ google.golang.org/grpc v1.37.0/go.mod h1:NREThFqKR1f3iQ6oBuvc5LadQuXVGo9rkm5ZGrQ
 google.golang.org/grpc v1.40.0/go.mod h1:ogyxbiOoUXAkP+4+xa6PZSE9DZgIHtSpzjDTB9KAK34=
 google.golang.org/grpc v1.42.0/go.mod h1:k+4IHHFw41K8+bbowsex27ge2rCb65oeWqe4jJ590SU=
 google.golang.org/grpc v1.45.0/go.mod h1:lN7owxKUQEqMfSyQikvvk5tf/6zMPsrK+ONuO11+0rQ=
-<<<<<<< HEAD
-google.golang.org/grpc v1.46.2 h1:u+MLGgVf7vRdjEYZ8wDFhAVNmhkbJ5hmrA1LMWK1CAQ=
-google.golang.org/grpc v1.46.2/go.mod h1:vN9eftEi1UMyUsIF80+uQXhHjbXYbm0uXoFCACuMGWk=
-=======
->>>>>>> main
 google.golang.org/grpc v1.48.0 h1:rQOsyJ/8+ufEDJd/Gdsz7HG220Mh9HAhFHRGnIjda0w=
 google.golang.org/grpc v1.48.0/go.mod h1:vN9eftEi1UMyUsIF80+uQXhHjbXYbm0uXoFCACuMGWk=
 google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.0.1/go.mod h1:6Kw0yEErY5E/yWrBtf03jp27GLLJujG4z/JK95pnjjw=
