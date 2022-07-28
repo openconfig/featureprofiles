@@ -255,7 +255,7 @@ func TestRouteAck(t *testing.T) {
 	configureNetworkInstance(t)
 	t.Logf("Configure the DUT with static route 203.0.113.0/24...")
 	dutConf := configStaticRoute(t, dut, ateDstNetCIDR, staticNH)
-	dut.Config().NetworkInstance(instance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").Static("203.0.113.0").Replace(t, dutConf)
+	dut.Config().NetworkInstance(instance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").Static(ateDstNetCIDR).Replace(t, dutConf)
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
 	ipv4Path := dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
 	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
