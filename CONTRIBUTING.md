@@ -378,7 +378,7 @@ been clarified that the name for the default network instance should be
 uppercase `"DEFAULT"`. Some legacy devices are still using lowercase
 `"default"`, so device tests should use the deviation
 `*deviations.DefaultNetworkInstance` which allows them to work on those legacy
-devices whlie they are being updated. Non-device unit tests may hard-code
+devices while they are being updated. Non-device unit tests may hard-code
 `"DEFAULT"`.
 
 ## Pull Requests
