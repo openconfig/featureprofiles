@@ -121,17 +121,6 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	// 	args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ipv4prefix).OriginNetworkInstance().Get(t)
 	// })
 
-	// /network-instances/network-instance/afts/next-hop-groups/next-hop-group/id
-	// /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops
-	// /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop
-	// /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/index
-	// /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state
-	// /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index
-	// /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight
-	// /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state
-	// /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group
-	// /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/color
-	// /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id
 	t.Run("Telemetry on NextHopGroup", func(t *testing.T) {
 		aftNHG := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).Get(t)
 		if got := len(aftNHG.NextHop); got != 4 {
@@ -181,18 +170,6 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	// 	args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).Color().Get(t)
 	// })
 
-	// /network-instances/network-instance/afts/next-hops/next-hop/index
-	// /network-instances/network-instance/afts/next-hops/next-hop/interface-ref
-	// /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state
-	// /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface
-	// /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/subinterface
-	// /network-instances/network-instance/afts/next-hops/next-hop/state
-	// /network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header
-	// /network-instances/network-instance/afts/next-hops/next-hop/state/index
-	// /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address
-	// /network-instances/network-instance/afts/next-hops/next-hop/state/mac-address
-	// /network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol
-	// /network-instances/network-instance/afts/next-hops/next-hop/state/pushed-mpls-label-stack
 	t.Run("Telemetry on NextHop", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop)
 		value := path.Get(t)
@@ -260,7 +237,6 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 		value := path.Get(t)
 		t.Logf("NextHop DecapsulateHeader Value: %d", value)
 	})
-	// /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address
 	t.Run("Telemetry on NextHop IpAddress", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).IpAddress()
 		value := path.Get(t)
@@ -279,10 +255,6 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	// 	args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).PushedMplsLabelStack().Get(t)
 	// })
 
-	// /network-instances/network-instance[name]/afts/next-hops/next-hop[index]/state/programmed-index
-	// /network-instances/network-instance[name]/afts/next-hop-groups/next-hop-group[id]/state/programmed-id
-	// /network-instances/network-instance[name]/afts/next-hops/next-hop[index]/ip-in-ip/state/src-ip
-	// /network-instances/network-instance[name]/afts/next-hops/next-hop[index]/ip-in-ip/state/dst-ip
 	t.Run("Telemetry on NextHop ProgrammedIndex", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).ProgrammedIndex()
 		value := path.Get(t)
@@ -370,7 +342,6 @@ func testAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// NH WithInterfaceRef
-	//atePort8.Name
 	p8 := args.dut.Port(t, "port8")
 	interfaceref_name := p8.Name()
 	args.client.AddNH(t, 5000, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, interfaceref_name, false, ciscoFlags.GRIBIChecks)
@@ -378,13 +349,11 @@ func testAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, "192.0.2.50/32", 5000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// NH WithIPinIP
-	//args.client.AddNHAGN(t, 5001, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHWithIPinIP(t, 5001, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", true, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 5001, 0, map[uint64]uint64{5001: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.51/32", 5001, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// NH WithSubinterfaceRef
-	//args.client.AddNHSubIntf(t, 5002, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "Bundle-Ether1", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHWithIPinIP(t, 5002, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "Bundle-Ether1", false, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 5002, 0, map[uint64]uint64{5002: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.52/32", 5002, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -432,9 +401,9 @@ func TestOCAFT(t *testing.T) {
 	//configbasePBR(t, dut, "TE", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
 
 	// Configure the ATE
-	// ate := ondatra.ATE(t, "ate")
-	// top := configureATE(t, ate)
-	// addPrototoAte(t, top)
+	ate := ondatra.ATE(t, "ate")
+	top := configureATE(t, ate)
+	addPrototoAte(t, top)
 
 	test := []struct {
 		name string
@@ -468,8 +437,8 @@ func TestOCAFT(t *testing.T) {
 				ctx:    ctx,
 				client: &client,
 				dut:    dut,
-				// ate:    ate,
-				// top:    top,
+				ate:    ate,
+				top:    top,
 			}
 			tt.fn(ctx, t, args)
 		})
