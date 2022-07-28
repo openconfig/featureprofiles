@@ -23,7 +23,7 @@ import (
 func getaftnh(t *testing.T, dut *ondatra.DUTDevice, ipv4prefix string, ipv4nwinstance string, nhgnwinstance string) (nh []uint64, nhg uint64) {
 
 	nexthopgroup := dut.Telemetry().NetworkInstance(ipv4nwinstance).Afts().Ipv4Entry(ipv4prefix).NextHopGroup().Get(t)
-	t.Logf("NextHopGroup VALUE:..............................: %d", nexthopgroup)
+	t.Logf("NextHopGroup VALUE : %d", nexthopgroup)
 	nhgval := dut.Telemetry().NetworkInstance(nhgnwinstance).Afts().NextHopGroup(nexthopgroup).Get(t)
 
 	var nhlist []uint64
@@ -34,9 +34,9 @@ func getaftnh(t *testing.T, dut *ondatra.DUTDevice, ipv4prefix string, ipv4nwins
 		addr := nexthopval.GetIpAddress()
 		pindex := nexthopval.GetProgrammedIndex()
 
-		t.Logf("NextHop Index VALUE: ..............................: %d", index)
-		t.Logf("NextHop IpAddress VALUE: ..............................: %s", addr)
-		t.Logf("NextHop Programmed Index VALUE: ..............................: %d", pindex)
+		t.Logf("NextHop Index VALUE : %d", index)
+		t.Logf("NextHop IpAddress VALUE : %s", addr)
+		t.Logf("NextHop Programmed Index VALUE : %d", pindex)
 
 	}
 	return nhlist, nexthopgroup

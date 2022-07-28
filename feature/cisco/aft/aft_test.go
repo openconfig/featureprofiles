@@ -16,6 +16,7 @@ package aft_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
@@ -60,19 +61,24 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 
 	ipv4prefix := "192.0.2.40/32"
 	nhlist, nexthopgroup := getaftnh(t, args.dut, ipv4prefix, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance)
-	t.Logf("First NH in list %d", nhlist[0])
 	nexthop := nhlist[0]
 
 	ipv4prefix_nondefault := "198.51.100.1/32"
-	nhlist_nondefault, nexthopgroup_nondefault := getaftnh(t, args.dut, ipv4prefix_nondefault, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance)
-	t.Logf("First NH in list %d", nhlist_nondefault[0])
+	_, nexthopgroup_nondefault := getaftnh(t, args.dut, ipv4prefix_nondefault, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance)
 
 	// Telemerty check
 	t.Run("Telemetry on AFT TOP Container", func(t *testing.T) {
 		args.dut.Telemetry().NetworkInstance(instance).Afts().Get(t)
 	})
 	t.Run("Telemetry on Ipv4Entry", func(t *testing.T) {
-		args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ipv4prefix).Get(t)
+		path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ipv4prefix)
+		ipv4entry := path.Get(t)
+		if *ipv4entry.Prefix != ipv4prefix {
+			t.Errorf("Incorrect value for AFT Ipv4Entry Prefix got %s, want %s", *ipv4entry.Prefix, ipv4prefix)
+		}
+		if *ipv4entry.NextHopGroup != nexthopgroup {
+			t.Errorf("Incorrect value for NextHopGroup , got:%v,want:%v", *ipv4entry.NextHopGroup, nexthopgroup)
+		}
 	})
 	t.Run("Telemetry on Ipv4Entry NextHopGroup", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ipv4prefix).NextHopGroup()
@@ -89,6 +95,7 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 	})
 
+	// NOT-SUPPORTED
 	// t.Run("Telemetry on Ipv4Entry Prefix", func(t *testing.T) {
 	// 	path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ipv4prefix).EntryMetadata()
 	// 	path.Get(t)
@@ -97,6 +104,7 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ipv4prefix).NextHopGroupNetworkInstance()
 		path.Get(t)
 	})
+	// NOT-SUPPORTED
 	// t.Run("Telemetry on Ipv4Entry DecapsulateHeader", func(t *testing.T) {
 	// 	args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ipv4prefix).DecapsulateHeader().Get(t)
 	// })
@@ -133,7 +141,10 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Run("Telemetry on NextHopGroup Id", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).Id()
 		value := path.Get(t)
-		t.Logf("Value %d", value)
+		t.Logf("NextHopGroup Id Value %d", value)
+		if value == 0 {
+			t.Errorf("Incorrect value for NextHopGroup Id  got %d, want non zero value", value)
+		}
 	})
 	t.Run("Telemetry on NextHopGroup NextHopAny", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).NextHopAny()
@@ -143,25 +154,29 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Run("Telemetry on NextHopGroup NextHop", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).NextHop(nexthop)
 		value := path.Get(t)
-		t.Logf("Value %d", value)
+		t.Logf("NextHopGroup NextHop Value: %d", value)
 	})
 	t.Run("Telemetry on NextHopGroup NextHop Index", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).NextHop(nexthop).Index()
 		value := path.Get(t)
-		t.Logf("Value %d", value)
+		t.Logf("NextHopGroup NextHop Index Value: %d", value)
 	})
 	t.Run("Telemetry on NextHopGroup NextHop Weight", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).NextHop(nexthop).Weight()
 		value := path.Get(t)
-		t.Logf("Value %d", value)
+		t.Logf("NextHopGroup NextHop Weight Value: %d", value)
 	})
 	t.Run("Telemetry on NextHopGroup BackupNextHopGroup", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup_nondefault).BackupNextHopGroup()
 		value := path.Get(t)
 		t.Logf("Value %d", value)
 		nhg := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(value).Get(t)
-		t.Logf("BackupNextHopGroup ProgrammedId VALUE: ..............................: %d", nhg.GetProgrammedId())
+		t.Logf("BackupNextHopGroup ProgrammedId VALUE: %d", nhg.GetProgrammedId())
+		if nhg.GetProgrammedId() != 101 {
+			t.Errorf("Incorrect value for BackupNextHopGroup ProgrammedId  got %d, want 101", value)
+		}
 	})
+	// NOT-SUPPORTED
 	// t.Run("Telemetry on NextHopGroup Color", func(t *testing.T) {
 	// 	args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).Color().Get(t)
 	// })
@@ -181,67 +196,79 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Run("Telemetry on NextHop", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop)
 		value := path.Get(t)
-		t.Logf("Value %v", value)
+		t.Logf("NextHop Value: %v", value)
 	})
 	t.Run("Telemetry on NextHop Index", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).Index()
 		value := path.Get(t)
-		t.Logf("Value %d", value)
+		if value == 0 {
+			t.Errorf("Incorrect value for NextHop Index  got %d, want non zero value", value)
+		}
 	})
 
 	ipv4prefix = "192.0.2.50/32"
 	nhlist, nexthopgroup = getaftnh(t, args.dut, ipv4prefix, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance)
-	t.Logf("First NH in list %d", nhlist[0])
 	nexthop_interfaceref := nhlist[0]
 
 	ipv4prefix = "192.0.2.51/32"
 	nhlist, nexthopgroup = getaftnh(t, args.dut, ipv4prefix, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance)
-	t.Logf("First NH in list %d", nhlist[0])
 	nexthop_ipinip := nhlist[0]
 
+	p8 := args.dut.Port(t, "port8")
+	interfaceref_name := p8.Name()
 	t.Run("Telemetry on NextHop InterfaceRef(main interface)", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop_interfaceref).InterfaceRef()
 		value := path.Get(t)
-		t.Logf("Value %d", value)
+		if value.GetInterface() != interfaceref_name {
+			t.Errorf("Incorrect value for NextHop InterfaceRef  got %s, want %s", value.GetInterface(), interfaceref_name)
+		}
 	})
 
 	t.Run("Telemetry on NextHop InterfaceRef Interface", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop_interfaceref).InterfaceRef().Interface()
 		value := path.Get(t)
-		t.Logf("Value %s", value)
+		if value != interfaceref_name {
+			t.Errorf("Incorrect value for NextHop InterfaceRef  Interface got %s, want %s", value, interfaceref_name)
+		}
 	})
 
 	ipv4prefix = "192.0.2.52/32"
 	nhlist, nexthopgroup = getaftnh(t, args.dut, ipv4prefix, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance)
-	t.Logf("First NH in list %d", nhlist[0])
 	nexthop_subinterfaceref := nhlist[0]
 
 	t.Run("Telemetry on NextHop InterfaceRef(subinterface)", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop_subinterfaceref).InterfaceRef()
 		value := path.Get(t)
-		t.Logf("Value %d", value)
+		if value.GetSubinterface() != 1 {
+			t.Errorf("Incorrect value for InterfaceRef Subinterface  got %d, want %d", value.GetSubinterface(), 1)
+		}
 	})
 	t.Run("Telemetry on NextHop InterfaceRef Subinterface", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop_subinterfaceref).InterfaceRef().Subinterface()
 		value := path.Get(t)
-		t.Logf("Value %d", value)
+		if value != 1 {
+			t.Errorf("Incorrect value for InterfaceRef Subinterface  got %d, want %d", value, 1)
+		}
 	})
 	t.Run("Telemetry on NextHop EncapsulateHeader", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).EncapsulateHeader()
 		value := path.Get(t)
-		t.Logf("Value %d", value)
+		t.Logf("NextHop EncapsulateHeader Value: %d", value)
 	})
 	t.Run("Telemetry on NextHop DecapsulateHeader", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).DecapsulateHeader()
 		value := path.Get(t)
-		t.Logf("Value %d", value)
+		t.Logf("NextHop DecapsulateHeader Value: %d", value)
 	})
 	// /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address
 	t.Run("Telemetry on NextHop IpAddress", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).IpAddress()
 		value := path.Get(t)
-		t.Logf("Value %s", value)
+		if !strings.Contains(value, "192") {
+			t.Errorf("Incorrect value for NextHop IpAddress  got %s, want an ip address in range 192.x", value)
+		}
 	})
+	// NOT-SUPPORTED
 	// t.Run("Telemetry on NextHop MacAddress", func(t *testing.T) {
 	// 	args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).MacAddress().Get(t)
 	// })
@@ -259,31 +286,43 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Run("Telemetry on NextHop ProgrammedIndex", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).ProgrammedIndex()
 		value := path.Get(t)
-		t.Logf("Value %d", value)
+		if value != 5002 {
+			t.Errorf("Incorrect value for NextHop ProgrammedIndex  got %d, want %d", value, 5002)
+		}
 	})
 	t.Run("Telemetry on NextHopGroup ProgrammedId", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).ProgrammedId()
 		value := path.Get(t)
-		t.Logf("Value %d", value)
+		if value != 5002 {
+			t.Errorf("Incorrect value for NextHopGroup ProgrammedId  got %d, want %d", value, 5002)
+		}
 	})
 	t.Run("Telemetry on NextHop IpInIp", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop_ipinip).IpInIp()
 		value := path.Get(t)
-		t.Logf("Value %d", value)
+		if value.GetDstIp() != "10.10.10.1" {
+			t.Errorf("Incorrect value for  NextHop IpInIp DstIp got %s, want %s", value.GetDstIp(), "10.10.10.1")
+		}
+		if value.GetSrcIp() != "20.20.20.1" {
+			t.Errorf("Incorrect value for  NextHop IpInIp SrcIp  got %s, want %s", value.GetSrcIp(), "20.20.20.1")
+		}
 	})
 	t.Run("Telemetry on NextHop IpInIp SrcIp", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop_ipinip).IpInIp().SrcIp()
 		value := path.Get(t)
-		t.Logf("Value %s", value)
+		if value != "20.20.20.1" {
+			t.Errorf("Incorrect value for  NextHop IpInIp SrcIp  got %s, want %s", value, "20.20.20.1")
+		}
 	})
 	t.Run("Telemetry on NextHop IpInIp DstIp", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop_ipinip).IpInIp().DstIp()
 		value := path.Get(t)
-		t.Logf("Value %s", value)
+		if value != "10.10.10.1" {
+			t.Errorf("Incorrect value for  NextHop IpInIp DstIp got %s, want %s", value, "10.10.10.1")
+		}
 	})
 }
 
-// AGNEL AFT ADD
 func testAFT(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Elect client as leader and flush all the past entries
@@ -331,7 +370,10 @@ func testAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// NH WithInterfaceRef
-	args.client.AddNH(t, 5000, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "FourHundredGigE0/0/0/17", false, ciscoFlags.GRIBIChecks)
+	//atePort8.Name
+	p8 := args.dut.Port(t, "port8")
+	interfaceref_name := p8.Name()
+	args.client.AddNH(t, 5000, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, interfaceref_name, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 5000, 0, map[uint64]uint64{5000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.50/32", 5000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
@@ -350,7 +392,6 @@ func testAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	// Telemerty check
 	aftCheck(ctx, t, args)
 
-	// END  FULL CHECK ########################################################################
 	// REPLACE
 	args.client.ReplaceNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.ReplaceNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -372,7 +413,7 @@ func testAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.ReplaceNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.ReplaceIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	// REPLACE Telemerty check
+	// Telemerty check after REPLACE
 	aftCheck(ctx, t, args)
 
 }
