@@ -241,17 +241,16 @@ func waitOTGARPEntry(t *testing.T, ipType string) {
 
 	switch ipType {
 	case "IPv4":
-		otg.Telemetry().InterfaceAny().Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().Watch(
+		otg.Telemetry().Interface(ateSrc.Name+".eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
 			t, 10*time.Second, func(val *otgtelemetry.QualifiedString) bool {
 				return val.IsPresent()
 			}).Await(t)
 	case "IPv6":
-		otg.Telemetry().InterfaceAny().Ipv6Neighbor(dutSrc.IPv6).LinkLayerAddress().Watch(
+		otg.Telemetry().Interface(ateSrc.Name+".eth").Ipv6NeighborAny().LinkLayerAddress().Watch(
 			t, 10*time.Second, func(val *otgtelemetry.QualifiedString) bool {
 				return val.IsPresent()
 			}).Await(t)
 	}
-
 }
 
 func testFlow(
