@@ -242,12 +242,12 @@ func waitOTGARPEntry(t *testing.T, ipType string) {
 	switch ipType {
 	case "IPv4":
 		otg.Telemetry().Interface(ateSrc.Name+".eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
-			t, 10*time.Second, func(val *otgtelemetry.QualifiedString) bool {
+			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
 				return val.IsPresent()
 			}).Await(t)
 	case "IPv6":
 		otg.Telemetry().Interface(ateSrc.Name+".eth").Ipv6NeighborAny().LinkLayerAddress().Watch(
-			t, 10*time.Second, func(val *otgtelemetry.QualifiedString) bool {
+			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
 				return val.IsPresent()
 			}).Await(t)
 	}
