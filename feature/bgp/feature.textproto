@@ -456,10 +456,6 @@ telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/remote-port"
 }
 
-gnoi_service {
-  service_name: "gnoi.bgp.BGP"
-  method_name: "ClearBGPNeighbor"
-}
 feature_profile_dependency {
   name: "networkinstance"
   version: 1
