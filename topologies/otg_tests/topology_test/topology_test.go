@@ -20,6 +20,7 @@ package topology_test
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 
@@ -52,7 +53,19 @@ func atePortCIDR(i int) string {
 }
 
 func atePortMac(i int) string {
-	return fmt.Sprintf("00:00:0%d:01:01:01", i*4+2)
+	return fmt.Sprintf("00:00:%02x:01:01:01", i*4+2)
+}
+
+func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
+	sort.Slice(ports, func(i, j int) bool {
+		idi, idj := ports[i].ID(), ports[j].ID()
+		li, lj := len(idi), len(idj)
+		if li == lj {
+			return idi < idj
+		}
+		return li < lj // "port2" < "port10"
+	})
+	return ports
 }
 
 func configInterface(name, desc, ipv4 string, prefixlen uint8) *telemetry.Interface {
@@ -89,7 +102,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// TODO(liulk): configure breakout ports when Ondatra is able to
 	// specify them in the testbed for reservation.
 
-	sortedDutPorts := fptest.SortPorts(dut.Ports())
+	sortedDutPorts := sortPorts(dut.Ports())
 	for i, dp := range sortedDutPorts {
 		di := d.Interface(dp.Name())
 		in := configInterface(dp.Name(), dp.String(), dutPortIP(i), plen)
@@ -127,7 +140,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otg := ate.OTG()
-	sortedAtePorts := fptest.SortPorts(ate.Ports())
+	sortedAtePorts := sortPorts(ate.Ports())
 	top := otg.NewConfig(t)
 	for i, ap := range sortedAtePorts {
 		t.Logf("OTG AddInterface: ports[%d] = %v", i, ap)
@@ -156,7 +169,7 @@ func TestTopology(t *testing.T) {
 	configureATE(t, ate)
 
 	// Query Telemetry
-	dutPorts := fptest.SortPorts(dut.Ports())
+	dutPorts := sortPorts(dut.Ports())
 	t.Run("Telemetry", func(t *testing.T) {
 		const want = telemetry.Interface_OperStatus_UP
 
