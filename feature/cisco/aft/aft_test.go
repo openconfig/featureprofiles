@@ -17,13 +17,9 @@ package aft_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
-	"github.com/openconfig/gribigo/chk"
-	"github.com/openconfig/gribigo/constants"
-	"github.com/openconfig/gribigo/fluent"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -58,39 +54,6 @@ type testArgs struct {
 	dut    *ondatra.DUTDevice
 	ate    *ondatra.ATEDevice
 	top    *ondatra.ATETopology
-}
-
-const (
-	timeout = time.Minute
-)
-
-// Client provides access to GRIBI APIs of the DUT.
-//
-// Usage:
-//
-//   c := &Client{
-//     DUT: ondatra.DUT(t, "dut"),
-//     FibACK: true,
-//     Persistence: true,
-//   }
-//   defer c.Close(t)
-//   if err := c.Start(t); err != nil {
-//     t.Fatalf("Could not initialize gRIBI: %v", err)
-//   }
-type Client struct {
-	DUT                   *ondatra.DUTDevice
-	FibACK                bool
-	Persistence           bool
-	InitialElectionIDLow  uint64
-	InitialElectionIDHigh uint64
-
-	// Unexport fields below.
-	fluentC *fluent.GRIBIClient
-}
-
-// Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
-func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
-	return c.fluentC
 }
 
 func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
@@ -412,60 +375,6 @@ func testAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	// REPLACE Telemerty check
 	aftCheck(ctx, t, args)
 
-}
-
-// func (c *Client) AddNHWithIPinIP(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, subinterfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
-// 	NH := fluent.NextHopEntry().
-// 		WithNetworkInstance(instance).
-// 		WithIndex(nhIndex)
-
-// 	if address == "encap" {
-// 		NH = NH.WithEncapsulateHeader(fluent.IPinIP)
-// 	} else if address != "" {
-// 		NH = NH.WithIPAddress(address).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP("20.20.20.1", "10.10.10.1")
-// 	}
-// 	if nhInstance != "" {
-// 		NH = NH.WithNextHopNetworkInstance(nhInstance)
-// 	}
-// 	if subinterfaceRef != "" {
-// 		NH = NH.WithSubinterfaceRef(subinterfaceRef, 1)
-// 	}
-// 	c.fluentC.Modify().AddEntry(t, NH)
-// 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
-// 		t.Fatalf("Error waiting to add NH: %v", err)
-// 	}
-// 	if expecteFailure {
-// 		c.checkNHResult(t, fluent.ProgrammingFailed, constants.Add, nhIndex)
-// 	} else {
-// 		c.checkNHResult(t, fluent.InstalledInRIB, constants.Add, nhIndex)
-// 		if check.FIBACK {
-// 			c.checkNHResult(t, fluent.InstalledInFIB, constants.Add, nhIndex)
-// 		}
-// 	}
-// 	if check.AFTCheck {
-// 		nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
-// 		if (*nh.Index != nhIndex) || (*nh.IpAddress != address) {
-// 			t.Fatalf("AFT Check failed for aft/nexthop-entry got ip %s, want ip %s; got index %d , want index %d", *nh.IpAddress, address, *nh.Index, nhIndex)
-// 		}
-// 	}
-// }
-
-// AwaitTimeout calls a fluent client Await by adding a timeout to the context.
-func (c *Client) AwaitTimeout(ctx context.Context, t testing.TB, timeout time.Duration) error {
-	subctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	return c.fluentC.Await(subctx, t)
-}
-
-func (c *Client) checkNHResult(t testing.TB, expectedResult fluent.ProgrammingResult, operation constants.OpType, nhIndex uint64) {
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopOperation(nhIndex).
-			WithOperationType(operation).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
 }
 
 func TestOCAFT(t *testing.T) {
