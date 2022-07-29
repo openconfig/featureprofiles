@@ -20,6 +20,7 @@ package topology_test
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -138,15 +139,27 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, atePorts []*ondatra.Port
 	top.Push(t).StartProtocols(t)
 }
 
+func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
+	sort.Slice(ports, func(i, j int) bool {
+		idi, idj := ports[i].ID(), ports[j].ID()
+		li, lj := len(idi), len(idj)
+		if li == lj {
+			return idi < idj
+		}
+		return li < lj // "port2" < "port10"
+	})
+	return ports
+}
+
 func TestTopology(t *testing.T) {
 	// Configure the DUT
 	dut := ondatra.DUT(t, "dut")
-	dutPorts := fptest.SortPorts(dut.Ports())
+	dutPorts := sortPorts(dut.Ports())
 	configureDUT(t, dut, dutPorts)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
-	atePorts := fptest.SortPorts(ate.Ports())
+	atePorts := sortPorts(ate.Ports())
 	configureATE(t, ate, atePorts)
 
 	// Query Telemetry
