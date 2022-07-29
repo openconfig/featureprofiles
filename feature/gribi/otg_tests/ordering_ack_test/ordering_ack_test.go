@@ -171,6 +171,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
+// Waits for at least one ARP entry on any OTG interface
 func waitOTGARPEntry(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ate.OTG().Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
