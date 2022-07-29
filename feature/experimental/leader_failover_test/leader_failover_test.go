@@ -53,7 +53,6 @@ const (
 )
 
 var (
-	instance = *deviations.DefaultNetworkInstance
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
@@ -182,15 +181,15 @@ type testArgs struct {
 // after programming the necessary nexthop and nexthop-group.
 func addRoute(ctx context.Context, t *testing.T, args *testArgs, clientA *gribi.Client) {
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via clientA", ateDstNetCIDR)
-	clientA.AddNH(t, nhIndex, atePort2.IPv4, instance, fluent.InstalledInRIB)
-	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.InstalledInRIB)
-	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.InstalledInRIB)
+	clientA.AddNH(t, nhIndex, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
 }
 
 // verifyAFT verifies through AFT Telemetry if a route is present on the DUT.
 func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify through AFT Telemetry that %s is active", ateDstNetCIDR)
-	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
+	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
 	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 	}
@@ -199,7 +198,7 @@ func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 // verifyNoAFT verifies through AFT Telemetry that a route is NOT present on the DUT.
 func verifyNoAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify through Telemetry that the route to %s is not present", ateDstNetCIDR)
-	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
+	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
 	got2 := ipv4Path.Prefix().Lookup(t)
 	if got2 != nil {
 		t.Errorf("Lookup of ipv4-entry/state/prefix got %s, want nil", got2)
@@ -377,7 +376,7 @@ func TestLeaderFailover(t *testing.T) {
 		t.Run("DeleteRoute", func(t *testing.T) {
 
 			t.Logf("Delete route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
-			clientA.DeleteIPv4(t, ateDstNetCIDR, instance, fluent.InstalledInRIB)
+			clientA.DeleteIPv4(t, ateDstNetCIDR, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 
 			t.Run("VerifyNoAFT", func(t *testing.T) {
 				verifyNoAFT(ctx, t, args)
