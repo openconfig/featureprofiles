@@ -84,10 +84,6 @@ func TestInterfaceCounters(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
-	// Await for operational state of the interface
-	t.Logf("Wait for operation state of interface: %s", dp.Name())
-	dut.Telemetry().Interface(dp.Name()).OperStatus().Await(t, 2*time.Minute, telemetry.Interface_OperStatus_UP)
-
 	// Configure DUT interfaces.
 	ConfigureDUTIntf(t, dut)
 
