@@ -740,9 +740,9 @@ func TestIntfCounterUpdate(t *testing.T) {
 	if ateOutPkts == 0 {
 		t.Errorf("Get(out packets for flow %q: got %v, want nonzero", flowName, ateOutPkts)
 	}
-	lossPct := float32((ateOutPkts - ateInPkts) * 100 / ateOutPkts)
-	if lossPct >= 0.1 {
-		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flowName, lossPct)
+	lossPct := (ateOutPkts - ateInPkts) * 100 / ateOutPkts
+	if lossPct >= 1 {
+		t.Errorf("Get(traffic loss for flow %q: got %v, want < 1", flowName, lossPct)
 	}
 	dutInPktsAfterTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().InUnicastPkts().Get(t)
 	dutOutPktsAfterTraffic := dut.Telemetry().Interface(dp2.Name()).Counters().OutUnicastPkts().Get(t)
