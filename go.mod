@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.8
+	github.com/google/gopacket v1.1.19
 	github.com/open-traffic-generator/snappi/gosnappi v0.8.5
 	github.com/openconfig/gnmi v0.0.0-20220131173555-39aa74195f0d
 	github.com/openconfig/gnoi v0.0.0-20220131192435-7dd3a95a4f1e
@@ -21,10 +22,12 @@ require (
 	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.0
+	k8s.io/klog/v2 v2.8.0
 )
 
 require (
 	github.com/ghodss/yaml v1.0.0 // indirect
+	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect

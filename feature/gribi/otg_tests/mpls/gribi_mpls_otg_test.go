@@ -106,8 +106,6 @@ func dutIntf(intf *attrs.Attributes) ([]*telemetry.Interface, error) {
 	v4Addr := v4.GetOrCreateAddress(intf.IPv4)
 	v4Addr.PrefixLength = ygot.Uint8(intf.IPv4Len)
 
-	// Note, order matters here, since we need to configure the LAG before the member intf.
-	// Consider changing this configuration to push both in one set.
 	return []*telemetry.Interface{pc, i}, nil
 }
 
@@ -156,7 +154,9 @@ func pushBaseConfigs(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 	router traffic-engineering
 	   segment-routing
 	!
-	platform tfa personality arfa
+	platform tfa personality python
+	!
+	mpls static top-label 32768 192.0.2.2 swap-label 32768
 	`).Append(t)
 
 	d := &telemetry.Device{}
