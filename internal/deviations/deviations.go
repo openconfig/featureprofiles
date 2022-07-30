@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package deviations documents and controls vendor deviation
-// workarounds that exist in the featureprofiles test suite.
+// Package deviations documents defines arguments to enable
+// workarounds for a featureprofiles test suite.
 //
-// This is a temporary workaround and will be deprecated in the
-// future.
+// Deviations are useful to temporarily enable passing for other dependent
+// subcases to give visibility to incremental progress to achieving
+// compliance to test.
+//
+// Passing with a deviation enabled is considered non-compliant to the
+// openconfig featureprofiles test.
+
+
 package deviations
 
 import "flag"
