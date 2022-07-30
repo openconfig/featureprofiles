@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+//
 // Package deviations documents defines arguments to enable
 // workarounds for a featureprofiles test suite.
 //
@@ -21,8 +21,6 @@
 //
 // Passing with a deviation enabled is considered non-compliant to the
 // openconfig featureprofiles test.
-
-
 package deviations
 
 import "flag"
