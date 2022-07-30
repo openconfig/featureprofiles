@@ -50,6 +50,7 @@ func init() {
 }
 
 func main() {
+	klog.InitFlags(nil)
 	flag.Parse()
 
 	if *srcMAC == "" || *dstMAC == "" {
