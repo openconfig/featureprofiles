@@ -43,5 +43,3 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	lukechampine.com/uint128 v1.1.1 // indirect
 )
-
-replace github.com/openconfig/gribigo => /usr/local/google/home/robjs/go/src/github.com/openconfig/gribigo

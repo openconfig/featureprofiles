@@ -1,3 +1,19 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Binary sendmpls is a simple traffic generator program that sends traffic on
+// a specific interface with a specified label stack.
 package main
 
 import (
@@ -17,12 +33,16 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// labels is a slice of uint32s that can be parsed as a custom flag.
 type labels []uint32
 
+// String implements the stringer interface required by a flag.
 func (l *labels) String() string {
 	return fmt.Sprintf("MPLS labels %v", *l)
 }
 
+// Set receives a set of labels from a comma-separated list and inserts them
+// into the labels slice.
 func (l *labels) Set(value string) error {
 	for _, lbl := range strings.Split(value, ",") {
 		v, err := strconv.ParseUint(lbl, 10, 32)
@@ -35,6 +55,7 @@ func (l *labels) Set(value string) error {
 }
 
 var (
+	// labelFlag is an instance of the custom flag type labels.
 	labelFlag labels
 
 	dstMAC   = flag.String("dst_mac", "", "destination MAC address that should be used for the packet.")
@@ -42,6 +63,8 @@ var (
 	intf     = flag.String("interface", "veth0", "Interface to write packets to.")
 	interval = flag.Uint("interval", 1, "Seconds between subsequent packets.")
 
+	// timeout is the time to wait when opening the pcap session to the interface
+	// to write to.
 	timeout = 30 * time.Second
 )
 
@@ -67,6 +90,8 @@ func main() {
 		klog.Exitf("Invalid destination MAC %s, err: %v", *dstMAC, err)
 	}
 
+	// Construct the packet - we have an Ethernet header followed by N MPLS
+	// headers dependent upon the input labels.
 	hdrStack := []gopacket.SerializableLayer{
 		&layers.Ethernet{
 			SrcMAC:       parsedSrc,
@@ -98,18 +123,18 @@ func main() {
 	gopacket.SerializeLayers(buf, gopacket.SerializeOptions{}, hdrStack...)
 
 	handle, err := pcap.OpenLive(*intf,
-		9000,    // capture 9K
-		true,    // promiscuous handle
-		timeout, // # of seconds to run
+		9000,    // capture 9KiB of data (less relevant since we are only writing)
+		true,    // promiscuous access to the interface.
+		timeout, // number of seconds to wait for opening the pcap session.
 	)
 	if err != nil {
 		klog.Exitf("Cannot open interface %s to write to, err: %v", intf, err)
 	}
 	defer handle.Close()
 
+	// Handle signals that might be sent to this process to ask it to exit.
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL, os.Interrupt)
-
 	go func() {
 		sig := <-sigs
 		klog.Infof("Received signal %v", sig)
@@ -123,5 +148,4 @@ func main() {
 			klog.Errorf("Cannot send packet, %v", err)
 		}
 	}
-
 }
