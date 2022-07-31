@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"k8s.io/klog/v2"
 )
@@ -45,6 +46,9 @@ func main() {
 
 	ps := gopacket.NewPacketSource(handle, handle.LinkType())
 	for p := range ps.Packets() {
-		klog.Infof("received packet %s", p)
+		klog.Infof("%s: received packet %s", time.Now(), p)
+		if mpls := p.Layer(layers.LayerTypeMPLS); mpls != nil {
+			klog.Infof("%s: received MPLS packet: %s", time.Now(), mpls)
+		}
 	}
 }

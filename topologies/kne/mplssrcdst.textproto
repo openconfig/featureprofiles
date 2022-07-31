@@ -18,6 +18,12 @@ nodes: {
   type: HOST
   config: {
     image: "mpls_src:latest"
+    command: "/app/sendmpls"
+    args: "-alsologtostderr"
+    args: "-v=2"
+    args: "-interface=eth1"
+    args: "-dst_mac=00:02:02:02:02:02"
+    args: "-labels=42,43,44"
   }
   services:{
     key: 22
@@ -32,6 +38,10 @@ nodes: {
   type: HOST
   config: {
     image: "mpls_dst:latest"
+    command: "/app/recvmpls"
+    args: "-alsologtostderr"
+    args: "-v=2"
+    args: "-interface=eth1"
   }
   services:{
     key: 22
