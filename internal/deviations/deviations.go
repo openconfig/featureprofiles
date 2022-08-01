@@ -11,16 +11,35 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
+
 // Package deviations documents defines arguments to enable
 // workarounds for a featureprofiles test suite.
 //
 // Deviations are useful to temporarily enable passing for other dependent
 // subcases to give visibility to incremental progress to achieving
-// compliance to test.
+// compliance to test.  Deviations should be granular, typically affecting
+// one sub-test, one OpenConfig path or small Openconfig sub-tree.
 //
 // Passing with a deviation enabled is considered non-compliant to the
 // OpenConfig featureprofiles test.
+//
+// To add a deviation 
+//   - Submit a github issue explaining the need for the deviation
+//   - Submit a pull request to add a flag to this file and updates to
+//     the tests where it is intended to be used.
+//
+// To remove a deviation
+//   - Submit a pull request which proposes to resolve the relevent
+//     github issue by removing the deviation and it's usage within tests
+//   - Typically the author or an affiliate of the author's organization 
+//     is expected to remove a deviation they introduced.
+//
+// To enable the deviations for a given test run
+//   - By default, deviations are not enabled and instead require the
+//     test invocation to set an arguement to enable the deviation.
+//   - For example: 
+//     go test my_test.go --deviation_interface_enabled=true
+//
 package deviations
 
 import "flag"
