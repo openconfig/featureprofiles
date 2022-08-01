@@ -21,6 +21,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gpb "github.com/openconfig/gribi/v1/proto/service"
@@ -144,7 +145,7 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, clie
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
 	}
 
-	_, err := flush(ctx, t, clientA, clientAOriginElectionID, defaultNetworkInstance)
+	_, err := flush(ctx, t, clientA, clientAOriginElectionID, *deviations.DefaultNetworkInstance)
 	if err != nil {
 		t.Errorf("Unexpected error from flush, got: %v", err)
 	}
@@ -155,20 +156,20 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, clie
 	} else {
 		t.Log("Traffic can not be forwarded between ATE port-1 and ATE port-2")
 	}
-	leftEntries := checkNIHasNEntries(ctx, clientA, defaultNetworkInstance, t)
+	leftEntries := checkNIHasNEntries(ctx, clientA, *deviations.DefaultNetworkInstance, t)
 	if leftEntries != 0 {
 		t.Errorf("Network instance has %d entry/entries, wanted: %d", leftEntries, 0)
 	}
 
 	// clientA is primary client
-	injectEntry(ctx, t, clientA, defaultNetworkInstance)
+	injectEntry(ctx, t, clientA, *deviations.DefaultNetworkInstance)
 
 	// flush should be failed, and remains 3 entries.
-	flushRes, err := flush(ctx, t, clientB, clientBOriginElectionID, defaultNetworkInstance)
+	flushRes, err := flush(ctx, t, clientB, clientBOriginElectionID, *deviations.DefaultNetworkInstance)
 	if err == nil {
 		t.Errorf("Flush should return an error, got response: %v", flushRes)
 	}
-	leftEntries = checkNIHasNEntries(ctx, clientB, defaultNetworkInstance, t)
+	leftEntries = checkNIHasNEntries(ctx, clientB, *deviations.DefaultNetworkInstance, t)
 	if leftEntries != 3 {
 		t.Errorf("Network instance has %d entry/entries, wanted: %d", leftEntries, 3)
 	}
@@ -177,11 +178,11 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, clie
 	clientB.Modify().UpdateElectionID(t, clientBUpdatedElectionID, 0)
 
 	// Flush should be succeed and 0 entry left.
-	_, err = flush(ctx, t, clientB, clientBUpdatedElectionID, defaultNetworkInstance)
+	_, err = flush(ctx, t, clientB, clientBUpdatedElectionID, *deviations.DefaultNetworkInstance)
 	if err != nil {
 		t.Fatalf("Unexpected error from flush, got: %v", err)
 	}
-	leftEntries = checkNIHasNEntries(ctx, clientB, defaultNetworkInstance, t)
+	leftEntries = checkNIHasNEntries(ctx, clientB, *deviations.DefaultNetworkInstance, t)
 	if leftEntries != 0 {
 		t.Errorf("Network instance has %d entry/entries, wanted: %d", leftEntries, 0)
 	}
