@@ -105,6 +105,15 @@ jobs:
         fi
 
         exit "${fail}"
+    - name: Default NetworkInstance
+      run: |
+        if find . -path ./yang/fpoc -prune -o \
+          -name \*.go -exec egrep -n '"default"' \{} +
+        then
+          echo "Default network instance name should be uppercase." >&2
+          echo "See CONTRIBUTING.md#default-network-instance" >&2
+          exit 1
+        fi
   static_analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
