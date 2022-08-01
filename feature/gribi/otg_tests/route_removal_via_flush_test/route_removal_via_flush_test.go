@@ -48,7 +48,6 @@ func TestMain(m *testing.M) {
 
 const (
 	ateDstNetCIDR            = "198.51.100.0/24"
-	defaultNetworkInstance   = "default"
 	clientAOriginElectionID  = 10
 	clientBOriginElectionID  = 9
 	clientAUpdatedElectionID = 12
@@ -136,7 +135,7 @@ func TestRouteRemovelViaFlush(t *testing.T) {
 func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, clientA, clientB *fluent.GRIBIClient, ate *ondatra.ATEDevice, ateTop gosnappi.Config) {
 	// Inject an entry into the default network instance pointing to ATE port-2.
 	// clientA is primary client
-	injectEntry(ctx, t, clientA, defaultNetworkInstance)
+	injectEntry(ctx, t, clientA, *deviations.DefaultNetworkInstance)
 	// Test traffic between ATE port-1 and ATE port-2.
 	lossPct := testTraffic(t, ate, ateTop)
 	if got := lossPct; got > 0 {
