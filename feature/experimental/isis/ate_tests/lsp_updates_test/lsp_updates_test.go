@@ -21,6 +21,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/feature/experimental/isis/ate_tests/internal/assert"
 	"github.com/openconfig/featureprofiles/feature/experimental/isis/ate_tests/internal/session"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -40,7 +41,7 @@ func TestOverloadBit(t *testing.T) {
 	assert.ValueOrNil(t, setBit, false)
 	assert.ValueOrNil(t, overloads, uint32(0))
 	ts.DUTConf.
-		GetNetworkInstance("default").
+		GetNetworkInstance(*deviations.DefaultNetworkInstance).
 		GetProtocol(session.PTISIS, session.ISISName).
 		GetIsis().
 		GetGlobal().
@@ -60,7 +61,7 @@ func TestOverloadBit(t *testing.T) {
 func TestMetric(t *testing.T) {
 	t.Logf("Starting...")
 	ts := session.NewWithISIS(t)
-	ts.DUTConf.GetNetworkInstance("default").GetProtocol(session.PTISIS, session.ISISName).GetIsis().
+	ts.DUTConf.GetNetworkInstance(*deviations.DefaultNetworkInstance).GetProtocol(session.PTISIS, session.ISISName).GetIsis().
 		GetInterface(ts.DUT.Port(t, "port1").Name()).
 		GetOrCreateLevel(2).
 		GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).

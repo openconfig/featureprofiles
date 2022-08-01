@@ -50,6 +50,7 @@ func TestMain(m *testing.M) {
 
 const (
 	ipv4PrefixLen = 30
+	instance      = "default"
 	nhIndex       = 1
 	nhgIndex      = 42
 )
@@ -85,9 +86,10 @@ var (
 )
 
 const (
-	staticCIDR        = "198.51.100.192/26"
-	ipv4Prefix        = "203.0.113.0/24"
-	unresolvedNextHop = "192.0.2.254/32"
+	networkInstanceName = "default"
+	staticCIDR          = "198.51.100.192/26"
+	ipv4Prefix          = "203.0.113.0/24"
+	unresolvedNextHop   = "192.0.2.254/32"
 )
 
 // configInterfaceDUT configures the interface with the Addrs.
@@ -164,15 +166,15 @@ func helperAddEntry(ctx context.Context, t *testing.T, client *fluent.GRIBIClien
 	t.Helper()
 	client.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(instance).
 			WithIndex(nhIndex).
 			WithIPAddress(nextHop),
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(instance).
 			WithID(nhgIndex).
 			AddNextHop(nhIndex, 1),
 		fluent.IPv4Entry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(instance).
 			WithPrefix(ipPrefix).
 			WithNextHopGroup(nhgIndex),
 	)
@@ -212,14 +214,14 @@ func configureIPv4ViaClientAInstalled(t *testing.T, args *testArgs) {
 	// once gribi/gribigo in google3 is updated.
 	args.clientA.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(instance).
 			WithIndex(nhIndex).
 			WithIPAddress(atePort2.IPv4).
 			WithElectionID(12, 0))
 
 	args.clientA.Modify().AddEntry(t,
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(instance).
 			WithID(nhgIndex).
 			AddNextHop(nhIndex, 1).
 			WithElectionID(12, 0))
@@ -228,7 +230,7 @@ func configureIPv4ViaClientAInstalled(t *testing.T, args *testArgs) {
 		args.clientA.Modify().AddEntry(t,
 			fluent.IPv4Entry().
 				WithPrefix(ateDstNetCIDR[ip]).
-				WithNetworkInstance(*deviations.DefaultNetworkInstance).
+				WithNetworkInstance(instance).
 				WithNextHopGroup(nhgIndex).
 				WithElectionID(12, 0))
 	}
@@ -300,7 +302,7 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Verify the above entries are active through AFT Telemetry.
 	for ip := range ateDstNetCIDR {
-		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
+		ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
 		if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR[ip]; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
@@ -317,7 +319,7 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	// and ensure that only entries for 198.51.100.0/26, 198.51.100.64/26, 198.51.100.128/26
 	// are returned, with no entry returned for 198.51.100.192/64.
 	dc := args.dut.Config()
-	ni := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
+	ni := dc.NetworkInstance(networkInstanceName).
 		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC")
 	static := &telemetry.NetworkInstance_Protocol_Static{
 		Prefix: ygot.String(staticCIDR),
@@ -326,7 +328,7 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	ni.Static(staticCIDR).Replace(t, static)
 	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {
-		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
+		ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
 		if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR[ip]; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
@@ -337,15 +339,15 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	// that the entry for 203.0.113.0/24 is not returned.
 	args.clientA.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(instance).
 			WithIndex(1000+nhIndex).
 			WithIPAddress(unresolvedNextHop),
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(instance).
 			WithID(1000+nhgIndex).
 			AddNextHop(1000+nhIndex, 1),
 		fluent.IPv4Entry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(instance).
 			WithPrefix(ipv4Prefix).
 			WithNextHopGroup(1000+nhgIndex),
 	)
