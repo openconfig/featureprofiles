@@ -136,7 +136,13 @@ jobs:
     - name: Go vet
       run: go vet ./...
     - name: Gofmt
-      run: diff -u <(echo -n) <(gofmt -d -s .)
+      run: |
+        # gofmt always returns true, so we use grep '^' which returns
+        # true on non-empty output, but will otherwise passthrough all
+        # output lines.
+        if gofmt -d -s . | grep '^'; then
+          exit 1
+        fi
     - name: Get revive
       run: go install github.com/mgechev/revive@latest
     - name: Run revive
