@@ -236,7 +236,7 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					HoldTime:          ygot.Uint16(100),
+					HoldTime:          ygot.Uint16(150),
 					KeepaliveInterval: ygot.Uint16(50),
 				},
 			}),
@@ -266,7 +266,7 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					HoldTime:          ygot.Uint16(100),
+					HoldTime:          ygot.Uint16(150),
 					KeepaliveInterval: ygot.Uint16(50),
 				},
 			}),
@@ -282,8 +282,8 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					HoldTime:           ygot.Uint16(100),
-					NegotiatedHoldTime: ygot.Uint16(100),
+					HoldTime:           ygot.Uint16(150),
+					NegotiatedHoldTime: ygot.Uint16(135),
 					KeepaliveInterval:  ygot.Uint16(50),
 				},
 			}),
