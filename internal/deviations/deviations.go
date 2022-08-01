@@ -20,7 +20,7 @@
 // compliance to test.
 //
 // Passing with a deviation enabled is considered non-compliant to the
-// openconfig featureprofiles test.
+// OpenConfig featureprofiles test.
 package deviations
 
 import "flag"
