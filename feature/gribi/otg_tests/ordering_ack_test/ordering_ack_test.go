@@ -74,7 +74,6 @@ const (
 	ateDstNetStartIp      = "203.0.113.1"
 	ateDstNetAddressCount = 250
 
-	instance = "default"
 	nhIndex  = 42
 	nhWeight = 1
 	nhgIndex = 10
