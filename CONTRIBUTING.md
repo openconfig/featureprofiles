@@ -371,6 +371,16 @@ Number Reservation for Documentation Use ([RFC 5398]). In particular:
 Both ranges have 16 total numbers each. The hexadecimal notation makes it more
 obvious where the range starts and stops.
 
+## Default Network Instance
+
+In OpenConfig [PR #599](https://github.com/openconfig/public/pull/599), it has
+been clarified that the name for the default network instance should be
+uppercase `"DEFAULT"`. Some legacy devices are still using lowercase
+`"default"`, so device tests should use the deviation
+`*deviations.DefaultNetworkInstance` which allows them to work on those legacy
+devices while they are being updated. Non-device unit tests may hard-code
+`"DEFAULT"`.
+
 ## Pull Requests
 
 To contribute a pull request:
