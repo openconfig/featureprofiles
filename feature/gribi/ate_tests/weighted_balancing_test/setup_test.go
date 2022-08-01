@@ -63,17 +63,17 @@ func TestMain(m *testing.M) {
 // "next hop group."  Each pair is assigned a /30 subnet assigned
 // consecutively.
 //
-//   * Source: ate:port1 192.0.2.2/30 -> dut:port1 192.0.2.1/30
-//   * Destination ports{2-9}:
-//       dut:port{i+1} 192.0.2.{4*i+1}/30 -> ate:port{i+1} 192.0.2.{4*i+2}/30
-//       (e.g. dut:port2 192.0.2.5/30 -> ate:port2 192.0.2.6/30 where i=1)
+//   - Source: ate:port1 192.0.2.2/30 -> dut:port1 192.0.2.1/30
+//   - Destination ports{2-9}:
+//     dut:port{i+1} 192.0.2.{4*i+1}/30 -> ate:port{i+1} 192.0.2.{4*i+2}/30
+//     (e.g. dut:port2 192.0.2.5/30 -> ate:port2 192.0.2.6/30 where i=1)
 //
 // A traffic flow from a source network is configured to be sent from
 // ate:port1, with a destination network expected to be received at
 // ate:port{2-9}.
 //
-//   * Source network: 198.51.100.0/24 (TEST-NET-2)
-//   * Destination network: 203.0.113.0/24 (TEST-NET-3)
+//   - Source network: 198.51.100.0/24 (TEST-NET-2)
+//   - Destination network: 203.0.113.0/24 (TEST-NET-3)
 //
 // The DUT is configured via gRIBI to route TEST-NET-2 to TEST-NET-3
 // via the next hop group configured in the topology.
@@ -92,7 +92,6 @@ const (
 
 	discardCIDR = "192.0.2.0/24"
 	nhgIndex    = 42
-	instance    = "default"
 )
 
 var (
@@ -180,7 +179,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	}
 	static.GetOrCreateNextHop("AUTO_drop_2").
 		NextHop = telemetry.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
-	staticp := dc.NetworkInstance(instance).
+	staticp := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").
 		Static(discardCIDR)
 	fptest.LogYgot(t, "discard route", staticp, static)
@@ -230,7 +229,7 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // and wanted OpResult.  The entries are part of the Modify request,
 // and the Modify response is verified against the wants.
 func buildNextHops(t testing.TB, nexthops []nextHop, scale uint64) (ents []fluent.GRIBIEntry, wants []*client.OpResult) {
-	nhgent := fluent.NextHopGroupEntry().WithNetworkInstance(instance).
+	nhgent := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithID(nhgIndex)
 	nhgwant := fluent.OperationResult().
 		WithOperationID(uint64(len(nexthops) + 1)).
@@ -245,7 +244,7 @@ func buildNextHops(t testing.TB, nexthops []nextHop, scale uint64) (ents []fluen
 		t.Logf("Installing gRIBI next hop entry %d to %s (%s) of weight %d",
 			index, nhip, nh.Port, nh.Weight*scale)
 
-		ent := fluent.NextHopEntry().WithNetworkInstance(instance).
+		ent := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithIndex(index).WithIPAddress(nhip)
 		ents = append(ents, ent)
 
@@ -260,7 +259,7 @@ func buildNextHops(t testing.TB, nexthops []nextHop, scale uint64) (ents []fluen
 		wants = append(wants, want)
 	}
 
-	ipv4ent := fluent.IPv4Entry().WithNetworkInstance(instance).
+	ipv4ent := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithPrefix(ateDstNetCIDR).WithNextHopGroup(42)
 	ipv4want := fluent.OperationResult().
 		WithOperationID(uint64(len(nexthops) + 2)).
@@ -384,7 +383,7 @@ func portWants(nexthops []nextHop, atePorts []*ondatra.Port) []float64 {
 
 func debugGRIBI(t testing.TB, dut *ondatra.DUTDevice) {
 	// Debugging through OpenConfig.
-	aftsPath := dut.Telemetry().NetworkInstance(instance).Afts()
+	aftsPath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts()
 	if q := aftsPath.Lookup(t); q.IsPresent() {
 		fptest.LogYgot(t, "Afts", aftsPath, q.Val(t))
 	} else {
