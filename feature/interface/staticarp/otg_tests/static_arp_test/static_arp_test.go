@@ -43,8 +43,8 @@ func TestMain(m *testing.M) {
 // dut:port2 -> ate:port2.  The first pair is called the "source"
 // pair, and the second the "destination" pair.
 //
-//   * Source: ate:port1 -> dut:port1 subnet 192.0.2.0/30 2001:db8::0/126
-//   * Destination: dut:port2 -> ate:port2 subnet 192.0.2.4/30 2001:db8::4/126
+//   - Source: ate:port1 -> dut:port1 subnet 192.0.2.0/30 2001:db8::0/126
+//   - Destination: dut:port2 -> ate:port2 subnet 192.0.2.4/30 2001:db8::4/126
 //
 // Note that the first (.0, .4) and last (.3, .7) IPv4 addresses are
 // reserved from the subnet for broadcast, so a /30 leaves exactly 2
