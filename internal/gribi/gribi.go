@@ -38,15 +38,15 @@ const (
 //
 // Usage:
 //
-//   c := &Client{
-//     DUT: ondatra.DUT(t, "dut"),
-//     FibACK: true,
-//     Persistence: true,
-//   }
-//   defer c.Close(t)
-//   if err := c.Start(t); err != nil {
-//     t.Fatalf("Could not initialize gRIBI: %v", err)
-//   }
+//	c := &Client{
+//	  DUT: ondatra.DUT(t, "dut"),
+//	  FibACK: true,
+//	  Persistence: true,
+//	}
+//	defer c.Close(t)
+//	if err := c.Start(t); err != nil {
+//	  t.Fatalf("Could not initialize gRIBI: %v", err)
+//	}
 type Client struct {
 	DUT                   *ondatra.DUTDevice
 	FibACK                bool
@@ -208,6 +208,24 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 		fluent.OperationResult().
 			WithIPv4Operation(prefix).
 			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+}
+
+// DeleteIPv4 deletes an IPv4Entry within a network instance, given the route's prefix
+func (c *Client) DeleteIPv4(t testing.TB, prefix string, instance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
+	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).WithNetworkInstance(instance)
+	c.fluentC.Modify().DeleteEntry(t, ipv4Entry)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to delete IPv4: %v", err)
+	}
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithIPv4Operation(prefix).
+			WithOperationType(constants.Delete).
 			WithProgrammingResult(expectedResult).
 			AsResult(),
 		chk.IgnoreOperationID(),

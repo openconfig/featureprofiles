@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
+	"github.com/openconfig/ondatra/netutil"
 	telemetry "github.com/openconfig/ondatra/telemetry"
 )
 
@@ -440,10 +441,7 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 func TestBalancing(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	aggID, err := fptest.LAGName(dut.Vendor(), 1001)
-	if err != nil {
-		t.Fatalf("LAGName for vendor %s: %s", dut.Vendor(), err)
-	}
+	aggID := netutil.NextBundleInterface(t, dut)
 	flowHeader := ondatra.NewIPv6Header()
 	flowHeader.FlowLabelRange().
 		WithMin(0).
