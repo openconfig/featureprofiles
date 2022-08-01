@@ -110,11 +110,6 @@ var (
 	}
 )
 
-var gatewayMap = map[attrs.Attributes]attrs.Attributes{
-	ateSrc: dutSrc,
-	ateDst: dutDst,
-}
-
 // configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
 	i.Description = ygot.String(a.Desc)
