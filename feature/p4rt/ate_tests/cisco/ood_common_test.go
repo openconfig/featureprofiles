@@ -774,6 +774,8 @@ func testEntryProgrammingPacketInDowngradePrimaryControllerWithoutStandby(ctx co
 		programmTableEntry(ctx, t, args.p4rtClientA, args.packetIO, true)
 	}()
 
+	programmTableEntry(ctx, t, args.p4rtClientA, args.packetIO, true)
+
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
 		t.Errorf("There is error when inserting the GDP entry")
@@ -1580,7 +1582,10 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 
 	// Flap interface
 	util.SetInterfaceState(t, args.dut, port, false)
-	defer util.SetInterfaceState(t, args.dut, port, true)
+	defer func() {
+		util.SetInterfaceState(t, args.dut, port, true)
+		time.Sleep(10 * time.Second)
+	}()
 
 	for i := 0; i < packet_count; i++ {
 		if err := client.StreamChannelSendMsg(
@@ -1660,10 +1665,10 @@ func testPacketOutEgressScale(ctx context.Context, t *testing.T, args *testArgs)
 	client := args.p4rtClientA
 
 	// Program the entry
-	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
-	}
-	defer programmTableEntry(ctx, t, client, args.packetIO, false)
+	// if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+	// 	t.Errorf("There is error when inserting the GDP entry")
+	// }
+	// defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
 	// Check initial packet counters
 	port := fptest.SortPorts(args.dut.Ports())[0].Name()
