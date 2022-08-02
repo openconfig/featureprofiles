@@ -38,15 +38,15 @@ const (
 //
 // Usage:
 //
-//   c := &Client{
-//     DUT: ondatra.DUT(t, "dut"),
-//     FibACK: true,
-//     Persistence: true,
-//   }
-//   defer c.Close(t)
-//   if err := c.Start(t); err != nil {
-//     t.Fatalf("Could not initialize gRIBI: %v", err)
-//   }
+//	c := &Client{
+//	  DUT: ondatra.DUT(t, "dut"),
+//	  FibACK: true,
+//	  Persistence: true,
+//	}
+//	defer c.Close(t)
+//	if err := c.Start(t); err != nil {
+//	  t.Fatalf("Could not initialize gRIBI: %v", err)
+//	}
 type Client struct {
 	DUT                   *ondatra.DUTDevice
 	FibACK                bool
