@@ -72,6 +72,7 @@ type dialer struct {
 }
 
 // dialGRPC dials a gRPC connection using the binding options.
+//
 //lint:ignore U1000 will be used by the binding.
 func (d *dialer) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	switch {
@@ -95,6 +96,7 @@ var knownHostsFiles = []string{
 }
 
 // knownHostsCallback checks the user and system SSH known_hosts.
+//
 //lint:ignore U1000 will be used by the binding.
 func knownHostsCallback() (ssh.HostKeyCallback, error) {
 	var files []string
@@ -108,6 +110,7 @@ func knownHostsCallback() (ssh.HostKeyCallback, error) {
 }
 
 // dialSSH dials an SSH client using the binding options.
+//
 //lint:ignore U1000 will be used by the binding.
 func (d *dialer) dialSSH() (*ssh.Client, error) {
 	c := &ssh.ClientConfig{
@@ -127,6 +130,7 @@ func (d *dialer) dialSSH() (*ssh.Client, error) {
 }
 
 // newHTTPClient makes an http.Client using the binding options.
+//
 //lint:ignore U1000 will be used by the binding.
 func (d *dialer) newHTTPClient() *http.Client {
 	tr := &http.Transport{

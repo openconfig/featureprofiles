@@ -189,7 +189,7 @@ type testArgs struct {
 	top     *ondatra.ATETopology
 }
 
-//Configure network instance
+// Configure network instance
 func configureNetworkInstance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &telemetry.Device{}
