@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gribigo/compliance"
 	"github.com/openconfig/gribigo/fluent"
@@ -20,7 +21,6 @@ var (
 	skipImplicitReplace = flag.Bool("skip_implicit_replace", true, "skip tests for ADD operations that perform implicit replacement of existing entries")
 	skipNonDefaultNINHG = flag.Bool("skip_non_default_ni_nhg", true, "skip tests that add entries to non-default network-instance")
 
-	defaultNI    = flag.String("default_ni", "default", "default network-instance name")
 	nonDefaultNI = flag.String("non_default_ni", "non-default-vrf", "non-default network-instance name")
 )
 
@@ -67,7 +67,7 @@ func TestCompliance(t *testing.T) {
 				t.Skip(reason)
 			}
 
-			compliance.SetDefaultNetworkInstanceName(*defaultNI)
+			compliance.SetDefaultNetworkInstanceName(*deviations.DefaultNetworkInstance)
 			compliance.SetNonDefaultVRFName(*nonDefaultNI)
 
 			c := fluent.NewClient()

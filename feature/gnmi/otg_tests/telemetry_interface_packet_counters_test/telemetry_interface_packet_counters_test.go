@@ -19,8 +19,10 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -164,36 +166,58 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
-	top := ate.Topology().New()
-	intf1 := top.AddInterface("intf1").WithPort(ap1)
-	intf1.IPv4().
-		WithAddress("198.51.100.1/31").
-		WithDefaultGateway("198.51.100.0")
-	intf1.IPv6().
-		WithAddress("2001:DB8::2/126").
-		WithDefaultGateway("2001:DB8::1")
-	intf2 := top.AddInterface("intf2").WithPort(ap2)
-	intf2.IPv4().
-		WithAddress("198.51.100.3/31").
-		WithDefaultGateway("198.51.100.2")
-	intf2.IPv6().
-		WithAddress("2001:DB8::6/126").
-		WithDefaultGateway("2001:DB8::5")
-	top.Push(t).StartProtocols(t)
+	config := otg.NewConfig(t)
+	config.Ports().Add().SetName(ap1.ID())
+	intf1 := config.Devices().Add().SetName(ap1.Name())
+	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").
+		SetPortName(ap1.ID()).SetMac("02:00:01:01:01:01")
+	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".IPv4").
+		SetAddress("198.51.100.1").SetGateway("198.51.100.0").
+		SetPrefix(31)
+	ip6_1 := eth1.Ipv6Addresses().Add().SetName(intf1.Name() + ".IPv6").
+		SetAddress("2001:DB8::2").SetGateway("2001:DB8::1").
+		SetPrefix(126)
+	config.Ports().Add().SetName(ap2.ID())
+	intf2 := config.Devices().Add().SetName(ap2.Name())
+	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").
+		SetPortName(ap2.ID()).SetMac("02:00:01:02:01:01")
+	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".IPv4").
+		SetAddress("198.51.100.3").SetGateway("198.51.100.2").
+		SetPrefix(31)
+	ip6_2 := eth2.Ipv6Addresses().Add().SetName(intf2.Name() + ".IPv6").
+		SetAddress("2001:DB8::6").SetGateway("2001:DB8::5").
+		SetPrefix(126)
 
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Flow := ate.Traffic().NewFlow("ipv4_test_flow").
-		WithSrcEndpoints(intf1).
-		WithDstEndpoints(intf2).
-		WithHeaders(ethHeader, ondatra.NewIPv4Header()).
-		WithFrameRatePct(15)
-	ipv6Flow := ate.Traffic().NewFlow("ipv6_test_flow").
-		WithSrcEndpoints(intf1).
-		WithDstEndpoints(intf2).
-		WithHeaders(ethHeader, ondatra.NewIPv6Header()).
-		WithFrameRatePct(15)
+	flowipv4 := config.Flows().Add().SetName("IPv4_test_flow")
+	flowipv4.Metrics().SetEnable(true)
+	flowipv4.TxRx().Device().
+		SetTxNames([]string{intf1.Name() + ".IPv4"}).
+		SetRxNames([]string{intf2.Name() + ".IPv4"})
+	flowipv4.Size().SetFixed(100)
+	flowipv4.Rate().SetPps(15)
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(eth1.Mac())
+	v4 := flowipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(ip4_1.Address())
+	v4.Dst().SetValue(ip4_2.Address())
+
+	flowipv6 := config.Flows().Add().SetName("IPv6_test_flow")
+	flowipv6.Metrics().SetEnable(true)
+	flowipv6.TxRx().Device().
+		SetTxNames([]string{intf1.Name() + ".IPv6"}).
+		SetRxNames([]string{intf2.Name() + ".IPv6"})
+	flowipv6.Size().SetFixed(100)
+	flowipv6.Rate().SetPps(15)
+	e2 := flowipv6.Packet().Add().Ethernet()
+	e2.Src().SetValue(eth1.Mac())
+	v6 := flowipv6.Packet().Add().Ipv6()
+	v6.Src().SetValue(ip6_1.Address())
+	v6.Dst().SetValue(ip6_2.Address())
+	otg.PushConfig(t, config)
+	otg.StartProtocols(t)
 
 	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
 	i1 := dut.Telemetry().Interface(dp1.Name())
@@ -213,49 +237,64 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	t.Logf("inPkts: %v and outPkts: %v before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
-	ate.Traffic().Start(t, ipv4Flow, ipv6Flow)
+	waitOTGARPEntry(t)
+
+	otg.StartTraffic(t)
 	time.Sleep(10 * time.Second)
-	ate.Traffic().Stop(t)
+	otg.StopTraffic(t)
 
 	// Check interface status is up.
 	ds1 := dut.Telemetry().Interface(dp1.Name()).OperStatus().Get(t)
 	if want := telemetry.Interface_OperStatus_UP; ds1 != want {
 		t.Errorf("Get(DUT port1 status): got %v, want %v", ds1, want)
 	}
-	as1 := ate.Telemetry().Interface(ap1.Name()).OperStatus().Get(t)
-	if want := telemetry.Interface_OperStatus_UP; as1 != want {
-		t.Errorf("Get(ATE port1 status): got %v, want %v", as1, want)
-	}
 	ds2 := dut.Telemetry().Interface(dp2.Name()).OperStatus().Get(t)
 	if want := telemetry.Interface_OperStatus_UP; ds2 != want {
 		t.Errorf("Get(DUT port2 status): got %v, want %v", ds2, want)
 	}
-	as2 := ate.Telemetry().Interface(ap2.Name()).OperStatus().Get(t)
-	if want := telemetry.Interface_OperStatus_UP; as2 != want {
-		t.Errorf("Get(ATE port2 status): got %v, want %v", as2, want)
+
+	// Verifying the ate port link state
+	for _, p := range config.Ports().Items() {
+		portMetrics := otg.Telemetry().Port(p.Name()).Get(t)
+		if portMetrics.GetLink() != otgtelemetry.Port_Link_UP {
+			t.Errorf("Get(ATE %v status): got %v, want %v", p.Name(), portMetrics.GetLink(), otgtelemetry.Port_Link_UP)
+		}
 	}
 
-	ateInPkts := map[string]uint64{
-		"ipv4": ate.Telemetry().Flow(ipv4Flow.Name()).Counters().InPkts().Get(t),
-		"ipv6": ate.Telemetry().Flow(ipv6Flow.Name()).Counters().InPkts().Get(t),
+	// Getting the otg flow metrics
+	otgutils.LogFlowMetrics(t, otg, config)
+	ateInPkts := map[string]uint64{}
+	ateOutPkts := map[string]uint64{}
+	for _, f := range config.Flows().Items() {
+		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
+		if f.Name() == "IPv4_test_flow" {
+			ateInPkts["IPv4"] = recvMetric.GetCounters().GetInPkts()
+			ateOutPkts["IPv4"] = recvMetric.GetCounters().GetOutPkts()
+		}
+		if f.Name() == "IPv6_test_flow" {
+			ateInPkts["IPv6"] = recvMetric.GetCounters().GetInPkts()
+			ateOutPkts["IPv6"] = recvMetric.GetCounters().GetOutPkts()
+		}
 	}
-	ateInPkts["parent"] = ateInPkts["ipv4"] + ateInPkts["ipv6"]
-
-	ateOutPkts := map[string]uint64{
-		"ipv4": ate.Telemetry().Flow(ipv4Flow.Name()).Counters().OutPkts().Get(t),
-		"ipv6": ate.Telemetry().Flow(ipv6Flow.Name()).Counters().OutPkts().Get(t),
-	}
-	ateOutPkts["parent"] = ateOutPkts["ipv4"] + ateOutPkts["ipv6"]
+	ateInPkts["parent"] = ateInPkts["IPv4"] + ateInPkts["IPv6"]
+	ateOutPkts["parent"] = ateOutPkts["IPv4"] + ateOutPkts["IPv6"]
 
 	for k, v := range ateOutPkts {
 		if v == 0 {
-			t.Errorf("ate.Telemetry().Flow(%v).Counters().OutPkts().Get() = %v, want nonzero", k, v)
+			t.Errorf("otg.Telemetry().Flow(%v).GetCounters().GetOutPkts() = %v, want nonzero", k, v)
 		}
 	}
-	for _, flow := range []string{ipv4Flow.Name(), ipv6Flow.Name()} {
-		lossPct := ate.Telemetry().Flow(flow).LossPct().Get(t)
+	for _, flow := range []string{flowipv4.Name(), flowipv6.Name()} {
+		lossPct := 0
+		if flow == "IPv4_test_flow" {
+			lostPackets := int(ateOutPkts["IPv4"] - ateInPkts["IPv4"])
+			lossPct = lostPackets * 100 / int(ateOutPkts["IPv4"])
+		} else {
+			lostPackets := int(ateOutPkts["IPv6"] - ateInPkts["IPv6"])
+			lossPct = lostPackets * 100 / int(ateOutPkts["IPv6"])
+		}
 		if lossPct >= 1 {
-			t.Errorf("ate.Telemetry().Flow(%v).LossPct().Get() = %v, want < 1", flow, lossPct)
+			t.Errorf("LossPct per Flow(%v) = %v, want < 1", flow, lossPct)
 		}
 	}
 
@@ -375,4 +414,20 @@ func TestInterfaceMgmt(t *testing.T) {
 	} else {
 		t.Logf("Got path/value: %s:%v", path, mgmt.Val(t))
 	}
+}
+
+// waitOtgArpEntry waits until ARP entries are present on OTG interfaces
+func waitOTGARPEntry(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+
+	otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
+	otg.Telemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
+
 }
