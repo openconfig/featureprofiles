@@ -43,9 +43,8 @@ func TestMain(m *testing.M) {
 // The testbed consists of ate:port1 -> dut:port1
 // and dut:port2 -> ate:port2.
 //
-//   * ate:port1 -> dut:port1 subnet 192.0.2.0/30
-//   * ate:port2 -> dut:port2 subnet 192.0.2.4/30
-//
+//   - ate:port1 -> dut:port1 subnet 192.0.2.0/30
+//   - ate:port2 -> dut:port2 subnet 192.0.2.4/30
 const (
 	ipv4PrefixLen     = 30
 	ateDstNetCIDR     = "198.51.100.0/24"
