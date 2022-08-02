@@ -86,9 +86,14 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
+	// adding drop route to NULL
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
@@ -167,9 +172,13 @@ func testDeleteAddBackupToDrop(ctx context.Context, t *testing.T, args *testArgs
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
@@ -220,14 +229,14 @@ func testDeleteAddBackupToDrop(ctx context.Context, t *testing.T, args *testArgs
 	//delete backup path and validate no traffic loss
 	args.client.ReplaceNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.DeleteNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.DeleteNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
 
 	//add back backup path and validate no traffic loss
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.ReplaceNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	if *ciscoFlags.GRIBITrafficCheck {
@@ -242,9 +251,13 @@ func testBackupToTrafficLoss(ctx context.Context, t *testing.T, args *testArgs) 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
@@ -295,7 +308,7 @@ func testBackupToTrafficLoss(ctx context.Context, t *testing.T, args *testArgs) 
 	//delete backup path and shut primary interfaces and validate traffic drops
 	args.client.ReplaceNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.DeleteNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.DeleteNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
 	args.interfaceaction(t, "port5", false)
@@ -313,7 +326,7 @@ func testBackupToTrafficLoss(ctx context.Context, t *testing.T, args *testArgs) 
 	}
 
 	//add back backup path and validate traffic drops
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.ReplaceNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	if *ciscoFlags.GRIBITrafficCheck {
@@ -328,9 +341,13 @@ func testUpdateBackUpToDropID(ctx context.Context, t *testing.T, args *testArgs)
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
@@ -606,9 +623,13 @@ func testBackupSwitchFromDropToDecap(ctx context.Context, t *testing.T, args *te
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
@@ -675,6 +696,8 @@ func testBackupSwitchFromDropToDecap(ctx context.Context, t *testing.T, args *te
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
 	}
+
+	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
 
 	// Modify backup from pointing to a static route to a DECAP chain
 	args.client.AddNH(t, 999, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -867,8 +890,8 @@ func testBackupSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Log("going to remove Static ARP different from Ixia ")
 	config.TextWithGNMI(args.ctx, t, args.dut, "no arp 198.51.100.1 0012.0100.0001 arpa")
-	config.TextWithGNMI(args.ctx, t, args.dut, "interface HundredGigE0/0/0/1 arp learning disable")
-	defer config.TextWithGNMI(args.ctx, t, args.dut, "no interface HundredGigE0/0/0/1 arp learning disable")
+	config.TextWithGNMI(args.ctx, t, args.dut, "interface Bundle-Ether121 arp learning disable")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no interface Bundle-Ether121 arp learning disable")
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
@@ -1291,7 +1314,11 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
 	}
 
-	args.client.AddNH(t, 11, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
+	args.client.AddNH(t, 11, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 102, 0, map[uint64]uint64{11: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 100, 102, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
@@ -1313,12 +1340,16 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
 	// LEVEL 2
 
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.client.AddNH(t, 11, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 11, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 102, 0, map[uint64]uint64{11: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
@@ -1369,6 +1400,8 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
 	}
+
+	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
 
 	args.client.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
