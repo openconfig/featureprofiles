@@ -25,8 +25,8 @@
 //
 // To add a deviation:
 //   - Submit a github issue explaining the need for the deviation
-//   - Submit a pull request to add a flag to this file and updates to
-//     the tests where it is intended to be used.
+//   - Submit a pull request referencing the above issue to add a flag to
+//     this file and updates to the tests where it is intended to be used.
 //
 // To remove a deviation:
 //   - Submit a pull request which proposes to resolve the relevent
