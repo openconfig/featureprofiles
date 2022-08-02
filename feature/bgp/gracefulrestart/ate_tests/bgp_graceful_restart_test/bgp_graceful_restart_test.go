@@ -392,11 +392,11 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	t.Run("configureBGP", func(t *testing.T) {
 		t.Log("Configure BGP with Graceful Restart option under Global Bgp")
 		dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-		fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 		dutConfPath.Replace(t, nil)
 		nbrList := buildNbrList(ateAS)
 		dutConf := bgpWithNbr(dutAS, nbrList)
 		dutConfPath.Replace(t, dutConf)
+		fptest.LogYgot(t, "DUT BGP Config", dutConfPath, dutConfPath.Get(t))
 	})
 	// ATE Configuration.
 	var allFlows []*ondatra.Flow
