@@ -6,10 +6,12 @@ Validate gNOI RPC can reboot specific components.
 
 ## Procedure
 
-*   Issue gnoi.system Reboot to chassis with no populated delay and subcomponents set to:
+*   Issue gnoi.system Reboot to chassis with no populated delay and
+    subcomponents set to:
     *   A field-removable linecard in the system
     *   A control-processor (supervisor)
-*   TODO: For each component verify that the component has rebooted and the uptime has been reset.
+*   TODO: For each component verify that the component has rebooted and the
+    uptime has been reset.
 
 ## Config Parameter Coverage
 
