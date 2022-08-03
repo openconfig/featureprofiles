@@ -3,6 +3,7 @@ package cisco_gribi_test
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -246,4 +247,17 @@ func configureIpv6AndVlans(t *testing.T, dut *ondatra.DUTDevice) {
 		dut.Config().Interface("Bundle-Ether121").Subinterface(uint32(i)).Update(t, subint)
 	}
 
+}
+
+// SortPorts sorts the ports by their ID in the testbed.  Otherwise
+// Ondatra returns the ports in arbitrary order.
+func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
+	sort.SliceStable(ports, func(i, j int) bool {
+		idi, idj := ports[i].ID(), ports[j].ID()
+		if len(idi) < len(idj) {
+			return true // "port2" < "port10"
+		}
+		return idi < idj
+	})
+	return ports
 }

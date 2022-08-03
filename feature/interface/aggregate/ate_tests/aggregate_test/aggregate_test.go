@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
@@ -42,8 +43,8 @@ func TestMain(m *testing.M) {
 // ate:port{2-9}.  The first pair is called the "source" pair, and the
 // second aggregate link the "destination" pair.
 //
-//   * Source: ate:port1 -> dut:port1 subnet 192.0.2.0/30 2001:db8::0/126
-//   * Destination: dut:port{2-9} -> ate:port{2-9}
+//   - Source: ate:port1 -> dut:port1 subnet 192.0.2.0/30 2001:db8::0/126
+//   - Destination: dut:port{2-9} -> ate:port{2-9}
 //     subnet 192.0.2.4/30 2001:db8::4/126
 //
 // Note that the first (.0, .4) and last (.3, .7) IPv4 addresses are
@@ -428,15 +429,12 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 func TestNegotiation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	aggID := netutil.NextBundleInterface(t, dut)
+
 	lagTypes := []telemetry.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
 
 	for _, lagType := range lagTypes {
 		top := ate.Topology().New()
-		aggID, err := fptest.LAGName(dut.Vendor(), 1001)
-		if err != nil {
-			t.Fatalf("LAGName for vendor %s: %s", dut.Vendor(), err)
-		}
-
 		tc := &testCase{
 			minlinks: uint16(len(dut.Ports()) / 2),
 

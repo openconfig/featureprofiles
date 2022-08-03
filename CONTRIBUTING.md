@@ -286,6 +286,49 @@ Do not write [assertion] helpers.
 
 [assertion]: https://go.dev/doc/faq#assertions
 
+## Enum
+
+Sometimes a test may need to set a ygot field with an OpenConfig enum type, e.g.
+[IP_PROTOCOL]. The constant for `IP_TCP` has the description "Transmission
+Control Protocol (6)". The value `6` here refers to the IANA-assigned
+[protocol numbers], but ygot-generated code assigns enum values sequentially,
+and `PacketMatchTypes_IP_PROTOCOL_IP_TCP` in [enum.go] actually has the value
+`9`.
+
+[IP_PROTOCOL]: http://ops.openconfig.net/branches/models/master/docs/openconfig-acl.html#ident-ip_protocol
+[protocol numbers]: https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml
+[enum.go]: https://github.com/openconfig/ondatra/blob/main/telemetry/enum.go
+
+This is okay:
+
+```go
+acl := d.GetOrCreateAcl().GetOrCreateAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4)
+a1 := acl.GetOrCreateAclEntry(1)
+a1v4 := a1.GetOrCreateIpv4()
+a1v4.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_TCP
+```
+
+This is also okay because the port number is not a numerical enum constant.
+
+```go
+const bgpPort = 179
+a1t := a1.GetOrCreateTransport()
+a1t.DestinationPort = telemetry.UnionUint16(bgpPort)
+```
+
+The ygot-generated numerical enum values are internal. When the ygot `GoStruct`
+is serialized to JSON, it will output the string `"IP_TCP"`. Do not use the
+numerical enum values.
+
+```go
+// This is NOT ok because it uses an internal numerical constant.
+// Also, the constant actually refers to IP_L2TP, not IP_TCP.
+alv4.Protocol = telemetry.UnionUint8(6)
+
+// This is also NOT ok.
+a1v4.Protocol, _ = a1v4.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
+```
+
 ## IP Addresses Assignment
 
 Netblocks used in the test topology should follow IPv4 Address Blocks Reserved
@@ -327,6 +370,16 @@ Number Reservation for Documentation Use ([RFC 5398]). In particular:
 
 Both ranges have 16 total numbers each. The hexadecimal notation makes it more
 obvious where the range starts and stops.
+
+## Default Network Instance
+
+In OpenConfig [PR #599](https://github.com/openconfig/public/pull/599), it has
+been clarified that the name for the default network instance should be
+uppercase `"DEFAULT"`. Some legacy devices are still using lowercase
+`"default"`, so device tests should use the deviation
+`*deviations.DefaultNetworkInstance` which allows them to work on those legacy
+devices while they are being updated. Non-device unit tests may hard-code
+`"DEFAULT"`.
 
 ## Pull Requests
 
