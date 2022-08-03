@@ -21,6 +21,7 @@ import (
 	"github.com/openconfig/featureprofiles/feature/experimental/isis/ate_tests/internal/assert"
 	"github.com/openconfig/featureprofiles/feature/experimental/isis/ate_tests/internal/session"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/ixnet"
@@ -138,7 +139,7 @@ func TestBasic(t *testing.T) {
 	ts.AwaitAdjacency(t)
 
 	t.Run("adjacency_state", func(t *testing.T) {
-		telem := ts.DUT.Telemetry().NetworkInstance("default").Protocol(PTISIS, ISISName)
+		telem := ts.DUT.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
 		systemID := telem.Isis().Interface(ts.DUT.Port(t, "port1").Name()).Level(2).AdjacencyAny().SystemId().Get(t)
 		adj := telem.Isis().Interface(ts.DUT.Port(t, "port1").Name()).Level(2).Adjacency(systemID[0])
 		assert.Value(t, adj.AdjacencyState(), telemetry.IsisTypes_IsisInterfaceAdjState_UP)
