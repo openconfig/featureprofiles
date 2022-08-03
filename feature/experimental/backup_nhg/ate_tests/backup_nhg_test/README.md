@@ -20,8 +20,6 @@ containing a single NH
     forwarded to ATE port-3:
     *   Interface ATE port-2 is disabled.
     *   Interface DUT port-2 is disabled.
-    *   TODO: Static ARP entry for ATE port-2 is removed from DUT via
-        configuration, with no dynamic ARP enabled.
 *   Remove all previously installed IPv4Entry routes. Create an entry for
     198.51.100.0/24 with a next-hop of 192.0.2.254/32. Inject a second entry
     with 192.0.2.254/32 resolved to ATE port-2. Specify a backup NHG of ATE
