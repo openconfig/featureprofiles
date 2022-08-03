@@ -144,7 +144,7 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, samePolicy bool) {
 	configBasePBR(t, args.dut)
 
-	physicalInterface := fptest.SortPorts(args.dut.Ports())[0].Name()
+	physicalInterface := sortPorts(args.dut.Ports())[0].Name()
 	physicalInterfaceConfig := args.dut.Config().Interface(physicalInterface)
 
 	// Configure the physcial interface
