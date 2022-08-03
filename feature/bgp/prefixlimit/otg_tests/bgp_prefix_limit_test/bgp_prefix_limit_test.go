@@ -411,12 +411,12 @@ func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Con
 	otg := ate.OTG()
 	otgutils.LogPortMetrics(t, otg, conf)
 	ap := ate.Port(t, "port1")
-	aic1 := otg.Telemetry().Port(ap.Name()).Counters()
+	aic1 := otg.Telemetry().Port(ap.ID()).Counters()
 	sentPkts := aic1.OutFrames().Get(t)
 	fptest.LogYgot(t, "ate:port1 counters", aic1, aic1.Get(t))
 
 	op := ate.Port(t, "port2")
-	aic2 := otg.Telemetry().Port(op.Name()).Counters()
+	aic2 := otg.Telemetry().Port(op.ID()).Counters()
 	rxPkts := aic2.InFrames().Get(t)
 	fptest.LogYgot(t, "ate:port2 counters", aic2, aic2.Get(t))
 	var lostPkts uint64
@@ -464,7 +464,7 @@ func configureBGPRoutes(t *testing.T, configElement *config, routeCount uint32) 
 
 	// Modifying the OTG flows
 	configElement.flowV4Incr.SetCount(int32(routeCount))
-	configElement.flowV4Incr.SetCount(int32(routeCount))
+	configElement.flowV6Incr.SetCount(int32(routeCount))
 
 	otg.PushConfig(t, configElement.topo)
 	otg.StartProtocols(t)
