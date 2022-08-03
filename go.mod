@@ -19,6 +19,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220131092820-39736dd543b4
 	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
+	golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135
 	google.golang.org/grpc v1.46.2
 	google.golang.org/protobuf v1.28.0
 	sigs.k8s.io/yaml v1.2.0
