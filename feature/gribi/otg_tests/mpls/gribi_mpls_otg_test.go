@@ -132,6 +132,12 @@ func configureATEInterfaces(t *testing.T, ate *ondatra.ATEDevice, srcATE, srcDUT
 		ip6.SetAddress(p.ate.IPv6).SetGateway(p.dut.IPv6).SetPrefix(int32(p.ate.IPv6Len))
 	}
 
+	c, err := topology.ToJson()
+	if err != nil {
+		return topology, err
+	}
+	fmt.Printf("config is %s\n", c)
+
 	otg.PushConfig(t, topology)
 	otg.StartProtocols(t)
 	return topology, nil
@@ -213,7 +219,6 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 			}).Await(t)
 
 		// TODO(robjs): MPLS is currently not supported in OTG.
-		/*// Remove any stale flows.
 		otgCfg.Flows().Clear().Items()
 		mplsFlow := otgCfg.Flows().Add().SetName("MPLS_FLOW")
 		mplsFlow.Metrics().SetEnable(true)
@@ -238,9 +243,6 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		otg.StopTraffic(t)
 
 		otgutils.LogPortMetrics(t, otg, otgCfg)
-		*/
-		_ = otgCfg
-		_ = dstMAC
 		time.Sleep(2 * time.Minute)
 
 		// TODO(robjs): validate traffic counters and received headers.

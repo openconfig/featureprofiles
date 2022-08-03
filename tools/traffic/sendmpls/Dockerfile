@@ -8,7 +8,9 @@ RUN mkdir -p /go/src/github.com/openconfig/featureprofiles
 WORKDIR /go/src/github.com/openconfig/featureprofiles
 COPY go.mod .
 COPY go.sum .
-COPY tools/traffic/sendmpls .
+RUN mkdir tools
+COPY tools/ tools/
+WORKDIR tools/traffic/sendmpls
 RUN go build -o sendmpls
 RUN mkdir /app
 RUN mv sendmpls /app

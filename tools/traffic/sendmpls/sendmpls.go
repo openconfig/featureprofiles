@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net"
@@ -30,6 +31,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"github.com/openconfig/featureprofiles/tools/traffic/intf"
 	"k8s.io/klog/v2"
 )
 
@@ -58,10 +60,13 @@ var (
 	// labelFlag is an instance of the custom flag type labels.
 	labelFlag labels
 
-	dstMAC   = flag.String("dst_mac", "", "destination MAC address that should be used for the packet.")
-	srcMAC   = flag.String("src_mac", "00:01:01:01:01:01", "source MAC address that should be used for the packet.")
-	intf     = flag.String("interface", "veth0", "Interface to write packets to.")
-	interval = flag.Uint("interval", 1, "Seconds between subsequent packets.")
+	dstMAC      = flag.String("dst_mac", "", "destination MAC address that should be used for the packet.")
+	srcMAC      = flag.String("src_mac", "00:01:01:01:01:01", "source MAC address that should be used for the packet.")
+	intfName    = flag.String("interface", "veth0", "Interface to write packets to.")
+	dynamicIntf = flag.Bool("dynamic_intf", false, "Dynamically configure address on interface.")
+	ipAddr      = flag.String("ip_addr", "", "IP address to use on interface including mask in CIDR form.")
+	peerAddr    = flag.String("peer_addr", "", "Peer address on the interface.")
+	interval    = flag.Uint("interval", 1, "Seconds between subsequent packets.")
 
 	// timeout is the time to wait when opening the pcap session to the interface
 	// to write to.
@@ -76,18 +81,57 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 
-	if *srcMAC == "" || *dstMAC == "" {
-		klog.Exitf("Source and destination MAC must be specified, source: %s, destination: %s", *srcMAC, *dstMAC)
-	}
+	var (
+		parsedSrc, parsedDst net.HardwareAddr
+		err                  error
+	)
 
-	parsedSrc, err := net.ParseMAC(*srcMAC)
-	if err != nil {
-		klog.Exitf("Invalid source MAC %s, err: %v", *srcMAC, err)
-	}
+	switch {
+	case *dynamicIntf:
+		if *ipAddr == "" || *peerAddr == "" {
+			klog.Exitf("A dynamic link must have both a local address and peer address specified, ip: %s, peer: %s", *ipAddr, *peerAddr)
+		}
 
-	parsedDst, err := net.ParseMAC(*dstMAC)
-	if err != nil {
-		klog.Exitf("Invalid destination MAC %s, err: %v", *dstMAC, err)
+		_, ipNet, err := net.ParseCIDR(*ipAddr)
+		if err != nil {
+			klog.Exitf("Cannot parse interface address, %v, err: %v", *ipAddr, err)
+		}
+
+		// configure the interface
+		if err := intf.AddIP(*intfName, ipNet); err != nil {
+			klog.Exitf("Cannot configure address %s on interface %s, err: %v", intfName, ipNet, err)
+		}
+
+		// get the local MAC.
+		parsedSrc, err = intf.GetMAC(*intfName)
+		if err != nil {
+			klog.Exitf("Cannot get local MAC address, err: %v", err)
+		}
+
+		peerIP := net.ParseIP(*peerAddr)
+
+		// get the MAC address of the peer from ARP.
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+
+		parsedDst, err = intf.AwaitARP(ctx, peerIP)
+		if err != nil {
+			klog.Exitf("cannot resolve ARP for %s within timeout, err: %v", peerIP, err)
+		}
+
+	default:
+		if *srcMAC == "" || *dstMAC == "" {
+			klog.Exitf("Source and destination MAC must be specified, source: %s, destination: %s", *srcMAC, *dstMAC)
+		}
+		parsedSrc, err = net.ParseMAC(*srcMAC)
+		if err != nil {
+			klog.Exitf("Invalid source MAC %s, err: %v", *srcMAC, err)
+		}
+
+		parsedDst, err = net.ParseMAC(*dstMAC)
+		if err != nil {
+			klog.Exitf("Invalid destination MAC %s, err: %v", *dstMAC, err)
+		}
 	}
 
 	// Construct the packet - we have an Ethernet header followed by N MPLS
@@ -122,13 +166,13 @@ func main() {
 	buf := gopacket.NewSerializeBuffer()
 	gopacket.SerializeLayers(buf, gopacket.SerializeOptions{}, hdrStack...)
 
-	handle, err := pcap.OpenLive(*intf,
+	handle, err := pcap.OpenLive(*intfName,
 		9000,    // capture 9KiB of data (less relevant since we are only writing)
 		true,    // promiscuous access to the interface.
 		timeout, // number of seconds to wait for opening the pcap session.
 	)
 	if err != nil {
-		klog.Exitf("Cannot open interface %s to write to, err: %v", intf, err)
+		klog.Exitf("Cannot open interface %s to write to, err: %v", *intfName, err)
 	}
 	defer handle.Close()
 

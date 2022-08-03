@@ -20,9 +20,11 @@ nodes: {
     image: "mpls_src:latest"
     command: "/app/sendmpls"
     args: "-alsologtostderr"
+    args: "-dynamic_intf"
     args: "-v=2"
     args: "-interface=eth1"
-    args: "-dst_mac=00:02:02:02:02:02"
+    args: "-ip_addr=192.0.2.0/31"
+    args: "-peer_addr=192.0.2.1"
     args: "-labels=42,43,44"
   }
   services:{
