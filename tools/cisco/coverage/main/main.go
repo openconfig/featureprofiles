@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/openconfig/featureprofiles/tools/coverage"
+	"github.com/openconfig/featureprofiles/tools/cisco/coverage"
 	"golang.org/x/tools/go/analysis/singlechecker"
 )
 
