@@ -7,8 +7,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -144,7 +142,7 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, samePolicy bool) {
 	configBasePBR(t, args.dut)
 
-	physicalInterface := fptest.SortPorts(args.dut.Ports())[0].Name()
+	physicalInterface := sortPorts(args.dut.Ports())[0].Name()
 	physicalInterfaceConfig := args.dut.Config().Interface(physicalInterface)
 
 	// Configure the physcial interface

@@ -21,7 +21,6 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -183,7 +182,7 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 	validProfile := make(map[string]bool)
 
 	for _, f := range files {
-		bs, err := ioutil.ReadFile(f)
+		bs, err := os.ReadFile(f)
 		if err != nil {
 			// Just accumulate the file error since we can't do anything else.
 			report = append(report, file{name: f, errors: []string{err.Error()}})
