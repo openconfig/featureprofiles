@@ -6,7 +6,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
+	"sort"
+	
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
