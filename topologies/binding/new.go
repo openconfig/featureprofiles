@@ -42,17 +42,17 @@ var (
 // The vendor plugin should be a "package main" with a New function
 // that will receive the value of the --plugin-args flag as a string.
 //
-//   package main
+//	package main
 //
-//   import "github.com/openconfig/ondatra/binding"
+//	import "github.com/openconfig/ondatra/binding"
 //
-//   func New(arg string) (binding.Binding, error) {
-//     ...
-//   }
+//	func New(arg string) (binding.Binding, error) {
+//	  ...
+//	}
 //
 // And the plugin should be built with:
 //
-//   go build -buildmode=plugin
+//	go build -buildmode=plugin
 //
 // For more detail about how to write a plugin, see: https://pkg.go.dev/plugin
 func New() (binding.Binding, error) {
