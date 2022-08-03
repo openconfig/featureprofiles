@@ -79,6 +79,7 @@ github.com/mitchellh/go-wordwrap v1.0.1/go.mod h1:R62XHJLzvMFRBbcrT7m7WgmE1eOyTS
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
 github.com/open-traffic-generator/snappi/gosnappi v0.7.37 h1:OZdJ6qYR0v3crCLuIqjNagkKUko2mGVj+qifSujnLpA=
 github.com/open-traffic-generator/snappi/gosnappi v0.7.37/go.mod h1:KsV29REx12Exw7BLWN/kI3m7euS4Vyyymh/63mrVl+s=
+github.com/open-traffic-generator/snappi/gosnappi v0.8.5 h1:UIA4EpMwvDJYZ4htsnwUU+JB83GRZXrexSv9+S9KZh8=
 github.com/open-traffic-generator/snappi/gosnappi v0.8.5/go.mod h1:8teR2eonSEJTr/Y1B125KN23RTmGh6ybgURTt28IlI0=
 github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20200508230933-d19cebf5e7be/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
