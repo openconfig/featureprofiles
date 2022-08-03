@@ -3,11 +3,11 @@ package cisco_gribi_test
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"testing"
 	"time"
-	"sort"
-	
+
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
@@ -248,6 +248,7 @@ func configureIpv6AndVlans(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 }
+
 // SortPorts sorts the ports by their ID in the testbed.  Otherwise
 // Ondatra returns the ports in arbitrary order.
 func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
