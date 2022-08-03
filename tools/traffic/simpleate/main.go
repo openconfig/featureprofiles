@@ -22,11 +22,6 @@ func init() {
 	flag.StringVar(&port, "port", os.Getenv("PORT"), "Port to listen on")
 }
 
-var (
-	tlsKey  = flag.String("keyfile", "", "TLS keyfile to use for server.")
-	tlsCert = flag.String("certfile", "", "TLS certificate to use for server.")
-)
-
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
@@ -35,16 +30,8 @@ func main() {
 		klog.Exitf("cannot listen on port %d, err: %v", port, err)
 	}
 
-	if *tlsKey == "" || *tlsCert == "" {
-		klog.Exitf("must specify TLS credentials, key: %s, cert: %s", *tlsKey, *tlsCert)
-	}
-
-	/*t, err := credentials.NewServerTLSFromFile(*tlsCert, *tlsKey)
-	if err != nil {
-		klog.Exitf("cannot read certificate files, err: %v", err)
-	}*/
+	// OTG is expected to be inscure in ONDATRA currently.
 	t := insecure.NewCredentials()
-
 	s := grpc.NewServer(grpc.Creds(t))
 	reflection.Register(s)
 	otg.RegisterOpenapiServer(s, lwotg.New())

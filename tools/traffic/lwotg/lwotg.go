@@ -16,7 +16,7 @@ import (
 // New returns a new lightweight OTG server.
 func New() *Server {
 	return &Server{
-		intfMu: map[string]*linuxIntf{},
+		intf: map[string]*linuxIntf{},
 	}
 }
 
@@ -37,11 +37,11 @@ func (s *Server) cacheInterfaces(v map[string]*linuxIntf) {
 func (s *Server) intfHasAddr(name, addr string) bool {
 	s.intfMu.Lock()
 	defer s.intfMu.Unlock()
-	v, ok := s.intfMu[name]
+	v, ok := s.intf[name]
 	if !ok {
 		return false
 	}
-	_, configured := v[addr]
+	_, configured := v.IPv4[addr]
 	return configured
 }
 
@@ -54,7 +54,7 @@ func (s *Server) SetConfig(ctx context.Context, req *otg.SetConfigRequest) (*otg
 	if len(req.Config.Lags) != 0 || len(req.Config.Layer1) != 0 || len(req.Config.Captures) != 0 || req.Config.Options != nil {
 		return nil, status.Errorf(codes.Unimplemented, "request contained fields that are unimplemented, %v", req)
 	}
-	return handleConfig(req.Config)
+	return s.handleConfig(req.Config)
 }
 
 func (s *Server) SetProtocolState(ctx context.Context, req *otg.SetProtocolStateRequest) (*otg.SetProtocolStateResponse, error) {
@@ -67,7 +67,7 @@ func (s *Server) SetTransmitState(ctx context.Context, req *otg.SetTransmitState
 	return &otg.SetTransmitStateResponse{StatusCode_200: &otg.ResponseWarning{}}, nil
 }
 
-func handleConfig(pb *otg.Config) (*otg.SetConfigResponse, error) {
+func (s *Server) handleConfig(pb *otg.Config) (*otg.SetConfigResponse, error) {
 	// Working with gosnappi here seems worse than just using the proto directly.
 	// gsCfg := gosnappi.NewConfig().SetMsg(pb)
 
@@ -88,7 +88,7 @@ func handleConfig(pb *otg.Config) (*otg.SetConfigResponse, error) {
 			}
 
 			// Avoid configuring an address on an interface that already has the address.
-			if !intfHasAddr(intName, addr) {
+			if !s.intfHasAddr(intName, addr) {
 				klog.Infof("Configuring interface %s with address %s", intName, ipNet)
 				if err := intf.AddIP(intName, ipNet); err != nil {
 					return nil, status.Errorf(codes.Internal, "cannot configure address %s on interface %s, err: %v", addr, intName, err)
