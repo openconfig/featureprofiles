@@ -203,6 +203,17 @@ func (tc *testCase) clearAggregateMembers(t *testing.T) {
 	}
 }
 
+func (tc *testCase) waitForLACP(t *testing.T) {
+	for _, port := range tc.dutPorts {
+		path := tc.dut.Telemetry().Interface(port.Name())
+		path.OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
+	}
+	if tc.lagType == lagTypeLACP {
+		agg := tc.dut.Telemetry().Interface(tc.aggID)
+		agg.OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
+	}
+}
+
 func (tc *testCase) configureDUT(t *testing.T) {
 	t.Logf("dut ports = %v", tc.dutPorts)
 	if len(tc.dutPorts) < 2 {
@@ -249,6 +260,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		fptest.LogYgot(t, port.String(), iPath, i)
 		iPath.Replace(t, i)
 	}
+	tc.waitForLACP(t)
 }
 
 func (tc *testCase) configureATE(t *testing.T) {
