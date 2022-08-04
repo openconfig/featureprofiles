@@ -32,10 +32,10 @@ import (
 )
 
 const (
-	controlcardType = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	linecardType    = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
-	activeController    = telemetry.PlatformTypes_ComponentRedundantRole_PRIMARY
-	standbyController    = telemetry.PlatformTypes_ComponentRedundantRole_SECONDARY
+	controlcardType   = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	linecardType      = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
+	activeController  = telemetry.PlatformTypes_ComponentRedundantRole_PRIMARY
+	standbyController = telemetry.PlatformTypes_ComponentRedundantRole_SECONDARY
 )
 
 func TestMain(m *testing.M) {
