@@ -17,7 +17,6 @@ package per_component_reboot_test
 import (
 	"context"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +34,8 @@ import (
 const (
 	controlcardType = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	linecardType    = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
+	activeController    = telemetry.PlatformTypes_ComponentRedundantRole_PRIMARY
+	standbyController    = telemetry.PlatformTypes_ComponentRedundantRole_SECONDARY
 )
 
 func TestMain(m *testing.M) {
@@ -229,12 +230,14 @@ func findComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.
 func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
 	var activeRP, standbyRP string
 	for _, supervisor := range supervisors {
-		desc := dut.Telemetry().Component(supervisor).Description().Get(t)
-		t.Logf("Component(supervisor).Description().Get(t): %v, Description: %v", supervisor, desc)
-		if strings.Contains(desc, "Standby") {
+		role := dut.Telemetry().Component(supervisor).RedundantRole().Get(t)
+		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
+		if role == standbyController {
 			standbyRP = supervisor
-		} else {
+		} else if role == activeController {
 			activeRP = supervisor
+		} else {
+			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
 		}
 	}
 	return standbyRP, activeRP
