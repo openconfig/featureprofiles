@@ -175,6 +175,19 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 	}
 }
 
+func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packet *p4_v1.PacketOut, packetCount int) {
+	for i := 0; i < packetCount; i++ {
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4_v1.StreamMessageRequest{
+				Update: &p4_v1.StreamMessageRequest_Packet{
+					Packet: packet,
+				},
+			}); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+		}
+	}
+}
+
 func testP4RTTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, srcEndPoint *ondatra.Interface, duration int) {
 	for _, flow := range flows {
 		flow.WithSrcEndpoints(srcEndPoint).WithDstEndpoints(srcEndPoint)
@@ -752,16 +765,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	packet := args.packetIO.GetPacketOut(t, portID, true)
 
 	packet_count := 100
-	for i := 0; i < packet_count; i++ {
-		if err := client.StreamChannelSendMsg(
-			&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Packet{
-					Packet: packet,
-				},
-			}); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-		}
-	}
+	sendPackets(t, client, packet, packet_count)
 
 	// Wait for ate stats to be populated
 	time.Sleep(60 * time.Second)
@@ -791,16 +795,7 @@ func testPacketOutWithoutMatchEntry(ctx context.Context, t *testing.T, args *tes
 	packet := args.packetIO.GetPacketOut(t, portID, true)
 
 	packet_count := 100
-	for i := 0; i < packet_count; i++ {
-		if err := client.StreamChannelSendMsg(
-			&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Packet{
-					Packet: packet,
-				},
-			}); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-		}
-	}
+	sendPackets(t, client, packet, packet_count)
 
 	// Wait for ate stats to be populated
 	time.Sleep(60 * time.Second)
@@ -836,16 +831,7 @@ func testPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
 	packet := args.packetIO.GetPacketOut(t, portID, false)
 
 	packet_count := 100
-	for i := 0; i < packet_count; i++ {
-		if err := client.StreamChannelSendMsg(
-			&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Packet{
-					Packet: packet,
-				},
-			}); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-		}
-	}
+	sendPackets(t, client, packet, packet_count)
 
 	// Wait for ate stats to be populated
 	time.Sleep(60 * time.Second)
@@ -875,16 +861,7 @@ func testPacketOutEgressWithoutMatchEntry(ctx context.Context, t *testing.T, arg
 	packet := args.packetIO.GetPacketOut(t, portID, false)
 
 	packet_count := 100
-	for i := 0; i < packet_count; i++ {
-		if err := client.StreamChannelSendMsg(
-			&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Packet{
-					Packet: packet,
-				},
-			}); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-		}
-	}
+	sendPackets(t, client, packet, packet_count)
 
 	// Wait for ate stats to be populated
 	time.Sleep(60 * time.Second)
@@ -917,16 +894,7 @@ func testPacketOutEgressWithInvalidPortId(ctx context.Context, t *testing.T, arg
 	packet := args.packetIO.GetPacketOut(t, ^portID, false)
 
 	packet_count := 100
-	for i := 0; i < packet_count; i++ {
-		if err := client.StreamChannelSendMsg(
-			&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Packet{
-					Packet: packet,
-				},
-			}); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-		}
-	}
+	sendPackets(t, client, packet, packet_count)
 
 	// Wait for ate stats to be populated
 	time.Sleep(60 * time.Second)
@@ -971,16 +939,7 @@ func testPacketOutEgressWithChangePortId(ctx context.Context, t *testing.T, args
 	packet := args.packetIO.GetPacketOut(t, newPortID, false)
 
 	packet_count := 100
-	for i := 0; i < packet_count; i++ {
-		if err := client.StreamChannelSendMsg(
-			&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Packet{
-					Packet: packet,
-				},
-			}); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-		}
-	}
+	sendPackets(t, client, packet, packet_count)
 
 	// Wait for ate stats to be populated
 	time.Sleep(60 * time.Second)
@@ -1029,16 +988,7 @@ func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, ar
 	packet.Metadata[0].Value = []byte{1, 2, 3, 4, 5, 6, 7, 8}
 
 	packet_count := 100
-	for i := 0; i < packet_count; i++ {
-		if err := client.StreamChannelSendMsg(
-			&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Packet{
-					Packet: packet,
-				},
-			}); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-		}
-	}
+	sendPackets(t, client, packet, packet_count)
 
 	// Wait for ate stats to be populated
 	time.Sleep(60 * time.Second)
@@ -1074,16 +1024,7 @@ func testPacketOutIngressWithInterfaceFlap(ctx context.Context, t *testing.T, ar
 	packet := args.packetIO.GetPacketOut(t, portID, true)
 
 	packet_count := 100
-	for i := 0; i < packet_count; i++ {
-		if err := client.StreamChannelSendMsg(
-			&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Packet{
-					Packet: packet,
-				},
-			}); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-		}
-	}
+	sendPackets(t, client, packet, packet_count)
 
 	// Wait for ate stats to be populated
 	time.Sleep(60 * time.Second)
@@ -1106,16 +1047,7 @@ func testPacketOutIngressWithInterfaceFlap(ctx context.Context, t *testing.T, ar
 	util.SetInterfaceState(t, args.dut, port, false)
 	defer util.SetInterfaceState(t, args.dut, port, true)
 
-	for i := 0; i < packet_count; i++ {
-		if err := client.StreamChannelSendMsg(
-			&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Packet{
-					Packet: packet,
-				},
-			}); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-		}
-	}
+	sendPackets(t, client, packet, packet_count)
 
 	// Wait for ate stats to be populated
 	time.Sleep(60 * time.Second)
@@ -1151,16 +1083,7 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 	packet := args.packetIO.GetPacketOut(t, portID, false)
 
 	packet_count := 100
-	for i := 0; i < packet_count; i++ {
-		if err := client.StreamChannelSendMsg(
-			&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Packet{
-					Packet: packet,
-				},
-			}); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-		}
-	}
+	sendPackets(t, client, packet, packet_count)
 
 	// Wait for ate stats to be populated
 	time.Sleep(60 * time.Second)
@@ -1186,16 +1109,7 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 		time.Sleep(10 * time.Second)
 	}()
 
-	for i := 0; i < packet_count; i++ {
-		if err := client.StreamChannelSendMsg(
-			&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Packet{
-					Packet: packet,
-				},
-			}); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-		}
-	}
+	sendPackets(t, client, packet, packet_count)
 
 	// Wait for ate stats to be populated
 	time.Sleep(60 * time.Second)
@@ -1285,16 +1199,7 @@ func testPacketOutEgressScale(ctx context.Context, t *testing.T, args *testArgs)
 		go func() {
 			// At the end of the goroutine, tell the WaitGroup
 			//   that another thread has completed.
-			for i := 0; i < packet_count; i++ {
-				if err := client.StreamChannelSendMsg(
-					&streamName, &p4_v1.StreamMessageRequest{
-						Update: &p4_v1.StreamMessageRequest_Packet{
-							Packet: packet,
-						},
-					}); err != nil {
-					t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-				}
-			}
+			sendPackets(t, client, packet, packet_count)
 		}()
 	}
 
