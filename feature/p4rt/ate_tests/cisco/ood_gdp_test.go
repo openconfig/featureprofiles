@@ -176,16 +176,16 @@ type GDPPacketIO struct {
 	PacketIOPacket
 }
 
-func (g *GDPPacketIO) GetTableEntry(t *testing.T, delete bool) *wbb.AclWbbIngressTableEntryInfo {
+func (g *GDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
 	if delete {
 		actionType = p4_v1.Update_DELETE
 	}
-	return &wbb.AclWbbIngressTableEntryInfo{
+	return []*wbb.AclWbbIngressTableEntryInfo{&wbb.AclWbbIngressTableEntryInfo{
 		Type:          actionType,
 		EtherType:     0x6007,
 		EtherTypeMask: 0xFFFF,
-	}
+	}}
 }
 
 func (g *GDPPacketIO) ApplyConfig(t *testing.T, dut *ondatra.DUTDevice, delete bool) {
@@ -224,12 +224,20 @@ func (g *GDPPacketIO) GetPacketTemplate(t *testing.T) *PacketIOPacket {
 	return &g.PacketIOPacket
 }
 
-func (g *GDPPacketIO) GetTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) *ondatra.Flow {
+func (g *GDPPacketIO) GetTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress(*g.SrcMAC)
 	ethHeader.WithDstAddress(*g.DstMAC)
 	ethHeader.WithEtherType(*g.EthernetType)
 
 	flow := ate.Traffic().NewFlow("GDP").WithFrameSize(frameSize).WithFrameRateFPS(frameRate).WithHeaders(ethHeader)
-	return flow
+	return []*ondatra.Flow{flow}
+}
+
+func (g *GDPPacketIO) GetEgressPort(t *testing.T) []string {
+	return []string{"0"}
+}
+
+func (g *GDPPacketIO) SetEgressPorts(t *testing.T, portIDs []string) {
+
 }
