@@ -75,7 +75,7 @@ func TestMain(m *testing.M) {
 //    https://github.com/fullstorydev/grpcurl
 //
 
-func TestStandbySupervisorReboot(t *testing.T) {
+func TestStandbyControllerCardReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	supervisors := findComponentsByType(t, dut, controlcardType)
@@ -215,14 +215,11 @@ func findComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.
 
 			switch v := componentType.(type) {
 			case telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
-				switch v {
-				case cType:
+				if v ==cType {
 					s = append(s, c)
-				default:
-					continue
 				}
 			default:
-				t.Fatalf("Error extracting component state, could not type assert union. union: %v", componentType)
+				t.Fatalf("Expected component type to be a hardware component, got (%T, %v)", componentType, componentType)
 			}
 		}
 	}
