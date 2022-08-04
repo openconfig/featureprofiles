@@ -215,7 +215,7 @@ func findComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.
 
 			switch v := componentType.(type) {
 			case telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
-				if v ==cType {
+				if v == cType {
 					s = append(s, c)
 				}
 			default:
