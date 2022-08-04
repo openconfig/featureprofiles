@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 //     RawAPIs() to set request and get response data.
 //   - Metadata annotation is a proto message with base64 encoded.
 //   - Although RFC 7952 allows metadata annotation on any path and leaves,
-//     this test only configures it at root per WBB requirement.
+//     this test only configures it at root.
 //   - Steps to create SetRequest and get response data.
 //     1) Marshal proto message and encode it with base64.
 //        - Arista does not accept SetRequest paths with "@" in it - b/216674592.
