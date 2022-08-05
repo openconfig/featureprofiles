@@ -479,22 +479,23 @@ func TestBalancing(t *testing.T) {
 		},
 	}
 
+	tc := &testCase{
+		dut:     dut,
+		ate:     ate,
+		lagType: lagTypeLACP,
+
+		dutPorts: sortPorts(dut.Ports()),
+		atePorts: sortPorts(ate.Ports()),
+		aggID:    aggID,
+	}
+	tc.configureDUT(t)
+	tc.configureATE(t)
+
 	for _, tf := range tests {
 		top := ate.Topology().New()
-		tc := &testCase{
-			dut:      dut,
-			ate:      ate,
-			top:      top,
-			l3header: tf.l3header,
-			lagType:  lagTypeLACP,
-
-			dutPorts: sortPorts(dut.Ports()),
-			atePorts: sortPorts(ate.Ports()),
-			aggID:    aggID,
-		}
+		tc.top = top
+		tc.l3header = tf.l3header
 		t.Run(tf.desc, func(t *testing.T) {
-			tc.configureDUT(t)
-			tc.configureATE(t)
 			tc.testFlow(t, tc.l3header)
 		})
 	}
