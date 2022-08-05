@@ -174,6 +174,7 @@ func packetGDPRequestGet(t *testing.T) []byte {
 
 type GDPPacketIO struct {
 	PacketIOPacket
+	IngressPort string
 }
 
 func (g *GDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo {
@@ -240,4 +241,12 @@ func (g *GDPPacketIO) GetEgressPort(t *testing.T) []string {
 
 func (g *GDPPacketIO) SetEgressPorts(t *testing.T, portIDs []string) {
 
+}
+
+func (g *GDPPacketIO) GetIngressPort(t *testing.T) string {
+	return g.IngressPort
+}
+
+func (g *GDPPacketIO) SetIngressPorts(t *testing.T, portID string) {
+	g.IngressPort = portID
 }
