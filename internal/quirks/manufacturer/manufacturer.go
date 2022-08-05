@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package manufacturer provides handlers to accommodate manufacturer quirks.
 package manufacturer
 
 import (
@@ -25,9 +26,6 @@ import (
 // vendor specific.
 func PortChannelName(t testing.TB, dut *ondatra.DUTDevice, i int) string {
 	t.Helper()
-	if i <= 0 {
-		t.Fatalf("port-channel index must be >= 1: %d", i)
-	}
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		return fmt.Sprintf("Port-Channel%d", i)

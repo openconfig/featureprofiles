@@ -78,6 +78,7 @@ const (
 
 type testCase struct {
 	minlinks uint16
+	speed    telemetry.E_IfEthernet_ETHERNET_SPEED
 	lagType  telemetry.E_IfAggregate_AggregationType
 
 	dut *ondatra.DUTDevice
@@ -100,8 +101,7 @@ func (*testCase) configDUT(i *telemetry.Interface, a *attrs.Attributes) {
 	if *deviations.InterfaceEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
-	a4 := s4.GetOrCreateAddress(a.IPv4)
-	a4.PrefixLength = ygot.Uint8(plen4)
+	s4.GetOrCreateAddress(a.IPv4).PrefixLength = ygot.Uint8((plen4))
 
 	s6 := s.GetOrCreateIpv6()
 	if *deviations.InterfaceEnabled {
@@ -263,10 +263,8 @@ func (tc *testCase) configureATE(t *testing.T) {
 func (tc *testCase) verifyDUT(t *testing.T, numPort int) {
 	dutPort := tc.dut.Port(t, "port1")
 	want := int(dutPort.Speed()) * numPort * 1000
-	gotWatch := tc.dut.Telemetry().Interface(tc.aggID).Aggregation().LagSpeed().Watch(t, 30*time.Second, func(val *telemetry.QualifiedUint32) bool { return val.IsPresent() })
-	gotAwait, _ := gotWatch.Await(t)
-	got := int(gotAwait.Val(t))
-	if got != want {
+	val, _ := tc.dut.Telemetry().Interface(tc.aggID).Aggregation().LagSpeed().Watch(t, 30*time.Second, func(val *telemetry.QualifiedUint32) bool { return val.IsPresent() }).Await(t)
+	if got := int(val.Val(t)); got != want {
 		t.Errorf("Get(DUT port status): got %v, want %v", got, want)
 	}
 }
@@ -274,9 +272,7 @@ func (tc *testCase) verifyDUT(t *testing.T, numPort int) {
 func TestGNMIPortSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dutPort := dut.Port(t, "port1")
-	want := portSpeed[dutPort.Speed()]
-	got := dut.Telemetry().Interface(dutPort.Name()).Ethernet().PortSpeed().Get(t)
-	if got != want {
+	if got, want := dut.Telemetry().Interface(dutPort.Name()).Ethernet().PortSpeed().Get(t), portSpeed[dutPort.Speed()]; got != want {
 		t.Errorf("Get(DUT port1 status): got %v, want %v", got, want)
 	}
 }
