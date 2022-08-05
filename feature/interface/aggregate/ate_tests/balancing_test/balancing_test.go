@@ -208,10 +208,6 @@ func (tc *testCase) waitForLACP(t *testing.T) {
 		path := tc.dut.Telemetry().Interface(port.Name())
 		path.OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
 	}
-	if tc.lagType == lagTypeLACP {
-		agg := tc.dut.Telemetry().Interface(tc.aggID)
-		agg.OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
-	}
 }
 
 func (tc *testCase) configureDUT(t *testing.T) {
