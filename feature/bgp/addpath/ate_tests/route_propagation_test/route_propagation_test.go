@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -120,14 +121,14 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 		ocName := dut.Port(t, a.Name).Name()
 		dut.Config().Interface(ocName).Replace(t, a.NewInterface(ocName))
 	}
-	dutBGP := dut.Config().NetworkInstance("default").
+	dutBGP := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	dutBGP.Replace(t, d.bgpOC)
 }
 
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 	for neighbor := range d.bgpOC.Neighbor {
-		dut.Telemetry().NetworkInstance("default").
+		dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).
 			Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 			Bgp().
 			Neighbor(neighbor).
