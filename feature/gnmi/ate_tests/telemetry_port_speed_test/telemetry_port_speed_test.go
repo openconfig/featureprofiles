@@ -25,10 +25,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/quirks/manufacturer"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -245,20 +244,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 
 	// Fail early if the topology is bad.
 	tc.top.Push(t)
-
-	ok := false
-	for n := 3; !ok; n-- {
-		if n == 0 {
-			t.Fatal("Not retrying ATE StartProtocols anymore.")
-		}
-		msg := testt.ExpectFatal(t, func(t testing.TB) {
-			t.Log("Trying ATE StartProtocols")
-			tc.top.Push(t).StartProtocols(t)
-			ok = true
-			t.Fatal("Success!")
-		})
-		t.Logf("ATE StartProtocols: %s", msg)
-	}
+	tc.top.Push(t).StartProtocols(t)
 }
 
 func (tc *testCase) verifyDUT(t *testing.T, numPort int) {
@@ -318,7 +304,7 @@ func TestGNMICombinedLACPSpeed(t *testing.T) {
 
 			dutPorts: sortPorts(dut.Ports()),
 			atePorts: sortPorts(ate.Ports()),
-			aggID:    manufacturer.PortChannelName(t, dut, 1001),
+			aggID:    netutil.NextBundleInterface(t, dut),
 		}
 		tc.configureDUT(t)
 		tc.configureATE(t)
@@ -342,7 +328,7 @@ func TestGNMIReducedLACPSpeed(t *testing.T) {
 
 			dutPorts: sortPorts(dut.Ports()),
 			atePorts: sortPorts(ate.Ports()),
-			aggID:    manufacturer.PortChannelName(t, dut, 1001),
+			aggID:    netutil.NextBundleInterface(t, dut),
 		}
 		tc.configureDUT(t)
 		tc.configureATE(t)

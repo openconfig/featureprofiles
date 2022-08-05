@@ -22,7 +22,7 @@ Validate port speed telemetry used by controller infrastructure.
 
 ## Config Parameter Coverage
 
-No configuration coverage.
+TBD
 
 ## Telemetry Parameter Coverage
 
