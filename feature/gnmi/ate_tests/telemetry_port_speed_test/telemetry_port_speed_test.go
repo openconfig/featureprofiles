@@ -78,7 +78,6 @@ const (
 
 type testCase struct {
 	minlinks uint16
-	speed    telemetry.E_IfEthernet_ETHERNET_SPEED
 	lagType  telemetry.E_IfAggregate_AggregationType
 
 	dut *ondatra.DUTDevice
@@ -290,9 +289,8 @@ func TestGNMIPortDown(t *testing.T) {
 func TestGNMICombinedLACPSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	lagTypes := []telemetry.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
 
-	for _, lagType := range lagTypes {
+	for _, lagType := range []telemetry.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC} {
 		top := ate.Topology().New()
 		tc := &testCase{
 			minlinks: minLink,
@@ -316,8 +314,8 @@ func TestGNMIReducedLACPSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	totalPort := len(ate.Ports())
-	lagTypes := []telemetry.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
-	for _, lagType := range lagTypes {
+
+	for _, lagType := range []telemetry.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC} {
 		top := ate.Topology().New()
 		tc := &testCase{
 			minlinks: minLink,

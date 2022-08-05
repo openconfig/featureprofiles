@@ -6,12 +6,12 @@ Validate port speed telemetry used by controller infrastructure.
 
 ## Procedure
 
-*   For each port speed to be supported by WBB device:
+*   For each port speed to be supported by the device:
     *   Connect single port to ATE, validate that the port speed reported in
         telemetry is the expected port speed.
     *   Turn port down at ATE, validate that operational status of the port is
         reported as down.
-*   For each port speed to be supported by WBB device:
+*   For each port speed to be supported by the device:
     *   Connect N ports between ATE and DUT configured as part of a LACP bundle.
         Validate /interfaces/interface/aggregation/state/lag-speed is reported
         as N*port speed.
