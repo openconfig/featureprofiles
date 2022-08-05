@@ -241,8 +241,6 @@ func (tc *testCase) configureATE(t *testing.T) {
 		WithAddress(ateIPs.IPv6CIDR()).
 		WithDefaultGateway(dutIPs.IPv6)
 
-	// Fail early if the topology is bad.
-	tc.top.Push(t)
 	tc.top.Push(t).StartProtocols(t)
 }
 
