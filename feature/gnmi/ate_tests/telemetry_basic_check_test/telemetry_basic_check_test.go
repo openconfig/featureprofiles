@@ -21,10 +21,14 @@ import (
 	"strings"
 	"testing"
 	"time"
+        "fmt"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+      	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+      	 "github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -737,6 +741,31 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 }
 
+func TestQosConfig(t *testing.T) {
+dut := ondatra.DUT(t, "dut")
+	dp1 := dut.Port(t, "port1")
+	dp2 := dut.Port(t, "port2")
+        var  bcc *telemetry.Qos = setupQosEgress(t, dut)
+	var bce *telemetry.Qos = setupQosEgressTel(t, dut)
+	bcInterface := setup.GetAnyValue(bce.Interface)
+	intIdNew := dp2.Name()
+	bcInterface.InterfaceId = &intIdNew
+	//fmt.Println("NEW ID", bcInterface.InterfaceId)
+	dut.Config().Qos().Interface(dp2.Name()).Update(t, bcInterface)
+        
+        var bcd *telemetry.Qos = setupQos(t,dut)
+        var bc *telemetry.Qos = setupQosTele(t,dut)
+        inInterface := setup.GetAnyValue(bc.Interface)
+        intIdNew1 := dp1.Name()
+        inInterface.InterfaceId = &intIdNew1
+        dut.Config().Qos().Interface(dp1.Name()).Update(t, inInterface)
+        fmt.Println(bcc)
+        fmt.Println(bcd)
+
+}
+        
+
+
 func TestQoSCounterUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
@@ -744,7 +773,23 @@ func TestQoSCounterUpdate(t *testing.T) {
 
 	// Configure DUT interfaces.
 	ConfigureDUTIntf(t, dut)
-	// classification policy has to be applied on the ingress interface and scheduling policy has to be applied to the egress interface
+        var  bcc *telemetry.Qos = setupQosEgress(t, dut)
+        var bce *telemetry.Qos = setupQosEgressTel(t, dut)
+        bcInterface := setup.GetAnyValue(bce.Interface)
+        intIdNew := dp2.Name()
+        bcInterface.InterfaceId = &intIdNew
+        //fmt.Println("NEW ID", bcInterface.InterfaceId)
+        dut.Config().Qos().Interface(dp2.Name()).Update(t, bcInterface)
+
+        var bcd *telemetry.Qos = setupQos(t,dut)
+        var bc *telemetry.Qos = setupQosTele(t,dut)
+        inInterface := setup.GetAnyValue(bc.Interface)
+        intIdNew1 := dp1.Name()
+        inInterface.InterfaceId = &intIdNew1
+        dut.Config().Qos().Interface(dp1.Name()).Update(t, inInterface)
+        fmt.Println(bcc)
+        fmt.Println(bcd)
+
 
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
@@ -776,13 +821,13 @@ func TestQoSCounterUpdate(t *testing.T) {
 		}
         case ondatra.CISCO:
 		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 1000, trafficRate: 4, dscp: 56, queue: "tc7"},
-			"flow-nc2": {frameSize: 1000, trafficRate: 4, dscp: 48, queue: "tc6"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 33, queue: "tc5"},
-			"flow-af3": {frameSize: 300, trafficRate: 3, dscp: 25, queue: "tc4"},
-			"flow-af2": {frameSize: 200, trafficRate: 4, dscp: 17, queue: "tc3"},
-			"flow-af1": {frameSize: 1100, trafficRate: 4, dscp: 9, queue: "tc2"},
-			"flow-be1": {frameSize: 1200, trafficRate: 4, dscp: 1, queue: "tc1"},
+			"flow-nc1": {frameSize: 1000, trafficRate: 3, dscp: 56, queue: "tc7"},
+			"flow-nc2": {frameSize: 1000, trafficRate: 3, dscp: 48, queue: "tc6"},
+			"flow-af4": {frameSize: 400, trafficRate: 2, dscp: 33, queue: "tc5"},
+			"flow-af3": {frameSize: 300, trafficRate: 2, dscp: 25, queue: "tc4"},
+			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 17, queue: "tc3"},
+			"flow-af1": {frameSize: 1100, trafficRate: 2, dscp: 9, queue: "tc2"},
+			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 1, queue: "tc1"},
 		}
 	case ondatra.ARISTA:
 		trafficFlows = map[string]*trafficData{
@@ -828,6 +873,7 @@ func TestQoSCounterUpdate(t *testing.T) {
 		t.Logf("Get(out packets for queue %q): got %v", data.queue, ateOutPkts[data.queue])
 
 		lossPct := ate.Telemetry().Flow(trafficID).LossPct().Get(t)
+                println(lossPct)
 		if lossPct >= 1 {
 			t.Errorf("Get(traffic loss for queue %q): got %v, want < 1", data.queue, lossPct)
 		}
@@ -890,7 +936,10 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+		//s.Enabled = ygot.Bool(true)
+                if *deviations.InterfaceEnabled {
 		s.Enabled = ygot.Bool(true)
+	}
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		dut.Config().Interface(intf.intfName).Update(t, i)
