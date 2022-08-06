@@ -10,8 +10,14 @@ import (
 	"github.com/openconfig/featureprofiles/tools/traffic/intf"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
 	"k8s.io/klog/v2"
 )
+
+type Hint struct {
+	Group    string
+	Key, Val string
+}
 
 // New returns a new lightweight OTG server.
 func New() *Server {
@@ -26,6 +32,12 @@ type Server struct {
 
 	intfMu sync.Mutex
 	intf   map[string]*linuxIntf
+
+	hintCh chan Hint
+}
+
+func (s *Server) SetHintChannel(ch chan Hint) {
+	s.hintCh = ch
 }
 
 func (s *Server) cacheInterfaces(v map[string]*linuxIntf) {
@@ -51,6 +63,14 @@ func (s *Server) SetConfig(ctx context.Context, req *otg.SetConfigRequest) (*otg
 		return nil, status.Errorf(codes.InvalidArgument, "invalid request configuration received, %v", req)
 	}
 
+	klog.Infof("got config %s\n", req)
+	if s.hintCh != nil {
+		select {
+		case s.hintCh <- Hint{Group: "meta", Key: "SetConfig", Val: prototext.Format(req)}:
+		default:
+		}
+	}
+
 	if len(req.Config.Lags) != 0 || len(req.Config.Layer1) != 0 || len(req.Config.Captures) != 0 || req.Config.Options != nil {
 		return nil, status.Errorf(codes.Unimplemented, "request contained fields that are unimplemented, %v", req)
 	}
@@ -71,9 +91,19 @@ func (s *Server) handleConfig(pb *otg.Config) (*otg.SetConfigResponse, error) {
 	// Working with gosnappi here seems worse than just using the proto directly.
 	// gsCfg := gosnappi.NewConfig().SetMsg(pb)
 
-	ifCfg, err := portsToLinux(pb.Ports, pb.Devices)
+	ifCfg, ethMap, err := portsToLinux(pb.Ports, pb.Devices)
 	if err != nil {
 		return nil, err
+	}
+
+	if s.hintCh != nil {
+		for linuxIf, ethName := range ethMap {
+			klog.Infof("sending hint %s -> %s", linuxIf, ethName)
+			select {
+			case s.hintCh <- Hint{Group: "interface_map", Key: linuxIf, Val: ethName}:
+			default:
+			}
+		}
 	}
 
 	for intName, cfg := range ifCfg {
@@ -109,11 +139,12 @@ type linuxIntf struct {
 
 // portsToLinux takes an input set of ports in an OTG configuration and returns the information
 // required to configure them on a Linux host.
-func portsToLinux(ports []*otg.Port, devices []*otg.Device) (map[string]*linuxIntf, error) {
+func portsToLinux(ports []*otg.Port, devices []*otg.Device) (map[string]*linuxIntf, map[string]string, error) {
 	physIntf := map[string]string{}
+	ethMap := map[string]string{}
 	for _, p := range ports {
 		if p.Location == nil {
-			return nil, status.Errorf(codes.InvalidArgument, "invalid interface %s, does not specify a port location", p.Name)
+			return nil, nil, status.Errorf(codes.InvalidArgument, "invalid interface %s, does not specify a port location", p.Name)
 		}
 		// Location contains the name of the interface of the form 'eth0'.
 		physIntf[p.Name] = *p.Location
@@ -123,22 +154,24 @@ func portsToLinux(ports []*otg.Port, devices []*otg.Device) (map[string]*linuxIn
 	for _, d := range devices {
 		for _, e := range d.Ethernets {
 			if e.GetPortName() == "" {
-				return nil, status.Errorf(codes.InvalidArgument, "invalid ethernet port %v, does not specify a name", e)
+				return nil, nil, status.Errorf(codes.InvalidArgument, "invalid ethernet port %v, does not specify a name", e)
 			}
 			n, ok := physIntf[*e.PortName]
 			if !ok {
-				return nil, status.Errorf(codes.InvalidArgument, "invalid port name for Ethernet %s, does not map to a real interface", *e.PortName)
+				return nil, nil, status.Errorf(codes.InvalidArgument, "invalid port name for Ethernet %s, does not map to a real interface", *e.PortName)
 			}
+
+			ethMap[n] = e.Name
 			retIntf[n] = &linuxIntf{IPv4: map[string]int{}}
 
 			for _, a := range e.Ipv4Addresses {
 				if a.GetPrefix() == 0 {
-					return nil, status.Errorf(codes.InvalidArgument, "unsupported zero prefix length for address %s", a.Address)
+					return nil, nil, status.Errorf(codes.InvalidArgument, "unsupported zero prefix length for address %s", a.Address)
 				}
 				retIntf[n].IPv4[a.Address] = int(a.GetPrefix())
 			}
 		}
 	}
 
-	return retIntf, nil
+	return retIntf, ethMap, nil
 }

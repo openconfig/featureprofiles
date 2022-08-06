@@ -8,6 +8,8 @@ import (
 	"net"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -104,6 +106,95 @@ func AwaitARP(ctx context.Context, addr net.IP) (net.HardwareAddr, error) {
 	case <-ctx.Done():
 		doneCh <- struct{}{}
 		return nil, ctx.Err()
+	}
+}
+
+func GetInterfaces() ([]netlink.Link, error) {
+	h, err := netlink.NewHandle(unix.NETLINK_ROUTE)
+	if err != nil {
+		return nil, fmt.Errorf("can't open netlink handle, %v", err)
+	}
+
+	links, err := h.LinkList()
+	if err != nil {
+		return nil, fmt.Errorf("can't list links, %v", err)
+	}
+
+	return links, nil
+}
+
+type Neighbour struct {
+	IP        net.IP
+	Interface string
+	MAC       net.HardwareAddr
+}
+
+func ARPUpdates(ctx context.Context, inform chan Neighbour) error {
+	intfIndex, err := intfCache()
+	if err != nil {
+		return err
+	}
+
+	arpCh := make(chan netlink.NeighUpdate)
+	doneCh := make(chan struct{})
+	go func(arpCh chan netlink.NeighUpdate) {
+		for {
+			select {
+			case upd := <-arpCh:
+				klog.Infof("got arp update %v", upd)
+				//select {
+				//case
+				inform <- toNeigh(upd.Neigh, intfIndex)
+				klog.Infof("wrote ARP update.")
+				//default:
+				//}
+			}
+		}
+	}(arpCh)
+
+	if err := netlink.NeighSubscribe(arpCh, doneCh); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func intfCache() (map[int]string, error) {
+	interfaces, err := GetInterfaces()
+	if err != nil {
+		return nil, fmt.Errorf("cannot get interface list, err: %v", err)
+	}
+
+	intfIndex := map[int]string{}
+	for _, i := range interfaces {
+		attrs := i.Attrs()
+		intfIndex[attrs.Index] = attrs.Name
+	}
+	return intfIndex, nil
+}
+
+func ARPEntries() ([]Neighbour, error) {
+	intfIndex, err := intfCache()
+	if err != nil {
+		return nil, err
+	}
+	neighs, err := netlink.NeighList(0, 0)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get ARP table, err: %v", err)
+	}
+
+	rn := []Neighbour{}
+	for _, n := range neighs {
+		rn = append(rn, toNeigh(n, intfIndex))
+	}
+	return rn, nil
+}
+
+func toNeigh(n netlink.Neigh, intfIndex map[int]string) Neighbour {
+	return Neighbour{
+		IP:        n.IP,
+		MAC:       n.HardwareAddr,
+		Interface: intfIndex[n.LinkIndex],
 	}
 }
 
