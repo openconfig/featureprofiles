@@ -7,9 +7,10 @@ nodes: {
     command: "/app/simpleate"
     args: "-alsologtostderr"
     args: "-v=2"
+    args: "-port=40051"
+    args: "-telemetry_port=50051"
     args: "-certfile=/data/cert.pem"
     args: "-keyfile=/data/key.pem"
-    args: "-port=40051"
   }
   services: {
     key: 40051

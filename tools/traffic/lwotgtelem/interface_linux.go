@@ -61,7 +61,7 @@ func dateTime(_ gnmit.Queue, updateFn gnmit.UpdateFn, target string, cleanup fun
 }
 
 func makeARPNeighborTask(ctx context.Context, hints map[string]map[string]string) gnmit.TaskRoutine {
-	arpUpdate := func(h net.HardwareAddr, ip net.IP, link string, timeFn func() int64) *gpb.Notification {
+	arpUpdate := func(h net.HardwareAddr, ip net.IP, link, target string, timeFn func() int64) *gpb.Notification {
 		s := &otgyang.Device{}
 		n := s.GetOrCreateInterface(link).GetOrCreateIpv4Neighbor(ip.String())
 		n.LinkLayerAddress = ygot.String(h.String())
@@ -69,7 +69,8 @@ func makeARPNeighborTask(ctx context.Context, hints map[string]map[string]string
 		if err != nil {
 			klog.Errorf("cannot serialise, %v", err)
 		}
-		return g[0]
+		klog.Infof("update being sent is %s", g[0])
+		return addTarget(g[0], target)
 	}
 
 	arpTask := func(_ gnmit.Queue, updateFn gnmit.UpdateFn, target string, cleanup func()) error {
@@ -87,7 +88,7 @@ func makeARPNeighborTask(ctx context.Context, hints map[string]map[string]string
 					if linkName == "" {
 						continue
 					}
-					updateFn(arpUpdate(n.MAC, n.IP, linkName, time.Now().UnixNano))
+					updateFn(arpUpdate(n.MAC, n.IP, linkName, target, time.Now().UnixNano))
 				}
 			} else {
 				klog.Errorf("arpNeighbors: cannot map with nil interface mapping table.")
@@ -109,10 +110,12 @@ func makeARPNeighborTask(ctx context.Context, hints map[string]map[string]string
 				case u := <-ch:
 					linkName := hints["interface_map"][u.Interface]
 					// TODO(robjs): be smarter here - we need to do a diff.
-					//initialMap()
+					initialMap()
 					klog.Infof("updating with %v -> linkName: %s, %v\n", u, linkName, hints)
 					if linkName != "" {
-						updateFn(arpUpdate(u.MAC, u.IP, linkName, time.Now().UnixNano))
+						if err := updateFn(arpUpdate(u.MAC, u.IP, linkName, target, time.Now().UnixNano)); err != nil {
+							klog.Errorf("got error sending ARP update, %v", err)
+						}
 					}
 				}
 			}
@@ -230,10 +233,16 @@ func linkAttrUpdate(attrs *netlink.LinkAttrs, target string, timeFn func() int64
 		return nil, fmt.Errorf("no notifications returned from update", err)
 	}
 	for _, n := range ns {
-		if n.Prefix == nil {
-			n.Prefix = &gpb.Path{}
-		}
-		n.Prefix.Target = target
+		addTarget(n, target)
 	}
 	return ns[0], nil
+}
+
+func addTarget(n *gpb.Notification, target string) *gpb.Notification {
+	if n.Prefix == nil {
+		n.Prefix = &gpb.Path{}
+	}
+	n.Prefix.Target = target
+	n.Prefix.Origin = "openconfig"
+	return n
 }

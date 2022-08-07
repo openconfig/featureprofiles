@@ -21,9 +21,12 @@ type Hint struct {
 
 // New returns a new lightweight OTG server.
 func New() *Server {
-	return &Server{
+	s := &Server{
 		intf: map[string]*linuxIntf{},
 	}
+
+	s.AddConfigHandler(s.baseInterfaceConfig)
+	return s
 }
 
 // Server implements the OTG ("Openapi") server.
@@ -33,11 +36,37 @@ type Server struct {
 	intfMu sync.Mutex
 	intf   map[string]*linuxIntf
 
+	// hintCh is a channel that is used to sent Hints to other elements
+	// of the OTG system - particularly, it is used to send hints that are needed
+	// in the telemetry daemon.
 	hintCh chan Hint
+
+	// ProtocolHandler is a function called when the OTG SetProtocolState RPC
+	// is called. It is used to ensure that anything that needs to be done in the
+	// underlying system is performed (e.g., sending ARP responses).
+	protocolHandler func(*otg.Config, otg.ProtocolState_State_Enum) error
+
+	chMu sync.Mutex
+	// ConfigHandlers are a set of methods that are called to process the incoming
+	// OTG configuration. This allows LWOTG to be extended to cover new config that
+	// the base implementation does not cover.
+	configHandlers []func(*otg.Config) error
+
+	cfg *otg.Config
 }
 
+// SetHintChannel sets the hint channel to the specified channel.
 func (s *Server) SetHintChannel(ch chan Hint) {
 	s.hintCh = ch
+}
+
+func (s *Server) SetProtocolHandler(fn func(*otg.Config, otg.ProtocolState_State_Enum) error) {
+	s.protocolHandler = fn
+}
+
+// AddConfigHandler adds fn to the set of configuration handler methods.
+func (s *Server) AddConfigHandler(fn func(*otg.Config) error) {
+	s.configHandlers = append(s.configHandlers, fn)
 }
 
 func (s *Server) cacheInterfaces(v map[string]*linuxIntf) {
@@ -74,11 +103,24 @@ func (s *Server) SetConfig(ctx context.Context, req *otg.SetConfigRequest) (*otg
 	if len(req.Config.Lags) != 0 || len(req.Config.Layer1) != 0 || len(req.Config.Captures) != 0 || req.Config.Options != nil {
 		return nil, status.Errorf(codes.Unimplemented, "request contained fields that are unimplemented, %v", req)
 	}
-	return s.handleConfig(req.Config)
+
+	for _, fn := range s.configHandlers {
+		if err := fn(req.Config); err != nil {
+			return nil, err
+		}
+	}
+
+	s.cfg = req.Config
+
+	return &otg.SetConfigResponse{StatusCode_200: &otg.ResponseWarning{ /* WTF, who knows?  */ }}, nil
 }
 
 func (s *Server) SetProtocolState(ctx context.Context, req *otg.SetProtocolStateRequest) (*otg.SetProtocolStateResponse, error) {
 	klog.Infof("Setting protocol state requested, %v", req)
+	if err := s.protocolHandler(s.cfg, req.GetProtocolState().GetState()); err != nil {
+		return nil, err
+	}
+
 	return &otg.SetProtocolStateResponse{StatusCode_200: &otg.ResponseWarning{}}, nil
 }
 
@@ -87,13 +129,13 @@ func (s *Server) SetTransmitState(ctx context.Context, req *otg.SetTransmitState
 	return &otg.SetTransmitStateResponse{StatusCode_200: &otg.ResponseWarning{}}, nil
 }
 
-func (s *Server) handleConfig(pb *otg.Config) (*otg.SetConfigResponse, error) {
+func (s *Server) baseInterfaceConfig(pb *otg.Config) error {
 	// Working with gosnappi here seems worse than just using the proto directly.
 	// gsCfg := gosnappi.NewConfig().SetMsg(pb)
 
 	ifCfg, ethMap, err := portsToLinux(pb.Ports, pb.Devices)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if s.hintCh != nil {
@@ -108,26 +150,29 @@ func (s *Server) handleConfig(pb *otg.Config) (*otg.SetConfigResponse, error) {
 
 	for intName, cfg := range ifCfg {
 		if !intf.ValidInterface(intName) {
-			return nil, status.Errorf(codes.Internal, "interface %s is not configrable, %v", intName, err)
+			return status.Errorf(codes.Internal, "interface %s is not configrable, %v", intName, err)
 		}
 
 		for addr, mask := range cfg.IPv4 {
 			_, ipNet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", addr, mask))
 			if err != nil {
-				return nil, status.Errorf(codes.InvalidArgument, "invalid prefix %s/%d for interface %s, err: %v", addr, mask, intName, err)
+				return status.Errorf(codes.InvalidArgument, "invalid prefix %s/%d for interface %s, err: %v", addr, mask, intName, err)
 			}
 
 			// Avoid configuring an address on an interface that already has the address.
 			if !s.intfHasAddr(intName, addr) {
 				klog.Infof("Configuring interface %s with address %s", intName, ipNet)
 				if err := intf.AddIP(intName, ipNet); err != nil {
-					return nil, status.Errorf(codes.Internal, "cannot configure address %s on interface %s, err: %v", addr, intName, err)
+					return status.Errorf(codes.Internal, "cannot configure address %s on interface %s, err: %v", addr, intName, err)
 				}
 			}
 		}
 	}
 
-	return &otg.SetConfigResponse{StatusCode_200: &otg.ResponseWarning{ /* WTF, who knows?  */ }}, nil
+	// Send ARP responses for the IP addresses we just configured.
+	intf.SendARP(false)
+
+	return nil
 }
 
 // linuxIntf describes the configuration of a specific interface in Linux.

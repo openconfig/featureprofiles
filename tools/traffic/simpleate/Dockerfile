@@ -19,4 +19,4 @@ COPY tools/traffic/simpleate/testdata/* /data/
 
 EXPOSE 40051
 
-CMD ["/app/simpleate", "-alsologtostderr", "-v=2", "-certfile=/data/cert.pem", "-keyfile=/data/key.pem", "-port=40051"]
+CMD ["/app/simpleate", "-alsologtostderr", "-v=2", "-port=40051", "-telemetry_port=50051", "-certfile=/data/cert.pem", "-keyfile=/data/key.pem"]

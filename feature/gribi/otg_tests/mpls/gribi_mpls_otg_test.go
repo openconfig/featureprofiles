@@ -139,7 +139,6 @@ func configureATEInterfaces(t *testing.T, ate *ondatra.ATEDevice, srcATE, srcDUT
 	fmt.Printf("config is %s\n", c)
 
 	otg.PushConfig(t, topology)
-	otg.StartProtocols(t)
 	return topology, nil
 }
 
@@ -185,6 +184,9 @@ func pushBaseConfigs(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 	fptest.LogYgot(t, "", dut.Config(), d)
 	dut.Config().Update(t, d)
 
+	time.Sleep(1 * time.Second)
+	ate.OTG().StartProtocols(t)
+
 	return otgCfg
 }
 
@@ -211,13 +213,16 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 
 		// wait for ARP to resolve.
 		otg := ondatra.ATE(t, "ate").OTG()
-		var dstMAC string
-		otg.Telemetry().Interface(fmt.Sprintf("%s_ETH", ateSrc.Name)).Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().Watch(
+		t.Logf("looking on interface %s_ETH for %s", ateSrc.Name, dutSrc.IPv4)
+
+		mac := otg.Telemetry().Interface(fmt.Sprintf("%s_ETH", ateSrc.Name)).Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress()
+		mac.Watch(
 			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-				dstMAC = val.Val(t)
 				return val.IsPresent()
 			}).Await(t)
 
+		dstMAC := mac.Get(t)
+		t.Logf("MAC was %s", dstMAC)
 		// TODO(robjs): MPLS is currently not supported in OTG.
 		otgCfg.Flows().Clear().Items()
 		mplsFlow := otgCfg.Flows().Add().SetName("MPLS_FLOW")
