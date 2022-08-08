@@ -141,12 +141,6 @@ func (tc *testCase) configDstAggregateDUT(i *telemetry.Interface, a *attrs.Attri
 	g.MinLinks = ygot.Uint16(tc.minlinks)
 }
 
-var portSpeed = map[ondatra.Speed]telemetry.E_IfEthernet_ETHERNET_SPEED{
-	ondatra.Speed10Gb:  telemetry.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
-	ondatra.Speed100Gb: telemetry.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-	ondatra.Speed400Gb: telemetry.IfEthernet_ETHERNET_SPEED_SPEED_400GB,
-}
-
 func (tc *testCase) configDstMemberDUT(i *telemetry.Interface, p *ondatra.Port) {
 	i.Description = ygot.String(p.String())
 	i.Type = ethernetCsmacd
