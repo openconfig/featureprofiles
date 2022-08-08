@@ -203,7 +203,7 @@ func (tc *testCase) clearAggregateMembers(t *testing.T) {
 	}
 }
 
-func (tc *testCase) verifyDUTIntfOperStatus(t *testing.T) {
+func (tc *testCase) verifyDUT(t *testing.T) {
 	for _, port := range tc.dutPorts {
 		path := tc.dut.Telemetry().Interface(port.Name())
 		path.OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
@@ -396,7 +396,7 @@ func (tc *testCase) testFlow(t *testing.T, l3header []ondatra.Header) {
 		WithCount(65534).
 		WithRandom()
 	headers = append(headers, tcpHeader)
-	beforeTrafficCounters := tc.verifyDUT(t, "before")
+	beforeTrafficCounters := tc.getCounters(t, "before")
 
 	flow := tc.ate.Traffic().NewFlow("flow").
 		WithSrcEndpoints(i1).
@@ -409,11 +409,11 @@ func (tc *testCase) testFlow(t *testing.T, l3header []ondatra.Header) {
 	if pkts == 0 {
 		t.Errorf("Flow sent packets: got %v, want non zero", pkts)
 	}
-	afterTrafficCounters := tc.verifyDUT(t, "after")
+	afterTrafficCounters := tc.getCounters(t, "after")
 	tc.verifyCounterDiff(t, beforeTrafficCounters, afterTrafficCounters)
 }
 
-func (tc *testCase) verifyDUT(t *testing.T, when string) map[string]*telemetry.Interface_Counters {
+func (tc *testCase) getCounters(t *testing.T, when string) map[string]*telemetry.Interface_Counters {
 	results := make(map[string]*telemetry.Interface_Counters)
 	b := &strings.Builder{}
 	w := tabwriter.NewWriter(b, 0, 0, 1, ' ', 0)
@@ -489,7 +489,7 @@ func TestBalancing(t *testing.T) {
 		aggID:    aggID,
 	}
 	tc.configureDUT(t)
-	t.Run("verifyDUTIntfOperStatus", tc.verifyDUTIntfOperStatus)
+	t.Run("verifyDUT", tc.verifyDUT)
 	tc.configureATE(t)
 
 	for _, tf := range tests {
