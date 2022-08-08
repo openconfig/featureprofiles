@@ -15,10 +15,11 @@
 // Package deviations documents defines the arguments to enable
 // workarounds for the featureprofiles test suite.
 //
-// Deviations are useful to temporarily enable passing for other dependent
-// subcases to give visibility to incremental progress to achieving
-// compliance to test.  Deviations should be granular, typically affecting
-// one sub-test, one OpenConfig path or small OpenConfig sub-tree.
+// Deviations may be introduced to temporarily work around non-compliant issues
+// so further sub-tests can be implmeneted.  Deviations should be
+// small in scope, typically affecting one sub-test, one OpenConfig
+// path or small OpenConfig sub-tree.  Deviations are enabled using
+// commmand line parameters.
 //
 // Passing with a deviation enabled is considered non-compliant to the
 // OpenConfig featureprofiles test.
@@ -34,7 +35,7 @@
 //   - Typically the author or an affiliate of the author's organization
 //     is expected to remove a deviation they introduced.
 //
-// To enable the deviations for a given test run:
+// To enable the deviations for a test run:
 //   - By default, deviations are not enabled and instead require the
 //     test invocation to set an argument to enable the deviation.
 //   - For example:
