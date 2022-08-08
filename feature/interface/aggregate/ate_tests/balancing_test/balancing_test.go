@@ -203,7 +203,7 @@ func (tc *testCase) clearAggregateMembers(t *testing.T) {
 	}
 }
 
-func (tc *testCase) verifyDUT(t *testing.T) {
+func (tc *testCase) verifyDUTIntfOperStatus(t *testing.T) {
 	for _, port := range tc.dutPorts {
 		path := tc.dut.Telemetry().Interface(port.Name())
 		path.OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
@@ -489,7 +489,7 @@ func TestBalancing(t *testing.T) {
 		aggID:    aggID,
 	}
 	tc.configureDUT(t)
-	t.Run("VerifyDUT", tc.verifyDUT)
+	t.Run("verifyDUTIntfOperStatus", tc.verifyDUTIntfOperStatus)
 	tc.configureATE(t)
 
 	for _, tf := range tests {
