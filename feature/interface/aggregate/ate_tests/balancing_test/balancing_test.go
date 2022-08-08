@@ -203,7 +203,7 @@ func (tc *testCase) clearAggregateMembers(t *testing.T) {
 	}
 }
 
-func (tc *testCase) waitForLACP(t *testing.T) {
+func (tc *testCase) verifyDUT(t *testing.T) {
 	for _, port := range tc.dutPorts {
 		path := tc.dut.Telemetry().Interface(port.Name())
 		path.OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
@@ -256,7 +256,6 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		fptest.LogYgot(t, port.String(), iPath, i)
 		iPath.Replace(t, i)
 	}
-	tc.waitForLACP(t)
 }
 
 func (tc *testCase) configureATE(t *testing.T) {
@@ -490,6 +489,7 @@ func TestBalancing(t *testing.T) {
 		aggID:    aggID,
 	}
 	tc.configureDUT(t)
+	t.Run("VerifyDUT", tc.verifyDUT)
 	tc.configureATE(t)
 
 	for _, tf := range tests {
