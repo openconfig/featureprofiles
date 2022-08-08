@@ -15,23 +15,26 @@ package supervisor_switchover_test
 
 import (
 	"context"
-	"regexp"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 )
 
-// Maximum switchover time is 900 seconds (15 minutes).
-const maxSwitchoverTime = 900
+const (
+	maxSwitchoverTime = 900
+	controlcardType   = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	activeController  = telemetry.PlatformTypes_ComponentRedundantRole_PRIMARY
+	standbyController = telemetry.PlatformTypes_ComponentRedundantRole_SECONDARY
+)
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -67,15 +70,14 @@ func TestMain(m *testing.M) {
 func TestSupervisorSwitchover(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	r := regexp.MustCompile("^Supervisor[0-9]$")
-	supervisors := findMatchedComponents(t, dut, r)
+	supervisors := findComponentsByType(t, dut, controlcardType)
 	t.Logf("Found supervisor list: %v", supervisors)
 	// Only perform the switchover for the chassis with dual RPs/Supervisors.
-	if len(supervisors) < 2 {
+	if len(supervisors) != 2 {
 		t.Skipf("Dual RP/SUP is required on %v: got %v, want 2", dut.Model(), len(supervisors))
 	}
 
-	rpActiveBeforeSwitch, rpStandbyBeforeSwitch := findActiveRP(t, dut, supervisors)
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, supervisors)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
 	intfsEnabledBeforeSwitch := fetchEnabledIntfs(t, dut)
@@ -85,7 +87,6 @@ func TestSupervisorSwitchover(t *testing.T) {
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
-	standbyPathElemName := string(rpStandbyBeforeSwitch[len(rpStandbyBeforeSwitch)-1])
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: &tpb.Path{
 			Elem: []*tpb.PathElem{{Name: rpStandbyBeforeSwitch}},
@@ -98,7 +99,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 	}
 	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
 
-	want := standbyPathElemName
+	want := rpStandbyBeforeSwitch
 	if got := switchoverResponse.GetControlProcessor().GetElem()[0].GetName(); got != want {
 		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
 	}
@@ -129,7 +130,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
-	rpActiveAfterSwitch, rpStandbyAfterSwitch := findActiveRP(t, dut, supervisors)
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := findStandbyRP(t, dut, supervisors)
 	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
 
 	if rpActiveAfterSwitch != rpStandbyBeforeSwitch {
@@ -162,29 +163,49 @@ func TestSupervisorSwitchover(t *testing.T) {
 	}
 }
 
-func findMatchedComponents(t *testing.T, dut *ondatra.DUTDevice, r *regexp.Regexp) []string {
+func findComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
 	components := dut.Telemetry().ComponentAny().Name().Get(t)
 	var s []string
 	for _, c := range components {
-		if len(r.FindString(c)) > 0 {
-			s = append(s, c)
+		lookupType := dut.Telemetry().Component(c).Type().Lookup(t)
+		if !lookupType.IsPresent() {
+			t.Logf("Component %s type is not found", c)
+		} else {
+			componentType := lookupType.Val(t)
+			t.Logf("Component %s has type: %v", c, componentType)
+
+			switch v := componentType.(type) {
+			case telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
+				if v == cType {
+					s = append(s, c)
+				}
+			default:
+				t.Fatalf("Expected component type to be a hardware component, got (%T, %v)", componentType, componentType)
+			}
 		}
 	}
 	return s
 }
 
-func findActiveRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
+func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
 	var activeRP, standbyRP string
 	for _, supervisor := range supervisors {
-		desc := dut.Telemetry().Component(supervisor).Description().Get(t)
-		t.Logf("Component(supervisor).Description().Get(t): %v, Description: %v", supervisor, desc)
-		if strings.Contains(desc, "Standby") {
+		role := dut.Telemetry().Component(supervisor).RedundantRole().Get(t)
+		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
+		if role == standbyController {
 			standbyRP = supervisor
-		} else {
+		} else if role == activeController {
 			activeRP = supervisor
+		} else {
+			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
 		}
 	}
-	return activeRP, standbyRP
+	if standbyRP == "" || activeRP == "" {
+		t.Fatalf("Expected non-empty activeRP and standbyRP, got activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+	}
+	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+
+	return standbyRP, activeRP
 }
 
 func fetchEnabledIntfs(t *testing.T, dut *ondatra.DUTDevice) []string {
