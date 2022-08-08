@@ -128,7 +128,7 @@ func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (bind
 	if err != nil {
 		return nil, err
 	}
-	return gnoiConn{conn}, nil
+	return gnoiConn{conn: conn}, nil
 }
 
 func (d *staticDUT) DialGRIBI(ctx context.Context, opts ...grpc.DialOption) (grpb.GRIBIClient, error) {
