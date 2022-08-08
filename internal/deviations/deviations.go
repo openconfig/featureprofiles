@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package deviations documents defines the arguments to enable
-// workarounds for the featureprofiles test suite.
+// Package deviations defines the arguments to enable temporary workarounds
+// for the featureprofiles test suite.
 //
 // Deviations may be introduced to temporarily work around non-compliant issues
 // so further sub-tests can be implmeneted.  Deviations should be
