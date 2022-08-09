@@ -30,4 +30,7 @@ var (
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.")
 
 	DefaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT", "The name used for the default network instance for VRF.  This has been standardized in OpenConfig as \"DEFAULT\" but some legacy devices are using \"default\"; tests should use this deviation as a temporary workaround.")
+
+	SubInterfacePacketCountersSupported = flag.Bool("deviation_subinterface_packet_counters_supported", true,
+		"Subinterface discard packet counters for ipv4/ipv6 are not always supported. Manually set it to False to skip lookup of discard counters in the test")
 )
