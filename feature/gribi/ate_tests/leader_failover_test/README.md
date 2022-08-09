@@ -14,7 +14,7 @@ Validate gRIBI route persistence.
     *   Inject an IPv4Entry for 203.0.113.0/24 pointed to a NHG containing a NH
         of ATE port-2. Ensure that traffic with a destination in 203.0.113.0/24
         can be forwarded between ATE port-1 and port-2. Validate AFT entry is
-        installed through telemetry.
+        installed through telemetry after FIB_ACK.
 
     *   Disconnect the gRIBI-A client, and ensure that traffic can no longer be
         forwarded for a destination in 203.0.113.0/24 between ATE port-1 and
@@ -26,7 +26,7 @@ Validate gRIBI route persistence.
     *   Inject an IPv4Entry for 203.0.113.0/24 pointed to a NHG containing a NH
         of ATE port-2. Ensure that traffic with a destination in 203.0.113.0/24
         can be forwarded between ATE port-1 and port-2. Validate AFT entry is
-        installed through telemetry.
+        installed through telemetry after FIB_ACK.
 
     *   Disconnect gRIBI-A client and ensure that traffic for a destination in
         203.0.113.0/24 can still be forwarded between ATE port-1 and port-2.
@@ -35,7 +35,7 @@ Validate gRIBI route persistence.
     *   Reconnect gRIBI-A using the same parameters, and delete the IPv4Entry
         for 203.0.113.0/24 created previously. Ensure that traffic can no longer
         be forwarded to a destination in 203.0.113.0/24, and that AFT telemetry
-        indicates the entry is no longer installed.
+        indicates the entry is no longer installed after FIB_ACK.
 
 ## Protocol/RPC Parameter Coverage
 
