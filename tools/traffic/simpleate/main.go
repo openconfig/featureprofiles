@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-ping/ping"
 	"github.com/open-traffic-generator/snappi/gosnappi/otg"
+	"github.com/openconfig/featureprofiles/tools/traffic/flows"
 	"github.com/openconfig/featureprofiles/tools/traffic/lwotg"
 	"github.com/openconfig/featureprofiles/tools/traffic/lwotgtelem"
 	"google.golang.org/grpc"
@@ -81,6 +82,8 @@ func main() {
 			return intf.SendARP(false)
 		},*/
 	)
+
+	lw.AddFlowHandler(flows.SimpleMPLSFlowHandler)
 
 	klog.Infof("finished new")
 	hintCh := make(chan lwotg.Hint, 1000)

@@ -184,6 +184,7 @@ func pushBaseConfigs(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 	fptest.LogYgot(t, "", dut.Config(), d)
 	dut.Config().Update(t, d)
 
+	// TODO(robjs): make start protocols in fake more robust to allow for retry.
 	time.Sleep(1 * time.Second)
 	ate.OTG().StartProtocols(t)
 
@@ -229,9 +230,11 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		mplsFlow.Metrics().SetEnable(true)
 		mplsFlow.TxRx().Port().SetTxName(ateSrc.Name).SetRxName(ateDst.Name)
 
+		mplsFlow.Rate().SetChoice("pps").SetPps(1)
+
 		// Set up ethernet layer.
 		eth := mplsFlow.Packet().Add().Ethernet()
-		eth.Src().SetValue(ateSrc.MAC)
+		eth.Src().SetChoice("value").SetValue(ateSrc.MAC)
 		eth.Dst().SetChoice("value").SetValue(dstMAC)
 
 		// Set up MPLS layer with destination label 100.
@@ -243,12 +246,11 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 
 		t.Logf("Starting MPLS traffic...")
 		otg.StartTraffic(t)
-		time.Sleep(15 * time.Second)
+		time.Sleep(180 * time.Second)
 		t.Logf("Stopping MPLS traffic...")
 		otg.StopTraffic(t)
 
 		otgutils.LogPortMetrics(t, otg, otgCfg)
-		time.Sleep(2 * time.Minute)
 
 		// TODO(robjs): validate traffic counters and received headers.
 	}
