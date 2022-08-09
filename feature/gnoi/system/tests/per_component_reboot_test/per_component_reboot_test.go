@@ -82,7 +82,7 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 	supervisors := findComponentsByType(t, dut, controlcardType)
 	t.Logf("Found supervisor list: %v", supervisors)
 	// Only perform the standby RP rebooting for the chassis with dual RPs/Supervisors.
-	if len(supervisors) < 2 {
+	if len(supervisors) != 2 {
 		t.Skipf("Dual RP/SUP is required on %v: got %v, want 2", dut.Model(), len(supervisors))
 	}
 
@@ -240,6 +240,11 @@ func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (
 			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
 		}
 	}
+	if standbyRP == "" || activeRP == "" {
+		t.Fatalf("Expected non-empty activeRP and standbyRP, got activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+	}
+	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+
 	return standbyRP, activeRP
 }
 
