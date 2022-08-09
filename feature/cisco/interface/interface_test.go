@@ -17,7 +17,7 @@ func TestInterfaceCfgs(t *testing.T) {
 		t.Error(err)
 	}
 	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
-        iute := inputObj.Device(dut).GetInterface("FourHundredGigE0/0/0/1")
+	iute := inputObj.Device(dut).GetInterface("FourHundredGigE0/0/0/1")
 
 	t.Run("configInterface", func(t *testing.T) {
 		path := dut.Config().Interface(iut.Name())
@@ -75,7 +75,7 @@ func TestInterfaceCfgs(t *testing.T) {
 	})
         
 	// member := iute
-        member := iut.Members()[0]
+	member := iut.Members()[0]
 	macAdd := "78:2a:67:b6:a8:08"
 	t.Run("Replace//interfaces/interface/ethernet/config/mac-address", func(t *testing.T) {
 		path := dut.Config().Interface(iute.Name()).Ethernet().MacAddress()
