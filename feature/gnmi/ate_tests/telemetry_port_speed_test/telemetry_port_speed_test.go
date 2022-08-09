@@ -127,18 +127,8 @@ func (tc *testCase) configMemberDUT(i *telemetry.Interface, p *ondatra.Port) {
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
-
 	e := i.GetOrCreateEthernet()
 	e.AggregateId = ygot.String(tc.aggID)
-	// Speed of 99 Gbps is a temporary workaround indicating that the
-	// port is a 100G-FR breakout port from a 400G-XDR4.  This relies on
-	// the binding to configure the breakout groups for us, so leave the
-	// speed setting alone for now.  Blocked by b/200683959.
-	if p.Speed() != 99 {
-		e.AutoNegotiate = ygot.Bool(false)
-		e.DuplexMode = telemetry.Ethernet_DuplexMode_FULL
-		e.PortSpeed = portSpeed[p.Speed()]
-	}
 }
 
 func (tc *testCase) setupAggregateAtomically(t *testing.T) {
@@ -226,7 +216,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	// Disable FEC for 100G-FR ports because Novus does not support it.
 	is100gfr := false
 	for _, p := range tc.atePorts {
-		if p.Speed() == 99 {
+		if p.PMD() == ondatra.PMD100GFR {
 			is100gfr = true
 		}
 	}
