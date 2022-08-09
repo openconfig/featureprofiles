@@ -30,8 +30,8 @@
 //     this file and updates to the tests where it is intended to be used.
 //
 // To remove a deviation:
-//   - Submit a pull request which proposes to resolve the relevant.
-//     github issue by removing the deviation and it's usage within tests
+//   - Submit a pull request which proposes to resolve the relevant
+//     github issue by removing the deviation and it's usage within tests.
 //   - Typically the author or an affiliate of the author's organization
 //     is expected to remove a deviation they introduced.
 //
