@@ -188,7 +188,7 @@ type testArgs struct {
 	top     *ondatra.ATETopology
 }
 
-// Configure network *deviations.DefaultNetworkInstance
+// Configure network instance
 func configureNetworkInstance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -261,7 +261,7 @@ func TestRouteAck(t *testing.T) {
 	}).Await(t); !ok {
 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got.Val(t), ateDstNetCIDR)
 	} else {
-		t.Logf("Prefix %s installed in DUT as static...", got)
+		t.Logf("Prefix %s installed in DUT as static...", got.Val(t))
 	}
 
 	// Configure the gRIBI client clientA
