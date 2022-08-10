@@ -22,7 +22,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -179,19 +178,32 @@ type testArgs struct {
 
 // addRoute programs an IPv4 route entry through the given gRIBI client
 // after programming the necessary nexthop and nexthop-group.
-func addRoute(ctx context.Context, t *testing.T, args *testArgs, clientA *gribi.Client) {
+func addRoute(ctx context.Context, t *testing.T, args *testArgs, clientA *fluent.GRIBIClient) {
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via clientA", ateDstNetCIDR)
-	clientA.AddNH(t, nhIndex, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
+	clientA.Modify().AddEntry(t,
+		fluent.NextHopEntry().
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithIndex(nhIndex).
+			WithIPAddress(atePort2.IPv4),
+		fluent.NextHopGroupEntry().
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithID(nhgIndex).
+			AddNextHop(nhIndex, 1),
+		fluent.IPv4Entry().
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithPrefix(ateDstNetCIDR).
+			WithNextHopGroup(nhgIndex).
+			WithNextHopGroupNetworkInstance(*deviations.DefaultNetworkInstance))
 }
 
 // verifyAFT verifies through AFT Telemetry if a route is present on the DUT.
 func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify through AFT Telemetry that %s is active", ateDstNetCIDR)
 	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+	if got, ok := ipv4Path.Prefix().Watch(t, time.Minute, func(val *telemetry.QualifiedString) bool {
+		return val.IsPresent() && val.Val(t) == ateDstNetCIDR
+	}).Await(t); !ok {
+		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, ateDstNetCIDR)
 	}
 }
 
@@ -199,9 +211,10 @@ func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 func verifyNoAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify through Telemetry that the route to %s is not present", ateDstNetCIDR)
 	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	got2 := ipv4Path.Prefix().Lookup(t)
-	if got2 != nil {
-		t.Errorf("Lookup of ipv4-entry/state/prefix got %s, want nil", got2)
+	if got, ok := ipv4Path.Watch(t, time.Minute, func(val *telemetry.QualifiedNetworkInstance_Afts_Ipv4Entry) bool {
+		return !val.IsPresent()
+	}).Await(t); !ok {
+		t.Errorf("ipv4-entry/state/prefix got %s, want nil", got)
 	}
 }
 
@@ -226,6 +239,7 @@ func TestLeaderFailover(t *testing.T) {
 	start := time.Now()
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
+	gribic := dut.RawAPIs().GRIBI().Default(t)
 
 	// Configure the DUT.
 	t.Logf("Configure DUT")
@@ -250,19 +264,16 @@ func TestLeaderFailover(t *testing.T) {
 
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to false.
-		clientA := &gribi.Client{
-			DUT:                  dut,
-			FibACK:               true,
-			Persistence:          false,
-			InitialElectionIDLow: 10,
-		}
-
-		defer clientA.Close(t)
-
 		t.Log("Establish gRIBI client connection with PERSISTENCE set to FALSE/DELETE")
-		if err := clientA.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection for clientA could not be established")
-		}
+		clientA := fluent.NewClient()
+		clientA.Connection().WithStub(gribic).
+			WithRedundancyMode(fluent.ElectedPrimaryClient).
+			WithInitialElectionID(1, 0)
+
+		clientA.Start(ctx, t)
+		clientA.StartSending(ctx, t)
+
+		defer clientA.Stop(t)
 
 		t.Run("AddRoute", func(t *testing.T) {
 			t.Logf("Add gRIBI route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
@@ -305,19 +316,17 @@ func TestLeaderFailover(t *testing.T) {
 
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to true.
-		clientA := &gribi.Client{
-			DUT:                  args.dut,
-			FibACK:               true,
-			Persistence:          true,
-			InitialElectionIDLow: 10,
-		}
-
 		t.Log("Reconnect clientA, with PERSISTENCE set to TRUE/PRESERVE")
-		if err := clientA.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection for clientA could not be re-established")
-		}
+		clientA := fluent.NewClient()
+		clientA.Connection().WithStub(gribic).
+			WithPersistence().
+			WithRedundancyMode(fluent.ElectedPrimaryClient).
+			WithInitialElectionID(1, 0)
 
-		defer clientA.Close(t)
+		clientA.Start(ctx, t)
+		clientA.StartSending(ctx, t)
+
+		defer clientA.Stop(t)
 
 		t.Run("AddRoute", func(t *testing.T) {
 
@@ -359,24 +368,24 @@ func TestLeaderFailover(t *testing.T) {
 
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to true.
-		clientA := &gribi.Client{
-			DUT:                  args.dut,
-			FibACK:               true,
-			Persistence:          true,
-			InitialElectionIDLow: 10,
-		}
-
 		t.Log("Reconnect clientA")
-		if err := clientA.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection for clientA could not be re-established")
-		}
+		clientA := fluent.NewClient()
+		clientA.Connection().WithStub(gribic).
+			WithPersistence().
+			WithRedundancyMode(fluent.ElectedPrimaryClient).
+			WithInitialElectionID(1, 0)
 
-		defer clientA.Close(t)
+		clientA.Start(ctx, t)
+		clientA.StartSending(ctx, t)
+
+		defer clientA.Stop(t)
 
 		t.Run("DeleteRoute", func(t *testing.T) {
 
 			t.Logf("Delete route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
-			clientA.DeleteIPv4(t, ateDstNetCIDR, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+			clientA.Modify().DeleteEntry(t, fluent.IPv4Entry().
+				WithPrefix(ateDstNetCIDR).
+				WithNetworkInstance(*deviations.DefaultNetworkInstance))
 
 			t.Run("VerifyNoAFT", func(t *testing.T) {
 				verifyNoAFT(ctx, t, args)

@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	timeout = 2 * time.Minute
+	timeout = time.Minute
 )
 
 // Client provides access to GRIBI APIs of the DUT.
