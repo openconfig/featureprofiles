@@ -446,7 +446,6 @@ func TestPBR(t *testing.T) {
 				getIPinIPFlow(args, dstEndPointVlan10, "ipinipd10", 10),
 				getIPinIPFlow(args, dstEndPointVlan10, "ipinipd11", 11),
 				getIPinIPFlow(args, dstEndPointVlan10, "ipinipd12", 12)},
-
 			failingFlows: []*ondatra.Flow{
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd10v20", 10),
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd11v20", 11),
