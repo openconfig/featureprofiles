@@ -59,7 +59,7 @@ const (
 	advertisedRoutesv4CIDR   = "203.0.113.1/32"
 	advertisedRoutesv6CIDR   = "2001:db8::203:0:113:1/128"
 	advertisedRoutesv4Net    = "203.0.113.1"
-	advertisedRoutesv6Net    = "001:db8::203:0:113:1"
+	advertisedRoutesv6Net    = "2001:db8::203:0:113:1"
 	advertisedRoutesv4Prefix = 32
 	advertisedRoutesv6Prefix = 128
 	prefixLimit              = 200
