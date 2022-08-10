@@ -245,6 +245,9 @@ func (vd *Validation[T]) Check(t testing.TB) error {
 // error; it returns nil as soon as the condition is met, and returns an
 // error if the condition isn't met by the end of the timeout.
 func (vd *Validation[T]) Await(t testing.TB, timeout time.Duration) error {
+	if timeout <= 0 {
+		return vd.Check(t)
+	}
 	var lastErr error
 	predicate := func(got Value[T]) bool {
 		lastErr = vd.testFunc(got)
@@ -268,7 +271,7 @@ func (vd *Validation[T]) Await(t testing.TB, timeout time.Duration) error {
 // error; it returns nil as soon as the condition is met, and returns an error
 // if the condition isn't met by the deadline.
 func (vd *Validation[T]) AwaitUntil(t testing.TB, deadline time.Time) error {
-	return vd.Await(t, deadline.Sub(time.Now()))
+	return vd.Await(t, time.Until(deadline))
 }
 
 // Validate expects testFunc to return no error on the path's value.
@@ -367,6 +370,9 @@ func (vd *PresentValidation) Check(t testing.TB) error {
 // returns nil as soon as the condition is true, and returns an error if
 // something goes wrong or if the timeout elapses.
 func (vd *PresentValidation) Await(t testing.TB, timeout time.Duration) error {
+	if timeout <= 0 {
+		return vd.Check(t)
+	}
 	w, err := callWatchAny(t, timeout, vd.path, func(v Value[any]) bool {
 		return v.IsPresent() == vd.wantPresent
 	})
@@ -387,7 +393,7 @@ func (vd *PresentValidation) Await(t testing.TB, timeout time.Duration) error {
 // error; it returns nil as soon as the condition is met, and returns an error
 // if the condition isn't met by the deadline.
 func (vd *PresentValidation) AwaitUntil(t testing.TB, deadline time.Time) error {
-	return vd.Await(t, deadline.Sub(time.Now()))
+	return vd.Await(t, time.Until(deadline))
 }
 
 // Present expects a path's value to be nonempty.
