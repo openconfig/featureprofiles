@@ -73,7 +73,7 @@ func TestInterfaceCfgs(t *testing.T) {
 		path.Delete(t)
 
 	})
-        
+
 	member := iut.Members()[0]
 	macAdd := "78:2a:67:b6:a8:08"
 	t.Run("Replace//interfaces/interface/ethernet/config/mac-address", func(t *testing.T) {
