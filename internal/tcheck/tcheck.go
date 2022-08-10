@@ -23,25 +23,24 @@ testing of paths of different types.
 
 # Overview
 
-This package provides functions that produce Validator objects, which
-represent a check that you want to perform. A Validator can then be invoked
-in several different ways to actually perform the check. Typical usage looks
-like this:
+This package provides functions that produce Validator objects, which represent
+a check that you want to perform. A Validator can then be invoked in several
+different ways to actually perform the check. Typical usage looks like this:
 
-	  // Create a table of Validators.
-		validators := []tcheck.Validator{
-			tcheck.Equal(dut.Some().Path(), someValue),
-			tcheck.Present(dut.Some().OtherPath()),
-			tcheck.NotEqual(dut.Another().Path(), anotherValue),
-		}
-		// Check each one and report any failures.
-		for _, vd:= range validators {
-			t.Run(vd.Path(), func(t *testing.T) {
-			  if err := vd.Check(t); err != nil {
-					t.Error(err)
-				}
-			})
-		}
+	// Create a table of Validators.
+	  validators := []tcheck.Validator{
+	      tcheck.Equal(dut.Some().Path(), someValue),
+	      tcheck.Present(dut.Some().OtherPath()),
+	      tcheck.NotEqual(dut.Another().Path(), anotherValue),
+	  }
+	  // Check each one and report any failures.
+	  for _, vd:= range validators {
+	      t.Run(vd.Path(), func(t *testing.T) {
+	        if err := vd.Check(t); err != nil {
+	              t.Error(err)
+	          }
+	      })
+	  }
 
 # Validator functions
 
@@ -59,10 +58,11 @@ tcheck also provides a number of shorthands for common cases:
     than wantNot.
   - tcheck.Present(path) checks that the path has any value at all.
   - tcheck.NotPresent(path) checks that the path is unset.
-  - tcheck.EqualOrNil(path, want) checks that the path's value is want OR
-    that the path is unset.
-  - tcheck.Predicate[T](path PathStruct[T], wantMsg string, predicate func(T) bool)
-    checks that the value at path is present and satisfies the given function.
+  - tcheck.EqualOrNil(path, want) checks that the path's value is want OR that
+    the path is unset.
+  - tcheck.Predicate[T](path PathStruct[T], wantMsg string, predicate func(T)
+    bool) checks that the value at path is present and satisfies the given
+    function.
 
 These helpers all have prewritten testFuncs that return sensible errors of the
 form "<path>: <got>, <want>" - for example,
@@ -73,45 +73,57 @@ form "<path>: <got>, <want>" - for example,
 All of these validation functions (except Present/NonPresent) are generic, but
 are designed to work with Ondatra's non-generic ygot-generated types. The
 Predicate API differs from Ondatra's own generated Watch methods in that
-instead of taking a *QualifiedFoo the given predicate takes a Value[Foo],
-which has the same information but structured like a ygnmi.Value.
+instead of taking a *QualifiedFoo the given predicate takes a Value[Foo], which
+has the same information but structured like a ygnmi.Value.
 
 # Validating a Validator
 
-Given a Validator, there are two ways to test its condition:
+Given a Validator, there are several ways to test its condition:
 
   - vd.Check(t) fetches the value at the specified path and tests it
     immediately, returning an error if the check fails.
-  - vd.Await(t, timeout) will watch the specified path and return nil as
-    soon as the check passes, or an error if the timeout expires before the
-    check passes.
+  - vd.Await(t, timeout) will watch the specified path and return nil as soon
+    as the check passes, or an error if the timeout expires before the check
+    passes.
+  - vd.AwaitUntil(t, time) behaves just like Await, but waiting until the
+    specified time instead for a specific duration.
 
-Thus, if you want to allow for up to one second of latency in testing several
-paths, but to test them in parallel, you would write e.g.
+# Acommodating latency
 
+There will often be some small latency between when a configuration variable is
+set via gNMI and when the corresponding operation state reflects the change. As
+a result, it's common to want to test several values with the expectation that
+all of them will be correct within some short window of time. The preferred way
+to do this is with AwaitUntil:
+
+	deadline := time.Now().Add(time.Second())
 	for _, vd:= range[]tcheck.Validator {
-		tcheck.Equal(dut.Some().Path(), someValue),
-		tcheck.Present(dut.Some().OtherPath()),
-		tcheck.NotEqual(dut.Another().Path(), anotherValue),
-		tcheck.Validate(dut.Yet().Another().Path(), func (v tcheck.Value[uint8]) error {
-			got, present := v.Val()
-			if !present || got%4 != 0 {
-				return tcheck.Failed(got, "want a multiple of 4")
-			}
-		})
+	    tcheck.Equal(dut.Some().Path(), someValue),
+	    tcheck.Present(dut.Some().OtherPath()),
+	    tcheck.NotEqual(dut.Another().Path(), anotherValue),
+	    tcheck.Validate(dut.Yet().Another().Path(), func (v tcheck.Value[uint8]) error {
+	        got, present := v.Val()
+	        if !present || got%4 != 0 {
+	            return tcheck.Failed(got, "want a multiple of 4")
+	        }
+	    })
 	} {
-		t.Run(vd.Path(), func(t *testing.T) {
-			t.Parallel()
-		  if err := vd.Await(t, time.Second); err != nil {
-				t.Error(err)
-			}
-		})
+	    t.Run(vd.Path(), func(t *testing.T) {
+	        if err := vd.AwaitUntil(t, deadline); err != nil {
+	            t.Error(err)
+	        }
+	    })
 	}
+
+The above code expects that every validation will pass within one second of the
+start of the block. This differs from using vd.Await(t, time.Second) mainly in
+that if the device is broken (and so every check will fail), it will still only
+take one second, instead of one second per validation.
 
 # Error Messages
 
-The error messages generated by failing checks will include the path, the
-value at that path, and a description of what the validator wanted, e.g.
+The error messages generated by failing checks will include the path, the value
+at that path, and a description of what the validator wanted, e.g.
 
 	some/path: got 12, want 19
 
@@ -186,15 +198,16 @@ func formatRelPath(base, path ygot.PathStruct) string {
 }
 
 // Validator is an interface representing a validation operation that could
-// have latency. The Await method will wait for the specified time for some
-// validation to succeed, returning an error if it does not in that time; the
-// Check method evaluates the underlying check immediately, and returns an
-// error if fails.
+// have latency. The Await and AwaitUntil methods monitor the validation for
+// some time or until some deadline, returning as soon as the validation passes
+// or returning an error if the time limit is exceeded; the Check method
+// evaluates the underlying check immediately, and returns an error if fails.
 type Validator interface {
 	Path() string
 	RelPath(ygot.PathStruct) string
 	Check(testing.TB) error
 	Await(testing.TB, time.Duration) error
+	AwaitUntil(testing.TB, time.Time) error
 }
 
 // Validation is the common implementation of Validator.
@@ -229,8 +242,8 @@ func (vd *Validation[T]) Check(t testing.TB) error {
 }
 
 // Await waits up to timeout for the validation condition to run without
-// error; it returns nil as soon as the condition is true, and returns an
-// error if something goes wrong or if the timeout elapses.
+// error; it returns nil as soon as the condition is met, and returns an
+// error if the condition isn't met by the end of the timeout.
 func (vd *Validation[T]) Await(t testing.TB, timeout time.Duration) error {
 	var lastErr error
 	predicate := func(got Value[T]) bool {
@@ -249,6 +262,13 @@ func (vd *Validation[T]) Await(t testing.TB, timeout time.Duration) error {
 		return fmt.Errorf("%v: %w", formatPath(vd.path), lastErr)
 	}
 	return nil
+}
+
+// AwaitUntil waits until deadline for the validation condition to run without
+// error; it returns nil as soon as the condition is met, and returns an error
+// if the condition isn't met by the deadline.
+func (vd *Validation[T]) AwaitUntil(t testing.TB, deadline time.Time) error {
+	return vd.Await(t, deadline.Sub(time.Now()))
 }
 
 // Validate expects testFunc to return no error on the path's value.
@@ -361,6 +381,13 @@ func (vd *PresentValidation) Await(t testing.TB, timeout time.Duration) error {
 		return fmt.Errorf("%v: %w", formatPath(vd.path), Failed(val, vd.WantMsg()))
 	}
 	return nil
+}
+
+// AwaitUntil waits until deadline for the validation condition to run without
+// error; it returns nil as soon as the condition is met, and returns an error
+// if the condition isn't met by the deadline.
+func (vd *PresentValidation) AwaitUntil(t testing.TB, deadline time.Time) error {
+	return vd.Await(t, deadline.Sub(time.Now()))
 }
 
 // Present expects a path's value to be nonempty.

@@ -300,19 +300,23 @@ func TestAwait(t *testing.T) {
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			gotErr := tc.validator.Await(t, time.Nanosecond*10)
-			if gotErr != nil {
-				if len(tc.wantErr) == 0 {
-					t.Errorf("Unexpected error: %v", gotErr)
-				} else {
-					for _, want := range tc.wantErr {
-						if !strings.Contains(gotErr.Error(), want) {
-							t.Errorf("error %v is missing substring %#v", gotErr, want)
+			for _, gotErr := range []error{
+				tc.validator.Await(t, time.Millisecond),
+				tc.validator.AwaitUntil(t, time.Now().Add(time.Millisecond)),
+			} {
+				if gotErr != nil {
+					if len(tc.wantErr) == 0 {
+						t.Errorf("Unexpected error: %v", gotErr)
+					} else {
+						for _, want := range tc.wantErr {
+							if !strings.Contains(gotErr.Error(), want) {
+								t.Errorf("error %v is missing substring %#v", gotErr, want)
+							}
 						}
 					}
+				} else if len(tc.wantErr) > 0 {
+					t.Errorf("Got no error, want an error containing:\n  %v", tc.wantErr)
 				}
-			} else if len(tc.wantErr) > 0 {
-				t.Errorf("Got no error, want an error containing:\n  %v", tc.wantErr)
 			}
 		})
 	}
