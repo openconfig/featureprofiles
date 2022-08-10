@@ -48,7 +48,6 @@ func TestMain(m *testing.M) {
 
 const (
 	ipv4PrefixLen = 30
-	instance      = "DEFAULT"
 	ateDstNetCIDR = "203.0.113.0/24"
 	staticNH      = "192.0.2.6"
 	nhIndex       = 1
@@ -189,23 +188,20 @@ type testArgs struct {
 	top     *ondatra.ATETopology
 }
 
-// Configure network instance
+// Configure network *deviations.DefaultNetworkInstance
 func configureNetworkInstance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
-	ni1 := d.GetOrCreateNetworkInstance(instance)
-	ni1.Type = telemetry.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE(*ygot.Int64(1))
 
-	dutConfPath := dut.Config().NetworkInstance(instance)
-	dutConfPath.Replace(t, ni1)
+	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 }
 
 // configStaticRoute configures a static route.
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) *telemetry.NetworkInstance_Protocol_Static {
 	d := &telemetry.Device{}
-	ni1 := d.GetOrCreateNetworkInstance(instance)
+	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	ni1.Enabled = ygot.Bool(true)
-	ni1.Name = ygot.String(instance)
+	ni1.Name = ygot.String(*deviations.DefaultNetworkInstance)
 	ni1.Description = ygot.String("Static route added by gNMI-OC")
 	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static-1")
 	static.Enabled = ygot.Bool(true)
@@ -223,14 +219,16 @@ func routeAck(ctx context.Context, t *testing.T, args *testArgs) {
 	// Add an IPv4Entry for 203.0.113.0/24 pointing to ATE port-3 via gRIBI-A,
 	// ensure that the entry is active through AFT telemetry
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-3 via gRIBI-A", ateDstNetCIDR)
-	args.clientA.AddNH(t, nhIndex, atePort3.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, ok := ipv4Path.Prefix().Watch(t, time.Minute, func(val *telemetry.QualifiedString) bool {
+		return val.IsPresent() && val.Val(t) == ateDstNetCIDR
+	}).Await(t); !ok {
+		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got.Val(t), ateDstNetCIDR)
 	}
 	// Verify that static route(203.0.113.0/24) to ATE port-2 is preferred by the traffic.`
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -255,11 +253,13 @@ func TestRouteAck(t *testing.T) {
 	configureNetworkInstance(t)
 	t.Logf("Configure the DUT with static route 203.0.113.0/24...")
 	dutConf := configStaticRoute(t, dut, ateDstNetCIDR, staticNH)
-	dut.Config().NetworkInstance(instance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").Static(ateDstNetCIDR).Replace(t, dutConf)
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").Static(ateDstNetCIDR).Replace(t, dutConf)
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	ipv4Path := dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+	ipv4Path := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, ok := ipv4Path.Prefix().Watch(t, time.Minute, func(val *telemetry.QualifiedString) bool {
+		return val.IsPresent() && val.Val(t) == ateDstNetCIDR
+	}).Await(t); !ok {
+		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got.Val(t), ateDstNetCIDR)
 	} else {
 		t.Logf("Prefix %s installed in DUT as static...", got)
 	}
@@ -286,5 +286,4 @@ func TestRouteAck(t *testing.T) {
 
 	routeAck(ctx, t, args)
 	top.StopProtocols(t)
-	dut.Config().NetworkInstance(instance).Delete(t)
 }
