@@ -99,8 +99,7 @@ const (
 )
 
 type testCase struct {
-	minlinks uint16
-	lagType  telemetry.E_IfAggregate_AggregationType
+	lagType telemetry.E_IfAggregate_AggregationType
 
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
@@ -138,7 +137,6 @@ func (tc *testCase) configDstAggregateDUT(i *telemetry.Interface, a *attrs.Attri
 	i.Type = ieee8023adLag
 	g := i.GetOrCreateAggregation()
 	g.LagType = tc.lagType
-	g.MinLinks = ygot.Uint16(tc.minlinks)
 }
 
 func (tc *testCase) configDstMemberDUT(i *telemetry.Interface, p *ondatra.Port) {
@@ -294,17 +292,22 @@ const (
 	dynamic        = telemetry.IfIp_NeighborOrigin_DYNAMIC
 )
 
-func (tc *testCase) verifyLagID(t *testing.T, dp *ondatra.Port) {
+func (tc *testCase) verifyAggID(t *testing.T, dp *ondatra.Port) {
 	dip := tc.dut.Telemetry().Interface(dp.Name())
 	di := dip.Get(t)
 	if lagID := di.GetEthernet().GetAggregateId(); lagID != tc.aggID {
 		t.Errorf("%s LagID got %v, want %v", dp, lagID, tc.aggID)
 	}
 }
+
 func (tc *testCase) verifyInterfaceDUT(t *testing.T, dp *ondatra.Port) {
 	dip := tc.dut.Telemetry().Interface(dp.Name())
 	di := dip.Get(t)
 	fptest.LogYgot(t, dp.String(), dip, di)
+
+	// LAG members may fall behind, so wait for them to be up.
+	dip.OperStatus().Await(t, time.Minute, opUp)
+
 	if got := di.GetAdminStatus(); got != adminUp {
 		t.Errorf("%s admin-status got %v, want %v", dp, got, adminUp)
 	}
@@ -312,22 +315,24 @@ func (tc *testCase) verifyInterfaceDUT(t *testing.T, dp *ondatra.Port) {
 		t.Errorf("%s oper-status got %v, want %v", dp, got, opUp)
 	}
 }
+
 func (tc *testCase) verifyDUT(t *testing.T) {
+	// Wait for LAG negotiation and verify LAG type for the aggregate interface.
+	tc.dut.Telemetry().Interface(tc.aggID).Type().Await(t, time.Minute, ieee8023adLag)
+
 	for n, port := range tc.dutPorts {
 		if n < 1 {
 			// We designate port 0 as the source link, not part of LAG.
-			t.Run("Source Link Verification", func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s [source]", port.ID()), func(t *testing.T) {
 				tc.verifyInterfaceDUT(t, port)
 			})
 			continue
 		}
-		t.Run("Lag ports verification", func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s [member]", port.ID()), func(t *testing.T) {
 			tc.verifyInterfaceDUT(t, port)
-			tc.verifyLagID(t, port)
+			tc.verifyAggID(t, port)
 		})
 	}
-	// Verify LAG Type for aggregate interface
-	tc.dut.Telemetry().Interface(tc.aggID).Type().Await(t, 10*time.Second, ieee8023adLag)
 }
 
 // verifyATE checks the telemetry against the parameters set by
@@ -393,6 +398,11 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 			tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Await(t, 1*time.Minute, tf.want)
 		})
 	}
+
+	// Bring the ATE ports back up.
+	for _, port := range tc.atePorts {
+		tc.ate.Actions().NewSetPortState().WithPort(port).WithEnabled(true).Send(t)
+	}
 }
 
 func TestNegotiation(t *testing.T) {
@@ -405,8 +415,6 @@ func TestNegotiation(t *testing.T) {
 	for _, lagType := range lagTypes {
 		top := ate.Topology().New()
 		tc := &testCase{
-			minlinks: uint16(len(dut.Ports()) / 2),
-
 			dut:     dut,
 			ate:     ate,
 			top:     top,
@@ -419,9 +427,11 @@ func TestNegotiation(t *testing.T) {
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
 			tc.configureDUT(t)
+			t.Run("VerifyDUT", tc.verifyDUT)
+
 			tc.configureATE(t)
 			t.Run("VerifyATE", tc.verifyATE)
-			t.Run("VerifyDUT", tc.verifyDUT)
+
 			t.Run("MinLinks", tc.verifyMinLinks)
 		})
 	}
