@@ -89,8 +89,6 @@ type ateData struct {
 	prefixesCount uint32
 }
 
-// configureOTG configures the interfaces and BGP protocols on an OTG, including advertising some
-// (faked) networks over BGP.
 func (ad *ateData) ConfigureOTG(t *testing.T, otg *otg.OTG, ateList []string) gosnappi.Config {
 
 	config := otg.NewConfig(t)
@@ -186,29 +184,16 @@ type dutData struct {
 	bgpOC *telemetry.NetworkInstance_Protocol_Bgp
 }
 
-func (ad *ateData) configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	ate := ondatra.ATE(t, "ate")
-
-	t.Logf("Configuring DUT...")
-	if ad.Port1.v4 != "" {
-		if ate.Port(t, "port1").Name() == "eth1" {
-			dut.Config().New().WithAristaFile("set_arista_ipv4.config").Push(t)
-		} else {
-			dut.Config().New().WithAristaFile("set_arista_ipv4_alternate.config").Push(t)
-		}
-	} else {
-		if ate.Port(t, "port1").Name() == "eth1" {
-			dut.Config().New().WithAristaFile("set_arista.config").Push(t)
-		} else {
-			dut.Config().New().WithAristaFile("set_arista_alternate.config").Push(t)
-		}
+func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
+	for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
+		ocName := dut.Port(t, a.Name).Name()
+		dut.Config().Interface(ocName).Replace(t, a.NewInterface(ocName))
 	}
-
-}
-
-func unsetDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Logf("Resetting DUT...")
-	dut.Config().New().WithAristaFile("unset_arista.config").Push(t)
+	dutBGP := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).
+		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutBGP.Replace(t, d.bgpOC)
+	dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().NeighborAny().AfiSafiAny().AddPaths().Send()
+	dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().NeighborAny().AfiSafiAny().AddPaths().Receive()
 }
 
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
@@ -349,9 +334,8 @@ func TestBGP(t *testing.T) {
 		ate            ateData
 		wantPrefixes   []ip
 	}{{
-		desc:       "propagate IPv4 over IPv4",
-		skipReason: "",
-		fullDesc:   "Advertise prefixes from ATE port1, observe received prefixes at ATE port2",
+		desc:     "propagate IPv4 over IPv4",
+		fullDesc: "Advertise prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
 				As: ygot.Uint32(dutAS),
@@ -382,9 +366,8 @@ func TestBGP(t *testing.T) {
 			{v4: "198.51.100.3/32"},
 		},
 	}, {
-		desc:       "propagate IPv6 over IPv6",
-		skipReason: "",
-		fullDesc:   "Advertise IPv6 prefixes from ATE port1, observe received prefixes at ATE port2",
+		desc:     "propagate IPv6 over IPv6",
+		fullDesc: "Advertise IPv6 prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
 				As: ygot.Uint32(dutAS),
@@ -428,7 +411,7 @@ func TestBGP(t *testing.T) {
 		},
 	}, {
 		desc:       "propagate IPv4 over IPv6",
-		skipReason: "",
+		skipReason: "TODO: RFC5549 needs to be enabled explicitly and OpenConfig does not currently provide a signal.",
 		fullDesc:   "IPv4 routes with an IPv6 next-hop when negotiating RFC5549 - validating that routes are accepted and advertised with the specified values.",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
@@ -481,8 +464,7 @@ func TestBGP(t *testing.T) {
 			}
 
 			dut := ondatra.DUT(t, "dut")
-			tc.ate.configureDUT(t, dut)
-			defer unsetDUT(t, dut)
+			tc.dut.Configure(t, dut)
 
 			ate := ondatra.ATE(t, "ate")
 
@@ -490,7 +472,9 @@ func TestBGP(t *testing.T) {
 			ateList := []string{"port1", "port2"}
 			otgConfig := tc.ate.ConfigureOTG(t, otg, ateList)
 
-			t.Logf("Verify BGP sessions up")
+			t.Logf("Verify DUT BGP sessions up")
+			tc.dut.AwaitBGPEstablished(t, dut)
+			t.Logf("Verify OTG BGP sessions up")
 			verifyOTGBGPTelemetry(t, otg, otgConfig, "IPv4", "ESTABLISHED")
 			verifyOTGBGPTelemetry(t, otg, otgConfig, "IPv6", "ESTABLISHED")
 
@@ -499,11 +483,11 @@ func TestBGP(t *testing.T) {
 			if tc.ate.prefixesStart.v6 != "" {
 				t.Logf("IPv6 Prefixes Over IPv6 BGP Peers.. ")
 				expectedOTGBGPPrefix := map[string][]OTGBGPV6Prefix{
-					"port2.dev.bgp6.peer": {
-						{Address: "2001:db8:1::1", PrefixLength: 128, Origin: otgtelemetry.UnicastIpv6Prefix_Origin_IGP, PathId: 1, NextHopV6Address: "2001:db8::5"},
-						{Address: "2001:db8:1::1", PrefixLength: 128, Origin: otgtelemetry.UnicastIpv6Prefix_Origin_IGP, PathId: 2, NextHopV6Address: "2001:db8::5"},
-						{Address: "2001:db8:1::1", PrefixLength: 128, Origin: otgtelemetry.UnicastIpv6Prefix_Origin_IGP, PathId: 3, NextHopV6Address: "2001:db8::5"},
-						{Address: "2001:db8:1::1", PrefixLength: 128, Origin: otgtelemetry.UnicastIpv6Prefix_Origin_IGP, PathId: 4, NextHopV6Address: "2001:db8::5"},
+					"port2.dev.BGP6.peer": {
+						{Address: "2001:db8:1::1", PrefixLength: 128, Origin: otgtelemetry.UnicastIpv6Prefix_Origin_IGP, PathId: 0, NextHopV6Address: "2001:db8::5"},
+						{Address: "2001:db8:1::2", PrefixLength: 128, Origin: otgtelemetry.UnicastIpv6Prefix_Origin_IGP, PathId: 0, NextHopV6Address: "2001:db8::5"},
+						{Address: "2001:db8:1::3", PrefixLength: 128, Origin: otgtelemetry.UnicastIpv6Prefix_Origin_IGP, PathId: 0, NextHopV6Address: "2001:db8::5"},
+						{Address: "2001:db8:1::4", PrefixLength: 128, Origin: otgtelemetry.UnicastIpv6Prefix_Origin_IGP, PathId: 0, NextHopV6Address: "2001:db8::5"},
 					},
 				}
 
@@ -519,13 +503,12 @@ func TestBGP(t *testing.T) {
 			if tc.ate.prefixesStart.v4 != "" {
 				if tc.ate.Port1.v4 != "" {
 					t.Logf("IPv4 Prefixes over IPv4 BGP Peers.. ")
-
 					expectedOTGBGPPrefix := map[string][]OTGBGPPrefix{
-						"port2.dev.bgp4.peer": {
-							{Address: "198.51.100.1", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 1, NextHopV4Address: "192.0.2.5", NextHopV6Address: ""},
-							{Address: "198.51.100.1", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 2, NextHopV4Address: "192.0.2.5", NextHopV6Address: ""},
-							{Address: "198.51.100.1", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 3, NextHopV4Address: "192.0.2.5", NextHopV6Address: ""},
-							{Address: "198.51.100.1", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 4, NextHopV4Address: "192.0.2.5", NextHopV6Address: ""},
+						"port2.dev.BGP4.peer": {
+							{Address: "198.51.100.0", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "192.0.2.5", NextHopV6Address: ""},
+							{Address: "198.51.100.1", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "192.0.2.5", NextHopV6Address: ""},
+							{Address: "198.51.100.2", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "192.0.2.5", NextHopV6Address: ""},
+							{Address: "198.51.100.3", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "192.0.2.5", NextHopV6Address: ""},
 						},
 					}
 
@@ -539,11 +522,11 @@ func TestBGP(t *testing.T) {
 				} else {
 					t.Logf("IPv4 Prefixes Over IPv6 BGP Peers.. ")
 					expectedOTGBGPPrefix := map[string][]OTGBGPPrefix{
-						"port2.dev.bgp6.peer": {
-							{Address: "198.51.100.1", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 1, NextHopV4Address: "", NextHopV6Address: "2001:db8::5"},
-							{Address: "198.51.100.1", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 2, NextHopV4Address: "", NextHopV6Address: "2001:db8::5"},
-							{Address: "198.51.100.1", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 3, NextHopV4Address: "", NextHopV6Address: "2001:db8::5"},
-							{Address: "198.51.100.1", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 4, NextHopV4Address: "", NextHopV6Address: "2001:db8::5"},
+						"port2.dev.BGP4.peer": {
+							{Address: "198.51.100.0", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "", NextHopV6Address: "2001:db8::5"},
+							{Address: "198.51.100.1", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "", NextHopV6Address: "2001:db8::5"},
+							{Address: "198.51.100.2", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "", NextHopV6Address: "2001:db8::5"},
+							{Address: "198.51.100.3", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "", NextHopV6Address: "2001:db8::5"},
 						},
 					}
 
