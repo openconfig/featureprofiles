@@ -303,17 +303,14 @@ func (tc *testCase) verifyAggID(t *testing.T, dp *ondatra.Port) {
 func (tc *testCase) verifyInterfaceDUT(t *testing.T, dp *ondatra.Port) {
 	dip := tc.dut.Telemetry().Interface(dp.Name())
 	di := dip.Get(t)
-	fptest.LogYgot(t, dp.String(), dip, di)
-
-	// LAG members may fall behind, so wait for them to be up.
-	dip.OperStatus().Await(t, time.Minute, opUp)
+	fptest.LogYgot(t, dp.String()+" before Await", dip, di)
 
 	if got := di.GetAdminStatus(); got != adminUp {
 		t.Errorf("%s admin-status got %v, want %v", dp, got, adminUp)
 	}
-	if got := di.GetOperStatus(); got != opUp {
-		t.Errorf("%s oper-status got %v, want %v", dp, got, opUp)
-	}
+
+	// LAG members may fall behind, so wait for them to be up.
+	dip.OperStatus().Await(t, time.Minute, opUp)
 }
 
 func (tc *testCase) verifyDUT(t *testing.T) {
