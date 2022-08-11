@@ -23,8 +23,8 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	otg "github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ondatra/telemetry"
@@ -64,14 +64,17 @@ var (
 
 type otgPortDetails struct {
 	mac, routerId string
+	pathId        int32
 }
 
 var otgPort1Details otgPortDetails = otgPortDetails{
 	mac:      "02:00:01:01:01:01",
-	routerId: "1.1.1.1"}
+	routerId: "1.1.1.1",
+	pathId:   1}
 var otgPort2Details otgPortDetails = otgPortDetails{
 	mac:      "02:00:02:01:01:01",
-	routerId: "2.2.2.2"}
+	routerId: "2.2.2.2",
+	pathId:   1}
 
 type ip struct {
 	v4, v6 string
@@ -143,41 +146,33 @@ func (ad *ateData) ConfigureOTG(t *testing.T, otg *otg.OTG, ateList []string) go
 	}
 	if ad.prefixesStart.v4 != "" {
 		if ad.Port1.v4 != "" {
-			bgpName := ateList[0] + ".dev.bgp4.peer"
+			bgpName := ateList[0] + ".dev.BGP4.peer"
 			bgpPeer := bgp4ObjectMap[bgpName]
-			ip := ipv4ObjectMap[ateList[0]+".dev.ipv4"]
-			pathIds := []int{1, 2, 3, 4}
-			for pathId := range pathIds {
-				firstAdvAddr := strings.Split(ad.prefixesStart.v4, "/")[0]
-				firstAdvPrefix, _ := strconv.Atoi(strings.Split(ad.prefixesStart.v4, "/")[1])
-				bgp4PeerRoutes := bgpPeer.V4Routes().Add().SetName(bgpName + ".rr4." + strconv.Itoa(pathId)).SetNextHopIpv4Address(ip.Address()).SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-				bgp4PeerRoutes.Addresses().Add().SetAddress(firstAdvAddr).SetPrefix(int32(firstAdvPrefix)).SetCount(int32(ad.prefixesCount))
-				bgp4PeerRoutes.AddPath().SetPathId(int32(pathId))
-			}
+			ip := ipv4ObjectMap[ateList[0]+".dev.IPv4"]
+			firstAdvAddr := strings.Split(ad.prefixesStart.v4, "/")[0]
+			firstAdvPrefix, _ := strconv.Atoi(strings.Split(ad.prefixesStart.v4, "/")[1])
+			bgp4PeerRoutes := bgpPeer.V4Routes().Add().SetName(bgpName + ".rr4").SetNextHopIpv4Address(ip.Address()).SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+			bgp4PeerRoutes.Addresses().Add().SetAddress(firstAdvAddr).SetPrefix(int32(firstAdvPrefix)).SetCount(int32(ad.prefixesCount))
+			bgp4PeerRoutes.AddPath().SetPathId(otgPort1Details.pathId)
+
 		} else {
 			bgpName := ateList[0] + ".dev.BGP6.peer"
 			bgpPeer := bgp6ObjectMap[bgpName]
-			pathIds := []int{1, 2, 3, 4}
-			for pathId := range pathIds {
-				firstAdvAddr := strings.Split(ad.prefixesStart.v4, "/")[0]
-				firstAdvPrefix, _ := strconv.Atoi(strings.Split(ad.prefixesStart.v4, "/")[1])
-				bgp4PeerRoutes := bgpPeer.V4Routes().Add().SetName(bgpName + ".rr4." + strconv.Itoa(pathId))
-				bgp4PeerRoutes.Addresses().Add().SetAddress(firstAdvAddr).SetPrefix(int32(firstAdvPrefix)).SetCount(int32(ad.prefixesCount))
-				bgp4PeerRoutes.AddPath().SetPathId(int32(pathId))
-			}
+			firstAdvAddr := strings.Split(ad.prefixesStart.v4, "/")[0]
+			firstAdvPrefix, _ := strconv.Atoi(strings.Split(ad.prefixesStart.v4, "/")[1])
+			bgp4PeerRoutes := bgpPeer.V4Routes().Add().SetName(bgpName + ".rr4")
+			bgp4PeerRoutes.Addresses().Add().SetAddress(firstAdvAddr).SetPrefix(int32(firstAdvPrefix)).SetCount(int32(ad.prefixesCount))
+			bgp4PeerRoutes.AddPath().SetPathId(otgPort1Details.pathId)
 		}
 	}
 	if ad.prefixesStart.v6 != "" {
 		bgp6Name := ateList[0] + "dev.BGP6.peer"
 		bgp6Peer := bgp6ObjectMap[bgp6Name]
-		pathIds := []int{1, 2, 3, 4}
-		for pathId := range pathIds {
-			firstAdvAddr := strings.Split(ad.prefixesStart.v6, "/")[0]
-			firstAdvPrefix, _ := strconv.Atoi(strings.Split(ad.prefixesStart.v6, "/")[1])
-			bgp6PeerRoutes := bgp6Peer.V6Routes().Add().SetName(bgp6Name + ".rr6." + strconv.Itoa(pathId))
-			bgp6PeerRoutes.Addresses().Add().SetAddress(firstAdvAddr).SetPrefix(int32(firstAdvPrefix)).SetCount(int32(ad.prefixesCount))
-			bgp6PeerRoutes.AddPath().SetPathId(int32(pathId))
-		}
+		firstAdvAddr := strings.Split(ad.prefixesStart.v6, "/")[0]
+		firstAdvPrefix, _ := strconv.Atoi(strings.Split(ad.prefixesStart.v6, "/")[1])
+		bgp6PeerRoutes := bgp6Peer.V6Routes().Add().SetName(bgp6Name + ".rr6")
+		bgp6PeerRoutes.Addresses().Add().SetAddress(firstAdvAddr).SetPrefix(int32(firstAdvPrefix)).SetCount(int32(ad.prefixesCount))
+		bgp6PeerRoutes.AddPath().SetPathId(otgPort1Details.pathId)
 	}
 
 	t.Logf("Pushing config to ATE and starting protocols...")
@@ -218,7 +213,7 @@ func unsetDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 	for neighbor := range d.bgpOC.Neighbor {
-		dut.Telemetry().NetworkInstance("default").
+		dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).
 			Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 			Bgp().
 			Neighbor(neighbor).
@@ -512,8 +507,6 @@ func TestBGP(t *testing.T) {
 					},
 				}
 
-				otgutils.LogBGPv6Metrics(t, otg, otgConfig)
-				otgutils.LogBGPStates(t, otg, otgConfig)
 				waitFor(
 					func() bool { return otgBGPv6PrefixAsExpected(t, otg, otgConfig, expectedOTGBGPPrefix) },
 					t,
@@ -536,9 +529,6 @@ func TestBGP(t *testing.T) {
 						},
 					}
 
-					otgutils.LogBGPv4Metrics(t, otg, otgConfig)
-					otgutils.LogBGPStates(t, otg, otgConfig)
-
 					waitFor(
 						func() bool { return otgBGPPrefixAsExpected(t, otg, otgConfig, expectedOTGBGPPrefix) },
 						t,
@@ -557,8 +547,6 @@ func TestBGP(t *testing.T) {
 						},
 					}
 
-					otgutils.LogBGPv6Metrics(t, otg, otgConfig)
-					otgutils.LogBGPStates(t, otg, otgConfig)
 					waitFor(
 						func() bool { return otgBGPPrefixAsExpected(t, otg, otgConfig, expectedOTGBGPPrefix) },
 						t,
