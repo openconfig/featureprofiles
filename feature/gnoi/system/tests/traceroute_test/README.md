@@ -7,6 +7,7 @@ source, destination, max_ttl, do_not_fragment and L4Protocols.
 
 ## Procedure
 
+*   Loopback0 should be pre-configured with both IPv4 and IPv6 addresses.
 *   Issue gnoi.system Traceroute command. Provide following parameters:
 
     *   Destination: populate this field with the
