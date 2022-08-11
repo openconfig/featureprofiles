@@ -63,6 +63,25 @@ func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
 	return c.fluentC
 }
 
+// OptionalParam is used to pass additional parameters to gribi APIs
+type OptionalParam interface {
+	// IsTestOpt marks the TestOpt as implementing this interface.
+	IsOptionalParam()
+}
+
+// BKNHG is used to pass the backup nexthop group for adding next hop group
+type BKNHG struct {
+	id uint64
+}
+
+// IsOptionalParam marks backupNHG as implementing the OptionalParam interface.
+func (*BKNHG) IsOptionalParam() {}
+
+// BackupNHG creates a backupNHG
+func BackupNHG(id uint64) *BKNHG {
+	return &BKNHG{id: id}
+}
+
 // Start function start establish a client connection with the gribi server.
 // By default the client is not the leader and for that function BecomeLeader
 // needs to be called.
@@ -70,6 +89,33 @@ func (c *Client) Start(t testing.TB) error {
 	t.Helper()
 	t.Logf("Starting GRIBI connection for dut: %s", c.DUT.Name())
 	gribiC := c.DUT.RawAPIs().GRIBI().Default(t)
+	c.fluentC = fluent.NewClient()
+	c.fluentC.Connection().WithStub(gribiC)
+	if c.Persistence {
+		c.fluentC.Connection().WithInitialElectionID(c.InitialElectionIDLow, c.InitialElectionIDHigh).
+			WithRedundancyMode(fluent.ElectedPrimaryClient).WithPersistence()
+	} else {
+		c.fluentC.Connection().WithInitialElectionID(c.InitialElectionIDLow, c.InitialElectionIDHigh).
+			WithRedundancyMode(fluent.ElectedPrimaryClient)
+	}
+	if c.FibACK {
+		c.fluentC.Connection().WithFIBACK()
+	}
+	ctx := context.Background()
+	c.fluentC.Start(ctx, t)
+	c.fluentC.StartSending(ctx, t)
+	err := c.AwaitTimeout(ctx, t, timeout)
+	return err
+}
+
+// StartWithNoCache function start establish a client connection with the gribi server.
+// It works same as the start function but does not use the cached API.
+// By default the client is not the leader and for that function BecomeLeader
+// needs to be called.
+func (c *Client) StartWithNoCache(t testing.TB) error {
+	t.Helper()
+	t.Logf("Starting GRIBI connection for dut: %s", c.DUT.Name())
+	gribiC := c.DUT.RawAPIs().GRIBI().New(t)
 	c.fluentC = fluent.NewClient()
 	c.fluentC.Connection().WithStub(gribiC)
 	if c.Persistence {
@@ -150,11 +196,16 @@ func (c *Client) BecomeLeader(t testing.TB) {
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
-func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {
+func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult, opts ...OptionalParam) {
 	t.Helper()
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
+	}
+	for _, param := range opts {
+		if bkp, ok := param.(*BKNHG); ok {
+			nhg.WithBackupNHG(bkp.id)
+		}
 	}
 	c.fluentC.Modify().AddEntry(t, nhg)
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
@@ -230,4 +281,15 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, instance string, expect
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
+}
+
+// Flush flushes all the gribi entries
+func (c *Client) Flush(t testing.TB) {
+	t.Logf("Flush Entries in All Network Instances.")
+	if _, err := c.fluentC.Flush().
+		WithElectionOverride().
+		WithAllNetworkInstances().
+		Send(); err != nil {
+		t.Fatalf("Could not remove all gribi entries from dut %s, got error: %v", c.DUT.Name(), err)
+	}
 }
