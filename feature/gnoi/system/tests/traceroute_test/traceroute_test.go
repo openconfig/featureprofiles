@@ -24,7 +24,6 @@ import (
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/netutil"
-
 )
 
 const (
