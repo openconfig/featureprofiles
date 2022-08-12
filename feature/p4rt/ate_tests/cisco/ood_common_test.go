@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -45,6 +48,7 @@ type PacketIO interface {
 	SetEgressPorts(t *testing.T, portIDs []string)
 	GetIngressPort(t *testing.T) string
 	SetIngressPorts(t *testing.T, portID string)
+	GetPacketIOPacket(t *testing.T) *PacketIOPacket
 }
 
 type PacketIOPacket struct {
@@ -134,9 +138,9 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 	for _, packet := range packets {
 		// t.Logf("Packet: %v", packet)
 		if packet != nil {
-			// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
 			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
 				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
 				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
 					t.Errorf("Packet is not matching wanted packet.")
 				}
@@ -199,11 +203,47 @@ func testP4RTTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow
 	ate.Traffic().Stop(t)
 }
 
+func configureInterface(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, interfaceName, ipv4Address string, subInterface uint32) {
+	config := telemetry.Interface{
+		Name:    ygot.String(interfaceName),
+		Enabled: ygot.Bool(true),
+		Subinterface: map[uint32]*telemetry.Interface_Subinterface{
+			subInterface: &telemetry.Interface_Subinterface{
+				Index: ygot.Uint32(subInterface),
+				Ipv4: &telemetry.Interface_Subinterface_Ipv4{
+					Address: map[string]*telemetry.Interface_Subinterface_Ipv4_Address{
+						ipv4Address: &telemetry.Interface_Subinterface_Ipv4_Address{
+							Ip:           ygot.String(ipv4Address),
+							PrefixLength: ygot.Uint8(24),
+						},
+					},
+				},
+				Ipv6: &telemetry.Interface_Subinterface_Ipv6{
+					Enabled: ygot.Bool(true),
+				},
+			},
+		},
+	}
+	if subInterface > 0 {
+		config.Subinterface[subInterface].Vlan = &telemetry.Interface_Subinterface_Vlan{
+			Match: &telemetry.Interface_Subinterface_Vlan_Match{
+				SingleTagged: &telemetry.Interface_Subinterface_Vlan_Match_SingleTagged{
+					VlanId: ygot.Uint16(uint16(subInterface)),
+				},
+			},
+		}
+		dut.Config().Interface(interfaceName).Subinterface(subInterface).Replace(t, config.Subinterface[subInterface])
+	} else {
+		dut.Config().Interface(interfaceName).Replace(t, &config)
+	}
+
+}
+
 func testEntryProgrammingPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
@@ -222,6 +262,16 @@ func testEntryProgrammingPacketIn(ctx context.Context, t *testing.T, args *testA
 	validatePackets(t, args, packets)
 }
 
+func testEntryProgrammingPacketInAndNoReply(ctx context.Context, t *testing.T, args *testArgs) {
+	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	count_0 := args.dut.Telemetry().Interface(portName).Counters().OutPkts().Get(t)
+	testEntryProgrammingPacketIn(ctx, t, args)
+	count_1 := args.dut.Telemetry().Interface(portName).Counters().OutPkts().Get(t)
+	if count_1-count_0 > 15 {
+		t.Errorf("Unexpected replies are sent from router!")
+	}
+}
+
 func testEntryProgrammingPacketInWithUnicastMAC(ctx context.Context, t *testing.T, args *testArgs) {
 	testEntryProgrammingPacketInWithNewMAC(ctx, t, args, "00:aa:bb:cc:dd:ee", false)
 }
@@ -238,7 +288,7 @@ func testEntryProgrammingPacketInWithNewMAC(ctx context.Context, t *testing.T, a
 	client := args.p4rtClientA
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
@@ -250,6 +300,76 @@ func testEntryProgrammingPacketInWithNewMAC(ctx context.Context, t *testing.T, a
 	currentMAC := *mac
 	*mac = macAddress
 	defer func() { *mac = currentMAC }()
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := getPackets(t, client, 40)
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received")
+	}
+}
+
+func testEntryProgrammingPacketInWithForUsIP(ctx context.Context, t *testing.T, args *testArgs) {
+	testEntryProgrammingPacketInWithNewIP(ctx, t, args, "100.101.102.103", false)
+}
+
+func testEntryProgrammingPacketInWithNonExistIP(ctx context.Context, t *testing.T, args *testArgs) {
+	testEntryProgrammingPacketInWithNewIP(ctx, t, args, "200.101.102.103", false)
+}
+
+func testEntryProgrammingPacketInWithNewIP(ctx context.Context, t *testing.T, args *testArgs, ipAddress string, isIPv6 bool) {
+	client := args.p4rtClientA
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the match entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Modify Traffic DstMAC to Unicast MAC
+	dstIP := args.packetIO.GetPacketTemplate(t).DstIPv4
+	flows := args.packetIO.GetTrafficFlow(t, args.ate, 300, 2)
+
+	if isIPv6 {
+		dstIP = args.packetIO.GetPacketTemplate(t).DstIPv6
+		flows = []*ondatra.Flow{flows[1]}
+	} else {
+		flows = []*ondatra.Flow{flows[0]}
+	}
+	currentIP := *dstIP
+	*dstIP = ipAddress
+	defer func() { *dstIP = currentIP }()
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, flows, srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := getPackets(t, client, 40)
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received")
+	}
+}
+
+func testEntryProgrammingPacketInWithOutterTTL3(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the match entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Modify Traffic DstMAC to Unicast MAC
+	currentTTL := args.packetIO.GetPacketIOPacket(t).TTL
+	*currentTTL = 3
+
+	defer func() { *currentTTL = 1 }()
 
 	// Send Packet
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -319,7 +439,7 @@ func testEntryProgrammingPacketInThenRemoveEntry(ctx context.Context, t *testing
 	client := args.p4rtClientA
 
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 
 	// Send GDP Packet
@@ -354,7 +474,7 @@ func testEntryProgrammingPacketInAndChangeDeviceID(ctx context.Context, t *testi
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
@@ -370,17 +490,18 @@ func testEntryProgrammingPacketInAndChangeDeviceID(ctx context.Context, t *testi
 	setupPrimaryP4RTClient(ctx, t, args.p4rtClientB, ^deviceID, electionID, newStreamName)
 
 	defer func() {
-		args.p4rtClientA.StreamChannelDestroy(&streamName)
-		args.p4rtClientB.StreamChannelDestroy(&streamName)
-		args.p4rtClientC.StreamChannelDestroy(&streamName)
-		args.p4rtClientD.StreamChannelDestroy(&streamName)
-
 		componentName := getComponentID(ctx, t, args.dut)
 		component := telemetry.Component{}
 		component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
 		component.Name = ygot.String(componentName)
 		component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
 		args.dut.Config().Component(componentName).Replace(t, &component)
+
+		args.p4rtClientA.StreamChannelDestroy(&streamName)
+		args.p4rtClientB.StreamChannelDestroy(&streamName)
+		args.p4rtClientC.StreamChannelDestroy(&streamName)
+		args.p4rtClientD.StreamChannelDestroy(&streamName)
+
 		args.p4rtClientB.StreamChannelDestroy(&newStreamName)
 
 		setupP4RTClient(ctx, t, args)
@@ -409,7 +530,7 @@ func testEntryProgrammingPacketInAndChangePortID(ctx context.Context, t *testing
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
@@ -458,7 +579,7 @@ func testProgrammingPacketInWithInterfaceMACAsGDPMac(ctx context.Context, t *tes
 	client := args.p4rtClientA
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
@@ -486,7 +607,7 @@ func testEntryProgrammingPacketInDowngradePrimaryController(ctx context.Context,
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
@@ -565,7 +686,7 @@ func testEntryProgrammingPacketInDowngradePrimaryControllerWithoutStandby(ctx co
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 
 	// Send Packet
@@ -592,7 +713,7 @@ func testEntryProgrammingPacketInRecoverPrimaryController(ctx context.Context, t
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
@@ -663,15 +784,21 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 
 	// Program the entry
 	tableEntry := args.packetIO.GetTableEntry(t, false)
-	tableEntry[0].IsIpv4 = uint8(1)
-	client.Write(&p4_v1.WriteRequest{
-		DeviceId:   deviceID,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
-		Updates: wbb.AclWbbIngressTableEntryGet(
-			tableEntry,
-		),
-		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
-	})
+	if len(tableEntry) == 1 && tableEntry[0].IsIpv4 == 0 {
+		tableEntry[0].IsIpv4 = uint8(1)
+		client.Write(&p4_v1.WriteRequest{
+			DeviceId:   deviceID,
+			ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+			Updates: wbb.AclWbbIngressTableEntryGet(
+				tableEntry,
+			),
+			Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+		})
+	} else {
+		for _, entry := range tableEntry {
+			entry.EtherType = uint16(123)
+		}
+	}
 
 	defer func() {
 		tableEntry[0].Type = p4_v1.Update_DELETE
@@ -710,7 +837,7 @@ func testEntryProgrammingPacketInWithouthPortID(ctx context.Context, t *testing.
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
@@ -727,12 +854,347 @@ func testEntryProgrammingPacketInWithouthPortID(ctx context.Context, t *testing.
 	}
 }
 
+func testEntryProgrammingPacketInWithouthPortIDThenAddPortID(ctx context.Context, t *testing.T, args *testArgs) {
+	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	args.dut.Config().Interface(portName).Id().Delete(t)
+	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+		Name: ygot.String(portName),
+		Id:   ygot.Uint32(portID),
+	})
+
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the match entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := getPackets(t, client, 40)
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received.")
+	}
+
+	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+		Name: ygot.String(portName),
+		Id:   ygot.Uint32(^portID),
+	})
+
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+	// Check PacketIn on P4Client
+	packets = getPackets(t, client, 40)
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	args.packetIO.SetIngressPorts(t, fmt.Sprint(^portID))
+	defer args.packetIO.SetIngressPorts(t, fmt.Sprint(portID))
+	validatePackets(t, args, packets)
+}
+
+func testEntryProgrammingPacketInWithInnerTTL(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the match entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	flows := args.packetIO.GetTrafficFlow(t, args.ate, 300, 2)
+	newFlows := []*ondatra.Flow{}
+	for _, flow := range flows {
+		ipv4Header := false
+		headers := flow.Headers()
+		for _, header := range headers {
+			if v, ok := header.(*ondatra.IPv4Header); ok {
+				v.WithTTL(64)
+				ipv4Header = true
+			}
+			if v, ok := header.(*ondatra.IPv6Header); ok {
+				v.WithHopLimit(64)
+			}
+		}
+		if ipv4Header {
+			innerHeader := ondatra.NewIPv4Header()
+			innerHeader.WithSrcAddress("1.1.1.1")
+			innerHeader.WithDstAddress("2.2.2.2")
+			innerHeader.WithTTL(uint8(1))
+			headers = append(headers, innerHeader)
+			flow.WithHeaders(headers...)
+			newFlows = append(newFlows, flow)
+		} else {
+			innerHeader := ondatra.NewIPv6Header()
+			innerHeader.WithSrcAddress("1::1")
+			innerHeader.WithDstAddress("2::2")
+			innerHeader.WithHopLimit(uint8(1))
+			headers = append(headers, innerHeader)
+			flow.WithHeaders(headers...)
+			newFlows = append(newFlows, flow)
+		}
+	}
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, newFlows, srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := getPackets(t, client, 40)
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received.")
+	}
+}
+
+func testEntryProgrammingPacketInWithMalformedPacket(ctx context.Context, t *testing.T, args *testArgs) {
+	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	args.dut.Config().Interface(portName).Id().Delete(t)
+	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+		Name: ygot.String(portName),
+		Id:   ygot.Uint32(portID),
+	})
+
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the match entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	flows := args.packetIO.GetTrafficFlow(t, args.ate, 300, 2)
+	newFlows := []*ondatra.Flow{}
+	for _, flow := range flows {
+		if ethernetHeader, ok := flow.Headers()[0].(*ondatra.EthernetHeader); ok {
+			if strings.Contains(flow.Name(), "IPv4") {
+				ethernetHeader.WithEtherType(0x0800)
+			}
+			if strings.Contains(flow.Name(), "IPv6") {
+				ethernetHeader.WithEtherType(0x8600)
+			}
+			flow.WithHeaders(ethernetHeader)
+			newFlows = append(newFlows, flow)
+		}
+	}
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, newFlows, srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := getPackets(t, client, 40)
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received.")
+	}
+}
+
+func testEntryProgrammingPacketInWithGNOI(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the match entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	gnoi := args.dut.RawAPIs().GNOI().Default(t)
+
+	gnoi.System().Traceroute(ctx, &spb.TracerouteRequest{
+		Destination: atePort1.IPv4,
+		InitialTtl:  1,
+		MaxTtl:      1,
+		L3Protocol:  tpb.L3Protocol_IPV4,
+		L4Protocol:  spb.TracerouteRequest_UDP,
+	})
+
+	// Check PacketIn on P4Client
+	packets := getPackets(t, client, 40)
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received.")
+	}
+}
+
+func testEntryProgrammingPacketInWithUDP(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	count_0 := args.dut.Telemetry().Interface(portName).Counters().OutPkts().Get(t)
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the match entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	flows := args.packetIO.GetTrafficFlow(t, args.ate, 300, 2)
+	udpHeader := ondatra.NewUDPHeader()
+	udpHeader.WithSrcPort(11111)
+	udpHeader.WithDstPort(33433)
+	for _, flow := range flows {
+		headers := flow.Headers()
+		headers = append(headers)
+		flow.WithHeaders(headers...)
+	}
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, flows, srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := getPackets(t, client, 40)
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	validatePackets(t, args, packets)
+
+	count_1 := args.dut.Telemetry().Interface(portName).Counters().OutPkts().Get(t)
+	if count_1-count_0 > 15 {
+		t.Errorf("Unexpected replies are sent from router!")
+	}
+}
+
+func testEntryProgrammingPacketInWithFlowLabel(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the match entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	skipFlag := true
+	flows := args.packetIO.GetTrafficFlow(t, args.ate, 300, 2)
+	for _, flow := range flows {
+		headers := flow.Headers()
+		for _, header := range headers {
+			if v, ok := header.(*ondatra.IPv6Header); ok {
+				skipFlag = false
+				v.WithFlowLabel(11111).FlowLabelRange().WithCount(1000)
+			}
+		}
+	}
+
+	if skipFlag {
+		t.Skip()
+	}
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, flows, srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := getPackets(t, client, 40)
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	validatePackets(t, args, packets)
+}
+
+func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	existingConfig := args.dut.Config().Interface(portName).Get(t)
+	configureInterface(ctx, t, args.dut, portName, "103.102.101.100", 0)
+	defer args.dut.Config().Interface(portName).Replace(t, existingConfig)
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the match entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	mac := args.packetIO.GetPacketIOPacket(t).DstMAC
+	existingMAC := *mac
+	*mac = args.dut.Telemetry().Interface(portName).Ethernet().MacAddress().Get(t)
+	defer func() { *mac = existingMAC }()
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := getPackets(t, client, 40)
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	validatePackets(t, args, packets)
+}
+
+func testEntryProgrammingPacketInWithSubInterface(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	configureInterface(ctx, t, args.dut, args.interfaces.in[0], "103.102.101.100", 1)
+	defer args.dut.Config().Interface(args.interfaces.in[0]).Subinterface(1).Delete(t)
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the match entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	flows := args.packetIO.GetTrafficFlow(t, args.ate, 300, 2)
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, flows, srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := getPackets(t, client, 40)
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) == 0 {
+		t.Errorf("There is no packets received.")
+	}
+
+	validatePackets(t, args, packets)
+
+	for _, flow := range flows {
+		headers := flow.Headers()
+		if v, ok := headers[0].(*ondatra.EthernetHeader); ok {
+			v.WithVLANID(1)
+		}
+	}
+
+	testP4RTTraffic(t, args.ate, flows, srcEndPoint, 10)
+	// Check PacketIn on P4Client
+	packets = getPackets(t, client, 40)
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received.")
+	}
+}
+
 func testEntryProgrammingPacketInScaleRate(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
@@ -754,7 +1216,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
@@ -820,7 +1282,7 @@ func testPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
@@ -1013,7 +1475,7 @@ func testPacketOutIngressWithInterfaceFlap(ctx context.Context, t *testing.T, ar
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
@@ -1072,7 +1534,7 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-		t.Errorf("There is error when inserting the GDP entry")
+		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
@@ -1134,7 +1596,7 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 
 // 	// Program the entry
 // 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-// 		t.Errorf("There is error when inserting the GDP entry")
+// 		t.Errorf("There is error when inserting the match entry")
 // 	}
 // 	defer programmTableEntry(ctx, t, client, args.packetIO, false)
 
@@ -1179,7 +1641,7 @@ func testPacketOutEgressScale(ctx context.Context, t *testing.T, args *testArgs)
 
 	// Program the entry
 	// if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
-	// 	t.Errorf("There is error when inserting the GDP entry")
+	// 	t.Errorf("There is error when inserting the match entry")
 	// }
 	// defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
