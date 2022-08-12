@@ -27,6 +27,7 @@ var (
 	lldpMAC               = "01:80:c2:00:00:0e"
 	lldpEtherType         = uint32(35020)
 	METADATA_INGRESS_PORT = uint32(1)
+	METADATA_EGRESS_PORT  = uint32(2)
 	SUBMIT_TO_INGRESS     = uint32(1)
 	SUBMIT_TO_EGRESS      = uint32(0)
 )
@@ -92,6 +93,7 @@ func getGDPParameter(t *testing.T) PacketIO {
 			DstMAC:       &gdpMAC,
 			EthernetType: &gdpEtherType,
 		},
+		IngressPort: fmt.Sprint(portID),
 	}
 }
 
@@ -102,7 +104,27 @@ func getLLDPParameter(t *testing.T) PacketIO {
 			DstMAC:       &lldpMAC,
 			EthernetType: &lldpEtherType,
 		},
-		NeedConfig: ygot.Bool(false),
+		NeedConfig:  ygot.Bool(false),
+		IngressPort: fmt.Sprint(portID),
+	}
+}
+
+func getTTLParameter(t *testing.T, ipv4, ipv6, ttlTwo bool) PacketIO {
+	return &TTLPacketIO{
+		PacketIOPacket: PacketIOPacket{
+			SrcMAC:  ygot.String("00:01:00:01:00:01"),
+			DstMAC:  ygot.String("00:01:00:02:00:03"),
+			SrcIPv4: ygot.String("100.120.1.1"),
+			DstIPv4: ygot.String("100.121.1.2"),
+			SrcIPv6: ygot.String("100:120:1::1"),
+			DstIPv6: ygot.String("100:121:1::2"),
+			TTL:     ygot.Uint32(1),
+		},
+		NeedConfig:  ygot.Bool(false),
+		IPv4:        ipv4,
+		IPv6:        ipv6,
+		TtlTwo:      ttlTwo,
+		IngressPort: fmt.Sprint(portID),
 	}
 }
 
@@ -206,29 +228,63 @@ func TestP4RTPacketIO(t *testing.T) {
 		})
 	}
 
-	// args.packetIO = getLLDPParameter(t)
-	// for _, tt := range OODLLDPDisabledTestcases {
-	// 	// Each case will run with its own gRIBI fluent client.
-	// 	t.Run(tt.name, func(t *testing.T) {
-	// 		t.Logf("Name: %s", tt.name)
-	// 		t.Logf("Description: %s", tt.desc)
+	args.packetIO = getLLDPParameter(t)
+	for _, tt := range OODLLDPDisabledTestcases {
+		// Each case will run with its own gRIBI fluent client.
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Name: %s", tt.name)
+			t.Logf("Description: %s", tt.desc)
 
-	// 		tt.fn(ctx, t, args)
-	// 	})
+			tt.fn(ctx, t, args)
+		})
+	}
+
+	for _, tt := range LLDPEndabledTestcases {
+		dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(true))
+		// Each case will run with its own gRIBI fluent client.
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Name: %s", tt.name)
+			t.Logf("Description: %s", tt.desc)
+
+			tt.fn(ctx, t, args)
+		})
+		dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(false))
+	}
+
+	// args.packetIO = getTTLParameter(t)
+	// ttlTestcases := map[string]func(){
+	// 	"IPv4 TTL1 Only": func() {
+	// 		args.packetIO = getTTLParameter(t, true, false, false)
+	// 	},
+	// 	// "IPv4 TTL1 and TTL2": func() {
+	// 	// 	args.packetIO = getTTLParameter(t, true, false, true)
+	// 	// },
+	// 	// "IPv6 TTL1 Only": func() {
+	// 	// 	args.packetIO = getTTLParameter(t, false, true, false)
+	// 	// },
+	// 	// "IPv6 TTL1 and TTL2": func() {
+	// 	// 	args.packetIO = getTTLParameter(t, false, true, true)
+	// 	// },
+	// 	// "IPv4 TTL1 and IPv6 TTL1": func() {
+	// 	// 	args.packetIO = getTTLParameter(t, true, true, false)
+	// 	// },
+	// 	// "IPv4 TTL1 and TTL2 and IPv6 TTL1 and TTL2": func() {
+	// 	// 	args.packetIO = getTTLParameter(t, true, true, true)
+	// 	// },
 	// }
 
-	// for _, tt := range LLDPEndabledTestcases {
-	// 	dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(true))
-	// 	// Each case will run with its own gRIBI fluent client.
-	// 	t.Run(tt.name, func(t *testing.T) {
-	// 		t.Logf("Name: %s", tt.name)
-	// 		t.Logf("Description: %s", tt.desc)
+	// for key, val := range ttlTestcases {
+	// 	val()
+	// 	for _, tt := range OODTTLTestcases {
+	// 		// Each case will run with its own gRIBI fluent client.
+	// 		t.Run(key+" "+tt.name, func(t *testing.T) {
+	// 			t.Logf("Name: %s %s", key, tt.name)
+	// 			t.Logf("Description: %s %s", key, tt.desc)
 
-	// 		tt.fn(ctx, t, args)
-	// 	})
-	// 	dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(false))
+	// 			tt.fn(ctx, t, args)
+	// 		})
+	// 	}
 	// }
-
 }
 
 func setupP4RTClient(ctx context.Context, t *testing.T, args *testArgs) error {
