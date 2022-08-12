@@ -250,3 +250,7 @@ func (g *GDPPacketIO) GetIngressPort(t *testing.T) string {
 func (g *GDPPacketIO) SetIngressPorts(t *testing.T, portID string) {
 	g.IngressPort = portID
 }
+
+func (g *GDPPacketIO) GetPacketIOPacket(t *testing.T) *PacketIOPacket {
+	return &g.PacketIOPacket
+}
