@@ -20,18 +20,30 @@ Validate gRIBI Get RPC.
     198.51.100.64/26, 198.51.100.128/26 are returned. Measure latency of Get
     RPC.
 
+    *   TODO: ensure all IPEntry, NHG and NH are returned with
+        [`fib_status=PROGRAMMED`](https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L485).
+
 *   Issue Get RPC from gRIBI-B, ensure that all entries for 198.51.100.0/26,
     198.51.100.64/26, 198.51.100.128/26 are returned. Measure latency of Get
     RPC.
+
+    *   TODO: ensure all IPEntry, NHG and NH are returned with
+        [`fib_status=PROGRAMMED`](https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L485).
 
 *   Configure static route for 198.51.100.192/64, issue Get from gRIBI-A and
     ensure that only entries for 198.51.100.0/26, 198.51.100.64/26,
     198.51.100.128/26 are returned, with no entry returned for
     198.51.100.192/64.
 
+    *   TODO: ensure all IPEntry, NHG and NH are returned with
+        [`fib_status=PROGRAMMED`](https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L485).
+
 *   Inject an entry that cannot be installed into the FIB due to an unresolved
     next-hop (203.0.113.0/24 -> unresolved 192.0.2.254/32). Issue a Get RPC from
     gRIBI-A and ensure that the entry for 203.0.113.0/24 is not returned.
+
+    *   TODO: ensure that the IPEntry for 203.0.113.0/24 is returned with
+        `fib_status=NOT_PROGRAMMED` and `rib_status=PROGRAMMED`
 
 ## Config Parameter coverage
 
