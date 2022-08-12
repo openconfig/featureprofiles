@@ -27,11 +27,12 @@ Test the normal session establishment and termination:
 *   Establish BGP session for the following cases:
 
     *   eBGP using DUT AS 65540 and ATE AS 65550.
-        *   Specified as global AS on the DUT.
-        *   Specified as neighbor AS on the DUT.
+        *   Specifies global AS 65540 on the DUT.
+        *   Specifies global AS 65536 and neighbor AS 65540 on the DUT.
+            Verify that ATE sees peer AS 65540.
     *   iBGP using DUT AS 65536 and ATE AS 65536.
-        *   Specified as global AS on the DUT.
-        *   Specified as neighbor AS on the DUT.
+        *   Specifies global AS 65536 on the DUT.
+        *   Specifies both global and neighbor AS 65536 on the DUT.
 
     And include the following session parameters for all cases:
 
