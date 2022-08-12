@@ -6,29 +6,37 @@ BGP session establishment between DUT - ATE and verifiying different session par
 
 ## Topology
 
-*   DUT port-1 ------- ATE port-1    
+    DUT port-1 -------- ATE port-1
 
 ## Procedure
 
-*   Establish eBGP session between DUT and ATE 
+Test the abnormal termination of session using notification message:
 
-    *   Ensure session state should be Established.
-    *   Verify BGP capabilities like Route refresh, ASN32 and MPBGP.
+*   Establish BGP session between DUT (AS 65540) and ATE (AS 65550).
 
-*   Verify BGP session disconnect by sending notification message from ATE
+    *   Ensure session state should be `ESTABLISHED`.
+    *   Verify BGP capabilities: route refresh, ASN32 and MPBGP.
 
-    *   Send Cease notification from ATE. 
+*   Verify BGP session disconnect by sending notification message from ATE.
+
+    *   Send `CEASE` notification from ATE.
     *   Ensure that DUT telemetry correctly reports the error code.
 
-*   Establish BGP session and verify different session parameters. 
-    BGP session should be established when different session parameters
-    are provided and session parameters are applied correspondingly.
+Test the normal session establishment and termination:
 
-    *   Explicitly specified Router ID under bgp global level.
+*   Establish BGP session for the following cases:
+
+    *   eBGP using DUT AS 65540 and ATE AS 65550.
+        *   Specified as global AS on the DUT.
+        *   Specified as neighbor AS on the DUT.
+    *   iBGP using DUT AS 65536 and ATE AS 65536.
+        *   Specified as global AS on the DUT.
+        *   Specified as neighbor AS on the DUT.
+
+    And include the following session parameters for all cases:
+
+    *   Explicitly specified Router ID.
     *   Enable MD5 authentication on DUT and ATE.
-    *   iBGP - Explicit same global AS is configured on DUT and ATE.
-    *   eBGP - Explicit different global AS is configured on DUT and ATE.
-    *   Explicit AS is configured on DUT under neighbor level.
     *   TODO: Explicit holdtime interval and keepalive interval.
     *   Explicit connect retry interval.
 
