@@ -1,9 +1,6 @@
 ## P4RT Implementation Guide
 
-With a variety of options that we have for P4RT clients and after a careful
-consideration we would like to take it to the next level in getting a PR for at
-least one feature profile test case that satisfies all of the following
-conditons:
+This document specifies the requirements for p4rt test implementation.```
 
 1.  Makes use of antoninbas's P4RT client exclusively and adds all functionality
     that this client claims of supporting.
