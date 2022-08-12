@@ -1,0 +1,191 @@
+{
+  "openconfig-qos:queues": {
+    "queue": [
+      {
+        "name": "tc7"
+      },
+      {
+        "name": "tc6"
+      },
+      {
+        "name": "tc5"
+      },
+      {
+        "name": "tc4"
+      },
+      {
+        "name": "tc3"
+      },
+      {
+        "name": "tc2"
+      },
+      {
+        "name": "tc1"
+      }
+    ]
+  },
+  "openconfig-qos:interfaces": {
+      "interface":[
+          {
+              "state": {
+                "interface-id": "FourHundredGigE0/0/0/1"
+              },
+              "output": {
+                  "scheduler-policy": {
+                      "state": {
+                        "name": "eg_policy2222"
+                      }
+                    }
+              }
+            },
+            {
+              "state": {
+                "interface-id": "FourHundredGigE0/0/0/0"
+              },
+              "output": {
+                  "scheduler-policy": {
+                      "state": {
+                        "name": "eg_policy1111"
+                      }
+                    }
+              }
+            }
+          ]
+    },
+  "openconfig-qos:scheduler-policies": {
+      "scheduler-policy": [
+        {
+          "name": "eg_policy1111",
+          "schedulers": {
+            "scheduler": [
+              {
+                "sequence": 1,
+                "state": {
+                  "priority": "STRICT"
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "id": "tc7",
+                      "state": {
+                        "weight": "1",
+                        "queue": "tc7"
+                      }
+                    },
+                    {
+                      "id": "tc6",
+                      "state": {
+                        "weight": "2",
+                        "queue": "tc6"
+                      }
+                    },
+                    {
+                      "id": "tc5",
+                      "state": {
+                        "weight": "3",
+                        "queue": "tc5"
+                      }
+                    },
+                    {
+                      "id": "tc4",
+                      "state": {
+                        "weight": "4",
+                        "queue": "tc4"
+                      }
+                    },
+                    {
+                      "id": "tc3",
+                      "state": {
+                        "weight": "5",
+                        "queue": "tc3"
+                      }
+                    },
+                    {
+                      "id": "tc2",
+                      "state": {
+                        "weight": "6",
+                        "queue": "tc2"
+                      }
+                    },
+                    {
+                      "id": "tc1",
+                      "state": {
+                        "weight": "7",
+                        "queue": "tc1"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "eg_policy2222",
+          "schedulers": {
+            "scheduler": [
+              {
+                "sequence": 1,
+                "state": {
+                  "priority": "STRICT"
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "id": "tc7",
+                      "state": {
+                        "weight": "1",
+                        "queue": "tc7"
+                      }
+                    },
+                    {
+                      "id": "tc6",
+                      "state": {
+                        "weight": "2",
+                        "queue": "tc6"
+                      }
+                    },
+                    {
+                      "id": "tc5",
+                      "state": {
+                        "weight": "3",
+                        "queue": "tc5"
+                      }
+                    },
+                    {
+                      "id": "tc4",
+                      "state": {
+                        "weight": "4",
+                        "queue": "tc4"
+                      }
+                    },
+                    {
+                      "id": "tc3",
+                      "state": {
+                        "weight": "5",
+                        "queue": "tc3"
+                      }
+                    },
+                    {
+                      "id": "tc2",
+                      "state": {
+                        "weight": "6",
+                        "queue": "tc2"
+                      }
+                    },
+                    {
+                      "id": "tc1",
+                      "state": {
+                        "weight": "7",
+                        "queue": "tc1"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }

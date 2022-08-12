@@ -1,0 +1,54 @@
+{
+    "openconfig-qos:queues": {
+        "queue": [
+          {
+            "name" :"tc1"
+          }
+        ]
+      },
+    "openconfig-qos:interfaces": {
+        "interface":[
+            {
+                "state": {
+                  "interface-id": "FourHundredGigE0/0/0/0"
+                },
+                "interface-id":"FourHundredGigE0/0/0/0",
+                "output": {
+                    "scheduler-policy": {
+                        "state": {
+                          "name": "eg_policy1111"
+                        }
+                      }
+                }
+              }
+            ]
+      },
+    "openconfig-qos:scheduler-policies": {
+        "scheduler-policy": [
+            {
+              "name": "eg_policy1111",
+              "schedulers": {
+                "scheduler": [
+                  { 
+                    "sequence" :1,            
+                    "state": {
+                      "priority": "STRICT"
+                    },
+                    "inputs": {
+                      "input": [
+                        {
+                          "id": "tc1",
+                          "state": {
+                            "queue": "tc1",
+                            "weight": "7"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+    }

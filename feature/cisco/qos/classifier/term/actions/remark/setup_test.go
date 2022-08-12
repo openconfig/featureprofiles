@@ -6,35 +6,36 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/testt"
 )
 
 var (
 	testSetDscpInput []uint8 = []uint8{
-		54,
+		63,
 	}
 	testSetMplsTcInput []uint8 = []uint8{
-		101,
-	}
-	testSetDot1pInput []uint8 = []uint8{
-		106,
+		7,
 	}
 )
 
-func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
-	bc := setup.BaseConfig()
+func setupQos(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *oc.Qos {
+	bc := setup.BaseConfig(baseConfigFile)
 	setup.ResetStruct(bc, []string{"Classifier"})
-	bcClassifier := setup.GetAnyValue(bc.Classifier)
-	setup.ResetStruct(bcClassifier, []string{"Term"})
-	bcClassifierTerm := setup.GetAnyValue(bcClassifier.Term)
-	setup.ResetStruct(bcClassifierTerm, []string{"Actions"})
-	bcClassifierTermActions := bcClassifierTerm.Actions
-	setup.ResetStruct(bcClassifierTermActions, []string{"Remark"})
-	bcClassifierTermActionsRemark := bcClassifierTermActions.Remark
-	setup.ResetStruct(bcClassifierTermActionsRemark, []string{})
 	dut.Config().Qos().Replace(t, bc)
 	return bc
 }
 
 func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
-	dut.Config().Qos().Delete(t)
+	var err *string
+	for attempt := 1; attempt <= 2; attempt++ {
+		err = testt.CaptureFatal(t, func(t testing.TB) {
+			dut.Config().Qos().Delete(t)
+		})
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		t.Errorf(*err)
+	}
 }
