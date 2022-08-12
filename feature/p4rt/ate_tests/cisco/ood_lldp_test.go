@@ -96,14 +96,24 @@ var (
 			fn:   testPacketOutWithoutMatchEntry,
 		},
 		{
-			name: "Program LLDP Match Entry and Check PacketOut(submit_to_egress)",
+			name: "(LLDP_Disable)Program LLDP Match Entry and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-LLDP-PacketOut:003 LLDP disabled: Egress: Inject EtherType 0x88cc packets and verify traffic behavior port in case of EtherType 0x88cc entry programmed",
 			fn:   testPacketOutEgress,
 		},
 		{
-			name: "Check PacketOut Without Programming LLDP Match Entry(submit_to_egress)",
+			name: "(LLDP_Disable)Check PacketOut Without Programming LLDP Match Entry(submit_to_egress)",
 			desc: "Packet I/O-LLDP-PacketOut:004 LLDP disabled: Egress: Inject EtherType 0x88cc packets and verify traffic behavior in case of EtherType 0x88cc entry NOT programmed",
 			fn:   testPacketOutEgressWithoutMatchEntry,
+		},
+		{
+			name: "(LLDP_Disable)Check PacketOut Scale(submit_to_egress)",
+			desc: "Packet I/O-LLDP-PacketOut:005 LLDP disabled: Verify scale rate of LLDP packets injecting to the device",
+			fn:   testPacketOutEgressScale,
+		},
+		{
+			name: "(LLDP_Disable)Flap Interface and Check PacketOut(submit_to_egress)",
+			desc: "Packet I/O-LLDP-PacketOut:011 LLDP disabled: Egress: Verify behavior when port flap",
+			fn:   testPacketOutEgressWithInterfaceFlap,
 		},
 	}
 	LLDPEndabledTestcases = []Testcase{
@@ -172,6 +182,26 @@ var (
 			desc: "Packet I/O-LLDP-PacketOut:007 LLDP enabled: Ingress:  Inject EtherType 0x88cc packets and verify traffic behavior in case of EtherType 0x88cc entry NOT programmed",
 			fn:   testPacketOutWithoutMatchEntry,
 		},
+		{
+			name: "(LLDP_Enable)Program LLDP Match Entry and Check PacketOut(submit_to_egress)",
+			desc: "Packet I/O-LLDP-PacketOut:008 LLDP enabled: Egress: Inject EtherType 0x88cc packets and verify traffic behavior port in case of EtherType 0x88cc entry programmed",
+			fn:   testPacketOutEgress,
+		},
+		{
+			name: "(LLDP_Enable)Check PacketOut Without Programming LLDP Match Entry(submit_to_egress)",
+			desc: "Packet I/O-LLDP-PacketOut:009 LLDP enabled: Egress: Inject EtherType 0x88cc packets and verify traffic behavior in case of EtherType 0x88cc entry NOT programmed",
+			fn:   testPacketOutEgressWithoutMatchEntry,
+		},
+		{
+			name: "(LLDP_Enable)Check PacketOut Scale(submit_to_egress)",
+			desc: "Packet I/O-LLDP-PacketOut:010 LLDP enabled: Verify scale rate of LLDP packets injecting to the device",
+			fn:   testPacketOutEgressScale,
+		},
+		{
+			name: "(LLDP_Enable)Flap Interface and Check PacketOut(submit_to_egress)",
+			desc: "Packet I/O-LLDP-PacketOut:011 LLDP enabled: Egress: Verify behavior when port flap",
+			fn:   testPacketOutEgressWithInterfaceFlap,
+		},
 	}
 )
 
@@ -201,19 +231,20 @@ func packetLLDPRequestGet(t *testing.T) []byte {
 
 type LLDPPacketIO struct {
 	PacketIOPacket
-	NeedConfig *bool
+	NeedConfig  *bool
+	IngressPort string
 }
 
-func (l *LLDPPacketIO) GetTableEntry(t *testing.T, delete bool) *wbb.AclWbbIngressTableEntryInfo {
+func (l *LLDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
 	if delete {
 		actionType = p4_v1.Update_DELETE
 	}
-	return &wbb.AclWbbIngressTableEntryInfo{
+	return []*wbb.AclWbbIngressTableEntryInfo{&wbb.AclWbbIngressTableEntryInfo{
 		Type:          actionType,
 		EtherType:     0x88cc,
 		EtherTypeMask: 0xFFFF,
-	}
+	}}
 }
 
 func (l *LLDPPacketIO) ApplyConfig(t *testing.T, dut *ondatra.DUTDevice, delete bool) {
@@ -224,31 +255,55 @@ func (l *LLDPPacketIO) ApplyConfig(t *testing.T, dut *ondatra.DUTDevice, delete 
 }
 
 func (l *LLDPPacketIO) GetPacketOut(t *testing.T, portID uint32, submitIngress bool) *p4_v1.PacketOut {
-	metadataInfo := SUBMIT_TO_EGRESS
-	if submitIngress {
-		metadataInfo = SUBMIT_TO_INGRESS
-	}
-	return &p4_v1.PacketOut{
+	packet := &p4_v1.PacketOut{
 		Payload: packetLLDPRequestGet(t),
 		Metadata: []*p4_v1.PacketMetadata{
 			&p4_v1.PacketMetadata{
-				MetadataId: metadataInfo, // "submit_to_egress"
+				MetadataId: uint32(1), // "egress_port"
 				Value:      []byte(fmt.Sprint(portID)),
 			},
 		},
 	}
+	if submitIngress {
+		packet.Metadata = append(packet.Metadata,
+			&p4_v1.PacketMetadata{
+				MetadataId: uint32(2), // "submit_to_ingress"
+				Value:      []byte{1},
+			})
+	}
+	return packet
 }
 
 func (l *LLDPPacketIO) GetPacketTemplate(t *testing.T) *PacketIOPacket {
 	return &l.PacketIOPacket
 }
 
-func (l *LLDPPacketIO) GetTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) *ondatra.Flow {
+func (l *LLDPPacketIO) GetTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress(*l.SrcMAC)
 	ethHeader.WithDstAddress(*l.DstMAC)
 	ethHeader.WithEtherType(*l.EthernetType)
 
 	flow := ate.Traffic().NewFlow("LLDP").WithFrameSize(frameSize).WithFrameRateFPS(frameRate).WithHeaders(ethHeader)
-	return flow
+	return []*ondatra.Flow{flow}
+}
+
+func (l *LLDPPacketIO) GetEgressPort(t *testing.T) []string {
+	return []string{"0"}
+}
+
+func (l *LLDPPacketIO) SetEgressPorts(t *testing.T, portIDs []string) {
+
+}
+
+func (l *LLDPPacketIO) GetIngressPort(t *testing.T) string {
+	return l.IngressPort
+}
+
+func (l *LLDPPacketIO) SetIngressPorts(t *testing.T, portID string) {
+	l.IngressPort = portID
+}
+
+func (l *LLDPPacketIO) GetPacketIOPacket(t *testing.T) *PacketIOPacket {
+	return &l.PacketIOPacket
 }
