@@ -359,7 +359,7 @@ func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, expectedNH []
 	aftPfxNHGVal := aftPfxNHG.Get(t)
 
 	// using NHG ID validate NH
-	aftNHG := dut.Telemetry().NetworkInstance("default").Afts().NextHopGroup(aftPfxNHGVal).Get(t)
+	aftNHG := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(aftPfxNHGVal).Get(t)
 	if got := len(aftNHG.NextHop); got < 1 && aftNHG.BackupNextHopGroup == nil {
 		t.Fatalf("Prefix %s reachability didn't switch to backup path", prefix)
 	}
