@@ -2,8 +2,7 @@
 
 This document specifies the requirements for p4rt test implementation.```
 
-1.  Makes use of antoninbas's P4RT client exclusively and adds all functionality
-    that this client claims of supporting.
+1.  Use the [antoninbas P4RT client](https://github.com/antoninbas/p4runtime-go-client).
 
 2.  The client should import or make use of the following WBB information in the
     following Google compatible format:
