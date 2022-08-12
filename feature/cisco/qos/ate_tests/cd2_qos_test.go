@@ -408,10 +408,18 @@ func QueueDelete(ctx context.Context, t *testing.T, args *testArgs) {
 			}
 		})
 	})
+
 }
 
 func testScheduler(ctx context.Context, t *testing.T, args *testArgs) {
+	var baseConfigEgress *oc.Qos = setupQosEgressSche(t, args.dut)
+	println(baseConfigEgress)
+	var baseConfig *oc.Qos = setupQosSche(t, args.dut)
+	println(baseConfig)
+	time.Sleep(2 * time.Minute)
+
 	defer flushServer(t, args)
+	defer teardownQos(t, args.dut, baseConfig)
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
@@ -420,7 +428,7 @@ func testScheduler(ctx context.Context, t *testing.T, args *testArgs) {
 	srcEndPoints := []*ondatra.Interface{args.top.Interfaces()[atePort3.Name], args.top.Interfaces()[atePort4.Name]}
 	DstEndpoint := args.top.Interfaces()[atePort2.Name]
 	testTrafficqos(t, true, args.ate, args.top, srcEndPoints, DstEndpoint, args.prefix.scale, args.prefix.host, args, 0, weights...)
-	//time.Sleep(2 * time.Hour)
+	//time.Sleep(3 * time.Hour)
 	tc7flows := []string{"flow1-tc7", "flow2-tc7"}
 	var TotalInPkts uint64
 	var TotalInOcts uint64
@@ -448,6 +456,61 @@ func testScheduler(ctx context.Context, t *testing.T, args *testArgs) {
 	})
 	nontc7queues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6"}
 	for _, queues := range nontc7queues {
+		got := args.dut.Telemetry().Qos().Interface("Bundle-Ether121").Output().Queue(queues).Get(t)
+		t.Run("Verify Drooped-Packets for other queues", func(t *testing.T) {
+			if !(*got.DroppedPkts != 0) {
+				t.Errorf("There should be  dropped packets for queues: got %+v", *got)
+			}
+		})
+
+	}
+
+}
+func testScheduler2(ctx context.Context, t *testing.T, args *testArgs) {
+	var baseConfigEgress *oc.Qos = setupQosEgressSche(t, args.dut)
+	println(baseConfigEgress)
+	var baseConfig *oc.Qos = setupQosSche(t, args.dut)
+	println(baseConfig)
+	time.Sleep(2 * time.Minute)
+
+	defer flushServer(t, args)
+	defer teardownQos(t, args.dut, baseConfig)
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vip1NhIndex + 2: 100}, instance, fluent.InstalledInRIB)
+	weights := []float64{100}
+	srcEndPoints := []*ondatra.Interface{args.top.Interfaces()[atePort3.Name], args.top.Interfaces()[atePort4.Name]}
+	DstEndpoint := args.top.Interfaces()[atePort2.Name]
+	testTrafficqos2(t, true, args.ate, args.top, srcEndPoints, DstEndpoint, args.prefix.scale, args.prefix.host, args, 0, weights...)
+	//time.Sleep(3 * time.Hour)
+	tc6flows := []string{"flow1-tc6", "flow2-tc6"}
+	var TotalInPkts uint64
+	var TotalInOcts uint64
+	for _, tc6flow := range tc6flows {
+		flowcounters := args.ate.Telemetry().Flow(tc6flow).Counters().Get(t)
+		TotalInPkts += *flowcounters.InPkts
+		TotalInOcts += *flowcounters.InOctets
+	}
+	got := args.dut.Telemetry().Qos().Interface("Bundle-Ether121").Output().Queue("tc6").Get(t)
+	t.Run("Verify Transmit-Packets for queue 6", func(t *testing.T) {
+		if !(*got.TransmitPkts >= TotalInPkts) {
+			t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
+		}
+	})
+	t.Run("Verify Transmit-Octets for queue 6", func(t *testing.T) {
+		if !(*got.TransmitOctets >= TotalInOcts) {
+			t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
+		}
+	})
+
+	t.Run("Verify Drooped-Packets for queue 7", func(t *testing.T) {
+		if !(*got.DroppedPkts == 0) {
+			t.Errorf("There should be no dropped packets: got %+v", *got)
+		}
+	})
+	nontc6queues := []string{"tc1", "tc2", "tc3", "tc4", "tc5"}
+	for _, queues := range nontc6queues {
 		got := args.dut.Telemetry().Qos().Interface("Bundle-Ether121").Output().Queue(queues).Get(t)
 		t.Run("Verify Drooped-Packets for other queues", func(t *testing.T) {
 			if !(*got.DroppedPkts != 0) {

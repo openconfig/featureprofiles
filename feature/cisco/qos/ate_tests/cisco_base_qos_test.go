@@ -85,8 +85,13 @@ var (
 	CD5Testcases = []Testcase{
 		{
 			name: "testing scheduling functionality",
-			desc: "create congestion on egress interface and test scheduling",
+			desc: "create congestion on egress interface and test scheduling for queue7",
 			fn:   testScheduler,
+		},
+		{
+			name: "testing scheduling functionality for queue6",
+			desc: "create congestion on egress interface and test scheduling",
+			fn:   testScheduler2,
 		},
 	}
 )
@@ -173,8 +178,8 @@ func TestScheduler(t *testing.T) {
 
 	//Configure IPv6 addresses and VLANS on DUT
 	configureIpv6AndVlans(t, dut)
-	//dut.Config().Interface("Bundle-Ether122").Ethernet().MacAddress().Update(t, "00:01:00:03:00:00")
-	//dut.Config().Interface("Bundle-Ether123").Ethernet().MacAddress().Update(t, "00:01:00:04:00:00")
+	dut.Config().Interface("Bundle-Ether122").Ethernet().MacAddress().Update(t, "00:01:00:03:00:00")
+	dut.Config().Interface("Bundle-Ether123").Ethernet().MacAddress().Update(t, "00:01:00:04:00:00")
 
 	// Disable Flowspec and Enable PBR
 
