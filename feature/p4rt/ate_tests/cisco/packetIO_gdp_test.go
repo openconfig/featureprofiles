@@ -8,7 +8,6 @@ import (
 	"time"
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
-	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -120,19 +119,6 @@ func readAllPackets(ctx context.Context, t *testing.T, client p4rt_client.P4RTCl
 		}
 	}
 	return packets
-}
-
-func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType) {
-	t.Helper()
-	packet := gopacket.NewPacket(packetData, layers.LayerTypeEthernet, gopacket.Default)
-	etherHeader := packet.Layer(layers.LayerTypeEthernet)
-	if etherHeader != nil {
-		header, decoded := etherHeader.(*layers.Ethernet)
-		if decoded {
-			return header.DstMAC.String(), header.EthernetType
-		}
-	}
-	return "", layers.EthernetType(0)
 }
 
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, dstMac string, etherType uint32, srcEndPoint *ondatra.Interface, duration int, args *testArgs) {
