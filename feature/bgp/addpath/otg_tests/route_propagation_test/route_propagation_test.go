@@ -164,7 +164,7 @@ func (ad *ateData) ConfigureOTG(t *testing.T, otg *otg.OTG, ateList []string) go
 		}
 	}
 	if ad.prefixesStart.v6 != "" {
-		bgp6Name := ateList[0] + "dev.BGP6.peer"
+		bgp6Name := ateList[0] + ".dev.BGP6.peer"
 		bgp6Peer := bgp6ObjectMap[bgp6Name]
 		firstAdvAddr := strings.Split(ad.prefixesStart.v6, "/")[0]
 		firstAdvPrefix, _ := strconv.Atoi(strings.Split(ad.prefixesStart.v6, "/")[1])
@@ -208,39 +208,31 @@ func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("BGP sessions established")
 }
 
-func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, ipType, state string) {
+func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state string) {
 	for _, d := range c.Devices().Items() {
-		switch ipType {
-		case "IPv4":
-			for _, ip := range d.Bgp().Ipv4Interfaces().Items() {
-				for _, configPeer := range ip.Peers().Items() {
-					nbrPath := otg.Telemetry().BgpPeer(configPeer.Name())
-					_, ok := nbrPath.SessionState().Watch(t, time.Minute,
-						func(val *otgtelemetry.QualifiedE_BgpPeer_SessionState) bool {
-							return val.IsPresent() && val.Val(t).String() == state
-						}).Await(t)
-					if !ok {
-						fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
-						t.Fatal("No BGP neighbor formed")
-					} else {
-						t.Logf("BGPv4 sessions for for Peer %v are in Established State !!", configPeer.Name())
-					}
+		for _, ip := range d.Bgp().Ipv4Interfaces().Items() {
+			for _, configPeer := range ip.Peers().Items() {
+				nbrPath := otg.Telemetry().BgpPeer(configPeer.Name())
+				_, ok := nbrPath.SessionState().Watch(t, time.Minute,
+					func(val *otgtelemetry.QualifiedE_BgpPeer_SessionState) bool {
+						return val.IsPresent() && val.Val(t).String() == state
+					}).Await(t)
+				if !ok {
+					fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
+					t.Errorf("No BGP neighbor formed for peer %s", configPeer.Name())
 				}
 			}
-		case "IPv6":
-			for _, ip := range d.Bgp().Ipv6Interfaces().Items() {
-				for _, configPeer := range ip.Peers().Items() {
-					nbrPath := otg.Telemetry().BgpPeer(configPeer.Name())
-					_, ok := nbrPath.SessionState().Watch(t, time.Minute,
-						func(val *otgtelemetry.QualifiedE_BgpPeer_SessionState) bool {
-							return val.IsPresent() && val.Val(t).String() == state
-						}).Await(t)
-					if !ok {
-						fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
-						t.Fatal("No BGP neighbor formed")
-					} else {
-						t.Logf("BGPv6 sessions for for Peer %v are in Established State !!", configPeer.Name())
-					}
+		}
+		for _, ip := range d.Bgp().Ipv6Interfaces().Items() {
+			for _, configPeer := range ip.Peers().Items() {
+				nbrPath := otg.Telemetry().BgpPeer(configPeer.Name())
+				_, ok := nbrPath.SessionState().Watch(t, time.Minute,
+					func(val *otgtelemetry.QualifiedE_BgpPeer_SessionState) bool {
+						return val.IsPresent() && val.Val(t).String() == state
+					}).Await(t)
+				if !ok {
+					fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
+					t.Errorf("No BGP neighbor formed for peer %s", configPeer.Name())
 				}
 			}
 		}
@@ -248,66 +240,35 @@ func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, ipType
 }
 
 type OTGBGPPrefix struct {
-	Address          string
-	PrefixLength     uint32
-	Origin           otgtelemetry.E_UnicastIpv4Prefix_Origin
-	PathId           uint32
-	NextHopV6Address string
-	NextHopV4Address string
+	PeerName     string
+	Address      string
+	PrefixLength uint32
 }
 
-func otgBGPPrefixAsExpected(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix map[string][]OTGBGPPrefix) bool {
-	for peerName, expectedOTGBGPPrefixes := range expectedOTGBGPPrefix {
-		for _, expectedOTGBGPPrefix := range expectedOTGBGPPrefixes {
-			bgpPrefixes := otg.Telemetry().BgpPeer(peerName).UnicastIpv4PrefixAny().Get(t)
-			found := false
-			for _, bgpPrefix := range bgpPrefixes {
-				if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
-					bgpPrefix.GetOrigin() == expectedOTGBGPPrefix.Origin &&
-					bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength &&
-					bgpPrefix.PathId != nil && bgpPrefix.GetPathId() == expectedOTGBGPPrefix.PathId {
-					found = true
-					break
-				}
-			}
-
-			if found != true {
-				return false
-			}
+func checkOTGBGP4Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix OTGBGPPrefix) bool {
+	bgpPrefixes := otg.Telemetry().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv4PrefixAny().Get(t)
+	found := false
+	for _, bgpPrefix := range bgpPrefixes {
+		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
+			bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength {
+			found = true
+			break
 		}
 	}
-	return true
+	return found
 }
 
-type OTGBGPV6Prefix struct {
-	Address          string
-	PrefixLength     uint32
-	Origin           otgtelemetry.E_UnicastIpv6Prefix_Origin
-	PathId           uint32
-	NextHopV6Address string
-}
-
-func otgBGPv6PrefixAsExpected(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix map[string][]OTGBGPV6Prefix) bool {
-	for peerName, expectedOTGBGPPrefixes := range expectedOTGBGPPrefix {
-		for _, expectedOTGBGPPrefix := range expectedOTGBGPPrefixes {
-			bgpPrefixes := otg.Telemetry().BgpPeer(peerName).UnicastIpv6PrefixAny().Get(t)
-			found := false
-			for _, bgpPrefix := range bgpPrefixes {
-				if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
-					bgpPrefix.GetOrigin() == expectedOTGBGPPrefix.Origin &&
-					bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength &&
-					bgpPrefix.PathId != nil && bgpPrefix.GetPathId() == expectedOTGBGPPrefix.PathId &&
-					bgpPrefix.NextHopIpv6Address != nil && bgpPrefix.GetNextHopIpv6Address() == expectedOTGBGPPrefix.NextHopV6Address {
-					found = true
-					break
-				}
-			}
-			if found != true {
-				return false
-			}
+func checkOTGBGP6Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix OTGBGPPrefix) bool {
+	bgpPrefixes := otg.Telemetry().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv6PrefixAny().Get(t)
+	found := false
+	for _, bgpPrefix := range bgpPrefixes {
+		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
+			bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength {
+			found = true
+			break
 		}
 	}
-	return true
+	return found
 }
 
 func waitFor(fn func() bool, t testing.TB, interval time.Duration, timeout time.Duration) {
@@ -315,7 +276,7 @@ func waitFor(fn func() bool, t testing.TB, interval time.Duration, timeout time.
 	for {
 		done := fn()
 		if done {
-			t.Logf("Expected BGP Prefix received...")
+			t.Logf("Expected BGP Prefix received")
 			break
 		}
 		if time.Since(start) > timeout {
@@ -411,7 +372,7 @@ func TestBGP(t *testing.T) {
 		},
 	}, {
 		desc:       "propagate IPv4 over IPv6",
-		skipReason: "TODO: RFC5549 needs to be enabled explicitly and OpenConfig does not currently provide a signal.",
+		skipReason: "",
 		fullDesc:   "IPv4 routes with an IPv6 next-hop when negotiating RFC5549 - validating that routes are accepted and advertised with the specified values.",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
@@ -428,12 +389,12 @@ func TestBGP(t *testing.T) {
 						},
 					},
 				},
-				"2001:db8::6": {
+				"192.0.2.6": {
 					PeerAs:          ygot.Uint32(ateAS2),
-					NeighborAddress: ygot.String("2001:db8::6"),
+					NeighborAddress: ygot.String("192.0.2.6"),
 					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
-							AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+							AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
 							Enabled:     ygot.Bool(true),
 						},
 					},
@@ -443,8 +404,8 @@ func TestBGP(t *testing.T) {
 		ate: ateData{
 			Port1:         ip{v6: "2001:db8::2/126"},
 			Port1Neighbor: dutPort1.IPv6,
-			Port2:         ip{v6: "2001:db8::6/126"},
-			Port2Neighbor: dutPort2.IPv6,
+			Port2:         ip{v4: "192.0.2.6/30"},
+			Port2Neighbor: dutPort2.IPv4,
 			prefixesStart: ip{v4: "198.51.100.0/32"},
 			prefixesCount: 4,
 		},
@@ -475,63 +436,33 @@ func TestBGP(t *testing.T) {
 			t.Logf("Verify DUT BGP sessions up")
 			tc.dut.AwaitBGPEstablished(t, dut)
 			t.Logf("Verify OTG BGP sessions up")
-			verifyOTGBGPTelemetry(t, otg, otgConfig, "IPv4", "ESTABLISHED")
-			verifyOTGBGPTelemetry(t, otg, otgConfig, "IPv6", "ESTABLISHED")
+			verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
 
-			time.Sleep(time.Second * 2)
-
-			if tc.ate.prefixesStart.v6 != "" {
-				t.Logf("IPv6 Prefixes Over IPv6 BGP Peers.. ")
-				expectedOTGBGPPrefix := map[string][]OTGBGPV6Prefix{
-					"port2.dev.BGP6.peer": {
-						{Address: "2001:db8:1::1", PrefixLength: 128, Origin: otgtelemetry.UnicastIpv6Prefix_Origin_IGP, PathId: 0, NextHopV6Address: "2001:db8::5"},
-						{Address: "2001:db8:1::2", PrefixLength: 128, Origin: otgtelemetry.UnicastIpv6Prefix_Origin_IGP, PathId: 0, NextHopV6Address: "2001:db8::5"},
-						{Address: "2001:db8:1::3", PrefixLength: 128, Origin: otgtelemetry.UnicastIpv6Prefix_Origin_IGP, PathId: 0, NextHopV6Address: "2001:db8::5"},
-						{Address: "2001:db8:1::4", PrefixLength: 128, Origin: otgtelemetry.UnicastIpv6Prefix_Origin_IGP, PathId: 0, NextHopV6Address: "2001:db8::5"},
-					},
-				}
-
-				waitFor(
-					func() bool { return otgBGPv6PrefixAsExpected(t, otg, otgConfig, expectedOTGBGPPrefix) },
-					t,
-					500*time.Millisecond,
-					time.Minute,
-				)
-
-			}
-
-			if tc.ate.prefixesStart.v4 != "" {
-				if tc.ate.Port1.v4 != "" {
-					t.Logf("IPv4 Prefixes over IPv4 BGP Peers.. ")
-					expectedOTGBGPPrefix := map[string][]OTGBGPPrefix{
-						"port2.dev.BGP4.peer": {
-							{Address: "198.51.100.0", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "192.0.2.5", NextHopV6Address: ""},
-							{Address: "198.51.100.1", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "192.0.2.5", NextHopV6Address: ""},
-							{Address: "198.51.100.2", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "192.0.2.5", NextHopV6Address: ""},
-							{Address: "198.51.100.3", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "192.0.2.5", NextHopV6Address: ""},
-						},
+			for _, prefix := range tc.wantPrefixes {
+				var expectedOTGBGPPrefix OTGBGPPrefix
+				if prefix.v4 != "" {
+					t.Logf("Checking for BGP Prefix %v", prefix.v4)
+					addr := strings.Split(prefix.v4, "/")[0]
+					prefixLen, _ := strconv.Atoi(strings.Split(prefix.v4, "/")[1])
+					if tc.ate.Port2.v4 != "" {
+						expectedOTGBGPPrefix = OTGBGPPrefix{PeerName: "port2.dev.BGP4.peer", Address: addr, PrefixLength: uint32(prefixLen)}
+					} else {
+						expectedOTGBGPPrefix = OTGBGPPrefix{PeerName: "port2.dev.BGP6.peer", Address: addr, PrefixLength: uint32(prefixLen)}
 					}
-
 					waitFor(
-						func() bool { return otgBGPPrefixAsExpected(t, otg, otgConfig, expectedOTGBGPPrefix) },
+						func() bool { return checkOTGBGP4Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) },
 						t,
 						500*time.Millisecond,
 						time.Minute,
 					)
-
-				} else {
-					t.Logf("IPv4 Prefixes Over IPv6 BGP Peers.. ")
-					expectedOTGBGPPrefix := map[string][]OTGBGPPrefix{
-						"port2.dev.BGP4.peer": {
-							{Address: "198.51.100.0", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "", NextHopV6Address: "2001:db8::5"},
-							{Address: "198.51.100.1", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "", NextHopV6Address: "2001:db8::5"},
-							{Address: "198.51.100.2", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "", NextHopV6Address: "2001:db8::5"},
-							{Address: "198.51.100.3", PrefixLength: 32, Origin: otgtelemetry.UnicastIpv4Prefix_Origin_IGP, PathId: 0, NextHopV4Address: "", NextHopV6Address: "2001:db8::5"},
-						},
-					}
-
+				}
+				if prefix.v6 != "" {
+					t.Logf("Checking for BGP Prefix %v", prefix.v6)
+					addr := strings.Split(prefix.v6, "/")[0]
+					prefixLen, _ := strconv.Atoi(strings.Split(prefix.v6, "/")[1])
+					expectedOTGBGPPrefix = OTGBGPPrefix{PeerName: "port2.dev.BGP6.peer", Address: addr, PrefixLength: uint32(prefixLen)}
 					waitFor(
-						func() bool { return otgBGPPrefixAsExpected(t, otg, otgConfig, expectedOTGBGPPrefix) },
+						func() bool { return checkOTGBGP6Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) },
 						t,
 						500*time.Millisecond,
 						time.Minute,
