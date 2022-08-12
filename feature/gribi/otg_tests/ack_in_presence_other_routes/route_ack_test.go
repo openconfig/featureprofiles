@@ -65,7 +65,7 @@ var (
 	}
 
 	atePort1 = attrs.Attributes{
-		Name:    "atePort1",
+		Name:    "port1",
 		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
@@ -78,7 +78,7 @@ var (
 	}
 
 	atePort2 = attrs.Attributes{
-		Name:    "atePort2",
+		Name:    "port2",
 		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
@@ -91,7 +91,7 @@ var (
 	}
 
 	atePort3 = attrs.Attributes{
-		Name:    "atePort3",
+		Name:    "port3",
 		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: ipv4PrefixLen,
@@ -138,6 +138,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p3 := dut.Port(t, "port3")
 	i3 := &telemetry.Interface{Name: ygot.String(p3.Name())}
 	d.Interface(p3.Name()).Replace(t, configInterfaceDUT(i3, &dutPort3))
+
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -145,18 +146,18 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otg := ate.OTG()
 	top := otg.NewConfig(t)
 
-	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
-	i1 := top.Devices().Add().SetName(ate.Port(t, "port1").ID())
+	top.Ports().Add().SetName(atePort1.Name)
+	i1 := top.Devices().Add().SetName(atePort1.Name)
 	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetPortName(i1.Name()).SetMac(atePort1.MAC)
 	eth1.Ipv4Addresses().Add().SetName(i1.Name() + ".IPv4").SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(int32(atePort1.IPv4Len))
 
-	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
-	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
+	top.Ports().Add().SetName(atePort2.Name)
+	i2 := top.Devices().Add().SetName(atePort2.Name)
 	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetPortName(i2.Name()).SetMac(atePort2.MAC)
 	eth2.Ipv4Addresses().Add().SetName(i2.Name() + ".IPv4").SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(int32(atePort2.IPv4Len))
 
-	top.Ports().Add().SetName(ate.Port(t, "port3").ID())
-	i3 := top.Devices().Add().SetName(ate.Port(t, "port3").ID())
+	top.Ports().Add().SetName(atePort3.Name)
+	i3 := top.Devices().Add().SetName(atePort3.Name)
 	eth3 := i3.Ethernets().Add().SetName(atePort3.Name + ".Eth").SetPortName(i3.Name()).SetMac(atePort3.MAC)
 	eth3.Ipv4Addresses().Add().SetName(i3.Name() + ".IPv4").SetAddress(atePort3.IPv4).SetGateway(dutPort3.IPv4).SetPrefix(int32(atePort3.IPv4Len))
 	return top
@@ -232,13 +233,14 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 	ni1.Enabled = ygot.Bool(true)
 	ni1.Name = ygot.String(*deviations.DefaultNetworkInstance)
 	ni1.Description = ygot.String("Static route added by gNMI-OC")
-	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static-1")
+	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC")
 	static.Enabled = ygot.Bool(true)
 	static.Identifier = telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
 	sr := static.GetOrCreateStatic(prefix)
 	nh := sr.GetOrCreateNextHop("nhg1")
 	nh.NextHop = fpoc.UnionString(nexthop)
 
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").Update(t, static)
 	return sr
 }
 
