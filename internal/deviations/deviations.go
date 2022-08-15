@@ -24,6 +24,8 @@
 // non-compliant behavior.  Conversely, if a device only passes a test by setting the
 // deviation to false, that is also non-compliant.  Compliant devices must pass with the
 // deviation flags set to either true or false; failing in either case is non-compliant.
+// This is to ensure that (1) only compliant behaviors are used by the workaround, and (2)
+// devices do not implicitly rely on the absence of the workaround as a deviation.
 //
 // To add a deviation:
 //   - Submit a github issue explaining the need for the deviation.
@@ -56,7 +58,7 @@ var (
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.")
 
 	DefaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
-		"The name used for the default network instance for VRF.  This has been standardized in OpenConfig as \"DEFAULT\" but some legacy devices are using \"default\"; tests should use this deviation as a temporary workaround.")
+		"The name used for the default network instance for VRF.  The default name in OpenConfig is \"DEFAULT\" but some legacy devices still use \"default\".  Compliant devices should be able to use any operator-assigned values.")
 
 	SubinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
 		"Device is missing subinterface packet counters for IPv4/IPv6, so the test will skip checking them.")
