@@ -23,7 +23,7 @@
 // The intended behavior to be tested should always be without the deviation, so if a
 // device could not pass without deviation, that is considered non-compliant behavior.
 // Ideally, device should pass both with and without a deviation which means the deviation
-// could be safely removed.  Howevre, when the OpenConfig model allows the device to
+// could be safely removed.  However, when the OpenConfig model allows the device to
 // reject the deviated case even if it is compliant, then this should be explained on a
 // case-by-case basis.
 //
