@@ -15,7 +15,7 @@
 // Package deviations defines the arguments to enable temporary workarounds for the
 // featureprofiles test suite.
 //
-// A test may introduce a deviations in order to temporarily work around non-compliant
+// A test may introduce deviations in order to temporarily work around non-compliant
 // issues so further sub-tests can make progress.  Deviations should be small in scope,
 // typically affecting one sub-test, one OpenConfig path or small OpenConfig sub-tree.
 // Deviations are enabled using command line parameters.
