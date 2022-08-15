@@ -117,10 +117,11 @@ func verifyNodeTelemetry(t *testing.T, nodeTelemetry, peerTelemetry *device.Devi
 	// configuration of lldp/interfaces/interface/config/enabled (TRUE or FALSE)
 	// on any interface.
 	if !lldpEnabled {
-		if value, ok := interfacePath.Watch(t, time.Minute, func(val *telemetry.QualifiedLldp_Interface) bool {
+		if got, ok := interfacePath.Watch(t, time.Minute, func(val *telemetry.QualifiedLldp_Interface) bool {
 			return val.IsPresent() && len(val.Val(t).Neighbor) == 0
 		}).Await(t); !ok {
-			t.Error("Number of neighbors: got %d, want 0.", len(value.Val(t).Neighbor))
+			neighbors := got.Val(t).Neighbor
+			t.Error("Number of neighbors: got %d, want 0.", len(neighbors))
 		}
 		return
 	}
