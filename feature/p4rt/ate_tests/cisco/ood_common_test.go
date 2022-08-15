@@ -1189,6 +1189,71 @@ func testEntryProgrammingPacketInWithSubInterface(ctx context.Context, t *testin
 	}
 }
 
+func testEntryProgrammingPacketInWithAcl(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	flows := args.packetIO.GetTrafficFlow(t, args.ate, 300, 2)
+
+	skipFlag := false
+
+	for _, flow := range flows {
+		headers := flow.Headers()
+		for _, header := range headers {
+			if _, ok := header.(*ondatra.IPv6Header); ok {
+				skipFlag = true
+			}
+		}
+	}
+
+	if skipFlag {
+		t.Skip()
+	}
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the match entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Configure Acl
+	acl := (&telemetry.Device{}).GetOrCreateAcl()
+	aclSetIPv4 := acl.GetOrCreateAclSet("ttl-ipv4", telemetry.Acl_ACL_TYPE_ACL_IPV4)
+	aclEntryIpv4 := aclSetIPv4.GetOrCreateAclEntry(1).GetOrCreateIpv4()
+	aclEntryIpv4.HopLimit = ygot.Uint8(1)
+	aclEntryAction := aclSetIPv4.GetOrCreateAclEntry(1).GetOrCreateActions()
+	aclEntryAction.ForwardingAction = telemetry.Acl_FORWARDING_ACTION_REJECT
+	aclEntryActionDefault := aclSetIPv4.GetOrCreateAclEntry(2).GetOrCreateActions()
+	aclEntryActionDefault.ForwardingAction = telemetry.Acl_FORWARDING_ACTION_ACCEPT
+
+	// aclSetIPv6 := acl.GetOrCreateAclSet("ttl-ipv6", telemetry.Acl_ACL_TYPE_ACL_IPV6)
+	// aclEntryIPv6 := aclSetIPv6.GetOrCreateAclEntry(1).GetOrCreateIpv6()
+	// aclEntryIPv6.HopLimit = ygot.Uint8(1)
+	// aclEntryActionIPv6 := aclSetIPv6.GetOrCreateAclEntry(1).GetOrCreateActions()
+	// aclEntryActionIPv6.ForwardingAction = telemetry.Acl_FORWARDING_ACTION_REJECT
+
+	args.dut.Config().Acl().Update(t, acl)
+
+	args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv4", telemetry.Acl_ACL_TYPE_ACL_IPV4).SetName().Update(t, "ttl-ipv4")
+	// args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv6", telemetry.Acl_ACL_TYPE_ACL_IPV6).SetName().Update(t, "ttl-ipv6")
+	defer func() {
+		args.dut.Config().Acl().Delete(t)
+		defer args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv4", telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
+		// defer args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv6", telemetry.Acl_ACL_TYPE_ACL_IPV6).Delete(t)
+	}()
+
+	// Send Packet
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testP4RTTraffic(t, args.ate, flows, srcEndPoint, 10)
+
+	// Check PacketIn on P4Client
+	packets := getPackets(t, client, 40)
+
+	// t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 0 {
+		t.Errorf("Unexpected packets received.")
+	}
+}
+
 func testEntryProgrammingPacketInScaleRate(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 
