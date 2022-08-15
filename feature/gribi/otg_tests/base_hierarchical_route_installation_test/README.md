@@ -17,10 +17,10 @@ Validate IPv4 AFT support in gRIBI with recursion.
         the address of ATE port-2.
     *   TODO: ensure installing the above 2 sets in the following ordering, and
         receive [FIB_PROGRAMMED] for all the AFTOperations.
-        1.  203.0.113.1/32 to NextHopGroup containing one NextHop specified to
+        1.  In default VRF, add 203.0.113.1/32 to NextHopGroup containing one NextHop specified to
             be the address of ATE port-2.
-        2.  198.51.100.0/24 to NextHopGroup containing one NextHop, specified to
-            be 203.0.113.1/32
+        2.  in VRF-1, add 198.51.100.0/24 to NextHopGroup containing one NextHop, specified to
+            be 203.0.113.1/32 in the default VRF.
 4.  Forward packets between ATE port-1 and ATE port-2 (destined to
     198.51.100.0/24) and determine that packets are forwarded successfully.
 5.  Validate that both routes are shown as installed via AFT telemetry.
