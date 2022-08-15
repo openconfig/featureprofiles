@@ -120,8 +120,7 @@ func verifyNodeTelemetry(t *testing.T, nodeTelemetry, peerTelemetry *device.Devi
 		if got, ok := interfacePath.Watch(t, time.Minute, func(val *telemetry.QualifiedLldp_Interface) bool {
 			return val.IsPresent() && len(val.Val(t).Neighbor) == 0
 		}).Await(t); !ok {
-			neighbors := got.Val(t).Neighbor
-			t.Error("Number of neighbors: got %d, want 0.", len(neighbors))
+			t.Errorf("Number of neighbors got: %d, want: 0.", len(got.Val(t).Neighbor))
 		}
 		return
 	}
