@@ -115,6 +115,11 @@ var (
 			fn:   testEntryProgrammingPacketInWithFlowLabel,
 		},
 		{
+			name: "Program TTL Match Entry and Configure ACL and Check PacketIn",
+			desc: "Packet I/O-Traceroute-PacketIn:037 Programm match TTL=[1,2], configured IPv4 ACL to match TTL=1 and set action to drop, verify packets dropped and not sent to controller",
+			fn:   testEntryProgrammingPacketInWithAcl,
+		},
+		{
 			name: "Program TTL Match Entry and Send scale TTL traffic",
 			desc: "Packet I/O-Traceroute-PacketIn:038 Verify scale rate of TTL=[1,2] packets (198 pps)",
 			fn:   testEntryProgrammingPacketInScaleRate,
