@@ -20,8 +20,8 @@ Validate gRIBI Get RPC.
     198.51.100.64/26, 198.51.100.128/26 are returned. Measure latency of Get
     RPC.
 
-    *   TODO: ensure all IPEntry, NHG and NH are returned with
-        [`fib_status=PROGRAMMED`](https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L485).
+    *   TODO: ensure all AFTEntry in the GetResponse for the IPv4Entry, NHG and NH are
+        returned with [fib_status] `PROGRAMMED`.
 
 *   Issue Get RPC from gRIBI-B, ensure that all entries for 198.51.100.0/26,
     198.51.100.64/26, 198.51.100.128/26 are returned. Measure latency of Get
