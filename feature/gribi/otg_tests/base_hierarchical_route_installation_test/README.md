@@ -6,35 +6,46 @@ Validate IPv4 AFT support in gRIBI with recursion.
 
 ## Procedure
 
-*   Connect ATE port-1 to DUT port-1 and ATE port-2 to DUT port-2.
-*   Establish gRIBI client connection with DUT using default parameters.
-*   Using gRIBI Modify RPC install the following IPv4Entry set:
+1.  Connect ATE port-1 to DUT port-1 and ATE port-2 to DUT port-2.
+    *   TODO: create a non-default VRF (VRF-1) that includes DUT port-1.
+    *   TODO: connect ATE port-3 to DUT port-3.
+2.  Establish gRIBI client connection with DUT using default parameters.
+3.  Using gRIBI Modify RPC install the following IPv4Entry set:
     *   198.51.100.0/24 to NextHopGroup containing one NextHop, specified to be
         203.0.113.1/32
     *   203.0.113.1/32 to NextHopGroup containing one NextHop specified to be
         the address of ATE port-2.
-*   Forward packets between ATE port-1 and ATE port-2 (destined to
+    *   TODO: ensure installing the above 2 sets in the following ordering, and
+        receive [FIB_PROGRAMMED] for all the AFTOperations.
+        1.  203.0.113.1/32 to NextHopGroup containing one NextHop specified to
+            be the address of ATE port-2.
+        2.  198.51.100.0/24 to NextHopGroup containing one NextHop, specified to
+            be 203.0.113.1/32
+4.  Forward packets between ATE port-1 and ATE port-2 (destined to
     198.51.100.0/24) and determine that packets are forwarded successfully.
-*   Validate that both routes are shown as installed via AFT telemetry.
-*   Ensure that removing the NextHopGroup containing 203.0.113.1/32 with a
-    DELETE operation results in traffic loss, and removal from AFT.
-*   Repeat above test with the following (table) cases:
-    *   TODO: Explicitly specified egress interface of DUT port-2.
-    *   TODO: Explicitly specified MAC address for ATE port-2.
-    *   TODO: Entry installed in a non-default network instance (with ATE port-1
-        and port-2 assigned to a non-default NI)
-*   Ensure that the following cases result in an error being returned:
-    *   TODO: Invalid IPv4 prefix in the IPv4Entry
-    *   TODO: Missing NextHopGroup within an IPv4Entry
-    *   TODO: Empty NextHopGroup
-    *   TODO: Empty NextHop
-    *   TODO: Invalid IPv4 address in NextHop.
-*   Validate that REPLACE operations:
-    *   TODO: Fail when using 2.0.0.0/8 within the Ipv4EntryKey (does not
-        exist).
-    *   TODO: After installing a second next-hop-group with a different ID,
-        validate that a REPLACE for 1.0.0.0/8 can update (in-place) the NHG to
-        the new value. Validate via traffic and telemetry.
+5.  Validate that both routes are shown as installed via AFT telemetry.
+6.  Ensure that removing the IPEntry 203.0.113.1/32 with a DELETE operation
+    results in traffic loss, and removal from AFT.
+
+TODO: Validate error reporting. * Repeat step 1-3 as above but with the
+following (table) scenarios: * Replace 203.0.113.1/32 with a syntax invalid IP
+address. * Missing NextHopGroup for the IPv4Entry 203.0.113.1/32. * Empty
+NextHopGroup for the IPv4Entry 203.0.113.1/32. * Empty NextHop for the IPv4Entry
+203.0.113.1/32. * Invalid IPv4 address in NextHop for the IPv4Entry
+203.0.113.1/32. * Ensure [FAILED] returned for the related IPv4Entry, NHG and NH
+in the above scenarios. * Ensure [RIB_PROGRAMMED] but not [FIB_PROGRAMMED] is
+returned for the IPv4Entry 198.51.100.0/24 in all the scenarios.
+
+TODO: Validate in-place update: * Repeat step 1-5 above. * Use the Modify RPC to
+[ADD] a new NH with next-hop pointing to ATE port-3, and [ADD] the same NHG (for
+198.51.100.0/24) but pointing to the new added NH. * Validate that routes are
+pointing to ATE port-3 via AFT, and ensure traffic are now being forwarded to
+ATE port-3.
+
+[ADD]: https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L171
+[FAILED]: https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L265
+[RIB_PROGRAMMED]: https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L269
+[FIB_PROGRAMMED]: https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L285
 
 ## Config Parameter coverage
 
