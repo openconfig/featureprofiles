@@ -27,20 +27,27 @@ Validate IPv4 AFT support in gRIBI with recursion.
 6.  Ensure that removing the IPEntry 203.0.113.1/32 with a DELETE operation
     results in traffic loss, and removal from AFT.
 
-TODO: Validate error reporting. * Repeat step 1-3 as above but with the
-following (table) scenarios: * Replace 203.0.113.1/32 with a syntax invalid IP
-address. * Missing NextHopGroup for the IPv4Entry 203.0.113.1/32. * Empty
-NextHopGroup for the IPv4Entry 203.0.113.1/32. * Empty NextHop for the IPv4Entry
-203.0.113.1/32. * Invalid IPv4 address in NextHop for the IPv4Entry
-203.0.113.1/32. * Ensure [FAILED] returned for the related IPv4Entry, NHG and NH
-in the above scenarios. * Ensure [RIB_PROGRAMMED] but not [FIB_PROGRAMMED] is
-returned for the IPv4Entry 198.51.100.0/24 in all the scenarios.
+TODO: Validate error reporting.
 
-TODO: Validate in-place update: * Repeat step 1-5 above. * Use the Modify RPC to
-[ADD] a new NH with next-hop pointing to ATE port-3, and [ADD] the same NHG (for
-198.51.100.0/24) but pointing to the new added NH. * Validate that routes are
-pointing to ATE port-3 via AFT, and ensure traffic are now being forwarded to
-ATE port-3.
+*   Repeat step 1-3 as above but with the following (table) scenarios:
+    *   Replace 203.0.113.1/32 with a syntax invalid IP address.
+    *   Missing NextHopGroup for the IPv4Entry 203.0.113.1/32.
+    *   Empty NextHopGroup for the IPv4Entry 203.0.113.1/32.
+    *   Empty NextHop for the IPv4Entry 203.0.113.1/32.
+    *   Invalid IPv4 address in NextHop for the IPv4Entry 203.0.113.1/32.
+*   Ensure [FAILED] returned for the related IPv4Entry, NHG and NH in the above
+    scenarios.
+*   Ensure [RIB_PROGRAMMED] but not [FIB_PROGRAMMED] is returned for the
+    IPv4Entry 198.51.100.0/24 in all the scenarios.
+
+TODO: Validate in-place update:
+
+*   Repeat step 1-5 above.
+*   Use the Modify RPC to [ADD] a new NH with next-hop pointing to ATE port-3,
+    and [ADD] the same NHG (for 198.51.100.0/24) but pointing to the new added
+    NH.
+*   Validate that routes are pointing to ATE port-3 via AFT, and ensure traffic
+    are now being forwarded to ATE port-3.
 
 [ADD]: https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L171
 [FAILED]: https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L265
