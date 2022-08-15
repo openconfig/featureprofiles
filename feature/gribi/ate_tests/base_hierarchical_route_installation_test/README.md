@@ -16,8 +16,8 @@ Validate IPv4 AFT support in gRIBI with recursion.
 *   Forward packets between ATE port-1 and ATE port-2 (destined to
     198.51.100.0/24) and determine that packets are forwarded successfully.
 *   Validate that both routes are shown as installed via AFT telemetry.
-*   Ensure that removing the IPv4Entry 203.0.113.1/32 with a
-    DELETE operation results in traffic loss, and removal from AFT.
+*   Ensure that removing the IPv4Entry 203.0.113.1/32 with a DELETE operation
+    results in traffic loss, and removal from AFT.
 *   Repeat above test with the following (table) cases:
     *   TODO: Explicitly specified egress interface of DUT port-2.
     *   TODO: Explicitly specified MAC address for ATE port-2.
