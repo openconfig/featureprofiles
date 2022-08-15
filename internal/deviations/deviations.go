@@ -15,17 +15,17 @@
 // Package deviations defines the arguments to enable temporary workarounds for the
 // featureprofiles test suite.
 //
-// Deviations may be introduced to temporarily work around non-compliant issues so further
-// sub-tests can be implemented.  Deviations should be small in scope, typically affecting
-// one sub-test, one OpenConfig path or small OpenConfig sub-tree.  Deviations are enabled
-// using command line parameters.
+// A test may introduce a deviations in order to temporarily work around non-compliant
+// issues so further sub-tests can make progress.  Deviations should be small in scope,
+// typically affecting one sub-test, one OpenConfig path or small OpenConfig sub-tree.
+// Deviations are enabled using command line parameters.
 //
-// If a device only passes a test by setting the deviation to true, that is considered
-// non-compliant behavior.  Conversely, if a device only passes a test by setting the
-// deviation to false, that is also non-compliant.  Compliant devices must pass with the
-// deviation flags set to either true or false; failing in either case is non-compliant.
-// This is to ensure that (1) only compliant behaviors are used by the workaround, and (2)
-// devices do not implicitly rely on the absence of the workaround as a deviation.
+// The intended behavior to be tested should always be without the deviation, so if a
+// device could not pass without deviation, that is considered non-compliant behavior.
+// Ideally, device should pass both with and without a deviation which means the deviation
+// could be safely removed.  Howevre, when the OpenConfig model allows the device to
+// reject the deviated case even if it is compliant, then this should be explained on a
+// case-by-case basis.
 //
 // To add a deviation:
 //   - Submit a github issue explaining the need for the deviation.
@@ -52,14 +52,14 @@ import "flag"
 // Vendor deviation flags.
 var (
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
-		"Device requires interface enabled leaf booleans to be explicitly set to true.")
+		"Device requires interface enabled leaf booleans to be explicitly set to true.  Fully-compliant devices should pass both with and without this deviation.")
 
 	AggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
-		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.")
+		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Fully-compliant devices should pass both with and without this deviation.")
 
 	DefaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
-		"The name used for the default network instance for VRF.  The default name in OpenConfig is \"DEFAULT\" but some legacy devices still use \"default\".  Compliant devices should be able to use any operator-assigned values.")
+		"The name used for the default network instance for VRF.  The default name in OpenConfig is \"DEFAULT\" but some legacy devices still use \"default\".  Fully-compliant devices should be able to use any operator-assigned values.")
 
 	SubinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
-		"Device is missing subinterface packet counters for IPv4/IPv6, so the test will skip checking them.")
+		"Device is missing subinterface packet counters for IPv4/IPv6, so the test will skip checking them.  Fully-compliant devices should pass both with and without this deviation.")
 )
