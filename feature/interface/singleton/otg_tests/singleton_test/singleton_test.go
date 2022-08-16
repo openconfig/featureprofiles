@@ -19,13 +19,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 
 	telemetry "github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 )
 
 func TestMain(m *testing.M) {
@@ -67,6 +70,7 @@ var (
 		Name:    "src",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
+		MAC:     "02:1a:c0:00:02:02", // 02:1a+192.0.2.2
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
@@ -84,6 +88,7 @@ var (
 		Name:    "dst",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
+		MAC:     "02:1a:c0:00:02:06", // 02:1a+192.0.2.6
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
@@ -94,7 +99,7 @@ type testCase struct {
 
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
-	top *ondatra.ATETopology
+	top gosnappi.Config
 
 	// Initialized by configureDUT.
 	duti1, duti2 *telemetry.Interface
@@ -142,20 +147,41 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	di2.Replace(t, tc.duti2)
 }
 
-func (tc *testCase) configInterfaceATE(ap *ondatra.Port, atea, duta *attrs.Attributes) {
-	ateMTU := tc.mtu + 128 // allowance for testing packets > DUT MTU.
-	i := atea.AddToATE(tc.top, ap, duta)
-	i.Ethernet().WithMTU(ateMTU)
-}
-
 func (tc *testCase) configureATE(t *testing.T) {
+	ateMTU := tc.mtu + 128 // allowance for testing packets > DUT MTU.
 	ap1 := tc.ate.Port(t, "port1")
-	tc.configInterfaceATE(ap1, &ateSrc, &dutSrc)
-
 	ap2 := tc.ate.Port(t, "port2")
-	tc.configInterfaceATE(ap2, &ateDst, &dutDst)
 
-	tc.top.Push(t).StartProtocols(t)
+	tc.top.Ports().Add().SetName(ap1.ID())
+	i1 := tc.top.Devices().Add().SetName(ap1.ID())
+	eth1 := i1.Ethernets().Add().SetName(ateSrc.Name + ".Eth").
+		SetPortName(i1.Name()).SetMac(ateSrc.MAC).SetMtu(int32(ateMTU))
+	if ateSrc.IPv4 != "" {
+		eth1.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").
+			SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).
+			SetPrefix(int32(ateSrc.IPv4Len))
+	}
+	if ateSrc.IPv6 != "" {
+		eth1.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").
+			SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).
+			SetPrefix(int32(ateSrc.IPv6Len))
+	}
+	tc.top.Ports().Add().SetName(ap2.ID())
+	i2 := tc.top.Devices().Add().SetName(ap2.ID())
+	eth2 := i2.Ethernets().Add().SetName(ateDst.Name + ".Eth").
+		SetPortName(i2.Name()).SetMac(ateDst.MAC).SetMtu(int32(ateMTU))
+	if ateDst.IPv4 != "" {
+		eth2.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").
+			SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).
+			SetPrefix(int32(ateDst.IPv4Len))
+	}
+	if ateDst.IPv6 != "" {
+		eth2.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").
+			SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).
+			SetPrefix(int32(ateDst.IPv6Len))
+	}
+	tc.ate.OTG().PushConfig(t, tc.top)
+	tc.ate.OTG().StartProtocols(t)
 }
 
 const (
@@ -219,13 +245,13 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 }
 
 func (tc *testCase) verifyInterfaceATE(t *testing.T, ap *ondatra.Port) {
-	aip := tc.ate.Telemetry().Interface(ap.Name())
+	aip := tc.ate.OTG().Telemetry().Port(ap.ID())
 	ai := aip.Get(t)
 	fptest.LogYgot(t, ap.String(), aip, ai)
 
 	// State for the interface.
-	if got := ai.GetOperStatus(); got != opUp {
-		t.Errorf("%s oper-status got %v, want %v", ap, got, opUp)
+	if got := ai.GetLink(); got != otgtelemetry.Port_Link_UP {
+		t.Errorf("%s oper-status got %v, want %v", ap, got, otgtelemetry.Port_Link_UP)
 	}
 }
 
@@ -263,9 +289,9 @@ func diffCounters(before, after *counters) *counters {
 
 // testFlow returns whether the traffic flow from ATE port1 to ATE
 // port2 has been successfully detected.
-func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.Header) bool {
-	i1 := tc.top.Interfaces()[ateSrc.Name]
-	i2 := tc.top.Interfaces()[ateDst.Name]
+func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader string) bool {
+	i1 := ateSrc.Name
+	i2 := ateDst.Name
 	p1 := tc.dut.Port(t, "port1")
 	p2 := tc.dut.Port(t, "port2")
 	p1Counter := tc.dut.Telemetry().Interface(p1.Name()).Counters()
@@ -275,26 +301,53 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 	p1InBefore := inCounters(p1Counter.Get(t))
 	p2OutBefore := outCounters(p2Counter.Get(t))
 
-	ethHeader := ondatra.NewEthernetHeader()
-	flow := tc.ate.Traffic().NewFlow("flow").
-		WithSrcEndpoints(i1).
-		WithDstEndpoints(i2).
-		WithHeaders(ethHeader, ipHeader)
-	flow.WithFrameSize(uint32(packetSize))
-	tc.ate.Traffic().Start(t, flow)
-	time.Sleep(15 * time.Second)
-	tc.ate.Traffic().Stop(t)
+	tc.top.Flows().Clear().Items()
+	flow := tc.top.Flows().Add().SetName("Flow")
+	flow.Metrics().SetEnable(true)
+	switch ipHeader {
+	case "IPv4":
+		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
+		flow.Size().SetFixed(int32(packetSize))
+		e1 := flow.Packet().Add().Ethernet()
+		e1.Src().SetValue(ateSrc.MAC)
+		v4 := flow.Packet().Add().Ipv4()
+		v4.Src().SetValue(ateSrc.IPv4)
+		v4.Dst().SetValue(ateDst.IPv4)
+	case "IPv4-DF":
+		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
+		flow.Size().SetFixed(int32(packetSize))
+		e1 := flow.Packet().Add().Ethernet()
+		e1.Src().SetValue(ateSrc.MAC)
+		v4 := flow.Packet().Add().Ipv4()
+		v4.Src().SetValue(ateSrc.IPv4)
+		v4.Dst().SetValue(ateDst.IPv4)
+		v4.DontFragment().SetValue(1)
+	case "IPv6":
+		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv6"}).SetRxNames([]string{i2 + ".IPv6"})
+		flow.Size().SetFixed(int32(packetSize))
+		e1 := flow.Packet().Add().Ethernet()
+		e1.Src().SetValue(ateSrc.MAC)
+		v6 := flow.Packet().Add().Ipv6()
+		v6.Src().SetValue(ateSrc.IPv6)
+		v6.Dst().SetValue(ateDst.IPv6)
+	}
+	tc.ate.OTG().PushConfig(t, tc.top)
 
+	tc.ate.OTG().StartTraffic(t)
+	time.Sleep(15 * time.Second)
+	tc.ate.OTG().StopTraffic(t)
+
+	otgutils.LogPortMetrics(t, tc.ate.OTG(), tc.top)
 	// Counters from ATE interface telemetry may be inaccurate.  Only
 	// showing them for diagnostics only.  Use flow telemetry counters
 	// for best results.
 	{
 		ap1 := tc.ate.Port(t, "port1")
-		aicp1 := tc.ate.Telemetry().Interface(ap1.Name()).Counters()
+		aicp1 := tc.ate.OTG().Telemetry().Port(ap1.ID()).Get(t)
 		ap2 := tc.ate.Port(t, "port2")
-		aicp2 := tc.ate.Telemetry().Interface(ap2.Name()).Counters()
-		t.Logf("ap1 out-pkts %d -> ap2 in-pkts %d", aicp1.OutPkts().Get(t), aicp2.InPkts().Get(t))
-		t.Logf("ap1 out-octets %d -> ap2 in-octets %d", aicp1.OutOctets().Get(t), aicp2.InOctets().Get(t))
+		aicp2 := tc.ate.OTG().Telemetry().Port(ap2.ID()).Get(t)
+		t.Logf("ap1 out-pkts %d -> ap2 in-pkts %d", aicp1.GetCounters().GetOutFrames(), aicp2.GetCounters().GetInFrames())
+		t.Logf("ap1 out-octets %d -> ap2 in-octets %d", aicp1.GetCounters().GetOutOctets(), aicp2.GetCounters().GetInOctets())
 	}
 
 	// After Traffic Unicast, Multicast, Broadcast Counter
@@ -317,17 +370,17 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 	}
 
 	// Flow counters
-	fp := tc.ate.Telemetry().Flow(flow.Name())
-	fpc := fp.Counters()
-	fptest.LogYgot(t, flow.String(), fpc, fpc.Get(t))
+	otgutils.LogFlowMetrics(t, tc.ate.OTG(), tc.top)
+	fp := tc.ate.OTG().Telemetry().Flow(flow.Name()).Get(t)
+	fpc := fp.GetCounters()
 
 	// Pragmatic check on the average in and out packet sizes.  IPv4 may
 	// fragment the packet unless DF bit is set.  IPv6 never fragments.
 	// Under no circumstances should DUT send packets greater than MTU.
 
-	octets := fpc.InOctets().Get(t) // Flow does not report out-octets.
-	outPkts := fpc.OutPkts().Get(t)
-	inPkts := fpc.InPkts().Get(t)
+	octets := fpc.GetOutOctets()
+	outPkts := fpc.GetOutPkts()
+	inPkts := fpc.GetInPkts()
 	if outPkts == 0 {
 		t.Error("Flow did not send any packet")
 	} else if avg := octets / outPkts; avg > uint64(tc.mtu) {
@@ -347,8 +400,10 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 	if inPkts > p2OutDiff.unicast {
 		t.Errorf("Incorrect number of packets outbound received got %d, want < %d", inPkts, p2OutDiff.unicast)
 	}
-	t.Logf("flow loss-pct %f", fp.LossPct().Get(t))
-	return fp.LossPct().Get(t) < 0.5 // 0.5% loss.
+
+	lossPct := float32((outPkts - inPkts) * 100 / outPkts)
+	t.Logf("flow loss-pct %f", lossPct)
+	return lossPct < 0.5 // 0.5% loss.
 }
 
 func (tc *testCase) string() string {
@@ -365,11 +420,11 @@ func (tc *testCase) run(t *testing.T) {
 	for _, c := range []struct {
 		ipName     string
 		shouldFrag bool
-		ipHeader   ondatra.Header
+		ipHeader   string
 	}{
-		{"IPv4", true, ondatra.NewIPv4Header()},
-		{"IPv4-DF", false, ondatra.NewIPv4Header().WithDontFragment(true)},
-		{"IPv6", false, ondatra.NewIPv6Header()},
+		{"IPv4", true, "IPv4"},
+		{"IPv4-DF", false, "IPv4-DF"},
+		{"IPv6", false, "IPv6"},
 	} {
 		t.Run(c.ipName, func(t *testing.T) {
 			t.Run("PacketLargerThanMTU", func(t *testing.T) {
@@ -400,7 +455,7 @@ func TestSingleton(t *testing.T) {
 
 	mtus := []uint16{1500, 5000, 9212}
 	for _, mtu := range mtus {
-		top := ate.Topology().New()
+		top := ate.OTG().NewConfig(t)
 		tc := &testCase{
 			mtu: mtu,
 			dut: dut,
