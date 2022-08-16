@@ -67,11 +67,34 @@ func TestMain(m *testing.M) {
 func TestOriginCliConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
+	var intfAdminDown, intfAdminUp, intfConfig string
 
-	var intfConfig string = `
-interface %s
-  %s
-`
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		intfAdminDown = "disable;"
+		intfAdminUp = "enable;"
+		intfConfig = `
+        	interfaces {
+            	    %s {
+                        %s
+                    }
+                }
+                `
+	case ondatra.CISCO:
+		intfAdminDown = "shutdown"
+        	intfAdminUp = "no shutdown"
+		intfConfig = `
+        	interface %s
+          	%s
+        	`
+	case ondatra.ARISTA:
+        	intfAdminDown = "shutdown"
+        	intfAdminUp = "no shutdown"
+		intfConfig = `
+        	interface %s
+          	    %s
+        	`
+	}
 	cases := []struct {
 		desc                string
 		intfOper            string
@@ -79,14 +102,14 @@ interface %s
 		expectedOperStatus  telemetry.E_Interface_OperStatus
 	}{
 		{
-			desc:                "shutdown interface",
-			intfOper:            "shutdown",
+			desc:                "Set interface admin status to down",
+			intfOper:            intfAdminDown,
 			expectedAdminStatus: telemetry.Interface_AdminStatus_DOWN,
 			expectedOperStatus:  telemetry.Interface_OperStatus_DOWN,
 		},
 		{
-			desc:                "no shutdown interface",
-			intfOper:            "no shutdown",
+			desc:                "Set interface admin status to up",
+			intfOper:            intfAdminUp,
 			expectedAdminStatus: telemetry.Interface_AdminStatus_UP,
 			expectedOperStatus:  telemetry.Interface_OperStatus_UP,
 		},
