@@ -18,17 +18,16 @@ import (
 	"flag"
 	"math"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 	"time"
-        "fmt"
 
-	"github.com/openconfig/featureprofiles/internal/fptest"
-      	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 
 	"github.com/openconfig/ondatra"
-      	 "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -741,30 +740,72 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 }
 
-func TestQosConfig(t *testing.T) {
-dut := ondatra.DUT(t, "dut")
+func ConfigureDutQos(t *testing.T, dut *ondatra.DUTDevice) {
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
-        var  bcc *telemetry.Qos = setupQosEgress(t, dut)
-	var bce *telemetry.Qos = setupQosEgressTel(t, dut)
-	bcInterface := setup.GetAnyValue(bce.Interface)
-	intIdNew := dp2.Name()
-	bcInterface.InterfaceId = &intIdNew
-	//fmt.Println("NEW ID", bcInterface.InterfaceId)
-	dut.Config().Qos().Interface(dp2.Name()).Update(t, bcInterface)
-        
-        var bcd *telemetry.Qos = setupQos(t,dut)
-        var bc *telemetry.Qos = setupQosTele(t,dut)
-        inInterface := setup.GetAnyValue(bc.Interface)
-        intIdNew1 := dp1.Name()
-        inInterface.InterfaceId = &intIdNew1
-        dut.Config().Qos().Interface(dp1.Name()).Update(t, inInterface)
-        fmt.Println(bcc)
-        fmt.Println(bcd)
+	d := &telemetry.Device{}
+	qos := d.GetOrCreateQos()
+	queues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
+	sort.Sort(sort.Reverse(sort.StringSlice(queues)))
+	for _, queue := range queues {
+		q1 := qos.GetOrCreateQueue(queue)
+		q1.Name = ygot.String(queue)
+		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+	}
+	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
+	schedule := schedulerpol.GetOrCreateScheduler(1)
+	var ind uint64
+	ind = 0
 
+	for _, schedqueue := range queues {
+		input := schedule.GetOrCreateInput(schedqueue)
+		input.Id = ygot.String(schedqueue)
+		input.Weight = ygot.Uint64(7 - ind)
+		input.Queue = ygot.String(schedqueue)
+		dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input(*input.Id).Update(t, input)
+		ind += 1
+	}
+	schedinterface := qos.GetOrCreateInterface(dp2.Name())
+	schedinterface.InterfaceId = ygot.String(dp2.Name())
+	//schedinterface.Output.SchedulerPolicy.Name = ygot.String("eg_policy1111")
+	dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name().Update(t, "eg_policy1111")
+	time.Sleep(time.Minute)
+	qosi := d.GetOrCreateQos()
+	classifiers := qosi.GetOrCreateClassifier("pmap9")
+	classifiers.Name = ygot.String("pmap9")
+	classifiers.Type = telemetry.Qos_Classifier_Type_IPV4
+	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
+	sort.Sort(sort.StringSlice(classmaps))
+	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
+	sort.Sort(sort.StringSlice(tclass))
+	dscps := []int{1, 9, 17, 25, 33, 41, 56}
+	sort.Sort(sort.IntSlice(dscps))
+
+	for index, classmap := range classmaps {
+		terms := classifiers.GetOrCreateTerm(classmap)
+		terms.Id = ygot.String(classmap)
+		conditions := terms.GetOrCreateConditions()
+		ipv4dscp := conditions.GetOrCreateIpv4()
+		ipv4dscp.Dscp = ygot.Uint8(uint8(dscps[index]))
+
+		actions := terms.GetOrCreateActions()
+		actions.TargetGroup = ygot.String(tclass[index])
+		fwdgroups := qosi.GetOrCreateForwardingGroup(tclass[index])
+		fwdgroups.Name = ygot.String(tclass[index])
+		fwdgroups.OutputQueue = ygot.String(tclass[index])
+		dut.Config().Qos().Update(t, qosi)
+	}
+	classinterface := qosi.GetOrCreateInterface(dp1.Name())
+	classinterface.InterfaceId = ygot.String(dp1.Name())
+	Inputs := classinterface.GetOrCreateInput()
+	Inputs.GetOrCreateClassifier(telemetry.Input_Classifier_Type_IPV4).Name = ygot.String("pmap9")
+	Inputs.GetOrCreateClassifier(telemetry.Input_Classifier_Type_IPV6).Name = ygot.String("pmap9")
+	Inputs.GetOrCreateClassifier(telemetry.Input_Classifier_Type_MPLS).Name = ygot.String("pmap9")
+
+	//classinterface.Input.Classifier = make(map[telemetry.E_Input_Classifier_Type]*telemetry.Qos_Interface_Input_Classifier)
+	dut.Config().Qos().Interface(*classinterface.InterfaceId).Update(t, classinterface)
+	time.Sleep(time.Minute)
 }
-        
-
 
 func TestQoSCounterUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -773,23 +814,9 @@ func TestQoSCounterUpdate(t *testing.T) {
 
 	// Configure DUT interfaces.
 	ConfigureDUTIntf(t, dut)
-        var  bcc *telemetry.Qos = setupQosEgress(t, dut)
-        var bce *telemetry.Qos = setupQosEgressTel(t, dut)
-        bcInterface := setup.GetAnyValue(bce.Interface)
-        intIdNew := dp2.Name()
-        bcInterface.InterfaceId = &intIdNew
-        //fmt.Println("NEW ID", bcInterface.InterfaceId)
-        dut.Config().Qos().Interface(dp2.Name()).Update(t, bcInterface)
+	ConfigureDutQos(t, dut)
 
-        var bcd *telemetry.Qos = setupQos(t,dut)
-        var bc *telemetry.Qos = setupQosTele(t,dut)
-        inInterface := setup.GetAnyValue(bc.Interface)
-        intIdNew1 := dp1.Name()
-        inInterface.InterfaceId = &intIdNew1
-        dut.Config().Qos().Interface(dp1.Name()).Update(t, inInterface)
-        fmt.Println(bcc)
-        fmt.Println(bcd)
-
+	//fmt.Println("NEW ID", bcInterface.InterfaceId)
 
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
@@ -819,10 +846,10 @@ func TestQoSCounterUpdate(t *testing.T) {
 			"flow-af1": {frameSize: 1100, trafficRate: 1, dscp: 8, queue: "4"},
 			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: "0"},
 		}
-        case ondatra.CISCO:
+	case ondatra.CISCO:
 		trafficFlows = map[string]*trafficData{
 			"flow-nc1": {frameSize: 1000, trafficRate: 3, dscp: 56, queue: "tc7"},
-			"flow-nc2": {frameSize: 1000, trafficRate: 3, dscp: 48, queue: "tc6"},
+			"flow-nc2": {frameSize: 1000, trafficRate: 3, dscp: 41, queue: "tc6"},
 			"flow-af4": {frameSize: 400, trafficRate: 2, dscp: 33, queue: "tc5"},
 			"flow-af3": {frameSize: 300, trafficRate: 2, dscp: 25, queue: "tc4"},
 			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 17, queue: "tc3"},
@@ -873,7 +900,7 @@ func TestQoSCounterUpdate(t *testing.T) {
 		t.Logf("Get(out packets for queue %q): got %v", data.queue, ateOutPkts[data.queue])
 
 		lossPct := ate.Telemetry().Flow(trafficID).LossPct().Get(t)
-                println(lossPct)
+		println(lossPct)
 		if lossPct >= 1 {
 			t.Errorf("Get(traffic loss for queue %q): got %v, want < 1", data.queue, lossPct)
 		}
@@ -937,9 +964,9 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
 		//s.Enabled = ygot.Bool(true)
-                if *deviations.InterfaceEnabled {
-		s.Enabled = ygot.Bool(true)
-	}
+		if *deviations.InterfaceEnabled {
+			s.Enabled = ygot.Bool(true)
+		}
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		dut.Config().Interface(intf.intfName).Update(t, i)
