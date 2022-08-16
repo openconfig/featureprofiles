@@ -36,6 +36,7 @@ import (
 // gnoiConn implements the stub builder needed by the Ondatra
 // binding.Binding interface.
 type gnoiConn struct {
+	*binding.AbstractGNOIClients
 	conn *grpc.ClientConn
 }
 

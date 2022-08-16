@@ -4,13 +4,14 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//	http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package ordering_ack_test
 
 import (
@@ -19,14 +20,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -66,8 +70,10 @@ func TestMain(m *testing.M) {
 const (
 	plen4 = 30
 
-	ateDstNetName = "dstnet"
-	ateDstNetCIDR = "203.0.113.0/24"
+	ateDstNetName         = "dstnet"
+	ateDstNetCIDR         = "203.0.113.0/24"
+	ateDstNetStartIp      = "203.0.113.1"
+	ateDstNetAddressCount = 250
 
 	nhIndex  = 42
 	nhWeight = 1
@@ -79,6 +85,7 @@ const (
 var (
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.1",
 		IPv4Len: plen4,
 	}
@@ -97,6 +104,7 @@ var (
 
 	ateDst = attrs.Attributes{
 		Name:    "dst",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: plen4,
 	}
@@ -135,51 +143,77 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureATE configures port1 and port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	otg := ate.OTG()
+	top := otg.NewConfig(t)
 
-	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(ateSrc.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(ateSrc.IPv4CIDR()).
-		WithDefaultGateway(dutSrc.IPv4)
+	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
+	i1 := top.Devices().Add().SetName(ate.Port(t, "port1").ID())
+	eth1 := i1.Ethernets().Add().SetName(ateSrc.Name + ".Eth").
+		SetPortName(i1.Name()).SetMac(ateSrc.MAC)
+	eth1.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").
+		SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).
+		SetPrefix(int32(ateSrc.IPv4Len))
 
-	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(ateDst.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(ateDst.IPv4CIDR()).
-		WithDefaultGateway(dutDst.IPv4)
-	i2.AddNetwork(ateDstNetName).IPv4().WithAddress(ateDstNetCIDR)
+	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
+	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
+	eth2 := i2.Ethernets().Add().SetName(ateDst.Name + ".Eth").
+		SetPortName(i2.Name()).SetMac(ateDst.MAC)
+	eth2.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").
+		SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).
+		SetPrefix(int32(ateDst.IPv4Len))
 
 	return top
+}
+
+// Waits for at least one ARP entry on any OTG interface
+func waitOTGARPEntry(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	ate.OTG().Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
 }
 
 // testTraffic generates traffic flow from source network to
 // destination network via ate:port1 to ate:port2 and checks for
 // packet loss.
+
 func testTraffic(
 	t *testing.T,
 	ate *ondatra.ATEDevice,
-	top *ondatra.ATETopology,
+	top gosnappi.Config,
 ) {
-	i1 := top.Interfaces()[ateSrc.Name]
-	i2 := top.Interfaces()[ateDst.Name]
-	n2 := i2.Networks()[ateDstNetName]
+	otg := ate.OTG()
+	flowName := "Flow"
+	waitOTGARPEntry(t)
+	dstMac := otg.Telemetry().Interface(ateSrc.Name + ".Eth").Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().Get(t)
+	top.Flows().Clear().Items()
+	flowipv4 := top.Flows().Add().SetName("Flow")
+	flowipv4.Metrics().SetEnable(true)
+	flowipv4.TxRx().Port().
+		SetTxName(ate.Port(t, "port1").ID()).
+		SetRxName(ate.Port(t, "port2").ID())
+	flowipv4.Duration().SetChoice("continuous")
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(ateSrc.MAC)
+	e1.Dst().SetChoice("value").SetValue(dstMac)
+	v4 := flowipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(ateSrc.IPv4)
+	v4.Dst().Increment().SetStart(ateDstNetStartIp).SetCount(ateDstNetAddressCount)
+	otg.PushConfig(t, top)
 
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header()
-	flow := ate.Traffic().NewFlow("Flow").
-		WithSrcEndpoints(i1).
-		WithDstEndpoints(n2).
-		WithHeaders(ethHeader, ipv4Header)
-
-	ate.Traffic().Start(t, flow)
+	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
-	ate.Traffic().Stop(t)
+	t.Logf("Stop traffic")
+	otg.StopTraffic(t)
 
-	flowPath := ate.Telemetry().Flow(flow.Name())
-	if got := flowPath.LossPct().Get(t); got > 0 {
-		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
+	otgutils.LogFlowMetrics(t, otg, top)
+	txPkts := otg.Telemetry().Flow("Flow").Counters().OutPkts().Get(t)
+	rxPkts := otg.Telemetry().Flow("Flow").Counters().InPkts().Get(t)
+
+	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
+		t.Errorf("LossPct for flow %s got %v, want 0", flowName, got)
 	}
 }
 
@@ -196,7 +230,7 @@ type testArgs struct {
 	c   *fluent.GRIBIClient
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
-	top *ondatra.ATETopology
+	top gosnappi.Config
 }
 
 // testCaseFunc describes a test case function.
@@ -456,7 +490,8 @@ func TestOrderingACK(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	// Each case will run with its own gRIBI fluent client.
 	for _, tc := range cases {

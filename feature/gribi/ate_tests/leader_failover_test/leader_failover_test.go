@@ -190,8 +190,10 @@ func addRoute(ctx context.Context, t *testing.T, args *testArgs, clientA *gribi.
 func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify through AFT Telemetry that %s is active", ateDstNetCIDR)
 	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+	if got, ok := ipv4Path.Prefix().Watch(t, time.Minute, func(val *telemetry.QualifiedString) bool {
+		return val.IsPresent() && val.Val(t) == ateDstNetCIDR
+	}).Await(t); !ok {
+		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got.Val(t), ateDstNetCIDR)
 	}
 }
 
@@ -199,9 +201,10 @@ func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 func verifyNoAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify through Telemetry that the route to %s is not present", ateDstNetCIDR)
 	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	got2 := ipv4Path.Prefix().Lookup(t)
-	if got2 != nil {
-		t.Errorf("Lookup of ipv4-entry/state/prefix got %s, want nil", got2)
+	if got, ok := ipv4Path.Prefix().Watch(t, time.Minute, func(val *telemetry.QualifiedString) bool {
+		return !val.IsPresent() || (val.IsPresent() && val.Val(t) == "")
+	}).Await(t); !ok {
+		t.Errorf("ipv4-entry/state/prefix got %s, want nil", got.Val(t))
 	}
 }
 

@@ -469,7 +469,7 @@ func TestEstablish(t *testing.T) {
 	// Configure BGP+Neighbors on the DUT
 	t.Logf("Start DUT BGP Config")
 	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	dutConfPath.Replace(t, nil)
+	dutConfPath.Delete(t)
 	dutConf := bgpCreateNbr(dutAS, ateAS, defaultPolicy)
 	dutConfPath.Replace(t, dutConf)
 	fptest.LogYgot(t, "DUT BGP Config", dutConfPath, dutConfPath.Get(t))
