@@ -16,18 +16,25 @@
 // featureprofiles test suite.
 //
 // A test may introduce deviations in order to temporarily work around non-compliant
-// issues so further sub-tests can make progress.  Deviations should be small in scope,
-// typically affecting one sub-test, one OpenConfig path or small OpenConfig sub-tree.
-// Deviations are enabled using command line parameters.
+// issues so further sub-tests can make progress.  They are enabled using command line
+// parameters.  Deviations typically work by reducing testing requirements or by changing
+// the way the configuration is done.  However, the intended behavior to be tested should
+// always be without the deviation.
 //
-// The intended behavior to be tested should always be without the deviation, so if a
-// device could not pass without deviation, that is considered non-compliant behavior.
-// Ideally, device should pass both with and without a deviation which means the deviation
-// could be safely removed.  However, when the OpenConfig model allows the device to
-// reject the deviated case even if it is compliant, then this should be explained on a
-// case-by-case basis.
+// Requirements for deviations:
+//
+//   - Deviations may only use OpenConfig compliant behavior.
+//   - Deviations should be small in scope, typically affecting one sub-test, one
+//     OpenConfig path or small OpenConfig sub-tree.
+//
+// If a device could not pass without deviation, that is considered non-compliant
+// behavior.  Ideally, a device should pass both with and without a deviation which means
+// the deviation could be safely removed.  However, when the OpenConfig model allows the
+// device to reject the deviated case even if it is compliant, then this should be
+// explained on a case-by-case basis.
 //
 // To add a deviation:
+//
 //   - Submit a github issue explaining the need for the deviation.
 //   - Submit a pull request referencing the above issue to add a flag to
 //     this file and updates to the tests where it is intended to be used.
@@ -35,12 +42,14 @@
 //     compliant behavior.  True (deviated) activates the workaround.
 //
 // To remove a deviation:
+//
 //   - Submit a pull request which proposes to resolve the relevant
 //     github issue by removing the deviation and it's usage within tests.
 //   - Typically the author or an affiliate of the author's organization
 //     is expected to remove a deviation they introduced.
 //
 // To enable the deviations for a test run:
+//
 //   - By default, deviations are not enabled and instead require the
 //     test invocation to set an argument to enable the deviation.
 //   - For example:
