@@ -192,8 +192,8 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	dutBGP := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	dutBGP.Replace(t, d.bgpOC)
-	dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().NeighborAny().AfiSafiAny().AddPaths().Send()
-	dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().NeighborAny().AfiSafiAny().AddPaths().Receive()
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().NeighborAny().AfiSafiAny().AddPaths().Send()
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().NeighborAny().AfiSafiAny().AddPaths().Receive()
 }
 
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
