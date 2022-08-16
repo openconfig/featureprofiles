@@ -29,8 +29,10 @@ Validate IPv4 support in gRIBI.
             exist. Validate that FAILED error is received for all the 2
             operations. Ensure that traffic to 198.51.100.0/24 is blackholed.
     *   Single IPv4Entry -> NHG -> NH with down interface
-        *   Install 198.51.100.0/24 to NextHopGroup containing next-hops that
-            point to down interfaces, ensure that FIB_PROGRAMMED is returned.
+        *   Install 198.51.100.0/24 to NextHopGroup containing a NextHop that
+            references (interface_ref) a down interface and override the
+            destination MAC (mac_address), ensure that FIB_PROGRAMMED is
+            returned.
 
 ## Config Parameter coverage
 

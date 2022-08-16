@@ -38,6 +38,8 @@ const (
 	nh2ID = 44
 	// Unconfigured next-hop ID
 	badNH = 45
+	// Unconfigured static MAC address
+	badMAC = "02:00:00:00:00:01"
 )
 
 const (
@@ -200,11 +202,12 @@ func TestIPv4Entry(t *testing.T) {
 			},
 		},
 		{
-			desc:     "Downed next-hop",
+			desc:     "Downed next-hop interface",
 			downPort: ate.Port(t, "port2"),
 			entries: []fluent.GRIBIEntry{
 				fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-					WithIndex(nh1ID).WithIPAddress(atePort2.IPv4),
+					WithIndex(nh1ID).WithIPAddress(atePort2.IPv4).
+					WithInterfaceRef(dut.Port(t, "port2").Name()).WithMacAddress(badMAC),
 				fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 					WithID(nhgID).AddNextHop(nh1ID, 1),
 				fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
