@@ -69,11 +69,11 @@ type otgPortDetails struct {
 
 var otgPort1Details otgPortDetails = otgPortDetails{
 	mac:      "02:00:01:01:01:01",
-	routerId: "1.1.1.1",
+	routerId: "192.0.2.2",
 	pathId:   1}
 var otgPort2Details otgPortDetails = otgPortDetails{
 	mac:      "02:00:02:01:01:01",
-	routerId: "2.2.2.2",
+	routerId: "192.0.2.6",
 	pathId:   1}
 
 type ip struct {
