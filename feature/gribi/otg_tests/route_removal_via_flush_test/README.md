@@ -2,7 +2,7 @@
 
 ## Summary
 
-Validate that Flush RPC in gRIBI removes routes as expected.
+Validate that Flush RPC in gRIBI removes routes in the default VRF as expected.
 
 ## Procedure
 
@@ -25,21 +25,6 @@ Validate that Flush RPC in gRIBI removes routes as expected.
         with `election_id=11`.
     *   Issue Flush from gRIBI-B, ensure that entries are removed via packet
         forwarding and telemetry.
-*   Inject an IPv4Entry for 198.51.100.0/24 into a non default L3VRF named
-    VRF-1.
-*   Use a VRF policy to match on 198.51.100.0/24 and redirect them to VRF-1
-    ([RT-3] for reference)
-    *   Ensure that packets can be forwarded between ATE port-1 and port-2 for
-        destinations within 198.51.100.0/24.
-    *   Issue Flush RPC from gRIBI-B for VRF-1, ensure that packets can no
-        longer be forwarded for destinations within 198.51.100.0/24.
-    *   Re-inject entry for 198.51.100.0/24 in VRF-1 from gRIBI-B Issue Flush
-        from gRIBI-A, ensure that entries are not removed via forwarding and
-        telemetry; expect a NOT_PRIMARY RPC response error.
-    *   Increase `gRIBI-A`’s `election_id` to 12 by sending a `ModifyRequest`
-        with `election_id=12`
-    *   Issue Flush from gRIBI-A for VRF-1, ensure that entries are removed via
-        packet forwarding and telemetry.
 
 ## Config Parameter coverage
 

@@ -1,13 +1,13 @@
 module github.com/openconfig/featureprofiles
 
-go 1.18
+go 1.19
 
 require (
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.8
 	github.com/open-traffic-generator/snappi/gosnappi v0.8.5
-	github.com/openconfig/gnmi v0.0.0-20220131173555-39aa74195f0d
-	github.com/openconfig/gnoi v0.0.0-20220131192435-7dd3a95a4f1e
+	github.com/openconfig/gnmi v0.0.0-20220617175856-41246b1b3507
+	github.com/openconfig/gnoi v0.0.0-20220809151450-6bddacd72ef8
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.0.0
 	github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56
@@ -16,7 +16,7 @@ require (
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygot v0.23.1
 	github.com/p4lang/p4runtime v1.3.0
-	github.com/protocolbuffers/txtpbfmt v0.0.0-20220131092820-39736dd543b4
+	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.0
@@ -51,7 +51,7 @@ require (
 	golang.org/x/net v0.0.0-20220412020605-290c469a71a5 // indirect
 	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
 	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/genproto v0.0.0-20220407144326-9054f6ed7bac // indirect
+	google.golang.org/genproto v0.0.0-20220608133413-ed9918b62aac // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
