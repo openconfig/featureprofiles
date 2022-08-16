@@ -27,6 +27,10 @@ import (
 	telemetry "github.com/openconfig/ondatra/telemetry"
 )
 
+const (
+	portName = "port1"
+)
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -56,11 +60,11 @@ func TestCoreLLDPTLVPopulation(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			dut, dutConf := configureNode(t, "dut1", test.lldpEnabled)
 			ate, ateConf := configureNode(t, "dut2", true) // lldp is always enabled for the ATE
-			dutPort := dut.Port(t, "port1")
-			atePort := ate.Port(t, "port1")
+			dutPort := dut.Port(t, portName)
+			atePort := ate.Port(t, portName)
 
-			verifyNodeConfig(t, dut.Telemetry(), dutConf, test.lldpEnabled)
-			verifyNodeConfig(t, ate.Telemetry(), ateConf, true)
+			verifyNodeConfig(t, dut.Telemetry(), dutPort, dutConf, test.lldpEnabled)
+			verifyNodeConfig(t, ate.Telemetry(), atePort, ateConf, true)
 			if test.lldpEnabled {
 				verifyNodeTelemetry(t, dut.Telemetry(), ate.Telemetry(), dutPort, atePort, test.lldpEnabled)
 				verifyNodeTelemetry(t, ate.Telemetry(), dut.Telemetry(), atePort, dutPort, test.lldpEnabled)
@@ -74,7 +78,7 @@ func TestCoreLLDPTLVPopulation(t *testing.T) {
 // configureNode configures LLDP on a single node.
 func configureNode(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevice, *telemetry.Lldp) {
 	node := ondatra.DUT(t, name)
-	p := node.Port(t, "port1")
+	p := node.Port(t, portName)
 	lldp := node.Config().Lldp()
 
 	lldp.Enabled().Replace(t, lldpEnabled)
@@ -87,7 +91,7 @@ func configureNode(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDev
 }
 
 // verifyNodeConfig verifies the config by comparing against the telemetry state object.
-func verifyNodeConfig(t *testing.T, nodeTelemetry *device.DevicePath, conf *telemetry.Lldp, lldpEnabled bool) {
+func verifyNodeConfig(t *testing.T, nodeTelemetry *device.DevicePath, port *ondatra.Port, conf *telemetry.Lldp, lldpEnabled bool) {
 	statePath := nodeTelemetry.Lldp()
 	state := statePath.Get(t)
 	fptest.LogYgot(t, "Node LLDP", statePath, state)
@@ -95,12 +99,19 @@ func verifyNodeConfig(t *testing.T, nodeTelemetry *device.DevicePath, conf *tele
 	if lldpEnabled != state.GetEnabled() {
 		t.Errorf("LLDP enabled got: %t, want: %t.", state.GetEnabled(), lldpEnabled)
 	}
-
-	if state != nil && state.Enabled == nil {
-		state.Enabled = ygot.Bool(true)
+	if conf.GetChassisId() != state.GetChassisId() {
+		t.Errorf("LLDP ChassisId got: %s, want: %s.", state.GetChassisId(), conf.GetChassisId())
 	}
-
-	confirm.State(t, conf, state)
+	if conf.GetChassisIdType() != state.GetChassisIdType() {
+		t.Errorf("LLDP ChassisIdType got: %s, want: %s.", state.GetChassisIdType(), conf.GetChassisIdType())
+	}
+	if conf.GetSystemName() != state.GetSystemName() {
+		t.Errorf("LLDP SystemName got: %s, want: %s.", state.GetSystemName(), conf.GetSystemName())
+	}
+	if conf.GetInterface(port.Name()).GetName() != state.GetInterface(port.Name()).GetName() {
+		t.Errorf("LLDP interfaces/interface/state/name got: %s, want: %s.", state.GetInterface(port.Name()).GetName(),
+			conf.GetInterface(port.Name()).GetName())
+	}
 }
 
 // verifyNodeTelemetry verifies the telemetry values from the node such as port LLDP neighbor info.
