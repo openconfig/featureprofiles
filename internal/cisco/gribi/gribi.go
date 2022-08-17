@@ -21,6 +21,7 @@ package gribi
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -60,7 +62,7 @@ type Client struct {
 
 	// Unexport fields below.
 	fluentC *fluent.GRIBIClient
-	afts    map[string]*telemetry.NetworkInstance_Afts
+	afts    []map[string]*telemetry.NetworkInstance_Afts
 }
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
@@ -74,7 +76,10 @@ func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
 func (c *Client) Start(t testing.TB) error {
 	t.Helper()
 	t.Logf("Starting GRIBI connection for dut: %s", c.DUT.Name())
-	c.afts = make(map[string]*telemetry.NetworkInstance_Afts)
+	c.afts = []map[string]*telemetry.NetworkInstance_Afts{
+		map[string]*telemetry.NetworkInstance_Afts{},
+	}
+
 	gribiC := c.DUT.RawAPIs().GRIBI().New(t)
 	c.fluentC = fluent.NewClient()
 	c.fluentC.Connection().WithStub(gribiC)
@@ -617,7 +622,10 @@ func (c *Client) DeleteIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint6
 // FlushServer flushes all the gribi entries
 func (c *Client) FlushServer(t testing.TB) {
 	t.Logf("Flush Entries in All Network Instances.")
-	c.afts = make(map[string]*telemetry.NetworkInstance_Afts)
+	c.afts = []map[string]*telemetry.NetworkInstance_Afts{
+		map[string]*telemetry.NetworkInstance_Afts{},
+	}
+
 	if _, err := c.fluentC.Flush().
 		WithElectionOverride().
 		WithAllNetworkInstances().
@@ -627,10 +635,18 @@ func (c *Client) FlushServer(t testing.TB) {
 }
 
 func (c *Client) getOrCreateAft(instance string) *telemetry.NetworkInstance_Afts {
-	if _, ok := c.afts[instance]; !ok {
-		c.afts[instance] = &telemetry.NetworkInstance_Afts{}
+	if len(c.afts) == 0 {
+		c.afts = append(c.afts, map[string]*telemetry.NetworkInstance_Afts{})
 	}
-	return c.afts[instance]
+
+	if _, ok := c.getCurrentAftConfig()[instance]; !ok {
+		c.getCurrentAftConfig()[instance] = &telemetry.NetworkInstance_Afts{}
+	}
+	return c.getCurrentAftConfig()[instance]
+}
+
+func (c *Client) getAft(instance string) *telemetry.NetworkInstance_Afts {
+	return c.getCurrentAftConfig()[instance]
 }
 
 func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInstance, interfaceRef string) {
@@ -717,18 +733,9 @@ func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instan
 	}
 }
 
-// func (c *Client) updateNHGIdInIPv4(nhgInstance string, oldId uint64, newId uint64) {
-// 	for _, aft := range c.afts {
-// 		for _, ipv4e := range aft.Ipv4Entry {
-// 			if ipv4e.GetNextHopGroup() == oldId {
-// 				ipv4e.NextHopGroup = &newId
-// 			}
-// 		}
-// 	}
-// }
-
+// CheckAftNH checks a next-hop against the cached configuration
 func (c *Client) CheckAftNH(t testing.TB, instance string, programmedIndex, index uint64) bool {
-	want := c.afts[instance].NextHop[programmedIndex]
+	want := c.getAft(instance).NextHop[programmedIndex]
 	got := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(index).Get(t)
 	if *want.IpAddress != *got.IpAddress {
 		return false
@@ -745,8 +752,9 @@ func (c *Client) CheckAftNH(t testing.TB, instance string, programmedIndex, inde
 	return true
 }
 
+// CheckAftNHG checks a next-hop-group against the cached configuration
 func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedId, id uint64) {
-	want := c.afts[instance].NextHopGroup[programmedId]
+	want := c.getAft(instance).NextHopGroup[programmedId]
 	got := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(id).Get(t)
 
 	diff := cmp.Diff(want, got,
@@ -783,8 +791,9 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedId, id uin
 	}
 }
 
+// CheckAftIPv4 checks an ipv4 entry against the cached configuration
 func (c *Client) CheckAftIPv4(t testing.TB, instance, prefix string) {
-	want := c.afts[instance].Ipv4Entry[prefix]
+	want := c.getAft(instance).Ipv4Entry[prefix]
 	got := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Get(t)
 
 	diff := cmp.Diff(want, got,
@@ -799,11 +808,94 @@ func (c *Client) CheckAftIPv4(t testing.TB, instance, prefix string) {
 	c.CheckAftNHG(t, "default", *want.NextHopGroup, *got.NextHopGroup)
 }
 
+// CheckAft checks all afts in all vrfs against the cached configuration
 func (c *Client) CheckAft(t testing.TB) {
 	t.Helper()
-	for instance, want := range c.afts {
+	if len(c.afts) == 0 {
+		return
+	}
+
+	for instance, want := range c.getCurrentAftConfig() {
 		for prefix := range want.Ipv4Entry {
 			c.CheckAftIPv4(t, instance, prefix)
+		}
+	}
+}
+
+// AftPopConfig creates and activates a copy of the current afts cached configuration
+func (c *Client) AftPushConfig(t testing.TB) {
+	t.Helper()
+	afts := make(map[string]*telemetry.NetworkInstance_Afts, len(c.getCurrentAftConfig()))
+	for k, aft := range c.getCurrentAftConfig() {
+		if copy, err := ygot.DeepCopy(aft); err == nil {
+			afts[k] = copy.(*telemetry.NetworkInstance_Afts)
+		} else {
+			t.Fatalf("Error copying aft: %v", err)
+		}
+	}
+	c.afts = append(c.afts, afts)
+}
+
+// AftPopConfig discards the current cached afts configuration
+func (c *Client) AftPopConfig(t testing.TB) {
+	t.Helper()
+	if len(c.afts) == 0 {
+		t.Fatalf("No active aft config")
+	}
+
+	c.afts = c.afts[0 : len(c.afts)-1]
+}
+
+func (c *Client) getCurrentAftConfig() map[string]*telemetry.NetworkInstance_Afts {
+	return c.afts[len(c.afts)-1]
+}
+
+// AftRemoveIPv4 emulates the shutdown of an interface in the cached afts configuration
+func (c *Client) AftRemoveIPv4(t testing.TB, instance, prefix string) {
+	t.Helper()
+
+	c.getAft(instance).DeleteIpv4Entry(prefix)
+	changed := true
+
+	for changed {
+		changed = false
+		for _, aft := range c.getCurrentAftConfig() {
+			for nhIdx, nh := range aft.NextHop {
+				//TODO: is this sufficient?
+				if strings.HasPrefix(prefix, *nh.IpAddress) {
+					aft.DeleteNextHop(nhIdx)
+					changed = true
+				}
+			}
+
+			for _, nhg := range aft.NextHopGroup {
+				for _, nh := range nhg.NextHop {
+					if _, found := aft.NextHop[*nh.Index]; !found {
+						nhg.DeleteNextHop(*nh.Index)
+						changed = true
+					}
+				}
+				if len(nhg.NextHop) == 0 && nhg.BackupNextHopGroup == nil {
+					aft.DeleteNextHopGroup(*nhg.Id)
+					changed = true
+				}
+			}
+
+			for _, ipv4e := range aft.Ipv4Entry {
+				nhgInst := instance
+				if ipv4e.NextHopGroupNetworkInstance != nil {
+					nhgInst = *ipv4e.NextHopGroupNetworkInstance
+				}
+				//TODO: bug?
+				if nhgInst == "DEFAULT" {
+					nhgInst = "default"
+				}
+
+				if _, found := c.getAft(nhgInst).NextHopGroup[*ipv4e.NextHopGroup]; !found {
+					aft.DeleteIpv4Entry(*ipv4e.Prefix)
+					changed = true
+				}
+			}
 		}
 	}
 }
