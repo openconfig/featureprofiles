@@ -9,7 +9,6 @@ import (
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/google/gopacket/layers"
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
@@ -18,7 +17,7 @@ var (
 		{
 			name: "TE-3.1 Program GDP Match Entry and Check PacketIn",
 			desc: "TE 3.1",
-			fn:   testGDPEntryProgrammingPacketIn,
+			fn:   testGDPPacketIn,
 		},
 		{
 			name: "TE-3.2 Program GDP Match Entry and Check PacketOut",
@@ -71,7 +70,7 @@ func testGDPPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 		client:     leader,
 		expectPass: true,
 	}, {
-		desc:       "PacketOut to Secondary Controller",
+		desc:       "PacketIn to Secondary Controller",
 		client:     follower,
 		expectPass: false,
 	}}
@@ -146,7 +145,7 @@ func testGDPPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	for _, test := range packetOutTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Check initial packet counters
-			port := fptest.SortPorts(args.dut.Ports())[0].Name()
+			port := sortPorts(args.dut.Ports())[0].Name()
 			counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 			packet := args.packetIO.GetPacketOut(t, portID, false)
