@@ -13,7 +13,6 @@ import (
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -56,7 +55,7 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 }
 
 func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	ports := fptest.SortPorts(dut.Ports())
+	ports := sortPorts(dut.Ports())
 	for index, port := range ports {
 		// dut.Config().Interface(port.Name()).Id().Update(t, uint32(index)+portID)
 		dut.Config().Interface(port.Name()).Update(t, &telemetry.Interface{

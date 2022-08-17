@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"sort"
 	"testing"
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
@@ -84,6 +85,18 @@ type gribiPrefix struct {
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
+	sort.Slice(ports, func(i, j int) bool {
+		idi, idj := ports[i].ID(), ports[j].ID()
+		li, lj := len(idi), len(idj)
+		if li == lj {
+			return idi < idj
+		}
+		return li < lj // "port2" < "port10"
+	})
+	return ports
 }
 
 func getGDPParameter(t *testing.T) PacketIO {

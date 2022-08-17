@@ -12,7 +12,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
@@ -263,7 +262,7 @@ func testEntryProgrammingPacketIn(ctx context.Context, t *testing.T, args *testA
 }
 
 func testEntryProgrammingPacketInAndNoReply(ctx context.Context, t *testing.T, args *testArgs) {
-	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	portName := sortPorts(args.dut.Ports())[0].Name()
 	count_0 := args.dut.Telemetry().Interface(portName).Counters().OutPkts().Get(t)
 	testEntryProgrammingPacketIn(ctx, t, args)
 	count_1 := args.dut.Telemetry().Interface(portName).Counters().OutPkts().Get(t)
@@ -549,7 +548,7 @@ func testEntryProgrammingPacketInAndChangePortID(ctx context.Context, t *testing
 	validatePackets(t, args, packets)
 
 	newPortID := ^portID
-	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.packetIO.SetIngressPorts(t, fmt.Sprint(newPortID))
 	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
 		Name: ygot.String(portName),
@@ -826,7 +825,7 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 }
 
 func testEntryProgrammingPacketInWithouthPortID(ctx context.Context, t *testing.T, args *testArgs) {
-	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.dut.Config().Interface(portName).Id().Delete(t)
 	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
 		Name: ygot.String(portName),
@@ -855,7 +854,7 @@ func testEntryProgrammingPacketInWithouthPortID(ctx context.Context, t *testing.
 }
 
 func testEntryProgrammingPacketInWithouthPortIDThenAddPortID(ctx context.Context, t *testing.T, args *testArgs) {
-	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.dut.Config().Interface(portName).Id().Delete(t)
 	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
 		Name: ygot.String(portName),
@@ -957,7 +956,7 @@ func testEntryProgrammingPacketInWithInnerTTL(ctx context.Context, t *testing.T,
 }
 
 func testEntryProgrammingPacketInWithMalformedPacket(ctx context.Context, t *testing.T, args *testArgs) {
-	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.dut.Config().Interface(portName).Id().Delete(t)
 	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
 		Name: ygot.String(portName),
@@ -1031,7 +1030,7 @@ func testEntryProgrammingPacketInWithGNOI(ctx context.Context, t *testing.T, arg
 func testEntryProgrammingPacketInWithUDP(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 
-	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	portName := sortPorts(args.dut.Ports())[0].Name()
 	count_0 := args.dut.Telemetry().Interface(portName).Counters().OutPkts().Get(t)
 
 	// Program the entry
@@ -1113,7 +1112,7 @@ func testEntryProgrammingPacketInWithFlowLabel(ctx context.Context, t *testing.T
 func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 
-	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	portName := sortPorts(args.dut.Ports())[0].Name()
 	existingConfig := args.dut.Config().Interface(portName).Get(t)
 	configureInterface(ctx, t, args.dut, portName, "103.102.101.100", 0)
 	defer args.dut.Config().Interface(portName).Replace(t, existingConfig)
@@ -1286,7 +1285,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
 	// Check initial packet counters
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := args.packetIO.GetPacketOut(t, portID, true)
@@ -1316,7 +1315,7 @@ func testPacketOutWithoutMatchEntry(ctx context.Context, t *testing.T, args *tes
 	client := args.p4rtClientA
 
 	// Check initial packet counters
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := args.packetIO.GetPacketOut(t, portID, true)
@@ -1352,7 +1351,7 @@ func testPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
 	// Check initial packet counters
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := args.packetIO.GetPacketOut(t, portID, false)
@@ -1382,7 +1381,7 @@ func testPacketOutEgressWithoutMatchEntry(ctx context.Context, t *testing.T, arg
 	client := args.p4rtClientA
 
 	// Check initial packet counters
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := args.packetIO.GetPacketOut(t, portID, false)
@@ -1413,9 +1412,9 @@ func testPacketOutEgressWithInvalidPortId(ctx context.Context, t *testing.T, arg
 	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// Check initial packet counters
-	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// port := sortPorts(args.ate.Ports())[0].Name()
 	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := args.packetIO.GetPacketOut(t, ^portID, false)
@@ -1446,7 +1445,7 @@ func testPacketOutEgressWithChangePortId(ctx context.Context, t *testing.T, args
 	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	newPortID := ^portID
-	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(newPortID),
@@ -1458,9 +1457,9 @@ func testPacketOutEgressWithChangePortId(ctx context.Context, t *testing.T, args
 	})
 
 	// Check initial packet counters
-	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// port := sortPorts(args.ate.Ports())[0].Name()
 	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := args.packetIO.GetPacketOut(t, newPortID, false)
@@ -1491,7 +1490,7 @@ func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, ar
 	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	newPortID := ^portID
-	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(newPortID),
@@ -1503,9 +1502,9 @@ func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, ar
 	})
 
 	// Check initial packet counters
-	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// port := sortPorts(args.ate.Ports())[0].Name()
 	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := args.packetIO.GetPacketOut(t, portID, false)
@@ -1545,7 +1544,7 @@ func testPacketOutIngressWithInterfaceFlap(ctx context.Context, t *testing.T, ar
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
 	// Check initial packet counters
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := args.packetIO.GetPacketOut(t, portID, true)
@@ -1604,7 +1603,7 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
 	// Check initial packet counters
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := args.packetIO.GetPacketOut(t, portID, false)
@@ -1666,7 +1665,7 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 // 	defer programmTableEntry(ctx, t, client, args.packetIO, false)
 
 // 	// Check initial packet counters
-// 	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+// 	port := sortPorts(args.dut.Ports())[0].Name()
 // 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 // 	packet := args.packetIO.GetPacketOut(t, portID, true)
@@ -1711,7 +1710,7 @@ func testPacketOutEgressScale(ctx context.Context, t *testing.T, args *testArgs)
 	// defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
 	// Check initial packet counters
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := args.packetIO.GetPacketOut(t, portID, false)
