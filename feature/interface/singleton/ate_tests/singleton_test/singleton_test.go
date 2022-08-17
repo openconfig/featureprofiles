@@ -110,6 +110,7 @@ var portSpeed = map[ondatra.Speed]telemetry.E_IfEthernet_ETHERNET_SPEED{
 // configInterfaceDUT configures an oc Interface with the desired MTU.
 func (tc *testCase) configInterfaceDUT(i *telemetry.Interface, dp *ondatra.Port, a *attrs.Attributes) {
 	a.ConfigInterface(i)
+
 	if speed, ok := portSpeed[dp.Speed()]; ok {
 		e := i.GetOrCreateEthernet()
 		e.DuplexMode = telemetry.Ethernet_DuplexMode_FULL
