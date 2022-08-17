@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -96,49 +97,58 @@ func TestInterfaceCounters(t *testing.T) {
 	ipv4CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/"
 	ipv6CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/"
 
-	cases := []struct {
+	type counterCase struct {
 		desc    string
 		path    string
-		counter *telemetry.QualifiedUint64
-	}{{
+		counter func(testing.TB) *telemetry.QualifiedUint64
+	}
+	type counterCases []counterCase
+	cases := make(counterCases, 0)
+	cases = append(cases, counterCase{
 		desc:    "InUnicastPkts",
 		path:    intfCounterPath + "in-unicast-pkts",
-		counter: intfCounters.InUnicastPkts().Lookup(t),
-	}, {
+		counter: intfCounters.InUnicastPkts().Lookup,
+	}, counterCase{
+		desc:    "InUnicastPkts",
+		path:    intfCounterPath + "in-unicast-pkts",
+		counter: intfCounters.InUnicastPkts().Lookup,
+	}, counterCase{
 		desc:    "InPkts",
 		path:    intfCounterPath + "in-pkts",
-		counter: intfCounters.InPkts().Lookup(t),
-	}, {
+		counter: intfCounters.InPkts().Lookup,
+	}, counterCase{
 		desc:    "OutPkts",
 		path:    intfCounterPath + "out-pkts",
-		counter: intfCounters.OutPkts().Lookup(t),
-	}, {
+		counter: intfCounters.OutPkts().Lookup,
+	}, counterCase{
 		// desc: "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",
-		counter: ipv4Counters.InPkts().Lookup(t),
-	}, {
+		counter: ipv4Counters.InPkts().Lookup,
+	}, counterCase{
 		// desc: "IPv4OutPkts",
 		path:    ipv4CounterPath + "out-pkts",
-		counter: ipv4Counters.OutPkts().Lookup(t),
-	}, {
+		counter: ipv4Counters.OutPkts().Lookup,
+	}, counterCase{
 		// desc: "IPv6InPkts",
 		path:    ipv6CounterPath + "in-pkts",
-		counter: ipv6Counters.InPkts().Lookup(t),
-	}, {
+		counter: ipv6Counters.InPkts().Lookup,
+	}, counterCase{
 		// desc: "IPv6OutPkts",
 		path:    ipv6CounterPath + "out-pkts",
-		counter: ipv6Counters.OutPkts().Lookup(t),
-	}, {
-		// desc: "IPv6InDiscardedPkts",
-		path: ipv6CounterPath + "in-discarded-pkts",
-		// TODO: Uncomment counter in-discarded-pkts after the issue fixed.
-		// counter: ipv6Counters.InDiscardedPkts().Lookup(t),
-	}, {
-		// desc: "IPv6OutDiscardedPkts",
-		path: ipv6CounterPath + "out-discarded-pkts",
-		// TODO: Uncomment counter out-discarded-pkts after the issue fixed.
-		// counter: ipv6Counters.OutDiscardedPkts().Lookup(t),
-	}}
+		counter: ipv6Counters.OutPkts().Lookup,
+	})
+	// Lookup for the input/output discard counter values only if the deviation flag is SET
+	if *deviations.SubInterfacePacketCountersSupported {
+		cases = append(cases, counterCase{
+			desc:    "IPv6InDiscardedPkts",
+			path:    ipv6CounterPath + "in-discarded-pkts",
+			counter: ipv6Counters.InDiscardedPkts().Lookup,
+		}, counterCase{
+			desc:    "IPv6OutDiscardedPkts",
+			path:    ipv6CounterPath + "out-discarded-pkts",
+			counter: ipv6Counters.OutDiscardedPkts().Lookup,
+		})
+	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -147,10 +157,10 @@ func TestInterfaceCounters(t *testing.T) {
 				t.Skipf("Counter %v is not supported.", tc.desc)
 			}
 
-			if !tc.counter.IsPresent() {
+			if !tc.counter(t).IsPresent() {
 				t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
 			}
-			t.Logf("Got path/value: %s:%d", tc.path, tc.counter.Val(t))
+			t.Logf("Got path/value: %s:%d", tc.path, tc.counter(t).Val(t))
 		})
 	}
 }
