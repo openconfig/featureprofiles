@@ -78,4 +78,7 @@ var (
 
 	SubinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
 		"Device is missing subinterface packet counters for IPv4/IPv6, so the test will skip checking them.  Full OpenConfig compliant devices should pass both with and without this deviation.")
+
+	OmitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
+		"Device does not support setting the L2 MTU, so omit it.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 )
