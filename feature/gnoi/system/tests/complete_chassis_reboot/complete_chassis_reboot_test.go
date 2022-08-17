@@ -105,11 +105,6 @@ func TestChassisReboot(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			// TODO: Remove t.Skipf() after reboot with no delay issue is supported.
-			if tc.rebootRequest.GetDelay() == 0 {
-				t.Skipf("delay 0 option is not working due to known bug.")
-			}
-
 			bootTimeBeforeReboot := dut.Telemetry().System().BootTime().Get(t)
 			t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
 			prevTime, err := time.Parse(time.RFC3339, dut.Telemetry().System().CurrentDatetime().Get(t))
