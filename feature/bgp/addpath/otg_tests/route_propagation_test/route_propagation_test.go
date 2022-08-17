@@ -67,14 +67,18 @@ type otgPortDetails struct {
 	pathId        int32
 }
 
-var otgPort1Details otgPortDetails = otgPortDetails{
-	mac:      "02:00:01:01:01:01",
-	routerId: "192.0.2.2",
-	pathId:   1}
-var otgPort2Details otgPortDetails = otgPortDetails{
-	mac:      "02:00:02:01:01:01",
-	routerId: "192.0.2.6",
-	pathId:   1}
+var (
+	otgPort1Details = otgPortDetails{
+		mac:      "02:00:01:01:01:01",
+		routerId: "192.0.2.2",
+		pathId:   1,
+	}
+	otgPort2Details = otgPortDetails{
+		mac:      "02:00:02:01:01:01",
+		routerId: "192.0.2.6",
+		pathId:   1,
+	}
+)
 
 type ip struct {
 	v4, v6 string
@@ -271,7 +275,7 @@ func checkOTGBGP6Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expe
 	return found
 }
 
-func waitFor(fn func() bool, t testing.TB, interval time.Duration, timeout time.Duration) {
+func waitFor(fn func() bool, t testing.TB) {
 	start := time.Now()
 	for {
 		done := fn()
@@ -279,11 +283,11 @@ func waitFor(fn func() bool, t testing.TB, interval time.Duration, timeout time.
 			t.Logf("Expected BGP Prefix received")
 			break
 		}
-		if time.Since(start) > timeout {
-			t.Fatal("Timeout while waiting for expected stats...")
+		if time.Since(start) > time.Minute {
+			t.Errorf("Timeout while waiting for expected stats...")
 			break
 		}
-		time.Sleep(interval)
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 
@@ -453,24 +457,14 @@ func TestBGP(t *testing.T) {
 					} else {
 						expectedOTGBGPPrefix = OTGBGPPrefix{PeerName: "port2.dev.BGP6.peer", Address: addr, PrefixLength: uint32(prefixLen)}
 					}
-					waitFor(
-						func() bool { return checkOTGBGP4Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) },
-						t,
-						500*time.Millisecond,
-						time.Minute,
-					)
+					waitFor(func() bool { return checkOTGBGP4Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) }, t)
 				}
 				if prefix.v6 != "" {
 					t.Logf("Checking for BGP Prefix %v", prefix.v6)
 					addr := strings.Split(prefix.v6, "/")[0]
 					prefixLen, _ := strconv.Atoi(strings.Split(prefix.v6, "/")[1])
 					expectedOTGBGPPrefix = OTGBGPPrefix{PeerName: "port2.dev.BGP6.peer", Address: addr, PrefixLength: uint32(prefixLen)}
-					waitFor(
-						func() bool { return checkOTGBGP6Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) },
-						t,
-						500*time.Millisecond,
-						time.Minute,
-					)
+					waitFor(func() bool { return checkOTGBGP6Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) }, t)
 				}
 			}
 		})
