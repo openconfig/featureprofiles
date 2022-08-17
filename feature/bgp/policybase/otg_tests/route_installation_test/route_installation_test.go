@@ -333,9 +333,9 @@ func verifyPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, policy string) 
 	}
 }
 
-// configureOTG configures the interfaces and BGP protocols on an OTG, including advertising some
+// configureATE configures the interfaces and BGP protocols on an OTG, including advertising some
 // (faked) networks over BGP.
-func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
+func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 	config := otg.NewConfig(t)
 	srcPort := config.Ports().Add().SetName("port1")
@@ -519,7 +519,7 @@ func TestEstablish(t *testing.T) {
 	// Configure BGP+Neighbors on the DUT
 	t.Logf("Start DUT BGP Config")
 	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	dutConfPath.Replace(t, nil)
+	dutConfPath.Delete(t)
 	dutConf := bgpCreateNbr(dutAS, ateAS, defaultPolicy)
 	dutConfPath.Replace(t, dutConf)
 	fptest.LogYgot(t, "DUT BGP Config", dutConfPath, dutConfPath.Get(t))
@@ -529,7 +529,7 @@ func TestEstablish(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	otg := ate.OTG()
-	otgConfig := configureOTG(t, otg)
+	otgConfig := configureATE(t, otg)
 	// Verify Port Status
 	t.Logf("Verifying port status")
 	verifyPortsUp(t, dut.Device)
@@ -625,7 +625,7 @@ func TestBGPPolicy(t *testing.T) {
 			bgp := bgpCreateNbr(dutAS, ateAS, tc.policy)
 			// Configure ATE to setup traffic.
 			otg := ate.OTG()
-			otgConfig := configureOTG(t, otg)
+			otgConfig := configureATE(t, otg)
 			dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
 
 			// Verify the OTG BGP state
