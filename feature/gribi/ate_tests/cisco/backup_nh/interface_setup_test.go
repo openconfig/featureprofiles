@@ -279,6 +279,7 @@ func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 	glob.LevelCapability = 2
 	glob.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV6, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV6, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	intf := isis.GetOrCreateInterface(ifaceName)
 	intf.CircuitType = telemetry.IsisTypes_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
@@ -286,6 +287,8 @@ func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 	intf.Passive = ygot.Bool(false)
 	intf.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	intf.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV6, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	level := isis.GetOrCreateLevel(2)
+	level.MetricStyle = 2
 
 	dutNode := dut.Config().NetworkInstance("default").Protocol(PTISIS, ISISName)
 	dutConf := dev.GetOrCreateNetworkInstance("default").GetOrCreateProtocol(PTISIS, ISISName)
