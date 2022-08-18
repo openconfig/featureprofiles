@@ -16,6 +16,7 @@ package base_hierarchical_route_installation_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -26,7 +27,7 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	telemetry "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -430,38 +431,61 @@ func TestRecursiveIPv4Entries(t *testing.T) {
 	}
 
 	// Each case will run with its own gRIBI fluent client.
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Logf("Name: %s", tc.name)
-			t.Logf("Description: %s", tc.desc)
-
-			// Configure the gRIBI client c with election ID of 10.
-			c := fluent.NewClient()
-
-			c.Connection().WithStub(gribic).WithInitialElectionID(10, 0).
-				WithRedundancyMode(fluent.ElectedPrimaryClient)
-
-			c.Start(context.Background(), t)
-			defer c.Stop(t)
-			c.StartSending(context.Background(), t)
-			if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-				t.Fatalf("Await got error during session negotiation for c: %v", err)
+	for _, persist := range []string{"PRESERVE", "DELETE"} {
+		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
+			if *deviations.GRIBIPreserveOnly && persist == "DELETE" {
+				t.Skip("Skipping Persistence=DELETE due to --deviations_gribi_preserve_only")
 			}
 
-			args := &testArgs{
-				ctx: ctx,
-				c:   c,
-				dut: dut,
-				ate: ate,
-				top: top,
-			}
+			for _, tc := range tests {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Logf("Name: %s", tc.name)
+					t.Logf("Description: %s", tc.desc)
 
-			if tc.fn == nil {
-				t.Skip("Test case yet to be implemented")
-			}
+					if tc.fn == nil {
+						t.Skip("Test case not implemented.")
+					}
 
-			tc.fn(t, args)
+					// Configure the gRIBI client c with election ID of 10.
+					c := fluent.NewClient()
+					conn := c.Connection().
+						WithStub(gribic).
+						WithInitialElectionID(10, 0).
+						WithRedundancyMode(fluent.ElectedPrimaryClient)
+					if persist == "PRESERVE" {
+						conn.WithPersistence()
+					}
+
+					c.Start(context.Background(), t)
+					defer c.Stop(t)
+					c.StartSending(context.Background(), t)
+					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+						t.Fatalf("Await got error during session negotiation for c: %v", err)
+					}
+
+					if persist == "PRESERVE" {
+						defer func() {
+							_, err := c.Flush().
+								WithElectionOverride().
+								WithAllNetworkInstances().
+								Send()
+							if err != nil {
+								t.Errorf("Cannot flush: %v", err)
+							}
+						}()
+					}
+
+					args := &testArgs{
+						ctx: ctx,
+						c:   c,
+						dut: dut,
+						ate: ate,
+						top: top,
+					}
+
+					tc.fn(t, args)
+				})
+			}
 		})
 	}
-
 }
