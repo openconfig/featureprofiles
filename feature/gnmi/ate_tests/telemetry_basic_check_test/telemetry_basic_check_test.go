@@ -813,7 +813,6 @@ func ConfigureDutQos(t *testing.T, dut *ondatra.DUTDevice) {
 
 	//classinterface.Input.Classifier = make(map[telemetry.E_Input_Classifier_Type]*telemetry.Qos_Interface_Input_Classifier)
 	dut.Config().Qos().Interface(*classinterface.InterfaceId).Update(t, classinterface)
-	time.Sleep(time.Minute)
 }
 
 func TestQoSCounterUpdate(t *testing.T) {
