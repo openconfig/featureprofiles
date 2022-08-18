@@ -1,0 +1,196 @@
+{
+  "openconfig-qos:classifiers": {
+    "classifier": [
+      {
+        "state": {
+          "name": "pmap9"
+        },
+        "name": "pmap9",
+        "terms": {
+          "term": [
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dscp": 20
+                  }
+                }
+              },
+              "conditions": {
+                "ipv4": {
+                  "state": {
+                    "dscp": 10
+                  }
+                }
+              },
+              "id": "cmap1",
+              "state": {
+                "id": "cmap1"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dscp": 21
+                  }
+                }
+              },
+              "conditions": {
+                "ipv4": {
+                  "state": {
+                    "dscp-set": [1,2,3,4,5,6,7,8,9]
+                  }
+                }
+              },
+              "id": "cmap2",
+              "state": {
+                "id": "cmap2"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dscp": 32
+                  }
+                }
+              },
+              "conditions": {
+                "ipv6": {
+                  "state": {
+                    "dscp": 24
+                  }
+                }
+              },
+              "id": "cmap3",
+              "state": {
+                "id": "cmap3"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dscp": 33
+                  }
+                }
+              },
+              "conditions": {
+                "ipv6": {
+                  "state": {
+                    "dscp-set": [11,12,13,14,15,16,17,18,19]
+                  }
+                }
+              },
+              "id": "cmap4",
+              "state": {
+                "id": "cmap4"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-mpls-tc": 6
+                  }
+                }
+              },
+              "conditions": {
+                "mpls": {
+                  "state": {
+                    "traffic-class": 5
+                  }
+                }
+              },
+              "id": "cmap5",
+              "state": {
+                "id": "cmap5"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dscp": 30
+                  }
+                }
+              },
+              "conditions": {
+                "mpls": {
+                  "state": {
+                    "traffic-class": 6
+                  }
+                }
+              },
+              "id": "cmap6",
+              "state": {
+                "id": "cmap6"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dscp": 20
+                  }
+                }
+              },
+              "conditions": {
+                "ipv4": {
+                  "state": {
+                    "dscp-set": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
+                  }
+                }
+              },
+              "id": "cmap7",
+              "state": {
+                "id": "cmap7"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-dscp": 21
+                  }
+                }
+              },
+              "conditions": {
+                "ipv6": {
+                  "state": {
+                    "dscp-set": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
+                  }
+                }
+              },
+              "id": "cmap8",
+              "state": {
+                "id": "cmap8"
+              }
+            },
+            {
+              "actions": {
+                "remark": {
+                  "state": {
+                    "set-mpls-tc": 6
+                  }
+                }
+              },
+              "conditions": {
+                "mpls": {
+                  "state": {
+                    "traffic-class": 7
+                  }
+                }
+              },
+              "id": "cmap9",
+              "state": {
+                "id": "cmap9"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

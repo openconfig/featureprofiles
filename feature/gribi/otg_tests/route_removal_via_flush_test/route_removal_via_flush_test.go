@@ -19,14 +19,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry/ateflow"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 )
 
 func TestMain(m *testing.M) {
@@ -61,6 +63,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: 30,
 	}
@@ -73,6 +76,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: 30,
 	}
@@ -91,7 +95,8 @@ func TestRouteRemovelViaFlush(t *testing.T) {
 
 	ate := ondatra.ATE(t, "ate")
 	ateTop := configureATE(t, ate)
-	ateTop.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, ateTop)
+	ate.OTG().StartProtocols(t)
 
 	gribic := dut.RawAPIs().GRIBI().Default(t)
 
@@ -127,16 +132,14 @@ func TestRouteRemovelViaFlush(t *testing.T) {
 }
 
 // testFlushWithDefaultNetWorkInstance tests flush with default network instance
-func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, clientA, clientB *fluent.GRIBIClient, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology) {
+func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, clientA, clientB *fluent.GRIBIClient, ate *ondatra.ATEDevice, ateTop gosnappi.Config) {
 	// Inject an entry into the default network instance pointing to ATE port-2.
 	// clientA is primary client
 	injectEntry(ctx, t, clientA, *deviations.DefaultNetworkInstance)
-	srcEndPoint := ateTop.Interfaces()[atePort1.Name]
-	dstEndPoint := ateTop.Interfaces()[atePort2.Name]
 	// Test traffic between ATE port-1 and ATE port-2.
-	flowPath := testTraffic(t, ate, ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got > 0 {
-		t.Errorf("LossPct for flow got %g, want 0", got)
+	lossPct := testTraffic(t, ate, ateTop)
+	if got := lossPct; got > 0 {
+		t.Errorf("LossPct for flow got %v, want 0", got)
 	} else {
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
 	}
@@ -146,8 +149,8 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, clie
 		t.Errorf("Unexpected error from flush, got: %v", err)
 	}
 	// After flush, left entry should be 0, and packets can no longer be forwarded.
-	flowPath = testTraffic(t, ate, ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got == 0 {
+	lossPct = testTraffic(t, ate, ateTop)
+	if got := lossPct; got == 0 {
 		t.Error("Traffic can still be forwarded between ATE port-1 and ATE port-2")
 	} else {
 		t.Log("Traffic can not be forwarded between ATE port-1 and ATE port-2")
@@ -198,21 +201,26 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureATE configures port1, port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
-	top := ate.Topology().New()
+	otg := ate.OTG()
+	top := otg.NewConfig(t)
 
-	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
+	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
+	i1 := top.Devices().Add().SetName(ate.Port(t, "port1").ID())
+	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").
+		SetPortName(i1.Name()).SetMac(atePort1.MAC)
+	eth1.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").
+		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
+		SetPrefix(int32(atePort1.IPv4Len))
 
-	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
+	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
+	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
+	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").
+		SetPortName(i2.Name()).SetMac(atePort2.MAC)
+	eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4").
+		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
+		SetPrefix(int32(atePort2.IPv4Len))
 
 	return top
 }
@@ -269,32 +277,50 @@ func injectEntry(ctx context.Context, t *testing.T, client *fluent.GRIBIClient, 
 	)
 }
 
+// Waits for at least one ARP entry on any OTG interface
+func waitOTGARPEntry(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	ate.OTG().Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
+}
+
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface) *ateflow.FlowPath {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) int {
 	// Ensure that traffic can be forwarded between ATE port-1 and ATE port-2.
 	t.Helper()
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.DstAddressRange().
-		WithMin("198.51.100.0").
-		WithMax("198.51.100.254").
-		WithCount(250)
+	otg := ate.OTG()
+	waitOTGARPEntry(t)
+	dstMac := otg.Telemetry().Interface(atePort1.Name + ".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().Get(t)
+	top.Flows().Clear().Items()
+	flowipv4 := top.Flows().Add().SetName("Flow")
+	flowipv4.Metrics().SetEnable(true)
+	flowipv4.TxRx().Port().
+		SetTxName(ate.Port(t, "port1").ID()).
+		SetRxName(ate.Port(t, "port2").ID())
+	flowipv4.Duration().SetChoice("continuous")
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	e1.Dst().SetChoice("value").SetValue(dstMac)
+	v4 := flowipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort1.IPv4)
+	v4.Dst().Increment().SetStart("198.51.100.1").SetCount(250)
+	otg.PushConfig(t, top)
 
-	flow := ate.Traffic().NewFlow("Flow").
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint).
-		WithHeaders(ethHeader, ipv4Header)
-
-	ate.Traffic().Start(t, flow)
+	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
-	ate.Traffic().Stop(t)
+	t.Logf("Stop traffic")
+	otg.StopTraffic(t)
 
+	otgutils.LogFlowMetrics(t, otg, top)
 	time.Sleep(time.Minute)
-
-	flowPath := ate.Telemetry().Flow(flow.Name())
-	return flowPath
+	txPkts := int(otg.Telemetry().Flow("Flow").Counters().OutPkts().Get(t))
+	rxPkts := int(otg.Telemetry().Flow("Flow").Counters().InPkts().Get(t))
+	lossPct := (txPkts - rxPkts) * 100 / txPkts
+	return lossPct
 }
 
 // flush flushes all the state on the server, but does not validate it specifically.

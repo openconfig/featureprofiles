@@ -1,0 +1,36 @@
+{
+    "openconfig-qos:classifiers": {
+      "classifier": [
+        {
+          "state": {
+            "name": "pmap"
+          },
+          "name": "pmap",
+          "terms": {
+            "term": [
+              {
+                "actions": {
+                  "remark": {
+                    "state": {
+                      "set-mpls-tc": 6
+                    }
+                  }
+                },
+                "conditions": {
+                  "mpls": {
+                    "state": {
+                      "traffic-class": 5
+                    }
+                  }
+                },
+                "id": "cmap_mpls",
+                "state": {
+                  "id": "cmap_mpls"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }

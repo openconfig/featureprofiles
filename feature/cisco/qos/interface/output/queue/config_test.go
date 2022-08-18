@@ -14,130 +14,91 @@ func TestMain(m *testing.M) {
 	ondatra.RunTests(m, binding.New)
 }
 
-func TestNameAtContainer(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
+func TestInterfaceOutputTelemetry(t *testing.T) {
+	// /qos/interfaces/interface/
+	// // /qos/interfaces/interface/output/
+	// /qos/interfaces/interface/output/queues/queue/
+	// /qos/interfaces/interface/output/queues/queue/state/transmit-octets
+	// /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
+	// /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
 
-	var baseConfig *oc.Qos = setupQos(t, dut)
+	dut := ondatra.DUT(t, "dut")
+	var baseConfig *oc.Qos = setupQosEgress(t, dut, "base_config_interface_egress.json")
 	defer teardownQos(t, dut, baseConfig)
 
-	for _, input := range testNameInput {
-		t.Run(fmt.Sprintf("Testing /qos/interfaces/interface/output/queues/queue/config/name using value %v", input), func(t *testing.T) {
-			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
-			baseConfigInterfaceOutput := baseConfigInterface.Output
-			baseConfigInterfaceOutputQueue := setup.GetAnyValue(baseConfigInterfaceOutput.Queue)
-			*baseConfigInterfaceOutputQueue.Name = input
+	baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
+	interfaceTelemetryPath := dut.Telemetry().Qos().Interface(*baseConfigInterface.InterfaceId)
 
-			config := dut.Config().Qos().Interface(*baseConfigInterface.InterfaceId).Output().Queue(*baseConfigInterfaceOutputQueue.Name)
-			state := dut.Telemetry().Qos().Interface(*baseConfigInterface.InterfaceId).Output().Queue(*baseConfigInterfaceOutputQueue.Name)
-
-			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigInterfaceOutputQueue)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get container", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.Name != input {
-						t.Errorf("Config /qos/interfaces/interface/output/queues/queue/config/name: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.Name != input {
-						t.Errorf("State /qos/interfaces/interface/output/queues/queue/config/name: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-		})
-	}
-}
-func TestQueueManagementProfileAtContainer(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-
-	var baseConfig *oc.Qos = setupQos(t, dut)
-	defer teardownQos(t, dut, baseConfig)
-
-	for _, input := range testQueueManagementProfileInput {
-		t.Run(fmt.Sprintf("Testing /qos/interfaces/interface/output/queues/queue/config/queue-management-profile using value %v", input), func(t *testing.T) {
-			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
-			baseConfigInterfaceOutput := baseConfigInterface.Output
-			baseConfigInterfaceOutputQueue := setup.GetAnyValue(baseConfigInterfaceOutput.Queue)
-			*baseConfigInterfaceOutputQueue.QueueManagementProfile = input
-
-			config := dut.Config().Qos().Interface(*baseConfigInterface.InterfaceId).Output().Queue(*baseConfigInterfaceOutputQueue.Name)
-			state := dut.Telemetry().Qos().Interface(*baseConfigInterface.InterfaceId).Output().Queue(*baseConfigInterfaceOutputQueue.Name)
-
-			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigInterfaceOutputQueue)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get container", func(t *testing.T) {
-					configGot := config.Get(t)
-					if *configGot.QueueManagementProfile != input {
-						t.Errorf("Config /qos/interfaces/interface/output/queues/queue/config/queue-management-profile: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if *stateGot.QueueManagementProfile != input {
-						t.Errorf("State /qos/interfaces/interface/output/queues/queue/config/queue-management-profile: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete container", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).QueueManagementProfile != nil {
-						t.Errorf("Delete /qos/interfaces/interface/output/queues/queue/config/queue-management-profile fail: got %v", qs)
-					}
+	t.Run(fmt.Sprintf("Get Interface Telemetry %s", *baseConfigInterface.InterfaceId), func(t *testing.T) {
+		got := interfaceTelemetryPath.Get(t)
+		for queueName, queue := range got.Output.Queue {
+			t.Run(fmt.Sprintf("Verify Transmit-Octets of %s", queueName), func(t *testing.T) {
+				if !(*queue.TransmitOctets == 0) {
+					t.Errorf("Get Interface Telemetry fail: got %+v", *got)
 				}
 			})
-		})
-	}
-}
-func TestQueueManagementProfileAtLeaf(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	baseConfig := setupQos(t, dut)
-	defer teardownQos(t, dut, baseConfig)
-
-	for _, input := range testQueueManagementProfileInput {
-		t.Run(fmt.Sprintf("Testing /qos/interfaces/interface/output/queues/queue/config/queue-management-profile using value %v", input), func(t *testing.T) {
-			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
-			baseConfigInterfaceOutputQueue := setup.GetAnyValue(baseConfigInterface.Output.Queue)
-
-			config := dut.Config().Qos().Interface(*baseConfigInterface.InterfaceId).Output().Queue(*baseConfigInterfaceOutputQueue.Name).QueueManagementProfile()
-			state := dut.Telemetry().Qos().Interface(*baseConfigInterface.InterfaceId).Output().Queue(*baseConfigInterfaceOutputQueue.Name).QueueManagementProfile()
-
-			t.Run("Replace leaf", func(t *testing.T) {
-				config.Replace(t, input)
-			})
-			if !setup.SkipGet() {
-				t.Run("Get leaf", func(t *testing.T) {
-					configGot := config.Get(t)
-					if configGot != input {
-						t.Errorf("Config /qos/interfaces/interface/output/queues/queue/config/queue-management-profile: got %v, want %v", configGot, input)
-					}
-				})
-			}
-			if !setup.SkipSubscribe() {
-				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
-					if stateGot != input {
-						t.Errorf("State /qos/interfaces/interface/output/queues/queue/config/queue-management-profile: got %v, want %v", stateGot, input)
-					}
-				})
-			}
-			t.Run("Delete leaf", func(t *testing.T) {
-				config.Delete(t)
-				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs != nil {
-						t.Errorf("Delete /qos/interfaces/interface/output/queues/queue/config/queue-management-profile fail: got %v", qs)
-					}
+			t.Run(fmt.Sprintf("Verify Transmit-Packets of %s", queueName), func(t *testing.T) {
+				if !(*queue.TransmitPkts == 0) {
+					t.Errorf("Get Interface Telemetry fail: got %+v", *got)
 				}
 			})
+			t.Run(fmt.Sprintf("Verify Dropped-Packets of %s", queueName), func(t *testing.T) {
+				if !(*queue.DroppedPkts == 0) {
+					t.Errorf("Get Interface Telemetry fail: got %+v", *got)
+				}
+			})
+		}
+	})
+
+	baseConfigInterfaceOutput := baseConfigInterface.Output
+	interfaceOutputTelemetryPath := interfaceTelemetryPath.Output()
+
+	baseConfigInterfaceOutputSchedulerPolicy := baseConfigInterfaceOutput.SchedulerPolicy
+	baseConfigSchedulerPolicy := baseConfig.SchedulerPolicy[*baseConfigInterfaceOutputSchedulerPolicy.Name]
+	baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
+	baseConfigSchedulerPolicySchedulerInput := setup.GetAnyValue(baseConfigSchedulerPolicyScheduler.Input)
+	ocQueueName := *baseConfigSchedulerPolicySchedulerInput.Queue
+	interfaceOutputQueueTelemetryPath := interfaceOutputTelemetryPath.Queue(ocQueueName)
+
+	t.Run(fmt.Sprintf("Get Interface Output Queue Telemetry %s %s", *baseConfigInterface.InterfaceId, ocQueueName), func(t *testing.T) {
+		got := interfaceOutputQueueTelemetryPath.Get(t)
+		t.Run("Verify Transmit-Octets", func(t *testing.T) {
+			if !(*got.TransmitOctets == 0) {
+				t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
+			}
 		})
-	}
+		t.Run("Verify Transmit-Packets", func(t *testing.T) {
+			if !(*got.TransmitPkts == 0) {
+				t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
+			}
+		})
+		t.Run("Verify Dropped-Packets", func(t *testing.T) {
+			if !(*got.DroppedPkts == 0) {
+				t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
+			}
+		})
+	})
+
+	transmitPacketsPath := interfaceOutputQueueTelemetryPath.TransmitPkts()
+	transmitOctetsPath := interfaceOutputQueueTelemetryPath.TransmitOctets()
+	droppedPacketsPath := interfaceOutputQueueTelemetryPath.DroppedPkts()
+
+	t.Run("Get Transmit-Packets", func(t *testing.T) {
+		transmitPackets := transmitPacketsPath.Get(t)
+		if transmitPackets != 0 {
+			t.Errorf("Get Transmit-Packets fail: got %v", transmitPackets)
+		}
+	})
+	t.Run("Get Transmit-Octets", func(t *testing.T) {
+		transmitOctets := transmitOctetsPath.Get(t)
+		if transmitOctets != 0 {
+			t.Errorf("Get Transmit-Octets fail: got %v", transmitOctets)
+		}
+	})
+	t.Run("Get Dropped-Packets", func(t *testing.T) {
+		droppedPackets := droppedPacketsPath.Get(t)
+		if droppedPackets != 0 {
+			t.Errorf("Get Dropped-Packets fail: got %v", droppedPackets)
+		}
+	})
 }
