@@ -18,9 +18,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -44,27 +46,31 @@ func TestMain(m *testing.M) {
 // consistent with IPv4.
 
 const (
-	trafficDuration        = 1 * time.Minute
-	grTimer                = 2 * time.Minute
-	grRestartTime          = 60
-	grStaleRouteTime       = 300.0
-	ipv4SrcTraffic         = "192.0.2.2"
-	ipv6SrcTraffic         = "2001:db8::192:0:2:2"
-	ipv4DstTrafficStart    = "203.0.113.1"
-	ipv4DstTrafficEnd      = "203.0.113.254"
-	ipv6DstTrafficStart    = "2001:db8::203:0:113:1"
-	ipv6DstTrafficEnd      = "2001:db8::203:0:113:fe"
-	advertisedRoutesv4CIDR = "203.0.113.1/32"
-	advertisedRoutesv6CIDR = "2001:db8::203:0:113:1/128"
-	prefixLimit            = 200
-	pwarnthesholdPct       = 10
-	prefixTimer            = 30.0
-	dutAS                  = 64500
-	ateAS                  = 64501
-	plenIPv4               = 30
-	plenIPv6               = 126
-	tolerance              = 50
-	lossTolerance          = 1
+	trafficDuration          = 1 * time.Minute
+	grTimer                  = 2 * time.Minute
+	grRestartTime            = 60
+	grStaleRouteTime         = 300.0
+	ipv4SrcTraffic           = "192.0.2.2"
+	ipv6SrcTraffic           = "2001:db8::192:0:2:2"
+	ipv4DstTrafficStart      = "203.0.113.1"
+	ipv4DstTrafficEnd        = "203.0.113.254"
+	ipv6DstTrafficStart      = "2001:db8::203:0:113:1"
+	ipv6DstTrafficEnd        = "2001:db8::203:0:113:fe"
+	advertisedRoutesv4CIDR   = "203.0.113.1/32"
+	advertisedRoutesv6CIDR   = "2001:db8::203:0:113:1/128"
+	advertisedRoutesv4Net    = "203.0.113.1"
+	advertisedRoutesv6Net    = "2001:db8::203:0:113:1"
+	advertisedRoutesv4Prefix = 32
+	advertisedRoutesv6Prefix = 128
+	prefixLimit              = 200
+	pwarnthesholdPct         = 10
+	prefixTimer              = 30.0
+	dutAS                    = 64500
+	ateAS                    = 64501
+	plenIPv4                 = 30
+	plenIPv6                 = 126
+	tolerance                = 50
+	lossTolerance            = 1
 )
 
 var (
@@ -77,6 +83,7 @@ var (
 	}
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::192:0:2:2",
 		IPv4Len: plenIPv4,
@@ -93,6 +100,7 @@ var (
 
 	ateDst = attrs.Attributes{
 		Name:    "atedst",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::192:0:2:6",
 		IPv4Len: plenIPv4,
@@ -126,74 +134,100 @@ func (tc *testCase) verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 }
 
 type config struct {
-	topo     *ondatra.ATETopology
-	allNets  []*ondatra.Network
-	allFlows []*ondatra.Flow
+	topo       gosnappi.Config
+	bgpv4RR    gosnappi.BgpV4RouteRange
+	bgpv6RR    gosnappi.BgpV6RouteRange
+	flowV4Incr gosnappi.PatternFlowIpv4DstCounter
+	flowV6Incr gosnappi.PatternFlowIpv6DstCounter
 }
 
 // configureATE configures the interfaces and BGP on the ATE, with port2 advertising routes.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
-	port1 := ate.Port(t, "port1")
-	topo := ate.Topology().New()
-	iDut1 := topo.AddInterface(ateSrc.Name).WithPort(port1)
-	iDut1.IPv4().WithAddress(ateSrc.IPv4CIDR()).WithDefaultGateway(dutSrc.IPv4)
-	iDut1.IPv6().WithAddress(ateSrc.IPv6CIDR()).WithDefaultGateway(dutSrc.IPv6)
+	otg := ate.OTG()
+	topo := otg.NewConfig(t)
+	srcPort := topo.Ports().Add().SetName("port1")
+	srcDev := topo.Devices().Add().SetName(ateSrc.Name)
+	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth")
+	srcEth.SetPortName(srcPort.Name()).SetMac(ateSrc.MAC)
+	srcIpv4 := srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
+	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
+	srcIpv6 := srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6")
+	srcIpv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
-	port2 := ate.Port(t, "port2")
-	iDut2 := topo.AddInterface(ateDst.Name).WithPort(port2)
-	iDut2.IPv4().WithAddress(ateDst.IPv4CIDR()).WithDefaultGateway(dutDst.IPv4)
-	iDut2.IPv6().WithAddress(ateDst.IPv6CIDR()).WithDefaultGateway(dutDst.IPv6)
+	dstPort := topo.Ports().Add().SetName("port2")
+	dstDev := topo.Devices().Add().SetName(ateDst.Name)
+	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth")
+	dstEth.SetPortName(dstPort.Name()).SetMac(ateDst.MAC)
+	dstIpv4 := dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4")
+	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
+	dstIpv6 := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6")
+	dstIpv6.SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
 
 	// Setup ATE BGP route v4 advertisement
-	BGPDut1 := iDut1.BGP()
-	BGPDut1.AddPeer().WithPeerAddress(dutSrc.IPv4).WithLocalASN(ateAS).
-		WithTypeExternal()
-	BGPDut1.AddPeer().WithPeerAddress(dutSrc.IPv6).WithLocalASN(ateAS).
-		WithTypeExternal()
+	srcBgp := srcDev.Bgp().SetRouterId(srcIpv4.Address())
+	srcBgp4Peer := srcBgp.Ipv4Interfaces().Add().SetIpv4Name(srcIpv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
+	srcBgp4Peer.SetPeerAddress(srcIpv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	srcBgp6Peer := srcBgp.Ipv6Interfaces().Add().SetIpv6Name(srcIpv6.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP6.peer")
+	srcBgp6Peer.SetPeerAddress(srcIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
-	BGPDut2 := iDut2.BGP()
-	BGPDut2.AddPeer().WithPeerAddress(dutDst.IPv4).WithLocalASN(ateAS).
-		WithTypeExternal()
-	BGPDut2.AddPeer().WithPeerAddress(dutDst.IPv6).WithLocalASN(ateAS).
-		WithTypeExternal()
+	dstBgp := dstDev.Bgp().SetRouterId(dstIpv4.Address())
+	dstBgp4Peer := dstBgp.Ipv4Interfaces().Add().SetIpv4Name(dstIpv4.Name()).Peers().Add().SetName(ateDst.Name + ".BGP4.peer")
+	dstBgp4Peer.SetPeerAddress(dstIpv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	dstBgp6Peer := dstBgp.Ipv6Interfaces().Add().SetIpv6Name(dstIpv6.Name()).Peers().Add().SetName(ateDst.Name + ".BGP6.peer")
+	dstBgp6Peer.SetPeerAddress(dstIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
-	BGPNeti1 := iDut2.AddNetwork(advertisedRoutesv4CIDR)
-	BGPNeti1.IPv4().WithAddress(advertisedRoutesv4CIDR).WithCount(1)
-	BGPNeti1.BGP().WithNextHopAddress(ateDst.IPv4)
-	BGPNeti1v6 := iDut2.AddNetwork(advertisedRoutesv6CIDR)
-	BGPNeti1v6.IPv6().WithAddress(advertisedRoutesv6CIDR).WithCount(1)
-	BGPNeti1v6.BGP().WithActive(true).WithNextHopAddress(ateDst.IPv6)
-
-	t.Logf("Pushing config to ATE and starting protocols...")
-	topo.Push(t)
-	topo.StartProtocols(t)
+	dstBgp4PeerRoutes := dstBgp4Peer.V4Routes().Add().SetName(ateDst.Name + ".BGP4.peer" + ".RR4")
+	dstBgp4PeerRoutes.SetNextHopIpv4Address(dstIpv4.Address()).
+		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+	dstBgp4PeerRoutes.Addresses().Add().
+		SetAddress(advertisedRoutesv4Net).
+		SetPrefix(advertisedRoutesv4Prefix).
+		SetCount(1)
+	dstBgp6PeerRoutes := dstBgp6Peer.V6Routes().Add().SetName(ateDst.Name + ".BGP6.peer" + ".RR6")
+	dstBgp6PeerRoutes.SetNextHopIpv6Address(dstIpv6.Address()).
+		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
+	dstBgp6PeerRoutes.Addresses().Add().
+		SetAddress(advertisedRoutesv6Net).
+		SetPrefix(advertisedRoutesv6Prefix).
+		SetCount(1)
 
 	// ATE Traffic Configuration
 	t.Logf("TestBGP:start ate Traffic config")
-	ethHeader := ondatra.NewEthernetHeader()
 	//  BGP V4 Traffic
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.WithSrcAddress(ipv4SrcTraffic).DstAddressRange().
-		WithMin(ipv4DstTrafficStart).WithMax(ipv4DstTrafficEnd).
-		WithCount(prefixLimit)
-	flowIPV4 := ate.Traffic().NewFlow("Ipv4").
-		WithSrcEndpoints(iDut1).
-		WithDstEndpoints(iDut2).
-		WithHeaders(ethHeader, ipv4Header).
-		WithFrameSize(512)
+	flowipv4 := topo.Flows().Add().SetName("IPv4")
+	flowipv4.Metrics().SetEnable(true)
+	flowipv4.TxRx().Device().
+		SetTxNames([]string{srcIpv4.Name()}).
+		SetRxNames([]string{dstBgp4PeerRoutes.Name()})
+	flowipv4.Size().SetFixed(512)
+	flowipv4.Duration().SetChoice("continuous")
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(srcEth.Mac())
+	v4 := flowipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(ipv4SrcTraffic)
+	v4DstIncrement := v4.Dst().Increment().SetStart(advertisedRoutesv4Net).SetCount(prefixLimit)
 
 	// BGP IP V6 traffic
-	ipv6Header := ondatra.NewIPv6Header()
-	ipv6Header.WithECN(0).WithSrcAddress(ipv6SrcTraffic).
-		DstAddressRange().WithMin(ipv6DstTrafficStart).WithMax(ipv6DstTrafficEnd).
-		WithCount(prefixLimit)
-	flowIPV6 := ate.Traffic().NewFlow("Ipv6").
-		WithSrcEndpoints(iDut1).
-		WithDstEndpoints(iDut2).
-		WithHeaders(ethHeader, ipv6Header).
-		WithFrameSize(512)
+	flowipv6 := topo.Flows().Add().SetName("IPv6")
+	flowipv6.Metrics().SetEnable(true)
+	flowipv6.TxRx().Device().
+		SetTxNames([]string{srcIpv6.Name()}).
+		SetRxNames([]string{dstBgp6PeerRoutes.Name()})
+	flowipv6.Size().SetFixed(512)
+	flowipv6.Duration().SetChoice("continuous")
+	e2 := flowipv6.Packet().Add().Ethernet()
+	e2.Src().SetValue(srcEth.Mac())
+	v6 := flowipv6.Packet().Add().Ipv6()
+	v6.Src().SetValue(ipv6SrcTraffic)
+	v6DstIncrement := v6.Dst().Increment().SetStart(advertisedRoutesv6Net).SetCount(prefixLimit)
 
-	return &config{topo, []*ondatra.Network{BGPNeti1, BGPNeti1v6}, []*ondatra.Flow{flowIPV4, flowIPV6}}
+	t.Logf("Pushing config to ATE and starting protocols...")
+	otg.PushConfig(t, topo)
+	otg.StartProtocols(t)
+
+	return &config{topo, dstBgp4PeerRoutes, dstBgp6PeerRoutes, v4DstIncrement, v6DstIncrement}
 }
 
 type BGPNeighbor struct {
@@ -337,10 +371,16 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	verifyPrefixLimitTelemetry(t, nv6, tc.wantEstablished)
 }
 
-func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
-	captureTrafficStats(t, ate)
-	for _, flow := range allFlows {
-		lossPct := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t)
+func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
+	captureTrafficStats(t, ate, conf)
+	otg := ate.OTG()
+	otgutils.LogFlowMetrics(t, otg, conf)
+	for _, flow := range conf.Flows().Items() {
+		recvMetric := otg.Telemetry().Flow(flow.Name()).Get(t)
+		txPackets := recvMetric.GetCounters().GetOutPkts()
+		rxPackets := recvMetric.GetCounters().GetInPkts()
+		lostPackets := txPackets - rxPackets
+		lossPct := lostPackets * 100 / txPackets
 		if lossPct > lossTolerance {
 			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want 0", flow.Name(), lossPct)
 		} else {
@@ -349,10 +389,16 @@ func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, all
 	}
 }
 
-func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
-	captureTrafficStats(t, ate)
-	for _, flow := range allFlows {
-		lossPct := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t)
+func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
+	captureTrafficStats(t, ate, conf)
+	otg := ate.OTG()
+	otgutils.LogFlowMetrics(t, otg, conf)
+	for _, flow := range conf.Flows().Items() {
+		recvMetric := otg.Telemetry().Flow(flow.Name()).Get(t)
+		txPackets := recvMetric.GetCounters().GetOutPkts()
+		rxPackets := recvMetric.GetCounters().GetInPkts()
+		lostPackets := txPackets - rxPackets
+		lossPct := lostPackets * 100 / txPackets
 		if lossPct > (100-lossTolerance) && lossPct <= 100 {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
@@ -361,15 +407,17 @@ func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFl
 	}
 }
 
-func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice) {
+func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
+	otg := ate.OTG()
+	otgutils.LogPortMetrics(t, otg, conf)
 	ap := ate.Port(t, "port1")
-	aic1 := ate.Telemetry().Interface(ap.Name()).Counters()
-	sentPkts := aic1.OutPkts().Get(t)
+	aic1 := otg.Telemetry().Port(ap.ID()).Counters()
+	sentPkts := aic1.OutFrames().Get(t)
 	fptest.LogYgot(t, "ate:port1 counters", aic1, aic1.Get(t))
 
 	op := ate.Port(t, "port2")
-	aic2 := ate.Telemetry().Interface(op.Name()).Counters()
-	rxPkts := aic2.InPkts().Get(t)
+	aic2 := otg.Telemetry().Port(op.ID()).Counters()
+	rxPkts := aic2.InFrames().Get(t)
 	fptest.LogYgot(t, "ate:port2 counters", aic2, aic2.Get(t))
 	var lostPkts uint64
 	//account for control plane packets in rxPkts
@@ -387,28 +435,40 @@ func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice) {
 	}
 }
 
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow, duration time.Duration) {
+func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
+	otg := ate.OTG()
 	t.Log("Starting traffic")
-	ate.Traffic().Start(t, allFlows...)
-	time.Sleep(duration)
-	ate.Traffic().Stop(t)
+	otg.StartTraffic(t)
+	time.Sleep(trafficDuration)
+	otg.StopTraffic(t)
 	t.Log("Traffic stopped")
 }
 
-func configureBGPRoutes(t *testing.T, topo *ondatra.ATETopology, allNets []*ondatra.Network, routeCount uint32) {
-	for _, net := range allNets {
-		netName := net.EndpointPB().GetNetworkName()
-		net.BGP().ClearASPathSegments()
-		if netName == advertisedRoutesv4CIDR {
-			net.IPv4().WithAddress(advertisedRoutesv4CIDR).WithCount(routeCount)
-			net.BGP().WithActive(true).WithNextHopAddress(ateDst.IPv4)
-		}
-		if netName == advertisedRoutesv6CIDR {
-			net.IPv6().WithAddress(advertisedRoutesv6CIDR).WithCount(routeCount)
-			net.BGP().WithActive(true).WithNextHopAddress(ateDst.IPv6)
-		}
-	}
-	topo.UpdateNetworks(t)
+func configureBGPRoutes(t *testing.T, configElement *config, routeCount uint32) {
+
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+
+	// Modifying the OTG BGP routes configuration
+	configElement.bgpv4RR.Addresses().Clear()
+	configElement.bgpv4RR.Addresses().Add().
+		SetAddress(advertisedRoutesv4Net).
+		SetPrefix(advertisedRoutesv4Prefix).
+		SetCount(int32(routeCount))
+
+	configElement.bgpv6RR.Addresses().Clear()
+	configElement.bgpv6RR.Addresses().Add().
+		SetAddress(advertisedRoutesv6Net).
+		SetPrefix(advertisedRoutesv6Prefix).
+		SetCount(int32(routeCount))
+
+	// Modifying the OTG flows
+	configElement.flowV4Incr.SetCount(int32(routeCount))
+	configElement.flowV6Incr.SetCount(int32(routeCount))
+
+	otg.PushConfig(t, configElement.topo)
+	otg.StartProtocols(t)
+
 }
 
 type testCase struct {
@@ -421,7 +481,7 @@ type testCase struct {
 
 func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	t.Log(tc.desc)
-	configureBGPRoutes(t, conf.topo, conf.allNets, tc.numRoutes)
+	configureBGPRoutes(t, conf, tc.numRoutes)
 	// Verify Port Status
 	t.Log(" Verifying port status")
 	t.Run("verifyPortsUp", func(t *testing.T) {
@@ -436,14 +496,14 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate 
 
 	// Starting ATE Traffic
 	t.Log("Verify Traffic statistics")
-	sendTraffic(t, ate, conf.allFlows, trafficDuration)
+	sendTraffic(t, ate)
 	if tc.wantNoPacketLoss {
 		t.Run("verifyNoPacketLoss", func(t *testing.T) {
-			tc.verifyNoPacketLoss(t, ate, conf.allFlows)
+			tc.verifyNoPacketLoss(t, ate, conf.topo)
 		})
 	} else {
 		t.Run("verifyPacketLoss", func(t *testing.T) {
-			tc.verifyPacketLoss(t, ate, conf.allFlows)
+			tc.verifyPacketLoss(t, ate, conf.topo)
 		})
 	}
 }

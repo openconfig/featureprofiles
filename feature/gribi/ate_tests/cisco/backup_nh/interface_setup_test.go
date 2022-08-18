@@ -15,6 +15,7 @@
 package backup_nh_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -22,6 +23,20 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
+)
+
+const (
+	PTISIS         = telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
+	DUTAreaAddress = "47.0001"
+	DUTSysID       = "0000.0000.0001"
+	ISISName       = "osiris"
+	pLen4          = 30
+	pLen6          = 126
+)
+
+const (
+	PTBGP = telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	BGPAS = 65000
 )
 
 var (
@@ -238,4 +253,74 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *t
 	e.AutoNegotiate = ygot.Bool(false)
 	e.AggregateId = ygot.String(bundleID)
 	return i
+}
+
+// configRP, configures route_policy for BGP
+func configRP(t *testing.T, dut *ondatra.DUTDevice) {
+	dev := &telemetry.Device{}
+	inst := dev.GetOrCreateRoutingPolicy()
+	pdef := inst.GetOrCreatePolicyDefinition("ALLOW")
+	stmt1 := pdef.GetOrCreateStatement("1")
+	stmt1.GetOrCreateActions().PolicyResult = telemetry.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
+	dutNode := dut.Config().RoutingPolicy()
+	dutConf := dev.GetOrCreateRoutingPolicy()
+	dutNode.Update(t, dutConf)
+}
+
+// addISISOC, configures ISIS on DUT
+func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
+	dev := &telemetry.Device{}
+	inst := dev.GetOrCreateNetworkInstance("default")
+	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
+	isis := prot.GetOrCreateIsis()
+	glob := isis.GetOrCreateGlobal()
+	glob.Net = []string{fmt.Sprintf("%v.%v.00", DUTAreaAddress, DUTSysID)}
+	glob.LevelCapability = 2
+	glob.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV6, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV6, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf := isis.GetOrCreateInterface(ifaceName)
+	intf.CircuitType = telemetry.IsisTypes_CircuitType_POINT_TO_POINT
+	intf.Enabled = ygot.Bool(true)
+	intf.HelloPadding = 1
+	intf.Passive = ygot.Bool(false)
+	intf.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV6, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	level := isis.GetOrCreateLevel(2)
+	level.MetricStyle = 2
+
+	dutNode := dut.Config().NetworkInstance("default").Protocol(PTISIS, ISISName)
+	dutConf := dev.GetOrCreateNetworkInstance("default").GetOrCreateProtocol(PTISIS, ISISName)
+	dutNode.Update(t, dutConf)
+}
+
+// addBGPOC, configures ISIS on DUT
+func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
+	dev := &telemetry.Device{}
+	inst := dev.GetOrCreateNetworkInstance("default")
+	prot := inst.GetOrCreateProtocol(PTBGP, "default")
+	bgp := prot.GetOrCreateBgp()
+	glob := bgp.GetOrCreateGlobal()
+	glob.As = ygot.Uint32(BGPAS)
+	glob.RouterId = ygot.String("1.1.1.1")
+	glob.GetOrCreateGracefulRestart().Enabled = ygot.Bool(true)
+	glob.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+
+	pg := bgp.GetOrCreatePeerGroup("BGP-PEER-GROUP")
+	pg.PeerAs = ygot.Uint32(64001)
+	pg.LocalAs = ygot.Uint32(63001)
+	pg.PeerGroupName = ygot.String("BGP-PEER-GROUP")
+
+	peer := bgp.GetOrCreateNeighbor(neighbor)
+	peer.PeerGroup = ygot.String("BGP-PEER-GROUP")
+	peer.GetOrCreateEbgpMultihop().Enabled = ygot.Bool(true)
+	peer.GetOrCreateEbgpMultihop().MultihopTtl = ygot.Uint8(255)
+	peer.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	peer.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
+	peer.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
+
+	dutNode := dut.Config().NetworkInstance("default").Protocol(PTBGP, "default")
+	dutConf := dev.GetOrCreateNetworkInstance("default").GetOrCreateProtocol(PTBGP, "default")
+	dutNode.Update(t, dutConf)
 }

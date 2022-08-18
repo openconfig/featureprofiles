@@ -110,7 +110,8 @@ func TestGNMIMetadataAnnotation(t *testing.T) {
 			Path: []*gpb.Path{{
 				Elem: []*gpb.PathElem{},
 			}},
-			Type: gpb.GetRequest_CONFIG,
+			Type:     gpb.GetRequest_CONFIG,
+			Encoding: gpb.Encoding_JSON_IETF,
 		})
 		if err != nil {
 			t.Fatalf("Cannot fetch metadata annotation from the DUT: %v", err)

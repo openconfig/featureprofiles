@@ -54,11 +54,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		ast.Inspect(file, func(node ast.Node) bool {
 			switch node := node.(type) {
 			case *ast.FuncDecl:
-				testFuncName := node.Name.Name
-				if !strings.HasPrefix(testFuncName, "Test") {
-					return true
-				}
-
+				funcName := node.Name.Name
 				ast.Inspect(node.Body, func(node ast.Node) bool {
 					switch node := node.(type) {
 					case *ast.CallExpr:
@@ -80,7 +76,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 								m := new(pathMap)
 								pass.ImportPackageFact(tPkg, m)
 								fmt.Printf("%v,%v,%v,%v,%v\n", pass.Fset.Position(selexpr.Pos()),
-									pkgPath, testFuncName, selexpr.Sel.Name, m.getPath(tName))
+									pkgPath, funcName, selexpr.Sel.Name, m.getPath(tName))
 							}
 						}
 					}

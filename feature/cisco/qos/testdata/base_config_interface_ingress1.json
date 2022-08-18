@@ -1,0 +1,115 @@
+{
+    "openconfig-qos:classifiers": {
+      "classifier": [
+        {
+          "state": {
+            "name": "pmap3"
+          },
+          "name": "pmap3",
+          "terms": {
+            "term": [
+              {
+                "actions": {
+                  "remark": {
+                    "state": {
+                      "set-dscp": 8
+                    }
+                  }
+                },
+                "conditions": {
+                  "ipv4": {
+                    "state": {
+                      "dscp-set": [
+                        1
+                      ]
+                    }
+                  }
+                },
+                "id": "cmap_ipv4",
+                "state": {
+                  "id": "cmap_ipv4"
+                }
+              },
+              {
+                "actions": {
+                  "remark": {
+                    "state": {
+                      "set-dscp": 16
+                    }
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "state": {
+                      "dscp-set": [
+                        10
+                      ]
+                    }
+                  }
+                },
+                "id": "cmap_ipv6",
+                "state": {
+                  "id": "cmap_ipv6"
+                }
+              },
+              {
+                "actions": {
+                  "remark": {
+                    "state": {
+                      "set-mpls-tc": 6
+                    }
+                  }
+                },
+                "conditions": {
+                  "mpls": {
+                    "state": {
+                      "traffic-class": 5
+                    }
+                  }
+                },
+                "id": "cmap_mpls",
+                "state": {
+                  "id": "cmap_mpls"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "openconfig-qos:interfaces": {
+        "interface": [{
+          "state": {
+            "interface-id": "FourHundredGigE0/0/0/0"
+          },
+          "interface-id":"FourHundredGigE0/0/0/0",
+          "input": {
+            "classifiers": {
+              "classifier": [
+                {
+                  "state": {
+                    "name": "pmap3",
+                    "type": "IPV4"
+                  },
+                  "type": "IPV4"
+                },
+                {
+                  "state": {
+                    "name": "pmap3",
+                    "type": "IPV6"
+                  },
+                  "type": "IPV6"
+                },
+                {
+                  "state": {
+                    "name": "pmap3",
+                    "type": "MPLS"
+                  },
+                  "type": "MPLS"
+                }
+              ]
+            }
+          }
+        }]
+      }
+}
