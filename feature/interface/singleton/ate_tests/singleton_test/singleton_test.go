@@ -91,7 +91,7 @@ var (
 )
 
 type testCase struct {
-	mtu uint16
+	mtu uint16 // This is the L3 MTU, i.e. the payload portion of an Ethernet frame.
 
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
