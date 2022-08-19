@@ -184,7 +184,9 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeigh
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
 		aftNh, _ := aftNhg.NewNextHop(nhIndex)
-		aftNh.Weight = &weight
+		aftNh.Weight = new(uint64)
+		*aftNh.Weight = weight
+
 	}
 	c.fluentC.Modify().AddEntry(t, nhg)
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
