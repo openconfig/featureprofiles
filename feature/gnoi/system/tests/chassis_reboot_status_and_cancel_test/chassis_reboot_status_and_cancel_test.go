@@ -16,15 +16,11 @@ package chassis_reboot_status_and_cancel_test
 
 import (
 	"context"
-	"sort"
 	"testing"
-	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/testt"
 )
 
 const (
