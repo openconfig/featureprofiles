@@ -761,7 +761,7 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedId, id uin
 
 	diff := cmp.Diff(want, got,
 		cmpopts.IgnoreFields(telemetry.NetworkInstance_Afts_NextHopGroup{}, []string{
-			"Id", "ProgrammedId", "NextHop",
+			"Id", "ProgrammedId", "NextHop", "BackupNextHopGroup",
 		}...))
 	if len(diff) > 0 {
 		t.Errorf("AFT Check failed for aft/next-hop-group. Diff:\n%s", diff)
