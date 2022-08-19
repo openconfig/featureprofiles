@@ -37,6 +37,10 @@ message Configs {
 
   // Path to a file containing gNMI SetRequest as text-formatted proto.
   repeated string gnmi_set_file = 3;
+
+  // Whether to flush gRIBI.  If true, this will send a FlushRequest for all
+  // network instances and overriding the election ID.
+  bool gribi_flush = 4;
 }
 
 // A device binding.
