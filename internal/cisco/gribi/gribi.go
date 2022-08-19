@@ -77,7 +77,7 @@ func (c *Client) Start(t testing.TB) error {
 	t.Helper()
 	t.Logf("Starting GRIBI connection for dut: %s", c.DUT.Name())
 	c.afts = []map[string]*telemetry.NetworkInstance_Afts{
-		map[string]*telemetry.NetworkInstance_Afts{},
+		{},
 	}
 
 	gribiC := c.DUT.RawAPIs().GRIBI().New(t)
@@ -625,7 +625,7 @@ func (c *Client) DeleteIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint6
 func (c *Client) FlushServer(t testing.TB) {
 	t.Logf("Flush Entries in All Network Instances.")
 	c.afts = []map[string]*telemetry.NetworkInstance_Afts{
-		map[string]*telemetry.NetworkInstance_Afts{},
+		{},
 	}
 
 	if _, err := c.fluentC.Flush().
@@ -755,8 +755,8 @@ func (c *Client) CheckAftNH(t testing.TB, instance string, programmedIndex, inde
 }
 
 // CheckAftNHG checks a next-hop-group against the cached configuration
-func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedId, id uint64) {
-	want := c.getAft(instance).NextHopGroup[programmedId]
+func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uint64) {
+	want := c.getAft(instance).NextHopGroup[programmedID]
 	got := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(id).Get(t)
 
 	diff := cmp.Diff(want, got,
@@ -824,7 +824,7 @@ func (c *Client) CheckAft(t testing.TB) {
 	}
 }
 
-// AftPopConfig creates and activates a copy of the current afts cached configuration
+// AftPushConfig creates and activates a copy of the current afts cached configuration
 func (c *Client) AftPushConfig(t testing.TB) {
 	t.Helper()
 	afts := make(map[string]*telemetry.NetworkInstance_Afts, len(c.getCurrentAftConfig()))
