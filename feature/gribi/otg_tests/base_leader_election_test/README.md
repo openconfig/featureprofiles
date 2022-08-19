@@ -12,12 +12,12 @@ Validate Election ID is accepted from a gRIBI client.
 *   Establish two gRIBI clients to the DUT (referred to as `gRIBI-A` and
     `gRIBI-B`).
 
-*   Connect `gRIBI-A` to DUT specifying `SINGLE_PRIMARY` client redundancy in
-    the SessionParameters request, and `election_id` 10. Ensure that no error is
-    reported from the gRIBI server.
+*   Connect `gRIBI-A` to DUT specifying `PRESERVE` persistent mode,
+    `SINGLE_PRIMARY` client redundancy in the SessionParameters request, and
+    `election_id` 10. Ensure that no error is reported from the gRIBI server.
 
-*   Connect `gRIBI-B` to DUT specifying `SINGLE_PRIMARY` client redundancy with
-    `election_id` 11.
+*   Connect `gRIBI-B` to DUT specifying `PRESERVE` persistent mode,
+    `SINGLE_PRIMARY` client redundancy with `election_id` 11.
 
 *   Add an `IPv4Entry` for `198.51.100.0/24` pointing to ATE port-3 via
     `gRIBI-B`, ensure that the entry is active through AFT telemetry and
