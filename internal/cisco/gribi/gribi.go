@@ -751,6 +751,19 @@ func (c *Client) CheckAftNH(t testing.TB, instance string, programmedIndex, inde
 		t.Logf("AFT Check for aft/next-hop-group/next-hop: %s", diff)
 		return false
 	}
+
+	if want.IpAddress != nil {
+		ni := instance
+		if want.NetworkInstance != nil {
+			ni = *want.NetworkInstance
+		}
+
+		for p := range c.getCurrentAftConfig()[ni].Ipv4Entry {
+			if strings.HasPrefix(p, *want.IpAddress) {
+				c.CheckAftIPv4(t, ni, p)
+			}
+		}
+	}
 	return true
 }
 
