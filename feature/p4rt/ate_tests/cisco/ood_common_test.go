@@ -40,7 +40,7 @@ type TrafficFlow interface {
 type PacketIO interface {
 	GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo
 	ApplyConfig(t *testing.T, dut *ondatra.DUTDevice, delete bool)
-	GetPacketOut(t *testing.T, portID uint32, submitIngress bool) *p4_v1.PacketOut
+	GetPacketOut(t *testing.T, portID uint32, submitIngress bool) []*p4_v1.PacketOut
 	GetPacketTemplate(t *testing.T) *PacketIOPacket
 	GetTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow
 	GetEgressPort(t *testing.T) []string
@@ -48,6 +48,7 @@ type PacketIO interface {
 	GetIngressPort(t *testing.T) string
 	SetIngressPorts(t *testing.T, portID string)
 	GetPacketIOPacket(t *testing.T) *PacketIOPacket
+	GetPacketOutExpectation(t *testing.T, submit_to_ingress bool) bool
 }
 
 type PacketIOPacket struct {
@@ -178,15 +179,18 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 	}
 }
 
-func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packet *p4_v1.PacketOut, packetCount int) {
-	for i := 0; i < packetCount; i++ {
-		if err := client.StreamChannelSendMsg(
-			&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Packet{
-					Packet: packet,
-				},
-			}); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4_v1.PacketOut, packetCount int) {
+	count := packetCount / len(packets)
+	for _, packet := range packets {
+		for i := 0; i < count; i++ {
+			if err := client.StreamChannelSendMsg(
+				&streamName, &p4_v1.StreamMessageRequest{
+					Update: &p4_v1.StreamMessageRequest_Packet{
+						Packet: packet,
+					},
+				}); err != nil {
+				t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+			}
 		}
 	}
 }
@@ -1507,14 +1511,16 @@ func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, ar
 	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
-	packet := args.packetIO.GetPacketOut(t, portID, false)
+	packets := args.packetIO.GetPacketOut(t, portID, false)
 
 	// Change metadata
-	packet.Metadata[0].MetadataId = uint32(10)
-	packet.Metadata[0].Value = []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	for _, packet := range packets {
+		packet.Metadata[0].MetadataId = uint32(10)
+		packet.Metadata[0].Value = []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	}
 
 	packet_count := 100
-	sendPackets(t, client, packet, packet_count)
+	sendPackets(t, client, packets, packet_count)
 
 	// Wait for ate stats to be populated
 	time.Sleep(60 * time.Second)

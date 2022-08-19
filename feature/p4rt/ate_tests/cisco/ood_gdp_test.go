@@ -177,7 +177,7 @@ type GDPPacketIO struct {
 	IngressPort string
 }
 
-func (g *GDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo {
+func (gdp *GDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
 	if delete {
 		actionType = p4_v1.Update_DELETE
@@ -189,11 +189,12 @@ func (g *GDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngr
 	}}
 }
 
-func (g *GDPPacketIO) ApplyConfig(t *testing.T, dut *ondatra.DUTDevice, delete bool) {
+func (gdp *GDPPacketIO) ApplyConfig(t *testing.T, dut *ondatra.DUTDevice, delete bool) {
 	t.Logf("There is no configuration required")
 }
 
-func (g *GDPPacketIO) GetPacketOut(t *testing.T, portID uint32, submitIngress bool) *p4_v1.PacketOut {
+func (gdp *GDPPacketIO) GetPacketOut(t *testing.T, portID uint32, submitIngress bool) []*p4_v1.PacketOut {
+	packets := []*p4_v1.PacketOut{}
 	packet := &p4_v1.PacketOut{
 		Payload: packetGDPRequestGet(t),
 		Metadata: []*p4_v1.PacketMetadata{
@@ -208,49 +209,49 @@ func (g *GDPPacketIO) GetPacketOut(t *testing.T, portID uint32, submitIngress bo
 			&p4_v1.PacketMetadata{
 				MetadataId: uint32(2), // "submit_to_ingress"
 				Value:      []byte{1},
-				// Value:      []byte(fmt.Sprint(0)),
 			})
 	}
-	// else {
-	// 	packet.Metadata = append(packet.Metadata,
-	// 		&p4_v1.PacketMetadata{
-	// 			MetadataId: uint32(2), // "submit_to_ingress"
-	// 			Value:      []byte(fmt.Sprint(0)),
-	// 		})
-	// }
-	return packet
+	packets = append(packets, packet)
+	return packets
 }
 
-func (g *GDPPacketIO) GetPacketTemplate(t *testing.T) *PacketIOPacket {
-	return &g.PacketIOPacket
+func (gdp *GDPPacketIO) GetPacketTemplate(t *testing.T) *PacketIOPacket {
+	return &gdp.PacketIOPacket
 }
 
-func (g *GDPPacketIO) GetTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow {
+func (gdp *GDPPacketIO) GetTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow {
 	ethHeader := ondatra.NewEthernetHeader()
-	ethHeader.WithSrcAddress(*g.SrcMAC)
-	ethHeader.WithDstAddress(*g.DstMAC)
-	ethHeader.WithEtherType(*g.EthernetType)
+	ethHeader.WithSrcAddress(*gdp.SrcMAC)
+	ethHeader.WithDstAddress(*gdp.DstMAC)
+	ethHeader.WithEtherType(*gdp.EthernetType)
 
 	flow := ate.Traffic().NewFlow("GDP").WithFrameSize(frameSize).WithFrameRateFPS(frameRate).WithHeaders(ethHeader)
 	return []*ondatra.Flow{flow}
 }
 
-func (g *GDPPacketIO) GetEgressPort(t *testing.T) []string {
+func (gdp *GDPPacketIO) GetEgressPort(t *testing.T) []string {
 	return []string{"0"}
 }
 
-func (g *GDPPacketIO) SetEgressPorts(t *testing.T, portIDs []string) {
+func (gdp *GDPPacketIO) SetEgressPorts(t *testing.T, portIDs []string) {
 
 }
 
-func (g *GDPPacketIO) GetIngressPort(t *testing.T) string {
-	return g.IngressPort
+func (gdp *GDPPacketIO) GetIngressPort(t *testing.T) string {
+	return gdp.IngressPort
 }
 
-func (g *GDPPacketIO) SetIngressPorts(t *testing.T, portID string) {
-	g.IngressPort = portID
+func (gdp *GDPPacketIO) SetIngressPorts(t *testing.T, portID string) {
+	gdp.IngressPort = portID
 }
 
-func (g *GDPPacketIO) GetPacketIOPacket(t *testing.T) *PacketIOPacket {
-	return &g.PacketIOPacket
+func (gdp *GDPPacketIO) GetPacketIOPacket(t *testing.T) *PacketIOPacket {
+	return &gdp.PacketIOPacket
+}
+
+func (gdp *GDPPacketIO) GetPacketOutExpectation(t *testing.T, submit_to_ingress bool) bool {
+	if submit_to_ingress {
+		return false
+	}
+	return true
 }

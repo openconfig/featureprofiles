@@ -235,7 +235,7 @@ type LLDPPacketIO struct {
 	IngressPort string
 }
 
-func (l *LLDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo {
+func (lldp *LLDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
 	if delete {
 		actionType = p4_v1.Update_DELETE
@@ -247,14 +247,15 @@ func (l *LLDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIng
 	}}
 }
 
-func (l *LLDPPacketIO) ApplyConfig(t *testing.T, dut *ondatra.DUTDevice, delete bool) {
-	if *l.NeedConfig {
+func (lldp *LLDPPacketIO) ApplyConfig(t *testing.T, dut *ondatra.DUTDevice, delete bool) {
+	if *lldp.NeedConfig {
 		config := dut.Config().Lldp().Enabled()
 		config.Replace(t, !delete)
 	}
 }
 
-func (l *LLDPPacketIO) GetPacketOut(t *testing.T, portID uint32, submitIngress bool) *p4_v1.PacketOut {
+func (lldp *LLDPPacketIO) GetPacketOut(t *testing.T, portID uint32, submitIngress bool) []*p4_v1.PacketOut {
+	packets := []*p4_v1.PacketOut{}
 	packet := &p4_v1.PacketOut{
 		Payload: packetLLDPRequestGet(t),
 		Metadata: []*p4_v1.PacketMetadata{
@@ -271,39 +272,47 @@ func (l *LLDPPacketIO) GetPacketOut(t *testing.T, portID uint32, submitIngress b
 				Value:      []byte{1},
 			})
 	}
-	return packet
+	packets = append(packets, packet)
+	return packets
 }
 
-func (l *LLDPPacketIO) GetPacketTemplate(t *testing.T) *PacketIOPacket {
-	return &l.PacketIOPacket
+func (lldp *LLDPPacketIO) GetPacketTemplate(t *testing.T) *PacketIOPacket {
+	return &lldp.PacketIOPacket
 }
 
-func (l *LLDPPacketIO) GetTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow {
+func (lldp *LLDPPacketIO) GetTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow {
 	ethHeader := ondatra.NewEthernetHeader()
-	ethHeader.WithSrcAddress(*l.SrcMAC)
-	ethHeader.WithDstAddress(*l.DstMAC)
-	ethHeader.WithEtherType(*l.EthernetType)
+	ethHeader.WithSrcAddress(*lldp.SrcMAC)
+	ethHeader.WithDstAddress(*lldp.DstMAC)
+	ethHeader.WithEtherType(*lldp.EthernetType)
 
 	flow := ate.Traffic().NewFlow("LLDP").WithFrameSize(frameSize).WithFrameRateFPS(frameRate).WithHeaders(ethHeader)
 	return []*ondatra.Flow{flow}
 }
 
-func (l *LLDPPacketIO) GetEgressPort(t *testing.T) []string {
+func (lldp *LLDPPacketIO) GetEgressPort(t *testing.T) []string {
 	return []string{"0"}
 }
 
-func (l *LLDPPacketIO) SetEgressPorts(t *testing.T, portIDs []string) {
+func (lldp *LLDPPacketIO) SetEgressPorts(t *testing.T, portIDs []string) {
 
 }
 
-func (l *LLDPPacketIO) GetIngressPort(t *testing.T) string {
-	return l.IngressPort
+func (lldp *LLDPPacketIO) GetIngressPort(t *testing.T) string {
+	return lldp.IngressPort
 }
 
-func (l *LLDPPacketIO) SetIngressPorts(t *testing.T, portID string) {
-	l.IngressPort = portID
+func (lldp *LLDPPacketIO) SetIngressPorts(t *testing.T, portID string) {
+	lldp.IngressPort = portID
 }
 
-func (l *LLDPPacketIO) GetPacketIOPacket(t *testing.T) *PacketIOPacket {
-	return &l.PacketIOPacket
+func (lldp *LLDPPacketIO) GetPacketIOPacket(t *testing.T) *PacketIOPacket {
+	return &lldp.PacketIOPacket
+}
+
+func (lldp *LLDPPacketIO) GetPacketOutExpectation(t *testing.T, submit_to_ingress bool) bool {
+	if submit_to_ingress {
+		return false
+	}
+	return true
 }

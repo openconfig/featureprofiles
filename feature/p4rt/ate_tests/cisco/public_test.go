@@ -155,7 +155,7 @@ func testGDPPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 				if err := test.client.StreamChannelSendMsg(
 					&streamName, &p4_v1.StreamMessageRequest{
 						Update: &p4_v1.StreamMessageRequest_Packet{
-							Packet: packet,
+							Packet: packet[0],
 						},
 					}); err != nil {
 					t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
