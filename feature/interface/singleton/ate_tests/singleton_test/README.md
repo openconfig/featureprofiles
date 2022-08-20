@@ -21,11 +21,14 @@ a new testbed configuration with the desired port types.
         correctly reported.
 *   For IPv4 and IPv6:
     *   With traffic flow from ATE port-1 to ATE port-2, ensure:
-        *   For MTUs of 1500, 5000, 9212:
+        *   For MTUs [^1] of 1500, 5000, 9212:
             *   Packets with size greater than the configured MTU with DF-bit
                 set are not transmitted.
             *   Packets with size of configured MTU are received.
             *   Packets with size less than the configured MTU are received.
+
+[^1]: The MTU specified above refers to the L3 MTU, which is the payload portion
+    of an Ethernet frame.
 
 ## Config Parameter Coverage
 
