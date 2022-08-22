@@ -11,11 +11,8 @@ Ensure that acknowledgements are sent as is expected by gRIBI controller.
     the requested `ack_type`.
 *   Install the following entries and determine whether the expected result is
     observed:
-    *   A `NextHopGroup` referencing a `NextHop` is responded to with RIB+FIB
+    *   A `NextHopGroup` referencing a `NextHop` is responded to with FIB
         ACK, and is reported through the AFT telemetry.
-    *   A `NextHopGroup` referencing a `NextHop` with a referencing `IPv4Entry`
-        within a single `ModifyRequest` is ACKed, verified through AFT telemetry
-        and traffic.
     *   A single `ModifyRequest` with the following ordered operations is
         responded to with an error:
         *   An `AFTOperation` containing an `IPv4Entry` referencing
