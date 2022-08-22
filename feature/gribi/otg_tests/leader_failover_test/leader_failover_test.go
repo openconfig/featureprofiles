@@ -19,13 +19,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -61,6 +64,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -73,6 +77,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -111,60 +116,83 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureATE configures port1 and port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	otg := ate.OTG()
+	top := otg.NewConfig(t)
 
-	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
+	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
+	i1 := top.Devices().Add().SetName(ate.Port(t, "port1").ID())
+	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").
+		SetPortName(i1.Name()).SetMac(atePort1.MAC)
+	eth1.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").
+		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
+		SetPrefix(int32(atePort1.IPv4Len))
 
-	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
+	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
+	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
+	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").
+		SetPortName(i2.Name()).SetMac(atePort2.MAC)
+	eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4").
+		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
+		SetPrefix(int32(atePort2.IPv4Len))
 
 	return top
+}
+
+// Waits for at least one ARP entry on any OTG interface
+func waitOTGARPEntry(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	ate.OTG().Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
 }
 
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss. The boolean flag wantLoss could be used to check
 // either for 100% loss (when set to true) or 0% loss (when set to false).
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface, wantLoss bool) {
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.DstAddressRange().
-		WithMin("203.0.113.1").
-		WithMax("203.0.113.250").
-		WithCount(250)
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcEndPoint, dstEndPoint attrs.Attributes, wantLoss bool) {
 
-	flow := ate.Traffic().NewFlow("Flow").
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint).
-		WithHeaders(ethHeader, ipv4Header)
+	otg := ate.OTG()
+	waitOTGARPEntry(t)
+	dstMac := otg.Telemetry().Interface(atePort1.Name + ".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().Get(t)
+	top.Flows().Clear().Items()
+	flowipv4 := top.Flows().Add().SetName("Flow")
+	flowipv4.Metrics().SetEnable(true)
+	flowipv4.TxRx().Port().
+		SetTxName(ate.Port(t, "port1").ID()).
+		SetRxName(ate.Port(t, "port2").ID())
+	flowipv4.Duration().SetChoice("continuous")
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	e1.Dst().SetChoice("value").SetValue(dstMac)
+	v4 := flowipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort1.IPv4)
+	v4.Dst().Increment().SetStart("203.0.113.1").SetCount(250)
+	otg.PushConfig(t, top)
 
-	ate.Traffic().Start(t, flow)
+	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
-	ate.Traffic().Stop(t)
+	t.Logf("Stop traffic")
+	otg.StopTraffic(t)
+	otgutils.LogFlowMetrics(t, otg, top)
 
 	time.Sleep(time.Minute)
-
-	flowPath := ate.Telemetry().Flow(flow.Name())
+	txPkts := int(otg.Telemetry().Flow(flowipv4.Name()).Counters().OutPkts().Get(t))
+	rxPkts := int(otg.Telemetry().Flow(flowipv4.Name()).Counters().InPkts().Get(t))
 
 	if !wantLoss {
-		if got := flowPath.LossPct().Get(t); got != 0 {
-			t.Errorf("FAIL: LossPct for flow named %s got %g, want 0", flow.Name(), got)
+		if got := (txPkts - rxPkts) * 100 / txPkts; got != 0 {
+			t.Errorf("FAIL: LossPct for flow named %s got %v, want 0", flowipv4.Name(), got)
 		} else {
-			t.Logf("LossPct for flow named %s got %g, want 0", flow.Name(), got)
+			t.Logf("LossPct for flow named %s got %v, want 0", flowipv4.Name(), got)
 		}
 	} else {
-		if got := flowPath.LossPct().Get(t); got != 100 {
-			t.Errorf("FAIL: LossPct for flow named %s got %g, want 100", flow.Name(), got)
+		if got := (txPkts - rxPkts) * 100 / txPkts; got != 100 {
+			t.Errorf("FAIL: LossPct for flow named %s got %v, want 100", flowipv4.Name(), got)
 		} else {
-			t.Logf("LossPct for flow named %s got %g, want 100", flow.Name(), got)
+			t.Logf("LossPct for flow named %s got %v, want 100", flowipv4.Name(), got)
 		}
 	}
 }
@@ -174,7 +202,7 @@ type testArgs struct {
 	ctx context.Context
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
-	top *ondatra.ATETopology
+	top gosnappi.Config
 }
 
 // addRoute programs an IPv4 route entry through the given gRIBI client
@@ -211,17 +239,13 @@ func verifyNoAFT(ctx context.Context, t *testing.T, args *testArgs) {
 // verifyTraffic verifies that traffic flows through the DUT without any loss.
 func verifyTraffic(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify by running traffic that %s is active", ateDstNetCIDR)
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()[atePort2.Name]
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint, false)
+	testTraffic(t, args.ate, args.top, atePort1, atePort2, false)
 }
 
 // verifyNoTraffic verifies that traffic is completely dropped at the DUT and incurs a 100% loss.
 func verifyNoTraffic(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify by running traffic that the route to %s is not present", ateDstNetCIDR)
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()[atePort2.Name]
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint, true)
+	testTraffic(t, args.ate, args.top, atePort1, atePort2, true)
 }
 
 func TestLeaderFailover(t *testing.T) {
@@ -238,7 +262,8 @@ func TestLeaderFailover(t *testing.T) {
 	t.Logf("Configure ATE")
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	t.Logf("Time check: %s", time.Since(start))
 
