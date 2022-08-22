@@ -82,14 +82,14 @@ func TestOriginCliConfig(t *testing.T) {
                 `
 	case ondatra.CISCO:
 		intfAdminDown = "shutdown"
-        	intfAdminUp = "no shutdown"
+		intfAdminUp = "no shutdown"
 		intfConfig = `
         	interface %s
           	%s
         	`
 	case ondatra.ARISTA:
-        	intfAdminDown = "shutdown"
-        	intfAdminUp = "no shutdown"
+		intfAdminDown = "shutdown"
+		intfAdminUp = "no shutdown"
 		intfConfig = `
         	interface %s
           	    %s
