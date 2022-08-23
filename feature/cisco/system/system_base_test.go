@@ -48,25 +48,30 @@ func sysGrpcVerify(grpcPort uint16, grpcName string, grpcTs bool, grpcEn bool){
                                      fmt.Println("Got the expected grpc Port")
 
                               } else {
-                                     fmt.Errorf("Unexpected value for Port: %v", grpcPort)
+                                    
+                                    errPort := fmt.Errorf("Unexpected value for Port: %v", grpcPort)
+                                    fmt.Println(errPort)
                               }
                                if grpcName == "DEFAULT" {
                                      fmt.Println("Got the expected grpc Name")
 
                               } else {
-                                     fmt.Errorf("Unexpected value for Name: %v", grpcName)
+                                     errName := fmt.Errorf("Unexpected value for Name: %v", grpcName)
+                                     fmt.Println(errName)
                               }
                                if grpcEn == true {
                                      fmt.Println("Got the expected grpc Enable")
 
                               } else {
-                                     fmt.Errorf("Unexpected value for Enable: %v", grpcEn)
+                                     errEn := fmt.Errorf("Unexpected value for Enable: %v", grpcEn)
+                                     fmt.Println(errEn)
                               }
                                if grpcTs == false {
                                      fmt.Println("Got the expected grpc Transport-Security")
 
                               } else {
-                                     fmt.Errorf("Unexpected value for Transport-Security: %v", grpcTs)
+                                     errTs := fmt.Errorf("Unexpected value for Transport-Security: %v", grpcTs)
+                                     fmt.Println(errTs)
                               }
 
 }
