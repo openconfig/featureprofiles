@@ -792,8 +792,10 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uin
 				// TODO: weight returned is always 0. bug?
 				if *wantNh.Weight != *gotNh.Weight {
 					t.Logf("AFT Check for aft/next-hop-group/next-hop/state/weight got %d, want %d", *gotNh.Weight, *wantNh.Weight)
+					found = false
+				} else {
+					break
 				}
-				break
 			}
 		}
 		if !found {
