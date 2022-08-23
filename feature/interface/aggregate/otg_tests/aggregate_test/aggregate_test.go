@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/telemetry"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/testt"
@@ -48,8 +49,8 @@ func TestMain(m *testing.M) {
 // ate:port{2-9}.  The first pair is called the "source" pair, and the
 // second aggregate link the "destination" pair.
 //
-//   * Source: ate:port1 -> dut:port1 subnet 192.0.2.0/30 2001:db8::0/126
-//   * Destination: dut:port{2-9} -> ate:port{2-9}
+//   - Source: ate:port1 -> dut:port1 subnet 192.0.2.0/30 2001:db8::0/126
+//   - Destination: dut:port{2-9} -> ate:port{2-9}
 //     subnet 192.0.2.4/30 2001:db8::4/126
 //
 // Note that the first (.0, .4) and last (.3, .7) IPv4 addresses are
@@ -107,8 +108,7 @@ const (
 )
 
 type testCase struct {
-	minlinks uint16
-	lagType  telemetry.E_IfAggregate_AggregationType
+	lagType telemetry.E_IfAggregate_AggregationType
 
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
@@ -121,7 +121,6 @@ type testCase struct {
 }
 
 func (*testCase) configSrcDUT(i *telemetry.Interface, a *attrs.Attributes) {
-	deviations.InterfaceEnabled = ygot.Bool(true)
 	i.Description = ygot.String(a.Desc)
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
@@ -147,13 +146,6 @@ func (tc *testCase) configDstAggregateDUT(i *telemetry.Interface, a *attrs.Attri
 	i.Type = ieee8023adLag
 	g := i.GetOrCreateAggregation()
 	g.LagType = tc.lagType
-	g.MinLinks = ygot.Uint16(tc.minlinks)
-}
-
-var portSpeed = map[ondatra.Speed]telemetry.E_IfEthernet_ETHERNET_SPEED{
-	ondatra.Speed10Gb:  telemetry.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
-	ondatra.Speed100Gb: telemetry.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-	ondatra.Speed400Gb: telemetry.IfEthernet_ETHERNET_SPEED_SPEED_400GB,
 }
 
 func (tc *testCase) configDstMemberDUT(i *telemetry.Interface, p *ondatra.Port) {
@@ -166,15 +158,6 @@ func (tc *testCase) configDstMemberDUT(i *telemetry.Interface, p *ondatra.Port) 
 
 	e := i.GetOrCreateEthernet()
 	e.AggregateId = ygot.String(tc.aggID)
-	// Speed of 99 Gbps is a temporary workaround indicating that the
-	// port is a 100G-FR breakout port from a 400G-XDR4.  This relies on
-	// the binding to configure the breakout groups for us, so leave the
-	// speed setting alone for now.  Blocked by b/200683959.
-	if p.Speed() != 99 {
-		e.AutoNegotiate = ygot.Bool(false)
-		e.DuplexMode = telemetry.Ethernet_DuplexMode_FULL
-		e.PortSpeed = portSpeed[p.Speed()]
-	}
 }
 
 func (tc *testCase) setupAggregateAtomically(t *testing.T) {
@@ -191,6 +174,11 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	for _, port := range tc.dutPorts[1:] {
 		i := d.GetOrCreateInterface(port.Name())
 		i.GetOrCreateEthernet().AggregateId = ygot.String(tc.aggID)
+		i.Type = ethernetCsmacd
+
+		if *deviations.InterfaceEnabled {
+			i.Enabled = ygot.Bool(true)
+		}
 	}
 
 	p := tc.dut.Config()
@@ -198,7 +186,11 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	p.Update(t, d)
 }
 
-func (tc *testCase) clearAggregateMembers(t *testing.T) {
+func (tc *testCase) clearAggregate(t *testing.T) {
+	// Clear the aggregate minlink.
+	tc.dut.Config().Interface(tc.aggID).Aggregation().MinLinks().Delete(t)
+
+	// Clear the members of the aggregate.
 	for _, port := range tc.dutPorts[1:] {
 		tc.dut.Config().Interface(port.Name()).Ethernet().AggregateId().Delete(t)
 	}
@@ -213,18 +205,19 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	d := tc.dut.Config()
 
 	if *deviations.AggregateAtomicUpdate {
-		tc.clearAggregateMembers(t)
+		tc.clearAggregate(t)
 		tc.setupAggregateAtomically(t)
 	}
 
+	lacp := &telemetry.Lacp_Interface{Name: ygot.String(tc.aggID)}
 	if tc.lagType == lagTypeLACP {
-		lacp := &telemetry.Lacp_Interface{Name: ygot.String(tc.aggID)}
 		lacp.LacpMode = telemetry.Lacp_LacpActivityType_ACTIVE
-
-		lacpPath := d.Lacp().Interface(tc.aggID)
-		fptest.LogYgot(t, "LACP", lacpPath, lacp)
-		lacpPath.Replace(t, lacp)
+	} else {
+		lacp.LacpMode = telemetry.Lacp_LacpActivityType_UNSET
 	}
+	lacpPath := d.Lacp().Interface(tc.aggID)
+	fptest.LogYgot(t, "LACP", lacpPath, lacp)
+	lacpPath.Replace(t, lacp)
 
 	agg := &telemetry.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg, &dutDst)
@@ -235,12 +228,18 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	srcp := tc.dutPorts[0]
 	srci := &telemetry.Interface{Name: ygot.String(srcp.Name())}
 	tc.configSrcDUT(srci, &dutSrc)
+	srci.Type = ethernetCsmacd
 	srciPath := d.Interface(srcp.Name())
 	fptest.LogYgot(t, srcp.String(), srciPath, srci)
 	srciPath.Replace(t, srci)
 
 	for _, port := range tc.dutPorts[1:] {
 		i := &telemetry.Interface{Name: ygot.String(port.Name())}
+		i.Type = ethernetCsmacd
+
+		if *deviations.InterfaceEnabled {
+			i.Enabled = ygot.Bool(true)
+		}
 		tc.configDstMemberDUT(i, port)
 		iPath := d.Interface(port.Name())
 		fptest.LogYgot(t, port.String(), iPath, i)
@@ -256,7 +255,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	p0 := tc.atePorts[0]
 	tc.top.Ports().Add().SetName(p0.ID())
 	srcDev := tc.top.Devices().Add().SetName(ateSrc.Name)
-	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".eth")
+	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth")
 	srcEth.SetPortName(p0.ID()).SetMac(ateSrc.MAC)
 	srcEth.Ipv4Addresses().Add().
 		SetName(ateSrc.Name + ".IPv4").
@@ -271,6 +270,12 @@ func (tc *testCase) configureATE(t *testing.T) {
 
 	// Adding the rest of the ports to the configuration and to the LAG
 	agg := tc.top.Lags().Add().SetName(ateDst.Name)
+	if tc.lagType == lagTypeSTATIC {
+		lagId, _ := strconv.Atoi(tc.aggID)
+		lagPort.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
+	} else {
+		lagPort.Protocol().SetChoice("lacp")
+	}
 
 	for i, p := range tc.atePorts[1:] {
 		port := tc.top.Ports().Add().SetName(p.ID())
@@ -282,12 +287,6 @@ func (tc *testCase) configureATE(t *testing.T) {
 		lagPort.SetPortName(port.Name()).
 			Ethernet().SetMac(newMac).
 			SetName("LAGRx-" + strconv.Itoa(i))
-		if tc.lagType == lagTypeSTATIC {
-			lagId, _ := strconv.Atoi(tc.aggID)
-			lagPort.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
-		} else {
-			lagPort.Protocol().SetChoice("lacp")
-		}
 	}
 
 	dstDev := tc.top.Devices().Add().SetName(agg.Name())
@@ -334,40 +333,44 @@ const (
 	dynamic        = telemetry.IfIp_NeighborOrigin_DYNAMIC
 )
 
-func (tc *testCase) verifyLagID(t *testing.T, dp *ondatra.Port) {
+func (tc *testCase) verifyAggID(t *testing.T, dp *ondatra.Port) {
 	dip := tc.dut.Telemetry().Interface(dp.Name())
 	di := dip.Get(t)
 	if lagID := di.GetEthernet().GetAggregateId(); lagID != tc.aggID {
 		t.Errorf("%s LagID got %v, want %v", dp, lagID, tc.aggID)
 	}
 }
+
 func (tc *testCase) verifyInterfaceDUT(t *testing.T, dp *ondatra.Port) {
 	dip := tc.dut.Telemetry().Interface(dp.Name())
 	di := dip.Get(t)
-	fptest.LogYgot(t, dp.String(), dip, di)
+	fptest.LogYgot(t, dp.String()+" before Await", dip, di)
+
 	if got := di.GetAdminStatus(); got != adminUp {
 		t.Errorf("%s admin-status got %v, want %v", dp, got, adminUp)
 	}
-	if got := di.GetOperStatus(); got != opUp {
-		t.Errorf("%s oper-status got %v, want %v", dp, got, opUp)
-	}
+
+	// LAG members may fall behind, so wait for them to be up.
+	dip.OperStatus().Await(t, time.Minute, opUp)
 }
+
 func (tc *testCase) verifyDUT(t *testing.T) {
+	// Wait for LAG negotiation and verify LAG type for the aggregate interface.
+	tc.dut.Telemetry().Interface(tc.aggID).Type().Await(t, time.Minute, ieee8023adLag)
+
 	for n, port := range tc.dutPorts {
 		if n < 1 {
 			// We designate port 0 as the source link, not part of LAG.
-			t.Run("Source Link Verification", func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s [source]", port.ID()), func(t *testing.T) {
 				tc.verifyInterfaceDUT(t, port)
 			})
 			continue
 		}
-		t.Run("Lag ports verification", func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s [member]", port.ID()), func(t *testing.T) {
 			tc.verifyInterfaceDUT(t, port)
-			tc.verifyLagID(t, port)
+			tc.verifyAggID(t, port)
 		})
 	}
-	// Verify LAG Type for aggregate interface
-	tc.dut.Telemetry().Interface(tc.aggID).Type().Await(t, 10*time.Second, ieee8023adLag)
 }
 
 // verifyATE checks the telemetry against the parameters set by
@@ -453,20 +456,15 @@ func incrementedMac(mac string, i int) (string, error) {
 func TestNegotiation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	aggID := netutil.NextBundleInterface(t, dut)
 	otg := ate.OTG()
 
 	lagTypes := []telemetry.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
 
 	for _, lagType := range lagTypes {
 		top := otg.NewConfig(t)
-		aggID, err := fptest.LAGName(dut.Vendor(), 1001)
-		if err != nil {
-			t.Fatalf("LAGName for vendor %s: %s", dut.Vendor(), err)
-		}
 
 		tc := &testCase{
-			minlinks: uint16(len(dut.Ports()) / 2),
-
 			dut:     dut,
 			ate:     ate,
 			top:     top,
@@ -479,9 +477,11 @@ func TestNegotiation(t *testing.T) {
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
 			tc.configureDUT(t)
+			t.Run("VerifyDUT", tc.verifyDUT)
+
 			tc.configureATE(t)
 			t.Run("VerifyATE", tc.verifyATE)
-			t.Run("VerifyDUT", tc.verifyDUT)
+
 			t.Run("MinLinks", tc.verifyMinLinks)
 		})
 	}
