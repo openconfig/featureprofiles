@@ -334,7 +334,7 @@ func getL3PBRRule(args *testArgs, networkInstance string, index uint32, dscpset 
 
 }
 
-//  getPBRPolicyForwarding returns pointer to policy-forwarding populated with pbr policy and rules
+// getPBRPolicyForwarding returns pointer to policy-forwarding populated with pbr policy and rules
 func getPBRPolicyForwarding(args *testArgs, rules ...*oc.NetworkInstance_PolicyForwarding_Policy_Rule) *oc.NetworkInstance_PolicyForwarding {
 	pf := oc.NetworkInstance_PolicyForwarding{}
 	p := pf.GetOrCreatePolicy(args.policyName)
