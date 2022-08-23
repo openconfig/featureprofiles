@@ -272,6 +272,25 @@ func (tc *testCase) verifyATE(t *testing.T) {
 	})
 }
 
+// Waits for an ARP entry to be present on ateSrc
+func waitOTGARPEntry(t *testing.T, ipType string) {
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+
+	switch ipType {
+	case "IPv4":
+		otg.Telemetry().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
+			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+				return val.IsPresent()
+			}).Await(t)
+	case "IPv6":
+		otg.Telemetry().Interface(ateSrc.Name+".Eth").Ipv6NeighborAny().LinkLayerAddress().Watch(
+			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+				return val.IsPresent()
+			}).Await(t)
+	}
+}
+
 type counters struct {
 	unicast, multicast, broadcast uint64
 }
@@ -296,6 +315,7 @@ func diffCounters(before, after *counters) *counters {
 // testFlow returns whether the traffic flow from ATE port1 to ATE
 // port2 has been successfully detected.
 func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader string) bool {
+	var ipType string
 	i1 := ateSrc.Name
 	i2 := ateDst.Name
 	p1 := tc.dut.Port(t, "port1")
@@ -312,6 +332,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader string) b
 	flow.Metrics().SetEnable(true)
 	switch ipHeader {
 	case "IPv4":
+		ipType = "IPv4"
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
 		flow.Size().SetFixed(int32(packetSize))
 		e1 := flow.Packet().Add().Ethernet()
@@ -320,6 +341,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader string) b
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
 	case "IPv4-DF":
+		ipType = "IPv4"
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
 		flow.Size().SetFixed(int32(packetSize))
 		e1 := flow.Packet().Add().Ethernet()
@@ -329,6 +351,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader string) b
 		v4.Dst().SetValue(ateDst.IPv4)
 		v4.DontFragment().SetValue(1)
 	case "IPv6":
+		ipType = "IPv6"
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv6"}).SetRxNames([]string{i2 + ".IPv6"})
 		flow.Size().SetFixed(int32(packetSize))
 		e1 := flow.Packet().Add().Ethernet()
@@ -339,6 +362,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader string) b
 	}
 	tc.ate.OTG().PushConfig(t, tc.top)
 
+	waitOTGARPEntry(t, ipType)
 	tc.ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	tc.ate.OTG().StopTraffic(t)
