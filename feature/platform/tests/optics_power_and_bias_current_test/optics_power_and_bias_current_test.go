@@ -62,31 +62,31 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 
 		if !component.MfgName().Lookup(t).IsPresent() {
 			t.Logf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiver)
-		} else {
-			mfgName := component.MfgName().Get(t)
-			t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
+			continue
+		}
+		mfgName := component.MfgName().Get(t)
+		t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
 
-			//TODO: Remove the mfgName INNOLIGHT check after the issue is fixed.
-			if mfgName == "INNOLIGHT" {
-				t.Logf("Optics from INNOLIGHT is not supported, skip it for now.")
-				continue
-			}
-			inputPowers := component.Transceiver().ChannelAny().InputPower().Instant().Get(t)
-			t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
-			if len(inputPowers) == 0 {
-				t.Errorf("Get inputPowers list for %q: got 0, want > 0", transceiver)
-			}
-			outputPowers := component.Transceiver().ChannelAny().OutputPower().Instant().Get(t)
-			t.Logf("Transceiver %s outputPowers: %v", transceiver, outputPowers)
-			if len(outputPowers) == 0 {
-				t.Errorf("Get outputPowers list for %q: got 0, want > 0", transceiver)
-			}
+		//TODO: Remove the mfgName INNOLIGHT check after the issue is fixed.
+		if mfgName == "INNOLIGHT" {
+			t.Logf("Optics from INNOLIGHT is not supported, skip it for now.")
+			continue
+		}
+		inputPowers := component.Transceiver().ChannelAny().InputPower().Instant().Get(t)
+		t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
+		if len(inputPowers) == 0 {
+			t.Errorf("Get inputPowers list for %q: got 0, want > 0", transceiver)
+		}
+		outputPowers := component.Transceiver().ChannelAny().OutputPower().Instant().Get(t)
+		t.Logf("Transceiver %s outputPowers: %v", transceiver, outputPowers)
+		if len(outputPowers) == 0 {
+			t.Errorf("Get outputPowers list for %q: got 0, want > 0", transceiver)
+		}
 
-			biasCurrents := component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().Get(t)
-			t.Logf("Transceiver %s biasCurrents: %v", transceiver, biasCurrents)
-			if len(outputPowers) == 0 {
-				t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
-			}
+		biasCurrents := component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().Get(t)
+		t.Logf("Transceiver %s biasCurrents: %v", transceiver, biasCurrents)
+		if len(outputPowers) == 0 {
+			t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
 		}
 	}
 }
@@ -131,8 +131,16 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			dut.Config().Interface(dp.Name()).Replace(t, i)
 			dut.Telemetry().Interface(dp.Name()).OperStatus().Await(t, intUpdateTime, tc.expectedStatus)
 
-			// TODO: Remove t.Skipf() after the issue is fixed.
-			t.Skipf("Optics from INNOLIGHT is not supported, skip it for now.")
+			mfgNameLookup := dut.Telemetry().Component(dp.Name()).MfgName().Lookup(t)
+			if !mfgNameLookup.IsPresent() {
+				t.Errorf("mfgNameLookup.IsPresent(): got false, want true")
+			}
+			t.Logf("Transceiver MfgName: %s", mfgNameLookup.Val(t))
+
+			//TODO: Remove the mfgName INNOLIGHT check after the issue is fixed.
+			if mfgNameLookup.Val(t) == "INNOLIGHT" {
+				t.Skipf("Optics from INNOLIGHT is not supported, skip it for now.")
+			}
 
 			channels := dut.Telemetry().Component(dp.Name()).Transceiver().ChannelAny()
 			inputPowers := channels.InputPower().Instant().Get(t)
@@ -160,19 +168,19 @@ func findComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.
 	for _, c := range components {
 		lookupType := dut.Telemetry().Component(c).Type().Lookup(t)
 		if !lookupType.IsPresent() {
-			t.Logf("Component %s type is not found", c)
-		} else {
-			componentType := lookupType.Val(t)
-			t.Logf("Component %s has type: %v", c, componentType)
+			t.Logf("Component %s type is missing from telemetry", c)
+			continue
+		}
+		componentType := lookupType.Val(t)
+		t.Logf("Component %s has type: %v", c, componentType)
 
-			switch v := componentType.(type) {
-			case telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
-				if v == cType {
-					s = append(s, c)
-				}
-			default:
-				t.Fatalf("Expected component type to be a hardware component, got (%T, %v)", componentType, componentType)
+		switch v := componentType.(type) {
+		case telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
+			if v == cType {
+				s = append(s, c)
 			}
+		default:
+			t.Logf("Detected non-hardware component: (%T, %v)", componentType, componentType)
 		}
 	}
 	return s
