@@ -392,7 +392,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	t.Run("configureBGP", func(t *testing.T) {
 		t.Log("Configure BGP with Graceful Restart option under Global Bgp")
 		dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-		dutConfPath.Replace(t, nil)
+		dutConfPath.Delete(t)
 		nbrList := buildNbrList(ateAS)
 		dutConf := bgpWithNbr(dutAS, nbrList)
 		dutConfPath.Replace(t, dutConf)

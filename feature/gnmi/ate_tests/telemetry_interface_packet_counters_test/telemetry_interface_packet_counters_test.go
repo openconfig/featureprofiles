@@ -97,66 +97,64 @@ func TestInterfaceCounters(t *testing.T) {
 	ipv4CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/"
 	ipv6CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/"
 
-	type counterCase struct {
+	cases := []struct {
 		desc    string
 		path    string
 		counter func(testing.TB) *telemetry.QualifiedUint64
-	}
-	type counterCases []counterCase
-	cases := make(counterCases, 0)
-	cases = append(cases, counterCase{
+		skip    bool
+	}{{
 		desc:    "InUnicastPkts",
 		path:    intfCounterPath + "in-unicast-pkts",
 		counter: intfCounters.InUnicastPkts().Lookup,
-	}, counterCase{
+	}, {
 		desc:    "InUnicastPkts",
 		path:    intfCounterPath + "in-unicast-pkts",
 		counter: intfCounters.InUnicastPkts().Lookup,
-	}, counterCase{
+	}, {
 		desc:    "InPkts",
 		path:    intfCounterPath + "in-pkts",
 		counter: intfCounters.InPkts().Lookup,
-	}, counterCase{
+	}, {
 		desc:    "OutPkts",
 		path:    intfCounterPath + "out-pkts",
 		counter: intfCounters.OutPkts().Lookup,
-	}, counterCase{
-		// desc: "IPv4InPkts",
+	}, {
+		desc:    "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",
 		counter: ipv4Counters.InPkts().Lookup,
-	}, counterCase{
-		// desc: "IPv4OutPkts",
+		skip:    *deviations.SubinterfacePacketCountersMissing,
+	}, {
+		desc:    "IPv4OutPkts",
 		path:    ipv4CounterPath + "out-pkts",
 		counter: ipv4Counters.OutPkts().Lookup,
-	}, counterCase{
-		// desc: "IPv6InPkts",
+		skip:    *deviations.SubinterfacePacketCountersMissing,
+	}, {
+		desc:    "IPv6InPkts",
 		path:    ipv6CounterPath + "in-pkts",
 		counter: ipv6Counters.InPkts().Lookup,
-	}, counterCase{
-		// desc: "IPv6OutPkts",
+		skip:    *deviations.SubinterfacePacketCountersMissing,
+	}, {
+		desc:    "IPv6OutPkts",
 		path:    ipv6CounterPath + "out-pkts",
 		counter: ipv6Counters.OutPkts().Lookup,
-	})
-	// Lookup for the input/output discard counter values only if the deviation flag is SET
-	if *deviations.SubInterfacePacketCountersSupported {
-		cases = append(cases, counterCase{
-			desc:    "IPv6InDiscardedPkts",
-			path:    ipv6CounterPath + "in-discarded-pkts",
-			counter: ipv6Counters.InDiscardedPkts().Lookup,
-		}, counterCase{
-			desc:    "IPv6OutDiscardedPkts",
-			path:    ipv6CounterPath + "out-discarded-pkts",
-			counter: ipv6Counters.OutDiscardedPkts().Lookup,
-		})
-	}
+		skip:    *deviations.SubinterfacePacketCountersMissing,
+	}, {
+		desc:    "IPv6InDiscardedPkts",
+		path:    ipv6CounterPath + "in-discarded-pkts",
+		counter: ipv6Counters.InDiscardedPkts().Lookup,
+		skip:    *deviations.SubinterfacePacketCountersMissing,
+	}, {
+		desc:    "IPv6OutDiscardedPkts",
+		path:    ipv6CounterPath + "out-discarded-pkts",
+		counter: ipv6Counters.OutDiscardedPkts().Lookup,
+		skip:    *deviations.SubinterfacePacketCountersMissing,
+	}}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			// TODO: Enable the test for in-maxsize-exceeded after the issue fixed.
-			if len(tc.desc) == 0 {
+			if tc.skip {
 				t.Skipf("Counter %v is not supported.", tc.desc)
 			}
-
 			if !tc.counter(t).IsPresent() {
 				t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
 			}

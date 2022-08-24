@@ -35,7 +35,7 @@ Ensure that traffic splits within a `NextHopGroup` are correctly honoured.
 *   Validate that weights of:
 
     *   <64K are supported
-    *   > 64K are correctly balanced if the device supports it.
+    *   \>64K are correctly balanced if the device supports it.
 
 *   With NHG10 containing 8 next-hops, with a weight of 1 assigned to each,
     sequentially remove each next-hop by turning down the port at the ATE
