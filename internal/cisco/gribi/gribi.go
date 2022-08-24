@@ -21,6 +21,7 @@ package gribi
 
 import (
 	"context"
+	"math/rand"
 	"strings"
 	"testing"
 	"time"
@@ -939,4 +940,21 @@ func (c *Client) AddNHWithIPinIP(t testing.TB, nhIndex uint64, address, instance
 			t.Fatalf("AFT Check failed for aft/nexthop-entry got ip %s, want ip %s; got index %d , want index %d", *nh.IpAddress, address, *nh.Index, nhIndex)
 		}
 	}
+}
+
+// RandomEntries returns array of a few random value
+func (c *Client) RandomEntries(t testing.TB, confidence float64, prefixes []string) []string {
+	inResult := make(map[string]bool)
+	pick := []string{}
+	for i := 0; i < len(prefixes); i++ {
+		randIndex := rand.Intn(len(prefixes))
+		if _, ok := inResult[prefixes[randIndex]]; !ok {
+			inResult[prefixes[randIndex]] = true
+			pick = append(pick, prefixes[randIndex])
+		}
+		if len(pick) == int(float64(len(prefixes))*(confidence/100)) {
+			return pick
+		}
+	}
+	return pick
 }
