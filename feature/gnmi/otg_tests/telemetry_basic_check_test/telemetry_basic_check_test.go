@@ -18,7 +18,6 @@ import (
 	"flag"
 	"math"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -40,7 +39,8 @@ const (
 	adminStatusDown = telemetry.Interface_AdminStatus_DOWN
 	operStatusUp    = telemetry.Interface_OperStatus_UP
 	operStatusDown  = telemetry.Interface_OperStatus_DOWN
-	maxPortVal      = "FFFFFEFF" // Maximum Port Value : https://github.com/openconfig/public/blob/2049164a8bca4cc9f11ffb313ef25c0e87303a24/release/models/p4rt/openconfig-p4rt.yang#L63-L81
+	// Maximum Port Value: https://github.com/openconfig/public/blob/2049164a8bca4cc9f11ffb313ef25c0e87303a24/release/models/p4rt/openconfig-p4rt.yang#L81
+	maxPortVal = 0xFFFFFEFF
 )
 
 type trafficData struct {
@@ -595,11 +595,6 @@ func TestP4rtInterfaceID(t *testing.T) {
 	d := &telemetry.Device{}
 	i := d.GetOrCreateInterface(dp.Name())
 
-	maxPortValDec, err := strconv.ParseUint(maxPortVal, 16, 32)
-	if err != nil {
-		t.Fatalf("Error while converting portID value: %v", err)
-	}
-
 	cases := []struct {
 		desc   string
 		portID uint32
@@ -608,10 +603,10 @@ func TestP4rtInterfaceID(t *testing.T) {
 		portID: 1,
 	}, {
 		desc:   "AvePortID",
-		portID: uint32(maxPortValDec) / 2,
+		portID: uint32(maxPortVal) / 2,
 	}, {
 		desc:   "MaxPortID",
-		portID: uint32(maxPortValDec),
+		portID: uint32(maxPortVal),
 	}}
 
 	for _, tc := range cases {
