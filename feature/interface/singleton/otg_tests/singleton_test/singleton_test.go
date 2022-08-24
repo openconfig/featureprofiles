@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 
+	"github.com/openconfig/ondatra/otg"
 	telemetry "github.com/openconfig/ondatra/telemetry"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 )
@@ -272,23 +273,18 @@ func (tc *testCase) verifyATE(t *testing.T) {
 	})
 }
 
-// Waits for an ARP entry to be present on ateSrc
-func waitOTGARPEntry(t *testing.T, ipType string) {
-	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
+func waitOTGIPv4ARPEntry(t *testing.T, otg *otg.OTG) {
+	otg.Telemetry().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
+}
 
-	switch ipType {
-	case "IPv4":
-		otg.Telemetry().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
-			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-				return val.IsPresent()
-			}).Await(t)
-	case "IPv6":
-		otg.Telemetry().Interface(ateSrc.Name+".Eth").Ipv6NeighborAny().LinkLayerAddress().Watch(
-			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-				return val.IsPresent()
-			}).Await(t)
-	}
+func waitOTGIPv6ARPEntry(t *testing.T, otg *otg.OTG) {
+	otg.Telemetry().Interface(ateSrc.Name+".Eth").Ipv6NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
 }
 
 type counters struct {
@@ -315,7 +311,6 @@ func diffCounters(before, after *counters) *counters {
 // testFlow returns whether the traffic flow from ATE port1 to ATE
 // port2 has been successfully detected.
 func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader string) bool {
-	var ipType string
 	i1 := ateSrc.Name
 	i2 := ateDst.Name
 	p1 := tc.dut.Port(t, "port1")
@@ -329,40 +324,35 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader string) b
 
 	tc.top.Flows().Clear().Items()
 	flow := tc.top.Flows().Add().SetName("Flow")
+	flow.Size().SetFixed(int32(packetSize))
+	e1 := flow.Packet().Add().Ethernet()
+	e1.Src().SetValue(ateSrc.MAC)
 	flow.Metrics().SetEnable(true)
 	switch ipHeader {
 	case "IPv4":
-		ipType = "IPv4"
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
-		flow.Size().SetFixed(int32(packetSize))
-		e1 := flow.Packet().Add().Ethernet()
-		e1.Src().SetValue(ateSrc.MAC)
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
+		tc.ate.OTG().PushConfig(t, tc.top)
+		waitOTGIPv4ARPEntry(t, tc.ate.OTG())
 	case "IPv4-DF":
-		ipType = "IPv4"
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
-		flow.Size().SetFixed(int32(packetSize))
-		e1 := flow.Packet().Add().Ethernet()
-		e1.Src().SetValue(ateSrc.MAC)
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
 		v4.DontFragment().SetValue(1)
+		tc.ate.OTG().PushConfig(t, tc.top)
+		waitOTGIPv4ARPEntry(t, tc.ate.OTG())
 	case "IPv6":
-		ipType = "IPv6"
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv6"}).SetRxNames([]string{i2 + ".IPv6"})
-		flow.Size().SetFixed(int32(packetSize))
-		e1 := flow.Packet().Add().Ethernet()
-		e1.Src().SetValue(ateSrc.MAC)
 		v6 := flow.Packet().Add().Ipv6()
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
+		tc.ate.OTG().PushConfig(t, tc.top)
+		waitOTGIPv6ARPEntry(t, tc.ate.OTG())
 	}
-	tc.ate.OTG().PushConfig(t, tc.top)
 
-	waitOTGARPEntry(t, ipType)
 	tc.ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	tc.ate.OTG().StopTraffic(t)
@@ -450,28 +440,27 @@ func (tc *testCase) run(t *testing.T) {
 	for _, c := range []struct {
 		ipName     string
 		shouldFrag bool
-		ipHeader   string
 	}{
-		{"IPv4", true, "IPv4"},
-		{"IPv4-DF", false, "IPv4-DF"},
-		{"IPv6", false, "IPv6"},
+		{"IPv4", true},
+		{"IPv4-DF", false},
+		{"IPv6", false},
 	} {
 		t.Run(c.ipName, func(t *testing.T) {
 			t.Run("PacketLargerThanMTU", func(t *testing.T) {
 				if c.shouldFrag {
 					t.Skip("Packet fragmentation is not expected at line rate.")
 				}
-				if got := tc.testFlow(t, tc.mtu+64, c.ipHeader); got {
+				if got := tc.testFlow(t, tc.mtu+64, c.ipName); got {
 					t.Errorf("Traffic flow got %v, want false", got)
 				}
 			})
 			t.Run("PacketExactlyMTU", func(t *testing.T) {
-				if got := tc.testFlow(t, tc.mtu, c.ipHeader); !got {
+				if got := tc.testFlow(t, tc.mtu, c.ipName); !got {
 					t.Errorf("Traffic flow got %v, want true", got)
 				}
 			})
 			t.Run("PacketSmallerThanMTU", func(t *testing.T) {
-				if got := tc.testFlow(t, tc.mtu-64, c.ipHeader); !got {
+				if got := tc.testFlow(t, tc.mtu-64, c.ipName); !got {
 					t.Errorf("Traffic flow got %v, want true", got)
 				}
 			})
