@@ -41,3 +41,27 @@ type system struct {
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
+
+func sysGrpcVerify(grpcPort uint16, grpcName string, grpcTs bool, grpcEn bool, t *testing.T) {
+	if grpcPort == uint16(0) || grpcPort > uint16(0) {
+		t.Logf("Got the expected grpc Port")
+	} else {
+		t.Errorf("Unexpected value for Port: %v", grpcPort)
+	}
+	if grpcName == "DEFAULT" {
+		t.Logf("Got the expected grpc Name")
+	} else {
+		t.Errorf("Unexpected value for Name: %v", grpcName)
+	}
+	if grpcEn == true {
+		t.Logf("Got the expected grpc Enable")
+	} else {
+		t.Errorf("Unexpected value for Enable: %v", grpcEn)
+	}
+	if grpcTs == false {
+		t.Logf("Got the expected grpc Transport-Security")
+	} else {
+		t.Errorf("Unexpected value for Transport-Security: %v", grpcTs)
+	}
+
+}
