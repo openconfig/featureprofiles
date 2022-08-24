@@ -1,8 +1,9 @@
 package basetest
 
 import (
-	"github.com/openconfig/ondatra"
 	"testing"
+
+	"github.com/openconfig/ondatra"
 )
 
 func TestSysGrpcState(t *testing.T) {
@@ -60,7 +61,7 @@ func TestSysGrpcState(t *testing.T) {
 			grpcName := *sysData.GrpcServer["DEFAULT"].Name
 			grpcEn := *sysData.GrpcServer["DEFAULT"].Enable
 			grpcTs := *sysData.GrpcServer["DEFAULT"].TransportSecurity
-			sysGrpcVerify(grpcPort, grpcName, grpcTs, grpcEn)
+			sysGrpcVerify(grpcPort, grpcName, grpcTs, grpcEn, t)
 		})
 	})
 	t.Run("Subscribe /system/grpc-servers/grpc-server['DEFAULT']", func(t *testing.T) {
@@ -70,7 +71,7 @@ func TestSysGrpcState(t *testing.T) {
 			grpcName := *sysGrpc.Name
 			grpcEn := *sysGrpc.Enable
 			grpcTs := *sysGrpc.TransportSecurity
-			sysGrpcVerify(grpcPort, grpcName, grpcTs, grpcEn)
+			sysGrpcVerify(grpcPort, grpcName, grpcTs, grpcEn, t)
 		})
 	})
 	t.Run("Subscribe /system/grpc-servers", func(t *testing.T) {
@@ -80,7 +81,7 @@ func TestSysGrpcState(t *testing.T) {
 			grpcName := *sysGrpcCont[0].Name
 			grpcEn := *sysGrpcCont[0].Enable
 			grpcTs := *sysGrpcCont[0].TransportSecurity
-			sysGrpcVerify(grpcPort, grpcName, grpcTs, grpcEn)
+			sysGrpcVerify(grpcPort, grpcName, grpcTs, grpcEn, t)
 
 		})
 	})
@@ -88,53 +89,94 @@ func TestSysGrpcState(t *testing.T) {
 func TestSysGrpcConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	t.Run("Update//system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
+	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").Name()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, "DEFAULT")
 
 	})
-	t.Run("Replace//system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
+
+	t.Run("Replace //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").Name()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, "DEFAULT")
 
 	})
-	t.Run("Update//system/grpc-servers/grpc-server/config/port", func(t *testing.T) {
+	t.Run("Get //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
+		configName := dut.Config().System().GrpcServer("DEFAULT").Name().Get(t)
+		if configName == "DEFAULT" {
+			t.Logf("Got the expected grpc Name")
+
+		} else {
+			t.Errorf("Unexpected value for Name: %s", configName)
+		}
+
+	})
+
+	t.Run("Update //system/grpc-servers/grpc-server/config/port", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").Port()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, 57777)
 
 	})
-	t.Run("Update//system/grpc-servers/grpc-server/config/port", func(t *testing.T) {
+	t.Run("Replace //system/grpc-servers/grpc-server/config/port", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").Port()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, 57777)
 
 	})
-	t.Run("Update//system/grpc-servers/grpc-server/config/enable", func(t *testing.T) {
+	t.Run("Get //system/grpc-servers/grpc-server/config/port", func(t *testing.T) {
+		configPort := dut.Config().System().GrpcServer("DEFAULT").Port().Get(t)
+		if configPort == uint16(0) || configPort > uint16(0) {
+			t.Logf("Got the expected port number")
+
+		} else {
+			t.Errorf("Unexpected value for Port: %v", configPort)
+		}
+
+	})
+	t.Run("Update //system/grpc-servers/grpc-server/config/enable", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").Enable()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, true)
 
 	})
-	t.Run("Update//system/grpc-servers/grpc-server/config/enable", func(t *testing.T) {
+	t.Run("Replace //system/grpc-servers/grpc-server/config/enable", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").Enable()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, true)
 
 	})
+	t.Run("Get //system/grpc-servers/grpc-server/config/enable", func(t *testing.T) {
+		configEn := dut.Config().System().GrpcServer("DEFAULT").Enable().Get(t)
+		if configEn == true {
+			t.Logf("Got the expected grpc Enable ")
 
-	t.Run("Update//system/grpc-servers/grpc-server/config/transport-security", func(t *testing.T) {
+		} else {
+			t.Errorf("Unexpected value for Enable: %v", configEn)
+		}
+
+	})
+	t.Run("Update //system/grpc-servers/grpc-server/config/transport-security", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").TransportSecurity()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, false)
 
 	})
-	t.Run("Update//system/grpc-servers/grpc-server/config/transport-security", func(t *testing.T) {
+	t.Run("Replace //system/grpc-servers/grpc-server/config/transport-security", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").TransportSecurity()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, false)
+
+	})
+	t.Run("Get //system/grpc-servers/grpc-server/config/transport-security", func(t *testing.T) {
+		configTs := dut.Config().System().GrpcServer("DEFAULT").TransportSecurity().Get(t)
+		if configTs == true {
+			t.Logf("Got the expected grpc Transport-Security ")
+
+		} else {
+			t.Errorf("Unexpected value for Transport-Security: %v", configTs)
+		}
 
 	})
 
