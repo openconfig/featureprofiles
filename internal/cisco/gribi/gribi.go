@@ -29,6 +29,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/featureprofiles/internal/cisco/flags"
+	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -45,15 +46,15 @@ const (
 //
 // Usage:
 //
-//   c := &Client{
-//     DUT: ondatra.DUT(t, "dut"),
-//     FibACK: true,
-//     Persistence: true,
-//   }
-//   defer c.Close(t)
-//   if err := c.Start(t); err != nil {
-//     t.Fatalf("Could not initialize gRIBI: %v", err)
-//   }
+//	c := &Client{
+//	  DUT: ondatra.DUT(t, "dut"),
+//	  FibACK: true,
+//	  Persistence: true,
+//	}
+//	defer c.Close(t)
+//	if err := c.Start(t); err != nil {
+//	  t.Fatalf("Could not initialize gRIBI: %v", err)
+//	}
 type Client struct {
 	DUT                   *ondatra.DUTDevice
 	FibACK                bool
@@ -65,6 +66,14 @@ type Client struct {
 	fluentC *fluent.GRIBIClient
 	afts    []map[string]*telemetry.NetworkInstance_Afts
 }
+
+var programmingResultMap = map[fluent.ProgrammingResult]spb.AFTResult_Status{
+	fluent.ProgrammingFailed: spb.AFTResult_FAILED,
+	fluent.InstalledInRIB:    spb.AFTResult_RIB_PROGRAMMED,
+	fluent.InstalledInFIB:    spb.AFTResult_FIB_PROGRAMMED,
+}
+
+const responseTimeThreshold = 10000000 // nanosecond (10 ML)
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
 func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
@@ -159,7 +168,6 @@ func (c *Client) BecomeLeader(t testing.TB) {
 	c.UpdateElectionID(t, newLow, high)
 }
 
-//
 func (c *Client) checkNHGResult(t testing.TB, expectedResult fluent.ProgrammingResult, operation constants.OpType, nhgIndex uint64) {
 	chk.HasResult(t, c.fluentC.Results(t),
 		fluent.OperationResult().
@@ -207,7 +215,6 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeigh
 	}
 }
 
-//
 func (c *Client) checkNHResult(t testing.TB, expectedResult fluent.ProgrammingResult, operation constants.OpType, nhIndex uint64) {
 	chk.HasResult(t, c.fluentC.Results(t),
 		fluent.OperationResult().
@@ -292,6 +299,7 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 
 // AddIPv4Batch adds a list of IPv4Entries mapping  prefixes to a given next hop group index within a given network instance.
 func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expecteFailure bool, check *flags.GRIBICheck) {
+	resultLenBefore := len(c.fluentC.Results(t))
 	ipv4Entries := []fluent.GRIBIEntry{}
 	for _, prefix := range prefixes {
 		ipv4Entry := fluent.IPv4Entry().
@@ -310,15 +318,22 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4 entries: %v", err)
 	}
+	resultLenAfter := len(c.fluentC.Results(t))
+	newResultsCount := resultLenAfter - resultLenBefore
+	expectResCount := len(prefixes)
+	if check.AFTCheck {
+		expectResCount = len(prefixes) * 2
+	}
+	if newResultsCount != expectResCount {
+		t.Fatalf("Number of responses for programing results is not as expected, want: %d , got: %d ", newResultsCount, expectResCount)
+	}
 	if check.FIBACK || check.RIBACK {
-		for _, prefix := range prefixes {
-			if expecteFailure {
-				c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Add, prefix)
-			} else if check.RIBACK {
-				c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Add, prefix)
-			} else if check.FIBACK {
-					c.checkIPV4Result(t, fluent.InstalledInFIB, constants.Add, prefix)
-			}
+		if expecteFailure {
+			c.checkIPV4ResultWithScale(t, fluent.ProgrammingFailed)
+		} else if check.RIBACK {
+			c.checkIPV4ResultWithScale(t, fluent.ProgrammingFailed)
+		} else if check.FIBACK {
+			c.checkIPV4ResultWithScale(t, fluent.ProgrammingFailed)
 		}
 	}
 	if check.AFTCheck {
@@ -404,7 +419,18 @@ func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance strin
 	}
 }
 
-//
+func (c *Client) checkIPV4ResultWithScale(t testing.TB, expectedResult fluent.ProgrammingResult) {
+	results := c.fluentC.Results(t)
+	for _, opResult := range results {
+		if opResult.ProgrammingResult != programmingResultMap[expectedResult] {
+			t.Fatalf("The program result of ipv4 entry %s is not expect, want:%v got:%v", opResult.Details.IPv4Prefix, programmingResultMap[expectedResult], opResult.ProgrammingResult)
+		}
+		if opResult.Latency >= responseTimeThreshold {
+			t.Logf("The response time delay for ipv4 entry %s is %d ms (larger than 10 ms) ", opResult.Details.IPv4Prefix, opResult.Latency/1000000)
+		}
+	}
+}
+
 func (c *Client) checkIPV4Result(t testing.TB, expectedResult fluent.ProgrammingResult, operation constants.OpType, prefix string) {
 	chk.HasResult(t, c.fluentC.Results(t),
 		fluent.OperationResult().
@@ -472,13 +498,13 @@ func (c *Client) ReplaceIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4 entries: %v", err)
 	}
-	
+
 	if check.FIBACK || check.RIBACK {
 		for _, prefix := range prefixes {
 			if expecteFailure {
 				c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Replace, prefix)
 				continue
-			} 
+			}
 			if check.RIBACK {
 				c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Replace, prefix)
 			}
