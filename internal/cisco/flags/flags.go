@@ -34,6 +34,7 @@ var (
 
 // GRIBICheck struct
 type GRIBICheck struct {
+	RIBACK        bool
 	FIBACK        bool
 	AFTCheck      bool
 	AFTChainCheck bool
@@ -44,6 +45,7 @@ var GRIBIChecks *GRIBICheck
 
 func init() {
 	GRIBIChecks = &GRIBICheck{
+		RIBACK:        true,
 		FIBACK:        *GRIBIFIBCheck,
 		AFTCheck:      *GRIBIAFTCheck,
 		AFTChainCheck: *GRIBIAFTChainCheck,

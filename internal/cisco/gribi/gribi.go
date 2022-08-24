@@ -310,13 +310,14 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4 entries: %v", err)
 	}
-	for _, prefix := range prefixes {
-		if expecteFailure {
-			c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Add, prefix)
-		} else {
-			c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Add, prefix)
-			if check.FIBACK {
-				c.checkIPV4Result(t, fluent.InstalledInFIB, constants.Add, prefix)
+	if check.FIBACK || check.RIBACK {
+		for _, prefix := range prefixes {
+			if expecteFailure {
+				c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Add, prefix)
+			} else if check.RIBACK {
+				c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Add, prefix)
+			} else if check.FIBACK {
+					c.checkIPV4Result(t, fluent.InstalledInFIB, constants.Add, prefix)
 			}
 		}
 	}
@@ -471,11 +472,16 @@ func (c *Client) ReplaceIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4 entries: %v", err)
 	}
-	for _, prefix := range prefixes {
-		if expecteFailure {
-			c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Replace, prefix)
-		} else {
-			c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Replace, prefix)
+	
+	if check.FIBACK || check.RIBACK {
+		for _, prefix := range prefixes {
+			if expecteFailure {
+				c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Replace, prefix)
+				continue
+			} 
+			if check.RIBACK {
+				c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Replace, prefix)
+			}
 			if check.FIBACK {
 				c.checkIPV4Result(t, fluent.InstalledInFIB, constants.Replace, prefix)
 			}
@@ -593,11 +599,15 @@ func (c *Client) DeleteIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint6
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add IPv4 entries: %v", err)
 	}
-	for _, prefix := range prefixes {
-		if expecteFailure {
-			c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Delete, prefix)
-		} else {
-			c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Delete, prefix)
+	if check.FIBACK || check.RIBACK {
+		for _, prefix := range prefixes {
+			if expecteFailure {
+				c.checkIPV4Result(t, fluent.ProgrammingFailed, constants.Delete, prefix)
+				continue
+			}
+			if check.RIBACK {
+				c.checkIPV4Result(t, fluent.InstalledInRIB, constants.Delete, prefix)
+			}
 			if check.FIBACK {
 				c.checkIPV4Result(t, fluent.InstalledInFIB, constants.Delete, prefix)
 			}
