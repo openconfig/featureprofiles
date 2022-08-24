@@ -107,7 +107,7 @@ type testCase struct {
 }
 
 type otgFlowConfigurator func(t *testing.T, packetSize uint16)
-type otgARPVerification func(t *testing.T)
+type otgNeighborVerification func(t *testing.T)
 
 var portSpeed = map[ondatra.Speed]telemetry.E_IfEthernet_ETHERNET_SPEED{
 	ondatra.Speed10Gb:  telemetry.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
@@ -277,7 +277,6 @@ func (tc *testCase) verifyATE(t *testing.T) {
 }
 
 func (tc *testCase) configureIPv4FlowHeader(t *testing.T, packetSize uint16) {
-	otg := tc.ate.OTG()
 	flow := tc.top.Flows().Items()[0]
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv4"}).SetRxNames([]string{ateDst.Name + ".IPv4"})
 	flow.Size().SetFixed(int32(packetSize))
@@ -285,14 +284,9 @@ func (tc *testCase) configureIPv4FlowHeader(t *testing.T, packetSize uint16) {
 	v4.Src().SetValue(ateSrc.IPv4)
 	v4.Dst().SetValue(ateDst.IPv4)
 	tc.ate.OTG().PushConfig(t, tc.top)
-	otg.Telemetry().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-			return val.IsPresent()
-		}).Await(t)
 }
 
 func (tc *testCase) configureIPv4DfFlowHeader(t *testing.T, packetSize uint16) {
-	otg := tc.ate.OTG()
 	flow := tc.top.Flows().Items()[0]
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv4"}).SetRxNames([]string{ateDst.Name + ".IPv4"})
 	v4 := flow.Packet().Add().Ipv4()
@@ -300,34 +294,25 @@ func (tc *testCase) configureIPv4DfFlowHeader(t *testing.T, packetSize uint16) {
 	v4.Src().SetValue(ateSrc.IPv4)
 	v4.Dst().SetValue(ateDst.IPv4)
 	tc.ate.OTG().PushConfig(t, tc.top)
-	otg.Telemetry().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-			return val.IsPresent()
-		}).Await(t)
 }
 
 func (tc *testCase) configureIPv6FlowHeader(t *testing.T, packetSize uint16) {
-	otg := tc.ate.OTG()
 	flow := tc.top.Flows().Items()[0]
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv6"}).SetRxNames([]string{ateDst.Name + ".IPv6"})
 	v6 := flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(ateSrc.IPv6)
 	v6.Dst().SetValue(ateDst.IPv6)
 	tc.ate.OTG().PushConfig(t, tc.top)
-	otg.Telemetry().Interface(ateSrc.Name+".Eth").Ipv6NeighborAny().LinkLayerAddress().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-			return val.IsPresent()
-		}).Await(t)
 }
 
-func (tc *testCase) waitOTGIPv4ARPEntry(t *testing.T) {
+func (tc *testCase) waitOTGIPv4NeighborEntry(t *testing.T) {
 	tc.ate.OTG().Telemetry().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
 		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
 			return val.IsPresent()
 		}).Await(t)
 }
 
-func (tc *testCase) waitOTGIPv6ARPEntry(t *testing.T) {
+func (tc *testCase) waitOTGIPv6NeighborEntry(t *testing.T) {
 	tc.ate.OTG().Telemetry().Interface(ateSrc.Name+".Eth").Ipv6NeighborAny().LinkLayerAddress().Watch(
 		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
 			return val.IsPresent()
@@ -357,7 +342,7 @@ func diffCounters(before, after *counters) *counters {
 
 // testFlow returns whether the traffic flow from ATE port1 to ATE
 // port2 has been successfully detected.
-func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otgFlowConfigurator, waitOTGARPEntry otgARPVerification) bool {
+func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otgFlowConfigurator, waitOTGARPEntry otgNeighborVerification) bool {
 	p1 := tc.dut.Port(t, "port1")
 	p2 := tc.dut.Port(t, "port2")
 	p1Counter := tc.dut.Telemetry().Interface(p1.Name()).Counters()
@@ -462,11 +447,11 @@ func (tc *testCase) run(t *testing.T) {
 		ipName         string
 		shouldFrag     bool
 		configIPHeader otgFlowConfigurator
-		waitARP        otgARPVerification
+		waitARP        otgNeighborVerification
 	}{
-		{"IPv4", true, tc.configureIPv4FlowHeader, tc.waitOTGIPv4ARPEntry},
-		{"IPv4-DF", false, tc.configureIPv4DfFlowHeader, tc.waitOTGIPv4ARPEntry},
-		{"IPv6", false, tc.configureIPv6FlowHeader, tc.waitOTGIPv6ARPEntry},
+		{"IPv4", true, tc.configureIPv4FlowHeader, tc.waitOTGIPv4NeighborEntry},
+		{"IPv4-DF", false, tc.configureIPv4DfFlowHeader, tc.waitOTGIPv4NeighborEntry},
+		{"IPv6", false, tc.configureIPv6FlowHeader, tc.waitOTGIPv6NeighborEntry},
 	} {
 		t.Run(c.ipName, func(t *testing.T) {
 			t.Run("PacketLargerThanMTU", func(t *testing.T) {
