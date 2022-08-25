@@ -39,6 +39,8 @@ const (
 	adminStatusDown = telemetry.Interface_AdminStatus_DOWN
 	operStatusUp    = telemetry.Interface_OperStatus_UP
 	operStatusDown  = telemetry.Interface_OperStatus_DOWN
+	// Maximum Port Value: https://github.com/openconfig/public/blob/2049164a8bca4cc9f11ffb313ef25c0e87303a24/release/models/p4rt/openconfig-p4rt.yang#L81
+	maxPortVal = 0xFFFFFEFF
 )
 
 type trafficData struct {
@@ -601,10 +603,10 @@ func TestP4rtInterfaceID(t *testing.T) {
 		portID: 1,
 	}, {
 		desc:   "AvePortID",
-		portID: math.MaxUint32 / 2,
+		portID: uint32(maxPortVal) / 2,
 	}, {
 		desc:   "MaxPortID",
-		portID: math.MaxUint32,
+		portID: uint32(maxPortVal),
 	}}
 
 	for _, tc := range cases {
