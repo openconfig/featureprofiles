@@ -182,7 +182,7 @@ func TestOpticsThresholds(t *testing.T) {
 				mfgName := component.MfgName().Get(t)
 				t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
 
-				//TODO:Need to update the lookup code after optics threshold model is defined.
+				// TODO: Need to update the lookup code after optics threshold model is defined.
 				t.Skipf("Optics threshold model needs to be defined, skip it for now.")
 
 				threshold := fetchOpticsThreshold(t, dut, transceiver, tc.property)
