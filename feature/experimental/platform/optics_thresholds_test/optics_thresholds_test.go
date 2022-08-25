@@ -23,17 +23,49 @@ import (
 )
 
 const (
-	transceiverType        = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
-	sleepDuration          = time.Minute
-	minOpticsPower         = -30.0
-	maxOpticsPower         = 10.0
-	minOpticsHighThreshold = 1.0
-	maxOpticsLowThreshold  = -1.0
+	transceiverType                   = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
+	minOpticsPower                    = -30.0
+	maxOpticsPower                    = 10.0
+	minOpticsPowerHighThreshold       = 1.0
+	maxOpticsPowerLowThreshold        = -1.0
+	minOpticsTemperature              = 90.0
+	maxOpticsTemperature              = -20.0
+	minOpticsTemperatureHighThreshold = 50.0
+	maxOpticsTemperatureLowThreshold  = 10.0
+	minOpticsBiasCurrent              = 95.0
+	maxOpticsBiasCurrent              = 5.0
+	minOpticsBiasCurrentHighThreshold = 50.0
+	maxOpticsBiasCurrentLowThreshold  = 40.0
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
+
+// Test cases:
+//
+// - Get a list of transceivers with installed optics
+// - Verify that the following optics threshold  telemetry paths exist
+// - Output power threshold:
+//   - /components/component/Ethernet/properties/property/laser-tx-power-low-alarm-threshold/state/value
+//   - /components/component/Ethernet/properties/property/laser-tx-power-high-alarm-threshold/state/value
+//   - /components/component/Ethernet/properties/property/laser-tx-power-low-warn-threshold/state/value
+//   - /components/component/Ethernet/properties/property/laser-tx-power-high-warn-threshold/state/value
+// - Input power threshold:
+//   - /components/component/Ethernet/properties/property/laser-rx-power-low-alarm-threshold/state/value
+//   - /components/component/Ethernet/properties/property/laser-rx-power-high-alarm-threshold/state/value
+//   - /components/component/Ethernet/properties/property/laser-rx-power-low-warn-threshold/state/value
+//   - /components/component/Ethernet/properties/property/laser-rx-power-high-warn-threshold/state/value
+// - Optics temperature threshold:
+//   - /components/component/Ethernet/properties/property/laser-temperature-low-alarm-threshold/state/value
+//   - /components/component/Ethernet/properties/property/laser-temperature-high-alarm-threshold/state/value
+//   - /components/component/Ethernet/properties/property/laser-temperature-low-warn-threshold/state/value
+//   - /components/component/Ethernet/properties/property/laser-temperature-high-warn-threshold/state/value
+// - Optics bias-current threshold:
+//   - /components/component/Ethernet/properties/property/laser-bias-current-low-alarm-threshold/state/value
+//   - /components/component/Ethernet/properties/property/laser-bias-current-high-alarm-threshold/state/value
+//   - /components/component/Ethernet/properties/property/laser-bias-current-low-warn-threshold/state/value
+//   - /components/component/Ethernet/properties/property/laser-bias-current-high-warn-threshold/state/value
 
 // Topology:
 //   ate:port1 <--> port1:dut:port2 <--> ate:port2
@@ -45,7 +77,7 @@ func TestMain(m *testing.M) {
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
 
-func TestOpticsPowerBiasCurrent(t *testing.T) {
+func TestOpticsThresholds(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	transceivers := findComponentsByType(t, dut, transceiverType)
@@ -54,109 +86,127 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 		t.Fatalf("Get transceiver list for %q: got 0, want > 0", dut.Model())
 	}
 
-	for _, transceiver := range transceivers {
-		t.Logf("Validate transceiver: %s", transceiver)
-		component := dut.Telemetry().Component(transceiver)
-
-		if !component.MfgName().Lookup(t).IsPresent() {
-			t.Logf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiver)
-			continue
-		}
-		mfgName := component.MfgName().Get(t)
-		t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
-
-		//TODO: Remove the mfgName INNOLIGHT check after the issue is fixed.
-		if mfgName == "INNOLIGHT" {
-			t.Logf("Optics from INNOLIGHT is not supported, skip it for now.")
-			continue
-		}
-		inputPowers := component.Transceiver().ChannelAny().InputPower().Instant().Get(t)
-		t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
-		if len(inputPowers) == 0 {
-			t.Errorf("Get inputPowers list for %q: got 0, want > 0", transceiver)
-		}
-		outputPowers := component.Transceiver().ChannelAny().OutputPower().Instant().Get(t)
-		t.Logf("Transceiver %s outputPowers: %v", transceiver, outputPowers)
-		if len(outputPowers) == 0 {
-			t.Errorf("Get outputPowers list for %q: got 0, want > 0", transceiver)
-		}
-
-		biasCurrents := component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().Get(t)
-		t.Logf("Transceiver %s biasCurrents: %v", transceiver, biasCurrents)
-		if len(outputPowers) == 0 {
-			t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
-		}
-	}
-}
-
-func TestOpticsPowerUpdate(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	dp := dut.Port(t, "port1")
-	d := &telemetry.Device{}
-	i := d.GetOrCreateInterface(dp.Name())
-
 	cases := []struct {
-		desc                string
-		IntfStatus          bool
-		expectedStatus      telemetry.E_Interface_OperStatus
-		expectedMaxOutPower float64
-		checkMinOutPower    bool
+		desc         string
+		property     string
+		minThreshold float64
+		maxThreshold float64
 	}{{
-		// Check both input and output optics power are in normal range.
-		desc:                "Check initial input and output optics powers are OK",
-		IntfStatus:          true,
-		expectedStatus:      telemetry.Interface_OperStatus_UP,
-		expectedMaxOutPower: maxOpticsPower,
-		checkMinOutPower:    true,
+		desc:         "Check laser-rx-power-high-warn-threshold",
+		property:     "laser-rx-power-high-warn-threshold",
+		minThreshold: minOpticsPowerHighThreshold,
+		maxThreshold: maxOpticsPower,
 	}, {
-		desc:                "Check output optics power is very small after interface is disabled",
-		IntfStatus:          false,
-		expectedStatus:      telemetry.Interface_OperStatus_DOWN,
-		expectedMaxOutPower: minOpticsPower,
-		checkMinOutPower:    false,
+		desc:         "Check laser-rx-power-high-alarm-threshold",
+		property:     "laser-rx-power-high-alarm-threshold",
+		minThreshold: minOpticsPowerHighThreshold,
+		maxThreshold: maxOpticsPower,
 	}, {
-		desc:                "Check output optics power is normal after interface is re-enabled",
-		IntfStatus:          true,
-		expectedStatus:      telemetry.Interface_OperStatus_UP,
-		expectedMaxOutPower: maxOpticsPower,
-		checkMinOutPower:    true,
+		desc:         "Check laser-tx-power-high-warn-threshold",
+		property:     "laser-tx-power-high-warn-threshold",
+		minThreshold: minOpticsPowerHighThreshold,
+		maxThreshold: maxOpticsPower,
+	}, {
+		desc:         "Check laser-tx-power-high-alarm-threshold",
+		property:     "laser-tx-power-high-alarm-threshold",
+		minThreshold: minOpticsPowerHighThreshold,
+		maxThreshold: maxOpticsPower,
+	}, {
+		desc:         "Check laser-tx-power-low-warn-threshold",
+		property:     "laser-tx-power-low-warn-threshold",
+		minThreshold: minOpticsPower,
+		maxThreshold: maxOpticsPowerLowThreshold,
+	}, {
+		desc:         "Check laser-tx-power-low-alarm-threshold",
+		property:     "laser-tx-power-low-alarm-threshold",
+		minThreshold: minOpticsPower,
+		maxThreshold: maxOpticsPowerLowThreshold,
+	}, {
+		desc:         "Check laser-rx-power-low-warn-threshold",
+		property:     "laser-rx-power-low-warn-threshold",
+		minThreshold: minOpticsPower,
+		maxThreshold: maxOpticsPowerLowThreshold,
+	}, {
+		desc:         "Check laser-rx-power-low-alarm-threshold",
+		property:     "laser-rx-power-low-alarm-threshold",
+		minThreshold: minOpticsPower,
+		maxThreshold: maxOpticsPowerLowThreshold,
+	}, {
+		desc:         "Check laser-temperature-high-warn-threshold",
+		property:     "laser-temperature-high-warn-threshold",
+		minThreshold: minOpticsTemperatureHighThreshold,
+		maxThreshold: maxOpticsTemperature,
+	}, {
+		desc:         "Check laser-temperature-high-alarm-threshold",
+		property:     "laser-temperature-high-alarm-threshold",
+		minThreshold: minOpticsTemperatureHighThreshold,
+		maxThreshold: maxOpticsTemperature,
+	}, {
+		desc:         "Check laser-temperature-low-warn-threshold",
+		property:     "laser-temperature-low-warn-threshold",
+		minThreshold: minOpticsTemperature,
+		maxThreshold: maxOpticsTemperatureLowThreshold,
+	}, {
+		desc:         "Check laser-temperature-low-alarm-threshold",
+		property:     "laser-temperature-low-alarm-threshold",
+		minThreshold: minOpticsTemperature,
+		maxThreshold: maxOpticsTemperatureLowThreshold,
+	}, {
+		desc:         "Check laser-bias-current-high-warn-threshold",
+		property:     "laser-bias-current-high-warn-threshold",
+		minThreshold: minOpticsBiasCurrentHighThreshold,
+		maxThreshold: maxOpticsBiasCurrent,
+	}, {
+		desc:         "Check laser-bias-current-high-alarm-threshold",
+		property:     "laser-bias-current-high-alarm-threshold",
+		minThreshold: minOpticsBiasCurrentHighThreshold,
+		maxThreshold: maxOpticsBiasCurrent,
+	}, {
+		desc:         "Check laser-bias-current-low-warn-threshold",
+		property:     "laser-bias-current-low-warn-threshold",
+		minThreshold: minOpticsBiasCurrent,
+		maxThreshold: maxOpticsBiasCurrentLowThreshold,
+	}, {
+		desc:         "Check laser-bias-current-low-alarm-threshold",
+		property:     "laser-bias-current-low-alarm-threshold",
+		minThreshold: minOpticsBiasCurrent,
+		maxThreshold: maxOpticsBiasCurrentLowThreshold,
 	}}
+
 	for _, tc := range cases {
 		t.Log(tc.desc)
-		intUpdateTime := 2 * time.Minute
 		t.Run(tc.desc, func(t *testing.T) {
-			i.Enabled = ygot.Bool(tc.IntfStatus)
-			dut.Config().Interface(dp.Name()).Replace(t, i)
-			dut.Telemetry().Interface(dp.Name()).OperStatus().Await(t, intUpdateTime, tc.expectedStatus)
+			for _, transceiver := range transceivers {
+				t.Logf("Validate transceiver: %s", transceiver)
+				component := dut.Telemetry().Component(transceiver)
+				mfgName := component.MfgName().Get(t)
+				t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
 
-			mfgNameLookup := dut.Telemetry().Component(dp.Name()).MfgName().Lookup(t)
-			if !mfgNameLookup.IsPresent() {
-				t.Errorf("mfgNameLookup.IsPresent(): got false, want true")
-			}
-			t.Logf("Transceiver MfgName: %s", mfgNameLookup.Val(t))
+				//TODO:Need to update the lookup code after optics threshold model is defined.
+				t.Skipf("Optics threshold model needs to be defined, skip it for now.")
 
-			//TODO: Remove the mfgName INNOLIGHT check after the issue is fixed.
-			if mfgNameLookup.Val(t) == "INNOLIGHT" {
-				t.Skipf("Optics from INNOLIGHT is not supported, skip it for now.")
-			}
-
-			channels := dut.Telemetry().Component(dp.Name()).Transceiver().ChannelAny()
-			inputPowers := channels.InputPower().Instant().Get(t)
-			outputPowers := channels.OutputPower().Instant().Get(t)
-			for _, inPower := range inputPowers {
-				if inPower > maxOpticsPower || inPower < minOpticsPower {
-					t.Errorf("Get inputPower for port %q): got %.2f, want within [%f, %f]", dp.Name(), inPower, minOpticsPower, maxOpticsPower)
-				}
-			}
-			for _, outPower := range outputPowers {
-				if outPower > tc.expectedMaxOutPower {
-					t.Errorf("Get outPower for port %q): got %.2f, want < %f", dp.Name(), outPower, tc.expectedMaxOutPower)
-				}
-				if tc.checkMinOutPower && outPower < minOpticsPower {
-					t.Errorf("Get outPower for port %q): got %.2f, want > %f", dp.Name(), outPower, minOpticsPower)
+				threshold := fetchOpticsThreshold(t, dut, transceiver, tc.property)
+				if threshold > tc.maxThreshold || threshold < tc.minThreshold {
+					t.Errorf("Get threshold for %q): got %.2f, want within [%f, %f] ", transceiver, threshold, tc.minThreshold, tc.maxThreshold)
 				}
 			}
 		})
+	}
+}
+
+func fetchOpticsThreshold(t *testing.T, dut *ondatra.DUTDevice, opticsName string, property string) float64 {
+	t.Helper()
+	val := dut.Telemetry().Component(opticsName).Property(property).Get(t).GetValue()
+	switch v := val.(type) {
+	case telemetry.UnionUint64:
+		return float64(v)
+	case telemetry.UnionInt64:
+		return float64(v)
+	case telemetry.UnionFloat64:
+		return float64(v)
+	default:
+		t.Fatalf("Error extracting optics threshold, could not type assert union. union: %v", val)
+		return 0
 	}
 }
 
