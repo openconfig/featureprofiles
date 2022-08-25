@@ -131,14 +131,10 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			dut.Config().Interface(dp.Name()).Replace(t, i)
 			dut.Telemetry().Interface(dp.Name()).OperStatus().Await(t, intUpdateTime, tc.expectedStatus)
 
-			mfgNameLookup := dut.Telemetry().Component(dp.Name()).MfgName().Lookup(t)
-			if !mfgNameLookup.IsPresent() {
-				t.Errorf("mfgNameLookup.IsPresent(): got false, want true")
-			}
-			t.Logf("Transceiver MfgName: %s", mfgNameLookup.Val(t))
-
-			//TODO: Remove the mfgName INNOLIGHT check after the issue is fixed.
-			if mfgNameLookup.Val(t) == "INNOLIGHT" {
+			mfgName := dut.Telemetry().Component(dp.Name()).MfgName().Get(t)
+			t.Logf("Transceiver MfgName: %s", mfgName)
+			// TODO: Remove the mfgName INNOLIGHT check after the issue is fixed.
+			if mfgName == "INNOLIGHT" {
 				t.Skipf("Optics from INNOLIGHT is not supported, skip it for now.")
 			}
 
