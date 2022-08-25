@@ -179,11 +179,12 @@ func TestOpticsThresholds(t *testing.T) {
 			for _, transceiver := range transceivers {
 				t.Logf("Validate transceiver: %s", transceiver)
 				component := dut.Telemetry().Component(transceiver)
+				if !component.MfgName().Lookup(t).IsPresent() {
+					t.Logf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiver)
+					continue
+				}
 				mfgName := component.MfgName().Get(t)
 				t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
-
-				// TODO: Need to update the lookup code after optics threshold model is defined.
-				t.Skipf("Optics threshold model needs to be defined, skip it for now.")
 
 				threshold := fetchOpticsThreshold(t, dut, transceiver, tc.property)
 				if threshold > tc.maxThreshold || threshold < tc.minThreshold {
@@ -196,6 +197,9 @@ func TestOpticsThresholds(t *testing.T) {
 
 func fetchOpticsThreshold(t *testing.T, dut *ondatra.DUTDevice, opticsName string, property string) float64 {
 	t.Helper()
+	// TODO: Need to update the lookup code after optics threshold model is defined.
+	t.Skipf("Optics threshold model needs to be defined, skip it for now.")
+
 	val := dut.Telemetry().Component(opticsName).Property(property).Get(t).GetValue()
 	switch v := val.(type) {
 	case telemetry.UnionUint64:
