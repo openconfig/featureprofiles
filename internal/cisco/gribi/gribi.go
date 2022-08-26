@@ -177,7 +177,7 @@ func (c *Client) checkNHGResult(t testing.TB, expectedResult fluent.ProgrammingR
 // in a given network instance.
 func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
-	aftNhg, _ := c.getOrCreateAft(instance).NewNextHopGroup(nhgIndex)
+	aftNhg := c.getOrCreateAft(instance).GetOrCreateNextHopGroup(nhgIndex)
 	aftNhg.ProgrammedId = &nhgIndex
 
 	if bkhgIndex != 0 {
@@ -186,7 +186,7 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeigh
 	}
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
-		aftNh, _ := aftNhg.NewNextHop(nhIndex)
+		aftNh := aftNhg.GetOrCreateNextHop(nhIndex)
 		aftNh.Weight = new(uint64)
 		*aftNh.Weight = weight
 
@@ -226,7 +226,7 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex)
 
-	aftNh, _ := c.getOrCreateAft(instance).NewNextHop(nhIndex)
+	aftNh := c.getOrCreateAft(instance).GetOrCreateNextHop(nhIndex)
 
 	if address == "decap" {
 		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
@@ -267,7 +267,7 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 	ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
 		WithNetworkInstance(instance).
 		WithNextHopGroup(nhgIndex)
-	aftIpv4Entry, _ := c.getOrCreateAft(instance).NewIpv4Entry(prefix)
+	aftIpv4Entry := c.getOrCreateAft(instance).GetOrCreateIpv4Entry(prefix)
 	aftIpv4Entry.NextHopGroup = &nhgIndex
 
 	if nhgInstance != "" && nhgInstance != instance {
@@ -300,7 +300,7 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 			WithNetworkInstance(instance).
 			WithPrefix(prefix).
 			WithNextHopGroup(nhgIndex)
-		aftIpv4Entry, _ := c.getOrCreateAft(instance).NewIpv4Entry(prefix)
+		aftIpv4Entry := c.getOrCreateAft(instance).GetOrCreateIpv4Entry(prefix)
 		aftIpv4Entry.NextHopGroup = &nhgIndex
 		if nhgInstance != "" && nhgInstance != instance {
 			ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
