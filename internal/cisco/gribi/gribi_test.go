@@ -101,8 +101,6 @@ func testAddEntriesAcrossMultipleVrfs(t *testing.T, args *testArgs) {
 
 }
 
-
-
 func TestGRIBIAPI(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")

@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-
 	"github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
@@ -286,7 +285,6 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 	}
 }
 
-
 // ReplaceNHG replaces a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
 func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck) {
@@ -363,7 +361,6 @@ func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance strin
 	}
 }
 
-
 func (c *Client) checkIPV4Result(t testing.TB, expectedResult fluent.ProgrammingResult, operation constants.OpType, prefix string) {
 	chk.HasResult(t, c.fluentC.Results(t),
 		fluent.OperationResult().
@@ -407,7 +404,6 @@ func (c *Client) ReplaceIPv4(t testing.TB, prefix string, nhgIndex uint64, insta
 		c.checkIPv4e(t, prefix, nhgIndex, instance, nhgInstance)
 	}
 }
-
 
 // DeleteNHG deletes a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
@@ -493,7 +489,6 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, nhgIndex uint64, instan
 	}
 }
 
-
 // FlushServer flushes all the gribi entries
 func (c *Client) FlushServer(t testing.TB) {
 	t.Logf("Flush Entries in All Network Instances.")
@@ -508,7 +503,6 @@ func (c *Client) FlushServer(t testing.TB) {
 		t.Fatalf("Could not remove all gribi entries from dut %s, got error: %v", c.DUT.Name(), err)
 	}
 }
-
 
 // AddNHWithIPinIP adds a NextHopEntry with IPinIP
 func (c *Client) AddNHWithIPinIP(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, subinterfaceRef string, ipinip bool, expecteFailure bool, check *flags.GRIBICheck) {
@@ -550,4 +544,3 @@ func (c *Client) AddNHWithIPinIP(t testing.TB, nhIndex uint64, address, instance
 		}
 	}
 }
-
