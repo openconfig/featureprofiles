@@ -670,7 +670,7 @@ func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInst
 	aftNHs := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopAny().Get(t)
 	found := false
 	for _, nh := range aftNHs {
-		if nh.GetProgrammedIndex() == nhIndex {
+		if nh.GetIpAddress() == address {
 			if nh.GetIpAddress() != address {
 				t.Fatalf("AFT Check failed for aft/next-hop/state/ip-address got %s, want %s", nh.GetIpAddress(), address)
 			}
@@ -743,7 +743,7 @@ func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instan
 	}
 
 	gotNhgIndex := aftIPv4e.GetNextHopGroup()
-	nhgPId := c.DUT.Telemetry().NetworkInstance(gotNhgInstance).Afts().NextHopGroup(gotNhgIndex).ProgrammedId().Get(t)
+	nhgPId := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(gotNhgIndex).ProgrammedId().Get(t)
 	if nhgPId != nhgIndex {
 		t.Fatalf("AFT Check failed for ipv4-entry/state/next-hop-group/state/programmed-id got %d, want %d", nhgPId, nhgIndex)
 	}
