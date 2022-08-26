@@ -321,20 +321,14 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 	resultLenAfter := len(c.fluentC.Results(t))
 	newResultsCount := resultLenAfter - resultLenBefore
 	expectResCount := len(prefixes)
-	if check.AFTCheck {
+	if check.FIBACK {
 		expectResCount = len(prefixes) * 2
 	}
 	if newResultsCount != expectResCount {
 		t.Fatalf("Number of responses for programing results is not as expected, want: %d , got: %d ", newResultsCount, expectResCount)
 	}
 	if check.FIBACK || check.RIBACK {
-		if expecteFailure {
-			c.checkIPV4ResultWithScale(t, fluent.ProgrammingFailed)
-		} else if check.RIBACK {
-			c.checkIPV4ResultWithScale(t, fluent.ProgrammingFailed)
-		} else if check.FIBACK {
-			c.checkIPV4ResultWithScale(t, fluent.ProgrammingFailed)
-		}
+		c.checkIPV4ResultWithScale(t, expecteFailure)
 	}
 	if check.AFTCheck {
 		for _, prefix := range prefixes {
@@ -419,11 +413,17 @@ func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance strin
 	}
 }
 
-func (c *Client) checkIPV4ResultWithScale(t testing.TB, expectedResult fluent.ProgrammingResult) {
+func (c *Client) checkIPV4ResultWithScale(t testing.TB, expectFailure bool) {
 	results := c.fluentC.Results(t)
 	for _, opResult := range results {
-		if opResult.ProgrammingResult != programmingResultMap[expectedResult] {
-			t.Fatalf("The program result of ipv4 entry %s is not expect, want:%v got:%v", opResult.Details.IPv4Prefix, programmingResultMap[expectedResult], opResult.ProgrammingResult)
+		if expectFailure {
+			if opResult.ProgrammingResult != spb.AFTResult_FAILED {
+				t.Fatalf("The program result of ipv4 entry %s is not as expected, want:%s got:%v", opResult.Details.IPv4Prefix, "AFTResult_FAILED", opResult.ProgrammingResult)
+			}
+		} else {
+			if !(opResult.ProgrammingResult == spb.AFTResult_FIB_PROGRAMMED || opResult.ProgrammingResult == spb.AFTResult_RIB_PROGRAMMED) {
+				t.Fatalf("The program result of ipv4 entry %s is not as expected, want:%s got:%v", opResult.Details.IPv4Prefix, "AFTResult_FIB_PROGRAMMED || AFTResult_RIB_PROGRAMMED", opResult.ProgrammingResult)
+			}
 		}
 		if opResult.Latency >= responseTimeThreshold {
 			t.Logf("The response time delay for ipv4 entry %s is %d ms (larger than 10 ms) ", opResult.Details.IPv4Prefix, opResult.Latency/1000000)
