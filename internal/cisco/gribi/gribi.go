@@ -67,12 +67,6 @@ type Client struct {
 	afts    []map[string]*telemetry.NetworkInstance_Afts
 }
 
-var programmingResultMap = map[fluent.ProgrammingResult]spb.AFTResult_Status{
-	fluent.ProgrammingFailed: spb.AFTResult_FAILED,
-	fluent.InstalledInRIB:    spb.AFTResult_RIB_PROGRAMMED,
-	fluent.InstalledInFIB:    spb.AFTResult_FIB_PROGRAMMED,
-}
-
 const responseTimeThreshold = 10000000 // nanosecond (10 ML)
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
