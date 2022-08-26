@@ -8,37 +8,48 @@ Validate IPv4 AFT support in gRIBI with recursion.
 
 **Topology**
 
-*  Connect ATE port-1 to DUT port-1 and ATE port-2 to DUT port-2.
+*   Connect ATE port-1 to DUT port-1 and ATE port-2 to DUT port-2.
     *   TODO: create a non-default VRF (VRF-1) that includes DUT port-1.
 
 **Validate hierarchical resolution**
 
 1.  Establish gRIBI client connection with DUT.
-1.  TODO: Use gRIBI Modify RPC to install entries per the following order, and ensure FIB ACK is received for each of the AFTOperation:
+1.  TODO: Use gRIBI Modify RPC to install entries per the following order, and
+    ensure FIB ACK is received for each of the AFTOperation:
 
-    1.  Add 203.0.113.1/32 (default VRF) to NextHopGroup (default VRF) containing one NextHop (default VRF) specified to
-            be the address of ATE port-2.
-    1.  Add 198.51.100.0/24 (VRF-1) to NextHopGroup (default VRF) containing one NextHop (default VRF) specified to
-            be 203.0.113.1/32 in the default VRF.
+    1.  Add 203.0.113.1/32 (default VRF) to NextHopGroup (default VRF)
+        containing one NextHop (default VRF) specified to be the address of ATE
+        port-2.
+    1.  Add 198.51.100.0/24 (VRF-1) to NextHopGroup (default VRF) containing one
+        NextHop (default VRF) specified to be 203.0.113.1/32 in the default VRF.
+
 1.  Forward packets between ATE port-1 and ATE port-2 (destined to
     198.51.100.0/24) and determine that packets are forwarded successfully.
+
 1.  Validate that both routes are shown as installed via AFT telemetry.
+
 1.  Ensure that removing the IPv4Entry 203.0.113.1/32 with a DELETE operation
     results in traffic loss, and removal from AFT.
-1. TODO: Add 203.0.113.1/32 (default VRF) to NextHopGroup (default VRF) containing one NextHop (default VRF) that specifies DUT port-2 as the egress interface and `00:1A:11:00:00:01` as the destination MAC address. 
-1. TODO: Ensure that ATE port-2 receives packet with `00:1A:11:00:00:01` as the destination MAC address.
+
+1.  TODO: Add 203.0.113.1/32 (default VRF) to NextHopGroup (default VRF)
+    containing one NextHop (default VRF) that specifies DUT port-2 as the egress
+    interface and `00:1A:11:00:00:01` as the destination MAC address.
+
+1.  TODO: Ensure that ATE port-2 receives packet with `00:1A:11:00:00:01` as the
+    destination MAC address.
 
 **TODO: Validate error reporting**
 
 1.  Establish gRIBI client connection with DUT.
 1.  Use gRIBI Modify RPC to install the following entries:
 
-    1.  Add 203.0.113.1/32 (default VRF) to NextHopGroup (default VRF) containing one NextHop (default VRF) specified to
-            be the address of ATE port-2.
-    1.  Add 198.51.100.0/24 (VRF-1) to NextHopGroup (default VRF) containing one NextHop (default VRF) specified to
-            be 203.0.113.1/32 in the default VRF.
-    
-    but with the following (table) scenarios: 
+    1.  Add 203.0.113.1/32 (default VRF) to NextHopGroup (default VRF)
+        containing one NextHop (default VRF) specified to be the address of ATE
+        port-2.
+    1.  Add 198.51.100.0/24 (VRF-1) to NextHopGroup (default VRF) containing one
+        NextHop (default VRF) specified to be 203.0.113.1/32 in the default VRF.
+
+    but with the following (table) scenarios:
 
     *   Replace 203.0.113.1/32 with a syntax invalid IP address.
     *   Missing NextHopGroup for the IPv4Entry 203.0.113.1/32.
@@ -46,8 +57,11 @@ Validate IPv4 AFT support in gRIBI with recursion.
     *   Empty NextHop for the IPv4Entry 203.0.113.1/32.
     *   Invalid IPv4 address in NextHop for the IPv4Entry 203.0.113.1/32.
 
-1.   Ensure FAILED returned for the related IPv4Entry, NHG and NH in all the above scenarios.
-1.   Ensure RIB ACK but not FIB ACK is, returned for the IPv4Entry 198.51.100.0/24 in all the above scenarios.
+1.  Ensure FAILED returned for the related IPv4Entry, NHG and NH in all the
+    above scenarios.
+
+1.  Ensure RIB ACK but not FIB ACK is, returned for the IPv4Entry
+    198.51.100.0/24 in all the above scenarios.
 
 ## Config Parameter coverage
 
