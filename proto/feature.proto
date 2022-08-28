@@ -87,6 +87,36 @@ message GNMIService {
   // further description of modes (e.g., POLL, STREAM, ONCE).
 }
 
+// GRIBIService describes compliance with the gRIBI service.
+message GRIBIService {
+  // method_name specifies the name of the gRIBI method that is
+  // being tested. The methods are the RPCs that are defined
+  // within gRIBI.
+  enum Method {
+    GR_INVALID = 0;
+    GR_MODIFY = 1;    // gRIBI.Modify
+    GR_GET = 2;       // gRIBI.Get
+    GR_FLUSH = 3;     // gRIBI.Flush
+  }
+  // The methods that are covered by the feature profile.
+  repeated Method methods = 1;
+  
+  // The AFTs that are supported by gRIBI. A feature profile may
+  // cover a subset of AFTs within an RPC.
+  enum AFT {
+    GA_INVALID = 0;
+    GA_IPV4 = 1;                // IPv4Entry
+    GA_IPV6 = 2;                // IPv6Entry
+    GA_MPLS = 3;                // MPLSEntry
+    GA_POLICYFORWARDING = 4;    // PolicyForwardingEntry
+    GA_NEXTHOP = 5;             // NextHop
+    GA_NEXTHOPGROUP = 6;        // NextHopGroup
+  }
+  // The set of AFTs that are covered by the feature profile.
+  repeated AFT afts = 2;
+}
+  
+
 message FeatureProfile {
   // Unique identifier for the service profile.
   optional FeatureProfileID id = 1;
