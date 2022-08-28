@@ -131,9 +131,12 @@ message FeatureProfile {
   // A iBGP feature profile might depend on the BGP base feature profile.
   repeated FeatureProfileID feature_profile_dependency = 4;
 
-  // A list of GNOI operational commands that compose the feature profile.
+  // A list of gNOI operational commands that compose the feature profile.
   repeated GNOIService gnoi_service = 5;
 
-  // A list of GNMI methods that compose the feature profile.
+  // A list of gNMI methods that compose the feature profile.
   repeated GNMIService gnmi_service = 6;
+
+  // A list of gRIBI Method + AFT combinations that compose the feature profile.
+  repeated GRIBIservice gribi_service = 7;
 }

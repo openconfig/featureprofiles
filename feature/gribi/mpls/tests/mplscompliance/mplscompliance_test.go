@@ -25,7 +25,7 @@ import (
 
 const (
 	// defNIName specifies the default network instance name to be used.
-	defNIName = "default"
+	defNIName = "DEFAULT"
 	// baseLabel specifies the lower bound label used within a stack.
 	baseLabel = 42
 )
