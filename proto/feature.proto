@@ -36,6 +36,8 @@
 //lint:file-ignore U1000 Ignore all unused code, it's generated
 syntax = "proto2";
 
+option go_package = "github.com/openconfig/featureprofiles/proto";
+
 package openconfig.profiles;
 
 message FeatureProfileID {
@@ -138,5 +140,5 @@ message FeatureProfile {
   repeated GNMIService gnmi_service = 6;
 
   // A list of gRIBI Method + AFT combinations that compose the feature profile.
-  repeated GRIBIservice gribi_service = 7;
+  repeated GRIBIService gribi_service = 7;
 }
