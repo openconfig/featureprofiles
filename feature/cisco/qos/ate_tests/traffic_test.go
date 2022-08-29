@@ -129,8 +129,8 @@ func testTrafficqos(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *
 	ondatraFlowList := []*ondatra.Flow{}
 	dstmacaddress := []string{"00:01:00:03:00:00", "00:01:00:04:00:00"}
 	srcmacaddress := []string{"00:16:01:00:00:01", "00:17:01:00:00:01"}
-	trafficFlows := make(map[string]*trafficData)
-	trafficFlows = map[string]*trafficData{
+	//var trafficFlows map[string]*trafficData
+	trafficFlows := map[string]*trafficData{
 
 		"flow1-tc7": {frameSize: 1000, trafficRate: 45, dscp: 56, queue: "tc7", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
 		"flow1-tc6": {frameSize: 1000, trafficRate: 35, dscp: 48, queue: "tc6", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
@@ -200,8 +200,8 @@ func testTrafficqos2(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top 
 	ondatraFlowList := []*ondatra.Flow{}
 	dstmacaddress := []string{"00:01:00:03:00:00", "00:01:00:04:00:00"}
 	srcmacaddress := []string{"00:16:01:00:00:01", "00:17:01:00:00:01"}
-	trafficFlows := make(map[string]*trafficData)
-	trafficFlows = map[string]*trafficData{
+	//var trafficFlows map[string]*trafficData
+	trafficFlows := map[string]*trafficData{
 
 		"flow1-tc6": {frameSize: 1000, trafficRate: 45, dscp: 48, queue: "tc6", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
 		"flow1-tc5": {frameSize: 1000, trafficRate: 20, dscp: 33, queue: "tc5", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
