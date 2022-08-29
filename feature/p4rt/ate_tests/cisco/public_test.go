@@ -13,16 +13,31 @@ import (
 )
 
 var (
-	PublicTestcases = []Testcase{
+	PublicGDPTestcases = []Testcase{
 		{
 			name: "TE-3.1 Program GDP Match Entry and Check PacketIn",
 			desc: "TE 3.1",
-			fn:   testGDPPacketIn,
+			fn:   testPublicPacketIn,
 		},
 		{
 			name: "TE-3.2 Program GDP Match Entry and Check PacketOut",
 			desc: "TE 3.2",
-			fn:   testGDPPacketOut,
+			fn:   testPublicPacketOut,
+		},
+	}
+)
+
+var (
+	PublicLLDPDisableTestcases = []Testcase{
+		{
+			name: "TE-7.1 Program LLDP Match Entry and Check PacketIn",
+			desc: "TE 7.1",
+			fn:   testPublicPacketIn,
+		},
+		{
+			name: "TE-7.2 Program LLDP Match Entry and Check PacketOut",
+			desc: "TE 7.2",
+			fn:   testPublicPacketOut,
 		},
 	}
 )
@@ -47,7 +62,7 @@ func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTCli
 	return packets
 }
 
-func testGDPPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
+func testPublicPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.p4rtClientA
 	follower := args.p4rtClientB
 
@@ -118,7 +133,7 @@ func testGDPPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 }
 
-func testGDPPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
+func testPublicPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.p4rtClientA
 	follower := args.p4rtClientB
 
