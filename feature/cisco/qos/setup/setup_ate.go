@@ -13,7 +13,7 @@ var (
 	oCPackagest = []string{"system", "acl",
 		"networkinstance", "lacp", "local-routes", "lldp", "network-instance", "components", "qos", "interface"} // order is important
 )
-// This function finds tha path of the file
+// FindTestDataPath This function finds tha path of the file
 func FindTestDataPath() string {
 	path, err := os.Getwd()
 	if err != nil {
