@@ -34,12 +34,18 @@ Validate hierarchical resolution across VRFs:
 
 TODO: Validate hierarchical resolution using egress interface and MAC:
 
-1.  Add 203.0.113.1/32 (default VRF) to NextHopGroup (default VRF)
-    containing one NextHop (default VRF) that specifies DUT port-2 as the egress
-    interface and `00:1A:11:00:00:01` as the destination MAC address.
+1.  Using gRIBI Modify RPC install the following IPv4Entry set per the following
+    order, and ensure FIB ACK is received for each of the AFTOperation:
 
-2.  Ensure that ATE port-2 receives packet with `00:1A:11:00:00:01` as the
-    destination MAC address.
+     1.  Add 203.0.113.1/32 (default VRF) to NextHopGroup (default VRF)
+         containing one NextHop (default VRF) that specifies DUT port-2 as the egress
+         interface and `00:1A:11:00:00:01` as the destination MAC address.
+     2.  Add 198.51.100.0/24 (VRF-1) to NextHopGroup (default VRF) containing one
+         NextHop (default VRF) specified to be 203.0.113.1/32 in the default VRF.
+
+2.  Forward packets between ATE port-1 and ATE port-2 (destined to
+    198.51.100.0/24) and ensure that ATE port-2 receives packet with
+    `00:1A:11:00:00:01` as the destination MAC address.
 
 TODO: Validate error reporting:
 
@@ -51,7 +57,7 @@ TODO: Validate error reporting:
     2.  Add 198.51.100.0/24 (VRF-1) to NextHopGroup (default VRF) containing one
         NextHop (default VRF) specified to be 203.0.113.1/32 in the default VRF.
 
-    but with the following (table) scenarios:
+    But with the following (table) scenarios:
 
     *   Replace 203.0.113.1/32 with a syntax invalid IP address.
     *   Missing NextHopGroup for the IPv4Entry 203.0.113.1/32.
