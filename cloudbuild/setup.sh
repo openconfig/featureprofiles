@@ -15,7 +15,7 @@
 
 set -xe
 
-GOLANG_URL="https://dl.google.com/go/go1.17.6.linux-amd64.tar.gz"
+GOLANG_URL="https://dl.google.com/go/go1.19.linux-amd64.tar.gz"
 
 # Install Go
 curl -o go.tar.gz ${GOLANG_URL}
