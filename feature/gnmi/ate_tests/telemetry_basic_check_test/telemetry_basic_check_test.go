@@ -751,7 +751,6 @@ func TestQoSCounterUpdate(t *testing.T) {
 
 	// Configure DUT interfaces.
 	ConfigureDUTIntf(t, dut)
-	//QOS configs for ingress and egress added manually before running the tests
 
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
@@ -780,16 +779,6 @@ func TestQoSCounterUpdate(t *testing.T) {
 			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: "1"},
 			"flow-af1": {frameSize: 1100, trafficRate: 1, dscp: 8, queue: "4"},
 			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: "0"},
-		}
-        case ondatra.CISCO:
-		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 1000, trafficRate: 4, dscp: 56, queue: "tc7"},
-			"flow-nc2": {frameSize: 1000, trafficRate: 4, dscp: 48, queue: "tc6"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 33, queue: "tc5"},
-			"flow-af3": {frameSize: 300, trafficRate: 3, dscp: 25, queue: "tc4"},
-			"flow-af2": {frameSize: 200, trafficRate: 4, dscp: 17, queue: "tc3"},
-			"flow-af1": {frameSize: 1100, trafficRate: 4, dscp: 9, queue: "tc2"},
-			"flow-be1": {frameSize: 1200, trafficRate: 4, dscp: 1, queue: "tc1"},
 		}
 	case ondatra.ARISTA:
 		trafficFlows = map[string]*trafficData{
@@ -835,10 +824,9 @@ func TestQoSCounterUpdate(t *testing.T) {
 		t.Logf("Get(out packets for queue %q): got %v", data.queue, ateOutPkts[data.queue])
 
 		lossPct := ate.Telemetry().Flow(trafficID).LossPct().Get(t)
-                println(lossPct)
-//		if lossPct >= 1 {
-//			t.Errorf("Get(traffic loss for queue %q): got %v, want < 1", data.queue, lossPct)
-//		}
+		if lossPct >= 1 {
+			t.Errorf("Get(traffic loss for queue %q): got %v, want < 1", data.queue, lossPct)
+		}
 	}
 
 	for trafficID, data := range trafficFlows {
@@ -901,6 +889,6 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		s.Enabled = ygot.Bool(true)
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
-		dut.Config().Interface(intf.intfName).Update(t, i)
+		dut.Config().Interface(intf.intfName).Replace(t, i)
 	}
 }
