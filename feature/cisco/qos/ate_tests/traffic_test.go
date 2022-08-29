@@ -20,7 +20,6 @@ type trafficData struct {
 	srcendpoint *ondatra.Interface
 }
 
-
 func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
 	dscpList := []uint8{1, 9, 17, 25, 33, 41, 49}
 	ondatraFlowList := []*ondatra.Flow{}
@@ -353,4 +352,3 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 
 	return top
 }
-

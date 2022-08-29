@@ -19,7 +19,6 @@ var (
 	baseConfigFileSche       = "base_config_interface_test.json"
 	baseConfigEgressFileSche = "scheduler_base1_test.json"
 	baseConfigFileIpv6       = "base_config_interface_ipv6.json"
-
 )
 
 func BaseConfig() *oc.Qos {
