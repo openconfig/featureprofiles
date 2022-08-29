@@ -25,9 +25,9 @@ import (
 
 // Add
 type AddPath struct {
-     goc *fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths
-     noc *fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths
-     poc *fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_AddPaths
+     goc fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths
+     noc fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths
+     poc fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_AddPaths
 }
 
 // New returns a new AddPath object.
