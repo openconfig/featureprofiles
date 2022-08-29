@@ -142,6 +142,41 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 	//       fmt.Println("number of out packets in flow is",*s.OutPkts)
 
 }
+func testTrafficipv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, dstEndPoint *ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8) {
+	dscpList := []uint8{1, 9, 17, 25, 33, 41, 49}
+	ondatraFlowList := []*ondatra.Flow{}
+	for _, dscp := range dscpList {
+
+		ethHeader := ondatra.NewEthernetHeader()
+		ethHeader.WithSrcAddress("00:11:01:00:00:01")
+		ethHeader.WithDstAddress("00:01:00:02:00:00")
+
+		ipv6Header := ondatra.NewIPv6Header()
+		ipv6Header.WithSrcAddress("2000::100:120:1:2")
+		ipv6Header.WithDSCP(dscp)
+		ipv6Header.WithDstAddress("2000::100:121:1:2")
+		flow := ate.Traffic().NewFlow("Flow").
+			WithSrcEndpoints(srcEndPoint).
+			WithDstEndpoints(dstEndPoint)
+		flow.WithFrameSize(300).WithFrameRateFPS(100).WithHeaders(ethHeader, ipv6Header)
+		ondatraFlowList = append(ondatraFlowList, flow)
+	}
+	ate.Traffic().Start(t, ondatraFlowList...)
+	time.Sleep(60 * time.Second)
+	threshold := 0.90
+	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
+
+	if trafficPass == expectPass {
+		t.Log("Traffic works as expected")
+	} else {
+		t.Error("Traffic doesn't work as expected")
+	}
+
+	ate.Traffic().Stop(t)
+
+	time.Sleep(time.Minute)
+}
 func testTrafficqos(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoints []*ondatra.Interface, dstEndPoint *ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
 
 	ondatraFlowList := []*ondatra.Flow{}

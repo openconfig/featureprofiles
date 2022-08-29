@@ -62,27 +62,32 @@ func TestMain(m *testing.M) {
 }
 
 var (
-	CD2Testcases = []Testcase{
+	QoSTrafficTestcases = []Testcase{
 		{
 			name: "Transit with Double Recursion",
 			desc: "Programm double recursion transit with WCMP",
 			fn:   testQosCounter,
 		},
-		//{
-		//	name: "test clear counters with traffic",
-		//	desc: "Clear qod counters and sen traffic again",
-		//	fn:   ClearQosCounter,
-		//},
+		{
+			name: "test clear counters with traffic",
+			desc: "Clear qod counters and sen traffic again",
+			fn:   ClearQosCounter,
+		},
 		{
 			name: "test clear counters with traffic",
 			desc: "Clear qod counters and sen traffic again",
 			fn:   QueueDelete,
 		},
+		{
+			name: "test clear counters with traffic",
+			desc: "Clear qod counters and sen traffic again",
+			fn:   testQosCounteripv6,
+		},
 	}
 )
 
 var (
-	CD5Testcases = []Testcase{
+	QosSchedulerTestcases = []Testcase{
 		{
 			name: "testing scheduling functionality",
 			desc: "create congestion on egress interface and test scheduling for queue7",
@@ -109,7 +114,7 @@ func TestTrafficQos(t *testing.T) {
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
 
-	for _, tt := range CD2Testcases {
+	for _, tt := range QoSTrafficTestcases {
 		// Each case will run with its own gRIBI fluent client.
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
@@ -188,7 +193,7 @@ func TestScheduler(t *testing.T) {
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
 
-	for _, tt := range CD5Testcases {
+	for _, tt := range QosSchedulerTestcases {
 		// Each case will run with its own gRIBI fluent client.
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
