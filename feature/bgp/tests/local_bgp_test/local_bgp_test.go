@@ -47,6 +47,9 @@ var (
 const (
 	dutAS = 64500
 	ateAS = 64501
+
+	keepAlive = 50
+	holdTime  = keepAlive * 3 // Should be 3x keepAlive, see RFC 4271 - A Border Gateway Protocol 4, Sec. 10
 )
 
 func bgpWithNbr(as uint32, routerID string, nbr *telemetry.NetworkInstance_Protocol_Bgp_Neighbor) *telemetry.NetworkInstance_Protocol_Bgp {
@@ -236,8 +239,8 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					HoldTime:          ygot.Uint16(100),
-					KeepaliveInterval: ygot.Uint16(50),
+					HoldTime:          ygot.Uint16(holdTime),
+					KeepaliveInterval: ygot.Uint16(keepAlive),
 				},
 			}),
 			ateConf: bgpWithNbr(ateAS, "", &telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -266,8 +269,8 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					HoldTime:          ygot.Uint16(100),
-					KeepaliveInterval: ygot.Uint16(50),
+					HoldTime:          ygot.Uint16(holdTime),
+					KeepaliveInterval: ygot.Uint16(keepAlive),
 				},
 			}),
 			ateConf: bgpWithNbr(ateAS, "", &telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -282,9 +285,9 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					HoldTime:           ygot.Uint16(100),
-					NegotiatedHoldTime: ygot.Uint16(100),
-					KeepaliveInterval:  ygot.Uint16(50),
+					HoldTime:           ygot.Uint16(holdTime),
+					NegotiatedHoldTime: ygot.Uint16(135),
+					KeepaliveInterval:  ygot.Uint16(keepAlive),
 				},
 			}),
 		},
