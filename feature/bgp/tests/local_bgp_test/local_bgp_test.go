@@ -20,6 +20,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -46,6 +47,9 @@ var (
 const (
 	dutAS = 64500
 	ateAS = 64501
+
+	keepAlive = 50
+	holdTime  = keepAlive * 3 // Should be 3x keepAlive, see RFC 4271 - A Border Gateway Protocol 4, Sec. 10
 )
 
 func bgpWithNbr(as uint32, routerID string, nbr *telemetry.NetworkInstance_Protocol_Bgp_Neighbor) *telemetry.NetworkInstance_Protocol_Bgp {
@@ -69,9 +73,9 @@ func TestEstablish(t *testing.T) {
 	intf2 := ateAttrs.NewInterface(atePortName)
 	ate.Config().Interface(intf2.GetName()).Replace(t, intf2)
 	// Get BGP paths
-	dutConfPath := dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	ateConfPath := ate.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	ateConfPath := ate.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 	// Remove any existing BGP config
 	dutConfPath.Replace(t, nil)
@@ -122,9 +126,9 @@ func TestEstablish(t *testing.T) {
 func TestDisconnect(t *testing.T) {
 	dut := ondatra.DUT(t, "dut1")
 	ate := ondatra.DUT(t, "dut2")
-	dutConfPath := dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	ateConfPath := ate.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	ateConfPath := ate.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	ateIP := ateAttrs.IPv4
 	dutIP := dutAttrs.IPv4
 	nbrPath := statePath.Neighbor(ateIP)
@@ -159,9 +163,9 @@ func TestParameters(t *testing.T) {
 	dutIP := dutAttrs.IPv4
 	dut := ondatra.DUT(t, "dut1")
 	ate := ondatra.DUT(t, "dut2")
-	dutConfPath := dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	ateConfPath := ate.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	ateConfPath := ate.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateIP)
 
 	cases := []struct {
@@ -235,8 +239,8 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					HoldTime:          ygot.Uint16(100),
-					KeepaliveInterval: ygot.Uint16(50),
+					HoldTime:          ygot.Uint16(holdTime),
+					KeepaliveInterval: ygot.Uint16(keepAlive),
 				},
 			}),
 			ateConf: bgpWithNbr(ateAS, "", &telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -265,8 +269,8 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					HoldTime:          ygot.Uint16(100),
-					KeepaliveInterval: ygot.Uint16(50),
+					HoldTime:          ygot.Uint16(holdTime),
+					KeepaliveInterval: ygot.Uint16(keepAlive),
 				},
 			}),
 			ateConf: bgpWithNbr(ateAS, "", &telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -281,9 +285,9 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-					HoldTime:           ygot.Uint16(100),
-					NegotiatedHoldTime: ygot.Uint16(100),
-					KeepaliveInterval:  ygot.Uint16(50),
+					HoldTime:           ygot.Uint16(holdTime),
+					NegotiatedHoldTime: ygot.Uint16(135),
+					KeepaliveInterval:  ygot.Uint16(keepAlive),
 				},
 			}),
 		},

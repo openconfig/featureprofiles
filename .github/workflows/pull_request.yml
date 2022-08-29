@@ -8,7 +8,7 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v2
       with:
-        go-version: '1.18'
+        go-version: '1.19'
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Cache
@@ -54,7 +54,7 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v2
       with:
-        go-version: '1.18'
+        go-version: '1.19'
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Cache
@@ -86,6 +86,34 @@ jobs:
           -exec ./tools/check_ip_addresses.pl \{} +
     - name: Allowed File Types
       run: ./tools/allowed_file_types.sh
+    - name: Enum
+      run: |
+        fail=0
+
+        if find . -name \*.go -exec egrep -n '\.Union.*?\([0-9]+\)' \{} +
+        then
+          echo "Please do not use numerical constants in a union." >&2
+          echo "See CONTRIBUTING.md#enum" >&2
+          fail=1
+        fi
+
+        if find . -name \*.go -exec egrep -n '_Union\([0-9]+\)' \{} +
+        then
+          echo "Please do not use numerical constants in a union." >&2
+          echo "See CONTRIBUTING.md#enum" >&2
+          fail=1
+        fi
+
+        exit "${fail}"
+    - name: Default NetworkInstance
+      run: |
+        if find . -path ./yang/fpoc -prune -o \
+          -name \*.go -exec egrep -n '"default"' \{} +
+        then
+          echo "Default network instance name should be uppercase." >&2
+          echo "See CONTRIBUTING.md#default-network-instance" >&2
+          exit 1
+        fi
   static_analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
@@ -93,7 +121,7 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v2
       with:
-        go-version: '1.18'
+        go-version: '1.19'
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Cache
@@ -108,7 +136,26 @@ jobs:
     - name: Go vet
       run: go vet ./...
     - name: Gofmt
-      run: diff -u <(echo -n) <(gofmt -d -s .)
+      run: |
+        # gofmt always returns true, so we use grep '^' which returns
+        # true on non-empty output, but will otherwise passthrough all
+        # output lines.
+        if gofmt -d -s . | grep '^'; then
+          exit 1
+        fi
+    - name: Get goimports
+      run: go install golang.org/x/tools/cmd/goimports@latest
+    - name: Goimports
+      run: |
+        # goimports always returns true, so we use grep '^' which returns
+        # true on non-empty output, but will otherwise passthrough all
+        # output lines.
+        #
+        # goimports does not support "gofmt -s" so both goimports and gofmt are
+        # required.
+        if goimports -d . | grep '^'; then
+          exit 1
+        fi
     - name: Get revive
       run: go install github.com/mgechev/revive@latest
     - name: Run revive

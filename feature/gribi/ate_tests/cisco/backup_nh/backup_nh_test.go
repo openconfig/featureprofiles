@@ -86,9 +86,14 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
+	// adding drop route to NULL
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
@@ -134,6 +139,13 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
@@ -144,6 +156,13 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
 	args.interfaceaction(t, "port5", false)
 	args.interfaceaction(t, "port4", false)
@@ -153,10 +172,16 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.interfaceaction(t, "port4", true)
 	defer args.interfaceaction(t, "port3", true)
 	defer args.interfaceaction(t, "port2", true)
-
 	// validate traffic dropping on backup
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -167,9 +192,13 @@ func testDeleteAddBackupToDrop(ctx context.Context, t *testing.T, args *testArgs
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
@@ -216,22 +245,42 @@ func testDeleteAddBackupToDrop(ctx context.Context, t *testing.T, args *testArgs
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
 	//delete backup path and validate no traffic loss
 	args.client.ReplaceNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.DeleteNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.DeleteNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-
+	args.client.DeleteNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
 	//add back backup path and validate no traffic loss
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.ReplaceNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -242,9 +291,13 @@ func testBackupToTrafficLoss(ctx context.Context, t *testing.T, args *testArgs) 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
@@ -291,11 +344,18 @@ func testBackupToTrafficLoss(ctx context.Context, t *testing.T, args *testArgs) 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
 	//delete backup path and shut primary interfaces and validate traffic drops
 	args.client.ReplaceNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.DeleteNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.DeleteNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
 	args.interfaceaction(t, "port5", false)
@@ -311,13 +371,27 @@ func testBackupToTrafficLoss(ctx context.Context, t *testing.T, args *testArgs) 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
 	//add back backup path and validate traffic drops
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.ReplaceNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -328,9 +402,13 @@ func testUpdateBackUpToDropID(ctx context.Context, t *testing.T, args *testArgs)
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
@@ -376,6 +454,13 @@ func testUpdateBackUpToDropID(ctx context.Context, t *testing.T, args *testArgs)
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 
 	//Modify Backup pointing to Different ID which is pointing to a different static rooute pointitng to DROP
@@ -397,6 +482,13 @@ func testUpdateBackUpToDropID(ctx context.Context, t *testing.T, args *testArgs)
 	defer args.interfaceaction(t, "port2", true)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -457,6 +549,13 @@ func testBackupToDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port7", false)
@@ -465,6 +564,13 @@ func testBackupToDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.interfaceaction(t, "port6", true)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 
 	args.interfaceaction(t, "port5", false)
@@ -478,6 +584,13 @@ func testBackupToDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	// validate traffic decap over backup path
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -515,6 +628,13 @@ func testFlushForwarding(ctx context.Context, t *testing.T, args *testArgs) {
 	//Validate traffic over backup is passing
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 
 	//flush all the entries
@@ -576,6 +696,13 @@ func testFlushForwarding(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
 	//shutdown primary path
 	args.interfaceaction(t, "port7", false)
@@ -589,10 +716,16 @@ func testFlushForwarding(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
 	//flush the entries
 	args.client.FlushServer(t)
-
 	//Validate traffic failing
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
@@ -606,9 +739,13 @@ func testBackupSwitchFromDropToDecap(ctx context.Context, t *testing.T, args *te
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to a drop address
-	args.client.AddNH(t, 10, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 using backup NHG ID 101
@@ -656,6 +793,13 @@ func testBackupSwitchFromDropToDecap(ctx context.Context, t *testing.T, args *te
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
 	//shutdown primary path
 	args.interfaceaction(t, "port7", false)
@@ -675,6 +819,15 @@ func testBackupSwitchFromDropToDecap(ctx context.Context, t *testing.T, args *te
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
+
+	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
 
 	// Modify backup from pointing to a static route to a DECAP chain
 	args.client.AddNH(t, 999, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -682,6 +835,13 @@ func testBackupSwitchFromDropToDecap(ctx context.Context, t *testing.T, args *te
 	// validate traffic decap over backup path
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -741,6 +901,13 @@ func testUpdateBackupToDifferentNHG(ctx context.Context, t *testing.T, args *tes
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -857,6 +1024,13 @@ func testBackupSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
 	//shutdown primary path port2 and switch to backup port8
 	args.interfaceaction(t, "port2", false)
@@ -867,11 +1041,18 @@ func testBackupSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Log("going to remove Static ARP different from Ixia ")
 	config.TextWithGNMI(args.ctx, t, args.dut, "no arp 198.51.100.1 0012.0100.0001 arpa")
-	config.TextWithGNMI(args.ctx, t, args.dut, "interface HundredGigE0/0/0/1 arp learning disable")
-	defer config.TextWithGNMI(args.ctx, t, args.dut, "no interface HundredGigE0/0/0/1 arp learning disable")
+	config.TextWithGNMI(args.ctx, t, args.dut, "interface Bundle-Ether121 arp learning disable")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no interface Bundle-Ether121 arp learning disable")
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 
 	//adding back port2 configurations
@@ -897,6 +1078,13 @@ func testBackupSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -930,6 +1118,13 @@ func testBackupMultiNH(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port2", false)
@@ -937,11 +1132,25 @@ func testBackupMultiNH(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether122"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
 	args.interfaceaction(t, "port3", false)
 	defer args.interfaceaction(t, "port3", true)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -1007,6 +1216,13 @@ func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArg
 	time.Sleep(time.Minute)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -1076,6 +1292,13 @@ func testIPv4BackUpAddBkNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	time.Sleep(time.Minute)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -1149,12 +1372,26 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
 	args.client.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	time.Sleep(time.Minute)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -1220,6 +1457,13 @@ func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) 
 	time.Sleep(time.Minute)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether125", "Bundle-Ether126"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -1290,8 +1534,19 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 
-	args.client.AddNH(t, 11, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
+	args.client.AddNH(t, 11, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 102, 0, map[uint64]uint64{11: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 100, 102, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
@@ -1299,6 +1554,13 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 	time.Sleep(time.Minute)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -1313,12 +1575,16 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
 	// LEVEL 2
 
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.client.AddNH(t, 11, "192.0.2.100", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 11, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 102, 0, map[uint64]uint64{11: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
@@ -1369,6 +1635,15 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
+
+	config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
 
 	args.client.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -1377,6 +1652,13 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	time.Sleep(time.Minute)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -1451,6 +1733,13 @@ func testIPv4BackUpModifyDecapNHG(ctx context.Context, t *testing.T, args *testA
 	time.Sleep(time.Minute)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -1559,6 +1848,13 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 }
 
 func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1666,6 +1962,13 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 }
 
 func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1735,6 +2038,13 @@ func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
 	}
 }
 
@@ -1895,6 +2205,111 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
 	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
+}
+
+func testRecursiveToNonrecursive(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Elect client as leader and flush all the past entries
+	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
+	args.client.BecomeLeader(t)
+	args.client.FlushServer(t)
+
+	args.client.AddNH(t, 3, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 11, 0, map[uint64]uint64{3: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	// 192.0.2.40/32  Self-Site
+	args.client.AddNH(t, 31, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 32, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 33, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 40, 0, map[uint64]uint64{31: 10, 32: 20, 33: 30}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 192.0.2.42/32  Next-Site
+	args.client.AddNH(t, 41, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 42, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 43, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 44, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 100, 0, map[uint64]uint64{41: 15, 42: 25, 43: 35, 44: 45}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 198.51.100.x/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.client.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 1, 0, map[uint64]uint64{10: 85, 20: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	// Correct the related NH and verify traffic
+	args.client.ReplaceIPv4Batch(t, prefixes, 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
+}
+
+func testNonrecursiveToRecursive(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Elect client as leader and flush all the past entries
+	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
+	args.client.BecomeLeader(t)
+	args.client.FlushServer(t)
+
+	args.client.AddNH(t, 3, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 11, 0, map[uint64]uint64{3: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	// 192.0.2.40/32  Self-Site
+	args.client.AddNH(t, 31, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 32, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 33, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 40, 0, map[uint64]uint64{31: 10, 32: 20, 33: 30}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 192.0.2.42/32  Next-Site
+	args.client.AddNH(t, 41, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 42, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 43, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 44, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 100, 0, map[uint64]uint64{41: 15, 42: 25, 43: 35, 44: 45}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	// 198.51.100.x/32
+	prefixes := []string{}
+	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
+	}
+	args.client.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 1, 0, map[uint64]uint64{10: 85, 20: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixes, 11, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	// Correct the related NH and verify traffic
+	args.client.ReplaceIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
+	}
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
 }
 
 func TestBackUp(t *testing.T) {
@@ -1910,6 +2325,12 @@ func TestBackUp(t *testing.T) {
 	configureDUT(t, dut)
 	configbasePBR(t, dut, "TE", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
 	defer unconfigbasePBR(t, dut)
+	// configure route-policy
+	configRP(t, dut)
+	// configure ISIS on DUT
+	addISISOC(t, dut, "Bundle-Ether127")
+	// configure BGP on DUT
+	addBGPOC(t, dut, "100.100.100.100")
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
@@ -2037,6 +2458,16 @@ func TestBackUp(t *testing.T) {
 			name: "IPv4MultipleNHG",
 			desc: "Have same primary and backup decap with multiple nhg",
 			fn:   testIPv4MultipleNHG,
+		},
+		{
+			name: "RecursiveToNonrecursive",
+			desc: "Change from recursive to non recursive path",
+			fn:   testRecursiveToNonrecursive,
+		},
+		{
+			name: "NonrecursiveToRecursive",
+			desc: "change from nonrecursive to recursive path",
+			fn:   testNonrecursiveToRecursive,
 		},
 	}
 	for _, tt := range test {

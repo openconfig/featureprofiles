@@ -10,22 +10,13 @@ import (
 
 var (
 	testNameInput []string = []string{
-		":",
-	}
-	testTypeInput []oc.E_Input_Classifier_Type = []oc.E_Input_Classifier_Type{
-		oc.E_Input_Classifier_Type(7), //IPV6
+		"pmap3",
 	}
 )
 
-func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
-	bc := setup.BaseConfig()
-	setup.ResetStruct(bc, []string{"Interface"})
-	bcInterface := setup.GetAnyValue(bc.Interface)
-	setup.ResetStruct(bcInterface, []string{"Input"})
-	bcInterfaceInput := bcInterface.Input
-	setup.ResetStruct(bcInterfaceInput, []string{"Classifier"})
-	bcInterfaceInputClassifier := setup.GetAnyValue(bcInterfaceInput.Classifier)
-	setup.ResetStruct(bcInterfaceInputClassifier, []string{})
+func setupQos(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *oc.Qos {
+	bc := setup.BaseConfig(baseConfigFile)
+	setup.ResetStruct(bc, []string{"Interface", "Classifier"})
 	dut.Config().Qos().Replace(t, bc)
 	return bc
 }

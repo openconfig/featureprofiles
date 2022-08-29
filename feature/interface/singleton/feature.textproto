@@ -17,41 +17,67 @@ id {
   version: 1
 }
 
+# Interface basic config.
 config_path {
   path: "/interfaces/interface/config/name"
 }
-config_path {
-  path: "/interfaces/interface/config/description"
-}
-config_path {
-  path: "/interfaces/interface/config/enabled"
-}
-config_path {
-  path: "/interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu"
-}
-config_path {
-  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu"
+telemetry_path {
+  path: "/interfaces/interface/state/name"
 }
 config_path {
   path: "/interfaces/interface/config/id"
 }
-config_path {
-  path: "/interfaces/interface/ethernet/config/mac-address"
-}
-config_path {
-  path: "/interfaces/interface/ethernet/config/port-speed"
+telemetry_path {
+  path: "/interfaces/interface/state/id"
 }
 config_path {
-  path: "/interfaces/interface/ethernet/config/duplex-mode"
+  path: "/interfaces/interface/config/description"
 }
 telemetry_path {
-  path: "/interfaces/interface/ethernet/state/counters/in-mac-pause-frames"
+  path: "/interfaces/interface/state/description"
+}
+config_path {
+  path: "/interfaces/interface/config/type"
 }
 telemetry_path {
-  path: "/interfaces/interface/ethernet/state/counters/out-mac-pause-frames"
+  path: "/interfaces/interface/state/type"
+}
+config_path {
+  path: "/interfaces/interface/config/enabled"
 }
 telemetry_path {
-  path: "/interfaces/interface/ethernet/state/mac-address"
+  path: "/interfaces/interface/state/enabled"
+}
+config_path {
+  path: "/interfaces/interface/config/forwarding-viable"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/forwarding-viable"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/oper-status"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/admin-status"
+}
+
+# Interface hold timers
+config_path {
+  path: "/interfaces/interface/hold-time/config/down"
+}
+telemetry_path {
+  path: "/interfaces/interface/hold-time/state/down"
+}
+config_path {
+  path: "/interfaces/interface/hold-time/config/up"
+}
+telemetry_path {
+  path: "/interfaces/interface/hold-time/state/up"
+}
+
+# Interface counters
+telemetry_path {
+  path: "/interfaces/interface/state/counters/out-octets"
 }
 telemetry_path {
   path: "/interfaces/interface/state/counters/in-broadcast-pkts"
@@ -95,15 +121,91 @@ telemetry_path {
 telemetry_path {
   path: "/interfaces/interface/state/counters/out-unicast-pkts"
 }
+
+# Ethernet config
+config_path {
+  path: "/interfaces/interface/ethernet/config/mac-address"
+}
+telemetry_path {
+  path: "/interfaces/interface/ethernet/state/mac-address"
+}
+config_path {
+  path: "/interfaces/interface/ethernet/config/port-speed"
+}
+telemetry_path {
+  path: "/interfaces/interface/ethernet/state/port-speed"
+}
+config_path {
+  path: "/interfaces/interface/ethernet/config/duplex-mode"
+}
+telemetry_path {
+  path: "/interfaces/interface/ethernet/state/duplex-mode"
+}
+config_path {
+  path: "/interfaces/interface/ethernet/config/enable-flow-control"
+}
+telemetry_path {
+  path: "/interfaces/interface/ethernet/state/enable-flow-control"
+}
+telemetry_path {
+  path: "/interfaces/interface/ethernet/state/counters/in-mac-pause-frames"
+}
+telemetry_path {
+  path: "/interfaces/interface/ethernet/state/counters/out-mac-pause-frames"
+}
+telemetry_path {
+  path: "/interfaces/interface/ethernet/state/negotiated-port-speed"
+}
+
+# Sub-interface
+config_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/config/description"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/state/description"
+}
+config_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/config/enabled"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/state/enabled"
+}
+config_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/config/index"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/state/index"
+}
+
+# Sub-interface ipv4
+config_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv4/state/enabled"
+}
+config_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu"
+}
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv4/state/mtu"
+}
+
+# Sub-interface ipv6
+config_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled"
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/enabled"
+}
+config_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu"
 }
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/mtu"
 }
-telemetry_path {
-  path: "/interfaces/interface/state/oper-status"
-}
+
+# Sub-interface counters
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip"
 }
@@ -132,24 +234,6 @@ telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts"
 }
 telemetry_path {
-  path: "/interfaces/interface/ethernet/state/aggregate-id"
-}
-telemetry_path {
-  path: "/interfaces/interface/ethernet/state/port-speed"
-}
-telemetry_path {
-  path: "/interfaces/interface/state/admin-status"
-}
-telemetry_path {
-  path: "/interfaces/interface/state/counters/out-octets"
-}
-telemetry_path {
-  path: "/interfaces/interface/state/description"
-}
-telemetry_path {
-  path: "/interfaces/interface/state/type"
-}
-telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts"
 }
 telemetry_path {
@@ -158,40 +242,3 @@ telemetry_path {
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts"
 }
-telemetry_path {
-    path: "/interfaces/interface/ethernet/state/negotiated-port-speed"
-}
-telemetry_path {
-    path: "/interfaces/interface/state/forwarding-viable"
-}
-telemetry_path {
-    path: "/interfaces/interface/state/id"
-}
-config_path {
-    path: "/interfaces/interface/config/forwarding-viable"
-}
-config_path {
-    path: "/interfaces/interface/config/type"
-}
-config_path {
-    path: "/interfaces/interface/ethernet/config/enable-flow-control"
-}
-config_path {
-    path: "/interfaces/interface/hold-time/config/down"
-}
-config_path {
-    path: "/interfaces/interface/hold-time/config/up"
-}
-config_path {
-    path: "/interfaces/interface/subinterfaces/subinterface/config/description"
-}
-config_path {
-    path: "/interfaces/interface/subinterfaces/subinterface/config/enabled"
-}
-config_path {
-    path: "/interfaces/interface/subinterfaces/subinterface/config/index"
-}
-config_path {
-    path: "/interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled"
-}
-

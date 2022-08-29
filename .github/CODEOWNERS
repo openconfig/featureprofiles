@@ -1,0 +1,17 @@
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Each line is a file pattern followed by one or more owners.
+
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# @openconfig/featureprofiles-maintainers will be requested for
+# review when someone opens a pull request.
+*       @openconfig/featureprofiles-maintainers
+
+# Order is important; the last matching pattern takes the most
+# precedence.
+
+# When someone opens a pull request that only modifies Go files, only
+# @openconfig/featureprofiles-go-reviewers and not the global
+# owner(s) will be requested for a review.
+*.go    @openconfig/featureprofiles-go-reviewers
