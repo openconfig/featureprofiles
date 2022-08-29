@@ -260,7 +260,7 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	//	}
 
 	//	}
-	for name, _ := range queuestats {
+	for name := range queuestats {
 		//if !(queuestats[name] >= ixiastats[name] ){
 		if name == "tc7" {
 			if !(queuestats[name] >= ixiastats[name]) {
@@ -345,7 +345,7 @@ func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	for index, inPkt := range inpackets {
 		ixiastats[queueNames[index]] = inPkt
 	}
-	for name, _ := range queuestats {
+	for name := range queuestats {
 		if name == "tc7" {
 			if !(queuestats[name] >= ixiastats[name]) {
 				t.Errorf("Stats not matching for queue %+v", name)
@@ -464,7 +464,7 @@ func testQosCounteripv6(ctx context.Context, t *testing.T, args *testArgs) {
 	fmt.Printf("queuestats is %+v", queuestats)
 	fmt.Printf("ixiastats is %+v", ixiastats)
 
-	for name, _ := range queuestats {
+	for name := range queuestats {
 		//if !(queuestats[name] >= ixiastats[name] ){
 		if name == "tc7" {
 			if !(queuestats[name] >= ixiastats[name]) {

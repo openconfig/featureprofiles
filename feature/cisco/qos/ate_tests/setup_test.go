@@ -168,7 +168,7 @@ func setupQosEgress(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	//}
 	keys := make([]string, 0, len(bce.Queue))
 	//var keys []string
-	for ke, _ := range bce.Queue {
+	for ke := range bce.Queue {
 		keys = append(keys, ke)
 	}
 
@@ -208,7 +208,7 @@ func setupQosEgressSche(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	//}
 	keys := make([]string, 0, len(bce.Queue))
 	//var keys []string
-	for ke, _ := range bce.Queue {
+	for ke := range bce.Queue {
 		keys = append(keys, ke)
 	}
 
