@@ -20,58 +20,6 @@ type trafficData struct {
 	srcendpoint *ondatra.Interface
 }
 
-func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
-	ethHeader := ondatra.NewEthernetHeader()
-	ethHeader.WithSrcAddress("00:11:01:00:00:01")
-	ethHeader.WithDstAddress("00:01:00:02:00:00")
-
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.SrcAddressRange().
-		WithMin("198.51.100.0").
-		WithMax("198.51.100.254").
-		WithCount(250)
-	ipv4Header.WithDSCP(dscp)
-	ipv4Header.DstAddressRange().WithMin(hostIP).WithCount(uint32(scale)).WithStep("0.0.0.1")
-
-	innerIpv6Header := ondatra.NewIPv6Header()
-	innerIpv6Header.WithSrcAddress("1::1")
-	innerIpv6Header.DstAddressRange().WithMin("2::2").WithCount(10000).WithStep("::1")
-	dstEndPoint := []ondatra.Endpoint{}
-
-	for _, v := range allPorts {
-		if *v != *srcEndPoint {
-			dstEndPoint = append(dstEndPoint, v)
-		}
-	}
-
-	flow := ate.Traffic().NewFlow("Flow").
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint...)
-
-	flow.WithFrameSize(300).WithFrameRateFPS(1000).WithHeaders(ethHeader, ipv4Header, innerIpv6Header)
-
-	ate.Traffic().Start(t, flow)
-	time.Sleep(15 * time.Second)
-
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
-		t.Errorf("Flow %s is not working as expected", flow.Name())
-	}
-
-	// tolerance := float64(0.03)
-	// interval := 45 * time.Second
-	// if len(weights) > 0 {
-	// 	CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out[:len(weights)], weights, interval, tolerance)
-	// }
-	ate.Traffic().Stop(t)
-
-	time.Sleep(time.Minute)
-
-	// flowPath := ate.Telemetry().Flow(flow.Name())
-	// if got := flowPath.LossPct().Get(t); got > 0 {
-	// 	t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
-	// }
-}
 
 func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
 	dscpList := []uint8{1, 9, 17, 25, 33, 41, 49}
@@ -406,21 +354,3 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-func testTrafficForFlows(t *testing.T, ate *ondatra.ATEDevice, topology *ondatra.ATETopology, expectPass bool, threshold float64, flow ...*ondatra.Flow) {
-
-	ate.Traffic().Start(t, flow...)
-	defer ate.Traffic().Stop(t)
-
-	time.Sleep(60 * time.Second)
-
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	t.Log("Packets transmitted by ports: ", ate.Telemetry().InterfaceAny().Counters().OutPkts().Get(t))
-	t.Log("Packets received by ports: ", ate.Telemetry().InterfaceAny().Counters().InPkts().Get(t))
-	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
-
-	if trafficPass == expectPass {
-		t.Log("Traffic works as expected")
-	} else {
-		t.Error("Traffic doesn't work as expected")
-	}
-}

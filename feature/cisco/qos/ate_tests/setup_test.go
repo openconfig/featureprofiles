@@ -20,12 +20,6 @@ var (
 	baseConfigEgressFileSche = "scheduler_base1_test.json"
 	baseConfigFileIpv6       = "base_config_interface_ipv6.json"
 
-	testSetDscpInput []uint8 = []uint8{
-		63,
-	}
-	testSetMplsTcInput []uint8 = []uint8{
-		7,
-	}
 )
 
 func BaseConfig() *oc.Qos {
