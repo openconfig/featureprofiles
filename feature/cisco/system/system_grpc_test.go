@@ -208,5 +208,7 @@ func TestSysGrpcConfig(t *testing.T) {
 		}
 
 	})
+	batchSet.Append(ctx, t, nil, "no grpc name TEST", config.UpdateCLI)
+	batchSet.Send(ctx, t, dut)
 
 }
