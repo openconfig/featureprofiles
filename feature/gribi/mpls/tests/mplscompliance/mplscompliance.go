@@ -23,9 +23,9 @@ import (
 
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
+	"github.com/openconfig/gribigo/compliance"
 	"github.com/openconfig/gribigo/constants"
-  "github.com/openconfig/gribigo/fluent"
-  "github.com/openconfig/gribigo/compliance"
+	"github.com/openconfig/gribigo/fluent"
 	"go.uber.org/atomic"
 )
 
