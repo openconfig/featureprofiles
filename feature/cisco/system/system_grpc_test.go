@@ -1,8 +1,10 @@
 package basetest
 
 import (
+	"context"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/ondatra"
 )
 
@@ -88,7 +90,6 @@ func TestSysGrpcState(t *testing.T) {
 }
 func TestSysGrpcConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
 	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").Name()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -176,6 +177,34 @@ func TestSysGrpcConfig(t *testing.T) {
 
 		} else {
 			t.Errorf("Unexpected value for Transport-Security: %v", configTs)
+		}
+
+	})
+	//set non-default name
+	batchSet := config.NewBatchSetRequest()
+	ctx := context.Background()
+	batchSet.Append(ctx, t, nil, "grpc name TEST", config.UpdateCLI)
+	batchSet.Send(ctx, t, dut)
+	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
+		path := dut.Config().System().GrpcServer("TEST").Name()
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Update(t, "TEST")
+
+	})
+
+	t.Run("Replace //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
+		path := dut.Config().System().GrpcServer("TEST").Name()
+		defer observer.RecordYgot(t, "REPLACE", path)
+		path.Replace(t, "TEST")
+
+	})
+	t.Run("Get //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
+		configName := dut.Config().System().GrpcServer("TEST").Name().Get(t)
+		if configName == "TEST" {
+			t.Logf("Got the expected grpc Name")
+
+		} else {
+			t.Errorf("Unexpected value for Name: %s", configName)
 		}
 
 	})
