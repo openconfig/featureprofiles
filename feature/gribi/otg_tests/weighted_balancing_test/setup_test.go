@@ -23,11 +23,9 @@ import (
 	"net"
 	"regexp"
 	"sort"
-	"strconv"
 	"testing"
 	"time"
 
-	"github.com/c-robinson/iplib"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -89,15 +87,19 @@ func TestMain(m *testing.M) {
 const (
 	plen = 30
 
-	ateSrcPort    = "ate:port1"
-	ateSrcNetName = "srcnet"
-	ateSrcNet     = "198.51.100.0"
-	ateSrcNetCIDR = "198.51.100.0/24"
+	ateSrcPort       = "ate:port1"
+	ateSrcNetName    = "srcnet"
+	ateSrcNet        = "198.51.100.0"
+	ateSrcNetCIDR    = "198.51.100.0/24"
+	ateSrcNetFirstIP = "198.51.100.1"
+	ateSrcNetCount   = 250
 
-	ateDstFirstPort = "ate:port2"
-	ateDstNetName   = "dstnet"
-	ateDstNet       = "203.0.113.0"
-	ateDstNetCIDR   = "203.0.113.0/24"
+	ateDstFirstPort  = "ate:port2"
+	ateDstNetName    = "dstnet"
+	ateDstNet        = "203.0.113.0"
+	ateDstNetCIDR    = "203.0.113.0/24"
+	ateDstNetFirstIP = "203.0.113.1"
+	ateDstNetCount   = 250
 
 	discardCIDR = "192.0.2.0/24"
 	nhgIndex    = 42
@@ -314,17 +316,15 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	eth.Src().SetValue(ateMac[ateSrcPort])
 	eth.Dst().SetValue(dstMac)
 	ipv4 := flow.Packet().Add().Ipv4()
-	firstIp, ipCount := getFirstIPv4AddrAndCount(ateSrcNetCIDR)
 	if *randomSrcIP {
 		t.Errorf("Random source IP not yet supported")
 	} else {
-		ipv4.Src().SetChoice("increment").Increment().SetStart(firstIp).SetCount(int32(ipCount))
+		ipv4.Src().SetChoice("increment").Increment().SetStart(ateSrcNetFirstIP).SetCount(int32(ateSrcNetCount))
 	}
-	firstIp, ipCount = getFirstIPv4AddrAndCount(ateDstNetCIDR)
 	if *randomDstIP {
 		t.Errorf("Random destination IP not yet supported")
 	} else {
-		ipv4.Dst().SetChoice("increment").Increment().SetStart(firstIp).SetCount(int32(ipCount))
+		ipv4.Dst().SetChoice("increment").Increment().SetStart(ateDstNetFirstIP).SetCount(int32(ateDstNetCount))
 	}
 	tcp := flow.Packet().Add().Tcp()
 	if *randomSrcPort {
@@ -412,15 +412,6 @@ func debugGRIBI(t testing.TB, dut *ondatra.DUTDevice) {
 	} else {
 		t.Log("afts value not present")
 	}
-}
-
-// getFirstIPv4AddrAndCount uses a CIDR input and generates the first IP and the count of host IPs in the subnet
-func getFirstIPv4AddrAndCount(cidr string) (string, uint32) {
-	ipAddr, _, _ := net.ParseCIDR(cidr)
-	re, _ := regexp.Compile(".+/([0-9]+)$")
-	prefixLen, _ := strconv.Atoi(re.FindStringSubmatch(cidr)[1])
-	n := iplib.NewNet4(ipAddr, prefixLen)
-	return n.FirstAddress().String(), n.Count()
 }
 
 // incrementedMac uses an mac string and increments it by the given i
