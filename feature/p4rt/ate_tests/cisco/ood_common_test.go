@@ -90,26 +90,23 @@ func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType)
 
 func decodeIPPacket(t *testing.T, packetData []byte) (string, string) {
 	t.Helper()
-	packet := gopacket.NewPacket(packetData, layers.IPProtocolIPv4, gopacket.Default)
-	ipHeader := packet.Layer(layers.LayerTypeIPv4)
-	if ipHeader != nil {
-		header, decoded := ipHeader.(*layers.IPv4)
-		if decoded {
-			return header.SrcIP.String(), header.DstIP.String()
-		}
-	} else {
-		ipHeader = packet.Layer(layers.LayerTypeIPv6)
-		header, decoded := ipHeader.(*layers.IPv4)
-		if decoded {
-			return header.SrcIP.String(), header.DstIP.String()
+
+	var eth layers.Ethernet
+	var ip4 layers.IPv4
+	var ip6 layers.IPv6
+	parser := gopacket.NewDecodingLayerParser(layers.LayerTypeEthernet, &eth, &ip4, &ip6)
+	decoded := []gopacket.LayerType{}
+	if err := parser.DecodeLayers(packetData, &decoded); err != nil {
+		return "", ""
+	}
+	for _, layerType := range decoded {
+		switch layerType {
+		case layers.LayerTypeIPv6:
+			return ip6.SrcIP.String(), ip6.DstIP.String()
+		case layers.LayerTypeIPv4:
+			return ip4.SrcIP.String(), ip4.DstIP.String()
 		}
 	}
-	// if etherHeader != nil {
-	// 	header, decoded := etherHeader.(*layers.Ethernet)
-	// 	if decoded {
-	// 		return header.DstMAC.String(), header.EthernetType
-	// 	}
-	// }
 	return "", ""
 }
 
@@ -138,9 +135,10 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 	for _, packet := range packets {
 		// t.Logf("Packet: %v", packet)
 		if packet != nil {
+			// t.Logf("Packet Payload: %v", packet.Pkt.GetPayload())
 			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
 				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
-				t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
+				// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
 				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
 					t.Errorf("Packet is not matching wanted packet.")
 				}
@@ -148,6 +146,7 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 
 			if wantPacket.DstIPv4 != nil || wantPacket.DstIPv6 != nil {
 				srcIP, dstIP := decodeIPPacket(t, packet.Pkt.GetPayload())
+				// t.Logf("Decoded SRC IP: %v; Decoded DST IP: %v", srcIP, dstIP)
 				if *wantPacket.SrcIPv4 != srcIP && *wantPacket.SrcIPv6 != srcIP && *wantPacket.DstIPv4 != dstIP && *wantPacket.DstIPv6 != dstIP {
 					t.Errorf("IP header in Packet is not matching wanted packet.")
 				}
@@ -156,8 +155,9 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 			// TODO: Check Port-id in MetaData
 			metaData := packet.Pkt.GetMetadata()
 			for _, data := range metaData {
-				t.Logf("Metadata: %d, %s", data.GetMetadataId(), data.GetValue())
+				// t.Logf("Metadata: %d, %s", data.GetMetadataId(), data.GetValue())
 				if data.GetMetadataId() == METADATA_INGRESS_PORT {
+					// t.Logf("Expected Ingress Port Id: %v", args.packetIO.GetIngressPort(t))
 					if string(data.GetValue()) != args.packetIO.GetIngressPort(t) {
 						t.Errorf("Ingress Port Id is not matching expectation...")
 					}
@@ -165,12 +165,13 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 				if data.GetMetadataId() == METADATA_EGRESS_PORT {
 					found := false
 					for _, portData := range args.packetIO.GetEgressPort(t) {
+						// t.Logf("Expected Egress Port Id: %v", portData)
 						if string(data.GetValue()) == portData {
 							found = true
 						}
 					}
 					if !found {
-						t.Errorf("Ingress Port Id is not matching expectation...")
+						t.Errorf("Egress Port Id is not matching expectation...")
 					}
 
 				}
@@ -505,7 +506,11 @@ func testEntryProgrammingPacketInAndChangeDeviceID(ctx context.Context, t *testi
 		args.p4rtClientC.StreamChannelDestroy(&streamName)
 		args.p4rtClientD.StreamChannelDestroy(&streamName)
 
+		args.p4rtClientA.ServerDisconnect()
+
 		args.p4rtClientB.StreamChannelDestroy(&newStreamName)
+
+		time.Sleep(10 * time.Second)
 
 		setupP4RTClient(ctx, t, args)
 	}()
@@ -1310,8 +1315,14 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
 
-	if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
-		t.Errorf("Unexpected packets are received.")
+	if args.packetIO.GetPacketOutExpectation(t, true) {
+		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+			t.Errorf("Unexpected packets are received.")
+		}
 	}
 }
 
@@ -1340,8 +1351,14 @@ func testPacketOutWithoutMatchEntry(ctx context.Context, t *testing.T, args *tes
 
 	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
 
-	if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
-		t.Errorf("Not all the packets are received.")
+	if args.packetIO.GetPacketOutExpectation(t, true) {
+		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+			t.Errorf("Unexpected packets are received.")
+		}
 	}
 }
 
