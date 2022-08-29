@@ -141,13 +141,8 @@ func TestAugmentPeerGroup(t *testing.T) {
      }{{
           desc: "AP enabled with no params",
           ap: New(),
-<<<<<<< HEAD
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
-=======
-          inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
-          wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
->>>>>>> df365303c5d239ef9d5f4bb3fea7bdad244747e3
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
                     Enabled: ygot.Bool(true),
                },
@@ -155,13 +150,8 @@ func TestAugmentPeerGroup(t *testing.T) {
      }, {
           desc: "With allow-own-as",
           ap: New().WithAllowOwnAs(1),
-<<<<<<< HEAD
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
-=======
-          inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
-          wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
->>>>>>> df365303c5d239ef9d5f4bb3fea7bdad244747e3
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
                     Enabled: ygot.Bool(true),
                     AllowOwnAs: ygot.Uint8(1),
@@ -170,13 +160,8 @@ func TestAugmentPeerGroup(t *testing.T) {
      }, {
           desc: "With replace-peer-as",
           ap: New().WithReplacePeerAs(true),
-<<<<<<< HEAD
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
-=======
-          inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
-          wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
->>>>>>> df365303c5d239ef9d5f4bb3fea7bdad244747e3
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
                     Enabled: ygot.Bool(true),
                     ReplacePeerAs: ygot.Bool(true),
@@ -185,13 +170,8 @@ func TestAugmentPeerGroup(t *testing.T) {
      }, {
           desc: "With disable-peer-as-filter",
           ap: New().WithDisablePeerAsFilter(true),
-<<<<<<< HEAD
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
-=======
-          inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
-          wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
->>>>>>> df365303c5d239ef9d5f4bb3fea7bdad244747e3
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
                     Enabled: ygot.Bool(true),
                     DisablePeerAsFilter: ygot.Bool(true),
@@ -200,20 +180,12 @@ func TestAugmentPeerGroup(t *testing.T) {
      }, {
           desc: "Neighbor contains as-path, no conflicts",
           ap: New().WithReplacePeerAs(true),
-<<<<<<< HEAD
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
-=======
-          inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
->>>>>>> df365303c5d239ef9d5f4bb3fea7bdad244747e3
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
                     Enabled: ygot.Bool(true),
                },
           },
-<<<<<<< HEAD
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
-=======
-          wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
->>>>>>> df365303c5d239ef9d5f4bb3fea7bdad244747e3
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
                     Enabled: ygot.Bool(true),
                     ReplacePeerAs: ygot.Bool(true),
