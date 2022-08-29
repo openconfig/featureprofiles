@@ -9,7 +9,6 @@ import (
 )
 
 var (
-	jsonConfig  []uint8
 	oCPackagest = []string{"system", "acl", "networkinstance", "lacp", "local-routes", "lldp", "network-instance", "components", "qos", "interface"} // order is important
 )
 
