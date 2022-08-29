@@ -10,8 +10,9 @@ import (
 
 var (
 	jsonConfig  []uint8
-	oCPackagest = []string{"system", "acl","networkinstance", "lacp", "local-routes", "lldp", "network-instance", "components", "qos", "interface"} // order is important
+	oCPackagest = []string{"system", "acl", "networkinstance", "lacp", "local-routes", "lldp", "network-instance", "components", "qos", "interface"} // order is important
 )
+
 // FindTestDataPath This function finds tha path of the file
 func FindTestDataPath() string {
 	path, err := os.Getwd()
