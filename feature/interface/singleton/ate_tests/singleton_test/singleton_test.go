@@ -21,6 +21,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
@@ -90,7 +91,7 @@ var (
 )
 
 type testCase struct {
-	mtu uint16
+	mtu uint16 // This is the L3 MTU, i.e. the payload portion of an Ethernet frame.
 
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
@@ -109,11 +110,16 @@ var portSpeed = map[ondatra.Speed]telemetry.E_IfEthernet_ETHERNET_SPEED{
 // configInterfaceDUT configures an oc Interface with the desired MTU.
 func (tc *testCase) configInterfaceDUT(i *telemetry.Interface, dp *ondatra.Port, a *attrs.Attributes) {
 	a.ConfigInterface(i)
+
 	if speed, ok := portSpeed[dp.Speed()]; ok {
 		e := i.GetOrCreateEthernet()
 		e.DuplexMode = telemetry.Ethernet_DuplexMode_FULL
 		e.AutoNegotiate = ygot.Bool(false)
 		e.PortSpeed = speed
+	}
+
+	if !*deviations.OmitL2MTU {
+		i.Mtu = ygot.Uint16(tc.mtu + 14)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
