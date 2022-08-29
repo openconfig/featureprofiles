@@ -3,6 +3,8 @@ package cisco_p4rt_test
 import (
 	"fmt"
 	"net"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/google/gopacket"
@@ -124,32 +126,13 @@ var (
 			desc: "Packet I/O-Traceroute-PacketIn:038 Verify scale rate of TTL=[1,2] packets (198 pps)",
 			fn:   testEntryProgrammingPacketInScaleRate,
 		},
+		{
+			name: "Check PacketOut Without Programming TTL Match Entry(submit_to_ingress)",
+			desc: "Packet I/O-Traceroute-PacketOut:001 Ingress: Inject EtherType 0x6007 packets and verify traffic sends to related port in case of EtherType 0x6007 entry NOT programmed",
+			fn:   testPacketOutWithoutMatchEntry,
+		},
 	}
 )
-
-func packetTTLRequestGet(t *testing.T) []byte {
-	t.Helper()
-	buf := gopacket.NewSerializeBuffer()
-	opts := gopacket.SerializeOptions{
-		FixLengths:       true,
-		ComputeChecksums: true,
-	}
-	pktEth := &layers.Ethernet{
-		SrcMAC: net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
-		//01:80:C2:00:00:0E
-		DstMAC:       net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x0E},
-		EthernetType: lldpInLayers,
-	}
-	payload := []byte{}
-	payLoadLen := 64
-	for i := 0; i < payLoadLen; i++ {
-		payload = append(payload, byte(i))
-	}
-	gopacket.SerializeLayers(buf, opts,
-		pktEth, gopacket.Payload(payload),
-	)
-	return buf.Bytes()
-}
 
 type TTLPacketIO struct {
 	PacketIOPacket
@@ -203,32 +186,49 @@ func (ttl *TTLPacketIO) ApplyConfig(t *testing.T, dut *ondatra.DUTDevice, delete
 	t.Logf("There is no configuration required")
 }
 
-func (ttl *TTLPacketIO) GetPacketOut(t *testing.T, portID uint32, submitIngress bool) *p4_v1.PacketOut {
-	packet := &p4_v1.PacketOut{
-		Payload: packetTTLRequestGet(t),
-		Metadata: []*p4_v1.PacketMetadata{
-			&p4_v1.PacketMetadata{
-				MetadataId: uint32(1), // "egress_port"
-				Value:      []byte(fmt.Sprint(portID)),
+func (ttl *TTLPacketIO) GetPacketOut(t *testing.T, portID uint32, submitIngress bool) []*p4_v1.PacketOut {
+	packets := []*p4_v1.PacketOut{}
+	if ttl.IPv4 {
+		packet := &p4_v1.PacketOut{
+			Payload: ttl.packetTTLRequestGet(t, submitIngress, true),
+			Metadata: []*p4_v1.PacketMetadata{
+				&p4_v1.PacketMetadata{
+					MetadataId: uint32(1), // "egress_port"
+					Value:      []byte(fmt.Sprint(portID)),
+				},
 			},
-		},
+		}
+		if submitIngress {
+			packet.Metadata = append(packet.Metadata,
+				&p4_v1.PacketMetadata{
+					MetadataId: uint32(2), // "submit_to_ingress"
+					Value:      []byte{1},
+				})
+		}
+		packets = append(packets, packet)
 	}
-	if submitIngress {
-		packet.Metadata = append(packet.Metadata,
-			&p4_v1.PacketMetadata{
-				MetadataId: uint32(2), // "submit_to_ingress"
-				Value:      []byte{1},
-				// Value:      []byte(fmt.Sprint(0)),
-			})
+
+	if ttl.IPv6 {
+		packet := &p4_v1.PacketOut{
+			Payload: ttl.packetTTLRequestGet(t, submitIngress, false),
+			Metadata: []*p4_v1.PacketMetadata{
+				&p4_v1.PacketMetadata{
+					MetadataId: uint32(1), // "egress_port"
+					Value:      []byte(fmt.Sprint(portID)),
+				},
+			},
+		}
+		if submitIngress {
+			packet.Metadata = append(packet.Metadata,
+				&p4_v1.PacketMetadata{
+					MetadataId: uint32(2), // "submit_to_ingress"
+					Value:      []byte{1},
+				})
+		}
+		packets = append(packets, packet)
 	}
-	// else {
-	// 	packet.Metadata = append(packet.Metadata,
-	// 		&p4_v1.PacketMetadata{
-	// 			MetadataId: uint32(2), // "submit_to_ingress"
-	// 			Value:      []byte(fmt.Sprint(0)),
-	// 		})
-	// }
-	return packet
+
+	return packets
 }
 
 func (ttl *TTLPacketIO) GetPacketTemplate(t *testing.T) *PacketIOPacket {
@@ -282,4 +282,96 @@ func (ttl *TTLPacketIO) SetIngressPorts(t *testing.T, portID string) {
 
 func (ttl *TTLPacketIO) GetPacketIOPacket(t *testing.T) *PacketIOPacket {
 	return &ttl.PacketIOPacket
+}
+
+func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bool) []byte {
+	t.Helper()
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+
+	packetLayers := []gopacket.SerializableLayer{}
+
+	if !submitIngress {
+		pktEth := &layers.Ethernet{
+			SrcMAC: net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
+			DstMAC: net.HardwareAddr{0x00, 0x01, 0x00, 0x02, 0x00, 0x03},
+		}
+		if ipv4 {
+			pktEth.EthernetType = 0x0800
+		} else {
+			pktEth.EthernetType = 0x86dd
+		}
+		packetLayers = append(packetLayers, pktEth)
+	}
+
+	strings.Split(atePort1.IPv4, ".")
+
+	if ipv4 {
+		pktIP := &layers.IPv4{
+			Version:  4,
+			SrcIP:    net.IP(convertIPv4Address(t, dutPort1.IPv4)),
+			DstIP:    net.IP(convertIPv4Address(t, atePort1.IPv4)),
+			TTL:      64,
+			Protocol: layers.IPProtocol(61),
+		}
+		packetLayers = append(packetLayers, pktIP)
+	} else {
+		pktIP := &layers.IPv6{
+			SrcIP: net.IP(convertIPv6Address(t, dutPort1.IPv6)),
+			DstIP: net.IP(convertIPv6Address(t, atePort1.IPv6)),
+		}
+		packetLayers = append(packetLayers, pktIP)
+	}
+
+	payload := []byte{}
+	payLoadLen := 64
+	for i := 0; i < payLoadLen; i++ {
+		payload = append(payload, byte(i))
+	}
+	packetLayers = append(packetLayers, gopacket.Payload(payload))
+
+	gopacket.SerializeLayers(buf, opts, packetLayers...,
+	)
+	return buf.Bytes()
+}
+
+func (ttl *TTLPacketIO) GetPacketOutExpectation(t *testing.T, submit_to_ingress bool) bool {
+	return true
+}
+
+func convertIPv4Address(t *testing.T, ip string) []byte {
+	ss := strings.Split(ip, ".")
+	bs := []byte{}
+	for _, s := range ss {
+		if num, err := strconv.ParseUint(s, 0, 8); err == nil {
+			bs = append(bs, byte(num))
+		} else {
+			t.Logf("there is error when converting IPv4 address, %s", err)
+		}
+	}
+	return bs
+}
+
+func convertIPv6Address(t *testing.T, ip string) []byte {
+	ss := strings.Split(ip, ":")
+	bs := []byte{}
+	for _, s := range ss {
+		if len(s) == 0 {
+			// Handle :: case
+			paddingLen := 8 - len(ss) + 1
+			for i := 0; i < paddingLen; i++ {
+				bs = append(bs, 0x00)
+			}
+		} else {
+			if num, err := strconv.ParseUint(s, 16, 16); err == nil {
+				bs = append(bs, byte(num))
+			} else {
+				t.Logf("there is error when converting IPv6 address, %s", err)
+			}
+		}
+	}
+	return bs
 }
