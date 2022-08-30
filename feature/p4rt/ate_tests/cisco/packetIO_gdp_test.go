@@ -9,7 +9,6 @@ import (
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/google/gopacket/layers"
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -545,7 +544,7 @@ func testGDPProgrammingPacketInAndChangePortID(ctx context.Context, t *testing.T
 	}
 
 	newPortID := ^portID
-	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(newPortID),
@@ -880,9 +879,9 @@ func testGDPEntryProgrammingPacketOutWithGDP(ctx context.Context, t *testing.T, 
 	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// Check initial packet counters
-	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// port := sortPorts(args.ate.Ports())[0].Name()
 	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := p4_v1.PacketOut{
@@ -930,9 +929,9 @@ func testGDPEntryProgrammingPacketOut(ctx context.Context, t *testing.T, args *t
 	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// Check initial packet counters
-	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// port := sortPorts(args.ate.Ports())[0].Name()
 	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := p4_v1.PacketOut{
@@ -984,9 +983,9 @@ func testGDPEntryProgrammingPacketOutWithGDPEgress(ctx context.Context, t *testi
 	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// Check initial packet counters
-	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// port := sortPorts(args.ate.Ports())[0].Name()
 	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := p4_v1.PacketOut{
@@ -1034,9 +1033,9 @@ func testGDPEntryProgrammingPacketOutEgress(ctx context.Context, t *testing.T, a
 	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// Check initial packet counters
-	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// port := sortPorts(args.ate.Ports())[0].Name()
 	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := p4_v1.PacketOut{
@@ -1083,9 +1082,9 @@ func testGDPEntryProgrammingPacketOutWithInvalidPortId(ctx context.Context, t *t
 	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// Check initial packet counters
-	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// port := sortPorts(args.ate.Ports())[0].Name()
 	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := p4_v1.PacketOut{
@@ -1132,7 +1131,7 @@ func testGDPEntryProgrammingPacketOutAndChangePortId(ctx context.Context, t *tes
 	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	newPortID := ^portID
-	portName := fptest.SortPorts(args.dut.Ports())[0].Name()
+	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(newPortID),
@@ -1144,9 +1143,9 @@ func testGDPEntryProgrammingPacketOutAndChangePortId(ctx context.Context, t *tes
 	})
 
 	// Check initial packet counters
-	// port := fptest.SortPorts(args.ate.Ports())[0].Name()
+	// port := sortPorts(args.ate.Ports())[0].Name()
 	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	port := fptest.SortPorts(args.dut.Ports())[0].Name()
+	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
 
 	packet := p4_v1.PacketOut{
