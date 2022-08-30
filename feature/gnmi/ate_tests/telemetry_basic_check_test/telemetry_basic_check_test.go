@@ -810,8 +810,7 @@ func ConfigureDutQos(t *testing.T, dut *ondatra.DUTDevice) {
 	Inputs.GetOrCreateClassifier(telemetry.Input_Classifier_Type_IPV4).Name = ygot.String("pmap9")
 	Inputs.GetOrCreateClassifier(telemetry.Input_Classifier_Type_IPV6).Name = ygot.String("pmap9")
 	Inputs.GetOrCreateClassifier(telemetry.Input_Classifier_Type_MPLS).Name = ygot.String("pmap9")
-
-	//classinterface.Input.Classifier = make(map[telemetry.E_Input_Classifier_Type]*telemetry.Qos_Interface_Input_Classifier)
+        //TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
 	dut.Config().Qos().Interface(*classinterface.InterfaceId).Update(t, classinterface)
 }
 
