@@ -33,10 +33,10 @@ type Multihop struct {
 func New() *Multihop {
      return &Multihop{
           noc: fpoc.NetworkInstance_Protocol_Bgp_Neighbor_EbgpMultihop{
-               Enabled: ygot.Bool(true)
+               Enabled: ygot.Bool(true),
           },
           poc: fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_EbgpMultihop{
-               Enabled: ygot.Bool(true)
+               Enabled: ygot.Bool(true),
           },
      }
 }
