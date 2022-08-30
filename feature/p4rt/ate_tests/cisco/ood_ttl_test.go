@@ -128,8 +128,13 @@ var (
 		},
 		{
 			name: "Check PacketOut Without Programming TTL Match Entry(submit_to_ingress)",
-			desc: "Packet I/O-Traceroute-PacketOut:001 Ingress: Inject EtherType 0x6007 packets and verify traffic sends to related port in case of EtherType 0x6007 entry NOT programmed",
+			desc: "Packet I/O-Traceroute-PacketOut:001-002 Ingress: Inject EtherType 0x6007 packets and verify traffic sends to related port in case of EtherType 0x6007 entry NOT programmed",
 			fn:   testPacketOutWithoutMatchEntry,
+		},
+		{
+			name: "Program TTL Match Entry and Check PacketOut(submit_to_ingress)",
+			desc: "Packet I/O-Traceroute-PacketOut:004 Ingress: Programm match TTL=[1,2], inject packets with TTL>3, and verify packet fwding based fwding chain on the router side",
+			fn:   testPacketOut,
 		},
 	}
 )
