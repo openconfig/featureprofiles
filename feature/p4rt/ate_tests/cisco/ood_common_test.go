@@ -506,8 +506,6 @@ func testEntryProgrammingPacketInAndChangeDeviceID(ctx context.Context, t *testi
 		args.p4rtClientC.StreamChannelDestroy(&streamName)
 		args.p4rtClientD.StreamChannelDestroy(&streamName)
 
-		args.p4rtClientA.ServerDisconnect()
-
 		args.p4rtClientB.StreamChannelDestroy(&newStreamName)
 
 		time.Sleep(10 * time.Second)
