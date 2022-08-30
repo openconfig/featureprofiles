@@ -222,11 +222,10 @@ func TestP4RTPacketIO(t *testing.T) {
 
 	args.packetIO = getGDPParameter(t)
 
-	for _, tt := range PublicTestcases {
+	for _, tt := range PublicGDPTestcases {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
-
 			tt.fn(ctx, t, args)
 		})
 	}
@@ -236,18 +235,25 @@ func TestP4RTPacketIO(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
-
 			tt.fn(ctx, t, args)
 		})
 	}
 
 	args.packetIO = getLLDPParameter(t)
+
+	for _, tt := range PublicLLDPDisableTestcases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Name: %s", tt.name)
+			t.Logf("Description: %s", tt.desc)
+			tt.fn(ctx, t, args)
+		})
+	}
+
 	for _, tt := range OODLLDPDisabledTestcases {
 		// Each case will run with its own gRIBI fluent client.
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
-
 			tt.fn(ctx, t, args)
 		})
 	}
