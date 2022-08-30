@@ -229,9 +229,11 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) 
 		awaitChan <- err
 	}()
 
-	err = transferContent(ic, tc.reader)
-	if err != nil {
-		t.Fatalf("Error transferring content: %s", err)
+	if !standby {
+		err = transferContent(ic, tc.reader)
+		if err != nil {
+			t.Fatalf("Error transferring content: %s", err)
+		}
 	}
 
 	if err = <-awaitChan; err != nil {

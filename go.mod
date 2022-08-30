@@ -15,7 +15,7 @@ require (
 	github.com/openconfig/goyang v1.0.0
 	github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56
 	github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e
-	github.com/openconfig/ondatra v0.0.0-20220808182300-5528f1927e53
+	github.com/openconfig/ondatra v0.0.0-20220829173401-1294fedad11c
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygot v0.23.1
 	github.com/p4lang/p4runtime v1.3.0
@@ -34,12 +34,13 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/jstemmer/go-junit-report/v2 v2.0.1-0.20220823220451-7b10b4285462 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/openconfig/kne v0.1.1 // indirect
-	github.com/openconfig/ygnmi v0.1.0 // indirect
+	github.com/openconfig/ygnmi v0.2.1 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
