@@ -272,21 +272,27 @@ func (tc *testCase) configureATE(t *testing.T) {
 	agg := tc.top.Lags().Add().SetName(ateDst.Name)
 	if tc.lagType == lagTypeSTATIC {
 		lagId, _ := strconv.Atoi(tc.aggID)
-		lagPort.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
-	} else {
-		lagPort.Protocol().SetChoice("lacp")
-	}
-
-	for i, p := range tc.atePorts[1:] {
-		port := tc.top.Ports().Add().SetName(p.ID())
-		lagPort := agg.Ports().Add()
-		newMac, err := incrementedMac(ateDst.MAC, i)
-		if err != nil {
-			t.Fatal(err)
+		agg.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
+		for i, p := range tc.atePorts[1:] {
+			port := tc.top.Ports().Add().SetName(p.ID())
+			newMac, err := incrementedMac(ateDst.MAC, i)
+			if err != nil {
+				t.Fatal(err)
+			}
+			agg.Ports().Add().SetPortName(port.Name()).Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
 		}
-		lagPort.SetPortName(port.Name()).
-			Ethernet().SetMac(newMac).
-			SetName("LAGRx-" + strconv.Itoa(i))
+	} else {
+		agg.Protocol().SetChoice("lacp")
+		for i, p := range tc.atePorts[1:] {
+			port := tc.top.Ports().Add().SetName(p.ID())
+			newMac, err := incrementedMac(ateDst.MAC, i)
+			if err != nil {
+				t.Fatal(err)
+			}
+			lagPort := agg.Ports().Add().SetPortName(port.Name())
+			lagPort.Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
+			lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(int32(i) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
+		}
 	}
 
 	dstDev := tc.top.Devices().Add().SetName(agg.Name())
@@ -423,7 +429,7 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 	for _, tf := range tests {
 		t.Run(tf.desc, func(t *testing.T) {
 			for _, port := range tc.atePorts[1 : 1+tf.downCount] {
-				tc.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(port).WithStateEnabled(false).Operate(t)
+				// tc.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(port).WithStateEnabled(false).Operate(t)
 				// Linked DUT and ATE ports have the same ID.
 				dp := tc.dut.Port(t, port.ID())
 				dip := tc.dut.Telemetry().Interface(dp.Name())
