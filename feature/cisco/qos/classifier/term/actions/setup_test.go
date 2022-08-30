@@ -6,7 +6,7 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
-//	"github.com/openconfig/testt"
+	//	"github.com/openconfig/testt"
 )
 
 var (
@@ -22,6 +22,5 @@ func setupQos(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *oc.Q
 	return bc
 }
 func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
-        dut.Config().Qos().Delete(t)
+	dut.Config().Qos().Delete(t)
 }
-
