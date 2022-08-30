@@ -457,11 +457,16 @@ func TestOrderingACK(t *testing.T) {
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
 
+	const (
+		usePreserve = "PRESERVE"
+		useDelete   = "DELETE"
+	)
+
 	// Each case will run with its own gRIBI fluent client.
-	for _, persist := range []string{"PRESERVE", "DELETE"} {
+	for _, persist := range []string{usePreserve, useDelete} {
 		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
-			if *deviations.GRIBIPreserveOnly && persist == "DELETE" {
-				t.Skip("Skipping Persistence=DELETE due to --deviations_gribi_preserve_only")
+			if *deviations.GRIBIPreserveOnly && persist == useDelete {
+				t.Skip("Skipping due to --deviations_gribi_preserve_only")
 			}
 
 			for _, tc := range cases {
@@ -475,7 +480,7 @@ func TestOrderingACK(t *testing.T) {
 						WithStub(gribic).
 						WithRedundancyMode(fluent.ElectedPrimaryClient).
 						WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
-					if persist == "PRESERVE" {
+					if persist == usePreserve {
 						conn.WithPersistence()
 					}
 
@@ -493,7 +498,7 @@ func TestOrderingACK(t *testing.T) {
 						t.Fatalf("Await got error during session negotiation: %v", err)
 					}
 
-					if persist == "PRESERVE" {
+					if persist == usePreserve {
 						defer func() {
 							_, err := c.Flush().
 								WithElectionOverride().
