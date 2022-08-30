@@ -178,7 +178,7 @@ func TestAugmentPeerGroup(t *testing.T) {
                },
           },
      }, {
-          desc: "Neighbor contains as-path, no conflicts",
+          desc: "Peer group contains as-path, no conflicts",
           ap: New().WithReplacePeerAs(true),
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
@@ -192,6 +192,18 @@ func TestAugmentPeerGroup(t *testing.T) {
                },
           },
      }}
+
+     for _, test := range tests {
+          t.Run(test.desc, func(t *testing.T) {
+               err := test.ap.AugmentPeerGroup(test.inPG)
+               if err != nil {
+                    t.Fatalf("Error not expected: %v", err)
+               }
+               if diff := cmp.Diff(test.wantPG, test.inPG); diff != "" {
+                    t.Errorf("Did not get expected state, diff(-want,+got):\n%s", diff)
+               }
+          })
+     }
 }
 
 // TestAugmentPeerGroupErrors tests the BGP AP augment to BGP peer group errors.
