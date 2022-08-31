@@ -213,7 +213,7 @@ func configureATE(t *testing.T, ateParams *bgpTestParams, connectionType connTyp
 	iDut1.IPv4().WithAddress(ateAttrs.IPv4CIDR()).WithDefaultGateway(ateParams.peerIP)
 	bgpDut1 := iDut1.BGP()
 
-	if connectionType == "INTERNAL" {
+	if connectionType == connInternal {
 		bgpDut1.AddPeer().WithPeerAddress(ateParams.peerIP).WithLocalASN(ateParams.localAS).WithTypeInternal().
 			WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
 	} else {
