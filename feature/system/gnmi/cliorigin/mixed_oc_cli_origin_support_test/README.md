@@ -61,8 +61,8 @@ required in the emergency case that is covered by this requirement.
 
 ## Config Parameter coverage
 
-/interfaces/interface/config/description
+*   /interfaces/interface/config/description
 
 ## Telemetry Parameter coverage
 
-/interfaces/interface/state/description
+*   /interfaces/interface/state/description
