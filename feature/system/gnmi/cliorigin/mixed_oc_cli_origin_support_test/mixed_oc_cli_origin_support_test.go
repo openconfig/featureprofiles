@@ -106,7 +106,7 @@ func TestOrderDependence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 	}
-	t.Log("gnmiClient Set Response for CLI and OpenConfig modelled  config")
+	t.Log("gnmiClient Set Response for CLI and OpenConfig modelled config")
 	t.Log(response)
 
 	// Validate that DUT port-1 description has `"foo2"`
@@ -156,7 +156,7 @@ func TestMixedOriginOCCLIConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 	}
-	t.Log("gnmiClient Set Response for CLI and OpenConfig modelled  config")
+	t.Log("gnmiClient Set Response for CLI and OpenConfig modelled config")
 	t.Log(response)
 
 	// Validate that DUT port-1 and DUT port-2 description through telemetry.
