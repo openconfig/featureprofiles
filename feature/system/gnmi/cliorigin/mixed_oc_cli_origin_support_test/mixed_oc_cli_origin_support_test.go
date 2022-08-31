@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 
 func interfaceDescriptionCLI(dp *ondatra.Port, desc string) string {
 	switch dp.Device().Vendor() {
-	case ondatra.ARISTA:
+	case ondatra.ARISTA, ondatra.CISCO:
 		const tmpl = `
 interface %s
   description %s
