@@ -249,6 +249,33 @@ type OTGBGPPrefix struct {
 	PrefixLength uint32
 }
 
+// TODO: Use this function below after is fixed in OTG https://github.com/open-traffic-generator/ixia-c-gnmi-server/issues/29
+
+// func verifyOTGBGP4Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix OTGBGPPrefix) {
+// 	lastValue, ok := otg.Telemetry().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv4PrefixAny().Watch(
+// 		t,
+// 		10*time.Second,
+// 		func(bgpPrefix *otgtelemetry.QualifiedBgpPeer_UnicastIpv4Prefix) bool {
+// 			if !bgpPrefix.IsPresent() {
+// 				t.Log("Any peer not present")
+// 				return false
+// 			}
+// 			val := bgpPrefix.Val(t)
+// 			addr, plen := val.GetAddress(), val.GetPrefixLength()
+// 			t.Logf("Any peer got: %s/%d", addr, plen)
+// 			return addr == expectedOTGBGPPrefix.Address && plen == expectedOTGBGPPrefix.PrefixLength
+// 		}).Await(t)
+
+// 	if !ok {
+// 		t.Logf("Last value was: %v", lastValue)
+// 		actPrefixes := otg.Telemetry().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv4PrefixAny().Get(t)
+// 		for _, actPrefix := range actPrefixes {
+// 			t.Logf("Peer: %v, Address: %v, Prefix Length: %v", expectedOTGBGPPrefix.PeerName, actPrefix.GetAddress(), actPrefix.GetPrefixLength())
+// 		}
+// 		t.Errorf("Given BGP IPv4 Prefix is not formed %v", expectedOTGBGPPrefix)
+// 	}
+// }
+
 func checkOTGBGP4Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix OTGBGPPrefix) bool {
 	bgpPrefixes := otg.Telemetry().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv4PrefixAny().Get(t)
 	found := false
@@ -458,6 +485,7 @@ func TestBGP(t *testing.T) {
 						expectedOTGBGPPrefix = OTGBGPPrefix{PeerName: "port2.dev.BGP6.peer", Address: addr, PrefixLength: uint32(prefixLen)}
 					}
 					waitFor(func() bool { return checkOTGBGP4Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) }, t)
+					// verifyOTGBGP4Prefix(t, otg, otgConfig, expectedOTGBGPPrefix)
 				}
 				if prefix.v6 != "" {
 					t.Logf("Checking for BGP Prefix %v", prefix.v6)
