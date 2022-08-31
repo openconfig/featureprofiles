@@ -184,8 +184,8 @@ github.com/mitchellh/go-wordwrap v1.0.1/go.mod h1:R62XHJLzvMFRBbcrT7m7WgmE1eOyTS
 github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
-github.com/open-traffic-generator/snappi/gosnappi v0.9.3 h1:J9yq5G/AkI5TyHFmqaftjv580RGTFqfj5e+RFZdvesc=
-github.com/open-traffic-generator/snappi/gosnappi v0.9.3/go.mod h1:elsB41LK8QapLrlfZJucYrQhxEw3ylGo3JgKo8kerZI=
+github.com/open-traffic-generator/snappi/gosnappi v0.8.8 h1:nHosWx6S9zXG18fNjR24IUiTypPBGZDgGfo2wTMhuDc=
+github.com/open-traffic-generator/snappi/gosnappi v0.8.8/go.mod h1:RF/I/bClukYEyNQ2jyeAMgVbU/rYWU1sBznGXBiXwD8=
 github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20200508230933-d19cebf5e7be/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20210527163611-d3a3e30199da/go.mod h1:H/20NXlnWbCPFC593nxpiKJ+OU//7mW7s7Qk7uVdg3Q=
@@ -589,6 +589,7 @@ google.golang.org/grpc v1.37.0/go.mod h1:NREThFqKR1f3iQ6oBuvc5LadQuXVGo9rkm5ZGrQ
 google.golang.org/grpc v1.39.1/go.mod h1:PImNr+rS9TWYb2O4/emRugxiyHZ5JyHW5F+RPnDzfrE=
 google.golang.org/grpc v1.40.0/go.mod h1:ogyxbiOoUXAkP+4+xa6PZSE9DZgIHtSpzjDTB9KAK34=
 google.golang.org/grpc v1.47.0/go.mod h1:vN9eftEi1UMyUsIF80+uQXhHjbXYbm0uXoFCACuMGWk=
+google.golang.org/grpc v1.48.0/go.mod h1:vN9eftEi1UMyUsIF80+uQXhHjbXYbm0uXoFCACuMGWk=
 google.golang.org/grpc v1.49.0 h1:WTLtQzmQori5FUH25Pq4WT22oCsv8USpQ+F6rqtsmxw=
 google.golang.org/grpc v1.49.0/go.mod h1:ZgQEeidpAuNRZ8iRrlBKXZQP1ghovWIVhdJRyCDK+GI=
 google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.0.1/go.mod h1:6Kw0yEErY5E/yWrBtf03jp27GLLJujG4z/JK95pnjjw=
