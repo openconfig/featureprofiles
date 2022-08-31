@@ -1,55 +1,59 @@
-# gNMI-1.1: cli Origin
+# gNMI-1.12: Mixed OpenConfig/CLI Origin
 
 ## Summary
 
 Ensure that both CLI and OC configuration can be pushed to the device at the
-same time
+same time.
 
 ## Procedure
 
 Note: this test is intended to cover only the case of pushing some configuration
 along with OC paths - since it is unknown what CLI configuration would be
-required in the emergency case that is covered by this requirement.
+required in the emergency case that is covered by this requirement. * Push
+non-overlapping mixed SetRequest specifying CLI for DUT port-1 and OpenConfig
+for DUT port-2.
 
-*   TODO: Push base configuration to DUT specifying an interface configuration
-    for DUT port-1 and DUT port-2.
+````
+*   `origin: "cli"` containing vendor configuration.
 
-*   Validate mixed OC/CLI schema by sending both CLI and OC config concurrently
-    for two different interfaces.
+    ~~~
+    interface <DUT port-1>
+      description foo1
+    ~~~
 
-*   Push configuration using SetRequest specifying:
+*   `origin: ""` (openconfig, default origin) setting the DUT port-2
+    string value at `/interfaces/interface/config/description` to `"foo2"`.
 
-    *   `origin: "cli"` - containing modelled configuration.
 
-        ~~~
-        interface <DUT port-1>
-        description foo1
+*   Validate the DUT port-1 and DUT port-2 descriptions through telemetry.
+
+*   Push overlapping mixed SetRequest specifying CLI before OpenConfig for DUT
+    port-1.
+
+    *   `origin: "cli"` containing vendor configuration.
+
         ```
-        ~~~
-
-    *   `origin: ""` (openconfig, default origin) - containing modelled
-        configuration for DUT port-2.
-
-*   Validate that DUT port-1 and DUT port-2 description through telemetry.
-
-*   Validate order dependence by trying to modify the same config using CLI and
-    OC.
-
-*   Push configuration using SetRequest specifying:
-
-    *   `origin: "cli"` - containing modelled configuration.
-
-        ~~~
         interface <DUT port-1>
-        description foo1
+          description foo1
         ```
-        ~~~
 
-    *   `origin: ""` (openconfig, default origin) - containing modelled
-        configuration for DUT port-1.:
+    *   `origin: ""` (openconfig, default origin) setting the DUT port-1 string
+        value at `/interfaces/interface/config/description` to `"foo2"`.
 
-*   Validate that DUT port-1 description through telemetry.
+*   Validate that DUT port-1 description has `"foo2"`.
 
-## Config Parameter coverage
+*   TODO: Push overlapping mixed SetRequest specifying OpenConfig before CLI for
+    DUT port-1.
 
-## Telemetry Parameter coverage
+    *   `origin: ""` (openconfig, default origin) setting the DUT port-1 string
+        value at `/interfaces/interface/config/description` to `"foo1"`.
+
+    *   `origin: "cli"` containing vendor configuration.
+
+        ```
+        interface <DUT port-1>
+          description foo2
+        ```
+
+*   TODO: Validate that DUT port-1 description still has `"foo2"`.
+````
