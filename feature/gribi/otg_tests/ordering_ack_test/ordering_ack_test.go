@@ -17,6 +17,7 @@ package ordering_ack_test
 import (
 	"context"
 	"flag"
+	"fmt"
 	"testing"
 	"time"
 
@@ -38,11 +39,7 @@ var (
 	// TE-3.5 specific deviation flags that are currently set to reduced compliance checking
 	// in order to establish a baseline to highlight the non-compliant behavior.  They
 	// should be set to the more strict setting.
-	fibAck         = flag.Bool("fib_ack", true, "Request FIB_PROGRAMMED from the device.")
-	flush          = flag.Bool("flush", false, "Flush gRIBI entries before setup.  Should normally be false unless the device erroneously persists entries after the client disconnected.")
 	checkTelemetry = flag.Bool("telemetry", false /* TODO: set to true */, "Check AFT telemetry.")
-
-	wantInstalled = fluent.InstalledInRIB
 )
 
 func TestMain(m *testing.M) {
@@ -226,11 +223,12 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB) erro
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx context.Context
-	c   *fluent.GRIBIClient
-	dut *ondatra.DUTDevice
-	ate *ondatra.ATEDevice
-	top gosnappi.Config
+	ctx           context.Context
+	c             *fluent.GRIBIClient
+	dut           *ondatra.DUTDevice
+	ate           *ondatra.ATEDevice
+	top           gosnappi.Config
+	wantInstalled fluent.ProgrammingResult
 }
 
 // testCaseFunc describes a test case function.
@@ -258,7 +256,7 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 			WithOperationID(1).
 			WithOperationType(constants.Add).
 			WithNextHopOperation(nhIndex).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 	chk.HasResult(t, res,
@@ -266,7 +264,7 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 			WithOperationID(2).
 			WithOperationType(constants.Add).
 			WithNextHopGroupOperation(nhgIndex).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 
@@ -342,7 +340,7 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 			WithOperationID(1).
 			WithOperationType(constants.Add).
 			WithNextHopOperation(nhIndex).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 	chk.HasResult(t, res,
@@ -350,7 +348,7 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 			WithOperationID(2).
 			WithOperationType(constants.Add).
 			WithNextHopGroupOperation(nhgIndex).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 	chk.HasResult(t, res,
@@ -358,7 +356,7 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 			WithOperationID(3).
 			WithOperationType(constants.Add).
 			WithIPv4Operation(ateDstNetCIDR).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 
@@ -412,7 +410,7 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 			WithOperationID(3).
 			WithOperationType(constants.Add).
 			WithIPv4Operation(ateDstNetCIDR).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 	chk.HasResult(t, res,
@@ -420,7 +418,7 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 			WithOperationID(4).
 			WithOperationType(constants.Delete).
 			WithIPv4Operation(ateDstNetCIDR).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 	chk.HasResult(t, res,
@@ -428,7 +426,7 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 			WithOperationID(5).
 			WithOperationType(constants.Add).
 			WithIPv4Operation(ateDstNetCIDR).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 
@@ -493,45 +491,67 @@ func TestOrderingACK(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
+	const (
+		usePreserve = "PRESERVE"
+		useDelete   = "DELETE"
+	)
+
 	// Each case will run with its own gRIBI fluent client.
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Logf("Name: %s", tc.name)
-			t.Logf("Description: %s", tc.desc)
-
-			// Configure the gRIBI client.
-			c := fluent.NewClient()
-			n := c.Connection().
-				WithStub(gribic).
-				WithRedundancyMode(fluent.ElectedPrimaryClient).
-				WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
-			if *fibAck {
-				// The main difference WithFIBACK() made was that we are now expecting
-				// fluent.InstalledInFIB in []*client.OpResult, as opposed to
-				// fluent.InstalledInRIB.
-				n.WithFIBACK()
-				wantInstalled = fluent.InstalledInFIB
+	for _, persist := range []string{usePreserve, useDelete} {
+		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
+			if *deviations.GRIBIPreserveOnly && persist == useDelete {
+				t.Skip("Skipping due to --deviations_gribi_preserve_only")
 			}
 
-			c.Start(ctx, t)
-			defer c.Stop(t)
-			c.StartSending(ctx, t)
-			if err := awaitTimeout(ctx, c, t); err != nil {
-				t.Fatalf("Await got error during session negotiation: %v", err)
-			}
+			for _, tc := range cases {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Logf("Name: %s", tc.name)
+					t.Logf("Description: %s", tc.desc)
 
-			if *flush {
-				_, err := c.Flush().
-					WithElectionOverride().
-					WithAllNetworkInstances().
-					Send()
-				if err != nil {
-					t.Errorf("Cannot flush: %v", err)
-				}
-			}
+					// Configure the gRIBI client.
+					c := fluent.NewClient()
+					conn := c.Connection().
+						WithStub(gribic).
+						WithRedundancyMode(fluent.ElectedPrimaryClient).
+						WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
+					if persist == usePreserve {
+						conn.WithPersistence()
+					}
 
-			args := &testArgs{ctx: ctx, c: c, dut: dut, ate: ate, top: top}
-			tc.fn(t, args)
+					if !*deviations.GRIBIRIBAckOnly {
+						// The main difference WithFIBACK() made was that we are now expecting
+						// fluent.InstalledInFIB in []*client.OpResult, as opposed to
+						// fluent.InstalledInRIB.
+						conn.WithFIBACK()
+					}
+
+					c.Start(ctx, t)
+					defer c.Stop(t)
+					c.StartSending(ctx, t)
+					if err := awaitTimeout(ctx, c, t); err != nil {
+						t.Fatalf("Await got error during session negotiation: %v", err)
+					}
+
+					if persist == usePreserve {
+						defer func() {
+							_, err := c.Flush().
+								WithElectionOverride().
+								WithAllNetworkInstances().
+								Send()
+							if err != nil {
+								t.Errorf("Cannot flush: %v", err)
+							}
+						}()
+					}
+
+					args := &testArgs{ctx: ctx, c: c, dut: dut, ate: ate, top: top}
+					args.wantInstalled = fluent.InstalledInFIB
+					if *deviations.GRIBIRIBAckOnly {
+						args.wantInstalled = fluent.InstalledInRIB
+					}
+					tc.fn(t, args)
+				})
+			}
 		})
 	}
 }
