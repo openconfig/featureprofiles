@@ -49,15 +49,22 @@ var (
 
 // Constants.
 const (
-	dutAS        = 65540
-	ateAS        = 65550
-	dutAS2       = 65536
-	ateAS2       = 65536
-	peerGrpName  = "BGP-PEER-GROUP"
-	authPassword = "AUTHPASSWORD"
-	holdTimer    = 100
-	connRettimer = 100
-	ateHoldtimer = 135
+	dutAS         = 65540
+	ateAS         = 65550
+	dutAS2        = 65536
+	ateAS2        = 65536
+	peerGrpName   = "BGP-PEER-GROUP"
+	authPassword  = "AUTHPASSWORD"
+	dutHoldTime   = 100
+	connRetryTime = 100
+	ateHoldTime   = 135
+)
+
+type connType string
+
+const (
+	connInternal connType = "INTERNAL"
+	connExternal connType = "EXTERNAL"
 )
 
 // configureDUT is used to configure interfaces on the DUT.
@@ -81,7 +88,7 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 // Struct is to pass bgp session parameters.
 type bgpTestParams struct {
 	localAS, peerAS, nbrLocalAS uint32
-	peerIP, connType            string
+	peerIP                      string
 }
 
 // bgpCreateNbr creates a BGP object with neighbors pointing to ate and returns bgp object.
@@ -111,8 +118,8 @@ func bgpCreateNbr(bgpParams *bgpTestParams) *telemetry.NetworkInstance_Protocol_
 	nv4.AuthPassword = ygot.String(authPassword)
 
 	nv4t := nv4.GetOrCreateTimers()
-	nv4t.HoldTime = ygot.Uint16(holdTimer)
-	nv4t.ConnectRetry = ygot.Uint16(connRettimer)
+	nv4t.HoldTime = ygot.Uint16(dutHoldTime)
+	nv4t.ConnectRetry = ygot.Uint16(connRetryTime)
 
 	nv4.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	return bgp
@@ -197,7 +204,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // Function to configure ATE configs based on args and returns ate topology handle.
-func configureATE(t *testing.T, ateParams *bgpTestParams) *ondatra.ATETopology {
+func configureATE(t *testing.T, ateParams *bgpTestParams, connectionType connType) *ondatra.ATETopology {
 	ate := ondatra.ATE(t, "ate")
 	port1 := ate.Port(t, "port1")
 	topo := ate.Topology().New()
@@ -206,12 +213,12 @@ func configureATE(t *testing.T, ateParams *bgpTestParams) *ondatra.ATETopology {
 	iDut1.IPv4().WithAddress(ateAttrs.IPv4CIDR()).WithDefaultGateway(ateParams.peerIP)
 	bgpDut1 := iDut1.BGP()
 
-	if ateParams.connType == "INTERNAL" {
+	if connectionType == "INTERNAL" {
 		bgpDut1.AddPeer().WithPeerAddress(ateParams.peerIP).WithLocalASN(ateParams.localAS).WithTypeInternal().
-			WithMD5Key(authPassword).WithHoldTime(ateHoldtimer)
+			WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
 	} else {
 		bgpDut1.AddPeer().WithPeerAddress(ateParams.peerIP).WithLocalASN(ateParams.localAS).WithTypeExternal().
-			WithMD5Key(authPassword).WithHoldTime(ateHoldtimer)
+			WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
 	}
 	return topo
 
@@ -253,7 +260,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	iDut1.IPv4().WithAddress(ateAttrs.IPv4CIDR()).WithDefaultGateway(dutAttrs.IPv4)
 	bgpDut1 := iDut1.BGP()
 	bgpPeer := bgpDut1.AddPeer().WithPeerAddress(dutAttrs.IPv4).WithLocalASN(ateAS).WithTypeExternal().
-		WithMD5Key(authPassword).WithHoldTime(ateHoldtimer)
+		WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
 
 	t.Log("Pushing config to ATE and starting protocols...")
 	topo.Push(t)
@@ -316,24 +323,24 @@ func TestParameters(t *testing.T) {
 		wantState *telemetry.NetworkInstance_Protocol_Bgp
 	}{
 		{
-			name:    "Test the eBGP session establishment: Global AS ",
+			name:    "Test the eBGP session establishment: Global AS",
 			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS}),
-			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, connType: "EXTERNAL"}),
+			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP}, connExternal),
 		},
 		{
-			name:    "Test the eBGP session establishment: Neighbor AS ",
+			name:    "Test the eBGP session establishment: Neighbor AS",
 			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS, nbrLocalAS: dutAS}),
-			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, connType: "EXTERNAL"}),
+			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP}, connExternal),
 		},
 		{
 			name:    "Test the iBGP session establishment: Gloabl AS",
 			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2}),
-			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP, connType: "INTERNAL"}),
+			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP}, connInternal),
 		},
 		{
 			name:    "Test the iBGP session establishment: Neighbor AS",
 			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2, nbrLocalAS: dutAS2}),
-			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP, connType: "INTERNAL"}),
+			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP}, connInternal),
 		},
 	}
 	for _, tc := range cases {
