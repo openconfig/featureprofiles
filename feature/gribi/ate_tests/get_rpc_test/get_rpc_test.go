@@ -372,10 +372,11 @@ func TestElectionID(t *testing.T) {
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
 
-	// Connect gRIBI client to DUT referred to as gRIBI-A using SINGLE_PRIMARY mode,
-	// with FIB ACK requested. Specify gRIBI-A as the leader via a higher election_id of 12.
+	// Connect gRIBI client to DUT referred to as gRIBI-A - using PRESERVE persistence and
+	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI-A as the leader via a
+	// higher election_id of 12.
 	clientA := fluent.NewClient()
-	clientA.Connection().WithStub(gribic).WithInitialElectionID(12, 0).
+	clientA.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(12, 0).
 		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
 
 	clientA.Start(ctx, t)
@@ -385,10 +386,11 @@ func TestElectionID(t *testing.T) {
 		t.Fatalf("Await got error during session negotiation for clientA: %v", err)
 	}
 
-	// Connect gRIBI client to DUT referred to as gRIBI-B - using SINGLE_PRIMARY mode,
-	// with FIB ACK requested and election ID of 11, which is not the leader.
+	// Connect gRIBI client to DUT referred to as gRIBI-B - using PRESERVE persistence and
+	// SINGLE_PRIMARY mode, with FIB ACK requested and election ID of 11, which is not the
+	// leader.
 	clientB := fluent.NewClient()
-	clientB.Connection().WithStub(gribic).WithInitialElectionID(11, 0).
+	clientB.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(11, 0).
 		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
 
 	clientB.Start(context.Background(), t)
