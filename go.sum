@@ -209,10 +209,10 @@ github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e/go.mod h1:Sh6fs
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d/go.mod h1:x9tAZ4EwqCQ0jI8D6S8Yhw9Z0ee7/BxWQX0k0Uib5Q8=
 github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde h1:tSMKTQlWcHhdxQhn6P9myhLcoI+SzxF9e6hHWstCagU=
 github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde/go.mod h1:OmTWe7RyZj2CIzIgy4ovEBzCLBJzRvWSZmn7u02U9gU=
-github.com/openconfig/kne v0.1.1 h1:gfXhGjxPqIGsSGfPmYHS6c9gmbFvxymQq+VJrVdHyS4=
-github.com/openconfig/kne v0.1.1/go.mod h1:wUCTZ12PnX6TTcsh7FbMpoL8JlQJ+k8PMesD/NDHovw=
-github.com/openconfig/ondatra v0.0.0-20220830155124-362d48a74a1e h1:IsiSEHGn/X4jLSoKxe8X0uBeihiv4UeyPUAfoL3e3yU=
-github.com/openconfig/ondatra v0.0.0-20220830155124-362d48a74a1e/go.mod h1:0+oxIfj1MTbqghagjI47L4r1MFEN2GGyQc8R2jZKAF0=
+github.com/openconfig/kne v0.1.4 h1:rX1Qk5SdtGlpYECJKYKxbNeGS4lEAjint6+NADqyn0o=
+github.com/openconfig/kne v0.1.4/go.mod h1:mg669QYYxkpqVnDlhJyMoaCF4mNnEJwOdslOflvONxI=
+github.com/openconfig/ondatra v0.0.0-20220830204626-28b9af3b191d h1:g+yBOFopJTjsmblc7IXMZR55FMRJB11qCiJpBLHbUGQ=
+github.com/openconfig/ondatra v0.0.0-20220830204626-28b9af3b191d/go.mod h1:7BXFr0NmiDI+q+lUXH0To+mgVFPAz91y6ktyrgM4cWA=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygnmi v0.2.1 h1:Dy757bww4AFDq99nsZjor0/+Iug6iBWaK1RIBnWftDg=
@@ -294,8 +294,8 @@ golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073/go.mod h1:LzIPMQfyMNhhGPh
 golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b/go.mod h1:T9bdIzuCu7OtxOm1hfPfRQxPLYneinmdGuTeoZ9dtd4=
 golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
-golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 h1:kUhD7nTDoI3fVd9G4ORWrbV5NY0liEs/Jg2pv5f+bBA=
-golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
+golang.org/x/crypto v0.0.0-20220518034528-6f7dac969898 h1:SLP7Q4Di66FONjDJbCYrCRrh97focO6sLogHO7/g8F0=
+golang.org/x/crypto v0.0.0-20220518034528-6f7dac969898/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
 golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/exp v0.0.0-20190306152737-a1d7652674e8/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/exp v0.0.0-20190510132918-efd6b22b2522/go.mod h1:ZjyILWgesfNpC6sMxTJOJm9Kp84zZh5NQWvqDGG3Qr8=
