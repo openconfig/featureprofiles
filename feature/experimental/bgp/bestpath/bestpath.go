@@ -31,9 +31,7 @@ type BestPath struct {
 // New returns a new BestPath object
 func New() *BestPath {
      return &BestPath{
-          goc: fpoc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions{
-               Enabled: ygot.Bool(true),
-          },
+          goc: fpoc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions{},
      }
 }
 
