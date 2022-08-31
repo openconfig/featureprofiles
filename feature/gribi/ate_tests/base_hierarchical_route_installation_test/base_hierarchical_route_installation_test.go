@@ -206,7 +206,7 @@ func setupRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopEntry().
 			WithNetworkInstance(*deviations.DefaultNetworkInstance).
-			WithIndex(2).
+			WithIndex(nhIndex2).
 			WithIPAddress(atePort2.IPv4))
 
 	args.c.Modify().AddEntry(t,
@@ -300,7 +300,7 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 			t.Errorf("next-hop index is incorrect: got %v, want %v", got, want)
 		}
 		nh := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(nhIndexInst).Get(t)
-		if got, want := nh.GetIpAddress(), ateIndirectNH; got != want {
+		if got, want := nh.GetIpAddress(), atePort2.IPv4; got != want {
 			t.Errorf("next-hop is incorrect: got %v, want %v", got, want)
 		}
 		if nh.GetInterfaceRef().GetInterface() == "" {
