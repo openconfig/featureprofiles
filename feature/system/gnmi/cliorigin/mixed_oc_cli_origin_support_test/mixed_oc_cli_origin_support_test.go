@@ -133,7 +133,7 @@ func TestMixedOriginOCCLIConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 	}
-	t.Log("gnmiClient Set Response for CLI and OpenConfig modelled  config")
+	t.Log("gnmiClient Set Response for CLI and OpenConfig modelled config")
 	t.Log(response)
 
 	if got := dut.Telemetry().Interface(dp1.Name()).Description().Get(t); got != "foo1" {
