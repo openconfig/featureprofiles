@@ -98,7 +98,7 @@ func TestOrderDependence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 	}
-	t.Log("gnmiClient Set Response for CLI and OpenConfig modelled  config")
+	t.Log("gnmiClient Set Response for CLI and OpenConfig modelled config")
 	t.Log(response)
 
 	got := dut.Telemetry().Interface(dp.Name()).Description().Get(t)
