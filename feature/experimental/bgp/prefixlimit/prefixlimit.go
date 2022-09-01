@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-// Package aspath implements the Config Library for BGP as path
+// Package prefixlimit implements the Config Library for BGP prefixlimit
 // feature profile.
 package prefixlimit
 
@@ -45,49 +45,24 @@ func New() *PrefixLimit {
 func (pl *PrefixLimit) WithMaxPrefixes(val uint32) *PrefixLimit {
      // Neighbor
      if pl.noc.AfiSafi == nil {
-          pl.noc.AfiSafi = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-               Ipv4Unicast: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast{
-                    PrefixLimit: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimit{
-                         MaxPrefixes: ygot.Uint32(val),
-                    },
-               },
-          }
+          pl.noc.AfiSafi = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{}
      } else if pl.noc.AfiSafi.Ipv4Unicast == nil {
-          pl.noc.AfiSafi.Ipv4Unicast = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast{
-               PrefixLimit: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimit{
-                    MaxPrefixes: ygot.Uint32(val),
-               },
-          }
+          pl.noc.AfiSafi.Ipv4Unicast = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast{}
      } else if pl.noc.AfiSafi.Ipv4Unicast.PrefixLimit == nil {
-          pl.noc.AfiSafi.Ipv4Unicast.PrefixLimit = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimit{
-               MaxPrefixes: ygot.Uint32(val),
-          }
-     } else {
-          pl.noc.AfiSafi.Ipv4Unicast.PrefixLimit.MaxPrefixes = ygot.Uint32(val)
+          pl.noc.AfiSafi.Ipv4Unicast.PrefixLimit = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimit{}
      }
-
+     pl.noc.AfiSafi.Ipv4Unicast.PrefixLimit.MaxPrefixes = ygot.Uint32(val)
+     
      // Peer Group
      if pl.poc.AfiSafi == nil {
-          pl.poc.AfiSafi = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
-               Ipv4Unicast: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_Ipv4Unicast{
-                    PrefixLimit: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_Ipv4Unicast_PrefixLimit{
-                         MaxPrefixes: ygot.Uint32(val),
-                    },
-               },
-          }
+          pl.poc.AfiSafi = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{}
      } else if pl.poc.AfiSafi.Ipv4Unicast == nil {
-          pl.poc.AfiSafi.Ipv4Unicast = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_Ipv4Unicast{
-               PrefixLimit: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_Ipv4Unicast_PrefixLimit{
-                    MaxPrefixes: ygot.Uint32(val),
-               },
-          }
+          pl.poc.AfiSafi.Ipv4Unicast = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_Ipv4Unicast{}
      } else if pl.poc.AfiSafi.Ipv4Unicast.PrefixLimit == nil {
-          pl.poc.AfiSafi.Ipv4Unicast.PrefixLimit = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_Ipv4Unicast_PrefixLimit{
-               MaxPrefixes: ygot.Uint32(val),
-          }
-     } else {
-          pl.poc.AfiSafi.Ipv4Unicast.PrefixLimit.MaxPrefixes = ygot.Uint32(val)
+          pl.poc.AfiSafi.Ipv4Unicast.PrefixLimit = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_Ipv4Unicast_PrefixLimit{}
      }
+     pl.poc.AfiSafi.Ipv4Unicast.PrefixLimit.MaxPrefixes = ygot.Uint32(val)
+     
 
      return pl
 }
@@ -95,26 +70,13 @@ func (pl *PrefixLimit) WithMaxPrefixes(val uint32) *PrefixLimit {
 // WithWarningThresholdPct sets the warning-threshold-pct for prefix limit feature.
 func (pl *PrefixLimit) WithWarningThresholdPct(val uint8) *PrefixLimit {
      if pl.noc.AfiSafi == nil {
-          pl.noc.AfiSafi = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-               Ipv4Unicast: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast{
-                    PrefixLimit: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimit{
-                         WarningThresholdPct: ygot.Uint8(val),
-                    },
-               },
-          }
+          pl.noc.AfiSafi = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{}
      } else if pl.noc.AfiSafi.Ipv4Unicast == nil {
-          pl.noc.AfiSafi.Ipv4Unicast = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast{
-               PrefixLimit: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimit{
-                    WarningThresholdPct: ygot.Uint8(val),
-               },
-          }
+          pl.noc.AfiSafi.Ipv4Unicast = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast{}
      } else if pl.noc.AfiSafi.Ipv4Unicast.PrefixLimit == nil {
-          pl.noc.AfiSafi.Ipv4Unicast.PrefixLimit = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimit{
-               WarningThresholdPct: ygot.Uint8(val),
-          }
-     } else {
-          pl.noc.AfiSafi.Ipv4Unicast.PrefixLimit.WarningThresholdPct = ygot.Uint8(val)
+          pl.noc.AfiSafi.Ipv4Unicast.PrefixLimit = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimit{}
      }
+     pl.noc.AfiSafi.Ipv4Unicast.PrefixLimit.WarningThresholdPct = ygot.Uint8(val)
 
      return pl
 }
@@ -123,21 +85,18 @@ func (pl *PrefixLimit) WithWarningThresholdPct(val uint8) *PrefixLimit {
 func (pl *PrefixLimit) WithRestartTime(val uint16) *PrefixLimit {
      // Neighbor
      if pl.noc.Timers == nil {
-          pl.noc.Timers = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
-               RestartTime: ygot.Uint16(val),
-          }
-     } else {
-          pl.noc.Timers.RestartTime = ygot.Uint16(val)
+          pl.noc.Timers = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{}
      }
+     pl.noc.Timers.RestartTime = ygot.Uint16(val)
+     
 
      // Peer Group
      if pl.poc.Timers == nil {
-          pl.poc.Timers = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
-               RestartTime: ygot.Uint16(val),
-          }
-     } else {
-          pl.poc.Timers.RestartTime = ygot.Uint16(val)
+          pl.poc.Timers = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{}
      }
+     pl.poc.Timers.RestartTime = ygot.Uint16(val)
+     
+     return pl
 }
 
 // AugmentNeighbor implements the bgp.NeighborFeature interface.
