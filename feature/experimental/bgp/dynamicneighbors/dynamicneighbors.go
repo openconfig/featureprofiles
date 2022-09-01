@@ -31,9 +31,7 @@ type DynamicNeighbors struct {
 // New returns a new DynamicNeighbors object.
 func New() *DynamicNeighbors {
      return &DynamicNeighbors{
-          goc: fpoc.NetworkInstance_Protocol_Bgp_Global_DynamicNeighborPrefix{
-               Enabled: ygot.Bool(true),
-          },
+          goc: fpoc.NetworkInstance_Protocol_Bgp_Global_DynamicNeighborPrefix{},
      }
 }
 
