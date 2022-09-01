@@ -32,20 +32,15 @@ type AsPathOptions struct {
 // New returns a new AsPathOptions object.
 func New() *AsPathOptions {
      return &AsPathOptions{
-          noc: fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AsPathOptions{
-               Enabled: ygot.Bool(true),
-          },
-          poc: fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
-               Enabled: ygot.Bool(true),
-          },
+          noc: fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AsPathOptions{},
+          poc: fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{},
      }
 }
 
 // WithAllowOwnAs sets the with allow own for AsPathOptions feature.
 func (apo *AsPathOptions) WithAllowOwnAs(val uint8) *AsPathOptions {
-     v := ygot.Uint8(val)
-     apo.noc.AllowOwnAs = v
-     apo.poc.AllowOwnAs = v
+     apo.noc.AllowOwnAs = ygot.Uint8(val)
+     apo.poc.AllowOwnAs = ygot.Uint8(val)
      return apo
 }
 

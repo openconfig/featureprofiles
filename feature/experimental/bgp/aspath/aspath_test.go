@@ -37,9 +37,7 @@ func TestAugmentNeighbor(t *testing.T) {
           ap: New(),
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{},
           wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
-               AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AsPathOptions{
-                    Enabled: ygot.Bool(true),
-               },
+               AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AsPathOptions{},
           },
      }, {
           desc: "With allow-own-as",
@@ -47,7 +45,6 @@ func TestAugmentNeighbor(t *testing.T) {
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{},
           wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AsPathOptions{
-                    Enabled: ygot.Bool(true),
                     AllowOwnAs: ygot.Uint8(1),
                },
           },
@@ -57,7 +54,6 @@ func TestAugmentNeighbor(t *testing.T) {
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{},
           wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AsPathOptions{
-                    Enabled: ygot.Bool(true),
                     ReplacePeerAs: ygot.Bool(true),
                },
           },
@@ -67,7 +63,6 @@ func TestAugmentNeighbor(t *testing.T) {
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{},
           wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AsPathOptions{
-                    Enabled: ygot.Bool(true),
                     DisablePeerAsFilter: ygot.Bool(true),
                },
           },
@@ -76,12 +71,12 @@ func TestAugmentNeighbor(t *testing.T) {
           ap: New().WithReplacePeerAs(true),
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AsPathOptions{
-                    Enabled: ygot.Bool(true),
+                    AllowOwnAs: ygot.Uint8(1),
                },
           },
           wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AsPathOptions{
-                    Enabled: ygot.Bool(true),
+                    AllowOwnAs: ygot.Uint8(1),
                     ReplacePeerAs: ygot.Bool(true),
                },
           },
@@ -109,10 +104,10 @@ func TestAugmentNeighborErrors(t *testing.T) {
           wantErrSubStr string
      }{{
           desc: "Neighbor contains AP with conflicts",
-          ap: New(),
+          ap: New().WithReplacePeerAs(true),
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AsPathOptions{
-                    Enabled: ygot.Bool(false),
+                    ReplacePeerAs: ygot.Bool(false),
                },
           },
           wantErrSubStr: "destination value was set",
@@ -143,9 +138,7 @@ func TestAugmentPeerGroup(t *testing.T) {
           ap: New(),
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
-               AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
-                    Enabled: ygot.Bool(true),
-               },
+               AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{},
           },
      }, {
           desc: "With allow-own-as",
@@ -153,7 +146,6 @@ func TestAugmentPeerGroup(t *testing.T) {
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
-                    Enabled: ygot.Bool(true),
                     AllowOwnAs: ygot.Uint8(1),
                },
           },
@@ -163,7 +155,6 @@ func TestAugmentPeerGroup(t *testing.T) {
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
-                    Enabled: ygot.Bool(true),
                     ReplacePeerAs: ygot.Bool(true),
                },
           },
@@ -173,7 +164,6 @@ func TestAugmentPeerGroup(t *testing.T) {
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
-                    Enabled: ygot.Bool(true),
                     DisablePeerAsFilter: ygot.Bool(true),
                },
           },
@@ -182,12 +172,12 @@ func TestAugmentPeerGroup(t *testing.T) {
           ap: New().WithReplacePeerAs(true),
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
-                    Enabled: ygot.Bool(true),
+                    AllowOwnAs: ygot.Uint8(1),
                },
           },
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
-                    Enabled: ygot.Bool(true),
+                    AllowOwnAs: ygot.Uint8(1),
                     ReplacePeerAs: ygot.Bool(true),
                },
           },
@@ -215,10 +205,10 @@ func TestAugmentPeerGroupErrors(t *testing.T) {
           wantErrSubStr string
      }{{
           desc: "PeerGroup contains AP with conflicts",
-          ap: New()
+          ap: New().WithReplacePeerAs(true),
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AsPathOptions: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AsPathOptions{
-                    Enabled: ygot.Bool(false),
+                    ReplacePeerAs: ygot.Bool(false),
                },
           },
           wantErrSubStr: "destination value was set",
