@@ -25,7 +25,152 @@ import (
      "github.com/openconfig/ygot/ygot"
 )
 
-// TestAugmentGlobal ??
+// TestAugmentGlobal
+func TestAugmentGlobal(t *testing.T) {
+     tests := []struct{
+          desc string
+          ap *AddPath
+          inGlobal *fpoc.NetworkInstance_Protocol_Bgp_Global
+          wantGlobal *fpoc.NetworkInstance_Protocol_Bgp_Global
+     }{{
+          desc: "AP enabled with no params",
+          ap: New(),
+          inGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{},
+          wantGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+                    Enabled: ygot.Bool(true),
+                    AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths{},
+               },
+          },
+     }, {
+          desc: "With receive",
+          ap: New().WithReceive(true),
+          inGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{},
+          wantGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+                    Enabled: ygot.Bool(true),
+                    AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths{
+                         Receive: ygot.Bool(true),
+                    },
+               },
+          },
+     }, {
+          desc: "With send",
+          ap: New().WithSend(true),
+          inGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{},
+          wantGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+                    Enabled: ygot.Bool(true),
+                    AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths{
+                         Send: ygot.Bool(true),
+                    },
+               },
+          },
+     }, {
+          desc: "With send max",
+          ap: New().WithSendMax(5),
+          inGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{},
+          wantGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+                    Enabled: ygot.Bool(true),
+                    AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths{
+                         SendMax: ygot.Uint8(5),
+                    },
+               },
+          },
+     }, {
+          desc: "With Eligible Prefix Policy",
+          ap: New().WithEligiblePrefixPolicy("/routing-policy/policy-definitions/policy-definition/name"),
+          inGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{},
+          wantGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+                    Enabled: ygot.Bool(true),
+                    AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths{
+                         EligiblePrefixPolicy: ygot.String("/routing-policy/policy-definitions/policy-definition/name"),
+                    },
+               },
+          },
+     }, {
+          desc: "Neighbor contains add paths, no conflicts",
+          ap: New().WithSend(true),
+          inGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+                    Enabled: ygot.Bool(true),
+                    AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths{
+                         Receive: ygot.Bool(true),
+                    },
+               },
+          },
+          wantGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+                    Enabled: ygot.Bool(true),
+                    AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths{
+                         Receive: ygot.Bool(true),
+                         Send: ygot.Bool(true),
+                    },
+               },
+          },
+     }}
+
+     for _, test := range tests {
+          t.Run(test.desc, func(t *testing.T) {
+               err := test.ap.AugmentGlobal(test.inGlobal)
+               if err != nil {
+                    t.Fatalf("error not expected: %v", err)
+               }
+               if diff := cmp.Diff(test.wantGlobal, test.inGlobal); diff != "" {
+                    t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
+               }
+          })
+     }
+}
+
+// TestAugmentNeighborErrors
+func TestAugmentNeighborErrors(t *testing.T) {
+     tests := []struct {
+          desc string
+          ap *AddPath
+          inGlobal *fpoc.NetworkInstance_Protocol_Bgp_Neighbor
+          wantErrSubStr string
+     }{{
+          desc: "Neighbor contains AP with conflicts",
+          ap: New().WithReceive(true),
+          inGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
+               AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+                    Enabled: ygot.Bool(true),
+                    AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths{
+                         Receive: ygot.Bool(false),
+                    },
+               },
+          },
+          wantErrSubStr: "destination value was set",
+     }}
+
+     for _, test := range tests {
+          t.Run(test.desc, func(t *testing.T) {
+               err := test.ap.AugmentNeighbor(test.inGlobal)
+               if err == nil {
+                    t.Fatalf("error expected")
+               }
+               if !strings.Contains(err.Error(), test.wantErrSubStr) {
+                    t.Errorf("error strings are not equal: %v", err)
+               }
+          })
+     }
+}
+
+
+// TestAugmentGlobal
+func TestAugmentGlobal(t *testing.T) {
+     tests := []struct{
+          desc string
+          ap *AddPath
+          inGlobal *fpoc.NetworkInstance_Protocol_Bgp_Global
+          wantGlobal *fpoc.NetworkInstance_Protocol_Bgp_Global
+     }{{
+          // TODO
+     }}
+}
 
 // TestAugmentNeighbor
 func TestAugmentNeighbor(t *testing.T) {
@@ -40,9 +185,8 @@ func TestAugmentNeighbor(t *testing.T) {
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{},
           wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-                    AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
-                    },
+                    Enabled: ygot.Bool(true),
+                    AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths{},
                },
           },
      }, {
@@ -51,10 +195,9 @@ func TestAugmentNeighbor(t *testing.T) {
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{},
           wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
                          Receive: ygot.Bool(true),
-
                     },
                },
           },
@@ -64,8 +207,8 @@ func TestAugmentNeighbor(t *testing.T) {
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{},
           wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
                          Send: ygot.Bool(true),
                     },
                },
@@ -76,8 +219,8 @@ func TestAugmentNeighbor(t *testing.T) {
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{},
           wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
                          SendMax: ygot.Uint8(5),
                     },
                },
@@ -88,8 +231,8 @@ func TestAugmentNeighbor(t *testing.T) {
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{},
           wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
                          EligiblePrefixPolicy: ygot.String("/routing-policy/policy-definitions/policy-definition/name"),
                     },
                },
@@ -99,15 +242,17 @@ func TestAugmentNeighbor(t *testing.T) {
           ap: New().WithSend(true),
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
+                         Receive: ygot.Bool(true),
                     },
                },
           },
           wantNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
+                         Receive: ygot.Bool(true),
                          Send: ygot.Bool(true),
                     },
                },
@@ -136,11 +281,12 @@ func TestAugmentNeighborErrors(t *testing.T) {
           wantErrSubStr string
      }{{
           desc: "Neighbor contains AP with conflicts",
-          ap: New(),
+          ap: New().WithReceive(true),
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(false),
+                         Receive: ygot.Bool(false),
                     },
                },
           },
@@ -173,9 +319,8 @@ func TestAugmentPeerGroup(t *testing.T) {
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
-                    AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
-                    },
+                    Enabled: ygot.Bool(true),
+                    AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_AddPaths{},
                },
           },
      }, {
@@ -184,8 +329,8 @@ func TestAugmentPeerGroup(t *testing.T) {
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
                          Receive: ygot.Bool(true),
                     },
                },
@@ -196,8 +341,8 @@ func TestAugmentPeerGroup(t *testing.T) {
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
                          Send: ygot.Bool(true),
                     },
                },
@@ -208,38 +353,40 @@ func TestAugmentPeerGroup(t *testing.T) {
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
                          SendMax: ygot.Uint8(5),
                     },
                },
           },
      }, {
-          desc: "With eligible prefix policy",
-          ap: New().WithEligiblePrefixPolicy("routing-policy/policy-definitions/policy-definition/name"),
+          desc: "With Eligible Prefix Policy",
+          ap: New().WithEligiblePrefixPolicy("/routing-policy/policy-definitions/policy-definition/name"),
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{},
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
-                         EligiblePrefixPolicy: ygot.String("routing-policy/policy-definitions/policy-definition/name"),
+                         EligiblePrefixPolicy: ygot.String("/routing-policy/policy-definitions/policy-definition/name"),
                     },
                },
           },
      }, {
-          desc: "Peer group contains add path, no conflicts",
+          desc: "PG contains add paths, no conflicts",
           ap: New().WithSend(true),
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
-                    }
-               }
+                         Receive: ygot.Bool(true),
+                    },
+               },
           },
           wantPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(true),
+                         Receive: ygot.Bool(true),
                          Send: ygot.Bool(true),
                     },
                },
@@ -248,11 +395,11 @@ func TestAugmentPeerGroup(t *testing.T) {
 
      for _, test := range tests {
           t.Run(test.desc, func(t *testing.T) {
-               err := test.ap.AugmentPeerGroup(test.inNeighbor)
+               err := test.ap.AugmentPeerGroup(test.inPG)
                if err != nil {
                     t.Fatalf("error not expected: %v", err)
                }
-               if diff := cmp.Diff(test.wantNeighbor, test.inNeighbor); diff != "" {
+               if diff := cmp.Diff(test.wantPG, test.inPG); diff != "" {
                     t.Errorf("did not get expected state, diff(-want,+got):\n%s", diff)
                }
           })
@@ -268,11 +415,12 @@ func TestAugmentPeerGroupErrors(t *testing.T) {
           wantErrSubStr string
      }{{
           desc: "Peer Group contains AP with conflicts",
-          ap: New(),
+          ap: New().WithReceive(true),
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+                    Enabled: ygot.Bool(true),
                     AddPaths: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_AddPaths{
-                         Enabled: ygot.Bool(false),
+                         Receive: ygot.Bool(false),
                     },
                },
           },

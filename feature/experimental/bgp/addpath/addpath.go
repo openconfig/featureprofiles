@@ -33,48 +33,51 @@ type AddPath struct {
 // New returns a new AddPath object.
 func New() *AddPath {
      return &AddPath{
-          goc: fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths{
+          goc: fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
                Enabled: ygot.Bool(true),
+               AddPaths: fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths{}
           },
-          noc: fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths{
+          noc: fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
                Enabled: ygot.Bool(true),
+               AddPaths: fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AddPaths{}
           },
-          poc: fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_AddPaths{
+          poc: fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
                Enabled: ygot.Bool(true),
+               AddPaths: fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_AddPaths{}
           },
      }
 }
 
 // WithReceive sets the receive for AddPath feature.
 func (ap *AddPath) WithReceive(val bool) *AddPath {
-     ap.goc.Receive = ygot.Bool(val)
-     ap.noc.Receive = ygot.Bool(val)
-     ap.poc.Receive = ygot.Bool(val)
+     ap.goc.AddPaths.Receive = ygot.Bool(val)
+     ap.noc.AddPaths.Receive = ygot.Bool(val)
+     ap.poc.AddPaths.Receive = ygot.Bool(val)
      return ap
 }
 
 // WithSend sets the send for AddPath feature.
 func (ap *AddPath) WithSend(val bool) *AddPath {
-     ap.goc.Send = ygot.Bool(val)
-     ap.noc.Send = ygot.Bool(val)
-     ap.poc.Send = ygot.Bool(val)
+     ap.goc.AddPaths.Send = ygot.Bool(val)
+     ap.noc.AddPaths.Send = ygot.Bool(val)
+     ap.poc.AddPaths.Send = ygot.Bool(val)
      return ap
 }
 
 // WithSendMax sets the send max for AddPath feature.
 func (ap *AddPath) WithSendMax(val uint8) *AddPath {
-     ap.goc.SendMax = ygot.Uint8(val)
-     ap.noc.SendMax = ygot.Uint8(val)
-     ap.poc.SendMax = ygot.Uint8(val)
+     ap.goc.AddPaths.SendMax = ygot.Uint8(val)
+     ap.noc.AddPaths.SendMax = ygot.Uint8(val)
+     ap.poc.AddPaths.SendMax = ygot.Uint8(val)
      return ap
 }
 
 // WithEligiblePrefixPolicy sets the eligible prefix policy
 // for AddPath feature.
 func (ap *AddPath) WithEligiblePrefixPolicy(pol string) *AddPath {
-     ap.goc.EligiblePrefixPolicy = ygot.String(pol)
-     ap.noc.EligiblePrefixPolicy = ygot.String(pol)
-     ap.poc.EligiblePrefixPolicy = ygot.String(pol)
+     ap.goc.AddPaths.EligiblePrefixPolicy = ygot.String(pol)
+     ap.noc.AddPaths.EligiblePrefixPolicy = ygot.String(pol)
+     ap.poc.AddPaths.EligiblePrefixPolicy = ygot.String(pol)
      return ap
 }
 
@@ -86,15 +89,14 @@ func (ap *AddPath) AugmentGlobal(g *fpoc.NetworkInstance_Protocol_Bgp_Global) er
           return err
      }
      if g.AfiSafi == nil {
-          g.AfiSafi = &fpoc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
-               AddPaths: &ap.goc
-          }
-     }
+          g.AfiSafi = &ap.goc
+          return nil
+     } 
      else if g.AfiSafi.AddPaths == nil {
-          g.AfiSafi.AddPaths = &ap.goc
+          g.AfiSafi.AddPaths = &ap.goc.AddPaths
           return nil
      }
-     return ygot.MergeStructInto(g.AfiSafi.AddPaths, &ap.goc)
+     return ygot.MergeStructInto(g.AfiSafi, &ap.goc)
 }
 
 // AugmentNeighbor implements the bgp.NeighborFeature interface.
@@ -105,15 +107,14 @@ func (ap *AddPath) AugmentNeighbor(n *fpoc.NetworkInstance_Protocol_Bgp_Neighbor
           return err
      }
      if n.AfiSafi == nil {
-          n.AfiSafi = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-               AddPaths: &ap.noc
-          }
-     }
-     else if n.AfiSafi.AddPaths == nil {
-          n.AfiSafi.AddPaths = &ap.noc
+          n.AfiSafi = &ap.noc
           return nil
      }
-     return ygot.MergeStructInto(n.AfiSafi.AddPaths, &ap.noc)
+     else if n.AfiSafi.AddPaths == nil {
+          n.AfiSafi.AddPaths = &ap.noc.AddPaths
+          return nil
+     }
+     return ygot.MergeStructInto(n.AfiSafi, &ap.noc)
 }
 
 // AugmentPeerGroup implements the bgp.PeerGroupFeature interface.
@@ -124,13 +125,11 @@ func (ap *AddPath) AugmentPeerGroup(pg *fpoc.NetworkInstance_Protocol_Bgp_PeerGr
           return err
      }
      if pg.AfiSafi == nil {
-          pg.AfiSafi = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
-               AddPaths: &ap.poc
-          }
+          pg.AfiSafi = &ap.poc
      }
      else if pg.AfiSafi.AddPaths == nil {
-          pg.AfiSafi.AddPaths = &ap.poc
+          pg.AfiSafi.AddPaths = &ap.poc.AddPaths
           return nil
      }
-     return ygot.MergeStructInto(pg.AfiSafi.AddPaths, &ap.poc)
+     return ygot.MergeStructInto(pg.AfiSafi, &ap.poc)
 }
