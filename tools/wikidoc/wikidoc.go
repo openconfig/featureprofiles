@@ -30,19 +30,19 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
-// testDoc describes a test plan document
+// testDoc stores test plan metadata.
 type testDoc struct {
 	Name  string
 	Title string
 	Path  string
 }
 
-// path relative from outputRoot containing all test plans
+// path relative from outputRoot containing all test plan documents.
 const wikiPath = "/testplans/"
 
 var (
 	featureRoot = flag.String("feature_root", "", "root directory of the feature profiles")
-	outputRoot  = flag.String("output_root", "", "root directory to output test docs")
+	outputRoot  = flag.String("output_root", "", "root directory to output testplan docs")
 	sidebarTmpl = flag.String("sidebar_tmpl", "tools/wikidoc/sidebar.tmpl", "path to sidebar template")
 )
 
@@ -55,31 +55,31 @@ func main() {
 		log.Fatal("output_root must be set.")
 	}
 
-	docs, err := fetchTestDocs()
+	docs, err := fetchTestDocs(*featureRoot)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = writeTestDocs(docs)
+	err = writeTestDocs(docs, *outputRoot)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = writeSidebar(docs)
+	err = writeSidebar(docs, *sidebarTmpl, *outputRoot)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-// writeSidebar creates a sidebar document formatted from sidebarTmpl in outputRoot
-func writeSidebar(docs []testDoc) error {
-	f, err := os.Create(*outputRoot + "/_Sidebar.md")
+// writeSidebar creates a sidebar document formatted from tmplFile in root.
+func writeSidebar(docs []testDoc, tmplFile string, rootPath string) error {
+	f, err := os.Create(rootPath + "/_Sidebar.md")
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	sidebar, err := os.ReadFile(*sidebarTmpl)
+	sidebar, err := os.ReadFile(tmplFile)
 	if err != nil {
 		return err
 	}
@@ -92,9 +92,9 @@ func writeSidebar(docs []testDoc) error {
 	return nil
 }
 
-// writeTestDocs outputs test docs into outputRoot
-func writeTestDocs(docs []testDoc) error {
-	err := os.MkdirAll(*outputRoot+wikiPath, os.ModePerm)
+// writeTestDocs outputs test docs into rootPath.
+func writeTestDocs(docs []testDoc, rootPath string) error {
+	err := os.MkdirAll(rootPath+wikiPath, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func writeTestDocs(docs []testDoc) error {
 		if err != nil {
 			return err
 		}
-		err = os.WriteFile(*outputRoot+wikiPath+doc.Name+".md", f, 0644)
+		err = os.WriteFile(rootPath+wikiPath+doc.Name+".md", f, 0644)
 		if err != nil {
 			return err
 		}
@@ -112,28 +112,28 @@ func writeTestDocs(docs []testDoc) error {
 	return nil
 }
 
-// fetchTestDocs finds all valid test documents in featureRoot
-func fetchTestDocs() ([]testDoc, error) {
+// fetchTestDocs gathers all valid test plan documents in rootPath
+func fetchTestDocs(rootPath string) ([]testDoc, error) {
 	docs := []testDoc{}
 
-	err := filepath.WalkDir(*featureRoot,
+	err := filepath.WalkDir(rootPath,
 		func(path string, e fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
 
-			if !validPath(path) {
+			if !validDoc(path) {
 				return nil
 			}
 
-			testTitle, err := docTitle(path)
+			title, err := docTitle(path)
 			if err != nil {
 				return err
 			}
 
 			doc := testDoc{
 				Name:  filepath.Base(filepath.Dir(path)),
-				Title: testTitle,
+				Title: title,
 				Path:  path,
 			}
 			docs = append(docs, doc)
@@ -144,8 +144,8 @@ func fetchTestDocs() ([]testDoc, error) {
 	return docs, err
 }
 
-// validPath checks if a given file path is eligible to contain a test doc.
-func validPath(path string) bool {
+// validDoc checks if a given file path is eligible to contain a testplan doc.
+func validDoc(path string) bool {
 	if filepath.Base(path) != "README.md" {
 		return false
 	}

@@ -2,9 +2,9 @@ name: Update Wiki
 
 on:
   push:
-    branches: [ wikidoc ]
+    branches: [ main ]
   pull_request:
-    branches: [ wikidoc ]
+    branches: [ main ]
 
 jobs:
   build-wiki:
@@ -17,7 +17,7 @@ jobs:
     - name: Checkout wiki
       uses: actions/checkout@v2
       with:
-        repository: "bstoll/featureprofiles.wiki"
+        repository: "openconfig/featureprofiles.wiki"
         path: featureprofiles.wiki
     - name: Set up Go
       uses: actions/setup-go@v2.1.3
