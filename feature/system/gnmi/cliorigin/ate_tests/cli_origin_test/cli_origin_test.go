@@ -143,31 +143,26 @@ func juniperCLI(intf string, enabled bool) string {
 }
 
 func ciscoCLI(intf string, enabled bool) string {
-	op := "disable"
+	op := "shutdown"
 	if enabled {
-		op = "enable"
+		op = "no shutdown"
 	}
 	return fmt.Sprintf(`
-  interfaces {
-	%s {
-	  %s;
-	}
-  }
+  interface %s
+    %s
   `, intf, op)
 }
 
 func aristaCLI(intf string, enabled bool) string {
-	op := "disable"
+	op := "shutdown"
 	if enabled {
-		op = "enable"
+		op = "no shutdown"
 	}
 	return fmt.Sprintf(`
-  interfaces {
-	%s {
-	  %s;
-	}
-  }
+  interface %s
+    %s
   `, intf, op)
+
 }
 func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 	// Build config with Origin set to cli and Ascii encoded config.
