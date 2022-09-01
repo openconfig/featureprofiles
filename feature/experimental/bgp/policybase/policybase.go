@@ -52,21 +52,17 @@ func (p *PolicyBase) WithName(name fpoc.E_BgpTypes_AFI_SAFI_TYPE) *PolicyBase {
 func (p *PolicyBase) WithDefaultImportPolicy(dip fpoc.E_RoutingPolicy_DefaultPolicyType) *PolicyBase {
      // Neighbor
      if p.noc.AfiSafi.ApplyPolicy == nil {
-          p.noc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{
-               DefaultImportPolicy: dip,
-          }
-     } else {
-          p.noc.AfiSafi.ApplyPolicy.DefaultImportPolicy = dip
+          p.noc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{}
      }
+     p.noc.AfiSafi.ApplyPolicy.DefaultImportPolicy = dip
+     
 
      // Peer Group
      if p.poc.AfiSafi.ApplyPolicy == nil {
-          p.poc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_ApplyPolicy{
-               DefaultImportPolicy: dip,
-          }
-     } else {
-          p.poc.AfiSafi.ApplyPolicy.DefaultImportPolicy = dip
+          p.poc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_ApplyPolicy{}
      }
+     p.poc.AfiSafi.ApplyPolicy.DefaultImportPolicy = dip
+     
 
      return p
 }
@@ -75,21 +71,17 @@ func (p *PolicyBase) WithDefaultImportPolicy(dip fpoc.E_RoutingPolicy_DefaultPol
 func (p *PolicyBase) WithDefaultExportPolicy(dep fpoc.E_RoutingPolicy_DefaultPolicyType) *PolicyBase {
      // Neighbor
      if p.noc.AfiSafi.ApplyPolicy == nil {
-          p.noc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{
-               DefaultExportPolicy: dep,
-          }
-     } else {
-          p.noc.AfiSafi.ApplyPolicy.DefaultExportPolicy = dep
+          p.noc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{}
      }
+     p.noc.AfiSafi.ApplyPolicy.DefaultExportPolicy = dep
+     
 
      // Peer Group
      if p.poc.AfiSafi.ApplyPolicy == nil {
-          p.poc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_ApplyPolicy{
-               DefaultExportPolicy: dep,
-          }
-     } else {
-          p.poc.AfiSafi.ApplyPolicy.DefaultExportPolicy = dep
+          p.poc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_ApplyPolicy{}
      }
+     p.poc.AfiSafi.ApplyPolicy.DefaultExportPolicy = dep
+     
 
      return p
 }
@@ -98,21 +90,17 @@ func (p *PolicyBase) WithDefaultExportPolicy(dep fpoc.E_RoutingPolicy_DefaultPol
 func (p *PolicyBase) WithExportPolicy(ep string) *PolicyBase {
      // Neighbor
      if p.noc.AfiSafi.ApplyPolicy == nil {
-          p.noc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{
-               ExportPolicy: ygot.String(ep),
-          }
-     } else {
-          p.noc.AfiSafi.ApplyPolicy.ExportPolicy = ygot.String(ep)
-     }
+          p.noc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{}
+     }    
+     p.noc.AfiSafi.ApplyPolicy.ExportPolicy = ygot.String(ep)
+     
 
      // Peer Group
      if p.poc.AfiSafi.ApplyPolicy == nil {
-          p.poc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_ApplyPolicy{
-               ExportPolicy: ygot.String(ep),
-          }
-     } else {
-          p.poc.AfiSafi.ApplyPolicy.ExportPolicy =  ygot.String(ep)
-     }
+          p.poc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_ApplyPolicy{}
+     }    
+     p.poc.AfiSafi.ApplyPolicy.ExportPolicy =  ygot.String(ep)
+     
 
      return p
 }
@@ -121,21 +109,17 @@ func (p *PolicyBase) WithExportPolicy(ep string) *PolicyBase {
 func (p *PolicyBase) WithImportPolicy(ip string) *PolicyBase {
      // Neighbor
      if p.noc.AfiSafi.ApplyPolicy == nil {
-          p.noc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{
-               ImportPolicy: ygot.String(ip),
-          }
-     } else {
-          p.noc.AfiSafi.ApplyPolicy.ImportPolicy = ygot.String(ip)
-     }
+          p.noc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{}
+     }    
+     p.noc.AfiSafi.ApplyPolicy.ImportPolicy = ygot.String(ip)
+     
 
      // Peer Group
      if p.poc.AfiSafi.ApplyPolicy == nil {
-          p.poc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_ApplyPolicy{
-               ImportPolicy: ygot.String(ip),
-          }
-     } else {
-          p.poc.AfiSafi.ApplyPolicy.ImportPolicy = ygot.String(ip)
-     }
+          p.poc.AfiSafi.ApplyPolicy = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_ApplyPolicy{}
+     }    
+     p.poc.AfiSafi.ApplyPolicy.ImportPolicy = ygot.String(ip)
+     
 
      return p
 }

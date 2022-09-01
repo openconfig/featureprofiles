@@ -239,7 +239,7 @@ func TestAugmentPeerGroup(t *testing.T) {
                },
           },
      }, {
-          desc: "Neighbor contains PB, no conflicts",
+          desc: "Peer group contains PB, no conflicts",
           p: New().WithImportPolicy("import-policy"),
           inNeighbor: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                AfiSafi: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
