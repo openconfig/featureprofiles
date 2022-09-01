@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-// Package aspath implements the Config Library for BGP as path
+// Package multipath implements the Config Library for BGP multipath
 // feature profile.
 package multipath
 
@@ -50,30 +50,21 @@ func New() *Multipath {
 func (mp *Multipath) WithEbgpAllowMultipleAs(val bool) *Multipath {
      // Global
      if mp.goc.Ebgp == nil {
-          mp.goc.Ebgp = &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths_Ebgp{
-               AllowMultipleAs: ygot.Bool(val),
-          }
-     } else {
-          mp.goc.Ebgp.AllowMultipleAs = ygot.Bool(val)
+          mp.goc.Ebgp = &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths_Ebgp{}
      }
+     mp.goc.Ebgp.AllowMultipleAs = ygot.Bool(val)
 
      // Neighbor
      if mp.noc.Ebgp == nil {
-          mp.noc.Ebgp = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_UseMultiplePaths_Ebgp{
-               AllowMultipleAs: ygot.Bool(val),
-          }
-     } else {
-          mp.noc.Ebgp.AllowMultipleAs = ygot.Bool(val)
+          mp.noc.Ebgp = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_UseMultiplePaths_Ebgp{}
      }
+     mp.noc.Ebgp.AllowMultipleAs = ygot.Bool(val)
 
      // Peer Group
      if mp.poc.Ebgp == nil {
-          mp.poc.Ebgp = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_UseMultiplePaths_Ebgp{
-               AllowMultipleAs: ygot.Bool(val),
-          }
-     } else {
-          mp.poc.Ebgp.AllowMultipleAs = ygot.Bool(val)
+          mp.poc.Ebgp = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_UseMultiplePaths_Ebgp{}
      }
+     mp.poc.Ebgp.AllowMultipleAs = ygot.Bool(val)
 
      return mp
 }
@@ -82,30 +73,21 @@ func (mp *Multipath) WithEbgpAllowMultipleAs(val bool) *Multipath {
 func (mp *Multipath) WithEbgpMaximumPaths(val uint32) *Multipath {
      // Global
      if mp.goc.Ebgp == nil {
-          mp.goc.Ebgp = &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths_Ebgp{
-               MaximumPaths: ygot.Uint32(val),
-          }
-     } else {
-          mp.goc.Ebgp.MaximumPaths = ygot.Uint32(val)
+          mp.goc.Ebgp = &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths_Ebgp{}
      }
+     mp.goc.Ebgp.MaximumPaths = ygot.Uint32(val)
 
      // Neighbor
      if mp.noc.Ebgp == nil {
-          mp.noc.Ebgp = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_UseMultiplePaths_Ebgp{
-               MaximumPaths: ygot.Uint32(val),
-          }
-     } else {
-          mp.noc.Ebgp.MaximumPaths = ygot.Uint32(val)
+          mp.noc.Ebgp = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_UseMultiplePaths_Ebgp{}
      }
+     mp.noc.Ebgp.MaximumPaths = ygot.Uint32(val)
 
      // Peer Group
      if mp.poc.Ebgp == nil {
-          mp.poc.Ebgp = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_UseMultiplePaths_Ebgp{
-               MaximumPaths: ygot.Uint32(val),
-          }
-     } else {
-          mp.poc.Ebgp.MaximumPaths = ygot.Uint32(val)
+          mp.poc.Ebgp = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_UseMultiplePaths_Ebgp{}
      }
+     mp.poc.Ebgp.MaximumPaths = ygot.Uint32(val)
 
      return mp
 }
@@ -114,37 +96,45 @@ func (mp *Multipath) WithEbgpMaximumPaths(val uint32) *Multipath {
 func (mp *Multipath) WithIbgpMaximumPaths(val uint32) *Multipath {
      // Global
      if mp.goc.Ibgp == nil {
-          mp.goc.Ibgp = &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths_Ibgp{
-               MaximumPaths: ygot.Uint32(val),
-          }
-     } else {
-          mp.goc.Ibgp.MaximumPaths = ygot.Uint32(val)
-     }
+          mp.goc.Ibgp = &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths_Ibgp{}
+     } 
+     mp.goc.Ibgp.MaximumPaths = ygot.Uint32(val)
+     
 
      // Neighbor
      if mp.noc.Ibgp == nil {
-          mp.noc.Ibgp = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_UseMultiplePaths_Ibgp{
-               MaximumPaths: ygot.Uint32(val),
-          }
-     } else {
-          mp.noc.Ibgp.MaximumPaths = ygot.Uint32(val)
-     }
+          mp.noc.Ibgp = &fpoc.NetworkInstance_Protocol_Bgp_Neighbor_UseMultiplePaths_Ibgp{}
+     } 
+     mp.noc.Ibgp.MaximumPaths = ygot.Uint32(val)
+     
 
      // Peer Group
      if mp.poc.Ibgp == nil {
-          mp.poc.Ibgp = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_UseMultiplePaths_Ibgp{
-               MaximumPaths: ygot.Uint32(val),
-          }
-     } else {
-          mp.poc.Ibgp.MaximumPaths = ygot.Uint32(val)
-     }
+          mp.poc.Ibgp = &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_UseMultiplePaths_Ibgp{}
+     } 
+     mp.poc.Ibgp.MaximumPaths = ygot.Uint32(val)
+     
 
      return mp
 }
 
+// AugmentGlobal implements the bgp.GlobalFeature interface.
+// This method augments the BGP global with multipath feature.
+// Use with g.WithFeature(mp) instead of calling this feature directly.
+func (mp *Multipath) AugmentGlobal(g *fpoc.NetworkInstance_Protocol_Bgp_Global) error {
+     if err := mp.goc.Validate(); err != nil {
+          return err
+     }
+     if g.UseMultiplePaths == nil {
+          g.UseMultiplePaths = &mp.goc
+          return nil
+     }
+     return ygot.MergeStructInto(g.UseMultiplePaths, &mp.goc)
+}
+
 // AugmentNeighbor implements the bgp.NeighborFeature interface.
-// This method augments the BGP neighbor with multihop feature.
-// Use with n.WithFeature(mh) instead of calling this feature directly.
+// This method augments the BGP neighbor with multipath feature.
+// Use with n.WithFeature(mp) instead of calling this feature directly.
 func (mp *Multipath) AugmentNeighbor(n *fpoc.NetworkInstance_Protocol_Bgp_Neighbor) error {
      if err := mp.noc.Validate(); err != nil {
           return err
@@ -157,8 +147,8 @@ func (mp *Multipath) AugmentNeighbor(n *fpoc.NetworkInstance_Protocol_Bgp_Neighb
 }
 
 // AugmentPeerGroup implements the bgp.PeerGroupFeature interface.
-// This method augments the BGP neighbor with multihop feature.
-// Use with pg.WithFeature(mh) instead of calling this feature directly.
+// This method augments the BGP neighbor with multipath feature.
+// Use with pg.WithFeature(mp) instead of calling this feature directly.
 func (mp *Multipath) AugmentPeerGroup(pg *fpoc.NetworkInstance_Protocol_Bgp_PeerGroup) error {
      if err := mp.poc.Validate(); err != nil {
           return err

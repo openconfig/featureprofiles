@@ -25,6 +25,120 @@ import (
      "github.com/openconfig/ygot/ygot"
 )
 
+// TestAugmentGlobal tests the BGP MP augment to BGP global.
+func TestAugmentGlobal(t *testing.T) {
+     tests := []struct {
+          desc string
+          mp *Multipath
+          inGlobal *fpoc.NetworkInstance_Protocol_Bgp_Neighbor
+          wantGlobal *fpoc.NetworkInstance_Protocol_Bgp_Neighbor
+     }{{
+          desc: "MP enabled with no params",
+          mp: New(),
+          inGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{},
+          wantGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               UseMultiplePaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths{
+                    Enabled: ygot.Bool(true),
+               },
+          },
+     }, {
+          desc: "With ebgp allow-multiple-as",
+          mp: New().WithEbgpAllowMultipleAs(true),
+          inGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{},
+          wantGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               UseMultiplePaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths{
+                    Enabled: ygot.Bool(true),
+                    Egbp: &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths_Ebgp{
+                         AllowMultipleAs: ygot.Bool(true),
+                    },
+               },
+          },
+     }, {
+          desc: "With ebgp maximum-paths",
+          mp: New().WithEbgpMaximumPaths(5),
+          inGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{},
+          wantGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               UseMultiplePaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths{
+                    Enabled: ygot.Bool(true),
+                    Ebgp: &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths_Ebgp{
+                         MaximumPaths: ygot.Uint32(5),
+                    },
+               },
+          },
+     }, {
+          desc: "With ibgp maximum-paths",
+          mp: New().WithIbgpMaximumPaths(5),
+          inGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{},
+          wantGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               UseMultiplePaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths{
+                    Enabled: ygot.Bool(true),
+                    Ibgp: &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths_Ibgp{
+                         MaximumPaths: ygot.Uint32(5),
+                    },
+               },
+          },
+     }, {
+          desc: "Global contains multipath, no conflicts",
+          mp: New().WithEbgpAllowMultipleAs(true),
+          inGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               UseMultiplePaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths{
+                    Enabled: ygot.Bool(true),
+               },
+          },
+          wantGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               UseMultiplePaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths{
+                    Enabled: ygot.Bool(true),
+                    Ebgp: &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths_Ebgp{
+                         AllowMultipleAs: ygot.Bool(true),
+                    },
+               },
+          },
+     }}
+
+     for _, test := range tests {
+          t.Run(test.desc, func(t *testing.T) {
+               err := test.mp.AugmentGlobal(test.inGlobal)
+               if err != nil {
+                    t.Fatalf("Error not expected: %v", err)
+               }
+               if diff := cmp.Diff(test.wantGlobal, test.inGlobal); diff != "" {
+                    t.Errorf("Did not get expected state, diff(-want,+got):\n%s", diff)
+               }
+          })
+     }
+}
+
+// TestAugmentGlobalErrors tests the BGP MP augment to BGP global errors.
+func TestAugmentGlobalErrors(t *testing.T) {
+     tests := []struct {
+          desc string
+          mp *Multipath
+          inGlobal *fpoc.NetworkInstance_Protocol_Bgp_Global
+          wantErrSubStr string
+     }{{
+          desc: "Global contains MP with conflicts",
+          mp: New(),
+          inGlobal: &fpoc.NetworkInstance_Protocol_Bgp_Global{
+               UseMultiplePaths: &fpoc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths{
+                    Enabled: ygot.Bool(false),
+               },
+          },
+          wantErrSubStr: "destination value was set",
+     }}
+
+     for _, test := range tests {
+          t.Run(test.desc, func(t *testing.T) {
+               err := test.mp.AugmentGlobal(test.inGlobal)
+               if err == nil {
+                    t.Fatalf("error expected")
+               }
+               if !strings.Contains(err.Error(), test.wantErrSubStr) {
+                    t.Errorf("error strings are not equal: %v", err)
+               }
+          })
+     }
+}
+
 // TestAugmentNeighbor tests the BGP MP augment to BGP neighbor.
 func TestAugmentNeighbor(t *testing.T) {
      tests := []struct {
@@ -230,7 +344,7 @@ func TestAugmentPeerGroupErrors(t *testing.T) {
           inPG *fpoc.NetworkInstance_Protocol_Bgp_PeerGroup
           wantErrSubStr string
      }{{
-          desc: "PeerGroup contains MP with conflicts",
+          desc: "Peer group contains MP with conflicts",
           mp: New()
           inPG: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup{
                UseMultiplePaths: &fpoc.NetworkInstance_Protocol_Bgp_PeerGroup_UseMultiplePaths{
