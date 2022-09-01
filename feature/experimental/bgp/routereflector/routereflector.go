@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-// Package aspath implements the Config Library for BGP as path
+// Package routereflector implements the Config Library for BGP route reflector
 // feature profile.
 package routereflector
 

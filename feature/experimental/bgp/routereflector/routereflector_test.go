@@ -25,7 +25,7 @@ import (
      "github.com/openconfig/ygot/ygot"
 )
 
-// TestAugmentNeighbor tests the BGP PL augment to BGP neighbor.
+// TestAugmentNeighbor tests the BGP RR augment to BGP neighbor.
 func TestAugmentNeighbor(t *testing.T) {
      tests := []struct {
           desc string
@@ -121,7 +121,7 @@ func TestAugmentNeighborErrors(t *testing.T) {
      }
 }
 
-// TestAugmentPeerGroup tests the BGP PL augment to BGP peer group.
+// TestAugmentPeerGroup tests the BGP RR augment to BGP peer group.
 func TestAugmentPeerGroup(t *testing.T) {
      tests := []struct {
           desc string
@@ -186,7 +186,7 @@ func TestAugmentPeerGroup(t *testing.T) {
      }
 }
 
-// TestAugmentPeerGroupErrors tests the BGP PL augment to BGP peer group errors.
+// TestAugmentPeerGroupErrors tests the BGP RR augment to BGP peer group errors.
 func TestAugmentPeerGroupErrors(t *testing.T) {
      tests := []struct {
           desc string
