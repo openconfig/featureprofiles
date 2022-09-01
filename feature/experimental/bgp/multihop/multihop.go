@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-// Package aspath implements the Config Library for BGP as path
+// Package multihop implements the Config Library for BGP multihop
 // feature profile.
 package multihop
 
