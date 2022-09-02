@@ -1361,6 +1361,92 @@ func testPacketOutWithoutMatchEntry(ctx context.Context, t *testing.T, args *tes
 	}
 }
 
+func testPacketOutTTLOneWithoutMatchEntry(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Check initial packet counters
+	port := sortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	ttl := args.packetIO.GetPacketOutObj(t).TTL
+	val := *ttl
+	*ttl = 1
+	defer func() {
+		*ttl = val
+	}()
+
+	packet := args.packetIO.GetPacketOut(t, portID, true)
+
+	packet_count := 100
+	sendPackets(t, client, packet, packet_count)
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+
+	if args.packetIO.GetPacketOutExpectation(t, true) {
+		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+			t.Errorf("Unexpected packets are received.")
+		}
+	}
+}
+
+func testPacketOutEgressTTLOneWithoutMatchEntry(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Check initial packet counters
+	port := sortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	ttl := args.packetIO.GetPacketOutObj(t).TTL
+	val := *ttl
+	*ttl = 1
+	defer func() {
+		*ttl = val
+	}()
+
+	packet := args.packetIO.GetPacketOut(t, portID, false)
+
+	packet_count := 100
+	sendPackets(t, client, packet, packet_count)
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+
+	if args.packetIO.GetPacketOutExpectation(t, true) {
+		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+			t.Errorf("Unexpected packets are received.")
+		}
+	}
+}
+
 func testPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 

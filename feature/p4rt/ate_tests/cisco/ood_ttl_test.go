@@ -136,17 +136,48 @@ var (
 			desc: "Packet I/O-Traceroute-PacketOut:004 Ingress: Programm match TTL=[1,2], inject packets with TTL>3, and verify packet fwding based fwding chain on the router side",
 			fn:   testPacketOut,
 		},
+		{
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 (submit_to_ingress)",
+			desc: "Packet I/O-Traceroute-PacketOut:005-024 Ingress: Programm match TTL=[1,2], inject packets with TTL>3, and verify packet fwding based fwding chain on the router side",
+			fn:   testPacketOutTTLOneWithoutMatchEntry,
+		},
+		{
+			name: "Check PacketOut Without Programming TTL Match Entry(submit_to_egress)",
+			desc: "Packet I/O-Traceroute-PacketOut:012-013 Egress: Without any match entries, Injecting IP packet with any TTL, verify packets sent out on those egress interfaces",
+			fn:   testPacketOutEgressWithoutMatchEntry,
+		},
+		{
+			name: "Program TTL Match Entry and Check PacketOut(submit_to_egress)",
+			desc: "Packet I/O-Traceroute-PacketOut:016 Egress: Programm match TTL=[1,2], inject packets with TTL>3, and verify packet fwding based fwding chain on the router side",
+			fn:   testPacketOutEgress,
+		},
+		{
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 (submit_to_egress)",
+			desc: "Packet I/O-Traceroute-PacketOut:017 Egress: Programm match TTL=[1,2], inject packets with TTL=[0,1,2], and verify packet sent back to controller",
+			fn:   testPacketOutEgress,
+		},
+		{
+			name: "Flap Interface and Check PacketOut(submit_to_egress)",
+			desc: "Packet I/O-Traceroute-PacketOut:023 Flap egress ports and verify the packets sent/dropped as port up/down",
+			fn:   testPacketOutEgressWithInterfaceFlap,
+		},
+		{
+			name: "Check PacketOut Scale(submit_to_egress)",
+			desc: "Packet I/O-Traceroute-PacketOut:025 Verify scale rate of TTL=[1,2] packets",
+			fn:   testPacketOutEgressScale,
+		},
 	}
 )
 
 type TTLPacketIO struct {
 	PacketIOPacket
-	NeedConfig  *bool
-	IPv4        bool
-	IPv6        bool
-	TtlTwo      bool
-	EgressPorts []string
-	IngressPort string
+	NeedConfig   *bool
+	IPv4         bool
+	IPv6         bool
+	TtlTwo       bool
+	EgressPorts  []string
+	IngressPort  string
+	PacketOutObj *PacketIOPacket
 }
 
 func (ttl *TTLPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo {
