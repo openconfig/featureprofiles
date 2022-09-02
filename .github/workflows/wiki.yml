@@ -3,8 +3,6 @@ name: Update Wiki
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
   update-wiki:
