@@ -69,7 +69,7 @@ func buildCLIUpdate(value string) *gpb.Update {
 }
 
 // Push overlapping mixed SetRequest specifying CLI before OpenConfig for  DUT port-1.
-func TestOrderDependence(t *testing.T) {
+func TestOrderDependenceForCli(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 	// `origin: "cli"` - containing vendor  configuration.
@@ -116,6 +116,53 @@ func TestOrderDependence(t *testing.T) {
 	}
 }
 
+// Push overlapping mixed SetRequest specifying OpenConfig before Cli for  DUT port-1.
+func TestOrderDependenceForOpenConfig(t *testing.T) {
+        dut := ondatra.DUT(t, "dut")
+        dp := dut.Port(t, "port1")
+        // `origin: "cli"` - containing vendor  configuration.
+        // ~~~
+        // interface <DUT port-1>
+        // description foo1
+        //  ```
+        // ~~~
+        intfConfig := interfaceDescriptionCLI(dp, "not want")
+        if intfConfig == "" {
+                t.Skip("Vendor is not supported.")
+        }
+        gnmiClient := dut.RawAPIs().GNMI().Default(t)
+        t.Logf("Building the CLI config:\n%s", intfConfig)
+
+        // `origin: ""` (openconfig, default origin) setting the DUT port-1
+        //  string value at `/interfaces/interface/config/description` to `"foo2"`.
+        resolvedPath := dut.Config().Interface(dp.Name()).Description()
+        path, _, errs := ygot.ResolvePath(resolvedPath)
+
+        gpbSetRequest := &gpb.SetRequest{
+                Update: []*gpb.Update{
+			buildCLIUpdate(intfConfig),
+                        buildOCUpdate(path, "want"),
+                },
+        }
+        if errs != nil {
+                t.Fatalf("Could not resolve path: %v", errs)
+        }
+        t.Log("gnmiClient Set both CLI and OpenConfig modelled config")
+        t.Log(gpbSetRequest)
+
+        response, err := gnmiClient.Set(context.Background(), gpbSetRequest)
+        if err != nil {
+                t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+        }
+        t.Log("gnmiClient Set Response for CLI and OpenConfig modelled config")
+        t.Log(response)
+
+        // Validate that DUT port-1 description has `"foo2"`
+        got := dut.Telemetry().Interface(dp.Name()).Description().Get(t)
+        if got != "want" {
+                t.Errorf("Get(DUT port description): got %v, want %v", got, "want")
+        }
+}
 // Push non-overlapping mixed SetRequest specifying CLI for DUT port-1 and
 // OpenConfig for DUT port-2
 func TestMixedOriginOCCLIConfig(t *testing.T) {
