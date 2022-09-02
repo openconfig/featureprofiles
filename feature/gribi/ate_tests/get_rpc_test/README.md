@@ -9,8 +9,9 @@ Validate gRIBI Get RPC.
 *   Connect ATE port-1 to DUT port-1 and ATE port-2 to DUT port-2.
 
 *   Connect gRIBI client to DUT referred to as gRIBI-A, along with a second
-    client referred to as gRIBI-B - using SINGLE_PRIMARY mode, with FIB ACK
-    requested. Specify gRIBI-A as the leader via a higher election_id.
+    client referred to as gRIBI-B - using `PRESERVE` persistence and
+    `SINGLE_PRIMARY` mode, with FIB ACK requested. Specify gRIBI-A as the leader
+    via a higher election_id.
 
 *   Inject IPv4Entry cases for 198.51.100.0/26, 198.51.100.64/26,
     198.51.100.128/26 to ATE port-2 via gRIBI-A. Validate entries are installed
@@ -27,7 +28,7 @@ Validate gRIBI Get RPC.
     198.51.100.64/26, 198.51.100.128/26 are returned. Measure latency of Get
     RPC.
 
-    *   TODO: ensure all IPEntry, NHG and NH are returned with
+    *   TODO: ensure all IPv4Entry, NHG and NH are returned with
         [fib_status]=`PROGRAMMED`.
 
 *   Configure static route for 198.51.100.192/64, issue Get from gRIBI-A and
