@@ -7,7 +7,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/ondatra"
 )
-
 func TestSysGrpcState(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -181,10 +180,8 @@ func TestSysGrpcConfig(t *testing.T) {
 
 	})
 	//set non-default name
-	batchSet := config.NewBatchSetRequest()
 	ctx := context.Background()
-	batchSet.Append(ctx, t, nil, "grpc name TEST", config.UpdateCLI)
-	batchSet.Send(ctx, t, dut)
+        config.CMDViaGNMI(ctx, t, dut, "grpc name TEST\n" )
 	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("TEST").Name()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -200,15 +197,12 @@ func TestSysGrpcConfig(t *testing.T) {
 	})
 	t.Run("Get //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
 		configName := dut.Config().System().GrpcServer("TEST").Name().Get(t)
-		if configName == "TEST" {
-			t.Logf("Got the expected grpc Name")
-
-		} else {
+		if configName != "TEST" {
 			t.Errorf("Unexpected value for Name: %s", configName)
+
 		}
 
 	})
-	batchSet.Append(ctx, t, nil, "no grpc name TEST", config.UpdateCLI)
-	batchSet.Send(ctx, t, dut)
+        defer config.CMDViaGNMI(ctx, t, dut, "no grpc name TEST\n")
 
 }
