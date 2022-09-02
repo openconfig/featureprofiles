@@ -41,7 +41,7 @@ required in the emergency case that is covered by this requirement.
 
 *   Validate that DUT port-1 description has `"foo2"`.
 
-*   TODO: Push overlapping mixed SetRequest specifying OpenConfig before CLI for
+*   Push overlapping mixed SetRequest specifying OpenConfig before CLI for
     DUT port-1.
 
     *   `origin: ""` (openconfig, default origin) setting the DUT port-1 string
@@ -54,4 +54,4 @@ required in the emergency case that is covered by this requirement.
           description foo2
         ```
 
-*   TODO: Validate that DUT port-1 description still has `"foo2"`.
+*   Validate that DUT port-1 description still has `"foo2"`.
