@@ -138,6 +138,14 @@ func getTTLParameter(t *testing.T, ipv4, ipv6, ttlTwo bool) PacketIO {
 		IPv6:        ipv6,
 		TtlTwo:      ttlTwo,
 		IngressPort: fmt.Sprint(portID),
+		EgressPorts: []string{fmt.Sprint(portID + 1)},
+		PacketOutObj: &PacketIOPacket{
+			SrcIPv4: ygot.String("100.120.1.2"),
+			DstIPv4: ygot.String("100.121.1.1"),
+			SrcIPv6: ygot.String("100:120:1::2"),
+			DstIPv6: ygot.String("100:121:1::1"),
+			TTL:     ygot.Uint32(64),
+		},
 	}
 }
 
