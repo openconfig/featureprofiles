@@ -214,7 +214,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	tc.configDstAggregateDUT(agg, &dutDst)
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogYgot(t, tc.aggID, aggPath, agg)
-	aggPath.Replace(t, agg)
+	aggPath.Update(t, agg)
 
 	srcp := tc.dutPorts[0]
 	srci := &telemetry.Interface{Name: ygot.String(srcp.Name())}

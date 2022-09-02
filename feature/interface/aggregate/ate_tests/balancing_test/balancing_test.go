@@ -227,7 +227,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	tc.configDstAggregateDUT(agg, &dutDst)
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogYgot(t, tc.aggID, aggPath, agg)
-	aggPath.Replace(t, agg)
+	aggPath.Update(t, agg)
 
 	for n, port := range tc.dutPorts {
 		if n < 1 {
