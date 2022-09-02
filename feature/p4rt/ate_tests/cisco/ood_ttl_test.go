@@ -289,6 +289,10 @@ func (ttl *TTLPacketIO) GetPacketIOPacket(t *testing.T) *PacketIOPacket {
 	return &ttl.PacketIOPacket
 }
 
+func (ttl *TTLPacketIO) GetPacketOutObj(t *testing.T) *PacketIOPacket {
+	return ttl.PacketOutObj
+}
+
 func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bool) []byte {
 	t.Helper()
 	buf := gopacket.NewSerializeBuffer()
@@ -312,21 +316,23 @@ func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bo
 		packetLayers = append(packetLayers, pktEth)
 	}
 
-	strings.Split(atePort1.IPv4, ".")
+	// strings.Split(atePort1.IPv4, ".")
 
 	if ipv4 {
 		pktIP := &layers.IPv4{
 			Version:  4,
-			SrcIP:    net.IP(convertIPv4Address(t, dutPort1.IPv4)),
-			DstIP:    net.IP(convertIPv4Address(t, atePort1.IPv4)),
-			TTL:      64,
+			SrcIP:    net.IP(convertIPv4Address(t, *ttl.PacketOutObj.SrcIPv4)),
+			DstIP:    net.IP(convertIPv4Address(t, *ttl.PacketOutObj.DstIPv4)),
+			TTL:      uint8(*ttl.PacketOutObj.TTL),
 			Protocol: layers.IPProtocol(61),
 		}
 		packetLayers = append(packetLayers, pktIP)
 	} else {
 		pktIP := &layers.IPv6{
-			SrcIP: net.IP(convertIPv6Address(t, dutPort1.IPv6)),
-			DstIP: net.IP(convertIPv6Address(t, atePort1.IPv6)),
+			Version:  6,
+			SrcIP:    net.IP(convertIPv6Address(t, *ttl.PacketOutObj.SrcIPv6)),
+			DstIP:    net.IP(convertIPv6Address(t, *ttl.PacketOutObj.DstIPv6)),
+			HopLimit: uint8(*ttl.PacketOutObj.TTL),
 		}
 		packetLayers = append(packetLayers, pktIP)
 	}
@@ -338,8 +344,7 @@ func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bo
 	}
 	packetLayers = append(packetLayers, gopacket.Payload(payload))
 
-	gopacket.SerializeLayers(buf, opts, packetLayers...,
-	)
+	gopacket.SerializeLayers(buf, opts, packetLayers...)
 	return buf.Bytes()
 }
 

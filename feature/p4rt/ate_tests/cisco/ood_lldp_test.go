@@ -310,6 +310,10 @@ func (lldp *LLDPPacketIO) GetPacketIOPacket(t *testing.T) *PacketIOPacket {
 	return &lldp.PacketIOPacket
 }
 
+func (lldp *LLDPPacketIO) GetPacketOutObj(t *testing.T) *PacketIOPacket {
+	return &lldp.PacketIOPacket
+}
+
 func (lldp *LLDPPacketIO) GetPacketOutExpectation(t *testing.T, submit_to_ingress bool) bool {
 	if submit_to_ingress {
 		return false

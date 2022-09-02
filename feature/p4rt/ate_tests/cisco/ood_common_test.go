@@ -49,6 +49,7 @@ type PacketIO interface {
 	SetIngressPorts(t *testing.T, portID string)
 	GetPacketIOPacket(t *testing.T) *PacketIOPacket
 	GetPacketOutExpectation(t *testing.T, submit_to_ingress bool) bool
+	GetPacketOutObj(t *testing.T) *PacketIOPacket
 }
 
 type PacketIOPacket struct {
