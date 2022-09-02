@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build-wiki:
+  update-wiki:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -36,7 +36,7 @@ jobs:
         pushd featureprofiles.wiki
         git config --local user.email "action@github.com"
         git config --local user.name "Github Action"
-        git rm -r testplans
+        git rm -r testplans || true
         popd
 
         pushd featureprofiles

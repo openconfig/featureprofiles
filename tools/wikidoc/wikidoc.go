@@ -83,6 +83,7 @@ func writeSidebar(docs []testDoc, tmplFile string, rootPath string) error {
 	if err != nil {
 		return err
 	}
+
 	t, err := template.New("sidebar").Parse(string(sidebar))
 	if err != nil {
 		return err
@@ -98,11 +99,13 @@ func writeTestDocs(docs []testDoc, rootPath string) error {
 	if err != nil {
 		return err
 	}
+
 	for _, doc := range docs {
 		f, err := os.ReadFile(doc.Path)
 		if err != nil {
 			return err
 		}
+
 		err = os.WriteFile(rootPath+wikiPath+doc.Name+".md", f, 0644)
 		if err != nil {
 			return err
