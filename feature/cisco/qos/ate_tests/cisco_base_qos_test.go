@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/ondatra"
 	//"github.com/openconfig/featureprofiles/internal/cisco/config"
 	//"github.com/openconfig/ygot/ygot"
@@ -18,6 +18,13 @@ type Testcase struct {
 	desc string
 	fn   func(ctx context.Context, t *testing.T, args *testArgs)
 }
+
+const (
+	inint1 = "Bundle-Ether122"
+	inint2 = "Bundle-Ether123"
+	mac1   = "00:01:00:03:00:00"
+	mac2   = "00:01:00:04:00:00"
+)
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
@@ -183,8 +190,8 @@ func TestScheduler(t *testing.T) {
 
 	//Configure IPv6 addresses and VLANS on DUT
 	configureIpv6AndVlans(t, dut)
-	dut.Config().Interface("Bundle-Ether122").Ethernet().MacAddress().Update(t, "00:01:00:03:00:00")
-	dut.Config().Interface("Bundle-Ether123").Ethernet().MacAddress().Update(t, "00:01:00:04:00:00")
+	dut.Config().Interface(inint1).Ethernet().MacAddress().Update(t, mac1)
+	dut.Config().Interface(inint2).Ethernet().MacAddress().Update(t, mac2)
 
 	// Disable Flowspec and Enable PBR
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/gribigo/fluent"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
 
 	//"github.com/openconfig/featureprofiles/internal/cisco/config"
@@ -190,11 +190,27 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	time.Sleep(2 * time.Minute)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	args.clientA.BecomeLeader(t)
+	args.clientA.FlushServer(t)
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "11.11.11.0/32", 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	//configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	//configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	//configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNH(t, 2200, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 
-	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
-	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
-	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-
+	args.clientA.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 20, 2200: 20}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	//dstEndPoint := args.top.Interfaces()[atePort2.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
@@ -364,7 +380,7 @@ func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func QueueDelete(ctx context.Context, t *testing.T, args *testArgs) {
-	defer flushServer(t, args)
+	defer args.clientA.FlushServer(t)
 	defer teardownQos(t, args.dut)
 
 	var baseConfig *oc.Qos = setupQosEgressTel(t, args.dut)
@@ -490,12 +506,21 @@ func testScheduler(ctx context.Context, t *testing.T, args *testArgs) {
 	println(baseConfig)
 	time.Sleep(2 * time.Minute)
 
-	defer flushServer(t, args)
+	defer args.clientA.FlushServer(t)
 	defer teardownQos(t, args.dut)
-	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
-	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
-	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vip1NhIndex + 2: 100}, instance, fluent.InstalledInRIB)
+	//configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	//configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	//configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+	//args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vip1NhIndex + 2: 100}, instance, fluent.InstalledInRIB)
+	args.clientA.BecomeLeader(t)
+	args.clientA.FlushServer(t)
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 0, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "11.11.11.0/32", 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	weights := []float64{100}
 	srcEndPoints := []*ondatra.Interface{args.top.Interfaces()[atePort3.Name], args.top.Interfaces()[atePort4.Name]}
 	DstEndpoint := args.top.Interfaces()[atePort2.Name]
@@ -545,13 +570,20 @@ func testScheduler2(ctx context.Context, t *testing.T, args *testArgs) {
 	println(baseConfig)
 	time.Sleep(2 * time.Minute)
 
-	defer flushServer(t, args)
+	defer args.clientA.FlushServer(t)
 	defer teardownQos(t, args.dut)
-	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
-	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
-	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-	args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vip1NhIndex + 2: 100}, instance, fluent.InstalledInRIB)
+	//configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	//configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	//configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+	//args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vip1NhIndex + 2: 100}, instance, fluent.InstalledInRIB)
 	weights := []float64{100}
+	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 100, 0, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "11.11.11.0/32", 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	srcEndPoints := []*ondatra.Interface{args.top.Interfaces()[atePort3.Name], args.top.Interfaces()[atePort4.Name]}
 	DstEndpoint := args.top.Interfaces()[atePort2.Name]
 	testTrafficqos2(t, true, args.ate, args.top, srcEndPoints, DstEndpoint, args.prefix.scale, args.prefix.host, args, 0, weights...)

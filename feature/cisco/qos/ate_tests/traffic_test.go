@@ -83,7 +83,7 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 	// }
 	ate.Traffic().Stop(t)
 
-	time.Sleep(time.Minute)
+	time.Sleep(3 * time.Minute)
 	//flowstats:= ate.Telemetry().FlowAny().Counters().Get(t)
 	//for _, s  := range flowstats {
 	//       fmt.Println("number of out packets in flow is",*s.OutPkts)
