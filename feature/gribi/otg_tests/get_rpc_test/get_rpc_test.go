@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -63,6 +64,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -75,6 +77,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -124,20 +127,25 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureATE configures port1, port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	otg := ate.OTG()
+	top := otg.NewConfig(t)
 
-	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
+	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
+	i1 := top.Devices().Add().SetName(ate.Port(t, "port1").ID())
+	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").
+		SetPortName(i1.Name()).SetMac(atePort1.MAC)
+	eth1.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").
+		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
+		SetPrefix(int32(atePort1.IPv4Len))
 
-	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
+	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
+	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
+	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").
+		SetPortName(i2.Name()).SetMac(atePort2.MAC)
+	eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4").
+		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
+		SetPrefix(int32(atePort2.IPv4Len))
 
 	return top
 }
@@ -156,7 +164,7 @@ type testArgs struct {
 	clientB *fluent.GRIBIClient
 	dut     *ondatra.DUTDevice
 	ate     *ondatra.ATEDevice
-	top     *ondatra.ATETopology
+	top     gosnappi.Config
 }
 
 // helperAddEntry configures a sequence of adding the NH, NHG and IPv4Entry by a client.
@@ -370,12 +378,14 @@ func TestElectionID(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
-	// Connect gRIBI client to DUT referred to as gRIBI-A using SINGLE_PRIMARY mode,
-	// with FIB ACK requested. Specify gRIBI-A as the leader via a higher election_id of 12.
+	// Connect gRIBI client to DUT referred to as gRIBI-A - using PRESERVE persistence and
+	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI-A as the leader via a
+	// higher election_id of 12.
 	clientA := fluent.NewClient()
-	clientA.Connection().WithStub(gribic).WithInitialElectionID(12, 0).
+	clientA.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(12, 0).
 		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
 
 	clientA.Start(ctx, t)
@@ -385,10 +395,11 @@ func TestElectionID(t *testing.T) {
 		t.Fatalf("Await got error during session negotiation for clientA: %v", err)
 	}
 
-	// Connect gRIBI client to DUT referred to as gRIBI-B - using SINGLE_PRIMARY mode,
-	// with FIB ACK requested and election ID of 11, which is not the leader.
+	// Connect gRIBI client to DUT referred to as gRIBI-B - using PRESERVE persistence and
+	// SINGLE_PRIMARY mode, with FIB ACK requested and election ID of 11, which is not the
+	// leader.
 	clientB := fluent.NewClient()
-	clientB.Connection().WithStub(gribic).WithInitialElectionID(11, 0).
+	clientB.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(11, 0).
 		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
 
 	clientB.Start(context.Background(), t)
