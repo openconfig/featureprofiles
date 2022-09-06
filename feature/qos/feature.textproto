@@ -168,12 +168,6 @@ telemetry_path {
   path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold"
 }
 config_path {
-  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn"
-}
-telemetry_path {
-  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/enable-ecn"
-}
-config_path {
   path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent"
 }
 telemetry_path {
