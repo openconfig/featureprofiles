@@ -153,29 +153,3 @@ config_path {
 telemetry_path {
   path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/state/pir"
 }
-
-# Queue management profiles
-config_path {
-  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold"
-}
-telemetry_path {
-  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/min-threshold"
-}
-config_path {
-  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold"
-}
-telemetry_path {
-  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold"
-}
-config_path {
-  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent"
-}
-telemetry_path {
-  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-drop-probability-percent"
-}
-config_path {
-  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight"
-}
-telemetry_path {
-  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/weight"
-}
