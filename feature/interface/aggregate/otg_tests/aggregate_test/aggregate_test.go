@@ -482,8 +482,8 @@ func TestNegotiation(t *testing.T) {
 			l3header: []ondatra.Header{ondatra.NewIPv4Header()},
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
-			// tc.configureDUT(t)
-			// t.Run("VerifyDUT", tc.verifyDUT)
+			tc.configureDUT(t)
+			t.Run("VerifyDUT", tc.verifyDUT)
 
 			tc.configureATE(t)
 			t.Run("VerifyATE", tc.verifyATE)
