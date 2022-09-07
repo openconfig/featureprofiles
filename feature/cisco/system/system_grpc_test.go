@@ -183,6 +183,7 @@ func TestSysGrpcConfig(t *testing.T) {
 	//set non-default name
 	ctx := context.Background()
 	config.CMDViaGNMI(ctx, t, dut, "grpc name TEST\n")
+        defer config.CMDViaGNMI(ctx, t, dut, "no grpc name TEST\n")
 	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("TEST").Name()
 		defer observer.RecordYgot(t, "UPDATE", path)
