@@ -81,7 +81,7 @@ func TestQoSCounters(t *testing.T) {
 		WithDefaultGateway("198.51.100.2")
 	top.Push(t).StartProtocols(t)
 
-	trafficFlows := make(map[string]*trafficData)
+	var trafficFlows map[string]*trafficData
 
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
