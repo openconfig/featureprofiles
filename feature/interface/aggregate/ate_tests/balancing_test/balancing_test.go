@@ -61,8 +61,8 @@ func TestMain(m *testing.M) {
 // as destination.
 
 const (
-	plen4 = 30
-	plen6 = 126
+	plen4          = 30
+	plen6          = 126
 	ethernetCsmacd = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = telemetry.IETFInterfaces_InterfaceType_ieee8023adLag
 )
