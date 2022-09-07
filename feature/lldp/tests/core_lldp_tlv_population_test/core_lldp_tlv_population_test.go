@@ -16,6 +16,7 @@ package core_lldp_tlv_population_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/confirm"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -24,6 +25,10 @@ import (
 	"github.com/openconfig/ygot/ygot"
 
 	telemetry "github.com/openconfig/ondatra/telemetry"
+)
+
+const (
+	portName = "port1"
 )
 
 func TestMain(m *testing.M) {
@@ -39,30 +44,41 @@ func TestMain(m *testing.M) {
 //	dut1:port1 <--> dut2:port1
 func TestCoreLLDPTLVPopulation(t *testing.T) {
 	tests := []struct {
+		desc        string
 		lldpEnabled bool
 	}{
 		{
+			desc:        "LLDP Enabled",
 			lldpEnabled: true,
 		}, {
+			desc:        "LLDP Disabled",
 			lldpEnabled: false,
 		},
 	}
 
 	for _, test := range tests {
-		dut, dutConf := configureNode(t, "dut1", test.lldpEnabled)
-		ate, ateConf := configureNode(t, "dut2", true) // lldp is always enabled for the ATE
-		dutPort := dut.Port(t, "port1")
-		atePort := ate.Port(t, "port1")
+		t.Run(test.desc, func(t *testing.T) {
+			dut, dutConf := configureNode(t, "dut1", test.lldpEnabled)
+			ate, ateConf := configureNode(t, "dut2", true) // lldp is always enabled for the ATE
+			dutPort := dut.Port(t, portName)
+			atePort := ate.Port(t, portName)
 
-		verifyNode(t, dut.Telemetry(), ate.Telemetry(), dutPort, atePort, dutConf)
-		verifyNode(t, ate.Telemetry(), dut.Telemetry(), atePort, dutPort, ateConf)
+			verifyNodeConfig(t, dut.Telemetry(), dutPort, dutConf, test.lldpEnabled)
+			verifyNodeConfig(t, ate.Telemetry(), atePort, ateConf, true)
+			if test.lldpEnabled {
+				verifyNodeTelemetry(t, dut.Telemetry(), ate.Telemetry(), dutPort, atePort, test.lldpEnabled)
+				verifyNodeTelemetry(t, ate.Telemetry(), dut.Telemetry(), atePort, dutPort, test.lldpEnabled)
+			} else {
+				verifyNodeTelemetry(t, dut.Telemetry(), ate.Telemetry(), dutPort, atePort, test.lldpEnabled)
+			}
+		})
 	}
 }
 
 // configureNode configures LLDP on a single node.
 func configureNode(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevice, *telemetry.Lldp) {
 	node := ondatra.DUT(t, name)
-	p := node.Port(t, "port1")
+	p := node.Port(t, portName)
 	lldp := node.Config().Lldp()
 
 	lldp.Enabled().Replace(t, lldpEnabled)
@@ -74,45 +90,67 @@ func configureNode(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDev
 	return node, lldp.Get(t)
 }
 
-// verifyNode verifies the telemetry from the node for LLDP functionality.
-func verifyNode(t *testing.T, nodeTelemetry, peerTelemetry *device.DevicePath, nodePort, peerPort *ondatra.Port, conf *telemetry.Lldp) {
-	verifyNodeConfig(t, nodeTelemetry, conf)
-	verifyNodeTelemetry(t, nodeTelemetry, peerTelemetry, nodePort, peerPort)
-}
-
 // verifyNodeConfig verifies the config by comparing against the telemetry state object.
-func verifyNodeConfig(t *testing.T, nodeTelemetry *device.DevicePath, conf *telemetry.Lldp) {
+func verifyNodeConfig(t *testing.T, nodeTelemetry *device.DevicePath, port *ondatra.Port, conf *telemetry.Lldp, lldpEnabled bool) {
 	statePath := nodeTelemetry.Lldp()
 	state := statePath.Get(t)
 	fptest.LogYgot(t, "Node LLDP", statePath, state)
 
-	if state != nil && state.Enabled == nil {
-		state.Enabled = ygot.Bool(true)
+	if lldpEnabled != state.GetEnabled() {
+		t.Errorf("LLDP enabled got: %t, want: %t.", state.GetEnabled(), lldpEnabled)
 	}
-
-	confirm.State(t, conf, state)
+	if conf.GetChassisId() != state.GetChassisId() {
+		t.Errorf("LLDP ChassisId got: %s, want: %s.", state.GetChassisId(), conf.GetChassisId())
+	}
+	if conf.GetChassisIdType() != state.GetChassisIdType() {
+		t.Errorf("LLDP ChassisIdType got: %s, want: %s.", state.GetChassisIdType(), conf.GetChassisIdType())
+	}
+	if conf.GetSystemName() != state.GetSystemName() {
+		t.Errorf("LLDP SystemName got: %s, want: %s.", state.GetSystemName(), conf.GetSystemName())
+	}
+	if conf.GetInterface(port.Name()).GetName() != state.GetInterface(port.Name()).GetName() {
+		t.Errorf("LLDP interfaces/interface/state/name got: %s, want: %s.", state.GetInterface(port.Name()).GetName(),
+			conf.GetInterface(port.Name()).GetName())
+	}
 }
 
 // verifyNodeTelemetry verifies the telemetry values from the node such as port LLDP neighbor info.
-func verifyNodeTelemetry(t *testing.T, nodeTelemetry, peerTelemetry *device.DevicePath, nodePort, peerPort *ondatra.Port) {
+func verifyNodeTelemetry(t *testing.T, nodeTelemetry, peerTelemetry *device.DevicePath, nodePort, peerPort *ondatra.Port, lldpEnabled bool) {
+	interfacePath := nodeTelemetry.Lldp().Interface(nodePort.Name())
+
+	// LLDP Disabled
+	lldpTelemetry := nodeTelemetry.Lldp().Enabled().Get(t)
+	if lldpEnabled != lldpTelemetry {
+		t.Errorf("LLDP enabled telemetry got: %t, want: %t.", lldpTelemetry, lldpEnabled)
+	}
 
 	// Ensure that DUT does not generate any LLDP messages irrespective of the
 	// configuration of lldp/interfaces/interface/config/enabled (TRUE or FALSE)
 	// on any interface.
-	if !nodeTelemetry.Lldp().Enabled().Get(t) {
-		interfaces := nodeTelemetry.Lldp().Interface(nodePort.Name()).NeighborAny().Id().Get(t)
-		if len(interfaces) > 0 {
-			t.Errorf("Number of neighbors: got %d, want zero.", len(interfaces))
+	if !lldpEnabled {
+		if got, ok := interfacePath.Watch(t, time.Minute, func(val *telemetry.QualifiedLldp_Interface) bool {
+			return val.IsPresent() && len(val.Val(t).Neighbor) == 0
+		}).Await(t); !ok {
+			t.Errorf("Number of neighbors got: %d, want: 0.", len(got.Val(t).Neighbor))
 		}
 		return
 	}
+
+	// LLDP Enabled
 	// Get the LLDP state of the peer.
 	peerState := peerTelemetry.Lldp().Get(t)
 
 	// Get the LLDP port neighbor ID and state of the node.
-	nbrInterfaceID := nodeTelemetry.Lldp().Interface(nodePort.Name()).NeighborAny().Id().Get(t)[0]
-	nbrStatePath := nodeTelemetry.Lldp().Interface(nodePort.Name()).Neighbor(nbrInterfaceID) // *telemetry.Lldp_Interface_NeighborPath
-	gotNbrState := nbrStatePath.Get(t)                                                       // *telemetry.Lldp_Interface_Neighbor which is a ValidatedGoStruct.
+	if _, ok := interfacePath.Watch(t, time.Minute, func(val *telemetry.QualifiedLldp_Interface) bool {
+		return val.IsPresent() && len(val.Val(t).Neighbor) > 0
+	}).Await(t); !ok {
+		t.Error("Number of neighbors: got 0, want > 0.")
+		return
+	}
+
+	nbrInterfaceID := interfacePath.NeighborAny().Id().Get(t)[0]
+	nbrStatePath := interfacePath.Neighbor(nbrInterfaceID) // *telemetry.Lldp_Interface_NeighborPath
+	gotNbrState := nbrStatePath.Get(t)                     // *telemetry.Lldp_Interface_Neighbor which is a ValidatedGoStruct.
 	fptest.LogYgot(t, "Node port neighbor", nbrStatePath, gotNbrState)
 
 	// Verify the neighbor state against expected values.

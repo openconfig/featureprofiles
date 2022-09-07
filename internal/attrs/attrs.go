@@ -64,6 +64,9 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
 	if *deviations.InterfaceEnabled {
 		intf.Enabled = ygot.Bool(true)
 	}
+	if a.MTU > 0 && !*deviations.OmitL2MTU {
+		intf.Mtu = ygot.Uint16(a.MTU + 14)
+	}
 	e := intf.GetOrCreateEthernet()
 	if a.MAC != "" {
 		e.MacAddress = ygot.String(a.MAC)
