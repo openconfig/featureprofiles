@@ -297,16 +297,16 @@ func (tc *testCase) configureATE(t *testing.T) {
 
 	dstDev := tc.top.Devices().Add().SetName(agg.Name())
 	dstEth := dstDev.Ethernets().Add().
-		SetName(ateDst.Name + ".eth").
+		SetName(ateDst.Name + ".Eth").
 		SetPortName(agg.Name()).
 		SetMac(ateDst.MAC)
 	dstEth.Ipv4Addresses().Add().
-		SetName(ateDst.Name + ".ipv4").
+		SetName(ateDst.Name + ".IPv4").
 		SetAddress(ateDst.IPv4).
 		SetGateway(dutDst.IPv4).
 		SetPrefix(int32(ateDst.IPv4Len))
 	dstEth.Ipv6Addresses().Add().
-		SetName(ateDst.Name + ".ipv6").
+		SetName(ateDst.Name + ".IPv6").
 		SetAddress(ateDst.IPv6).
 		SetGateway(dutDst.IPv6).
 		SetPrefix(int32(ateDst.IPv6Len))
@@ -482,8 +482,8 @@ func TestNegotiation(t *testing.T) {
 			l3header: []ondatra.Header{ondatra.NewIPv4Header()},
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
-			tc.configureDUT(t)
-			t.Run("VerifyDUT", tc.verifyDUT)
+			// tc.configureDUT(t)
+			// t.Run("VerifyDUT", tc.verifyDUT)
 
 			tc.configureATE(t)
 			t.Run("VerifyATE", tc.verifyATE)

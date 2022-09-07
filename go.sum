@@ -211,8 +211,8 @@ github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde h1:tSMKTQlWc
 github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde/go.mod h1:OmTWe7RyZj2CIzIgy4ovEBzCLBJzRvWSZmn7u02U9gU=
 github.com/openconfig/kne v0.1.4 h1:rX1Qk5SdtGlpYECJKYKxbNeGS4lEAjint6+NADqyn0o=
 github.com/openconfig/kne v0.1.4/go.mod h1:mg669QYYxkpqVnDlhJyMoaCF4mNnEJwOdslOflvONxI=
-github.com/openconfig/ondatra v0.0.0-20220830204626-28b9af3b191d h1:g+yBOFopJTjsmblc7IXMZR55FMRJB11qCiJpBLHbUGQ=
-github.com/openconfig/ondatra v0.0.0-20220830204626-28b9af3b191d/go.mod h1:7BXFr0NmiDI+q+lUXH0To+mgVFPAz91y6ktyrgM4cWA=
+github.com/openconfig/ondatra v0.0.0-20220902223518-87f933d5bfae h1:W5pptVOaYelooaqgVherVFheArJwEUQPmvbQCGxIq3w=
+github.com/openconfig/ondatra v0.0.0-20220902223518-87f933d5bfae/go.mod h1:7BXFr0NmiDI+q+lUXH0To+mgVFPAz91y6ktyrgM4cWA=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygnmi v0.2.1 h1:Dy757bww4AFDq99nsZjor0/+Iug6iBWaK1RIBnWftDg=
