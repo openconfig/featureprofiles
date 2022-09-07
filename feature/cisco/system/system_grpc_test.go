@@ -205,6 +205,5 @@ func TestSysGrpcConfig(t *testing.T) {
 		}
 
 	})
-	defer config.CMDViaGNMI(ctx, t, dut, "no grpc name TEST\n")
 
 }
