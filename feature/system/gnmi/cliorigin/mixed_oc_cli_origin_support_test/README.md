@@ -37,7 +37,7 @@ required in the emergency case that is covered by this requirement.
         ```
 
     *   `origin: ""` (openconfig, default origin) setting the DUT port-1 string
-        value at `/interfaces/interface/config/description` to `"foo2"`.
+        value at `/interfaces/interface/config/description` to `"from oc"`.
 
 *   Validate that DUT port-1 description has `"foo2"`.
 
