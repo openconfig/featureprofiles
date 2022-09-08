@@ -18,6 +18,7 @@ require (
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
+	github.com/yuin/goldmark v1.3.5
 	golang.org/x/crypto v0.0.0-20220518034528-6f7dac969898
 	golang.org/x/tools v0.1.5
 	google.golang.org/grpc v1.49.0

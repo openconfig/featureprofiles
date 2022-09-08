@@ -1,0 +1,47 @@
+name: Update Wiki
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  update-wiki:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        path: featureprofiles
+    - name: Checkout wiki
+      uses: actions/checkout@v2
+      with:
+        repository: "openconfig/featureprofiles.wiki"
+        path: featureprofiles.wiki
+    - name: Set up Go
+      uses: actions/setup-go@v2.1.3
+      with:
+        go-version: 1.19.x
+    - name: Cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
+    - name: Build Wiki
+      run: |
+        pushd featureprofiles.wiki
+        git config --local user.email "action@github.com"
+        git config --local user.name "Github Action"
+        git rm -r testplans || true
+        popd
+
+        pushd featureprofiles
+        go run tools/wikidoc/wikidoc.go -feature_root feature/ -output_root ../featureprofiles.wiki
+        popd
+
+        pushd featureprofiles.wiki
+        git add .
+        git diff --quiet HEAD || git commit -m "Update wiki from featureprofiles" && git push
+        popd
