@@ -178,8 +178,8 @@ func TestMixedOriginOCCLIConfig(t *testing.T) {
 
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{
-			buildOCUpdate(path, "foo2"),
 			buildCLIUpdate(intf1Config),
+			buildOCUpdate(path, "foo2"),
 		},
 	}
 	if errs != nil {
