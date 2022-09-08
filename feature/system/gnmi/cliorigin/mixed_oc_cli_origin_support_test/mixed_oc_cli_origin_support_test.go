@@ -123,6 +123,13 @@ func TestOpenConfigBeforeCLI(t *testing.T) {
         resolvedPath := dut.Config().Interface(dp.Name()).Description()
         path, _, errs := ygot.ResolvePath(resolvedPath)
 
+        // `origin: "cli"` - containing vendor configuration.
+        intfConfig := interfaceDescriptionCLI(dp, "from cli")
+        if intfConfig == "" {
+                t.Fatalf("Please add vendor support for %v", dut.Vendor())
+        }
+        t.Logf("Building the CLI config:\n%s", intfConfig)
+
         gpbSetRequest := &gpb.SetRequest{
                 Update: []*gpb.Update{
 			buildCLIUpdate(intfConfig),
