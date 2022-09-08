@@ -97,6 +97,7 @@ func TestCLIBeforeOpenConfig(t *testing.T) {
 	t.Log("gnmiClient Set both CLI and OpenConfig modelled config")
 	t.Log(gpbSetRequest)
 
+	gnmiClient := dut.RawAPIs().GNMI().Default(t)
 	response, err := gnmiClient.Set(context.Background(), gpbSetRequest)
 	if err != nil {
 		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
