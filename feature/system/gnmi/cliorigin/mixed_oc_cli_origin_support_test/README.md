@@ -45,7 +45,7 @@ required in the emergency case that is covered by this requirement.
     DUT port-1.
 
     *   `origin: ""` (openconfig, default origin) setting the DUT port-1 string
-        value at `/interfaces/interface/config/description` to `"foo1"`.
+        value at `/interfaces/interface/config/description` to `"from oc"`.
 
     *   `origin: "cli"` containing vendor configuration.
 
