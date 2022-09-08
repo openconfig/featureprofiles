@@ -76,7 +76,7 @@ func TestCLIBeforeOpenConfig(t *testing.T) {
 	// `origin: "cli"` - containing vendor configuration.
 	intfConfig := interfaceDescriptionCLI(dp, "from cli")
 	if intfConfig == "" {
-		t.Skip("Vendor is not supported.")
+		t.Fatalf("Please add vendor support for %v", dut.Vendor())
 	}
 	t.Logf("Building the CLI config:\n%s", intfConfig)
 
