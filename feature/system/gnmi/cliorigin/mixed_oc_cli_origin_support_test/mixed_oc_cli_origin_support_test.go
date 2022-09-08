@@ -122,6 +122,9 @@ func TestOpenConfigBeforeCLI(t *testing.T) {
         //  string value at `/interfaces/interface/config/description` to `"from oc"`.
         resolvedPath := dut.Config().Interface(dp.Name()).Description()
         path, _, errs := ygot.ResolvePath(resolvedPath)
+        if errs != nil {
+                t.Fatalf("Could not resolve path: %v", errs)
+        }
 
         // `origin: "cli"` - containing vendor configuration.
         intfConfig := interfaceDescriptionCLI(dp, "from cli")
