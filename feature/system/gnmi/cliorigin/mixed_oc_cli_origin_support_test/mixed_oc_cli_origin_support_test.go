@@ -164,12 +164,7 @@ func TestMixedOriginOCCLIConfig(t *testing.T) {
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
 	gnmiClient := dut.RawAPIs().GNMI().Default(t)
-	// `origin: "cli"` - containing vendor  configuration.
-	// ~~~
-	// interface <DUT port-1>
-	// description foo1
-	//  ```
-	// ~~~
+	// `origin: "cli"` - containing vendor configuration.
 	intf1Config := interfaceDescriptionCLI(dp1, "foo1")
 	if intf1Config == "" {
 		t.Fatalf("Please add vendor support for %v", dut.Vendor())
