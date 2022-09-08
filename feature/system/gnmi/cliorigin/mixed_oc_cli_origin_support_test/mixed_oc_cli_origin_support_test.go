@@ -87,8 +87,8 @@ func TestCLIBeforeOpenConfig(t *testing.T) {
 
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{
-			buildOCUpdate(path, "not want"),
 			buildCLIUpdate(intfConfig),
+			buildOCUpdate(path, "from oc"),
 		},
 	}
 	if errs != nil {
