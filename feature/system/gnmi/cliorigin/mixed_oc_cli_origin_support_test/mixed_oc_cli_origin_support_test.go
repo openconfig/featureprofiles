@@ -68,8 +68,8 @@ func buildCLIUpdate(value string) *gpb.Update {
 	return update
 }
 
-// Push overlapping mixed SetRequest specifying CLI before OpenConfig for  DUT port-1.
-func TestOrderDependenceForCli(t *testing.T) {
+// TestCLIBeforeOpenConfig pushes overlapping mixed SetRequest specifying CLI before OpenConfig for DUT port-1.
+func TestCLIBeforeOpenConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 	// `origin: "cli"` - containing vendor  configuration.
