@@ -33,7 +33,7 @@ required in the emergency case that is covered by this requirement.
 
         ```
         interface <DUT port-1>
-          description foo1
+          description from cli
         ```
 
     *   `origin: ""` (openconfig, default origin) setting the DUT port-1 string
