@@ -78,7 +78,6 @@ func TestCLIBeforeOpenConfig(t *testing.T) {
 	if intfConfig == "" {
 		t.Skip("Vendor is not supported.")
 	}
-	gnmiClient := dut.RawAPIs().GNMI().Default(t)
 	t.Logf("Building the CLI config:\n%s", intfConfig)
 
 	// `origin: ""` (openconfig, default origin) setting the DUT port-1
