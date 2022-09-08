@@ -132,8 +132,8 @@ func TestOpenConfigBeforeCLI(t *testing.T) {
 
         gpbSetRequest := &gpb.SetRequest{
                 Update: []*gpb.Update{
-			buildCLIUpdate(intfConfig),
-                        buildOCUpdate(path, "want"),
+                        buildOCUpdate(path, "from oc"),
+                        buildCLIUpdate(intfConfig),
                 },
         }
         t.Log("gnmiClient Set both CLI and OpenConfig modelled config")
