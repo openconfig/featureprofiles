@@ -51,7 +51,7 @@ required in the emergency case that is covered by this requirement.
 
         ```
         interface <DUT port-1>
-          description foo2
+          description from cli
         ```
 
 *   Validate that DUT port-1 description is `"from cli"`.
