@@ -29,10 +29,22 @@ telemetry_path {
   path: "/qos/classifiers/classifier/terms/term/conditions/ipv4/state/dscp"
 }
 config_path {
+  path: "/qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set"
+}
+telemetry_path {
+  path: "/qos/classifiers/classifier/terms/term/conditions/ipv4/state/dscp-set"
+}
+config_path {
   path: "/qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp"
 }
 telemetry_path {
   path: "/qos/classifiers/classifier/terms/term/conditions/ipv6/state/dscp"
+}
+config_path {
+  path: "/qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set"
+}
+telemetry_path {
+  path: "/qos/classifiers/classifier/terms/term/conditions/ipv6/state/dscp-set"
 }
 config_path {
   path: "/qos/classifiers/classifier/terms/term/config/id"

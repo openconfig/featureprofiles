@@ -111,12 +111,21 @@ func TestPortFlap(t *testing.T) {
 	c.Connection().
 		WithStub(gribic).
 		WithRedundancyMode(fluent.ElectedPrimaryClient).
-		WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
+		WithInitialElectionID(1 /* low */, 0 /* hi */). // ID must be > 0.
+		WithPersistence()
 	c.Start(ctx, t)
 	defer c.Stop(t)
 	c.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation: %v", err)
+	}
+
+	_, err := c.Flush().
+		WithElectionOverride().
+		WithAllNetworkInstances().
+		Send()
+	if err != nil {
+		t.Errorf("Cannot flush: %v", err)
 	}
 
 	ents, wants := buildNextHops(t, nexthops, 1)

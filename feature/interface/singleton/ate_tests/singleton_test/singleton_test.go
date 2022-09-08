@@ -339,8 +339,8 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 	} else if avg := octets / outPkts; avg > uint64(tc.mtu) {
 		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
 	}
-	if outPkts < p1InDiff.unicast {
-		t.Errorf("Incorrect number of packets inbound received got %d, want > %d", outPkts, p1InDiff.unicast)
+	if p1InDiff.unicast < outPkts {
+		t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
 	}
 
 	if inPkts == 0 {
@@ -350,8 +350,8 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 	} else if avg := octets / inPkts; avg > uint64(tc.mtu) {
 		t.Errorf("Flow destination packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
 	}
-	if inPkts > p2OutDiff.unicast {
-		t.Errorf("Incorrect number of packets outbound received got %d, want < %d", inPkts, p2OutDiff.unicast)
+	if inPkts < p2OutDiff.unicast {
+		t.Errorf("ATE received too few destination packets: got %d, want >= %d", inPkts, p2OutDiff.unicast)
 	}
 	t.Logf("flow loss-pct %f", fp.LossPct().Get(t))
 	return fp.LossPct().Get(t) < 0.5 // 0.5% loss.
