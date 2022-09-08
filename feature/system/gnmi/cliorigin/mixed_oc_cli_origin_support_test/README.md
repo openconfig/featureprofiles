@@ -54,4 +54,4 @@ required in the emergency case that is covered by this requirement.
           description foo2
         ```
 
-*   Validate that DUT port-1 description still has `"foo2"`.
+*   Validate that DUT port-1 description is `"from cli"`.
