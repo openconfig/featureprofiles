@@ -116,8 +116,8 @@ func TestOrderDependenceForCli(t *testing.T) {
 	}
 }
 
-// Push overlapping mixed SetRequest specifying OpenConfig before Cli for  DUT port-1.
-func TestOrderDependenceForOpenConfig(t *testing.T) {
+// TestOpenConfigBeforeCLI pushes overlapping mixed SetRequest specifying OpenConfig before CLI for DUT port-1.
+func TestOpenConfigBeforeCLI(t *testing.T) {
         dut := ondatra.DUT(t, "dut")
         dp := dut.Port(t, "port1")
         // `origin: "cli"` - containing vendor  configuration.
