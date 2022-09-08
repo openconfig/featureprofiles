@@ -91,9 +91,6 @@ func TestCLIBeforeOpenConfig(t *testing.T) {
 			buildOCUpdate(path, "from oc"),
 		},
 	}
-	if errs != nil {
-		t.Fatalf("Could not resolve path: %v", errs)
-	}
 	t.Log("gnmiClient Set both CLI and OpenConfig modelled config")
 	t.Log(gpbSetRequest)
 
