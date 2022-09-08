@@ -109,10 +109,11 @@ func TestOrderDependenceForCli(t *testing.T) {
 	t.Log("gnmiClient Set Response for CLI and OpenConfig modelled config")
 	t.Log(response)
 
-	// Validate that DUT port-1 description has `"foo2"`
+	// Validate that DUT port-1 description is `"from oc"`
 	got := dut.Telemetry().Interface(dp.Name()).Description().Get(t)
-	if got != "want" {
-		t.Errorf("Get(DUT port description): got %v, want %v", got, "want")
+	want := "from oc"
+	if got != want {
+		t.Errorf("Get(DUT port description): got %v, want %v", got, want)
 	}
 }
 
