@@ -117,18 +117,6 @@ func TestCLIBeforeOpenConfig(t *testing.T) {
 func TestOpenConfigBeforeCLI(t *testing.T) {
         dut := ondatra.DUT(t, "dut")
         dp := dut.Port(t, "port1")
-        // `origin: "cli"` - containing vendor  configuration.
-        // ~~~
-        // interface <DUT port-1>
-        // description foo1
-        //  ```
-        // ~~~
-        intfConfig := interfaceDescriptionCLI(dp, "not want")
-        if intfConfig == "" {
-                t.Skip("Vendor is not supported.")
-        }
-        gnmiClient := dut.RawAPIs().GNMI().Default(t)
-        t.Logf("Building the CLI config:\n%s", intfConfig)
 
         // `origin: ""` (openconfig, default origin) setting the DUT port-1
         //  string value at `/interfaces/interface/config/description` to `"from oc"`.
