@@ -130,7 +130,7 @@ func TestOpenConfigBeforeCLI(t *testing.T) {
         t.Logf("Building the CLI config:\n%s", intfConfig)
 
         // `origin: ""` (openconfig, default origin) setting the DUT port-1
-        //  string value at `/interfaces/interface/config/description` to `"foo2"`.
+        //  string value at `/interfaces/interface/config/description` to `"from oc"`.
         resolvedPath := dut.Config().Interface(dp.Name()).Description()
         path, _, errs := ygot.ResolvePath(resolvedPath)
 
