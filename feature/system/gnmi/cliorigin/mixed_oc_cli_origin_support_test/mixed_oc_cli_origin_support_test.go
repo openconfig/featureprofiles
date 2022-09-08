@@ -72,13 +72,9 @@ func buildCLIUpdate(value string) *gpb.Update {
 func TestCLIBeforeOpenConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-	// `origin: "cli"` - containing vendor  configuration.
-	// ~~~
-	// interface <DUT port-1>
-	// description foo1
-	//  ```
-	// ~~~
-	intfConfig := interfaceDescriptionCLI(dp, "want")
+
+	// `origin: "cli"` - containing vendor configuration.
+	intfConfig := interfaceDescriptionCLI(dp, "from cli")
 	if intfConfig == "" {
 		t.Skip("Vendor is not supported.")
 	}
