@@ -1,9 +1,9 @@
 #!/usr/bin/perl -ln
 #
 # This script checks that usage of IP addresses in *.go code adheres
-# to the contributor guide:
+# to the style guide:
 #
-# https://github.com/openconfig/featureprofiles/blob/main/CONTRIBUTING.md#ip-addresses-assignment
+# https://github.com/openconfig/featureprofiles/blob/main/docs/code-style.md#ip-addresses-assignment
 #
 # Implementation note: perl -ln wraps this script body to be executed
 # per line of input, like awk.  BEGIN and END still only run at the
@@ -23,7 +23,7 @@ END {
 
 Error: detected usage of IPv4 and IPv6 addresses outside of the
 documentation range.  Please see "IP Addresses Assignment" in
-CONTRIBUTING.md for detail.
+docs/code-style.md for detail.
 END
   }
   exit $exitcode;

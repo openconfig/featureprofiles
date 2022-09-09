@@ -36,6 +36,6 @@ then
 fi
 
 if ((exitcode)); then
-  echo 'Please see "Allowed File Types" in CONTRIBUTING.md for detail.' >&2
+  echo 'Please see "Allowed File Types" in docs/code-style.md for detail.' >&2
   exit "${exitcode}"
 fi

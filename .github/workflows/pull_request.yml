@@ -70,7 +70,7 @@ jobs:
     - name: Validate Paths
       run: make validate_paths
   check_style:
-    name: Check style against CONTRIBUTING.md
+    name: Check style against docs/code-style.md
     runs-on: ubuntu-latest
     steps:
     - name: Setup Perl
@@ -93,14 +93,14 @@ jobs:
         if find . -name \*.go -exec egrep -n '\.Union.*?\([0-9]+\)' \{} +
         then
           echo "Please do not use numerical constants in a union." >&2
-          echo "See CONTRIBUTING.md#enum" >&2
+          echo "See docs/code-style.md#enum" >&2
           fail=1
         fi
 
         if find . -name \*.go -exec egrep -n '_Union\([0-9]+\)' \{} +
         then
           echo "Please do not use numerical constants in a union." >&2
-          echo "See CONTRIBUTING.md#enum" >&2
+          echo "See docs/code-style.md#enum" >&2
           fail=1
         fi
 
@@ -111,7 +111,7 @@ jobs:
           -name \*.go -exec egrep -n '"default"' \{} +
         then
           echo "Default network instance name should be uppercase." >&2
-          echo "See CONTRIBUTING.md#default-network-instance" >&2
+          echo "See docs/code-style.md#default-network-instance" >&2
           exit 1
         fi
   static_analysis:
