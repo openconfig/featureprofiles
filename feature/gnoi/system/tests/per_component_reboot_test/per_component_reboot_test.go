@@ -112,7 +112,7 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 			return val.IsPresent()
 		})
 	if val, ok := watch.Await(t); !ok {
-		t.Fatalf("DUT did not reach target state: got %v", val.String())
+		t.Fatalf("DUT did not reach target state within %s minutes: got %v", 10*time.Minute.String(), val.String())
 	}
 	t.Logf("Standby controller boot time: %.2f seconds", time.Since(startReboot).Seconds())
 
