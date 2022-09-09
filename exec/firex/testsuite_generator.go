@@ -46,7 +46,7 @@ var (
 	workspace string
 )
 
-firexSuiteTemplate := template.Must(template.New("firexTestSuite").Funcs(template.FuncMap{
+var firexSuiteTemplate *template.Template = template.Must(template.New("firexTestSuite").Funcs(template.FuncMap{
 	"join": strings.Join,
 }).Parse(`
 {{- range $i, $ft := $.TestSuite }}

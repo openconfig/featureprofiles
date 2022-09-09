@@ -159,6 +159,8 @@ def RunB4FPTest(self,
         ondatra_binding = os.path.join(ondatra_dir, 'topology.textproto')
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}',
                         file=ondatra_binding)
+    else:
+        check_output(f"sed -i 's|$FP_ROOT|{fp_ws}|g' " + ondatra_binding)
 
     test_args += f' -binding {ondatra_binding} -testbed {ondatra_testbed_path}'
 
