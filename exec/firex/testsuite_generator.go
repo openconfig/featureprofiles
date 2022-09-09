@@ -1,0 +1,132 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+	"text/template"
+
+	"gopkg.in/yaml.v3"
+)
+
+// GoTest represents a single go test
+type GoTest struct {
+	Name       string
+	Path       string
+	Args       []string
+	ShouldFail bool
+}
+
+// FirexTest represents a single firex test suite
+type FirexTest struct {
+	Name  string
+	Pyvxr struct {
+		Topology string
+	}
+	Testbed   string
+	Binding   string
+	Pretests  []GoTest
+	Posttests []GoTest
+	Tests     []GoTest
+}
+
+var (
+	testDescFilesFlag = flag.String(
+		"test_desc_files", "", "comma separated list of test description yaml files.",
+	)
+
+	workspaceFlag = flag.String(
+		"workspace", "", "workspace used for firex launch.",
+	)
+
+	testDescFiles []string
+
+	workspace string
+)
+
+var firexSuiteTemplate *template.Template = template.Must(template.New("firexTestSuite").Funcs(template.FuncMap{
+	"join": strings.Join,
+}).Parse(`
+{{- range $i, $ft := $.TestSuite }}
+{{- .Name }}:
+    framework: b4_fp
+    owners:
+        - kjahed@cisco.com
+    {{- if $ft.Pyvxr.Topology }}
+    plugins:
+        - vxsim.py
+    topo_file: {{ $.Workspace }}/{{ $ft.Pyvxr.Topology }}
+    {{- end }}
+    ondatra_testbed_path: {{ $ft.Testbed }}
+    {{- if $ft.Binding }}
+    ondatra_binding_path: {{ $ft.Binding }}
+    {{- end }}
+    supported_platforms:
+        - "8000"
+    fp_pre_tests:
+        {{- range $j, $gt := $ft.Pretests}}
+        - {{ $gt.Name }}:
+            test_path: {{ $gt.Path }}
+            {{- if $gt.Args }}
+            test_args: {{ join $gt.Args " " }}
+            {{- end }}
+        {{- end }}
+    script_paths:
+        {{- range $j, $gt := $ft.Tests}}
+        - {{ $gt.Name }}:
+            test_path: {{ $gt.Path }}
+            {{- if $gt.Args }}
+            test_args: {{ join $gt.Args " " }}
+            {{- end }}
+        {{- end }}
+    fp_post_tests:
+        {{- range $j, $gt := $ft.Posttests}}
+        - {{ $gt.Name }}:
+            test_path: {{ $gt.Path }}
+            {{- if $gt.Args }}
+            test_args: {{ join $gt.Args " " }}
+            {{- end }}
+        {{- end }}
+    smart_sanity_exclude: True
+{{ end }}
+`))
+
+func init() {
+	flag.Parse()
+	if *testDescFilesFlag == "" {
+		log.Fatal("test_desc_files must be set.")
+	}
+	testDescFiles = strings.Split(*testDescFilesFlag, ",")
+	workspace = *workspaceFlag
+}
+
+func main() {
+	suite := []FirexTest{}
+
+	for _, f := range testDescFiles {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			log.Fatalf("Error reading test file %v", err)
+		}
+
+		t := FirexTest{}
+		err = yaml.Unmarshal(data, &t)
+		if err != nil {
+			log.Fatalf("Error unmarshaling test file: %v", err)
+		}
+		suite = append(suite, t)
+	}
+
+	var testSuiteCode strings.Builder
+	firexSuiteTemplate.Execute(&testSuiteCode, struct {
+		TestSuite []FirexTest
+		Workspace string
+	}{
+		TestSuite: suite,
+		Workspace: workspace,
+	})
+
+	fmt.Printf("%v", testSuiteCode.String())
+}
