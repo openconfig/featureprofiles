@@ -115,7 +115,7 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 		t.Fatalf("DUT did not reach target state: got %v", val.String())
 	}
 	t.Logf("Standby controller boot time: %.2f seconds", time.Since(startReboot).Seconds())
-	
+
 	// TODO: Check the standby RP uptime has been reset.
 }
 
@@ -246,7 +246,7 @@ func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (
 			})
 		if val, ok := watch.Await(t); !ok {
 			t.Fatalf("DUT did not reach target state: got %v", val.String())
-		}		
+		}
 		role := dut.Telemetry().Component(supervisor).RedundantRole().Get(t)
 		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
 		if role == standbyController {
