@@ -39,7 +39,7 @@ nodes: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
         file: "arista_ceos.config"
-    	image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/ceos:4.29.0F-28493660"
+    	image: "ceos:latest"
     }
     services:{
         key: 22

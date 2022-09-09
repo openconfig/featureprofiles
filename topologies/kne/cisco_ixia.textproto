@@ -33,7 +33,7 @@ nodes: {
     os: "ios-xr"
     config: {
         file: "cisco.config"
-        image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/cisco:c8201"
+        image: "cisco:latest"
         init_image: "networkop/init-wait:latest"
     }
     constraints:{
