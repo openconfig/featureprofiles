@@ -107,10 +107,7 @@ def PatchOndatra(self, ondatra_repo, fp_repo):
     for patch in ONDATRA_PATCHES:
         ondatra_repo.git.execute(['git','apply',os.path.join(fp_repo, patch)])
 
-    cmd = f'sed -i ' \
-        f'"s/module github.com\/openconfig\/featureprofiles' \
-        f'/module github.com\/openconfig\/featureprofiles\n' \
-        f'replace github.com\/openconfig\/ondatra => ..\/ondatra/g" ' + os.path.join(fp_repo, 'go.mod')
+    cmd = "echo 'replace github.com/openconfig/ondatra => ../ondatra' >> " + os.path.join(fp_repo, 'go.mod')
     check_output(cmd)
 
 # noinspection PyPep8Naming
