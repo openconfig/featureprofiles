@@ -105,8 +105,7 @@ def b4_fp_chain_provider(ws,
 def PatchOndatra(self, ondatra_repo, fp_repo):
     ondatra_repo = git.Repo(ondatra_repo)
     for patch in ONDATRA_PATCHES:
-        self.run_script('git apply ' + os.path.join(fp_repo, patch),
-                        cwd=ondatra_repo)
+        ondatra_repo.git.apply([os.path.join(fp_repo, patch)])
 
     cmd = "echo 'replace github.com/openconfig/ondatra => ../ondatra' >> " + os.path.join(fp_repo, 'go.mod')
     check_output(cmd)
