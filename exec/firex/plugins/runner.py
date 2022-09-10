@@ -107,9 +107,9 @@ def PatchOndatra(self, ondatra_repo, fp_repo):
     for patch in ONDATRA_PATCHES:
         ondatra_repo.git.apply([os.path.join(fp_repo, patch)])
 
-    cmd = "echo 'replace github.com/openconfig/ondatra => ../ondatra' >> " + os.path.join(fp_repo, 'go.mod')
-    check_output(cmd)
-
+    with open(os.path.join(fp_repo, 'go.mod'), "a") as fp:
+        fp.write("replace github.com/openconfig/ondatra => ../ondatra")
+        
 # noinspection PyPep8Naming
 @app.task(bind=True, base=FireXRunnerBase)
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
