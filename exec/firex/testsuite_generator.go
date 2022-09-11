@@ -46,52 +46,54 @@ var (
 	workspace string
 )
 
-var firexSuiteTemplate *template.Template = template.Must(template.New("firexTestSuite").Funcs(template.FuncMap{
-	"join": strings.Join,
-}).Parse(`
-{{- range $i, $ft := $.TestSuite }}
-{{- .Name }}:
-    framework: b4_fp
-    owners:
-        - kjahed@cisco.com
-    {{- if $ft.Pyvxr.Topology }}
-    plugins:
-        - vxsim.py
-    topo_file: {{ $.Workspace }}/{{ $ft.Pyvxr.Topology }}
-    {{- end }}
-    ondatra_testbed_path: {{ $ft.Testbed }}
-    {{- if $ft.Binding }}
-    ondatra_binding_path: {{ $ft.Binding }}
-    {{- end }}
-    supported_platforms:
-        - "8000"
-    fp_pre_tests:
-        {{- range $j, $gt := $ft.Pretests}}
-        - {{ $gt.Name }}:
-            test_path: {{ $gt.Path }}
-            {{- if $gt.Args }}
-            test_args: {{ join $gt.Args " " }}
-            {{- end }}
-        {{- end }}
-    script_paths:
-        {{- range $j, $gt := $ft.Tests}}
-        - {{ $gt.Name }}:
-            test_path: {{ $gt.Path }}
-            {{- if $gt.Args }}
-            test_args: {{ join $gt.Args " " }}
-            {{- end }}
-        {{- end }}
-    fp_post_tests:
-        {{- range $j, $gt := $ft.Posttests}}
-        - {{ $gt.Name }}:
-            test_path: {{ $gt.Path }}
-            {{- if $gt.Args }}
-            test_args: {{ join $gt.Args " " }}
-            {{- end }}
-        {{- end }}
-    smart_sanity_exclude: True
-{{ end }}
+var (
+	firexSuiteTemplate *template.Template = template.Must(template.New("firexTestSuite").Funcs(template.FuncMap{
+		"join": strings.Join,
+	}).Parse(`
+	{{- range $i, $ft := $.TestSuite }}
+	{{- .Name }}:
+		framework: b4_fp
+		owners:
+			- kjahed@cisco.com
+		{{- if $ft.Pyvxr.Topology }}
+		plugins:
+			- vxsim.py
+		topo_file: {{ $.Workspace }}/{{ $ft.Pyvxr.Topology }}
+		{{- end }}
+		ondatra_testbed_path: {{ $ft.Testbed }}
+		{{- if $ft.Binding }}
+		ondatra_binding_path: {{ $ft.Binding }}
+		{{- end }}
+		supported_platforms:
+			- "8000"
+		fp_pre_tests:
+			{{- range $j, $gt := $ft.Pretests}}
+			- {{ $gt.Name }}:
+				test_path: {{ $gt.Path }}
+				{{- if $gt.Args }}
+				test_args: {{ join $gt.Args " " }}
+				{{- end }}
+			{{- end }}
+		script_paths:
+			{{- range $j, $gt := $ft.Tests}}
+			- {{ $gt.Name }}:
+				test_path: {{ $gt.Path }}
+				{{- if $gt.Args }}
+				test_args: {{ join $gt.Args " " }}
+				{{- end }}
+			{{- end }}
+		fp_post_tests:
+			{{- range $j, $gt := $ft.Posttests}}
+			- {{ $gt.Name }}:
+				test_path: {{ $gt.Path }}
+				{{- if $gt.Args }}
+				test_args: {{ join $gt.Args " " }}
+				{{- end }}
+			{{- end }}
+		smart_sanity_exclude: True
+	{{ end }}
 `))
+)
 
 func init() {
 	flag.Parse()
