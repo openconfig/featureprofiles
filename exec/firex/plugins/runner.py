@@ -24,7 +24,7 @@ CloneInfo = namedtuple('CloneInfo', ['url', 'path'])
 ONDATRA_REPO_CLONE_INFO = CloneInfo('https://github.com/openconfig/ondatra.git', 'openconfig/ondatra')
 FP_REPO_CLONE_INFO = CloneInfo('git@wwwin-github.cisco.com:B4Test/featureprofiles.git', 'openconfig/featureprofiles')
 
-ONDATRA_PATCHES = ['exec/firex/plugins/ondatra/0001-windows-ixia-path.patch']
+ONDATRA_PATCHES = ['exec/firex/plugins/ondatra/0001-windows-ixia-path.patch','exec/firex/plugins/ondatra/static_route.patch','exec/firex/plugins/ondatra/vrf_type.patch']
 
 whitelist_arguments([
     'ondatra_repo_branch', 
