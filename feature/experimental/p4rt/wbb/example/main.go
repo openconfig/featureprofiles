@@ -34,7 +34,7 @@ import (
 
 // Command line args
 var (
-	serverIP   = flag.String("server_ip", "192.168.0.1", "P4RT Server IP")
+	serverIP   = flag.String("server_ip", "192.0.2.1", "P4RT Server IP")
 	serverPort = flag.Int("server_port", 57400, "P4RT Server Port")
 	jsonFile   = flag.String("json_file", "./feature/experimental/p4rt/wbb/example/json/example.json", "JSON Params File Path")
 )
@@ -261,8 +261,8 @@ func main() {
 					Payload: utils.PacketICMPEchoRequestGet(false,
 						net.HardwareAddr{0xFF, 0xAA, 0xFA, 0xAA, 0xFF, 0xAA},
 						net.HardwareAddr{0xBD, 0xBD, 0xBD, 0xBD, 0xBD, 0xBD},
-						net.IP{10, 0, 0, 1},
-						net.IP{10, 0, 0, 2},
+						net.IP{192, 0, 2, 2},
+						net.IP{192, 0, 2, 3},
 						64),
 					Metadata: []*p4_v1.PacketMetadata{
 						&p4_v1.PacketMetadata{
