@@ -34,6 +34,7 @@ whitelist_arguments([
     'fp_post_tests',
     'test_path', 
     'test_args'
+    'test_patch'
 ])
 
 @register_test_framework_provider('b4_fp')
@@ -51,6 +52,7 @@ def b4_fp_chain_provider(ws,
                          fp_post_tests=[],
                          test_path=None,
                          test_args=None,
+                         test_patch=None,
                          **kwargs):
 
     chain = InjectArgs(ws=ws,
@@ -63,6 +65,7 @@ def b4_fp_chain_provider(ws,
                     ondatra_binding_path=ondatra_binding_path,
                     test_path=test_path,
                     test_args=test_args,
+                    test_patch=test_patch,
                     **kwargs)
 
     pkgs_parent_path = os.path.join(ws, f'{testsuite_id}_go_pkgs')
@@ -82,6 +85,9 @@ def b4_fp_chain_provider(ws,
 
     chain |= PatchOndatra.s(ondatra_repo=ondatra_repo_dir, 
                             fp_repo=fp_repo_dir)
+
+    if test_patch:
+        chain |= PatchFP.s(fp_repo=fp_repo_dir, patch_path=test_patch)
 
     if fp_pre_tests:
         for pt in fp_pre_tests:
@@ -109,6 +115,12 @@ def PatchOndatra(self, ondatra_repo, fp_repo):
 
     with open(os.path.join(fp_repo, 'go.mod'), "a") as fp:
         fp.write("replace github.com/openconfig/ondatra => ../ondatra")
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def PatchFP(self, fp_repo, patch_path):
+    fp_repo = git.Repo(fp_repo)
+    fp_repo.git.apply([os.path.join(fp_repo, patch_path)])
         
 # noinspection PyPep8Naming
 @app.task(bind=True, base=FireXRunnerBase)

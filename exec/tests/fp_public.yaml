@@ -1,4 +1,5 @@
 name: fp_public
+owner: mbagherz@cisco.com
 testbed: topologies/cisco/hw/8201-32FH/testbed
 binding: topologies/cisco/hw/8201-32FH/binding
 pretests:

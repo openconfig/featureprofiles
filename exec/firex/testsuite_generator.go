@@ -15,6 +15,7 @@ import (
 type GoTest struct {
 	Name       string
 	Path       string
+	Patch      string
 	Args       []string
 	ShouldFail bool
 }
@@ -22,6 +23,7 @@ type GoTest struct {
 // FirexTest represents a single firex test suite
 type FirexTest struct {
 	Name  string
+	Owner string
 	Pyvxr struct {
 		Topology string
 	}
@@ -54,7 +56,7 @@ var (
 {{- .Name }}:
     framework: b4_fp
     owners:
-        - kjahed@cisco.com
+        - {{ $ft.Owner }}
     {{- if $ft.Pyvxr.Topology }}
     plugins:
         - vxsim.py
@@ -81,6 +83,9 @@ var (
             {{- if $gt.Args }}
             test_args: {{ join $gt.Args " " }}
             {{- end }}
+			{{- if $gt.Patch }}
+            test_patch: {{ $gt.Patch }}
+			{{- end }}
         {{- end }}
     fp_post_tests:
         {{- range $j, $gt := $ft.Posttests}}
