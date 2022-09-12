@@ -16,6 +16,7 @@ package google_discovery_protocol_packetin_test
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"sort"
@@ -164,7 +165,7 @@ func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) 
 
 // setupP4RTClient sends client arbitration message for both leader and follower clients,
 // then sends setforwordingpipelineconfig with leader client.
-func setupP4RTClient(ctx context.Context, t *testing.T, args *testArgs) error {
+func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	// Setup p4rt-client stream parameters
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
@@ -189,14 +190,10 @@ func setupP4RTClient(ctx context.Context, t *testing.T, args *testArgs) error {
 					},
 				},
 			}); err != nil {
-				t.Logf("There is error when setting up p4rt client")
-				return err
+				return errors.New("Errors seen when sending ClientArbitration message.")
 			}
-			_, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1)
-
-			if arbErr != nil {
-				t.Logf("There is error at Arbitration time: %v", arbErr)
-				return arbErr
+			if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
+				return errors.New("Errors seen in ClientArbitration response.")
 			}
 		}
 	}
@@ -204,12 +201,11 @@ func setupP4RTClient(ctx context.Context, t *testing.T, args *testArgs) error {
 	// Load p4info file.
 	p4Info, err := utils.P4InfoLoad(p4InfoFile)
 	if err != nil {
-		t.Logf("There is error when loading p4info file")
-		return err
+		return errors.New("Errors seen when loading p4info file.")
 	}
 
 	// Send SetForwardingPipelineConfig for p4rt leader client.
-	err = args.leader.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
+	if err := args.leader.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
 		DeviceId:   deviceId,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
 		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
@@ -219,10 +215,8 @@ func setupP4RTClient(ctx context.Context, t *testing.T, args *testArgs) error {
 				Cookie: 159,
 			},
 		},
-	})
-	if err != nil {
-		t.Logf("There is error seen when setting SetForwardingPipelineConfig")
-		return err
+	}); err != nil {
+		return errors.New("Errors seen when sending SetForwardingPipelineConfig.")
 	}
 	return nil
 }
@@ -274,7 +268,7 @@ func TestPacketIn(t *testing.T) {
 		top:      top,
 	}
 
-	if err := setupP4RTClient(ctx, t, args); err != nil {
+	if err := setupP4RTClient(ctx, args); err != nil {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 
