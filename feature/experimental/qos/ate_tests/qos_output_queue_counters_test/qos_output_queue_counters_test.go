@@ -210,7 +210,9 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		s.Enabled = ygot.Bool(true)
+		if *deviations.InterfaceEnabled {
+			s.Enabled = ygot.Bool(true)
+		}
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		dut.Config().Interface(intf.intfName).Replace(t, i)
