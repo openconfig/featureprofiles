@@ -1,0 +1,22 @@
+diff --git a/telemetry/structs-1.go b/telemetry/structs-1.go
+index 4621e6f..e820612 100644
+--- a/telemetry/structs-1.go
++++ b/telemetry/structs-1.go
+@@ -6515,7 +6515,7 @@ func (t *NetworkInstance) GetOrCreateProtocol(Identifier E_PolicyTypes_INSTALL_P
+ 
+ 	key := NetworkInstance_Protocol_Key{
+ 		Identifier: Identifier,
+-		Name:       Name,
++		Name:       "default",
+ 	}
+ 
+ 	if v, ok := t.Protocol[key]; ok {
+@@ -6523,7 +6523,7 @@ func (t *NetworkInstance) GetOrCreateProtocol(Identifier E_PolicyTypes_INSTALL_P
+ 	}
+ 	// Panic if we receive an error, since we should have retrieved an existing
+ 	// list member. This allows chaining of GetOrCreate methods.
+-	v, err := t.NewProtocol(Identifier, Name)
++	v, err := t.NewProtocol(Identifier, "default")
+ 	if err != nil {
+ 		panic(fmt.Sprintf("GetOrCreateProtocol got unexpected error: %v", err))
+ 	}
