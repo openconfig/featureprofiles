@@ -43,6 +43,7 @@ const (
 var (
 	p4InfoFile            = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	p4rtNodeName          = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
+	gdpSrcMAC             = flag.String("gdp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
 	streamName            = "p4rt"
 	gdpMAC                = "00:0a:da:f0:f0:f0"
 	gdpEtherType          = uint32(0x6007)
@@ -230,7 +231,7 @@ func setupP4RTClient(ctx context.Context, t *testing.T, args *testArgs) error {
 func getGDPParameter(t *testing.T) PacketIO {
 	return &GDPPacketIO{
 		PacketIOPacket: PacketIOPacket{
-			SrcMAC:       ygot.String("00:01:00:02:00:00"),
+			SrcMAC:       gdpSrcMAC,
 			DstMAC:       &gdpMAC,
 			EthernetType: &gdpEtherType,
 		},
