@@ -101,10 +101,10 @@ func TestChassisReboot(t *testing.T) {
 	expectedVersion := dut.Telemetry().ComponentAny().SoftwareVersion().Get(t)
 	sort.Strings(expectedVersion)
 	t.Logf("DUT software version: %v", expectedVersion)
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			gnoiClient := dut.RawAPIs().GNOI().New(t)
 			bootTimeBeforeReboot := dut.Telemetry().System().BootTime().Get(t)
 			t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
 			prevTime, err := time.Parse(time.RFC3339, dut.Telemetry().System().CurrentDatetime().Get(t))
