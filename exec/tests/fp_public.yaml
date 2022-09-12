@@ -19,7 +19,7 @@ tests:
   path: feature/experimental/bgp/ate_tests/base_bgp_session_parameters
 - name: RT-3.2 (Multiple <Protocol, DSCP> Rules for VRF Selection) 
   path: feature/experimental/policy/policy_vrf_selection/ate_tests/protocol_dscp_rules_for_vrf_selection_test
-  args: --deviation_default_network_instance = "DEFAULT"
+  args: deviation_default_network_instance = "DEFAULT"
 - name: RT-2.2 (IS-IS LSP Updates) 
   path: feature/experimental/isis/ate_tests/lsp_updates_test
 - name: RT-2.1 (Base IS-IS Process and Adjacencies) 
