@@ -23,6 +23,7 @@ import (
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -278,4 +279,48 @@ func TestPacketIn(t *testing.T) {
 
 	args.packetIO = getGDPParameter(t)
 	testPacketIn(ctx, t, args)
+}
+
+type GDPPacketIO struct {
+	PacketIOPacket
+	IngressPort string
+}
+
+// GetTableEntry creates wbb acl entry related to GDP.
+func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*wbb.AclWbbIngressTableEntryInfo {
+	actionType := p4_v1.Update_INSERT
+	if delete {
+		actionType = p4_v1.Update_DELETE
+	}
+	return []*wbb.AclWbbIngressTableEntryInfo{{
+		Type:          actionType,
+		EtherType:     0x6007,
+		EtherTypeMask: 0xFFFF,
+	}}
+}
+
+// GetPacketTemplate returns expected packets in PacketIn.
+func (gdp *GDPPacketIO) GetPacketTemplate() *PacketIOPacket {
+	return &gdp.PacketIOPacket
+}
+
+// GetTrafficFlow generates ATE traffic flows for GDP.
+func (gdp *GDPPacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow {
+	ethHeader := ondatra.NewEthernetHeader()
+	ethHeader.WithSrcAddress(*gdp.SrcMAC)
+	ethHeader.WithDstAddress(*gdp.DstMAC)
+	ethHeader.WithEtherType(*gdp.EthernetType)
+
+	flow := ate.Traffic().NewFlow("GDP").WithFrameSize(frameSize).WithFrameRateFPS(frameRate).WithHeaders(ethHeader)
+	return []*ondatra.Flow{flow}
+}
+
+// GetEgressPort returns expected egress port info in PacketIn.
+func (gdp *GDPPacketIO) GetEgressPort() []string {
+	return []string{"0"}
+}
+
+// GetIngressPort return expected ingress port info in PacketIn.
+func (gdp *GDPPacketIO) GetIngressPort() string {
+	return gdp.IngressPort
 }

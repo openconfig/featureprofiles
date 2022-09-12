@@ -29,11 +29,11 @@ import (
 )
 
 type PacketIO interface {
-	GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo
-	GetPacketTemplate(t *testing.T) *PacketIOPacket
-	GetTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow
-	GetEgressPort(t *testing.T) []string
-	GetIngressPort(t *testing.T) string
+	GetTableEntry(delete bool) []*wbb.AclWbbIngressTableEntryInfo
+	GetPacketTemplate() *PacketIOPacket
+	GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow
+	GetEgressPort() []string
+	GetIngressPort() string
 }
 
 type PacketIOPacket struct {
@@ -58,7 +58,7 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 		DeviceId:   deviceId,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
 		Updates: wbb.AclWbbIngressTableEntryGet(
-			packetIO.GetTableEntry(t, delete),
+			packetIO.GetTableEntry(delete),
 		),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
 	})
@@ -130,7 +130,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Send GDP traffic from ATE
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+	testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, 300, 2), srcEndPoint, 10)
 
 	packetInTests := []struct {
 		desc       string
@@ -160,7 +160,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 					t.Fatalf("There are no packets received.")
 				}
 				t.Logf("Start to decode packet and compare with expected packets.")
-				wantPacket := args.packetIO.GetPacketTemplate(t)
+				wantPacket := args.packetIO.GetPacketTemplate()
 				for _, packet := range packets {
 					if packet != nil {
 						if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
@@ -173,13 +173,13 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 						metaData := packet.Pkt.GetMetadata()
 						for _, data := range metaData {
 							if data.GetMetadataId() == METADATA_INGRESS_PORT {
-								if string(data.GetValue()) != args.packetIO.GetIngressPort(t) {
+								if string(data.GetValue()) != args.packetIO.GetIngressPort() {
 									t.Fatalf("Ingress Port Id is not matching expectation.")
 								}
 							}
 							if data.GetMetadataId() == METADATA_EGRESS_PORT {
 								found := false
-								for _, portData := range args.packetIO.GetEgressPort(t) {
+								for _, portData := range args.packetIO.GetEgressPort() {
 									if string(data.GetValue()) == portData {
 										found = true
 									}
