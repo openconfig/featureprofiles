@@ -34,7 +34,7 @@ import (
 
 // Command line args
 var (
-	serverIP   = flag.String("server_ip", "192.168.0.1", "P4RT Server IP")
+	serverIP   = flag.String("server_ip", "192.0.2.1", "P4RT Server IP")
 	serverPort = flag.Int("server_port", 57400, "P4RT Server Port")
 	jsonFile   = flag.String("json_file", "./feature/experimental/p4rt/wbb/example/json/example.json", "JSON Params File Path")
 )

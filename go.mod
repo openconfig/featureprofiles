@@ -24,9 +24,11 @@ require (
 )
 
 require (
+	github.com/cisco-open/go-p4 v0.0.0-20220713162912-85fd0d484625 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
