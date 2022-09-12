@@ -164,6 +164,7 @@ func aristaCLI(intf string, enabled bool) string {
   `, intf, op)
 
 }
+
 func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 	// Build config with Origin set to cli and Ascii encoded config.
 	gpbSetRequest := &gpb.SetRequest{
