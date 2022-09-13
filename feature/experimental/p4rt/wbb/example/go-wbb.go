@@ -326,8 +326,8 @@ ForEver:
 							Payload: utils.PacketICMPEchoRequestGet(true,
 								net.HardwareAddr{0xFF, 0xAA, 0xFA, 0xAA, 0xFF, 0xAA},
 								net.HardwareAddr{0xBD, 0xBD, 0xBD, 0xBD, 0xBD, 0xBD},
-								net.IP{10, 0, 0, 1},
-								net.IP{10, 0, 0, 2},
+								net.IP{192, 0, 2, 2},
+								net.IP{192, 0, 2, 3},
 								64),
 							Metadata: []*p4_v1.PacketMetadata{
 								{
