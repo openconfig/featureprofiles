@@ -12,7 +12,7 @@ export PATH=$GOROOT/bin:$PATH
 
 At the top of the git repo:
 ```
-go build -o go-wbb feature/experimental/p4rt/wbb/example/main.go
+go build feature/experimental/p4rt/wbb/example/go-wbb.go
 ```
 
 ## Help

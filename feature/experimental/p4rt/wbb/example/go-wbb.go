@@ -47,9 +47,7 @@ func validateArgs() {
 	}
 }
 
-//
 // This is just an Example usage of the wbb package wrapper
-//
 func main() {
 	flag.Parse()
 	validateArgs()
@@ -153,12 +151,12 @@ func main() {
 		DeviceId:   arbMsg1.Arb.DeviceId,
 		ElectionId: arbMsg1.Arb.ElectionId,
 		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+			{
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
 			},
-			&wbb.AclWbbIngressTableEntryInfo{
+			{
 				Type:    p4_v1.Update_INSERT,
 				IsIpv4:  0x1,
 				Ttl:     0x1,
@@ -180,7 +178,7 @@ func main() {
 	rStream, rErr := client0.Read(&p4_v1.ReadRequest{
 		DeviceId: arbMsg1.Arb.DeviceId,
 		Entities: []*p4_v1.Entity{
-			&p4_v1.Entity{
+			{
 				Entity: &p4_v1.Entity_TableEntry{},
 			},
 		},
@@ -205,13 +203,13 @@ func main() {
 		DeviceId:   arbMsg1.Arb.DeviceId,
 		ElectionId: arbMsg1.Arb.ElectionId,
 		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+			{
 				Type:    p4_v1.Update_DELETE,
 				IsIpv4:  0x1,
 				Ttl:     0x1,
 				TtlMask: 0xFF,
 			},
-			&wbb.AclWbbIngressTableEntryInfo{
+			{
 				Type:    p4_v1.Update_INSERT,
 				IsIpv6:  0x1,
 				Ttl:     0x2,
@@ -233,7 +231,7 @@ func main() {
 	rStream, rErr = client0.Read(&p4_v1.ReadRequest{
 		DeviceId: arbMsg1.Arb.DeviceId,
 		Entities: []*p4_v1.Entity{
-			&p4_v1.Entity{
+			{
 				Entity: &p4_v1.Entity_TableEntry{},
 			},
 		},
@@ -265,7 +263,7 @@ func main() {
 						net.IP{192, 0, 2, 3},
 						64),
 					Metadata: []*p4_v1.PacketMetadata{
-						&p4_v1.PacketMetadata{
+						{
 							MetadataId: 2, // "submit_to_ingress"
 							Value:      []byte{0x1},
 						},
@@ -332,7 +330,7 @@ ForEver:
 								net.IP{10, 0, 0, 2},
 								64),
 							Metadata: []*p4_v1.PacketMetadata{
-								&p4_v1.PacketMetadata{
+								{
 									MetadataId: 1,            // "egress_port"
 									Value:      []byte("24"), // Port-id As configured
 								},
