@@ -104,7 +104,7 @@ def b4_fp_chain_provider(ws,
             for k, v in pt.items():
                 chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    chain |= GoTest2HTML.s(Path(test_log_directory_path) / 'results.json', Path(test_log_directory_path) / 'results.html')
+    chain |= GoTest2HTML.s(Path(test_log_directory_path) / 'f{script_name}.json', Path(test_log_directory_path) / 'results.html')
     
     if cflow:
         chain |= CollectCoverageData.s(pyats_testbed='@testbed')
