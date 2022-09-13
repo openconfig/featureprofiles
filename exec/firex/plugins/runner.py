@@ -13,6 +13,7 @@ from test_framework import register_test_framework_provider
 from html_helper import get_link 
 from collections import namedtuple
 from pathlib import Path
+from gotest2html import GoTest2HTML
 import os
 import git 
 
@@ -40,6 +41,7 @@ whitelist_arguments([
 @register_test_framework_provider('b4_fp')
 def b4_fp_chain_provider(ws,
                          testsuite_id,
+                         script_name,
                          script_path,
                          test_log_directory_path,
                          xunit_results_filepath,
@@ -57,6 +59,7 @@ def b4_fp_chain_provider(ws,
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
+                    script_name=script_name,
                     script_path=script_path,
                     test_log_directory_path=test_log_directory_path,
                     xunit_results_filepath=xunit_results_filepath,
@@ -101,6 +104,8 @@ def b4_fp_chain_provider(ws,
             for k, v in pt.items():
                 chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
+    chain |= GoTest2HTML.s(Path(test_log_directory_path) / 'results.json', Path(test_log_directory_path) / 'results.html')
+    
     if cflow:
         chain |= CollectCoverageData.s(pyats_testbed='@testbed')
 
@@ -119,9 +124,9 @@ def PatchOndatra(self, ondatra_repo, fp_repo):
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def PatchFP(self, fp_repo, patch_path):
-    fp_repo = git.Repo(fp_repo)
-    fp_repo.git.apply([os.path.join(fp_repo, patch_path)])
-        
+    repo = git.Repo(fp_repo)
+    repo.git.apply([os.path.join(fp_repo, patch_path)])
+
 # noinspection PyPep8Naming
 @app.task(bind=True, base=FireXRunnerBase)
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
@@ -130,6 +135,7 @@ def PatchFP(self, fp_repo, patch_path):
 def RunB4FPTest(self,
                 ws,
                 testsuite_id,
+                script_name,
                 script_path,
                 test_log_directory_path,
                 xunit_results_filepath,
@@ -146,7 +152,7 @@ def RunB4FPTest(self,
     if ondatra_binding_path: ondatra_binding_path = os.path.join(fp_ws, ondatra_binding_path)
     ondatra_testbed_path = os.path.join(fp_ws, ondatra_testbed_path)
  
-    json_results_file = Path(test_log_directory_path) / 'results.json'
+    json_results_file = Path(test_log_directory_path) / script_name + '.json'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
 
     check_output(f'rm -rf {test_logs_dir_in_ws}')
