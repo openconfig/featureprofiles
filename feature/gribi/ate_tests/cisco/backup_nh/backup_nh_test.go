@@ -30,6 +30,7 @@ import (
 	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
@@ -152,6 +153,8 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	args.interfaceaction(t, "port6", false)
 	defer args.interfaceaction(t, "port7", true)
 	defer args.interfaceaction(t, "port6", true)
+	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.25")
+	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.21")
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether127"})
 	}
@@ -171,6 +174,10 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.interfaceaction(t, "port4", true)
 	defer args.interfaceaction(t, "port3", true)
 	defer args.interfaceaction(t, "port2", true)
+	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.17")
+	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.13")
+	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.9")
+	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.5")
 	// validate traffic dropping on backup
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
@@ -2295,16 +2302,16 @@ func TestBackUp(t *testing.T) {
 	// Dial gRIBI
 	ctx := context.Background()
 
-	// // Configure the DUT
-	// configureDUT(t, dut)
-	// configbasePBR(t, dut, "TE", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	// defer unconfigbasePBR(t, dut)
-	// // configure route-policy
-	// configRP(t, dut)
-	// // configure ISIS on DUT
-	// addISISOC(t, dut, "Bundle-Ether127")
-	// // configure BGP on DUT
-	// addBGPOC(t, dut, "100.100.100.100")
+	// Configure the DUT
+	configureDUT(t, dut)
+	configbasePBR(t, dut, "TE", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	defer unconfigbasePBR(t, dut)
+	// configure route-policy
+	configRP(t, dut)
+	// configure ISIS on DUT
+	addISISOC(t, dut, "Bundle-Ether127")
+	// configure BGP on DUT
+	addBGPOC(t, dut, "100.100.100.100")
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")

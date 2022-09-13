@@ -4,13 +4,13 @@ import "flag"
 
 // cisco tests flags.
 var (
-	GRIBITrafficCheck = flag.Bool("gribi_traffic_check", true,
+	GRIBITrafficCheck = flag.Bool("gribi_traffic_check", false,
 		"This enable/disable traffic check for gribi tests.")
 
-	GRIBIAFTCheck = flag.Bool("gribi_aft_check", false,
+	GRIBIAFTCheck = flag.Bool("gribi_aft_check", true,
 		"This enable/disable AFT check for gribi entries in gribi tests.")
 
-	GRIBIAFTChainCheck = flag.Bool("gribi_aft_chain_check", false,
+	GRIBIAFTChainCheck = flag.Bool("gribi_aft_chain_check", true,
 		"This enable/disable AFT chain check for gribi prefix in gribi tests.")
 
 	GRIBIFIBCheck = flag.Bool("gribi_fib_check", true,

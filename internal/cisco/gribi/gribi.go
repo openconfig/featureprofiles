@@ -285,9 +285,9 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 			c.checkIPV4Result(t, fluent.InstalledInFIB, constants.Add, prefix)
 		}
 	}
-	// if check.AFTCheck {
-	// 	c.checkIPv4e(t, prefix, nhgIndex, instance, nhgInstance)
-	// }
+	if check.AFTCheck {
+		c.checkIPv4e(t, prefix, nhgIndex, instance, nhgInstance)
+	}
 }
 
 // AddIPv4Batch adds a list of IPv4Entries mapping  prefixes to a given next hop group index within a given network instance.
@@ -713,7 +713,7 @@ func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instan
 	}
 
 	gotNhgIndex := aftIPv4e.GetNextHopGroup()
-	nhgPId := c.DUT.Telemetry().NetworkInstance(gotNhgInstance).Afts().NextHopGroup(gotNhgIndex).ProgrammedId().Get(t)
+	nhgPId := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(gotNhgIndex).ProgrammedId().Get(t)
 	if nhgPId != nhgIndex {
 		t.Fatalf("AFT Check failed for ipv4-entry/state/next-hop-group/state/programmed-id got %d, want %d", nhgPId, nhgIndex)
 	}
