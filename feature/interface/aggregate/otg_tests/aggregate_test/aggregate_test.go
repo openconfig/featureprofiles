@@ -117,7 +117,6 @@ type testCase struct {
 	dutPorts []*ondatra.Port
 	atePorts []*ondatra.Port
 	aggID    string
-	l3header []ondatra.Header
 }
 
 func (*testCase) configSrcDUT(i *telemetry.Interface, a *attrs.Attributes) {
@@ -218,6 +217,9 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	lacpPath := d.Lacp().Interface(tc.aggID)
 	fptest.LogYgot(t, "LACP", lacpPath, lacp)
 	lacpPath.Replace(t, lacp)
+
+	// Waiting 15s before configuring the port channel
+	time.Sleep(15 * time.Second)
 
 	agg := &telemetry.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg, &dutDst)
@@ -429,13 +431,18 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 	for _, tf := range tests {
 		t.Run(tf.desc, func(t *testing.T) {
 			for _, port := range tc.atePorts[1 : 1+tf.downCount] {
-				// tc.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(port).WithStateEnabled(false).Operate(t)
-				// Linked DUT and ATE ports have the same ID.
-				dp := tc.dut.Port(t, port.ID())
-				dip := tc.dut.Telemetry().Interface(dp.Name())
-				t.Logf("Awaiting DUT port down: %v", dp)
-				dip.OperStatus().Await(t, time.Minute, opDown)
-				t.Log("Port is down.")
+				if tc.lagType == telemetry.IfAggregate_AggregationType_LACP {
+					// Linked DUT and ATE ports have the same ID.
+					tc.ate.OTG().DisableLACPMembers(t, []string{port.String()})
+					dp := tc.dut.Port(t, port.ID())
+					dip := tc.dut.Telemetry().Interface(dp.Name())
+					t.Logf("Awaiting DUT port down: %v", dp)
+					dip.OperStatus().Await(t, time.Minute, opDown)
+					t.Log("Port is down.")
+				}
+				if tc.lagType == telemetry.IfAggregate_AggregationType_STATIC {
+					t.Skip("Setting the port status down doesn't work with kne/meshnet")
+				}
 			}
 			tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Await(t, 1*time.Minute, tf.want)
 		})
@@ -479,7 +486,6 @@ func TestNegotiation(t *testing.T) {
 			dutPorts: sortPorts(dut.Ports()),
 			atePorts: sortPorts(ate.Ports()),
 			aggID:    aggID,
-			l3header: []ondatra.Header{ondatra.NewIPv4Header()},
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
 			tc.configureDUT(t)
