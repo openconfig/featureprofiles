@@ -152,7 +152,7 @@ def RunB4FPTest(self,
     if ondatra_binding_path: ondatra_binding_path = os.path.join(fp_ws, ondatra_binding_path)
     ondatra_testbed_path = os.path.join(fp_ws, ondatra_testbed_path)
  
-    json_results_file = Path(test_log_directory_path) / script_name + '.json'
+    json_results_file = Path(test_log_directory_path) / 'f{script_name}.json'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
 
     check_output(f'rm -rf {test_logs_dir_in_ws}')
