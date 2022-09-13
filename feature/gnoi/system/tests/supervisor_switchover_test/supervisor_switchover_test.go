@@ -190,6 +190,13 @@ func findComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.
 func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
 	var activeRP, standbyRP string
 	for _, supervisor := range supervisors {
+		watch := dut.Telemetry().Component(supervisor).RedundantRole().Watch(
+			t, 5*time.Minute, func(val *telemetry.QualifiedE_PlatformTypes_ComponentRedundantRole) bool {
+				return val.IsPresent()
+			})
+		if val, ok := watch.Await(t); !ok {
+			t.Fatalf("DUT did not reach target state within %v: got %v", 5*time.Minute, val)
+		}
 		role := dut.Telemetry().Component(supervisor).RedundantRole().Get(t)
 		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
 		if role == standbyController {
