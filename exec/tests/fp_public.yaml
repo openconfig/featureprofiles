@@ -96,3 +96,5 @@ tests:
   path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
 - name: TE-15.1 (gRIBI Compliance) 
   path: feature/gribi/tests/gribigo_compliance_test
+  args: 
+    - '-deviation_default_network_instance="DEFAULT"'
