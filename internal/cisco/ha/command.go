@@ -85,9 +85,9 @@ func runLoop(cmd trigger, status  chan CommandStatus)  {
 		}
 		status <- Running
 		ctx := context.Background()
-		var 
+		var cancel context.CancelFunc
 		if cmd.config().Timeout!=0 {
-			ctx, cancel := context.WithTimeout(ctx, cmd.config().Timeout)
+			ctx, cancel = context.WithTimeout(ctx, cmd.config().Timeout)
 			defer cancel()
 		}
 		cmd.run(context.Background(),GNMI)
