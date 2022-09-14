@@ -1,3 +1,4 @@
+import shutil
 from celery.utils.log import get_task_logger
 from firexapp.engine.celery import app
 from firexapp.common import silent_mkdir
@@ -106,6 +107,8 @@ def b4_fp_chain_provider(ws,
 
     chain |= GoTest2HTML.s(Path(test_log_directory_path) / f'{script_name}.json', Path(test_log_directory_path) / 'results.html')
     
+    chain |= Cleanup.s(go_pkgs_dir=pkgs_parent_path)
+
     if cflow:
         chain |= CollectCoverageData.s(pyats_testbed='@testbed')
 
@@ -127,6 +130,11 @@ def PatchFP(self, fp_repo, patch_path):
     repo = git.Repo(fp_repo)
     repo.git.apply([os.path.join(fp_repo, patch_path)])
 
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def Cleanup(self, go_pkgs_dir):
+    shutil.rmtree(go_pkgs_dir)
+    
 # noinspection PyPep8Naming
 @app.task(bind=True, base=FireXRunnerBase)
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
