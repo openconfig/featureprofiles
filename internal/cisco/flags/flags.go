@@ -14,7 +14,10 @@ var (
 		"This enable/disable AFT chain check for gribi prefix in gribi tests.")
 
 	GRIBIFIBCheck = flag.Bool("gribi_fib_check", false,
-		"This enable/disable AFT check for gribi entries in gribi tests.")
+		"This enable/disable FIB ack check for gribi entries in gribi tests.")
+
+	GRIBIRIBCheck = flag.Bool("gribi_rib_check", true,
+		"This enable/disable  RIB ack check for gribi entries in gribi tests.")
 
 	GRIBIScale = flag.Uint("gribi_scale", 10,
 		"The number of gribi entries to be added in scale test.")
@@ -34,6 +37,7 @@ var (
 
 // GRIBICheck struct
 type GRIBICheck struct {
+	RIBACK        bool
 	FIBACK        bool
 	AFTCheck      bool
 	AFTChainCheck bool
@@ -44,6 +48,7 @@ var GRIBIChecks *GRIBICheck
 
 func init() {
 	GRIBIChecks = &GRIBICheck{
+		RIBACK:        *GRIBIFIBCheck,
 		FIBACK:        *GRIBIFIBCheck,
 		AFTCheck:      *GRIBIAFTCheck,
 		AFTChainCheck: *GRIBIAFTChainCheck,
