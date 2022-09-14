@@ -61,8 +61,10 @@ func TestMain(m *testing.M) {
 // as destination.
 
 const (
-	plen4 = 30
-	plen6 = 126
+	plen4          = 30
+	plen6          = 126
+	ethernetCsmacd = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ieee8023adLag  = telemetry.IETFInterfaces_InterfaceType_ieee8023adLag
 )
 
 var (
@@ -139,12 +141,14 @@ func (*testCase) configSrcDUT(i *telemetry.Interface, a *attrs.Attributes) {
 
 func (tc *testCase) configDstAggregateDUT(i *telemetry.Interface, a *attrs.Attributes) {
 	tc.configSrcDUT(i, a)
+	i.Type = ieee8023adLag
 	g := i.GetOrCreateAggregation()
 	g.LagType = tc.lagType
 }
 
 func (tc *testCase) configDstMemberDUT(i *telemetry.Interface, p *ondatra.Port) {
 	i.Description = ygot.String(p.String())
+	i.Type = ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -162,6 +166,7 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 
 	agg := d.GetOrCreateInterface(tc.aggID)
 	agg.GetOrCreateAggregation().LagType = tc.lagType
+	agg.Type = ieee8023adLag
 
 	for n, port := range tc.dutPorts {
 		if n < 1 {
@@ -170,6 +175,11 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 		}
 		i := d.GetOrCreateInterface(port.Name())
 		i.GetOrCreateEthernet().AggregateId = ygot.String(tc.aggID)
+		i.Type = ethernetCsmacd
+
+		if *deviations.InterfaceEnabled {
+			i.Enabled = ygot.Bool(true)
+		}
 	}
 
 	p := tc.dut.Config()
@@ -219,6 +229,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	srcp := tc.dutPorts[0]
 	srci := &telemetry.Interface{Name: ygot.String(srcp.Name())}
 	tc.configSrcDUT(srci, &dutSrc)
+	srci.Type = ethernetCsmacd
 	srciPath := d.Interface(srcp.Name())
 	fptest.LogYgot(t, srcp.String(), srciPath, srci)
 	srciPath.Replace(t, srci)
