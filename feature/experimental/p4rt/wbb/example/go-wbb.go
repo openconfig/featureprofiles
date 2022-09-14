@@ -21,15 +21,16 @@ package main
 
 import (
 	"flag"
+	"net"
+	"os"
+	"time"
+
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	codes "google.golang.org/grpc/codes"
-	"net"
-	"os"
-	"time"
 )
 
 // Command line args
