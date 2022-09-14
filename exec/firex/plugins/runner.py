@@ -68,18 +68,24 @@ def BringupTestbed(self, uid, ws, images = None,
     ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
     ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
 
+    check_output(f"sed -i 's|$FP_ROOT|{fp_repo_dir}|g' " + ondatra_binding_path)
+
     logger.warn(f'Loading image {images}')
-    logger.warn(f'Loading image {ondatra_testbed_path}')
-    logger.warn(f'Loading image {ondatra_binding_path}')
+
+    shutil.copy(images, fp_repo_dir)
+    image_path = os.path.join(fp_repo_dir, os.path.basename(images))
 
     install_cmd = f'{GO_BIN} test -v ' \
         f'./exec/utils/osinstall ' \
-        f'-testbed {images}' \
-        f'-binding {images}' \
-        f'-osfile {images}' \
+        f'-args ' \
+        f'-testbed {ondatra_testbed_path} ' \
+        f'-binding {ondatra_binding_path} ' \
+        f'-osfile {image_path} ' \
         f'-osver 0'
-    logger.warn(check_output(install_cmd))
 
+    logger.warn(f'Install cmd: {install_cmd}')
+
+    logger.warn(check_output(install_cmd, cwd=fp_repo_dir, shell=True))
     shutil.rmtree(pkgs_parent_path)
 
 @app.task(base=FireX, bind=True)
