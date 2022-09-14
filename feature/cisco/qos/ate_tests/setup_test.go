@@ -104,14 +104,7 @@ func BaseConfigEgressSche() *oc.Qos {
 func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bc := BaseConfig()
 	setup.ResetStruct(bc, []string{"Interface", "Classifier", "ForwardingGroup"})
-	// for fwd, val := range bc.ForwardingGroup {
-	//			dut.Config().Qos().ForwardingGroup(fwd).Update(t,val)
-	//		}
-	//      setup.ResetStruct(bc, []string{"Interface", "Classifier"})
-	//     bcClassifier := setup.GetAnyValue(bc.Classifier)
-	//    bcInterface := setup.GetAnyValue(bc.Interface)
-	//   dut.Config().Qos().Classifier(*bcClassifier.Name).Update(t, bcClassifier)
-	//  dut.Config().Qos().Interface(*bcInterface.InterfaceId).Update(t, bcInterface)
+
 	dut.Config().Qos().Update(t, bc)
 	return bc
 
@@ -129,14 +122,7 @@ func setupQosIpv6(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 func setupQosSche(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bc := BaseConfigSche()
 	setup.ResetStruct(bc, []string{"Interface", "Classifier", "ForwardingGroup"})
-	// for fwd, val := range bc.ForwardingGroup {
-	//			dut.Config().Qos().ForwardingGroup(fwd).Update(t,val)
-	//		}
-	//      setup.ResetStruct(bc, []string{"Interface", "Classifier"})
-	//     bcClassifier := setup.GetAnyValue(bc.Classifier)
-	//    bcInterface := setup.GetAnyValue(bc.Interface)
-	//   dut.Config().Qos().Classifier(*bcClassifier.Name).Update(t, bcClassifier)
-	//  dut.Config().Qos().Interface(*bcInterface.InterfaceId).Update(t, bcInterface)
+
 	dut.Config().Qos().Update(t, bc)
 	return bc
 
@@ -144,21 +130,13 @@ func setupQosSche(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 func setupQosTele(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bc := BaseConfig()
 	setup.ResetStruct(bc, []string{"Interface", "Classifier"})
-	// bcClassifier := setup.GetAnyValue(bc.Classifier)
-	// bcInterface := setup.GetAnyValue(bc.Interface)
-	// dut.Config().Qos().Classifier(*bcClassifier.Name).Update(t, bcClassifier)
-	// dut.Config().Qos().Interface(*bcInterface.InterfaceId).Update(t, bcInterface)
-	//dut.Config().Qos().Replace(t, bc)
+
 	return bc
 }
 func setupQosEgress(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bce := BaseConfigEgress()
 	fmt.Printf("%+v\n", bce.Queue)
-	//keys := make(make([]string, 0, len(bce.Queue))
-	//for k, v := range bce.Queue {
-	//fmt.Printf("key is %+v and value is %+v\n", k, *(v.Name))
-	//      dut.Config().Qos().Queue(k).Update(t, v)
-	//}
+
 	keys := make([]string, 0, len(bce.Queue))
 	//var keys []string
 	for ke := range bce.Queue {

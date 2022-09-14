@@ -8,8 +8,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	//"github.com/openconfig/featureprofiles/internal/cisco/config"
-	//"github.com/openconfig/ygot/ygot"
 )
 
 // Testcase defines testcase structure
@@ -71,23 +69,23 @@ func TestMain(m *testing.M) {
 var (
 	QoSTrafficTestcases = []Testcase{
 		{
-			name: "Transit with Double Recursion",
-			desc: "Programm double recursion transit with WCMP",
+			name: "Test QOS counters with Traffic",
+			desc: "Program gribi with wucmp and verify qos counters",
 			fn:   testQosCounter,
 		},
 		{
 			name: "test clear counters with traffic",
-			desc: "Clear qod counters and sen traffic again",
+			desc: "Clear qos counters and send traffic again",
 			fn:   ClearQosCounter,
 		},
 		{
-			name: "test clear counters with traffic",
-			desc: "Clear qod counters and sen traffic again",
+			name: "test queue delete and verify qos stats",
+			desc: "Delete and Add indvidual queue and verify qos stats",
 			fn:   QueueDelete,
 		},
 		{
-			name: "test clear counters with traffic",
-			desc: "Clear qod counters and sen traffic again",
+			name: "test ipv6 Qos policy with traffic",
+			desc: "Test ipv6 traffic with Qos and verify stats",
 			fn:   testQosCounteripv6,
 		},
 	}
