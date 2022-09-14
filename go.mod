@@ -5,14 +5,14 @@ go 1.19
 require (
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.8
-	github.com/open-traffic-generator/snappi/gosnappi v0.8.8
+	github.com/open-traffic-generator/snappi/gosnappi v0.9.3
 	github.com/openconfig/gnmi v0.0.0-20220617175856-41246b1b3507
 	github.com/openconfig/gnoi v0.0.0-20220809151450-6bddacd72ef8
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.1.0
 	github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56
 	github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e
-	github.com/openconfig/ondatra v0.0.0-20220830204626-28b9af3b191d
+	github.com/openconfig/ondatra v0.0.0-20220914190154-cba46794fe2e
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.2.3
 	github.com/openconfig/ygot v0.24.2
