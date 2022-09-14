@@ -49,7 +49,7 @@ func FindComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.
 func FindMatchingStrings(components []string, r *regexp.Regexp) []string {
 	var s []string
 	for _, c := range components {
-		if r.MatchString(c) == true {
+		if r.MatchString(c) {
 			s = append(s, c)
 		}
 	}
