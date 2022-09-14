@@ -100,7 +100,7 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) 
 	act, err := tc.osc.Activate(ctx, &ospb.ActivateRequest{
 		StandbySupervisor: standby,
 		Version:           *osVersion,
-		NoReboot:          false,
+		NoReboot:          true,
 	})
 	if err != nil {
 		t.Fatalf("OS.Activate request failed: %s", err)

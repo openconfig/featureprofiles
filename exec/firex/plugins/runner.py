@@ -81,7 +81,7 @@ def BringupTestbed(self, uid, ws, images = None,
         f'-testbed {ondatra_testbed_path} ' \
         f'-binding {ondatra_binding_path} ' \
         f'-osfile {image_path} ' \
-        f'-osver 0'
+        f'-osver 7.9.1.08Iv1.0.0'
 
     logger.warn(f'Install cmd: {install_cmd}')
 
