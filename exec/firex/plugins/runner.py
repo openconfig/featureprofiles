@@ -4,7 +4,7 @@ from firexapp.engine.celery import app
 from firexapp.common import silent_mkdir
 from firexapp.submit.arguments import whitelist_arguments
 from firexapp.firex_subprocess import check_output, CommandFailed
-from microservices.firex_base import returns, InjectArgs, flame
+from microservices.firex_base import returns, flame, InjectArgs, FireX
 from microservices.runners.go_b4_tasks import B4GoClone, get_go_env, copy_test_logs_dir, write_output_from_results_json
 from microservices.runners.runner_base import FireXRunnerBase
 from microservices.testbed_tasks import register_testbed_file_generator
@@ -38,6 +38,53 @@ whitelist_arguments([
     'test_args'
     'test_patch'
 ])
+
+@app.task(base=FireX, bind=True)
+def BringupTestbed(self, uid, ws, images = None,  
+                        ondatra_repo_branch='main',
+                        fp_repo_branch='kjahed/firex',                        
+                        ondatra_testbed_path=None,
+                        ondatra_binding_path=None):
+
+    pkgs_parent_path = os.path.join(ws, f'bringup_go_pkgs')
+
+    ondatra_repo_dir = os.path.join(pkgs_parent_path,
+                        ONDATRA_REPO_CLONE_INFO.path)
+    fp_repo_dir = os.path.join(pkgs_parent_path, 
+                        FP_REPO_CLONE_INFO.path)
+
+    c = B4GoClone.s(b4go_pkg_url=ONDATRA_REPO_CLONE_INFO.url,
+                        b4go_pkg_path=ondatra_repo_dir,
+                        b4go_pkg_branch=ondatra_repo_branch)
+
+    self.enqueue_child_and_get_results(c)
+
+    c = B4GoClone.s(b4go_pkg_url=FP_REPO_CLONE_INFO.url,
+                        b4go_pkg_path=fp_repo_dir,
+                        b4go_pkg_branch=fp_repo_branch)
+
+    self.enqueue_child_and_get_results(c)
+
+    ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
+    ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
+
+    logger.warn(f'Loading image {images}')
+    logger.warn(f'Loading image {ondatra_testbed_path}')
+    logger.warn(f'Loading image {ondatra_binding_path}')
+
+    install_cmd = f'{GO_BIN} test -v ' \
+        f'./exec/utils/osinstall ' \
+        f'-testbed {images}' \
+        f'-binding {images}' \
+        f'-osfile {images}' \
+        f'-osver 0'
+    logger.warn(check_output(install_cmd))
+
+    shutil.rmtree(pkgs_parent_path)
+
+@app.task(base=FireX, bind=True)
+def CleanupTestbed(self, uid, ws):
+    pass
 
 @register_test_framework_provider('b4_fp')
 def b4_fp_chain_provider(ws,
