@@ -2,7 +2,6 @@ package setup
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -39,7 +38,7 @@ func BaseConfig() oc.Acl {
 
 func init() {
 	var baseConfig oc.Acl
-	jsonConfig, err = ioutil.ReadFile(findTestDataPath())
+	jsonConfig, err = os.ReadFile(findTestDataPath())
 	if err != nil {
 		panic(fmt.Sprintf("Cannot load base config: %v", err))
 	}
