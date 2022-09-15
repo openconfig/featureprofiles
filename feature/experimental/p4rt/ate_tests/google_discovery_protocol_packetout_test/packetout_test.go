@@ -81,7 +81,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			port := sortPorts(args.ate.Ports())[0].Name()
 			counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 
-			packets := args.packetIO.GetPacketOut(t, portId, false)
+			packets := args.packetIO.GetPacketOut(portId, false)
 			packet_count := 100
 			sendPackets(t, test.client, packets, packet_count)
 
