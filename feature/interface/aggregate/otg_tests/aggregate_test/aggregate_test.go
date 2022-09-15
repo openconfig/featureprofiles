@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/telemetry"
@@ -258,26 +259,22 @@ func (tc *testCase) configureATE(t *testing.T) {
 	tc.top.Ports().Add().SetName(p0.ID())
 	srcDev := tc.top.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth")
+	srcEth.Connection().SetChoice("port_name").SetPortName(p0.ID())
 	srcEth.SetPortName(p0.ID()).SetMac(ateSrc.MAC)
-	srcEth.Ipv4Addresses().Add().
-		SetName(ateSrc.Name + ".IPv4").
-		SetAddress(ateSrc.IPv4).
-		SetGateway(dutSrc.IPv4).
-		SetPrefix(int32(ateSrc.IPv4Len))
-	srcEth.Ipv6Addresses().Add().
-		SetName(ateSrc.Name + ".IPv6").
-		SetAddress(ateSrc.IPv6).
-		SetGateway(dutSrc.IPv6).
-		SetPrefix(int32(ateSrc.IPv6Len))
+	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
+	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
 	// Adding the rest of the ports to the configuration and to the LAG
-	agg := tc.top.Lags().Add().SetName(ateDst.Name)
+	totalPorts := len(tc.dutPorts)
+	numLagPorts := totalPorts - 1
+	minLinks := uint16(numLagPorts - 1)
+	agg := tc.top.Lags().Add().SetName(ateDst.Name).SetMinLinks(int32(minLinks))
 	if tc.lagType == lagTypeSTATIC {
 		lagId, _ := strconv.Atoi(tc.aggID)
 		agg.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
-			newMac, err := incrementedMac(ateDst.MAC, i)
+			newMac, err := incrementedMac(ateDst.MAC, i+1)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -287,7 +284,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 		agg.Protocol().SetChoice("lacp")
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
-			newMac, err := incrementedMac(ateDst.MAC, i)
+			newMac, err := incrementedMac(ateDst.MAC, i+1)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -298,20 +295,10 @@ func (tc *testCase) configureATE(t *testing.T) {
 	}
 
 	dstDev := tc.top.Devices().Add().SetName(agg.Name())
-	dstEth := dstDev.Ethernets().Add().
-		SetName(ateDst.Name + ".Eth").
-		SetPortName(agg.Name()).
-		SetMac(ateDst.MAC)
-	dstEth.Ipv4Addresses().Add().
-		SetName(ateDst.Name + ".IPv4").
-		SetAddress(ateDst.IPv4).
-		SetGateway(dutDst.IPv4).
-		SetPrefix(int32(ateDst.IPv4Len))
-	dstEth.Ipv6Addresses().Add().
-		SetName(ateDst.Name + ".IPv6").
-		SetAddress(ateDst.IPv6).
-		SetGateway(dutDst.IPv6).
-		SetPrefix(int32(ateDst.IPv6Len))
+	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetPortName(agg.Name()).SetMac(ateDst.MAC)
+	dstEth.Connection().SetChoice("lag_name").SetLagName(agg.Name())
+	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
+	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
 
 	// Fail early if the topology is bad.
 	tc.ate.OTG().PushConfig(t, tc.top)
@@ -329,6 +316,10 @@ func (tc *testCase) configureATE(t *testing.T) {
 		})
 		t.Logf("ATE StartProtocols: %s", msg)
 	}
+}
+
+func (tc *testCase) clearATE(t *testing.T) {
+	tc.ate.OTG().StopProtocols(t)
 }
 
 const (
@@ -386,10 +377,21 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 func (tc *testCase) verifyATE(t *testing.T) {
 	ap := tc.atePorts[0]
 	// State for the interface.
+	time.Sleep(3 * time.Second)
+	otgutils.LogLagMetrics(t, tc.ate.OTG(), tc.top)
+
+	if tc.lagType == telemetry.IfAggregate_AggregationType_LACP {
+		otgutils.LogLacpMetrics(t, tc.ate.OTG(), tc.top)
+	}
 	portMetrics := tc.ate.OTG().Telemetry().Port(ap.ID()).Get(t)
 	if portMetrics.GetLink() != otgtelemetry.Port_Link_UP {
 		t.Errorf("%s oper-status got %v, want %v", ap.ID(), portMetrics.GetLink(), otgtelemetry.Port_Link_UP)
 	}
+	t.Logf("Checking if LAG is up on OTG")
+	tc.ate.OTG().Telemetry().Lag(ateDst.Name).OperStatus().Watch(t, time.Minute, func(val *otgtelemetry.QualifiedE_Lag_OperStatus) bool {
+		return val.Val(t).String() == "UP"
+	}).Await(t)
+
 }
 
 // sortPorts sorts the ports by the testbed port ID.
@@ -432,13 +434,26 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 		t.Run(tf.desc, func(t *testing.T) {
 			for _, port := range tc.atePorts[1 : 1+tf.downCount] {
 				if tc.lagType == telemetry.IfAggregate_AggregationType_LACP {
-					// Linked DUT and ATE ports have the same ID.
-					tc.ate.OTG().DisableLACPMembers(t, []string{port.String()})
 					dp := tc.dut.Port(t, port.ID())
-					dip := tc.dut.Telemetry().Interface(dp.Name())
-					t.Logf("Awaiting DUT port down: %v", dp)
-					dip.OperStatus().Await(t, time.Minute, opDown)
-					t.Log("Port is down.")
+
+					// Linked DUT and ATE ports have the same ID.
+					t.Logf("Taking otg port %s down in the LAG", port.ID())
+					tc.ate.OTG().DisableLACPMembers(t, []string{port.ID()})
+					time.Sleep(3 * time.Second)
+					otgutils.LogLacpMetrics(t, tc.ate.OTG(), tc.top)
+					otgutils.LogLagMetrics(t, tc.ate.OTG(), tc.top)
+
+					t.Logf("Awaiting LAG DUT port: %v to stop collecting", dp)
+					tc.dut.Telemetry().Lacp().InterfaceAny().Member(dp.Name()).Collecting().Watch(
+						t, time.Minute, func(val *telemetry.QualifiedBool) bool {
+							return !val.Val(t)
+						}).Await(t)
+					t.Logf("Awaiting LAG DUT port: %v to stop distributing", dp)
+					tc.dut.Telemetry().Lacp().InterfaceAny().Member(dp.Name()).Distributing().Watch(
+						t, time.Minute, func(val *telemetry.QualifiedBool) bool {
+							return !val.Val(t)
+						}).Await(t)
+
 				}
 				if tc.lagType == telemetry.IfAggregate_AggregationType_STATIC {
 					t.Skip("Setting the port status down doesn't work with kne/meshnet")
@@ -495,6 +510,8 @@ func TestNegotiation(t *testing.T) {
 			t.Run("VerifyATE", tc.verifyATE)
 
 			t.Run("MinLinks", tc.verifyMinLinks)
+
+			t.Run("ClearATE", tc.clearATE)
 		})
 	}
 }
