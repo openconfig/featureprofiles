@@ -1,7 +1,7 @@
 name: fp_public
 owner: mbagherz@cisco.com
-testbed: topologies/cisco/hw/8201-32FH/testbed
-binding: topologies/cisco/hw/8201-32FH/binding
+testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
+binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
 pretests:
   - name: pre_fp_gribi_test
     path: topologies/cisco/pretests/pre_fp_gribi_test.go
@@ -19,8 +19,6 @@ tests:
   path: feature/experimental/bgp/ate_tests/base_bgp_session_parameters
 - name: RT-3.2 (Multiple <Protocol, DSCP> Rules for VRF Selection) 
   path: feature/experimental/policy/policy_vrf_selection/ate_tests/protocol_dscp_rules_for_vrf_selection_test
-  args: 
-    - '-deviation_default_network_instance="DEFAULT"'
 - name: RT-2.2 (IS-IS LSP Updates) 
   path: feature/experimental/isis/ate_tests/lsp_updates_test
 - name: RT-2.1 (Base IS-IS Process and Adjacencies) 
@@ -82,6 +80,9 @@ tests:
   path: feature/gribi/ate_tests/leader_failover_test
 - name: TE-5.1 (gRIBI Get RPC) 
   path: feature/gribi/ate_tests/get_rpc_test
+  patch: exec/firex/plugins/fp_patch/get_rpc_test.patch
+  args: 
+    - '-protocol_name="default"'
 - name: TE-3.5 (Ordering ACK Received) 
   path: feature/gribi/ate_tests/ordering_ack_test
 - name: TE-3.2 (Traffic Balancing According to Weights) 
@@ -92,9 +93,13 @@ tests:
   path: feature/gribi/ate_tests/route_removal_non_default_vrf_test
 - name: TE-3.6 (ACK in the Presence of Other Routes) 
   path: feature/gribi/ate_tests/ack_in_presence_other_routes
+  patch: exec/firex/plugins/fp_patch/route_ack_test.patch
+  args: 
+    - '-protocol_name="default"'
 - name: TE-3.1 (Base Hierarchical Route Installation) 
   path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
 - name: TE-15.1 (gRIBI Compliance) 
   path: feature/gribi/tests/gribigo_compliance_test
+  patch: exec/firex/plugins/fp_patch/gribigo_compliance_test.patch
   args: 
-    - '-deviation_default_network_instance="DEFAULT"'
+    - '-protocol_name="default"'
