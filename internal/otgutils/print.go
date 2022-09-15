@@ -29,7 +29,7 @@ import (
 func LogFlowMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
 	var out strings.Builder
-	out.WriteString("\nFlow Metrics\n")
+	out.WriteString("\nOTG Flow Metrics\n")
 	fmt.Fprintln(&out, strings.Repeat("-", 80))
 	out.WriteString("\n")
 	fmt.Fprintf(&out, "%-25v%-15v%-15v%-15v%-15v\n", "Name", "Frames Tx", "Frames Rx", "FPS Tx", "FPS Rx")
@@ -51,7 +51,7 @@ func LogPortMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
 	var link string
 	var out strings.Builder
-	out.WriteString("\nPort Metrics\n")
+	out.WriteString("\nOTG Port Metrics\n")
 	fmt.Fprintln(&out, strings.Repeat("-", 120))
 	out.WriteString("\n")
 	fmt.Fprintf(&out,
@@ -89,17 +89,17 @@ func LogLagMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	}
 	out.WriteString("\n")
 	fmt.Fprintf(&out,
-		"%-25s%-15s%-20s\n",
-		"Name", "Oper Status", "Member Ports UP")
+		"%-25s%-15s%-15s%-15s%-20s\n",
+		"Name", "Oper Status", "Frames Tx", "Frames Rx", "Member Ports UP")
 	for _, lag := range c.Lags().Items() {
 		lagMetrics := otg.Telemetry().Lag(lag.Name()).Get(t)
 		operStatus := lagMetrics.GetOperStatus().String()
 		memberPortsUP := lagMetrics.GetCounters().GetMemberPortsUp()
-		// framesTx := lagMetrics.GetCounters().GetOutFrames()
-		// framesRx := lagMetrics.GetCounters().GetInFrames()
+		framesTx := lagMetrics.GetCounters().GetOutFrames()
+		framesRx := lagMetrics.GetCounters().GetInFrames()
 		out.WriteString(fmt.Sprintf(
-			"%-25v%-15v%-20v\n",
-			lag.Name(), operStatus, memberPortsUP,
+			"%-25v%-15v%-15v%-15v%-20v\n",
+			lag.Name(), operStatus, framesTx, framesRx, memberPortsUP,
 		))
 	}
 	fmt.Fprintln(&out, strings.Repeat("-", 120))
