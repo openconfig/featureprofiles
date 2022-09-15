@@ -237,6 +237,19 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 	if got, want := r.GetActivationFailMessage(), ""; got != want {
 		t.Errorf("OS.Verify ActivationFailMessage: got %q, want %q", got, want)
 	}
+	// if got, want := r.GetVersion(), *osVersion; got != want {
+	// 	t.Errorf("OS.Verify Version: got %q, want %q", got, want)
+	// }
+
+	if tc.dualSup {
+		if got, want := r.GetVerifyStandby().GetVerifyResponse().GetActivationFailMessage(), ""; got != want {
+			t.Errorf("OS.Verify Standby ActivationFailMessage: got %q, want %q", got, want)
+		}
+
+		// if got, want := r.GetVerifyStandby().GetVerifyResponse().GetVersion(), *osVersion; got != want {
+		// 	t.Errorf("OS.Verify Standby Version: got %q, want %q", got, want)
+		// }
+	}
 
 	t.Log("OS.Verify complete")
 }
