@@ -11,7 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package wbbtest
+
+// Package components provides functions to enumerate components from the device.
+package components
 
 import (
 	"regexp"
