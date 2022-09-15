@@ -71,9 +71,11 @@ var (
 )
 
 const (
-	lagTypeLACP   = telemetry.IfAggregate_AggregationType_LACP
-	lagTypeSTATIC = telemetry.IfAggregate_AggregationType_STATIC
-	minLink       = 1
+	ethernetCsmacd = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ieee8023adLag  = telemetry.IETFInterfaces_InterfaceType_ieee8023adLag
+	lagTypeLACP    = telemetry.IfAggregate_AggregationType_LACP
+	lagTypeSTATIC  = telemetry.IfAggregate_AggregationType_STATIC
+	minLink        = 1
 )
 
 type testCase struct {
@@ -111,6 +113,7 @@ func (*testCase) configDUT(i *telemetry.Interface, a *attrs.Attributes) {
 
 func (tc *testCase) configAggregateDUT(i *telemetry.Interface, a *attrs.Attributes) {
 	tc.configDUT(i, a)
+	i.Type = ieee8023adLag
 	g := i.GetOrCreateAggregation()
 	g.LagType = tc.lagType
 	g.MinLinks = ygot.Uint16(tc.minlinks)
@@ -124,6 +127,7 @@ var portSpeed = map[ondatra.Speed]telemetry.E_IfEthernet_ETHERNET_SPEED{
 
 func (tc *testCase) configMemberDUT(i *telemetry.Interface, p *ondatra.Port) {
 	i.Description = ygot.String(p.String())
+	i.Type = ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -144,6 +148,7 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	for _, port := range tc.dutPorts {
 		i := d.GetOrCreateInterface(port.Name())
 		i.GetOrCreateEthernet().AggregateId = ygot.String(tc.aggID)
+		i.Type = ethernetCsmacd
 	}
 
 	p := tc.dut.Config()
