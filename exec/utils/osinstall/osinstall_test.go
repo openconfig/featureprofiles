@@ -93,6 +93,8 @@ func TestOSInstall(t *testing.T) {
 		tc.activateOS(ctx, t, true)
 	}
 	tc.rebootDUT(ctx, t)
+
+	tc.osc = dut.RawAPIs().GNOI().Default(t).OS()
 	tc.verifyInstall(ctx, t)
 }
 
