@@ -213,18 +213,7 @@ func setupQosEgressTel(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bce := BaseConfigEgress()
 	return bce
 }
-
-func teardownQos(t *testing.T, dut *ondatra.DUTDevice) {
-	var err *string
-	for attempt := 1; attempt <= 2; attempt++ {
-		err = testt.CaptureFatal(t, func(t testing.TB) {
-			dut.Config().Qos().Delete(t)
-		})
-		if err == nil {
-			break
-		}
-	}
-	if err != nil {
-		t.Errorf(*err)
-	}
+func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
+        dut.Config().Qos().Delete(t)
 }
+
