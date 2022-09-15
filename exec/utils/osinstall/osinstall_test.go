@@ -121,29 +121,6 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) 
 	}
 }
 
-// fetchStandbySupervisorStatus checks if the DUT has a standby supervisor available in a working state.
-func (tc *testCase) fetchStandbySupervisorStatus(ctx context.Context, t *testing.T) {
-	r, err := tc.osc.Verify(ctx, &ospb.VerifyRequest{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	switch v := r.GetVerifyStandby().GetState().(type) {
-	case *ospb.VerifyStandby_StandbyState:
-		if v.StandbyState.GetState() == ospb.StandbyState_UNAVAILABLE {
-			t.Fatal("OS.Verify RPC reports standby supervisor in UNAVAILABLE state.")
-		}
-		// All other supervisor states indicate this device does not support or have dual supervisors available.
-		t.Log("DUT is detected as single supervisor.")
-		tc.dualSup = false
-	case *ospb.VerifyStandby_VerifyResponse:
-		t.Log("DUT is detected as dual supervisor.")
-		tc.dualSup = true
-	default:
-		t.Fatalf("Unexpected OS.Verify Standby State RPC Response: got %v (%T)", v, v)
-	}
-}
-
 func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T) {
 	bootTime := tc.dut.Telemetry().System().BootTime().Get(t)
 	deadline := time.Now().Add(*timeout)
