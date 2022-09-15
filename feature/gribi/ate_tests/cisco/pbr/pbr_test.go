@@ -381,15 +381,15 @@ func getBoundedFlowIPinIP(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dst
 	return flow
 }
 
-//deletePolicyFromInterface function removes the pbr policy from Bundle-Ether120 using CLI options.
-//This is a temporary fix for accommodating various types of pbr policies on the interface
+// deletePolicyFromInterface function removes the pbr policy from Bundle-Ether120 using CLI options.
+// This is a temporary fix for accommodating various types of pbr policies on the interface
 func deletePolicyFromInterface(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 	configToChange := fmt.Sprintf("no interface Bundle-Ether120  service-policy type pbr input %s\n", policyName)
 	config.TextWithGNMI(ctx, t, dut, configToChange)
 }
 
-//deletePBRPolicyAndClassMaps function deletes pbr policy-map and class-map configuration using CLI.
-//This is a temporary fix to cleanup the configurations.
+// deletePBRPolicyAndClassMaps function deletes pbr policy-map and class-map configuration using CLI.
+// This is a temporary fix to cleanup the configurations.
 func deletePBRPolicyAndClassMaps(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, policyName string, index int) {
 	configToChange := fmt.Sprintf("no policy-map type pbr %s\n", policyName)
 	for i := 1; i <= index; i++ {

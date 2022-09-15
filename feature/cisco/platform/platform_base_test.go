@@ -31,8 +31,8 @@ var (
 	Platform = PlatformSF
 )
 
-//to hold platform info
-//To do: get this dynamiclly from device
+// to hold platform info
+// To do: get this dynamiclly from device
 type PlatformInfo struct {
 	Chassis            string
 	Linecard           string
