@@ -1,0 +1,274 @@
+{
+    "openconfig-qos:classifiers": {
+      "classifier": [
+        {
+          "state": {
+            "name": "pmap9",
+            "type": "IPV6"
+          },
+          "name": "pmap9",
+          "terms": {
+            "term": [
+              {
+                "actions": {
+                  "state": {
+                    "target-group": "tc1"
+                  },
+                  "remark": {
+                    "state": {
+                      "set-dscp": 20
+                    }
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "state": {
+                      "dscp-set": [1,2,3,4,5,6,7,8] 
+                    }
+                  }
+                },
+                "id": "cmap1",
+                "state": {
+                  "id": "cmap1"
+                }
+              },
+              {
+                "actions": {
+                  "state": {
+                    "target-group": "tc2"
+                  },
+
+                  "remark": {
+                    "state": {
+                      "set-dscp": 21
+                    }
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "state": {
+                      "dscp-set": [9,10,11,12,13,14,15,16]
+                    }
+                  }
+                },
+                "id": "cmap2",
+                "state": {
+                  "id": "cmap2"
+                }
+              },
+              {
+                "actions": {
+                  "state": {
+                    "target-group": "tc3"
+                  },
+
+                  "remark": {
+                    "state": {
+                      "set-dscp": 32
+                    }
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "state": {
+                      "dscp-set": [17,18,19,20,21,22,23,24] 
+                    }
+                  }
+                },
+                "id": "cmap3",
+                "state": {
+                  "id": "cmap3"
+                }
+              },
+              {
+                "actions": {
+                  "state": {
+                    "target-group": "tc4"
+                  },
+
+                  "remark": {
+                    "state": {
+                      "set-dscp": 33
+                    }
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "state": {
+                      "dscp-set": [25,26,27,28,29,30,31,32]
+                    }
+                  }
+                },
+                "id": "cmap4",
+                "state": {
+                  "id": "cmap4"
+                }
+              },
+              {
+                "actions": {
+                  "state": {
+                    "target-group": "tc5"
+                  },
+
+                  "remark": {
+                    "state": {
+                      "set-dscp": 41 
+                    }
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "state": {
+                      "dscp-set": [33,34,35,36,37,38,39,40] 
+                    }
+                  }
+                },
+                "id": "cmap5",
+                "state": {
+                  "id": "cmap5"
+                }
+              },
+              {
+                "actions": {
+                  "state": {
+                    "target-group": "tc6"
+                  },
+
+                  "remark": {
+                    "state": {
+                      "set-dscp": 30
+                    }
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "state": {
+                      "dscp-set": [41,42,43,44,45,46,47,48] 
+                    }
+                  }
+                },
+                "id": "cmap6",
+                "state": {
+                  "id": "cmap6"
+                }
+              },
+              {
+                "actions": {
+                  "state": {
+                    "target-group": "tc7"
+                  },
+
+                  "remark": {
+                    "state": {
+                      "set-dscp": 20
+                    }
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "state": {
+                      "dscp-set": [49, 50, 51, 52, 53, 54, 55, 56]
+                    }
+                  }
+                },
+                "id": "cmap7",
+                "state": {
+                  "id": "cmap7"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "openconfig-qos:forwarding-groups": {
+        "forwarding-group": [
+          {
+            "name": "tc1",
+            "state": {
+              "name": "tc1",
+              "output-queue": "tc1"
+            }
+          },
+          {
+            "name": "tc2",
+            "state": {
+              "name": "tc2",
+              "output-queue": "tc2"
+            }
+          },
+          {
+            "name": "tc3",
+            "state": {
+              "name": "tc3",
+              "output-queue": "tc3"
+            }
+          },
+          {
+            "name": "tc4",
+            "state": {
+              "name": "tc4",
+              "output-queue": "tc4"
+            }
+          },
+          {
+            "name": "tc5",
+            "state": {
+              "name": "tc5",
+              "output-queue": "tc5"
+            }
+          },
+          {
+            "name": "tc6",
+            "state": {
+              "name": "tc6",
+              "output-queue": "tc6"
+            }
+          },
+          {
+            "name": "tc7",
+            "state": {
+              "name": "tc7",
+              "output-queue": "tc7"
+            }
+          }
+        ]
+      },
+    "openconfig-qos:interfaces": {
+      "interface": [
+      {
+        "state": {
+          "interface-id":"Bundle-Ether120"
+        },
+        "interface-id":"Bundle-Ether120",
+        "input": {
+          "classifiers": {
+            "classifier": [
+              {
+                "state": {
+                  "name": "pmap9",
+                  "type": "IPV4"
+                },
+                "type": "IPV4"
+              },
+              {
+                "state": {
+                  "name": "pmap9",
+                  "type": "IPV6"
+                },
+                "type": "IPV6"
+              },
+              {
+                "state": {
+                  "name": "pmap9",
+                  "type": "MPLS"
+                },
+                "type": "MPLS"
+              }
+            ]
+          }
+        }
+      }
+    ]
+    }
+  }
