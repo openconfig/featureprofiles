@@ -93,7 +93,7 @@ func TestOSInstall(t *testing.T) {
 		tc.activateOS(ctx, t, true)
 	}
 	tc.rebootDUT(ctx, t)
-	tc.verifyInstall(ctx, t)
+	// tc.verifyInstall(ctx, t)
 }
 
 func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) {
@@ -155,8 +155,6 @@ func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T) {
 		t.Log("Waiting for reboot to complete...")
 		time.Sleep(10 * time.Second)
 	}
-
-	time.Sleep(60 * time.Second)
 }
 
 func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) {

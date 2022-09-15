@@ -77,6 +77,7 @@ def BringupTestbed(self, uid, ws, images = None,
 
     install_cmd = f'{GO_BIN} test -v ' \
         f'./exec/utils/osinstall ' \
+        f'-timeout 0 ' \
         f'-args ' \
         f'-testbed {ondatra_testbed_path} ' \
         f'-binding {ondatra_binding_path} ' \
@@ -85,7 +86,7 @@ def BringupTestbed(self, uid, ws, images = None,
 
     logger.warn(f'Install cmd: {install_cmd}')
 
-    logger.warn(check_output(install_cmd, cwd=fp_repo_dir, shell=True))
+    logger.warn(check_output(install_cmd, cwd=fp_repo_dir))
     shutil.rmtree(pkgs_parent_path)
 
 @app.task(base=FireX, bind=True)
