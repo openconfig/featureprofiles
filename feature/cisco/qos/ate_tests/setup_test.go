@@ -213,7 +213,7 @@ func setupQosEgressTel(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bce := BaseConfigEgress()
 	return bce
 }
-func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
+func teardownQos(t *testing.T, dut *ondatra.DUTDevice) {
         dut.Config().Qos().Delete(t)
 }
 
