@@ -42,7 +42,7 @@ whitelist_arguments([
 @app.task(base=FireX, bind=True)
 def BringupTestbed(self, uid, ws, images = None,  
                         ondatra_repo_branch='main',
-                        fp_repo_branch='kjahed/firex',                        
+                        fp_repo_branch='master',                        
                         ondatra_testbed_path=None,
                         ondatra_binding_path=None):
 
@@ -74,7 +74,8 @@ def BringupTestbed(self, uid, ws, images = None,
     image_path = os.path.join(fp_repo_dir, os.path.basename(images))
     
     image_version = check_output(
-        f"/usr/bin/isoinfo -i {image_path} -x '/MDATA/BUILD_IN.TXT;1' | tail -n1 | cut -d'=' ", 
+        f"/usr/bin/isoinfo -i {image_path} -x '/MDATA/BUILD_IN.TXT;1' " \
+            f"| tail -n1 | cut -d'=' -f2 | cut -d'-' -f1", 
         shell=True
     ).strip()
     logger.print(f'Image version: {image_version}')
@@ -105,7 +106,7 @@ def b4_fp_chain_provider(ws,
                          xunit_results_filepath,
                          cflow,
                          ondatra_repo_branch='main',
-                         fp_repo_branch='kjahed/firex',
+                         fp_repo_branch='master',
                          ondatra_testbed_path=None,
                          ondatra_binding_path=None,
                          fp_pre_tests=[],
