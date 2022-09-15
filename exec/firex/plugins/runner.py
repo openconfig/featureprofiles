@@ -67,13 +67,17 @@ def BringupTestbed(self, uid, ws, images = None,
 
     ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
     ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
-
     check_output(f"sed -i 's|$FP_ROOT|{fp_repo_dir}|g' " + ondatra_binding_path)
 
-    logger.warn(f'Loading image {images}')
-
+    logger.print(f'Copying image {images}')
     shutil.copy(images, fp_repo_dir)
     image_path = os.path.join(fp_repo_dir, os.path.basename(images))
+    
+    image_version = check_output(
+        f"/usr/bin/isoinfo -i {image_path} -x '/MDATA/BUILD_IN.TXT;1' | tail -n1 | cut -d'=' ", 
+        shell=True
+    ).strip()
+    logger.print(f'Image version: {image_version}')
 
     install_cmd = f'{GO_BIN} test -v ' \
         f'./exec/utils/osinstall ' \
@@ -82,11 +86,10 @@ def BringupTestbed(self, uid, ws, images = None,
         f'-testbed {ondatra_testbed_path} ' \
         f'-binding {ondatra_binding_path} ' \
         f'-osfile {image_path} ' \
-        f'-osver 7.9.1.08Iv1.0.0'
+        f'-osver {image_version}'
 
-    logger.warn(f'Install cmd: {install_cmd}')
-
-    logger.warn(check_output(install_cmd, cwd=fp_repo_dir))
+    logger.print(f'Executing osinstall command:\n {install_cmd}')
+    logger.print(check_output(install_cmd, cwd=fp_repo_dir))
     shutil.rmtree(pkgs_parent_path)
 
 @app.task(base=FireX, bind=True)
