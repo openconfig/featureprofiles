@@ -11,11 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package ordering_ack_test
 
 import (
 	"context"
 	"flag"
+	"fmt"
 	"testing"
 	"time"
 
@@ -34,11 +36,7 @@ var (
 	// TE-3.5 specific deviation flags that are currently set to reduced compliance checking
 	// in order to establish a baseline to highlight the non-compliant behavior.  They
 	// should be set to the more strict setting.
-	fibAck         = flag.Bool("fib_ack", true, "Request FIB_PROGRAMMED from the device.")
-	flush          = flag.Bool("flush", false, "Flush gRIBI entries before setup.  Should normally be false unless the device erroneously persists entries after the client disconnected.")
 	checkTelemetry = flag.Bool("telemetry", false /* TODO: set to true */, "Check AFT telemetry.")
-
-	wantInstalled = fluent.InstalledInRIB
 )
 
 func TestMain(m *testing.M) {
@@ -54,22 +52,21 @@ func TestMain(m *testing.M) {
 // dut:port2 -> ate:port2.  The first pair is called the "source"
 // pair, and the second the "destination" pair.
 //
-//   * Source: ate:port1 -> dut:port1 subnet 192.0.2.0/30
-//   * Destination: dut:port2 -> ate:port2 subnet 192.0.2.4/30
+//   - Source: ate:port1 -> dut:port1 subnet 192.0.2.0/30
+//   - Destination: dut:port2 -> ate:port2 subnet 192.0.2.4/30
 //
 // A traffic flow from a source network is configured to be sent from
 // ate:port1, with a destination network expected to be received at
 // ate:port{2-9}.
 //
-//   * Source network: 198.51.100.0/24 (TEST-NET-2)
-//   * Destination network: 203.0.113.0/24 (TEST-NET-3)
+//   - Source network: 198.51.100.0/24 (TEST-NET-2)
+//   - Destination network: 203.0.113.0/24 (TEST-NET-3)
 const (
 	plen4 = 30
 
 	ateDstNetName = "dstnet"
 	ateDstNetCIDR = "203.0.113.0/24"
 
-	instance = "default"
 	nhIndex  = 42
 	nhWeight = 1
 	nhgIndex = 10
@@ -193,11 +190,12 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB) erro
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx context.Context
-	c   *fluent.GRIBIClient
-	dut *ondatra.DUTDevice
-	ate *ondatra.ATEDevice
-	top *ondatra.ATETopology
+	ctx           context.Context
+	c             *fluent.GRIBIClient
+	dut           *ondatra.DUTDevice
+	ate           *ondatra.ATEDevice
+	top           *ondatra.ATETopology
+	wantInstalled fluent.ProgrammingResult
 }
 
 // testCaseFunc describes a test case function.
@@ -207,11 +205,11 @@ type testCaseFunc func(t *testing.T, args *testArgs)
 func testModifyNHG(t *testing.T, args *testArgs) {
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithIndex(nhIndex).
 			WithIPAddress(ateDst.IPv4),
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithID(nhgIndex).
 			AddNextHop(nhIndex, nhWeight),
 	)
@@ -225,7 +223,7 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 			WithOperationID(1).
 			WithOperationType(constants.Add).
 			WithNextHopOperation(nhIndex).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 	chk.HasResult(t, res,
@@ -233,7 +231,7 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 			WithOperationID(2).
 			WithOperationType(constants.Add).
 			WithNextHopGroupOperation(nhgIndex).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 
@@ -241,7 +239,7 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 		if !*checkTelemetry {
 			t.Skip()
 		}
-		nhgNhPath := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndex).NextHop(nhIndex)
+		nhgNhPath := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhgIndex).NextHop(nhIndex)
 		if got, want := nhgNhPath.Index().Get(t), uint64(nhIndex); got != want {
 			t.Errorf("next-hop-group/next-hop/state/index got %d, want %d", got, want)
 		}
@@ -256,15 +254,15 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 func testModifyIPv4NHG(t *testing.T, args *testArgs) {
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithIndex(nhIndex).
 			WithIPAddress(ateDst.IPv4),
 		fluent.IPv4Entry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithPrefix(ateDstNetCIDR).
 			WithNextHopGroup(nhgIndex),
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithID(nhgIndex).
 			AddNextHop(nhIndex, nhWeight),
 	)
@@ -287,15 +285,15 @@ func testModifyIPv4NHG(t *testing.T, args *testArgs) {
 func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithIndex(nhIndex).
 			WithIPAddress(ateDst.IPv4),
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithID(nhgIndex).
 			AddNextHop(nhIndex, nhWeight),
 		fluent.IPv4Entry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithPrefix(ateDstNetCIDR).
 			WithNextHopGroup(nhgIndex),
 	)
@@ -309,7 +307,7 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 			WithOperationID(1).
 			WithOperationType(constants.Add).
 			WithNextHopOperation(nhIndex).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 	chk.HasResult(t, res,
@@ -317,7 +315,7 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 			WithOperationID(2).
 			WithOperationType(constants.Add).
 			WithNextHopGroupOperation(nhgIndex).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 	chk.HasResult(t, res,
@@ -325,7 +323,7 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 			WithOperationID(3).
 			WithOperationType(constants.Add).
 			WithIPv4Operation(ateDstNetCIDR).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 
@@ -333,7 +331,7 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 		if !*checkTelemetry {
 			t.Skip()
 		}
-		nhgNhPath := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndex).NextHop(nhIndex)
+		nhgNhPath := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhgIndex).NextHop(nhIndex)
 		if got, want := nhgNhPath.Index().Get(t), uint64(nhIndex); got != want {
 			t.Errorf("next-hop-group/next-hop/state/index got %d, want %d", got, want)
 		}
@@ -341,7 +339,7 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 			t.Errorf("next-hop-group/next-hop/state/weight got %d, want %d", got, want)
 		}
 
-		ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
+		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
 		if got, want := ipv4Path.NextHopGroup().Get(t), uint64(nhgIndex); got != want {
 			t.Errorf("ipv4-entry/state/next-hop-group got %d, want %d", got, want)
 		}
@@ -361,7 +359,7 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 	testModifyNHG(t, args) // Uses operation IDs 1 and 2.
 
 	ent := fluent.IPv4Entry().
-		WithNetworkInstance(instance).
+		WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithPrefix(ateDstNetCIDR).
 		WithNextHopGroup(nhgIndex)
 
@@ -379,7 +377,7 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 			WithOperationID(3).
 			WithOperationType(constants.Add).
 			WithIPv4Operation(ateDstNetCIDR).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 	chk.HasResult(t, res,
@@ -387,7 +385,7 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 			WithOperationID(4).
 			WithOperationType(constants.Delete).
 			WithIPv4Operation(ateDstNetCIDR).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 	chk.HasResult(t, res,
@@ -395,7 +393,7 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 			WithOperationID(5).
 			WithOperationType(constants.Add).
 			WithIPv4Operation(ateDstNetCIDR).
-			WithProgrammingResult(wantInstalled).
+			WithProgrammingResult(args.wantInstalled).
 			AsResult(),
 	)
 
@@ -403,7 +401,7 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 		if !*checkTelemetry {
 			t.Skip()
 		}
-		ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
+		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
 		if got, want := ipv4Path.NextHopGroup().Get(t), uint64(nhgIndex); got != want {
 			t.Errorf("ipv4-entry/state/next-hop-group got %d, want %d", got, want)
 		}
@@ -459,45 +457,67 @@ func TestOrderingACK(t *testing.T) {
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
 
+	const (
+		usePreserve = "PRESERVE"
+		useDelete   = "DELETE"
+	)
+
 	// Each case will run with its own gRIBI fluent client.
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Logf("Name: %s", tc.name)
-			t.Logf("Description: %s", tc.desc)
-
-			// Configure the gRIBI client.
-			c := fluent.NewClient()
-			n := c.Connection().
-				WithStub(gribic).
-				WithRedundancyMode(fluent.ElectedPrimaryClient).
-				WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
-			if *fibAck {
-				// The main difference WithFIBACK() made was that we are now expecting
-				// fluent.InstalledInFIB in []*client.OpResult, as opposed to
-				// fluent.InstalledInRIB.
-				n.WithFIBACK()
-				wantInstalled = fluent.InstalledInFIB
+	for _, persist := range []string{usePreserve, useDelete} {
+		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
+			if *deviations.GRIBIPreserveOnly && persist == useDelete {
+				t.Skip("Skipping due to --deviations_gribi_preserve_only")
 			}
 
-			c.Start(ctx, t)
-			defer c.Stop(t)
-			c.StartSending(ctx, t)
-			if err := awaitTimeout(ctx, c, t); err != nil {
-				t.Fatalf("Await got error during session negotiation: %v", err)
-			}
+			for _, tc := range cases {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Logf("Name: %s", tc.name)
+					t.Logf("Description: %s", tc.desc)
 
-			if *flush {
-				_, err := c.Flush().
-					WithElectionOverride().
-					WithAllNetworkInstances().
-					Send()
-				if err != nil {
-					t.Errorf("Cannot flush: %v", err)
-				}
-			}
+					// Configure the gRIBI client.
+					c := fluent.NewClient()
+					conn := c.Connection().
+						WithStub(gribic).
+						WithRedundancyMode(fluent.ElectedPrimaryClient).
+						WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
+					if persist == usePreserve {
+						conn.WithPersistence()
+					}
 
-			args := &testArgs{ctx: ctx, c: c, dut: dut, ate: ate, top: top}
-			tc.fn(t, args)
+					if !*deviations.GRIBIRIBAckOnly {
+						// The main difference WithFIBACK() made was that we are now expecting
+						// fluent.InstalledInFIB in []*client.OpResult, as opposed to
+						// fluent.InstalledInRIB.
+						conn.WithFIBACK()
+					}
+
+					c.Start(ctx, t)
+					defer c.Stop(t)
+					c.StartSending(ctx, t)
+					if err := awaitTimeout(ctx, c, t); err != nil {
+						t.Fatalf("Await got error during session negotiation: %v", err)
+					}
+
+					if persist == usePreserve {
+						defer func() {
+							_, err := c.Flush().
+								WithElectionOverride().
+								WithAllNetworkInstances().
+								Send()
+							if err != nil {
+								t.Errorf("Cannot flush: %v", err)
+							}
+						}()
+					}
+
+					args := &testArgs{ctx: ctx, c: c, dut: dut, ate: ate, top: top}
+					args.wantInstalled = fluent.InstalledInFIB
+					if *deviations.GRIBIRIBAckOnly {
+						args.wantInstalled = fluent.InstalledInRIB
+					}
+					tc.fn(t, args)
+				})
+			}
 		})
 	}
 }

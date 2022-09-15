@@ -101,8 +101,14 @@ telemetry_path {
 config_path {
     path: "/system/aaa/authentication/users/user/config/username"
 }
+telemetry_path {
+    path: "/system/aaa/authentication/users/user/state/username"
+}
 config_path {
     path: "/system/aaa/authentication/users/user/config/ssh-key"
+}
+telemetry_path {
+    path: "/system/aaa/authentication/users/user/state/ssh-key"
 }
 
 # Alarms
@@ -123,49 +129,4 @@ telemetry_path {
 }
 telemetry_path {
     path: "/system/alarms/alarm/state/type-id"
-}
-
-gnoi_service {
-  service_name: "gnoi.os.OS"
-  method_name: "Install"
-}
-
-gnoi_service {
-  service_name: "gnoi.os.OS"
-  method_name: "Activate"
-}
-
-gnoi_service {
-  service_name: "gnoi.os.OS"
-  method_name: "Verify"
-}
-
-gnoi_service {
-  service_name: "gnoi.os.FactoryReset"
-  method_name: "Start"
-}
-
-gnoi_service {
-  service_name: "gnoi.os.System"
-  method_name: "Ping"
-}
-
-gnoi_service {
-  service_name: "gnoi.os.System"
-  method_name: "Traceroute"
-}
-
-gnoi_service {
-  service_name: "gnoi.os.System"
-  method_name: "Reboot"
-}
-
-gnoi_service {
-  service_name: "gnoi.os.System"
-  method_name: "RebootStatus"
-}
-
-gnoi_service {
-  service_name: "gnoi.os.System"
-  method_name: "CancelReboot"
 }

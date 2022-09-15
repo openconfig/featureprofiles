@@ -21,14 +21,26 @@ id {
 config_path {
     path: "/network-instances/network-instance/config/enabled"
 }
+telemetry_path {
+    path: "/network-instances/network-instance/state/enabled"
+}
 config_path {
     path: "/network-instances/network-instance/config/enabled-address-families"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/state/enabled-address-families"
 }
 config_path {
     path: "/network-instances/network-instance/config/name"
 }
+telemetry_path {
+    path: "/network-instances/network-instance/state/name"
+}
 config_path {
     path: "/network-instances/network-instance/config/type"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/state/type"
 }
 
 # BGP Instance
@@ -456,10 +468,6 @@ telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/remote-port"
 }
 
-gnoi_service {
-  service_name: "gnoi.bgp.BGP"
-  method_name: "ClearBGPNeighbor"
-}
 feature_profile_dependency {
   name: "networkinstance"
   version: 1

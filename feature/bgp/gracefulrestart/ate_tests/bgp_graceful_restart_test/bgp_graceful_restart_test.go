@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/config/acl"
@@ -68,6 +69,9 @@ const (
 	ateAS                    = 64501
 	plenIPv4                 = 30
 	plenIPv6                 = 126
+	bgpPort                  = 179
+	peerGrpName              = "BGP-PEER-GROUP"
+	ateDstCIDR               = "192.0.2.6/32"
 )
 
 var (
@@ -101,7 +105,7 @@ var (
 	}
 )
 
-// configureDUT configures all the interfaces on the DUT.
+// configureDUT configures all the interfaces and network instance on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := dut.Config()
 	i1 := dutSrc.NewInterface(dut.Port(t, "port1").Name())
@@ -109,6 +113,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	i2 := dutDst.NewInterface(dut.Port(t, "port2").Name())
 	dc.Interface(i2.GetName()).Replace(t, i2)
+
+	t.Log("Configure/update Network Instance")
+	dutConfNIPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	dutConfNIPath.RouterId().Replace(t, dutDst.IPv4)
 }
 
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
@@ -144,9 +153,14 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *telemetry.NetworkInstance_Proto
 	bgpgr.RestartTime = ygot.Uint16(grRestartTime)
 	bgpgr.StaleRoutesTime = ygot.Uint16(grStaleRouteTime)
 
+	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
+	pg.PeerAs = ygot.Uint32(ateAS)
+	pg.PeerGroupName = ygot.String(peerGrpName)
+
 	for _, nbr := range nbrs {
 		if nbr.isV4 {
 			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
+			nv4.PeerGroup = ygot.String(peerGrpName)
 			nv4.GetOrCreateTimers().HoldTime = ygot.Uint16(180)
 			nv4.PeerAs = ygot.Uint32(nbr.as)
 			nv4.Enabled = ygot.Bool(true)
@@ -163,7 +177,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *telemetry.NetworkInstance_Proto
 
 func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP state")
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateSrc.IPv4)
 	nbrPathv6 := statePath.Neighbor(ateSrc.IPv6)
 
@@ -319,21 +333,21 @@ func configACL(d *telemetry.Device, name string) *telemetry.Acl_AclSet {
 	aclEntry10.SequenceId = ygot.Uint32(10)
 	aclEntry10.GetOrCreateActions().ForwardingAction = telemetry.Acl_FORWARDING_ACTION_DROP
 	tp10 := aclEntry10.GetOrCreateTransport()
-	tp10.DestinationPort, _ = tp10.To_Acl_AclSet_AclEntry_Transport_DestinationPort_Union(179)
+	tp10.DestinationPort = telemetry.UnionUint16(bgpPort)
 	a := aclEntry10.GetOrCreateIpv4()
 	a.SourceAddress = ygot.String(aclNullPrefix)
-	a.DestinationAddress = ygot.String(ateDst.IPv4CIDR())
-	a.Protocol, _ = a.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
+	a.DestinationAddress = ygot.String(ateDstCIDR)
+	a.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_TCP
 
 	aclEntry20 := acl.GetOrCreateAclEntry(20)
 	aclEntry20.SequenceId = ygot.Uint32(20)
 	aclEntry20.GetOrCreateActions().ForwardingAction = telemetry.Acl_FORWARDING_ACTION_DROP
 	tp20 := aclEntry20.GetOrCreateTransport()
-	tp20.SourcePort, _ = tp20.To_Acl_AclSet_AclEntry_Transport_SourcePort_Union(179)
+	tp20.SourcePort = telemetry.UnionUint16(bgpPort)
 	a2 := aclEntry20.GetOrCreateIpv4()
-	a2.SourceAddress = ygot.String(ateDst.IPv4CIDR())
+	a2.SourceAddress = ygot.String(ateDstCIDR)
 	a2.DestinationAddress = ygot.String(aclNullPrefix)
-	a2.Protocol, _ = a.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
+	a2.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_TCP
 
 	aclEntry30 := acl.GetOrCreateAclEntry(30)
 	aclEntry30.SequenceId = ygot.Uint32(30)
@@ -373,15 +387,16 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		t.Log("Start DUT interface Config")
 		configureDUT(t, dut)
 	})
+
 	// Configure BGP+Neighbors on the DUT
 	t.Run("configureBGP", func(t *testing.T) {
 		t.Log("Configure BGP with Graceful Restart option under Global Bgp")
-		dutConfPath := dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-		fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
-		dutConfPath.Replace(t, nil)
+		dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+		dutConfPath.Delete(t)
 		nbrList := buildNbrList(ateAS)
 		dutConf := bgpWithNbr(dutAS, nbrList)
 		dutConfPath.Replace(t, dutConf)
+		fptest.LogYgot(t, "DUT BGP Config", dutConfPath, dutConfPath.Get(t))
 	})
 	// ATE Configuration.
 	var allFlows []*ondatra.Flow
@@ -425,7 +440,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		verifyNoPacketLoss(t, ate, allFlows)
 	})
 
-	statePath := dut.Telemetry().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
 	t.Run("VerifyBGPNOTEstablished", func(t *testing.T) {
 		t.Logf("Waiting for BGP neighbor to establish...")

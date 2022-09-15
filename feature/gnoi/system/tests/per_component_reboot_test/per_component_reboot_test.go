@@ -16,9 +16,7 @@ package per_component_reboot_test
 
 import (
 	"context"
-	"regexp"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +29,13 @@ import (
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
+)
+
+const (
+	controlcardType   = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	linecardType      = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
+	activeController  = telemetry.PlatformTypes_ComponentRedundantRole_PRIMARY
+	standbyController = telemetry.PlatformTypes_ComponentRedundantRole_SECONDARY
 )
 
 func TestMain(m *testing.M) {
@@ -71,14 +76,13 @@ func TestMain(m *testing.M) {
 //    https://github.com/fullstorydev/grpcurl
 //
 
-func TestStandbySupervisorReboot(t *testing.T) {
+func TestStandbyControllerCardReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	r := regexp.MustCompile("^Supervisor[0-9]$")
-	supervisors := findMatchedComponents(t, dut, r)
+	supervisors := findComponentsByType(t, dut, controlcardType)
 	t.Logf("Found supervisor list: %v", supervisors)
 	// Only perform the standby RP rebooting for the chassis with dual RPs/Supervisors.
-	if len(supervisors) < 2 {
+	if len(supervisors) != 2 {
 		t.Skipf("Dual RP/SUP is required on %v: got %v, want 2", dut.Model(), len(supervisors))
 	}
 
@@ -96,11 +100,21 @@ func TestStandbySupervisorReboot(t *testing.T) {
 	}
 
 	t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
+	startReboot := time.Now()
 	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
 	if err != nil {
 		t.Fatalf("Failed to perform component reboot with unexpected err: %v", err)
 	}
 	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+
+	watch := dut.Telemetry().Component(rpStandby).RedundantRole().Watch(
+		t, 10*time.Minute, func(val *telemetry.QualifiedE_PlatformTypes_ComponentRedundantRole) bool {
+			return val.IsPresent()
+		})
+	if val, ok := watch.Await(t); !ok {
+		t.Fatalf("DUT did not reach target state within %v minutes: got %v", 10*time.Minute, val.String())
+	}
+	t.Logf("Standby controller boot time: %.2f seconds", time.Since(startReboot).Seconds())
 
 	// TODO: Check the standby RP uptime has been reset.
 }
@@ -109,8 +123,7 @@ func TestLinecardReboot(t *testing.T) {
 	const linecardBoottime = 10 * time.Minute
 	dut := ondatra.DUT(t, "dut")
 
-	r := regexp.MustCompile("^Linecard[0-9]$")
-	lcs := findMatchedComponents(t, dut, r)
+	lcs := findComponentsByType(t, dut, linecardType)
 	t.Logf("Found linecard list: %v", lcs)
 	if got := len(lcs); got == 0 {
 		t.Errorf("Get number of Linecards on %v: got %v, want > 0", dut.Model(), got)
@@ -200,12 +213,25 @@ func TestLinecardReboot(t *testing.T) {
 	// TODO: Check the line card uptime has been reset.
 }
 
-func findMatchedComponents(t *testing.T, dut *ondatra.DUTDevice, r *regexp.Regexp) []string {
+func findComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
 	components := dut.Telemetry().ComponentAny().Name().Get(t)
 	var s []string
 	for _, c := range components {
-		if len(r.FindString(c)) > 0 {
-			s = append(s, c)
+		lookupType := dut.Telemetry().Component(c).Type().Lookup(t)
+		if !lookupType.IsPresent() {
+			t.Logf("Component %s type is not found", c)
+		} else {
+			componentType := lookupType.Val(t)
+			t.Logf("Component %s has type: %v", c, componentType)
+
+			switch v := componentType.(type) {
+			case telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
+				if v == cType {
+					s = append(s, c)
+				}
+			default:
+				t.Fatalf("Expected component type to be a hardware component, got (%T, %v)", componentType, componentType)
+			}
 		}
 	}
 	return s
@@ -214,14 +240,28 @@ func findMatchedComponents(t *testing.T, dut *ondatra.DUTDevice, r *regexp.Regex
 func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
 	var activeRP, standbyRP string
 	for _, supervisor := range supervisors {
-		desc := dut.Telemetry().Component(supervisor).Description().Get(t)
-		t.Logf("Component(supervisor).Description().Get(t): %v, Description: %v", supervisor, desc)
-		if strings.Contains(desc, "Standby") {
+		watch := dut.Telemetry().Component(supervisor).RedundantRole().Watch(
+			t, 5*time.Minute, func(val *telemetry.QualifiedE_PlatformTypes_ComponentRedundantRole) bool {
+				return val.IsPresent()
+			})
+		if val, ok := watch.Await(t); !ok {
+			t.Fatalf("DUT did not reach target state within %v minutes: got %v", 5*time.Minute, val.String())
+		}
+		role := dut.Telemetry().Component(supervisor).RedundantRole().Get(t)
+		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
+		if role == standbyController {
 			standbyRP = supervisor
-		} else {
+		} else if role == activeController {
 			activeRP = supervisor
+		} else {
+			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
 		}
 	}
+	if standbyRP == "" || activeRP == "" {
+		t.Fatalf("Expected non-empty activeRP and standbyRP, got activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+	}
+	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+
 	return standbyRP, activeRP
 }
 

@@ -16,6 +16,7 @@ package base_hierarchical_route_installation_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -26,7 +27,7 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	telemetry "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -40,12 +41,10 @@ func TestMain(m *testing.M) {
 // The testbed consists of ate:port1 -> dut:port1
 // and dut:port2 -> ate:port2.
 //
-//   * ate:port1 -> dut:port1 subnet 192.0.2.0/30
-//   * ate:port2 -> dut:port2 subnet 192.0.2.4/30
-//
+//   - ate:port1 -> dut:port1 subnet 192.0.2.0/30
+//   - ate:port2 -> dut:port2 subnet 192.0.2.4/30
 const (
 	ipv4PrefixLen     = 30
-	instance          = "default"
 	ateDstNetCIDR     = "198.51.100.0/24"
 	ateIndirectNH     = "203.0.113.1"
 	ateIndirectNHCIDR = ateIndirectNH + "/32"
@@ -183,20 +182,20 @@ func setupRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to 203.0.113.1/32.
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithIndex(nhIndex).
 			WithIPAddress(ateIndirectNH))
 
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithID(nhgIndex).
 			AddNextHop(nhIndex, 1))
 
 	args.c.Modify().AddEntry(t,
 		fluent.IPv4Entry().
 			WithPrefix(ateDstNetCIDR).
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithNextHopGroup(nhgIndex))
 
 	if err := awaitTimeout(args.ctx, args.c, t, time.Minute); err != nil {
@@ -206,20 +205,20 @@ func setupRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	// Add an IPv4Entry for 203.0.113.1/32 pointing to 192.0.2.6.
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(instance).
-			WithIndex(2).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithIndex(nhIndex2).
 			WithIPAddress(atePort2.IPv4))
 
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithID(nhgIndex2).
 			AddNextHop(nhIndex2, 1))
 
 	args.c.Modify().AddEntry(t,
 		fluent.IPv4Entry().
 			WithPrefix(ateIndirectNHCIDR).
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithNextHopGroup(nhgIndex2))
 
 	if err := awaitTimeout(args.ctx, args.c, t, time.Minute); err != nil {
@@ -251,7 +250,7 @@ func deleteRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	args.c.Modify().DeleteEntry(t,
 		fluent.IPv4Entry().
 			WithPrefix(ateIndirectNHCIDR).
-			WithNetworkInstance(instance).
+			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithNextHopGroup(nhgIndex2))
 
 	if err := awaitTimeout(args.ctx, args.c, t, time.Minute); err != nil {
@@ -273,25 +272,25 @@ func deleteRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	setupRecursiveIPv4Entry(t, args)
 
-	aftsPath := args.dut.Telemetry().NetworkInstance(instance).Afts()
+	aftsPath := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts()
 	fptest.LogYgot(t, "AFTs", aftsPath, aftsPath.Get(t))
 
 	// Verify that the entry for 198.51.100.0/24 is installed through AFT Telemetry.
-	ipv4Entry := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR).Get(t)
+	ipv4Entry := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR).Get(t)
 	if got, want := ipv4Entry.GetPrefix(), ateDstNetCIDR; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/prefix = %v, want %v", got, want)
 	}
 	if got, want := ipv4Entry.GetOriginProtocol(), telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/origin-protocol = %v, want %v", got, want)
 	}
-	if got, want := ipv4Entry.GetNextHopGroupNetworkInstance(), instance; got != want {
+	if got, want := ipv4Entry.GetNextHopGroupNetworkInstance(), *deviations.DefaultNetworkInstance; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/next-hop-group-network-instance = %v, want %v", got, want)
 	}
 	nhgIndexInst := ipv4Entry.GetNextHopGroup()
 	if nhgIndexInst == 0 {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/next-hop-group is not present")
 	}
-	nhg := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndexInst).Get(t)
+	nhg := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhgIndexInst).Get(t)
 	if got, want := nhg.GetProgrammedId(), uint64(nhgIndex); got != want {
 		t.Errorf("TestRecursiveIPv4Entry: next-hop-group/state/programmed-id = %v, want %v", got, want)
 	}
@@ -300,8 +299,8 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 		if got, want := nhgNH.GetIndex(), uint64(nhIndexInst); got != want {
 			t.Errorf("next-hop index is incorrect: got %v, want %v", got, want)
 		}
-		nh := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndexInst).Get(t)
-		if got, want := nh.GetIpAddress(), ateIndirectNH; got != want {
+		nh := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(nhIndexInst).Get(t)
+		if got, want := nh.GetIpAddress(), atePort2.IPv4; got != want {
 			t.Errorf("next-hop is incorrect: got %v, want %v", got, want)
 		}
 		if nh.GetInterfaceRef().GetInterface() == "" {
@@ -310,21 +309,21 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	}
 
 	// Verify that the entry for 203.0.113.1/32 is installed through AFT Telemetry.
-	ipv4Entry = args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateIndirectNHCIDR).Get(t)
+	ipv4Entry = args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateIndirectNHCIDR).Get(t)
 	if got, want := ipv4Entry.GetPrefix(), ateIndirectNHCIDR; got != want {
 		t.Errorf("TestRecursiveIPv4Entry = %v: ipv4-entry/state/prefix, want %v", got, want)
 	}
 	if got, want := ipv4Entry.GetOriginProtocol(), telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/origin-protocol = %v, want %v", got, want)
 	}
-	if got, want := ipv4Entry.GetNextHopGroupNetworkInstance(), instance; got != want {
+	if got, want := ipv4Entry.GetNextHopGroupNetworkInstance(), *deviations.DefaultNetworkInstance; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/next-hop-group-network-instance = %v, want %v", got, want)
 	}
 	nhgIndexInst = ipv4Entry.GetNextHopGroup()
 	if nhgIndexInst == 0 {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/next-hop-group is not present")
 	}
-	nhg = args.dut.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhgIndexInst).Get(t)
+	nhg = args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhgIndexInst).Get(t)
 	if got, want := nhg.GetProgrammedId(), uint64(nhgIndex2); got != want {
 		t.Errorf("TestRecursiveIPv4Entry: next-hop-group/state/programmed-id = %v, want %v", got, want)
 	}
@@ -333,7 +332,7 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 		if got, want := nhgNH.GetIndex(), uint64(nhIndexInst); got != want {
 			t.Errorf("next-hop index is incorrect: got %v, want %v", got, want)
 		}
-		nh := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndexInst).Get(t)
+		nh := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(nhIndexInst).Get(t)
 		if got, want := nh.GetIpAddress(), atePort2.IPv4; got != want {
 			t.Errorf("next-hop is incorrect: got %v, want %v", got, want)
 		}
@@ -361,7 +360,7 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	time.Sleep(30 * time.Second)
 
 	// Verify that the entry for 198.51.100.0/24 is not installed through AFT Telemetry.
-	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateIndirectNHCIDR)
+	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateIndirectNHCIDR)
 	if ipv4Path.Lookup(t).IsPresent() {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/prefix: Found route %s that should not exist", ateIndirectNHCIDR)
 	}
@@ -431,39 +430,67 @@ func TestRecursiveIPv4Entries(t *testing.T) {
 		},
 	}
 
+	const (
+		usePreserve = "PRESERVE"
+		useDelete   = "DELETE"
+	)
+
 	// Each case will run with its own gRIBI fluent client.
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Logf("Name: %s", tc.name)
-			t.Logf("Description: %s", tc.desc)
-
-			// Configure the gRIBI client c with election ID of 10.
-			c := fluent.NewClient()
-
-			c.Connection().WithStub(gribic).WithInitialElectionID(10, 0).
-				WithRedundancyMode(fluent.ElectedPrimaryClient)
-
-			c.Start(context.Background(), t)
-			defer c.Stop(t)
-			c.StartSending(context.Background(), t)
-			if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-				t.Fatalf("Await got error during session negotiation for c: %v", err)
+	for _, persist := range []string{usePreserve, useDelete} {
+		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
+			if *deviations.GRIBIPreserveOnly && persist == useDelete {
+				t.Skipf("Skipping due to --deviations_gribi_preserve_only")
 			}
 
-			args := &testArgs{
-				ctx: ctx,
-				c:   c,
-				dut: dut,
-				ate: ate,
-				top: top,
-			}
+			for _, tc := range tests {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Logf("Name: %s", tc.name)
+					t.Logf("Description: %s", tc.desc)
 
-			if tc.fn == nil {
-				t.Skip("Test case yet to be implemented")
-			}
+					if tc.fn == nil {
+						t.Skip("Test case not implemented.")
+					}
 
-			tc.fn(t, args)
+					// Configure the gRIBI client c with election ID of 10.
+					c := fluent.NewClient()
+					conn := c.Connection().
+						WithStub(gribic).
+						WithInitialElectionID(10, 0).
+						WithRedundancyMode(fluent.ElectedPrimaryClient)
+					if persist == usePreserve {
+						conn.WithPersistence()
+					}
+
+					c.Start(context.Background(), t)
+					defer c.Stop(t)
+					c.StartSending(context.Background(), t)
+					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+						t.Fatalf("Await got error during session negotiation for c: %v", err)
+					}
+
+					if persist == usePreserve {
+						defer func() {
+							_, err := c.Flush().
+								WithElectionOverride().
+								WithAllNetworkInstances().
+								Send()
+							if err != nil {
+								t.Errorf("Cannot flush: %v", err)
+							}
+						}()
+					}
+
+					args := &testArgs{
+						ctx: ctx,
+						c:   c,
+						dut: dut,
+						ate: ate,
+						top: top,
+					}
+
+					tc.fn(t, args)
+				})
+			}
 		})
 	}
-
 }

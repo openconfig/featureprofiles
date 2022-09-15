@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -99,56 +100,65 @@ func TestInterfaceCounters(t *testing.T) {
 	cases := []struct {
 		desc    string
 		path    string
-		counter *telemetry.QualifiedUint64
+		counter func(testing.TB) *telemetry.QualifiedUint64
+		skip    bool
 	}{{
 		desc:    "InUnicastPkts",
 		path:    intfCounterPath + "in-unicast-pkts",
-		counter: intfCounters.InUnicastPkts().Lookup(t),
+		counter: intfCounters.InUnicastPkts().Lookup,
+	}, {
+		desc:    "InUnicastPkts",
+		path:    intfCounterPath + "in-unicast-pkts",
+		counter: intfCounters.InUnicastPkts().Lookup,
 	}, {
 		desc:    "InPkts",
 		path:    intfCounterPath + "in-pkts",
-		counter: intfCounters.InPkts().Lookup(t),
+		counter: intfCounters.InPkts().Lookup,
 	}, {
 		desc:    "OutPkts",
 		path:    intfCounterPath + "out-pkts",
-		counter: intfCounters.OutPkts().Lookup(t),
+		counter: intfCounters.OutPkts().Lookup,
 	}, {
-		// desc: "IPv4InPkts",
+		desc:    "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",
-		counter: ipv4Counters.InPkts().Lookup(t),
+		counter: ipv4Counters.InPkts().Lookup,
+		skip:    *deviations.SubinterfacePacketCountersMissing,
 	}, {
-		// desc: "IPv4OutPkts",
+		desc:    "IPv4OutPkts",
 		path:    ipv4CounterPath + "out-pkts",
-		counter: ipv4Counters.OutPkts().Lookup(t),
+		counter: ipv4Counters.OutPkts().Lookup,
+		skip:    *deviations.SubinterfacePacketCountersMissing,
 	}, {
-		// desc: "IPv6InPkts",
+		desc:    "IPv6InPkts",
 		path:    ipv6CounterPath + "in-pkts",
-		counter: ipv6Counters.InPkts().Lookup(t),
+		counter: ipv6Counters.InPkts().Lookup,
+		skip:    *deviations.SubinterfacePacketCountersMissing,
 	}, {
-		// desc: "IPv6OutPkts",
+		desc:    "IPv6OutPkts",
 		path:    ipv6CounterPath + "out-pkts",
-		counter: ipv6Counters.OutPkts().Lookup(t),
+		counter: ipv6Counters.OutPkts().Lookup,
+		skip:    *deviations.SubinterfacePacketCountersMissing,
 	}, {
-		// desc: "IPv6InDiscardedPkts",
+		desc:    "IPv6InDiscardedPkts",
 		path:    ipv6CounterPath + "in-discarded-pkts",
-		counter: ipv6Counters.InDiscardedPkts().Lookup(t),
+		counter: ipv6Counters.InDiscardedPkts().Lookup,
+		skip:    *deviations.SubinterfacePacketCountersMissing,
 	}, {
-		// desc: "IPv6OutDiscardedPkts",
+		desc:    "IPv6OutDiscardedPkts",
 		path:    ipv6CounterPath + "out-discarded-pkts",
-		counter: ipv6Counters.OutDiscardedPkts().Lookup(t),
+		counter: ipv6Counters.OutDiscardedPkts().Lookup,
+		skip:    *deviations.SubinterfacePacketCountersMissing,
 	}}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			// TODO: Enable the test for in-maxsize-exceeded after the issue fixed.
-			if len(tc.desc) == 0 {
+			if tc.skip {
 				t.Skipf("Counter %v is not supported.", tc.desc)
 			}
-
-			if !tc.counter.IsPresent() {
+			if !tc.counter(t).IsPresent() {
 				t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
 			}
-			t.Logf("Got path/value: %s:%d", tc.path, tc.counter.Val(t))
+			t.Logf("Got path/value: %s:%d", tc.path, tc.counter(t).Val(t))
 		})
 	}
 }
@@ -310,27 +320,33 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		ipv6PrefixLen: 126,
 	}}
 
-	// Configure the interfaces.
+	// Configure IPv4 and IPv6 addresses under subinterface.
 	for _, intf := range dutIntfs {
 		t.Logf("Configure DUT interface %s with attributes %v", intf.intfName, intf)
 		i := &telemetry.Interface{
 			Name:        ygot.String(intf.intfName),
 			Description: ygot.String(intf.desc),
 			Type:        telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
-			Enabled:     ygot.Bool(true),
 		}
 		i.GetOrCreateEthernet()
-		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		s.Enabled = ygot.Bool(true)
-		a := s.GetOrCreateAddress(intf.ipv4Addr)
-		a.PrefixLength = ygot.Uint8(intf.ipv4PrefixLen)
-		s6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-		s6.Enabled = ygot.Bool(true)
-		a6 := s6.GetOrCreateAddress(intf.ipv6Addr)
+		s := i.GetOrCreateSubinterface(0)
+		v4 := s.GetOrCreateIpv4()
+		a4 := v4.GetOrCreateAddress(intf.ipv4Addr)
+		a4.PrefixLength = ygot.Uint8(intf.ipv4PrefixLen)
+		v6 := s.GetOrCreateIpv6()
+		a6 := v6.GetOrCreateAddress(intf.ipv6Addr)
 		a6.PrefixLength = ygot.Uint8(intf.ipv6PrefixLen)
+
+		// We are testing that "enabled" is accepted by device when explicitly set to true,
+		// per: https://github.com/openconfig/featureprofiles/issues/253
+		i.Enabled = ygot.Bool(true)
+		s.Enabled = ygot.Bool(true)
+		v4.Enabled = ygot.Bool(true)
+		v6.Enabled = ygot.Bool(true)
+
 		dut.Config().Interface(intf.intfName).Replace(t, i)
 
-		t.Logf("Validate DUT IPv4 and IPv6 subinterface %s are enabled.", intf.intfName)
+		t.Logf("Validate that IPv4 and IPv6 addresses are enabled: %s", intf.intfName)
 		subint := dut.Telemetry().Interface(intf.intfName).Subinterface(0)
 		if !subint.Ipv4().Enabled().Get(t) {
 			t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)

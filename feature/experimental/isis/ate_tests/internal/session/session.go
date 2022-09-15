@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package session is scoped only to be used with feature/experimental/isis/ate_tests/*
+// Package session is deprecated and scoped only to be used with
+// feature/experimental/isis/ate_tests/*.  Do not use elsewhere.
 package session
 
 import (
@@ -21,6 +22,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/ixnet"
@@ -88,7 +90,7 @@ var (
 
 // addISISOC configures basic IS-IS on a device.
 func addISISOC(dev *telemetry.Device, areaAddress, sysID, ifaceName string) {
-	inst := dev.GetOrCreateNetworkInstance("default")
+	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
@@ -127,12 +129,12 @@ type TestSession struct {
 
 // DUTISISTelemetry gets the telemetry PathStruct for /network-instance[default]/protocol[ISIS]/isis on the DUT
 func (s *TestSession) DUTISISTelemetry(t testing.TB) *networkinstance.NetworkInstance_Protocol_IsisPath {
-	return s.DUT.Telemetry().NetworkInstance("default").Protocol(PTISIS, ISISName).Isis()
+	return s.DUT.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName).Isis()
 }
 
 // ATEISISTelemetry gets the telemetry PathStruct for /network-instance[default]/protocol[ISIS]/isis on the ATE
 func (s *TestSession) ATEISISTelemetry(t testing.TB) *networkinstance.NetworkInstance_Protocol_IsisPath {
-	return s.ATE.Telemetry().NetworkInstance("default").Protocol(PTISIS, ISISName).Isis()
+	return s.ATE.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName).Isis()
 }
 
 // ATEInterface returns an ondatra.Interface for the port with the given name, or nil if our ATE is
@@ -206,7 +208,7 @@ func (s *TestSession) WithISIS(t testing.TB) *TestSession {
 // ATE is an ATEDevice, the second will be applied to s.ATETop, otherwise the first will be called
 // again on s.ATEConf
 func (s *TestSession) ConfigISIS(t testing.TB, ocFn func(*telemetry.NetworkInstance_Protocol_Isis), ateFn func(*ixnet.ISIS)) {
-	ocFn(s.DUTConf.GetOrCreateNetworkInstance("default").GetOrCreateProtocol(PTISIS, ISISName).GetOrCreateIsis())
+	ocFn(s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName).GetOrCreateIsis())
 	ateFn(s.ATEInterface(t, "port1").ISIS())
 }
 
@@ -226,8 +228,8 @@ func (s *TestSession) PushDUT(t testing.TB) {
 		node.Replace(t, conf)
 	}
 	// Push the ISIS protocol
-	dutNode := s.DUT.Config().NetworkInstance("default").Protocol(PTISIS, ISISName)
-	dutConf := s.DUTConf.GetOrCreateNetworkInstance("default").GetOrCreateProtocol(PTISIS, ISISName)
+	dutNode := s.DUT.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
+	dutConf := s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
 	dutNode.Replace(t, dutConf)
 }
 
@@ -242,7 +244,7 @@ func (s *TestSession) PushAndStartATE(t testing.TB) {
 // IS-IS adjaceny, logging the full state and Fataling out if it doesn't.
 func (s *TestSession) AwaitAdjacency(t testing.TB) {
 	t.Logf("Waiting for any adjacency to form on %v...", s.DUT.Port(t, "port1").Name())
-	telem := s.DUT.Telemetry().NetworkInstance("default").Protocol(PTISIS, ISISName)
+	telem := s.DUT.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
 	intf := telem.Isis().Interface(s.DUT.Port(t, "port1").Name())
 
 	_, ok := intf.LevelAny().AdjacencyAny().AdjacencyState().Watch(t, time.Minute,
