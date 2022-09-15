@@ -20,8 +20,6 @@ var (
 	skipSrvReorder      = flag.Bool("skip_reordering", true, "skip tests that rely on server side transaction reordering")
 	skipImplicitReplace = flag.Bool("skip_implicit_replace", true, "skip tests for ADD operations that perform implicit replacement of existing entries")
 	skipNonDefaultNINHG = flag.Bool("skip_non_default_ni_nhg", true, "skip tests that add entries to non-default network-instance")
-	
-	protocolName  = flag.String("protocol_name", "default", "Name of the protocol to configure static route")
 
 	nonDefaultNI = flag.String("non_default_ni", "non-default-vrf", "non-default network-instance name")
 )
@@ -55,7 +53,7 @@ func TestCompliance(t *testing.T) {
 	d := &telemetry.Device{}
 	ni := d.GetOrCreateNetworkInstance(*nonDefaultNI)
 	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *protocolName)
+	ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
 	dut.Config().NetworkInstance(*nonDefaultNI).Replace(t, ni)
 
 	nip := dut.Config().NetworkInstance(*nonDefaultNI)
