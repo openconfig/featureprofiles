@@ -25,7 +25,7 @@ import (
 )
 
 type PacketIO interface {
-	GetPacketOut(t *testing.T, portID uint32, submitIngress bool) []*p4_v1.PacketOut
+	GetPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut
 }
 
 type testArgs struct {

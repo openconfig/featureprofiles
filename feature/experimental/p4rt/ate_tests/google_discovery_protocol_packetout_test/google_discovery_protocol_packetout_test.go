@@ -18,11 +18,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"sort"
 	"testing"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
+	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -275,4 +277,56 @@ func TestPacketOut(t *testing.T) {
 
 	args.packetIO = getGDPParameter(t)
 	testPacketOut(ctx, t, args)
+}
+
+type GDPPacketIO struct {
+	PacketIO
+	IngressPort string
+}
+
+// packetGDPRequestGet generates PacketOut payload for GDP packets.
+func packetGDPRequestGet() []byte {
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+	pktEth := &layers.Ethernet{
+		SrcMAC: net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
+		// GDP MAC is 00:0A:DA:F0:F0:F0
+		DstMAC:       net.HardwareAddr{0x00, 0x0A, 0xDA, 0xF0, 0xF0, 0xF0},
+		EthernetType: gdpInLayers,
+	}
+	payload := []byte{}
+	payLoadLen := 64
+	for i := 0; i < payLoadLen; i++ {
+		payload = append(payload, byte(i))
+	}
+	gopacket.SerializeLayers(buf, opts,
+		pktEth, gopacket.Payload(payload),
+	)
+	return buf.Bytes()
+}
+
+// GetPacketOut generates PacketOut message with payload as GDP.
+func (gdp *GDPPacketIO) GetPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
+	packets := []*p4_v1.PacketOut{}
+	packet := &p4_v1.PacketOut{
+		Payload: packetGDPRequestGet(),
+		Metadata: []*p4_v1.PacketMetadata{
+			{
+				MetadataId: uint32(1), // "egress_port"
+				Value:      []byte(fmt.Sprint(portID)),
+			},
+		},
+	}
+	if submitIngress {
+		packet.Metadata = append(packet.Metadata,
+			&p4_v1.PacketMetadata{
+				MetadataId: uint32(2), // "submit_to_ingress"
+				Value:      []byte{1},
+			})
+	}
+	packets = append(packets, packet)
+	return packets
 }
