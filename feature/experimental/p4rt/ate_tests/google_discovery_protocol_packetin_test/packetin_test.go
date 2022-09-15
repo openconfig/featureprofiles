@@ -29,7 +29,7 @@ import (
 )
 
 type PacketIO interface {
-	GetTableEntry(delete bool) []*wbb.AclWbbIngressTableEntryInfo
+	GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEntryInfo
 	GetPacketTemplate() *PacketIOPacket
 	GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow
 	GetEgressPort() []string
@@ -57,7 +57,7 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 	err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   deviceId,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
-		Updates: wbb.AclWbbIngressTableEntryGet(
+		Updates: wbb.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete),
 		),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,

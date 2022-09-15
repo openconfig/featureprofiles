@@ -42,20 +42,21 @@ var (
 	}
 )
 
-type AclWbbIngressTableEntryInfo struct {
+// ACLWbbIngressTableEntryInfo defines struct for wbb acl table
+type ACLWbbIngressTableEntryInfo struct {
 	Type            p4_v1.Update_Type
 	IsIpv4          uint8
 	IsIpv6          uint8
 	EtherType       uint16
 	EtherTypeMask   uint16
-	Ttl             uint8
-	TtlMask         uint8
-	OuterVlanId     uint16 // lower 12 bits
-	OuterVlanIdMask uint16 // lower 12 bits
+	TTL             uint8
+	TTLMask         uint8
+	OuterVlanID     uint16 // lower 12 bits
+	OuterVlanIDMask uint16 // lower 12 bits
 }
 
 // Filling up P4RT Structs is a bit cumbersome, wrap things to simplify
-func aclWbbIngressTableEntryGet(info *AclWbbIngressTableEntryInfo) *p4_v1.Update {
+func aclWbbIngressTableEntryGet(info *ACLWbbIngressTableEntryInfo) *p4_v1.Update {
 	if info == nil {
 		glog.Fatal("Nil info")
 	}
@@ -99,8 +100,8 @@ func aclWbbIngressTableEntryGet(info *AclWbbIngressTableEntryInfo) *p4_v1.Update
 							FieldId: WbbMatchMap["ttl"],
 							FieldMatchType: &p4_v1.FieldMatch_Ternary_{
 								Ternary: &p4_v1.FieldMatch_Ternary{
-									Value: []byte{byte(info.Ttl)},
-									Mask:  []byte{byte(info.TtlMask)},
+									Value: []byte{byte(info.TTL)},
+									Mask:  []byte{byte(info.TTLMask)},
 								},
 							},
 						}, {
@@ -108,12 +109,12 @@ func aclWbbIngressTableEntryGet(info *AclWbbIngressTableEntryInfo) *p4_v1.Update
 							FieldMatchType: &p4_v1.FieldMatch_Ternary_{
 								Ternary: &p4_v1.FieldMatch_Ternary{
 									Value: []byte{
-										byte((info.OuterVlanId >> 8) & 0xF),
-										byte(info.OuterVlanId & 0xFF),
+										byte((info.OuterVlanID >> 8) & 0xF),
+										byte(info.OuterVlanID & 0xFF),
 									},
 									Mask: []byte{
-										byte((info.OuterVlanIdMask >> 8) & 0xF),
-										byte(info.OuterVlanIdMask & 0xFF),
+										byte((info.OuterVlanIDMask >> 8) & 0xF),
+										byte(info.OuterVlanIDMask & 0xFF),
 									},
 								},
 							},
@@ -134,7 +135,8 @@ func aclWbbIngressTableEntryGet(info *AclWbbIngressTableEntryInfo) *p4_v1.Update
 	return update
 }
 
-func AclWbbIngressTableEntryGet(infoList []*AclWbbIngressTableEntryInfo) []*p4_v1.Update {
+// ACLWbbIngressTableEntryGet returns acl table updates
+func ACLWbbIngressTableEntryGet(infoList []*ACLWbbIngressTableEntryInfo) []*p4_v1.Update {
 	var updates []*p4_v1.Update
 
 	for _, info := range infoList {

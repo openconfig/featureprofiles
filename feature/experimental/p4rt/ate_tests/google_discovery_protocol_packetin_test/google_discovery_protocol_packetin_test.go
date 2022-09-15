@@ -282,12 +282,12 @@ type GDPPacketIO struct {
 }
 
 // GetTableEntry creates wbb acl entry related to GDP.
-func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*wbb.AclWbbIngressTableEntryInfo {
+func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
 	if delete {
 		actionType = p4_v1.Update_DELETE
 	}
-	return []*wbb.AclWbbIngressTableEntryInfo{{
+	return []*wbb.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
 		EtherType:     0x6007,
 		EtherTypeMask: 0xFFFF,
