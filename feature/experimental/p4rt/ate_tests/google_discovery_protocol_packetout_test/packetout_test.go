@@ -78,8 +78,8 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	for _, test := range packetOutTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Check initial packet counters
-			port := sortPorts(args.dut.Ports())[0].Name()
-			counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+			port := sortPorts(args.ate.Ports())[0].Name()
+			counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 
 			packets := args.packetIO.GetPacketOut(t, portId, false)
 			packet_count := 100
@@ -89,10 +89,10 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			time.Sleep(60 * time.Second)
 
 			// Check packet counters after packet out
-			counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+			counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 
 			// Verify InPkts stats to check P4RT stream
-			t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+			t.Logf("Received %v packets on ATE port %s", counter_1-counter_0, port)
 
 			if test.expectPass {
 				if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
