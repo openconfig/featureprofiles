@@ -142,9 +142,24 @@ var (
 			fn:   testPacketOutTTLOneWithoutMatchEntry,
 		},
 		{
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 With ICMP or Traceroute(submit_to_ingress)",
+			desc: "Packet I/O-Traceroute-PacketOut:006 Ingress: Programm match TTL=[1,2], inject ICMP/Traceroute packets with TTL=[0,1,2], verify if the packets go out for 1/2, 0 case not sent out",
+			fn:   testPacketOutTTLOneWithUDP,
+		},
+		{
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 With For-Us-IP(submit_to_ingress)",
+			desc: "Packet I/O-Traceroute-PacketOut:007 Ingress: dst IP is for us for the incoming packet, packet goes through lpts",
+			fn:   testPacketOutWithForUsIP,
+		},
+		{
 			name: "Check PacketOut Without Programming TTL Match Entry(submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:012-013 Egress: Without any match entries, Injecting IP packet with any TTL, verify packets sent out on those egress interfaces",
 			fn:   testPacketOutEgressWithoutMatchEntry,
+		},
+		{
+			name: "Check PacketOut Without Programming TTL Match Entry with Static Route(submit_to_egress)",
+			desc: "Packet I/O-Traceroute-PacketOut:014-015 Egress: Without any match entries, Injecting IPv4/IPv6 packet with any TTL and configure null0 static router for the packet destination, verify packets sent out on those egress interfaces",
+			fn:   testPacketOutTTLOneWithStaticroute,
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut(submit_to_egress)",
@@ -155,6 +170,16 @@ var (
 			name: "Program TTL Match Entry and Check PacketOut With TTL1 (submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:017 Egress: Programm match TTL=[1,2], inject packets with TTL=[0,1,2], and verify packet sent back to controller",
 			fn:   testPacketOutEgress,
+		},
+		{
+			name: "Program TTL Match Entry and Check PacketOut With TTL more than 2 with Static Route (submit_to_egress)",
+			desc: "Packet I/O-Traceroute-PacketOut:018 Egress: Programm match TTL=[1,2], inject packets with TTL>3 and configure null0 static router for the packet destination, verify packets sent out on those egress interfaces",
+			fn:   testPacketOutEgressWithStaticroute,
+		},
+		{
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 With Static Route(submit_to_egress)",
+			desc: "Packet I/O-Traceroute-PacketOut:019 EEgress: Programm match TTL=[1,2], inject packets with TTL=[0,1,2], configure null0 static router for the packet destination, verify packets sent out on those egress interfaces",
+			fn:   testPacketOutEgressTTLOneWithStaticroute,
 		},
 		{
 			name: "Flap Interface and Check PacketOut(submit_to_egress)",
@@ -366,6 +391,15 @@ func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bo
 			HopLimit: uint8(*ttl.PacketOutObj.TTL),
 		}
 		packetLayers = append(packetLayers, pktIP)
+	}
+
+	// add UDP layer if udp is true
+	if ttl.PacketOutObj.udp {
+		udp := &layers.UDP{
+			SrcPort: 11111,
+			DstPort: 22222,
+		}
+		packetLayers = append(packetLayers, udp)
 	}
 
 	payload := []byte{}
