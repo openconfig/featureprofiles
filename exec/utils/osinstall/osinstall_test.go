@@ -93,6 +93,8 @@ func TestOSInstall(t *testing.T) {
 		tc.activateOS(ctx, t, true)
 	}
 	tc.rebootDUT(ctx, t)
+
+	tc.osc = dut.RawAPIs().GNOI().New(t).OS()
 	tc.verifyInstall(ctx, t)
 }
 
@@ -100,7 +102,7 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) 
 	act, err := tc.osc.Activate(ctx, &ospb.ActivateRequest{
 		StandbySupervisor: standby,
 		Version:           *osVersion,
-		NoReboot:          true,
+		NoReboot:          false,
 	})
 	if err != nil {
 		t.Fatalf("OS.Activate request failed: %s", err)
@@ -235,18 +237,18 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 	if got, want := r.GetActivationFailMessage(), ""; got != want {
 		t.Errorf("OS.Verify ActivationFailMessage: got %q, want %q", got, want)
 	}
-	// if got, want := r.GetVersion(), *osVersion; got != want {
-	// 	t.Errorf("OS.Verify Version: got %q, want %q", got, want)
-	// }
+	if got, want := r.GetVersion(), *osVersion; got != want {
+		t.Errorf("OS.Verify Version: got %q, want %q", got, want)
+	}
 
 	if tc.dualSup {
 		if got, want := r.GetVerifyStandby().GetVerifyResponse().GetActivationFailMessage(), ""; got != want {
 			t.Errorf("OS.Verify Standby ActivationFailMessage: got %q, want %q", got, want)
 		}
 
-		// if got, want := r.GetVerifyStandby().GetVerifyResponse().GetVersion(), *osVersion; got != want {
-		// 	t.Errorf("OS.Verify Standby Version: got %q, want %q", got, want)
-		// }
+		if got, want := r.GetVerifyStandby().GetVerifyResponse().GetVersion(), *osVersion; got != want {
+			t.Errorf("OS.Verify Standby Version: got %q, want %q", got, want)
+		}
 	}
 
 	t.Log("OS.Verify complete")
@@ -313,9 +315,9 @@ func watchStatus(t *testing.T, ic ospb.OS_InstallClient, standby bool) error {
 			if !gotProgress {
 				return fmt.Errorf("transfer completed without progress status")
 			}
-			// if got, want := v.Validated.GetVersion(), *osVersion; got != want {
-			// 	return fmt.Errorf("mismatched validation software versions: got %s, want %s", got, want)
-			// }
+			if got, want := v.Validated.GetVersion(), *osVersion; got != want {
+				return fmt.Errorf("mismatched validation software versions: got %s, want %s", got, want)
+			}
 			return nil
 		default:
 			return fmt.Errorf("unexpected client install response: got %v (%T)", v, v)
