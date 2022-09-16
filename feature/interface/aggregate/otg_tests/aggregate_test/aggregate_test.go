@@ -318,10 +318,6 @@ func (tc *testCase) configureATE(t *testing.T) {
 	}
 }
 
-func (tc *testCase) clearATE(t *testing.T) {
-	tc.ate.OTG().StopProtocols(t)
-}
-
 const (
 	ethernetCsmacd = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = telemetry.IETFInterfaces_InterfaceType_ieee8023adLag
@@ -511,7 +507,6 @@ func TestNegotiation(t *testing.T) {
 
 			t.Run("MinLinks", tc.verifyMinLinks)
 
-			t.Run("ClearATE", tc.clearATE)
 		})
 	}
 }
