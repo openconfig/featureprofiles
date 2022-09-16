@@ -2,7 +2,7 @@ name: "arista-ixia"
 nodes: {
     name: "otg"
     type: IXIA_TG
-    version: "0.0.1-3182"
+    version: "0.0.1-3383"
     services: {
         key: 443
         value: {
