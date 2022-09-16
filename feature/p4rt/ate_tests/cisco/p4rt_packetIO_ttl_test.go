@@ -178,8 +178,18 @@ var (
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut With TTL1 With Static Route(submit_to_egress)",
-			desc: "Packet I/O-Traceroute-PacketOut:019 EEgress: Programm match TTL=[1,2], inject packets with TTL=[0,1,2], configure null0 static router for the packet destination, verify packets sent out on those egress interfaces",
+			desc: "Packet I/O-Traceroute-PacketOut:019 Egress: Programm match TTL=[1,2], inject packets with TTL=[0,1,2], configure null0 static router for the packet destination, verify packets sent out on those egress interfaces",
 			fn:   testPacketOutEgressTTLOneWithStaticroute,
+		},
+		{
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 With ICMP or Traceroute(submit_to_egress)",
+			desc: "Packet I/O-Traceroute-PacketOut:020 Egress: Programm match TTL=[1,2], inject ICMP/Traceroute packets with TTL=[0,1,2],verify packets sent out on those egress interfaces",
+			fn:   testPacketOutEgressTTLOneWithUDP,
+		},
+		{
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 With ICMP or Traceroute With Static Route(submit_to_egress)",
+			desc: "Packet I/O-Traceroute-PacketOut:021 Egress: Programm match TTL=[1,2], inject ICMP/Traceroute packets with TTL=[0,1,2],configure null0 static router for the packet destination, verify packets sent out on those egress interfaces",
+			fn:   testPacketOutEgressTTLOneWithUDPAndStaticRoute,
 		},
 		{
 			name: "Flap Interface and Check PacketOut(submit_to_egress)",

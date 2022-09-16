@@ -1774,6 +1774,116 @@ func testPacketOutEgressWithStaticroute(ctx context.Context, t *testing.T, args 
 	}
 }
 
+func testPacketOutEgressTTLOneWithUDP(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the match entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Check initial packet counters
+	port := sortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	ttl := args.packetIO.GetPacketOutObj(t).TTL
+	val := *ttl
+	*ttl = 1
+	args.packetIO.GetPacketOutObj(t).udp = true
+	defer func() {
+		*ttl = val
+		args.packetIO.GetPacketOutObj(t).udp = false
+	}()
+
+	packet := args.packetIO.GetPacketOut(t, portID, false)
+
+	packet_count := 100
+	sendPackets(t, client, packet, packet_count)
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+
+	if args.packetIO.GetPacketOutExpectation(t, true) {
+		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+			t.Errorf("Unexpected packets are received.")
+		}
+	}
+}
+
+func testPacketOutEgressTTLOneWithUDPAndStaticRoute(ctx context.Context, t *testing.T, args *testArgs) {
+	client := args.p4rtClientA
+
+	// Program the entry
+	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
+		t.Errorf("There is error when inserting the match entry")
+	}
+	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+
+	// Check initial packet counters
+	port := sortPorts(args.dut.Ports())[0].Name()
+	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	ipv4 := args.packetIO.GetPacketOutObj(t).DstIPv4
+	ipv6 := args.packetIO.GetPacketOutObj(t).DstIPv6
+	ttl := args.packetIO.GetPacketOutObj(t).TTL
+	ipv4Addr := *ipv4
+	ipv6Addr := *ipv6
+	ttlVal := *ttl
+	*ipv4 = "1.2.3.4"
+	*ipv6 = "1:2::3:4"
+	*ttl = 1
+	args.packetIO.GetPacketOutObj(t).udp = true
+	defer func() {
+		*ipv4 = ipv4Addr
+		*ipv6 = ipv6Addr
+		*ttl = ttlVal
+		args.packetIO.GetPacketOutObj(t).udp = false
+	}()
+
+	packet := args.packetIO.GetPacketOut(t, portID, false)
+
+	packet_count := 100
+	sendPackets(t, client, packet, packet_count)
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+
+	// Verify InPkts stats to check P4RT stream
+	// fmt.Println(counter_0)
+	// fmt.Println(counter_1)
+
+	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+
+	if args.packetIO.GetPacketOutExpectation(t, true) {
+		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+			t.Errorf("Unexpected packets are received.")
+		}
+	}
+}
+
 func testPacketOutEgressTTLOneWithStaticroute(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 
