@@ -65,6 +65,30 @@ func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) 
 	}
 }
 
+// programmGDPMatchEntry programms or deletes GDP entry
+func programmGDPMatchEntry(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, delete bool) error {
+	actionType := p4_v1.Update_INSERT
+	if delete {
+		actionType = p4_v1.Update_DELETE
+	}
+	err := client.Write(&p4_v1.WriteRequest{
+		DeviceId:   deviceID,
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
+		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
+			&wbb.AclWbbIngressTableEntryInfo{
+				Type:          actionType,
+				EtherType:     0x6007,
+				EtherTypeMask: 0xFFFF,
+			},
+		}),
+		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func TestP4RTCompliance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
