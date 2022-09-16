@@ -17,6 +17,7 @@
  *
  */
 
+// Package wbb implements helper function for acl_wbb_ingress_table in p4info file.
 package wbb
 
 import (
