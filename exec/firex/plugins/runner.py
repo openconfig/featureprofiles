@@ -69,20 +69,25 @@ def BringupTestbed(self, uid, ws, images = None,
     ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
     
     check_output(f"sed -i 's|$FP_ROOT|{fp_repo_dir}|g' " + ondatra_binding_path)
-    with open(os.path.join(fp_repo, 'go.mod'), "a") as fp:
+    with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
         fp.write("replace github.com/openconfig/ondatra => ../ondatra")
         
     fp_repo = git.Repo(fp_repo_dir)
-    fp_repo.git.add(update=True)
-    fp_repo.git.commit('-m', 'patched go.mod and binding file', author='gob4@cisco.com')
+    fp_repo.config_writer().set_value("name", "email", "gob4").release()
+    fp_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
 
-    ondatra_repo = git.Repo(ondatra_repo)
-    for patch in ONDATRA_PATCHES:
-        ondatra_repo.git.apply([os.path.join(fp_repo, patch)])
+    fp_repo.git.add(update=True)
+    fp_repo.git.commit('-m', 'patched go.mod and binding file')
 
     ondatra_repo = git.Repo(ondatra_repo_dir)
+    ondatra_repo.config_writer().set_value("name", "email", "gob4").release()
+    ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
+
+    for patch in ONDATRA_PATCHES:
+        ondatra_repo.git.apply([os.path.join(fp_repo_dir, patch)])
+
     ondatra_repo.git.add(update=True)
-    ondatra_repo.git.commit('-m', 'patched for testing', author='gob4@cisco.com')
+    ondatra_repo.git.commit('-m', 'patched for testing')
 
     logger.print(f'Copying image {images}')
     shutil.copy(images, fp_repo_dir)
