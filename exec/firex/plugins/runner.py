@@ -46,7 +46,7 @@ def BringupTestbed(self, uid, ws, images = None,
                         ondatra_testbed_path=None,
                         ondatra_binding_path=None):
 
-    pkgs_parent_path = os.path.join(ws, f'bringup_go_pkgs')
+    pkgs_parent_path = os.path.join(ws, f'go_pkgs')
 
     ondatra_repo_dir = os.path.join(pkgs_parent_path,
                         ONDATRA_REPO_CLONE_INFO.path)
@@ -67,7 +67,22 @@ def BringupTestbed(self, uid, ws, images = None,
 
     ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
     ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
+    
     check_output(f"sed -i 's|$FP_ROOT|{fp_repo_dir}|g' " + ondatra_binding_path)
+    with open(os.path.join(fp_repo, 'go.mod'), "a") as fp:
+        fp.write("replace github.com/openconfig/ondatra => ../ondatra")
+        
+    fp_repo = git.Repo(fp_repo_dir)
+    fp_repo.git.add(update=True)
+    fp_repo.git.commit('-m', 'patched go.mod and binding file', author='gob4@cisco.com')
+
+    ondatra_repo = git.Repo(ondatra_repo)
+    for patch in ONDATRA_PATCHES:
+        ondatra_repo.git.apply([os.path.join(fp_repo, patch)])
+
+    ondatra_repo = git.Repo(ondatra_repo_dir)
+    ondatra_repo.git.add(update=True)
+    ondatra_repo.git.commit('-m', 'patched for testing', author='gob4@cisco.com')
 
     logger.print(f'Copying image {images}')
     shutil.copy(images, fp_repo_dir)
@@ -91,11 +106,11 @@ def BringupTestbed(self, uid, ws, images = None,
 
     logger.print(f'Executing osinstall command:\n {install_cmd}')
     logger.print(check_output(install_cmd, cwd=fp_repo_dir))
-    shutil.rmtree(pkgs_parent_path)
+    os.remove(image_path)
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, uid, ws):
-    pass
+    shutil.rmtree(os.path.join(ws, f'go_pkgs'))
 
 @register_test_framework_provider('b4_fp')
 def b4_fp_chain_provider(ws,
@@ -130,23 +145,24 @@ def b4_fp_chain_provider(ws,
                     test_patch=test_patch,
                     **kwargs)
 
-    pkgs_parent_path = os.path.join(ws, f'{testsuite_id}_go_pkgs')
+    pkgs_parent_path = os.path.join(ws, f'go_pkgs')
 
     ondatra_repo_dir = os.path.join(pkgs_parent_path,
                         ONDATRA_REPO_CLONE_INFO.path)
     fp_repo_dir = os.path.join(pkgs_parent_path, 
                         FP_REPO_CLONE_INFO.path)
 
-    chain |= B4GoClone.s(b4go_pkg_url=ONDATRA_REPO_CLONE_INFO.url,
-                        b4go_pkg_path=ondatra_repo_dir,
-                        b4go_pkg_branch=ondatra_repo_branch)
-
-    chain |= B4GoClone.s(b4go_pkg_url=FP_REPO_CLONE_INFO.url,
-                        b4go_pkg_path=fp_repo_dir,
-                        b4go_pkg_branch=fp_repo_branch)
-
-    chain |= PatchOndatra.s(ondatra_repo=ondatra_repo_dir, 
-                            fp_repo=fp_repo_dir)
+    ondatra_repo = git.Repo(ondatra_repo_dir)
+    ondatra_repo.git.reset('--hard')
+    ondatra_repo.git.checkout(ondatra_repo_branch)
+    ondatra_repo.git.reset('--hard')
+    ondatra_repo.git.clean('-xdf')
+    
+    fp_repo = git.Repo(fp_repo_dir)
+    fp_repo.git.reset('--hard')
+    fp_repo.git.checkout(fp_repo_branch)
+    fp_repo.git.reset('--hard')
+    fp_repo.git.clean('-xdf')
 
     if test_patch:
         chain |= PatchFP.s(fp_repo=fp_repo_dir, patch_path=test_patch)
@@ -165,8 +181,6 @@ def b4_fp_chain_provider(ws,
 
     chain |= GoTest2HTML.s(Path(test_log_directory_path) / f'{script_name}.json', Path(test_log_directory_path) / 'results.html')
     
-    chain |= Cleanup.s(go_pkgs_dir=pkgs_parent_path)
-
     if cflow:
         chain |= CollectCoverageData.s(pyats_testbed='@testbed')
 
@@ -174,24 +188,9 @@ def b4_fp_chain_provider(ws,
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def PatchOndatra(self, ondatra_repo, fp_repo):
-    ondatra_repo = git.Repo(ondatra_repo)
-    for patch in ONDATRA_PATCHES:
-        ondatra_repo.git.apply([os.path.join(fp_repo, patch)])
-
-    with open(os.path.join(fp_repo, 'go.mod'), "a") as fp:
-        fp.write("replace github.com/openconfig/ondatra => ../ondatra")
-
-# noinspection PyPep8Naming
-@app.task(bind=True)
 def PatchFP(self, fp_repo, patch_path):
     repo = git.Repo(fp_repo)
     repo.git.apply([os.path.join(fp_repo, patch_path)])
-
-# noinspection PyPep8Naming
-@app.task(bind=True)
-def Cleanup(self, go_pkgs_dir):
-    shutil.rmtree(go_pkgs_dir)
     
 # noinspection PyPep8Naming
 @app.task(bind=True, base=FireXRunnerBase)
@@ -243,8 +242,6 @@ def RunB4FPTest(self,
         ondatra_binding = os.path.join(ondatra_dir, 'topology.textproto')
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}',
                         file=ondatra_binding)
-    else:
-        check_output(f"sed -i 's|$FP_ROOT|{fp_ws}|g' " + ondatra_binding)
 
     test_args += f' -binding {ondatra_binding} -testbed {ondatra_testbed_path}'
 
