@@ -220,7 +220,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	lacpPath.Replace(t, lacp)
 
 	// Waiting 15s before configuring the port channel
-	time.Sleep(15 * time.Second)
+	tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Await(t, 20*time.Second, opUp)
 
 	agg := &telemetry.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg, &dutDst)
@@ -434,9 +434,9 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 		t.Run(tf.desc, func(t *testing.T) {
 			for _, port := range tc.atePorts[1 : 1+tf.downCount] {
 				if tc.lagType == telemetry.IfAggregate_AggregationType_LACP {
-					dp := tc.dut.Port(t, port.ID())
 
 					// Linked DUT and ATE ports have the same ID.
+					dp := tc.dut.Port(t, port.ID())
 					t.Logf("Taking otg port %s down in the LAG", port.ID())
 					tc.ate.OTG().DisableLACPMembers(t, []string{port.ID()})
 					time.Sleep(3 * time.Second)
