@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -202,12 +201,6 @@ func TestLinecardReboot(t *testing.T) {
 	})
 	if val, ok := watch.Await(t); !ok {
 		t.Fatalf("DUT did not reach target state: got %v", val)
-	}
-
-	intfsOperStatusUPAfterReboot := fetchOperStatusUPIntfs(t, dut)
-	t.Logf("OperStatusUP interfaces after reboot: %v", intfsOperStatusUPAfterReboot)
-	if diff := cmp.Diff(intfsOperStatusUPAfterReboot, intfsOperStatusUPBeforeReboot); diff != "" {
-		t.Errorf("OperStatusUP interfaces differed (-want +got):\n%v", diff)
 	}
 
 	// TODO: Check the line card uptime has been reset.
