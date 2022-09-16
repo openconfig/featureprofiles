@@ -72,10 +72,11 @@ def BringupTestbed(self, uid, ws, images = None,
     with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
         fp.write("replace github.com/openconfig/ondatra => ../ondatra")
         
+    check_output(f'{GO_BIN} mod tidy', cwd=fp_repo_dir)
+
     fp_repo = git.Repo(fp_repo_dir)
     fp_repo.config_writer().set_value("name", "email", "gob4").release()
     fp_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
-
     fp_repo.git.add(update=True)
     fp_repo.git.commit('-m', 'patched go.mod and binding file')
 
