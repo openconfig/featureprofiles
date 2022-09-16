@@ -74,12 +74,11 @@ type config struct {
 	Services []Service
 }
 
-func runLoop(cmd trigger, status  chan CommandStatus)  {
-	//ctx := context.Background()
+func runLoop(cmd trigger, status  chan CommandStatus) error {
 	status <- Unknown
 	switch(cmd.config().ExecMode) {
 	case ONCE:
-		if cmd.config().FirstRun != 0 {
+		if cmd.config().FirstRun > 0 {
 			status <- Waiting
 			time.Sleep(cmd.config().FirstRun)
 		}
@@ -90,7 +89,12 @@ func runLoop(cmd trigger, status  chan CommandStatus)  {
 			ctx, cancel = context.WithTimeout(ctx, cmd.config().Timeout)
 			defer cancel()
 		}
-		cmd.run(context.Background(),GNMI)
-		status <- Done
+		err := cmd.run(ctx,GNMI); if err!=nil {
+			status <- Failed
+			return err
+		} else {
+			status <- Done
+		}
 	}
+	return nil
 }
