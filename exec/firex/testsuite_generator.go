@@ -1,5 +1,7 @@
 package main
 
+// Package main provides main functions to generate test runner for firex.
+
 import (
 	"flag"
 	"fmt"

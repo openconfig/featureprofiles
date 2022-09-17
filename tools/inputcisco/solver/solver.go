@@ -1,5 +1,8 @@
 package solver
 
+// Package solver provides api for type inference.
+
+
 import (
 	"strings"
 	"testing"
