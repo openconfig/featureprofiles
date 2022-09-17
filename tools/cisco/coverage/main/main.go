@@ -1,5 +1,4 @@
-//Packahe main is the main package for the covergae tool
-
+//Package main is the main package for the covergae tool
 package main
 
 

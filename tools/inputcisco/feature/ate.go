@@ -1,5 +1,4 @@
 // package feature conatins util function for each feature
-
 package feature
 
 import (
