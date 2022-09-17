@@ -1,4 +1,4 @@
-// This package contains cisco specefic binding APIs to config a router using oc and text and cli.
+// Package config contains cisco specefic binding APIs to config a router using oc and text and cli.
 package config
 
 import (

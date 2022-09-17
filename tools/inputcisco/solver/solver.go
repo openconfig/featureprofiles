@@ -1,7 +1,7 @@
+// Package solver conatin toplogy solver for physical binding
 package solver
 
 // Package solver provides api for type inference.
-
 
 import (
 	"strings"
