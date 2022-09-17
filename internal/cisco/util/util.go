@@ -1,3 +1,4 @@
+// Package util provides util APIs to simplify writing  test cases.
 package util
 
 import (

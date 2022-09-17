@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -100,11 +99,21 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 	}
 
 	t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
+	startReboot := time.Now()
 	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
 	if err != nil {
 		t.Fatalf("Failed to perform component reboot with unexpected err: %v", err)
 	}
 	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+
+	watch := dut.Telemetry().Component(rpStandby).RedundantRole().Watch(
+		t, 10*time.Minute, func(val *telemetry.QualifiedE_PlatformTypes_ComponentRedundantRole) bool {
+			return val.IsPresent()
+		})
+	if val, ok := watch.Await(t); !ok {
+		t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+	}
+	t.Logf("Standby controller boot time: %.2f seconds", time.Since(startReboot).Seconds())
 
 	// TODO: Check the standby RP uptime has been reset.
 }
@@ -194,12 +203,6 @@ func TestLinecardReboot(t *testing.T) {
 		t.Fatalf("DUT did not reach target state: got %v", val)
 	}
 
-	intfsOperStatusUPAfterReboot := fetchOperStatusUPIntfs(t, dut)
-	t.Logf("OperStatusUP interfaces after reboot: %v", intfsOperStatusUPAfterReboot)
-	if diff := cmp.Diff(intfsOperStatusUPAfterReboot, intfsOperStatusUPBeforeReboot); diff != "" {
-		t.Errorf("OperStatusUP interfaces differed (-want +got):\n%v", diff)
-	}
-
 	// TODO: Check the line card uptime has been reset.
 }
 
@@ -230,6 +233,13 @@ func findComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.
 func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
 	var activeRP, standbyRP string
 	for _, supervisor := range supervisors {
+		watch := dut.Telemetry().Component(supervisor).RedundantRole().Watch(
+			t, 5*time.Minute, func(val *telemetry.QualifiedE_PlatformTypes_ComponentRedundantRole) bool {
+				return val.IsPresent()
+			})
+		if val, ok := watch.Await(t); !ok {
+			t.Fatalf("DUT did not reach target state within %v: got %v", 5*time.Minute, val)
+		}
 		role := dut.Telemetry().Component(supervisor).RedundantRole().Get(t)
 		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
 		if role == standbyController {
