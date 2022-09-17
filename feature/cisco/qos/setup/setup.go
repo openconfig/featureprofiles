@@ -1,4 +1,7 @@
+// Package setup includes funtions to load oc model from a json file
+
 package setup
+
 
 import (
 	"fmt"

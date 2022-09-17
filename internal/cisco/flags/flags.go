@@ -1,6 +1,7 @@
+// Package flags defince flags the are required by tests.
+
 package flags
 
-// Package flags defince flags the are required by tests.
 
 import "flag"
 
