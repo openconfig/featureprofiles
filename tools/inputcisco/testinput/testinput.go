@@ -1,8 +1,6 @@
 // Package testinput provides basic data structure to generate input for tests.
 package testinput
 
-
-
 import (
 	"github.com/openconfig/featureprofiles/tools/inputcisco/proto"
 	"github.com/openconfig/ondatra"

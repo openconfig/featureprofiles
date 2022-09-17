@@ -1,7 +1,6 @@
 // Package flags defince flags the are required by tests.
 package flags
 
-
 import "flag"
 
 // cisco tests flags.

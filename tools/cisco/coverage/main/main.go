@@ -1,6 +1,5 @@
-//Package main is the main package for the covergae tool
+// Package main is the main package for the covergae tool
 package main
-
 
 import (
 	"github.com/openconfig/featureprofiles/tools/cisco/coverage"

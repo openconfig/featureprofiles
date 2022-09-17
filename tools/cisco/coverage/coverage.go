@@ -1,6 +1,5 @@
-//Package coverage implements the tool to generate oc coverage report for tests
+// Package coverage implements the tool to generate oc coverage report for tests
 package coverage
-
 
 import (
 	"fmt"
