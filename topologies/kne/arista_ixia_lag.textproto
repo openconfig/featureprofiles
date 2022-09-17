@@ -1,4 +1,4 @@
-name: "arista-ixia"
+name: "arista-ixia-lag"
 nodes: {
     name: "otg"
     type: IXIA_TG
@@ -22,6 +22,54 @@ nodes: {
         value: {
             name: "gnmi"
             inside: 50051
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth7"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth8"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+            group: "lag"
         }
     }
 }
@@ -55,13 +103,6 @@ nodes: {
             inside: 6030
         }
     }
-    services:{
-        key: 6040
-        value: {
-            name: "gribi"
-            inside: 6040
-        }
-    }
 }
 links: {
     a_node: "otg"
@@ -86,4 +127,34 @@ links: {
     a_int: "eth4"
     z_node: "otg"
     z_int: "eth4"
+}
+links: {
+    a_node: "arista"
+    a_int: "eth5"
+    z_node: "otg"
+    z_int: "eth5"
+}
+links: {
+    a_node: "arista"
+    a_int: "eth6"
+    z_node: "otg"
+    z_int: "eth6"
+}
+links: {
+    a_node: "arista"
+    a_int: "eth7"
+    z_node: "otg"
+    z_int: "eth7"
+}
+links: {
+    a_node: "arista"
+    a_int: "eth8"
+    z_node: "otg"
+    z_int: "eth8"
+}
+links: {
+    a_node: "arista"
+    a_int: "eth9"
+    z_node: "otg"
+    z_int: "eth9"
 }
