@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -112,7 +111,7 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 			return val.IsPresent()
 		})
 	if val, ok := watch.Await(t); !ok {
-		t.Fatalf("DUT did not reach target state within %v minutes: got %v", 10*time.Minute, val.String())
+		t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
 	}
 	t.Logf("Standby controller boot time: %.2f seconds", time.Since(startReboot).Seconds())
 
@@ -204,12 +203,6 @@ func TestLinecardReboot(t *testing.T) {
 		t.Fatalf("DUT did not reach target state: got %v", val)
 	}
 
-	intfsOperStatusUPAfterReboot := fetchOperStatusUPIntfs(t, dut)
-	t.Logf("OperStatusUP interfaces after reboot: %v", intfsOperStatusUPAfterReboot)
-	if diff := cmp.Diff(intfsOperStatusUPAfterReboot, intfsOperStatusUPBeforeReboot); diff != "" {
-		t.Errorf("OperStatusUP interfaces differed (-want +got):\n%v", diff)
-	}
-
 	// TODO: Check the line card uptime has been reset.
 }
 
@@ -245,7 +238,7 @@ func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (
 				return val.IsPresent()
 			})
 		if val, ok := watch.Await(t); !ok {
-			t.Fatalf("DUT did not reach target state within %v minutes: got %v", 5*time.Minute, val.String())
+			t.Fatalf("DUT did not reach target state within %v: got %v", 5*time.Minute, val)
 		}
 		role := dut.Telemetry().Component(supervisor).RedundantRole().Get(t)
 		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
