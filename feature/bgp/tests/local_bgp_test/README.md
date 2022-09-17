@@ -1,9 +1,9 @@
-# Local BGP Test
+# RT-1.7: Local BGP Test
 
 ## Summary
 
-The local_bgp_test brings up two OpenConfig controlled devices and tests that a
-BGP session can be established between them.
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that
+a BGP session can be established between them.
 
 This test is suitable for running in a KNE environment.
 
