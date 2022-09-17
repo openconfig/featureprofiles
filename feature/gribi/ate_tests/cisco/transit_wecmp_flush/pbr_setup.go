@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//Package transitwecmpflush_test includes all tests related to transit case of gribi 
 package transitwecmpflush_test
 
 import (
