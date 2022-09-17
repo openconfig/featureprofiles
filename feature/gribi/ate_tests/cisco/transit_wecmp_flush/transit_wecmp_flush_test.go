@@ -435,7 +435,7 @@ func testDeleteDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 	args.c2.DeleteNH(t, 6, "", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 }
 
-//Transit TC 066 - Two prefixes with NHGs with backup pointing to the each other's NHG
+// Transit TC 066 - Two prefixes with NHGs with backup pointing to the each other's NHG
 func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
@@ -463,7 +463,7 @@ func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) 
 	checkTrafficFlows(t, args.ate, 60, dscp16Flow, dscp10Flow)
 }
 
-//Transit TC 067 - Same forwarding entries across multiple vrfs
+// Transit TC 067 - Same forwarding entries across multiple vrfs
 func testSameForwardingEntriesAcrossMultipleVrfs(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
@@ -837,7 +837,7 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 }
 
-//Transit-40  DELETE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf
+// Transit-40  DELETE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf
 func testDeleteVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
@@ -916,7 +916,7 @@ func testDeleteVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), false)
 }
 
-//Transit-45  DELETE: default VRF IPv4 Entry with ECMP+backup path NHG+NH in default vrf
+// Transit-45  DELETE: default VRF IPv4 Entry with ECMP+backup path NHG+NH in default vrf
 func testDeleteDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
@@ -947,7 +947,7 @@ func testDeleteDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	performATEAction(t, "ate", 1, false)
 }
 
-//Transit-32 REPLACE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf
+// Transit-32 REPLACE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf
 func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
@@ -1013,7 +1013,7 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	}
 }
 
-//Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf
+// Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf
 func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
@@ -1759,7 +1759,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true, 0.99)
 }
 
-//Static Arp Resolution
+// Static Arp Resolution
 func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
@@ -1828,7 +1828,7 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 	time.Sleep(10 * time.Second)
 }
 
-//Initially Dynamic arp and then static arp to be resolved
+// Initially Dynamic arp and then static arp to be resolved
 func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
@@ -1952,7 +1952,7 @@ func testClearingARP(t *testing.T, args *testArgs) {
 	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 }
 
-//Static Arp Resolution
+// Static Arp Resolution
 func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)

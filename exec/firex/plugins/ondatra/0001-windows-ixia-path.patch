@@ -1,0 +1,57 @@
+From 498c9a00dc6f457b01bbd8579615669e7ab317da Mon Sep 17 00:00:00 2001
+From: moji <mbagherz@cisco.com>
+Date: Mon, 29 Aug 2022 13:55:10 -0400
+Subject: [PATCH] windows-ixia path
+
+---
+ binding/ixweb/ixstats.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/binding/ixweb/ixstats.go b/binding/ixweb/ixstats.go
+index 306cf31..70b2f4d 100644
+--- a/binding/ixweb/ixstats.go
++++ b/binding/ixweb/ixstats.go
+@@ -16,7 +16,6 @@ package ixweb
+ 
+ import (
+ 	"bytes"
+-	"golang.org/x/net/context"
+ 	"encoding/csv"
+ 	"errors"
+ 	"fmt"
+@@ -27,7 +26,9 @@ import (
+ 	"sync/atomic"
+ 	"time"
+ 
+-	"github.com/openconfig/gocloser"
++	"golang.org/x/net/context"
++
++	closer "github.com/openconfig/gocloser"
+ )
+ 
+ const (
+@@ -38,6 +39,12 @@ const (
+ 	// TrafficItemStatsCaption is the name of the trafic item statics view.
+ 	TrafficItemStatsCaption = "Traffic Item Statistics"
+ 
++	// 	TrafficItemStatsCaption = "Traffic Item Statistics"
++	PortStatsCaption = "Port Statistics"
++
++	// Flow Statustics
++	FlowStatsCaption = "Flow Statistics"
++
+ 	viewsPath   = "statistics/view"
+ 	viewOpsPath = viewsPath + "/operations"
+ )
+@@ -148,7 +155,7 @@ type StatRow map[string]string
+ // If drilldowns are specified, the results of each drilldown on each row of
+ // the target table are also returned.
+ func (v *StatView) FetchTable(ctx context.Context, drilldowns ...string) (StatTable, error) {
+-	if v.caption == EgressStatsCaption {
++	if v.caption == EgressStatsCaption || v.caption == TrafficItemStatsCaption || v.caption == PortStatsCaption  || v.caption == FlowStatsCaption {
+ 		if len(drilldowns) != 0 {
+ 			return nil, fmt.Errorf("drilldowns not supported for %q", EgressStatsCaption)
+ 		}
+-- 
+2.32.1 (Apple Git-133)
+
