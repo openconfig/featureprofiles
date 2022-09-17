@@ -18,7 +18,7 @@ from gotest2html import GoTest2HTML
 import os
 import git 
 
-GO_BIN = 'go'
+GO_BIN = '/auto/firex/bin/go'
 
 logger = get_task_logger(__name__)
 
@@ -263,7 +263,7 @@ def RunB4FPTest(self,
     extra_env_vars = {'GOVERSION': '3.0'}  # Needed by gotestsum; 3.0 is what we see when GO is in path
     extra_env_vars.update(get_go_env())
 
-    cmd = f'gotestsum ' \
+    cmd = f'/auto/firex/bin/gotestsum ' \
           f'--junitfile {xunit_results_filepath} ' \
           f'--junitfile-testsuite-name short ' \
           f'--junitfile-testcase-classname short ' \
