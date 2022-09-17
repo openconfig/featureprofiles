@@ -57,6 +57,7 @@ func Reload(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, beforeRel
 func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) string {
 	t.Helper()
 	sshClient := dut.RawAPIs().CLI(t)
+	defer sshClient.Close()
 	cliOut := sshClient.Stdout()
 	cliIn := sshClient.Stdin()
 	if _, err := cliIn.Write([]byte(cfg)); err != nil {
@@ -406,24 +407,26 @@ func prettySetRequest(setRequest *gnmi.SetRequest) string {
 
 // BackgroundCLI runs an admin command on the backgroun and fails if the command is unsucessful or does not return earlier than timeout
 // The command also fails if the response does not match the expeted reply pattern or matches the not-expected one
-func BackgroundCLI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,cmd string, expectedRep, notExpectedRep []string,  period interface{}, timeOut time.Duration) {
+func BackgroundCLI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string, expectedRep, notExpectedRep []string, period interface{}, timeOut time.Duration) {
 	t.Helper()
-	timer,ok := period.(*time.Timer); if ok {
-	go func() {
-		<-timer.C
-		reply := CLIViaSSH(ctx, t, dut, cmd,timeOut)
-		t.Logf("Reply for %s : %s",cmd, reply)
-		verifyCLIOutput(t, reply,expectedRep,notExpectedRep)
+	timer, ok := period.(*time.Timer)
+	if ok {
+		go func() {
+			<-timer.C
+			reply := CLIViaSSH(ctx, t, dut, cmd, timeOut)
+			t.Logf("Reply for %s : %s", cmd, reply)
+			verifyCLIOutput(t, reply, expectedRep, notExpectedRep)
 		}()
 	}
-	
-	ticker,ok := period.(*time.Ticker); if ok {
+
+	ticker, ok := period.(*time.Ticker)
+	if ok {
 		go func() {
-			for ;; {
+			for {
 				<-ticker.C
-				reply:= CLIViaSSH(ctx, t, dut, cmd,timeOut)
-				t.Logf("Reply for %s : %s",cmd, reply)
-				verifyCLIOutput(t, reply,expectedRep,notExpectedRep)
+				reply := CLIViaSSH(ctx, t, dut, cmd, timeOut)
+				t.Logf("Reply for %s : %s", cmd, reply)
+				verifyCLIOutput(t, reply, expectedRep, notExpectedRep)
 			}
 		}()
 	}
@@ -432,10 +435,11 @@ func BackgroundCLI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,cmd
 // CLItWithSSH run the cli command (show or admin) via ssh on the device
 func CLIViaSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string, timeout time.Duration) string {
 	t.Helper()
-	if ! strings.HasSuffix(cmd,"\n") {
+	if !strings.HasSuffix(cmd, "\n") {
 		cmd = cmd + " \n"
 	}
 	sshClient := dut.RawAPIs().CLI(t)
+	defer sshClient.Close()
 	cliOut := sshClient.Stdout()
 	cliIn := sshClient.Stdin()
 	if _, err := cliIn.Write([]byte(cmd)); err != nil {
@@ -459,7 +463,7 @@ func CLIViaSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd st
 				break
 			} else {
 				response = fmt.Sprintf("%s%s", response, string(buf[:n]))
-				if strings.HasSuffix(response, "#")  {
+				if strings.HasSuffix(response, "#") {
 					ch <- true
 					break
 				}
@@ -480,22 +484,18 @@ func CLIViaSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd st
 	return ""
 }
 
-func verifyCLIOutput(t *testing.T, output string, match,notMatch []string, ) {
+func verifyCLIOutput(t *testing.T, output string, match, notMatch []string) {
 	t.Helper()
-	for _,pattern := range(match){
+	for _, pattern := range match {
 		ok, err := regexp.MatchString(pattern, output)
-		if err != nil || !ok{
-			t.Fatalf("The command reply does not contain the expected pattern %s ",pattern)
+		if err != nil || !ok {
+			t.Fatalf("The command reply does not contain the expected pattern %s ", pattern)
 		}
 	}
-	for _,pattern := range(notMatch){
+	for _, pattern := range notMatch {
 		ok, err := regexp.MatchString(pattern, output)
-		if err == nil  &&  ok {
-			t.Fatalf("The command reply contains not expected pattern % s",pattern)
+		if err == nil && ok {
+			t.Fatalf("The command reply contains not expected pattern % s", pattern)
 		}
 	}
 }
-
-	
-	
-	
