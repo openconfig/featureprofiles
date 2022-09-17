@@ -432,7 +432,7 @@ func BackgroundCLI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cm
 	}
 }
 
-// CLItWithSSH run the cli command (show or admin) via ssh on the device
+// CLIViaSSH run the cli command (show or admin) via ssh on the device
 func CLIViaSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string, timeout time.Duration) string {
 	t.Helper()
 	if !strings.HasSuffix(cmd, "\n") {
