@@ -41,14 +41,29 @@ var (
 			fn:   testVERIFYWithGoogleP4Info,
 		},
 		{
+			name: "SetForwardingPipelineCfg with VERIFY action with other p4info",
+			desc: "SetForwardingPipelineConfig-Compliance:014 14(VERIFY) send other p4info with VERIFY action, verify device is NOT able to realize it and return INVALID_ARGUMENT error",
+			fn:   testVERIFYWithOtherP4Info,
+		},
+		{
 			name: "SetForwardingPipelineCfg with VERIFY_AND_SAVE action with google p4info",
 			desc: "SetForwardingPipelineConfig-Compliance:015 14(VERIFY_AND_SAVE) send google p4info with VERIFY_AND_SAVE action, verify device is able to realize it and doesn’t change current config. Also subsequenct Read/Write must refer to the new config",
 			fn:   testVERIFYANDSAVEWithGoogleP4Info,
 		},
 		{
+			name: "SetForwardingPipelineCfg with VERIFY_AND_SAVE action with other p4info",
+			desc: "SetForwardingPipelineConfig-Compliance:016 14(VERIFY_AND_SAVE) send other p4info with VERIFY_AND_SAVE action, verify device is NOT able to realize it and return with INVALID_AGRUMENT",
+			fn:   testVERIFYANDSAVEWithOtherP4Info,
+		},
+		{
 			name: "SetForwardingPipelineCfg with VERIFY_AND_COMMIT action with google p4info",
 			desc: "SetForwardingPipelineConfig-Compliance:017 14(VERIFY_AND_COMMIT) send google p4info with VERIFY_AND_COMMIT action, verify device is able to realize it, verify the forwarding state in the target is cleared",
 			fn:   testVERIFYANDCOMMITWithGoogleP4Info,
+		},
+		{
+			name: "SetForwardingPipelineCfg with VERIFY_AND_COMMIT action with other p4info",
+			desc: "SetForwardingPipelineConfig-Compliance:018 14(VERIFY_AND_COMMIT) send other p4info with VERIFY_AND_COMMIT action, verify device is NOT able to realize it and return with INVALID_AGRUMENT",
+			fn:   testVERIFYANDCOMMITWithOtherP4Info,
 		},
 		{
 			name: "SetForwardingPipelineCfg with COMMIT action with google p4info",
@@ -189,25 +204,32 @@ func testSetForwardingPipelineAction(ctx context.Context, t *testing.T, args *te
 	// Destroy P4RT Client
 	defer teardownConnection(ctx, t, deviceID, client)
 
-	// TODO: set a different p4info file when otherP4InfoFile is true
-	p4InfoFilename := p4InfoFile
-	if !otherP4InfoFile {
-		p4InfoFilename = p4InfoFile
-	}
-
-	p4Info, err := utils.P4InfoLoad(p4InfoFilename)
+	p4Info, err := utils.P4InfoLoad(p4InfoFile)
 	if err != nil {
 		t.Logf("There is error when loading p4info file")
 	}
+	// remove acl_wbb_ingress.acl_wbb_ingress_table
+	if otherP4InfoFile {
+		tables := p4Info.GetTables()
+		for _, table := range tables {
+			if table.Preamble.Name == "ingress.acl_wbb_ingress.acl_wbb_ingress_table" {
+				table = nil
+			}
+		}
+	}
 
-	if err := client.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
+	err = client.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
 		DeviceId:   streamParameter.DeviceId,
 		ElectionId: &p4_v1.Uint128{High: streamParameter.ElectionIdH, Low: streamParameter.ElectionIdL},
 		Action:     action,
 		Config: &p4_v1.ForwardingPipelineConfig{
 			P4Info: &p4Info,
 		},
-	}); err != nil {
+	})
+	if otherP4InfoFile && err == nil {
+		t.Errorf("There is error when loading p4info file, %s", err)
+
+	} else if err != nil {
 		t.Errorf("There is error when loading p4info file, %s", err)
 	}
 }
@@ -217,14 +239,29 @@ func testVERIFYWithGoogleP4Info(ctx context.Context, t *testing.T, args *testArg
 	testSetForwardingPipelineAction(ctx, t, args, p4_v1.SetForwardingPipelineConfigRequest_VERIFY, false)
 }
 
+// SetForwardingPipelineConfig-Compliance:014
+func testVERIFYWithOtherP4Info(ctx context.Context, t *testing.T, args *testArgs) {
+	testSetForwardingPipelineAction(ctx, t, args, p4_v1.SetForwardingPipelineConfigRequest_VERIFY, true)
+}
+
 // SetForwardingPipelineConfig-Compliance:015
 func testVERIFYANDSAVEWithGoogleP4Info(ctx context.Context, t *testing.T, args *testArgs) {
 	testSetForwardingPipelineAction(ctx, t, args, p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_SAVE, false)
 }
 
+// SetForwardingPipelineConfig-Compliance:016
+func testVERIFYANDSAVEWithOtherP4Info(ctx context.Context, t *testing.T, args *testArgs) {
+	testSetForwardingPipelineAction(ctx, t, args, p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_SAVE, true)
+}
+
 // SetForwardingPipelineConfig-Compliance:017
 func testVERIFYANDCOMMITWithGoogleP4Info(ctx context.Context, t *testing.T, args *testArgs) {
 	testSetForwardingPipelineAction(ctx, t, args, p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT, false)
+}
+
+// SetForwardingPipelineConfig-Compliance:018
+func testVERIFYANDCOMMITWithOtherP4Info(ctx context.Context, t *testing.T, args *testArgs) {
+	testSetForwardingPipelineAction(ctx, t, args, p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT, true)
 }
 
 // SetForwardingPipelineConfig-Compliance:019
