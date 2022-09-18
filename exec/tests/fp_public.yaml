@@ -55,7 +55,6 @@ tests:
   path: feature/gnoi/system/tests/ping_test
 - name: gNOI-3.1 (Complete Chassis Reboot) 
   path: feature/gnoi/system/tests/complete_chassis_reboot
-  patch: exec/firex/plugins/fp_patch/complete_chassis_reboot_test.patch
 - name: gNOI-3.3 (Supervisor Switchover) 
   path: feature/gnoi/system/tests/supervisor_switchover_test
 - name: gNOI-3.2 (Per-Component Reboot) 
