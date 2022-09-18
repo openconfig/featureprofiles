@@ -1,0 +1,16 @@
+diff --git a/feature/system/gnmi/cliorigin/ate_tests/mixed_oc_cli_origin_support_test/mixed_oc_cli_origin_support_test.go b/feature/system/gnmi/cliorigin/ate_tests/mixed_oc_cli_origin_support_test/mixed_oc_cli_origin_support_test.go
+index 5ba1d89e..3ce805c7 100644
+--- a/feature/system/gnmi/cliorigin/ate_tests/mixed_oc_cli_origin_support_test/mixed_oc_cli_origin_support_test.go
++++ b/feature/system/gnmi/cliorigin/ate_tests/mixed_oc_cli_origin_support_test/mixed_oc_cli_origin_support_test.go
+@@ -46,9 +46,10 @@ func buildOCUpdate(path *gpb.Path, value string) *gpb.Update {
+ 	if len(path.GetElem()) == 0 || path.GetElem()[0].GetName() != "meta" {
+ 		path.Origin = "openconfig"
+ 	}
++	json_value := fmt.Sprintf("\"%s\"", value)
+ 	update := &gpb.Update{
+ 		Path: path,
+-		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_StringVal{StringVal: value}},
++		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: []byte(json_value)}},
+ 	}
+ 	return update
+ }

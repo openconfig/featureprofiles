@@ -6,6 +6,8 @@ pretests:
   - name: pre_fp_gribi_test
     path: topologies/cisco/pretests/pre_fp_gribi_test.go
 tests:
+- name: gNOI-3.1 (Complete Chassis Reboot) 
+  path: feature/gnoi/system/tests/complete_chassis_reboot
 - name: SEC-3.1 (Authentication) 
   path: feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test
 - name: dp-1.4 (QoS Interface Output Queue Counters) 
@@ -46,15 +48,14 @@ tests:
 - name: gNMI-1.1 (cli Origin) 
   path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
 - name: gNMI-1.12 (Mixed OpenConfig/CLI Origin) 
-  path: feature/system/gnmi/cliorigin/mixed_oc_cli_origin_support_test
+  path: feature/system/gnmi/cliorigin/ate_tests/mixed_oc_cli_origin_support_test
+  patch: exec/firex/plugins/fp_patch/mixed_oc_cli_origin_support_test.patch
 - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace) 
   path: feature/system/gnmi/metadata/tests/annotation_test
 - name: gNOI-3.4 (Chassis Reboot Status and Reboot Cancellation) 
   path: feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
 - name: gNOI-5.1 (Ping Test) 
   path: feature/gnoi/system/tests/ping_test
-- name: gNOI-3.1 (Complete Chassis Reboot) 
-  path: feature/gnoi/system/tests/complete_chassis_reboot
 - name: gNOI-3.3 (Supervisor Switchover) 
   path: feature/gnoi/system/tests/supervisor_switchover_test
 - name: gNOI-3.2 (Per-Component Reboot) 
@@ -69,6 +70,8 @@ tests:
   path: feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test
 - name: RT-1.4 (BGP Graceful Restart) 
   path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
+- name: RT-1.7 (Local BGP Test) 
+  path: feature/bgp/tests/local_bgp_test
 - name: RT-1.2 (BGP Policy & Route Installation) 
   path: feature/bgp/policybase/ate_tests/route_installation_test
 - name: TE-2.1 (gRIBI IPv4 Entry) 
@@ -84,6 +87,8 @@ tests:
     - '-protocol_name="default"'
 - name: TE-3.5 (Ordering ACK Received) 
   path: feature/gribi/ate_tests/ordering_ack_test
+- name: TE-3.7 (Base Hierarchical NHG Update) 
+  path: feature/gribi/ate_tests/base_hierarchical_nhg_update
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
 - name: TE-6.1 (Route Removal via Flush) 
