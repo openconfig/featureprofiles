@@ -10,4 +10,4 @@ tests:
   path: feature/gribi/ate_tests/cisco/backup_nh
   patch: exec/firex/plugins/fp_patch/backup_nh.patch
   args: 
-    - '-gribi_fib_check="True'
+    - '-gribi_fib_check="true'
