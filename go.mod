@@ -3,7 +3,6 @@ module github.com/openconfig/featureprofiles
 go 1.19
 
 require (
-	github.com/c-robinson/iplib v1.0.3
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.8
 	github.com/open-traffic-generator/snappi/gosnappi v0.9.4
