@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 func TestOpticsPowerBiasCurrent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	transceivers := FindComponentsByType(t, dut, transceiverType)
+	transceivers := components.FindComponentsByType(t, dut, transceiverType)
 	t.Logf("Found transceiver list: %v", transceivers)
 	if len(transceivers) == 0 {
 		t.Fatalf("Get transceiver list for %q: got 0, want > 0", dut.Model())

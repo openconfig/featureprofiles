@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 func TestSupervisorSwitchover(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	supervisors := FindComponentsByType(t, dut, controlcardType)
+	supervisors := components.FindComponentsByType(t, dut, controlcardType)
 	t.Logf("Found supervisor list: %v", supervisors)
 	// Only perform the switchover for the chassis with dual RPs/Supervisors.
 	if len(supervisors) != 2 {

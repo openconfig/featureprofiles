@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 func TestStandbyControllerCardReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	supervisors := FindComponentsByType(t, dut, controlcardType)
+	supervisors := components.FindComponentsByType(t, dut, controlcardType)
 	t.Logf("Found supervisor list: %v", supervisors)
 	// Only perform the standby RP rebooting for the chassis with dual RPs/Supervisors.
 	if len(supervisors) != 2 {
@@ -124,7 +124,7 @@ func TestLinecardReboot(t *testing.T) {
 	const linecardBoottime = 10 * time.Minute
 	dut := ondatra.DUT(t, "dut")
 
-	lcs := FindComponentsByType(t, dut, linecardType)
+	lcs := components.FindComponentsByType(t, dut, linecardType)
 	t.Logf("Found linecard list: %v", lcs)
 	if got := len(lcs); got == 0 {
 		t.Errorf("Get number of Linecards on %v: got %v, want > 0", dut.Model(), got)
