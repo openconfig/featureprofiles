@@ -18,8 +18,3 @@ This document specifies the requirements for p4rt test implementation.```
 3.  The client should include a library to make use of Ondatra Raw APIs while
     it's being implemented. This is compulsory for us to easily adapt into our
     current testbeds. 
-
-4.  Additionally, the client should support all features like Packet I/O, Master
-    Arbitration, Flow programming, counter statistics, send/punt packets with
-    the above mentioned P4 info etc. We require all the clients to be using
-    Apache 2.0 as the standard license when they are opensourced. 
