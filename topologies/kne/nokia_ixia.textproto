@@ -1,4 +1,4 @@
-name: "arista-ixia"
+name: "nokia_ixia"
 nodes: {
     name: "otg"
     type: IXIA_TG
@@ -25,65 +25,57 @@ nodes: {
         }
     }
 }
+
 nodes: {
-    name: "arista"
-    type: ARISTA_CEOS
+    name: "nokia"
+    vendor: NOKIA
+    type: NOKIA_SRL
+    model: "ixr10"
     config: {
+        file: "nokia_srl.json"
+        image: "srlinux:latest"
         cert: {
             self_signed: {
-                cert_name: "gnmiCert.pem",
-                key_name: "gnmiCertKey.pem",
-                key_size: 4096,
+                cert_name: "kne-profile"
+                key_name: "N/A"
+                key_size: 4096
             }
         }
-        config_path: "/mnt/flash"
-        config_file: "startup-config"
-        file: "arista_ceos.config"
-    	image: "ceos:latest"
     }
     services:{
         key: 22
         value: {
             name: "ssh"
             inside: 22
+            outside: 22
         }
     }
     services:{
-        key: 6030 
+        key: 57400
         value: {
             name: "gnmi"
-            inside: 6030
+            inside: 57400
+            outside: 57400
         }
     }
     services:{
-        key: 6040
-        value: {
-            name: "gribi"
-            inside: 6040
-        }
+      key: 57401
+      value: {
+        name: "gribi"
+        inside: 57401
+        outside: 57401
+      }
     }
 }
 links: {
     a_node: "otg"
     a_int: "eth1"
-    z_node: "arista"
-    z_int: "eth1"
+    z_node: "nokia"
+    z_int: "e1-1"
 }
 links: {
-    a_node: "arista"
-    a_int: "eth2"
+    a_node: "nokia"
+    a_int: "e1-2"
     z_node: "otg"
     z_int: "eth2"
-}
-links: {
-    a_node: "arista"
-    a_int: "eth3"
-    z_node: "otg"
-    z_int: "eth3"
-}
-links: {
-    a_node: "arista"
-    a_int: "eth4"
-    z_node: "otg"
-    z_int: "eth4"
 }

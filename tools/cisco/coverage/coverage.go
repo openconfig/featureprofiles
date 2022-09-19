@@ -1,3 +1,4 @@
+// Package coverage implements the tool to generate oc coverage report for tests
 package coverage
 
 import (
