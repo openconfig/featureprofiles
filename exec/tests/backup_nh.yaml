@@ -9,3 +9,5 @@ tests:
 - name: backup_nh (forwarding tc with backup) 
   path: feature/gribi/ate_tests/cisco/backup_nh
   patch: exec/firex/plugins/fp_patch/backup_nh.patch
+  args: 
+    - '-gribi_fib_check="True'

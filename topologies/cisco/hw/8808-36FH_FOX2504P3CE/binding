@@ -7,6 +7,39 @@
 
 # These options are inherited throughout the entire binding for both the
 # DUT and the ATE, unless overridden by a specific device or protocol.
+
+#
+#router static
+# address-family ipv4 unicast
+#  5.0.0.0/8 5.3.0.1
+#  223.0.0.0/8 5.3.0.1
+# !
+
+#interface MgmtEth0/RP0/CPU0/0
+# ipv4 address 5.3.24.90 255.255.0.0
+# no shut
+#!
+
+#telnet: R1 -  
+# RP1 telnet 10.85.65.155 2014
+# RP2 telnet 10.85.65.155 2015 
+
+##Exec server:
+#ssh ott1lab-as3
+
+## Consoe server:
+# telnet 10.85.65.155
+# Pass1: lab
+# Pass2: lab 
+
+# Username: cafyauto
+# Password: cisco123
+
+## Management interface:
+# ipv4 address 5.3.24.90 
+
+
+
 options {
   username: "username"
   password: "password"
