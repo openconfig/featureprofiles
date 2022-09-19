@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/featureprofiles/internal/components"
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -70,7 +71,7 @@ func TestMain(m *testing.M) {
 func TestSupervisorSwitchover(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	supervisors := findComponentsByType(t, dut, controlcardType)
+	supervisors := FindComponentsByType(t, dut, controlcardType)
 	t.Logf("Found supervisor list: %v", supervisors)
 	// Only perform the switchover for the chassis with dual RPs/Supervisors.
 	if len(supervisors) != 2 {
@@ -179,29 +180,6 @@ func TestSupervisorSwitchover(t *testing.T) {
 	}
 }
 
-func findComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
-	components := dut.Telemetry().ComponentAny().Name().Get(t)
-	var s []string
-	for _, c := range components {
-		lookupType := dut.Telemetry().Component(c).Type().Lookup(t)
-		if !lookupType.IsPresent() {
-			t.Logf("Component %s type is not found", c)
-		} else {
-			componentType := lookupType.Val(t)
-			t.Logf("Component %s has type: %v", c, componentType)
-
-			switch v := componentType.(type) {
-			case telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
-				if v == cType {
-					s = append(s, c)
-				}
-			default:
-				t.Fatalf("Expected component type to be a hardware component, got (%T, %v)", componentType, componentType)
-			}
-		}
-	}
-	return s
-}
 
 func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
 	var activeRP, standbyRP string
