@@ -38,13 +38,6 @@
 ## Management interface:
 # ipv4 address 5.3.24.90 
 
-
-
-options {
-  username: "username"
-  password: "password"
-}
-
 duts {
   id: "dut"
   name: "R1-10.85.65.155 2014"  # Change this to the device hostname.
