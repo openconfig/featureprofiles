@@ -17,10 +17,10 @@ package optics_thresholds_test
 import (
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/featureprofiles/internal/components"
 )
 
 const (

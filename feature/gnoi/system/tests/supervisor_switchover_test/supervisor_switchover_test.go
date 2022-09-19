@@ -20,11 +20,11 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/featureprofiles/internal/components"
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -179,7 +179,6 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
 }
-
 
 func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
 	var activeRP, standbyRP string
