@@ -14,6 +14,7 @@ replace: {
 "!\n"
 "grpc\n"
 "!\n"
+"telemetry model-driven\n"
 "vrf TE\n"
 "!\n"
 "vrf REPAIRED\n"
