@@ -7,7 +7,6 @@ pretests:
     path: topologies/cisco/pretests/pre_fp_gribi_test.go
 tests:
 - name: backup_nh (forwarding tc with backup) 
-  path: feature/gribi/ate_tests/cisco/backup_nh
-  patch: exec/firex/plugins/fp_patch/backup_nh.patch
+  path: feature/gribi/ate_tests/cisco/backup_nhd
   args: 
     - '-gribi_fib_check="true'
