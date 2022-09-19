@@ -20,8 +20,6 @@ import (
 	"testing"
 	"time"
 
-
-	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
