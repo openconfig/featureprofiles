@@ -65,7 +65,7 @@ const (
 	plenIPv4               = 30
 	plenIPv6               = 126
 	tolerance              = 50
-	lossTolerance          = 1
+	lossTolerance          = 2
 )
 
 var (
