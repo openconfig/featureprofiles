@@ -47,8 +47,10 @@ github.com/cespare/xxhash/v2 v2.1.1/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XL
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
 github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
-github.com/cisco-open/go-p4 v0.0.0-20220703020939-7f2a7d4c62dd h1:5tc83vksC9xJiZMqddetVsnYrbcDVWUXcEOcCLLvxEk=
-github.com/cisco-open/go-p4 v0.0.0-20220703020939-7f2a7d4c62dd/go.mod h1:x7yWMiBIHsTzUiaIauLBad1wmT4g7Pbwl4K9MI6fJLI=
+github.com/cisco-open/go-p4 v0.0.0-20220613165938-386fc6ef3747 h1:8wBUN0c3Wk2S6MtPjUAcHwrYWCmQ4o+GJLsG1HI1lsI=
+github.com/cisco-open/go-p4 v0.0.0-20220613165938-386fc6ef3747/go.mod h1:Jg1Mkvwy03Wqz+SUCKHkf8xV3ebfpngLLpeiBObznaI=
+github.com/cisco-open/go-p4 v0.0.0-20220713162912-85fd0d484625 h1:FdTpv3I6Ur5BNrK3LDjokiaybg4mOUyEgQgyLjycGEk=
+github.com/cisco-open/go-p4 v0.0.0-20220713162912-85fd0d484625/go.mod h1:x7yWMiBIHsTzUiaIauLBad1wmT4g7Pbwl4K9MI6fJLI=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/cncf/udpa/go v0.0.0-20200629203442-efcf912fb354/go.mod h1:WmhPx2Nbnhtbo57+VJT5O0JRkEi1Wbu0z5j0R8u5Hbk=
@@ -160,7 +162,6 @@ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:
 github.com/inconshreveable/mousetrap v1.0.0 h1:Z8tu5sraLXCXIcARxBp/8cbvlwVa7Z1NHg9XEKhtSvM=
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024/go.mod h1:6v2b51hI/fHJwM22ozAgKL4VKDeJcHhJFhtBdhmNjmU=
-github.com/jstemmer/go-junit-report v0.9.1 h1:6QPYqodiu3GuPL+7mfx+NwDdp2eTkp9IfEUpgAwUN0o=
 github.com/jstemmer/go-junit-report v0.9.1/go.mod h1:Brl9GWCQeLvo8nXZwPNNblvFj/XSXhF0NWZEnDohbsk=
 github.com/jstemmer/go-junit-report/v2 v2.0.1-0.20220823220451-7b10b4285462 h1:BVBb1o0TfOuRCMykVAYJ1r2yoZ+ByE0f19QNF4ngQ0M=
 github.com/jstemmer/go-junit-report/v2 v2.0.1-0.20220823220451-7b10b4285462/go.mod h1:mgHVr7VUo5Tn8OLVr1cKnLuEy0M92wdRntM99h7RkgQ=
@@ -206,14 +207,10 @@ github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d/go.mod h1:x9
 github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde h1:tSMKTQlWcHhdxQhn6P9myhLcoI+SzxF9e6hHWstCagU=
 github.com/openconfig/kne v0.1.1 h1:gfXhGjxPqIGsSGfPmYHS6c9gmbFvxymQq+VJrVdHyS4=
 github.com/openconfig/kne v0.1.1/go.mod h1:wUCTZ12PnX6TTcsh7FbMpoL8JlQJ+k8PMesD/NDHovw=
-github.com/openconfig/ondatra v0.0.0-20220808182300-5528f1927e53 h1:M1TUOufVhsqffcKTIXPFoFtazbzdjnL2uwD5Vmyhkv8=
-github.com/openconfig/ondatra v0.0.0-20220808182300-5528f1927e53/go.mod h1:aSPaMQpIzPkTnVxuhi29s05zTgmOJVxZ+pdwJCksHJ4=
 github.com/openconfig/ondatra v0.0.0-20220829173401-1294fedad11c h1:tVB8KZFhVl+B4M/r2UdPVLCzrARTR7rV6huEXrVkoUU=
 github.com/openconfig/ondatra v0.0.0-20220829173401-1294fedad11c/go.mod h1:0+oxIfj1MTbqghagjI47L4r1MFEN2GGyQc8R2jZKAF0=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
-github.com/openconfig/ygnmi v0.1.0 h1:XnJjaAUYU4ESaivMXM6a9da3YkaYsalxq2HIYmb4XFg=
-github.com/openconfig/ygnmi v0.1.0/go.mod h1:b9Evy6/X3goQsvVuujZg0CpvjIbzYlFa+p5vu/KDTZI=
 github.com/openconfig/ygnmi v0.2.1 h1:Dy757bww4AFDq99nsZjor0/+Iug6iBWaK1RIBnWftDg=
 github.com/openconfig/ygnmi v0.2.1/go.mod h1:b9Evy6/X3goQsvVuujZg0CpvjIbzYlFa+p5vu/KDTZI=
 github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=
