@@ -36,9 +36,6 @@ import (
 
 const (
 	ipv4PrefixLen = 30
-	deviceId      = uint64(1)
-	portId        = uint32(10)
-	electionId    = uint64(100)
 )
 
 var (
@@ -47,9 +44,12 @@ var (
 	gdpSrcMAC             = flag.String("gdp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
 	streamName            = "p4rt"
 	gdpMAC                = "00:0a:da:f0:f0:f0"
-	gdpEtherType          = uint32(0x6007)
-	METADATA_INGRESS_PORT = uint32(1)
-	METADATA_EGRESS_PORT  = uint32(2)
+	gdpEtherType          = *ygot.Uint32(0x6007)
+	deviceId              = *ygot.Uint64(1)
+	portId                = *ygot.Uint32(10)
+	electionId            = *ygot.Uint64(100)
+	METADATA_INGRESS_PORT = *ygot.Uint32(1)
+	METADATA_EGRESS_PORT  = *ygot.Uint32(2)
 )
 
 var (
@@ -237,7 +237,6 @@ func TestPacketIn(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 
-	// Configure the DUT
 	configureDUT(t, dut)
 
 	// Configure the ATE
