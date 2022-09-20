@@ -103,6 +103,13 @@ nodes: {
             inside: 6030
         }
     }
+    services:{
+        key: 6040
+        value: {
+            name: "gribi"
+            inside: 6040
+        }
+    }
 }
 links: {
     a_node: "otg"
