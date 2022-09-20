@@ -184,8 +184,8 @@ github.com/mitchellh/go-wordwrap v1.0.1/go.mod h1:R62XHJLzvMFRBbcrT7m7WgmE1eOyTS
 github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
-github.com/open-traffic-generator/snappi/gosnappi v0.8.8 h1:nHosWx6S9zXG18fNjR24IUiTypPBGZDgGfo2wTMhuDc=
-github.com/open-traffic-generator/snappi/gosnappi v0.8.8/go.mod h1:RF/I/bClukYEyNQ2jyeAMgVbU/rYWU1sBznGXBiXwD8=
+github.com/open-traffic-generator/snappi/gosnappi v0.9.4 h1:BddTHM3xQHp2xbrYJvbSVlaYTjiA1xgVivkOFjcbQhg=
+github.com/open-traffic-generator/snappi/gosnappi v0.9.4/go.mod h1:elsB41LK8QapLrlfZJucYrQhxEw3ylGo3JgKo8kerZI=
 github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20200508230933-d19cebf5e7be/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20210527163611-d3a3e30199da/go.mod h1:H/20NXlnWbCPFC593nxpiKJ+OU//7mW7s7Qk7uVdg3Q=
@@ -211,12 +211,12 @@ github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde h1:tSMKTQlWc
 github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde/go.mod h1:OmTWe7RyZj2CIzIgy4ovEBzCLBJzRvWSZmn7u02U9gU=
 github.com/openconfig/kne v0.1.4 h1:rX1Qk5SdtGlpYECJKYKxbNeGS4lEAjint6+NADqyn0o=
 github.com/openconfig/kne v0.1.4/go.mod h1:mg669QYYxkpqVnDlhJyMoaCF4mNnEJwOdslOflvONxI=
-github.com/openconfig/ondatra v0.0.0-20220830204626-28b9af3b191d h1:g+yBOFopJTjsmblc7IXMZR55FMRJB11qCiJpBLHbUGQ=
-github.com/openconfig/ondatra v0.0.0-20220830204626-28b9af3b191d/go.mod h1:7BXFr0NmiDI+q+lUXH0To+mgVFPAz91y6ktyrgM4cWA=
+github.com/openconfig/ondatra v0.0.0-20220914190154-cba46794fe2e h1:pXVdhKn9Fzl8b/dRMH3lIW1xgPm20ViH4Ur8+B+evhQ=
+github.com/openconfig/ondatra v0.0.0-20220914190154-cba46794fe2e/go.mod h1:7BXFr0NmiDI+q+lUXH0To+mgVFPAz91y6ktyrgM4cWA=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
-github.com/openconfig/ygnmi v0.2.1 h1:Dy757bww4AFDq99nsZjor0/+Iug6iBWaK1RIBnWftDg=
-github.com/openconfig/ygnmi v0.2.1/go.mod h1:b9Evy6/X3goQsvVuujZg0CpvjIbzYlFa+p5vu/KDTZI=
+github.com/openconfig/ygnmi v0.2.3 h1:htROaQLjRPJ6gH3YIMUlVWAzlvRvEnUXHM/pnGVnHXc=
+github.com/openconfig/ygnmi v0.2.3/go.mod h1:b9Evy6/X3goQsvVuujZg0CpvjIbzYlFa+p5vu/KDTZI=
 github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=
 github.com/openconfig/ygot v0.10.4/go.mod h1:oCQNdXnv7dWc8scTDgoFkauv1wwplJn5HspHcjlxSAQ=
 github.com/openconfig/ygot v0.13.2/go.mod h1:kJN0yCXIH07dOXvNBEFm3XxXdnDD5NI6K99tnD5x49c=
@@ -590,7 +590,6 @@ google.golang.org/grpc v1.37.0/go.mod h1:NREThFqKR1f3iQ6oBuvc5LadQuXVGo9rkm5ZGrQ
 google.golang.org/grpc v1.39.1/go.mod h1:PImNr+rS9TWYb2O4/emRugxiyHZ5JyHW5F+RPnDzfrE=
 google.golang.org/grpc v1.40.0/go.mod h1:ogyxbiOoUXAkP+4+xa6PZSE9DZgIHtSpzjDTB9KAK34=
 google.golang.org/grpc v1.47.0/go.mod h1:vN9eftEi1UMyUsIF80+uQXhHjbXYbm0uXoFCACuMGWk=
-google.golang.org/grpc v1.48.0/go.mod h1:vN9eftEi1UMyUsIF80+uQXhHjbXYbm0uXoFCACuMGWk=
 google.golang.org/grpc v1.49.0 h1:WTLtQzmQori5FUH25Pq4WT22oCsv8USpQ+F6rqtsmxw=
 google.golang.org/grpc v1.49.0/go.mod h1:ZgQEeidpAuNRZ8iRrlBKXZQP1ghovWIVhdJRyCDK+GI=
 google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.0.1/go.mod h1:6Kw0yEErY5E/yWrBtf03jp27GLLJujG4z/JK95pnjjw=

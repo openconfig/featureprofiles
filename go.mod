@@ -5,15 +5,16 @@ go 1.19
 require (
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.8
-	github.com/open-traffic-generator/snappi/gosnappi v0.8.8
+	github.com/open-traffic-generator/snappi/gosnappi v0.9.4
 	github.com/openconfig/gnmi v0.0.0-20220617175856-41246b1b3507
 	github.com/openconfig/gnoi v0.0.0-20220809151450-6bddacd72ef8
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.1.0
 	github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56
 	github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e
-	github.com/openconfig/ondatra v0.0.0-20220830204626-28b9af3b191d
+	github.com/openconfig/ondatra v0.0.0-20220914190154-cba46794fe2e
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
+	github.com/openconfig/ygnmi v0.2.3
 	github.com/openconfig/ygot v0.24.2
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
@@ -24,6 +25,7 @@ require (
 )
 
 require (
+	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -35,8 +37,8 @@ require (
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde // indirect
 	github.com/openconfig/kne v0.1.4 // indirect
-	github.com/openconfig/ygnmi v0.2.1 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
