@@ -102,6 +102,10 @@ duts {
     id: "port8"
     name: "HundredGigE0/0/0/25"  # Change this to the actual port name.
   }
+  ports {
+    id: "port9"
+    name: "HundredGigE0/0/0/26"  # Change this to the actual port name.
+  }
 }
 
 ates {
@@ -153,5 +157,9 @@ ates {
   ports {
     id: "port8"
     name: "1/23"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port9"
+    name: "1/24"  # Change this to the actual port name.
   }
 }
