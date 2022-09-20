@@ -153,17 +153,17 @@ func TestPortFlap(t *testing.T) {
 
 		t.Run(testName, func(t *testing.T) {
 			if i < len(atePorts) {
-				t.Logf("Bringing down ate port: %v", atePorts[i])
-				ate.Operations().NewSetInterfaceState().
-					WithPhysicalInterface(atePorts[i]).
-					WithStateEnabled(false).
-					Operate(t)
+				// t.Logf("Bringing down ate port: %v", atePorts[i])
+				// Setting admin state down on the DUT interface.
+				// Setting the otg interface down has no effect on kne
+				dp := dut.Port(t, atePorts[i].ID())
+				t.Logf("Bringing down dut port: %v", dp.Name())
+				setDutInterfaceState(t, dut, dp, false)
 
 				// ATE and DUT ports in the linked pair have the same ID(), but
 				// they are mapped to different Name().
-				dp := dut.Port(t, atePorts[i].ID())
-				dip := dt.Interface(dp.Name())
 				t.Logf("Awaiting DUT port down: %v", dp)
+				dip := dt.Interface(dp.Name())
 				dip.OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
 				t.Log("Port is down.")
 			}
