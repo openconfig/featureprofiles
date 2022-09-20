@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -50,7 +51,7 @@ func TestMain(m *testing.M) {
 func TestOpticsPowerBiasCurrent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	transceivers := findComponentsByType(t, dut, transceiverType)
+	transceivers := components.FindComponentsByType(t, dut, transceiverType)
 	t.Logf("Found transceiver list: %v", transceivers)
 	if len(transceivers) == 0 {
 		t.Fatalf("Get transceiver list for %q: got 0, want > 0", dut.Model())
@@ -156,28 +157,4 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			}
 		})
 	}
-}
-
-func findComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
-	components := dut.Telemetry().ComponentAny().Name().Get(t)
-	var s []string
-	for _, c := range components {
-		lookupType := dut.Telemetry().Component(c).Type().Lookup(t)
-		if !lookupType.IsPresent() {
-			t.Logf("Component %s type is missing from telemetry", c)
-			continue
-		}
-		componentType := lookupType.Val(t)
-		t.Logf("Component %s has type: %v", c, componentType)
-
-		switch v := componentType.(type) {
-		case telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
-			if v == cType {
-				s = append(s, c)
-			}
-		default:
-			t.Logf("Detected non-hardware component: (%T, %v)", componentType, componentType)
-		}
-	}
-	return s
 }
