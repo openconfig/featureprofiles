@@ -1,8 +1,8 @@
-name: "ixia-c-2"
+name: "cisco-ixia"
 nodes: {
     name: "otg"
     type: IXIA_TG
-    version: "0.0.1-3002"
+    version: "0.0.1-3383"
     services: {
         key: 443
         value: {
@@ -33,7 +33,7 @@ nodes: {
     os: "ios-xr"
     config: {
         file: "cisco.config"
-        image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/cisco:c8201"
+        image: "cisco:latest"
         init_image: "networkop/init-wait:latest"
     }
     constraints:{
