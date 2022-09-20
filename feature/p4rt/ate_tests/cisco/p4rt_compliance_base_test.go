@@ -65,15 +65,24 @@ func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) 
 	}
 }
 
-// programmGDPMatchEntry programms or deletes GDP entry
 func programmGDPMatchEntry(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, delete bool) error {
+	psp := p4rt_client.P4RTStreamParameters{
+		DeviceId:    deviceID,
+		ElectionIdH: uint64(0),
+		ElectionIdL: electionID,
+	}
+	return programmGDPMatchEntryWithStreamParameter(ctx, t, psp, client, delete)
+}
+
+// programmGDPMatchEntryWithStreamParameter programms or deletes GDP entry
+func programmGDPMatchEntryWithStreamParameter(ctx context.Context, t *testing.T, streamParameter p4rt_client.P4RTStreamParameters, client *p4rt_client.P4RTClient, delete bool) error {
 	actionType := p4_v1.Update_INSERT
 	if delete {
 		actionType = p4_v1.Update_DELETE
 	}
 	err := client.Write(&p4_v1.WriteRequest{
-		DeviceId:   deviceID,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
+		DeviceId:   streamParameter.DeviceId,
+		ElectionId: &p4_v1.Uint128{High: streamParameter.ElectionIdH, Low: streamParameter.ElectionIdL},
 		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
 			&wbb.AclWbbIngressTableEntryInfo{
 				Type:          actionType,
@@ -154,7 +163,6 @@ func TestP4RTCompliance(t *testing.T) {
 	P4RTComplianceTestcases = append(P4RTComplianceTestcases, P4RTComplianceGetForwardingPipelineConfig...)
 
 	for _, tt := range P4RTComplianceTestcases {
-		// Each case will run with its own gRIBI fluent client.
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
