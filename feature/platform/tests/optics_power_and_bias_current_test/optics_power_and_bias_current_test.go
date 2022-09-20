@@ -68,11 +68,6 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 		mfgName := component.MfgName().Get(t)
 		t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
 
-		// TODO: Remove the mfgName INNOLIGHT check after the issue is fixed.
-		if mfgName == "INNOLIGHT" {
-			t.Logf("Optics from INNOLIGHT is not supported, skip it for now.")
-			continue
-		}
 		inputPowers := component.Transceiver().ChannelAny().InputPower().Instant().Get(t)
 		t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
 		if len(inputPowers) == 0 {
