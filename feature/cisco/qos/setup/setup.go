@@ -1,8 +1,8 @@
+// Package setup includes funtions to load oc model from a json file
 package setup
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -31,7 +31,7 @@ func findTestDataPath(baseConfigFile string) string {
 // BaseConfig returns the base configuration used for test setup
 func BaseConfig(baseConfigFile string) *oc.Qos {
 	baseConfigPath := findTestDataPath(baseConfigFile)
-	jsonConfig, err := ioutil.ReadFile(baseConfigPath)
+	jsonConfig, err := os.ReadFile(baseConfigPath)
 	if err != nil {
 		panic(fmt.Sprintf("Cannot load base config: %v", err))
 	}

@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -51,6 +52,10 @@ func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInst
 	found := false
 	for _, nh := range aftNHs {
 		if nh.GetIpAddress() == address {
+			// if nh.GetProgrammedIndex() == nhIndex {
+			// 	if nh.GetIpAddress() != address {
+			// 		t.Fatalf("AFT Check failed for aft/next-hop/state/ip-address got %s, want %s", nh.GetIpAddress(), address)
+			// 	}
 			if nh.GetNetworkInstance() != nhInstance {
 				t.Fatalf("AFT Check failed for aft/next-hop/state/network-instance got %s, want %s", nh.GetNetworkInstance(), nhInstance)
 			}
@@ -76,28 +81,30 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 	found := false
 	for _, nhg := range aftNHGs {
 		if nhg.GetProgrammedId() == nhgIndex {
-			if nhg.GetBackupNextHopGroup() != bkhgIndex {
-				t.Fatalf("AFT Check failed for aft/next-hop-group/state/backup-next-hop-group got %d, want %d", nhg.GetBackupNextHopGroup(), bkhgIndex)
-			}
+			// cannot use this call as GetBackupNextHopGroup() returns random string, once we have an ondatra support, need to extend call to check the contents of backup as well
+			// if nhg.GetBackupNextHopGroup() != bkhgIndex {
+			// 	t.Fatalf("AFT Check failed for aft/next-hop-group/state/backup-next-hop-group got %d, want %d", nhg.GetBackupNextHopGroup(), bkhgIndex)
+			// }
 
-			for nhIndex, nh := range nhg.NextHop {
-				// can be avoided by caching indices in client 'c'
-				nhPIndex := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).ProgrammedIndex().Get(t)
+			if len(nhg.NextHop) != 1 {
+				for nhIndex, nh := range nhg.NextHop {
+					// can be avoided by caching indices in client 'c'
+					nhPIndex := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).ProgrammedIndex().Get(t)
 
-				if weight, ok := nhWeights[nhPIndex]; ok {
-					if weight != nh.GetWeight() {
-						t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got nh:weight %d:%d, want nh:weight %d:%d", nhPIndex, nh.GetWeight(), nhPIndex, weight)
+					if weight, ok := nhWeights[nhPIndex]; ok {
+						if weight != nh.GetWeight() {
+							t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got nh:weight %d:%d, want nh:weight %d:%d", nhPIndex, nh.GetWeight(), nhPIndex, weight)
+						}
+						delete(nhWeights, nhPIndex)
+					} else {
+						// extra entry in NHG
+						t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got nh:weight %d:%d, want none", nhPIndex, nh.GetWeight())
 					}
-					delete(nhWeights, nhPIndex)
-				} else {
-					// extra entry in NHG
-					t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got nh:weight %d:%d, want none", nhPIndex, nh.GetWeight())
 				}
-			}
-
-			for nhIndex, weight := range nhWeights {
-				// extra entry in nhWeights
-				t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got none, want nh:weight %d:%d", nhIndex, weight)
+				for nhIndex, weight := range nhWeights {
+					// extra entry in nhWeights
+					t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got none, want nh:weight %d:%d", nhIndex, weight)
+				}
 			}
 			found = true
 			break
@@ -120,7 +127,7 @@ func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instan
 	}
 
 	gotNhgIndex := aftIPv4e.GetNextHopGroup()
-	nhgPId := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(gotNhgIndex).ProgrammedId().Get(t)
+	nhgPId := c.DUT.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts().NextHopGroup(gotNhgIndex).ProgrammedId().Get(t)
 	if nhgPId != nhgIndex {
 		t.Fatalf("AFT Check failed for ipv4-entry/state/next-hop-group/state/programmed-id got %d, want %d", nhgPId, nhgIndex)
 	}
@@ -194,9 +201,11 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uin
 		}
 	}
 
-	if want.BackupNextHopGroup != nil {
-		c.CheckAftNHG(t, instance, *want.BackupNextHopGroup, *got.BackupNextHopGroup)
-	}
+	// Need to add logic to ignore weights if length of paths are less than or equal to 1
+	// len(nhg.NextHop) != 1, weight is not displayed for if path is 1
+	// if want.BackupNextHopGroup != nil {
+	// 	c.CheckAftNHG(t, instance, *want.BackupNextHopGroup, *got.BackupNextHopGroup)
+	// }
 }
 
 // CheckAftIPv4 checks an ipv4 entry against the cached configuration
@@ -212,8 +221,8 @@ func (c *Client) CheckAftIPv4(t testing.TB, instance, prefix string) {
 		t.Errorf("AFT Check failed for aft/ipv4-entry. Diff:\n%s", diff)
 	}
 
-	//TODO: use next-hop-group-networkinstance instead of default and remove it from ignore (CSCwc57921)
-	c.CheckAftNHG(t, "default", *want.NextHopGroup, *got.NextHopGroup)
+	//TODO: use next-hop-group-networkinstance instead of default (*ciscoFlags.DefaultNetworkInstance) and remove it from ignore (CSCwc57921)
+	c.CheckAftNHG(t, *ciscoFlags.DefaultNetworkInstance, *want.NextHopGroup, *got.NextHopGroup)
 }
 
 // CheckAft checks all afts in all vrfs against the cached configuration

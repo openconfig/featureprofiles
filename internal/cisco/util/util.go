@@ -1,3 +1,4 @@
+// Package util provides util APIs to simplify writing  test cases.
 package util
 
 import (
@@ -176,13 +177,13 @@ func DoModifyOps(c *fluent.GRIBIClient, t testing.TB, ops []func(), wantACK flue
 	return c.Results(t)
 }
 
-//GetIpv4Net returns network in CIDR format ("192.168.1.1/32", "192.168.1.0/24", "192.168.0.0/16")
+// GetIpv4Net returns network in CIDR format ("192.168.1.1/32", "192.168.1.0/24", "192.168.0.0/16")
 func GetIpv4Net(prefix string, maskLength int) string {
 	_, ipv4Net, _ := net.ParseCIDR(prefix + "/" + strconv.Itoa(maskLength))
 	return ipv4Net.String()
 }
 
-//CreateBundleInterface creates bundle interface
+// CreateBundleInterface creates bundle interface
 func CreateBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, bundleName string) {
 
 	member := &telemetry.Interface{
@@ -195,7 +196,7 @@ func CreateBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName s
 	SetInterfaceState(t, dut, bundleName, true)
 }
 
-//GetSubInterface returns subinterface
+// GetSubInterface returns subinterface
 func GetSubInterface(ipv4 string, prefixlen uint8, index uint32) *telemetry.Interface_Subinterface {
 	s := &telemetry.Interface_Subinterface{}
 	s.Index = ygot.Uint32(index)
@@ -205,7 +206,7 @@ func GetSubInterface(ipv4 string, prefixlen uint8, index uint32) *telemetry.Inte
 	return s
 }
 
-//GetCopyOfIpv4SubInterfaces returns subinterface ipv4 address
+// GetCopyOfIpv4SubInterfaces returns subinterface ipv4 address
 func GetCopyOfIpv4SubInterfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceNames []string, index uint32) map[string]*telemetry.Interface_Subinterface {
 	copiedSubInterfaces := make(map[string]*telemetry.Interface_Subinterface)
 	for _, interfaceName := range interfaceNames {
@@ -306,7 +307,7 @@ func GetBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopol
 	return flow
 }
 
-//GetIpv4Acl returns Ipv4 ACL
+// GetIpv4Acl returns Ipv4 ACL
 func GetIpv4Acl(name string, sequenceID uint32, dscp, hopLimit uint8, action telemetry.E_Acl_FORWARDING_ACTION) *telemetry.Acl {
 
 	acl := (&telemetry.Device{}).GetOrCreateAcl()

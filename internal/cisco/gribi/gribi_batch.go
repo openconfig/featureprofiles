@@ -63,7 +63,8 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 	}
 	if check.AFTCheck {
 		for _, prefix := range prefixes {
-			c.checkIPv4e(t, prefix, nhgIndex, instance, nhgInstance)
+			// setting nhginstance to empty as there is no nhgInstance value set
+			c.checkIPv4e(t, prefix, nhgIndex, instance, "")
 		}
 	}
 }
