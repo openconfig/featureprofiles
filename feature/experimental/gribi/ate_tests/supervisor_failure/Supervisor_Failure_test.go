@@ -23,10 +23,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	cmp "github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/testt"
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -53,8 +55,10 @@ const (
 	nhIndex           = 1
 	nhgIndex          = 42
 	controlcardType   = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	activeController  = telemetry.PlatformTypes_ComponentRedundantRole_PRIMARY
-	standbyController = telemetry.PlatformTypes_ComponentRedundantRole_SECONDARY
+	primaryController  = telemetry.PlatformTypes_ComponentRedundantRole_PRIMARY
+	secondaryController = telemetry.PlatformTypes_ComponentRedundantRole_SECONDARY
+	switchTrigger  =  telemetry.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED
+	maxSwitchoverTime = 900
 )
 
 var (
@@ -138,7 +142,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface) {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface) *ondatra.Flow {
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.DstAddressRange().
@@ -151,16 +155,26 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 		WithDstEndpoints(dstEndPoint).
 		WithHeaders(ethHeader, ipv4Header)
 
-	ate.Traffic().Start(t, flow)
-	time.Sleep(15 * time.Second)
-	ate.Traffic().Stop(t)
+	sendTraffic(t, ate, flow)
+	verifyTraffic(t, ate, flow)
+	return flow
 
-	flowPath := ate.Telemetry().Flow(flow.Name())
-	if got := flowPath.LossPct().Get(t); got > 0 {
-		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
-	} else {
-		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2")
-	}
+}
+
+//Function to send traffic
+func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
+	t.Logf("Starting traffic")
+	ate.Traffic().Start(t, flow)
+}
+
+//Function to verify traffic
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
+        flowPath := ate.Telemetry().Flow(flow.Name())
+        if got := flowPath.LossPct().Get(t); got > 0 {
+                t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
+        } else {
+                t.Logf("Traffic flows fine from ATE-port1 to ATE-port2")
+        }
 }
 
 // testArgs holds the objects needed by a test case.
@@ -186,59 +200,31 @@ func routeInstall(ctx context.Context, t *testing.T, args *testArgs) {
 	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
 	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
-	}
-	// Verify that static route(203.0.113.0/24) to ATE port-2 is preferred by the traffic.`
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()[atePort2.Name]
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
-
+	} else {
+                t.Logf("ipv4-entry entry found for %s before controller switchover..", got)
+        }
 }
 
-// findComponentsByType finds supervisor (CONTROLLER_CARD) for switchover
-func findComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
-	components := dut.Telemetry().ComponentAny().Name().Get(t)
-	var s []string
-	for _, c := range components {
-		lookupType := dut.Telemetry().Component(c).Type().Lookup(t)
-		if !lookupType.IsPresent() {
-			t.Logf("Component %s type is not found", c)
+// findSecondaryController finds out primary and secodary controller
+func findSecondaryController(t *testing.T, dut *ondatra.DUTDevice, controllers []string) (string, string) {
+	var primary, secondary string
+	for _, controller := range controllers {
+		role := dut.Telemetry().Component(controller).RedundantRole().Get(t)
+		t.Logf("Component(controller).RedundantRole().Get(t): %v, Role: %v", controller, role)
+		if role == secondaryController {
+			secondary = controller
+		} else if role == primaryController {
+			primary = controller
 		} else {
-			componentType := lookupType.Val(t)
-			t.Logf("Component %s has type: %v", c, componentType)
-
-			switch v := componentType.(type) {
-			case telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
-				if v == cType {
-					s = append(s, c)
-				}
-			default:
-				t.Fatalf("Expected component type to be a hardware component, got (%T, %v)", componentType, componentType)
-			}
+			t.Fatalf("Expected controller %s to be active or standby, got %v", controller, role)
 		}
 	}
-	return s
-}
-
-// findStandbyRP finds out ActiveRP and StandbyRP
-func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
-	var activeRP, standbyRP string
-	for _, supervisor := range supervisors {
-		role := dut.Telemetry().Component(supervisor).RedundantRole().Get(t)
-		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
-		if role == standbyController {
-			standbyRP = supervisor
-		} else if role == activeController {
-			activeRP = supervisor
-		} else {
-			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
-		}
+	if secondary == "" || primary == "" {
+		t.Fatalf("Expected non-empty primary and secondary Controller, got primary: %v, secondary: %v", primary, secondary)
 	}
-	if standbyRP == "" || activeRP == "" {
-		t.Fatalf("Expected non-empty activeRP and standbyRP, got activeRP: %v, standbyRP: %v", activeRP, standbyRP)
-	}
-	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+	t.Logf("Detected primary: %v, secondary: %v", primary, secondary)
 
-	return standbyRP, activeRP
+	return secondary, primary
 }
 
 func TestSupFailure(t *testing.T) {
@@ -274,20 +260,25 @@ func TestSupFailure(t *testing.T) {
 	}
 	// Program a route and ensure AFT telemetry returns FIB_PROGRAMMED
 	routeInstall(ctx, t, args)
-	supervisors := findComponentsByType(t, dut, controlcardType)
-	t.Logf("Found supervisor list: %v", supervisors)
-	// Only perform the switchover for the chassis with dual RPs/Supervisors.
-	if len(supervisors) != 2 {
-		t.Skipf("Dual RP/SUP is required on %v: got %v, want 2", dut.Model(), len(supervisors))
+        // Verify that static route(203.0.113.0/24) to ATE port-2 is preferred by the traffic.`
+        srcEndPoint := args.top.Interfaces()[atePort1.Name]
+        dstEndPoint := args.top.Interfaces()[atePort2.Name]
+        flow := testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+
+	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
+	t.Logf("Found controller list: %v", controllers)
+	// Only perform the switchover for the chassis with dual controllers.
+	if len(controllers) != 2 {
+		t.Skipf("Dual controllers required on %v: got %v, want 2", dut.Model(), len(controllers))
 	}
 
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, supervisors)
-	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
+	secondaryBeforeSwitch, primaryBeforeSwitch := findSecondaryController(t, dut, controllers)
+	t.Logf("Detected Secondary: %v, Primary: %v", secondaryBeforeSwitch, primaryBeforeSwitch)
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: &tpb.Path{
-			Elem: []*tpb.PathElem{{Name: rpStandbyBeforeSwitch}},
+			Elem: []*tpb.PathElem{{Name: secondaryBeforeSwitch}},
 		},
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
@@ -297,51 +288,77 @@ func TestSupFailure(t *testing.T) {
 	}
 	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
 
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := findStandbyRP(t, dut, supervisors)
-	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
+	secondaryAfterSwitch, primaryAfterSwitch := findSecondaryController(t, dut, controllers)
+	t.Logf("Found Secondary Controller after switchover: %v, Primary: %v", secondaryAfterSwitch, primaryAfterSwitch)
+
+	startSwitchover := time.Now()
+	t.Logf("Wait for new Primary controller to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = dut.Telemetry().System().CurrentDatetime().Get(t)
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Controller switchover has completed successfully with received time: %v", currentTime)
+			break
+		}
+		if uint64(time.Since(startSwitchover).Seconds()) > maxSwitchoverTime {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", time.Since(startSwitchover), maxSwitchoverTime)
+		}
+	}
+	t.Logf("Controller switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+
 	t.Log("Validate OC Switchover time/reason.")
-	activeRP := dut.Telemetry().Component(rpActiveAfterSwitch)
-	if !activeRP.LastSwitchoverTime().Lookup(t).IsPresent() {
-		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got false, want true")
+	primary := dut.Telemetry().Component(primaryAfterSwitch)
+	if !primary.LastSwitchoverTime().Lookup(t).IsPresent() {
+		t.Errorf("primary.LastSwitchoverTime().Lookup(t).IsPresent(): got false, want true")
 	} else {
-		t.Logf("Found activeRP.LastSwitchoverTime(): %v", activeRP.LastSwitchoverTime().Get(t))
+		t.Logf("Found primary.LastSwitchoverTime(): %v", primary.LastSwitchoverTime().Get(t))
 	}
 
-	if !activeRP.LastSwitchoverReason().Lookup(t).IsPresent() {
-		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got false, want true")
+	if !primary.LastSwitchoverReason().Lookup(t).IsPresent() {
+		t.Errorf("primary.LastSwitchoverReason().Lookup(t).IsPresent(): got false, want true")
 	} else {
-		lastSwitchoverReason := activeRP.LastSwitchoverReason().Get(t)
+		lastSwitchoverReason := primary.LastSwitchoverReason().Get(t)
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
-
-	if !activeRP.LastRebootTime().Lookup(t).IsPresent() {
-		t.Errorf("activeRP.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
-	} else {
-		lastrebootTime := activeRP.LastRebootTime().Get(t)
-		t.Logf("Found lastRebootTime.GetDetails(): %v", lastrebootTime)
-	}
-	if !activeRP.LastRebootReason().Lookup(t).IsPresent() {
-		t.Errorf("activeRP.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
-	} else {
-		lastrebootReason := activeRP.LastRebootReason().Get(t)
-		t.Logf("Found lastRebootReason.GetDetails(): %v", lastrebootReason)
+	if primary.LastSwitchoverReason().Get(t).GetTrigger() != switchTrigger {
+		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want USER_INITIATED.",
+			primary.LastSwitchoverReason().Get(t).GetTrigger().String())
 	}
 
-	// Assume Supervisor Switchover happened, ensure traffic flows again.
+	if !primary.LastRebootTime().Lookup(t).IsPresent() {
+                t.Errorf("primary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
+        } else {
+                lastrebootTime := primary.LastRebootTime().Get(t)
+                t.Logf("Found lastRebootTime.GetDetails(): %v", lastrebootTime)
+        }
+	if !primary.LastRebootReason().Lookup(t).IsPresent() {
+                t.Errorf("primary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
+        } else {
+                lastrebootReason := primary.LastRebootReason().Get(t)
+                t.Logf("Found lastRebootReason.GetDetails(): %v", lastrebootReason)
+        }
+
+	// Assume Controller Switchover happened, ensure traffic flows without loss.
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
 	defer clientA.Close(t)
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
+
 	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
 	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+	} else {
+		t.Logf("ipv4-entry found for %s after controller switchover..", got)
 	}
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()[atePort2.Name]
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
 
+	verifyTraffic(t, args.ate, flow)
 	top.StopProtocols(t)
 	clientA.Close(t)
 }
