@@ -20,15 +20,15 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	cmp "github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	cmp "github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygot/ygot"
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -48,17 +48,17 @@ func TestMain(m *testing.M) {
 //   * Destination network: 203.0.113.0/24
 
 const (
-	ipv4PrefixLen     = 30
-	instance          = "DEFAULT"
-	ateDstNetCIDR     = "203.0.113.0/24"
-	staticNH          = "192.0.2.6"
-	nhIndex           = 1
-	nhgIndex          = 42
-	controlcardType   = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	primaryController  = telemetry.PlatformTypes_ComponentRedundantRole_PRIMARY
+	ipv4PrefixLen       = 30
+	instance            = "DEFAULT"
+	ateDstNetCIDR       = "203.0.113.0/24"
+	staticNH            = "192.0.2.6"
+	nhIndex             = 1
+	nhgIndex            = 42
+	controlcardType     = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	primaryController   = telemetry.PlatformTypes_ComponentRedundantRole_PRIMARY
 	secondaryController = telemetry.PlatformTypes_ComponentRedundantRole_SECONDARY
-	switchTrigger  =  telemetry.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED
-	maxSwitchoverTime = 900
+	switchTrigger       = telemetry.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED
+	maxSwitchoverTime   = 900
 )
 
 var (
@@ -161,20 +161,20 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 
 }
 
-//Function to send traffic
+// Function to send traffic
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
 	t.Logf("Starting traffic")
 	ate.Traffic().Start(t, flow)
 }
 
-//Function to verify traffic
+// Function to verify traffic
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
-        flowPath := ate.Telemetry().Flow(flow.Name())
-        if got := flowPath.LossPct().Get(t); got > 0 {
-                t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
-        } else {
-                t.Logf("Traffic flows fine from ATE-port1 to ATE-port2")
-        }
+	flowPath := ate.Telemetry().Flow(flow.Name())
+	if got := flowPath.LossPct().Get(t); got > 0 {
+		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
+	} else {
+		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2")
+	}
 }
 
 // testArgs holds the objects needed by a test case.
@@ -201,8 +201,8 @@ func routeInstall(ctx context.Context, t *testing.T, args *testArgs) {
 	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 	} else {
-                t.Logf("ipv4-entry entry found for %s before controller switchover..", got)
-        }
+		t.Logf("ipv4-entry entry found for %s before controller switchover..", got)
+	}
 }
 
 // findSecondaryController finds out primary and secodary controller
@@ -260,10 +260,10 @@ func TestSupFailure(t *testing.T) {
 	}
 	// Program a route and ensure AFT telemetry returns FIB_PROGRAMMED
 	routeInstall(ctx, t, args)
-        // Verify that static route(203.0.113.0/24) to ATE port-2 is preferred by the traffic.`
-        srcEndPoint := args.top.Interfaces()[atePort1.Name]
-        dstEndPoint := args.top.Interfaces()[atePort2.Name]
-        flow := testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+	// Verify that static route(203.0.113.0/24) to ATE port-2 is preferred by the traffic.`
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	dstEndPoint := args.top.Interfaces()[atePort2.Name]
+	flow := testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
 
 	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
 	t.Logf("Found controller list: %v", controllers)
@@ -332,17 +332,17 @@ func TestSupFailure(t *testing.T) {
 	}
 
 	if !primary.LastRebootTime().Lookup(t).IsPresent() {
-                t.Errorf("primary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
-        } else {
-                lastrebootTime := primary.LastRebootTime().Get(t)
-                t.Logf("Found lastRebootTime.GetDetails(): %v", lastrebootTime)
-        }
+		t.Errorf("primary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
+	} else {
+		lastrebootTime := primary.LastRebootTime().Get(t)
+		t.Logf("Found lastRebootTime.GetDetails(): %v", lastrebootTime)
+	}
 	if !primary.LastRebootReason().Lookup(t).IsPresent() {
-                t.Errorf("primary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
-        } else {
-                lastrebootReason := primary.LastRebootReason().Get(t)
-                t.Logf("Found lastRebootReason.GetDetails(): %v", lastrebootReason)
-        }
+		t.Errorf("primary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
+	} else {
+		lastrebootReason := primary.LastRebootReason().Get(t)
+		t.Logf("Found lastRebootReason.GetDetails(): %v", lastrebootReason)
+	}
 
 	// Assume Controller Switchover happened, ensure traffic flows without loss.
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
