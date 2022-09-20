@@ -2,7 +2,7 @@ name: "arista-ixia-lag"
 nodes: {
     name: "otg"
     type: IXIA_TG
-    version: "0.0.1-3182"
+    version: "0.0.1-3383"
     services: {
         key: 443
         value: {
@@ -101,6 +101,13 @@ nodes: {
         value: {
             name: "gnmi"
             inside: 6030
+        }
+    }
+    services:{
+        key: 6040
+        value: {
+            name: "gribi"
+            inside: 6040
         }
     }
 }
