@@ -79,27 +79,26 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Run(test.desc, func(t *testing.T) {
 			// Check initial packet counters
 			port := sortPorts(args.ate.Ports())[0].Name()
-			counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			counter0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 
 			packets := args.packetIO.GetPacketOut(portId, false)
-			packet_count := 100
-			sendPackets(t, test.client, packets, packet_count)
+			sendPackets(t, test.client, packets, packetCount)
 
 			// Wait for ate stats to be populated
 			time.Sleep(60 * time.Second)
 
 			// Check packet counters after packet out
-			counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			counter1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 
 			// Verify InPkts stats to check P4RT stream
-			t.Logf("Received %v packets on ATE port %s", counter_1-counter_0, port)
+			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
 
 			if test.expectPass {
-				if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+				if counter1-counter0 < uint64(float64(packetCount)*0.95) {
 					t.Fatalf("Not all the packets are received.")
 				}
 			} else {
-				if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
+				if counter1-counter0 > uint64(float64(packetCount)*0.10) {
 					t.Fatalf("Unexpected packets are received.")
 				}
 			}
