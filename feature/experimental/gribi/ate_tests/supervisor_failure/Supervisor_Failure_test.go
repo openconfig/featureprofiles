@@ -139,10 +139,10 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// testTraffic generates traffic flow from source network to
+// createTrafficFlow generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface) *ondatra.Flow {
+func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface) *ondatra.Flow {
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.DstAddressRange().
@@ -155,8 +155,6 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 		WithDstEndpoints(dstEndPoint).
 		WithHeaders(ethHeader, ipv4Header)
 
-	sendTraffic(t, ate, flow)
-	verifyTraffic(t, ate, flow)
 	return flow
 
 }
@@ -175,6 +173,12 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
 	} else {
 		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2")
 	}
+}
+
+// Function to stop traffic
+func stopTraffic(t *testing.T, ate *ondatra.ATEDevice) {
+	t.Logf("Stopping traffic")
+	ate.Traffic().Stop(t)
 }
 
 // testArgs holds the objects needed by a test case.
@@ -205,7 +209,7 @@ func routeInstall(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 }
 
-// findSecondaryController finds out primary and secodary controller
+// findSecondaryController finds out primary and secondary controllers
 func findSecondaryController(t *testing.T, dut *ondatra.DUTDevice, controllers []string) (string, string) {
 	var primary, secondary string
 	for _, controller := range controllers {
@@ -225,6 +229,42 @@ func findSecondaryController(t *testing.T, dut *ondatra.DUTDevice, controllers [
 	t.Logf("Detected primary: %v, secondary: %v", primary, secondary)
 
 	return secondary, primary
+}
+
+// validateTelemetry validates telemetry sensors
+func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch string) {
+	t.Log("Validate OC Switchover time/reason.")
+	primary := dut.Telemetry().Component(primaryAfterSwitch)
+	if !primary.LastSwitchoverTime().Lookup(t).IsPresent() {
+		t.Errorf("primary.LastSwitchoverTime().Lookup(t).IsPresent(): got false, want true")
+	} else {
+		t.Logf("Found primary.LastSwitchoverTime(): %v", primary.LastSwitchoverTime().Get(t))
+	}
+
+	if !primary.LastSwitchoverReason().Lookup(t).IsPresent() {
+		t.Errorf("primary.LastSwitchoverReason().Lookup(t).IsPresent(): got false, want true")
+	} else {
+		lastSwitchoverReason := primary.LastSwitchoverReason().Get(t)
+		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
+		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
+	}
+	if primary.LastSwitchoverReason().Get(t).GetTrigger() != switchTrigger {
+		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want USER_INITIATED.",
+			primary.LastSwitchoverReason().Get(t).GetTrigger().String())
+	}
+
+	if !primary.LastRebootTime().Lookup(t).IsPresent() {
+		t.Errorf("primary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
+	} else {
+		lastrebootTime := primary.LastRebootTime().Get(t)
+		t.Logf("Found lastRebootTime.GetDetails(): %v", lastrebootTime)
+	}
+	if !primary.LastRebootReason().Lookup(t).IsPresent() {
+		t.Errorf("primary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
+	} else {
+		lastrebootReason := primary.LastRebootReason().Get(t)
+		t.Logf("Found lastRebootReason.GetDetails(): %v", lastrebootReason)
+	}
 }
 
 func TestSupFailure(t *testing.T) {
@@ -263,7 +303,9 @@ func TestSupFailure(t *testing.T) {
 	// Verify that static route(203.0.113.0/24) to ATE port-2 is preferred by the traffic.`
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	dstEndPoint := args.top.Interfaces()[atePort2.Name]
-	flow := testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+	flow := createTrafficFlow(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+	sendTraffic(t, args.ate, flow)
+	verifyTraffic(t, args.ate, flow)
 
 	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
 	t.Logf("Found controller list: %v", controllers)
@@ -311,39 +353,7 @@ func TestSupFailure(t *testing.T) {
 	}
 	t.Logf("Controller switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
-	t.Log("Validate OC Switchover time/reason.")
-	primary := dut.Telemetry().Component(primaryAfterSwitch)
-	if !primary.LastSwitchoverTime().Lookup(t).IsPresent() {
-		t.Errorf("primary.LastSwitchoverTime().Lookup(t).IsPresent(): got false, want true")
-	} else {
-		t.Logf("Found primary.LastSwitchoverTime(): %v", primary.LastSwitchoverTime().Get(t))
-	}
-
-	if !primary.LastSwitchoverReason().Lookup(t).IsPresent() {
-		t.Errorf("primary.LastSwitchoverReason().Lookup(t).IsPresent(): got false, want true")
-	} else {
-		lastSwitchoverReason := primary.LastSwitchoverReason().Get(t)
-		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
-		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
-	}
-	if primary.LastSwitchoverReason().Get(t).GetTrigger() != switchTrigger {
-		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want USER_INITIATED.",
-			primary.LastSwitchoverReason().Get(t).GetTrigger().String())
-	}
-
-	if !primary.LastRebootTime().Lookup(t).IsPresent() {
-		t.Errorf("primary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
-	} else {
-		lastrebootTime := primary.LastRebootTime().Get(t)
-		t.Logf("Found lastRebootTime.GetDetails(): %v", lastrebootTime)
-	}
-	if !primary.LastRebootReason().Lookup(t).IsPresent() {
-		t.Errorf("primary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
-	} else {
-		lastrebootReason := primary.LastRebootReason().Get(t)
-		t.Logf("Found lastRebootReason.GetDetails(): %v", lastrebootReason)
-	}
-
+	validateTelemetry(t, dut, primaryAfterSwitch)
 	// Assume Controller Switchover happened, ensure traffic flows without loss.
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
 	defer clientA.Close(t)
@@ -359,6 +369,7 @@ func TestSupFailure(t *testing.T) {
 	}
 
 	verifyTraffic(t, args.ate, flow)
+	stopTraffic(t, args.ate)
 	top.StopProtocols(t)
 	clientA.Close(t)
 }
