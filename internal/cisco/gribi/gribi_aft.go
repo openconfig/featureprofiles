@@ -81,11 +81,13 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 	found := false
 	for _, nhg := range aftNHGs {
 		if nhg.GetProgrammedId() == nhgIndex {
-			// cannot use this call as GetBackupNextHopGroup() returns random string, once we have an ondatra support, need to extend call to check the contents of backup as well
-			// if nhg.GetBackupNextHopGroup() != bkhgIndex {
-			// 	t.Fatalf("AFT Check failed for aft/next-hop-group/state/backup-next-hop-group got %d, want %d", nhg.GetBackupNextHopGroup(), bkhgIndex)
-			// }
+			if nhg.GetBackupNextHopGroup() != 0 {
+				pid := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhg.GetBackupNextHopGroup()).ProgrammedId().Get(t)
+				if pid != bkhgIndex {
+					t.Fatalf("AFT Check failed for aft/next-hop-group/state/backup-next-hop-group got %d, want %d", nhg.GetBackupNextHopGroup(), bkhgIndex)
+				}	
 
+				
 			if len(nhg.NextHop) != 1 {
 				for nhIndex, nh := range nhg.NextHop {
 					// can be avoided by caching indices in client 'c'

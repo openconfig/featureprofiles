@@ -324,9 +324,9 @@ func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhW
 		}
 	}
 
-	// if check.AFTCheck {
-	// 	c.checkNHG(t, nhgIndex, bkhgIndex, instance, nhWeights)
-	// }
+	if check.AFTCheck {
+		c.checkNHG(t, nhgIndex, bkhgIndex, instance, nhWeights)
+	}
 }
 
 // ReplaceNH replaces a NextHopEntry with a given index to an address within a given network instance.
