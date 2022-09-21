@@ -286,7 +286,12 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 		}
 	}
 	if check.AFTCheck {
-		c.checkIPv4e(t, prefix, nhgIndex, instance, nhgInstance)
+		if instance != *flags.DefaultNetworkInstance {
+			// setting nhginstance to empty as there is no nhgInstance value set
+			c.checkIPv4e(t, prefix, nhgIndex, instance, "")
+		} else {
+			c.checkIPv4e(t, prefix, nhgIndex, instance, nhgInstance)
+		}
 	}
 }
 
