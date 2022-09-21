@@ -85,9 +85,7 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 				pid := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhg.GetBackupNextHopGroup()).ProgrammedId().Get(t)
 				if pid != bkhgIndex {
 					t.Fatalf("AFT Check failed for aft/next-hop-group/state/backup-next-hop-group got %d, want %d", nhg.GetBackupNextHopGroup(), bkhgIndex)
-				}	
-
-				
+				}				
 			if len(nhg.NextHop) != 1 {
 				for nhIndex, nh := range nhg.NextHop {
 					// can be avoided by caching indices in client 'c'
