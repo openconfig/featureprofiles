@@ -63,7 +63,6 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	args.dut.Config().Lldp().Enabled().Replace(t, false)
 
 	leader := args.leader
-	follower := args.follower
 
 	packetOutTests := []struct {
 		desc       string
@@ -73,10 +72,6 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		desc:       "PacketOut from Primary Controller",
 		client:     leader,
 		expectPass: true,
-	}, {
-		desc:       "PacketOut from Secondary Controller",
-		client:     follower,
-		expectPass: false,
 	}}
 
 	for _, test := range packetOutTests {
