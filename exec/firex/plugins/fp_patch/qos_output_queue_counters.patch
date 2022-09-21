@@ -1,23 +1,45 @@
 diff --git a/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go b/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
-index be1c9935..372f0342 100644
+index be1c9935..4d59a5bc 100644
 --- a/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
 +++ b/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
 @@ -18,6 +18,7 @@ import (
- 	"testing"
- 	"time"
- 
-+	"github.com/openconfig/featureprofiles/internal/deviations"
- 	"github.com/openconfig/featureprofiles/internal/fptest"
- 	"github.com/openconfig/ondatra"
- 	"github.com/openconfig/ondatra/telemetry"
-@@ -210,7 +211,9 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
- 		}
- 		i.GetOrCreateEthernet()
- 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
--		s.Enabled = ygot.Bool(true)
-+		if *deviations.InterfaceEnabled {
-+			s.Enabled = ygot.Bool(true)
-+		}
- 		a := s.GetOrCreateAddress(intf.ipAddr)
- 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
- 		dut.Config().Interface(intf.intfName).Replace(t, i)
+        "testing"
+        "time"
+
++       "github.com/openconfig/featureprofiles/internal/deviations"
+        "github.com/openconfig/featureprofiles/internal/fptest"
+        "github.com/openconfig/ondatra"
+        "github.com/openconfig/ondatra/telemetry"
+@@ -104,12 +105,13 @@ func TestQoSCounters(t *testing.T) {
+                }
+        case ondatra.CISCO:
+                trafficFlows = map[string]*trafficData{
+-                       "flow-nc1": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "7"},
+-                       "flow-af4": {frameSize: 400, trafficRate: 3, dscp: 32, queue: "4"},
+-                       "flow-af3": {frameSize: 300, trafficRate: 2, dscp: 24, queue: "3"},
+-                       "flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: "2"},
+-                       "flow-af1": {frameSize: 1100, trafficRate: 1, dscp: 8, queue: "0"},
+-                       "flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: "1"},
++                       "flow-nc1": {frameSize: 1000, trafficRate: 3, dscp: 56, queue: "tc7"},
++                       "flow-nc2": {frameSize: 1000, trafficRate: 3, dscp: 41, queue: "tc6"},
++                       "flow-af4": {frameSize: 400, trafficRate: 2, dscp: 32, queue: "tc5"},
++                       "flow-af3": {frameSize: 300, trafficRate: 2, dscp: 24, queue: "tc4"},
++                       "flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: "tc3"},
++                       "flow-af1": {frameSize: 1100, trafficRate: 2, dscp: 8, queue: "tc2"},
++                       "flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: "tc1"},
+                }
+        default:
+                t.Fatalf("Output queue mapping is missing for %v", dut.Vendor().String())
+@@ -210,9 +212,12 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
+                }
+                i.GetOrCreateEthernet()
+                s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+-               s.Enabled = ygot.Bool(true)
++
++               if *deviations.InterfaceEnabled {
++                       s.Enabled = ygot.Bool(true)
++               }
+                a := s.GetOrCreateAddress(intf.ipAddr)
+                a.PrefixLength = ygot.Uint8(intf.prefixLen)
+-               dut.Config().Interface(intf.intfName).Replace(t, i)
++               dut.Config().Interface(intf.intfName).Update(t, i)
