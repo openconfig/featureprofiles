@@ -38,9 +38,7 @@ import (
 
 const (
 	ipv4PrefixLen = 30
-	deviceId      = uint64(1)
-	portId        = uint32(10)
-	electionId    = uint64(100)
+	packetCount   = 100
 )
 
 var (
@@ -48,10 +46,13 @@ var (
 	p4rtNodeName                              = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
 	streamName                                = "p4rt"
 	lldpInLayers          layers.EthernetType = 0x88cc
-	METADATA_INGRESS_PORT                     = uint32(1)
-	METADATA_EGRESS_PORT                      = uint32(2)
-	SUBMIT_TO_INGRESS                         = uint32(1)
-	SUBMIT_TO_EGRESS                          = uint32(0)
+	deviceId                                  = *ygot.Uint64(1)
+	portId                                    = *ygot.Uint32(10)
+	electionId                                = *ygot.Uint64(100)
+	METADATA_INGRESS_PORT                     = *ygot.Uint32(1)
+	METADATA_EGRESS_PORT                      = *ygot.Uint32(2)
+	SUBMIT_TO_INGRESS                         = *ygot.Uint32(1)
+	SUBMIT_TO_EGRESS                          = *ygot.Uint32(0)
 )
 
 var (
@@ -234,7 +235,6 @@ func TestPacketOut(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 
-	// Configure the DUT
 	configureDUT(t, dut)
 
 	// Configure the ATE
