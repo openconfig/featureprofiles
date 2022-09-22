@@ -30,6 +30,7 @@ type FirexTest struct {
 	}
 	Testbed   string
 	Binding   string
+	Baseconf  string
 	Pretests  []GoTest
 	Posttests []GoTest
 	Tests     []GoTest
@@ -67,6 +68,9 @@ var (
     {{- if $ft.Binding }}
     ondatra_binding_path: {{ $ft.Binding }}
     {{- end }}
+    {{- if $ft.Baseconf }}
+    base_conf_path: {{ $ft.Baseconf }}
+    {{- end }}
     supported_platforms:
         - "8000"
     fp_pre_tests:
@@ -84,9 +88,9 @@ var (
             {{- if $gt.Args }}
             test_args: {{ join $gt.Args " " }}
             {{- end }}
-			{{- if $gt.Patch }}
+            {{- if $gt.Patch }}
             test_patch: {{ $gt.Patch }}
-			{{- end }}
+            {{- end }}
         {{- end }}
     fp_post_tests:
         {{- range $j, $gt := $ft.Posttests}}
