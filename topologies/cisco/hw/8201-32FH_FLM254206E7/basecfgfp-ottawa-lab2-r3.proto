@@ -77,7 +77,7 @@ replace: {
 " end-class-map\n"
 "!\n"
 "class-map match-any cmap7__IPV4__pmap9\n"
-" match dscp ipv4 56"
+" match dscp ipv4 56\n"
 " end-class-map\n"
 "!\n"
 "policy-map pmap9\n"
@@ -128,7 +128,7 @@ replace: {
 " class oc_queue_tc1\n"
 "  priority level 7\n"
 " !\n"
-" class "class-default\n"
+" class class-default\n"
 " !\n"
 " end-policy-map\n"
 "!\n"
@@ -137,7 +137,7 @@ replace: {
 "!\n"
 "interface TenGigE0/0/0/1/1\n"
 " service-policy output eg_policy1111\n"
-"!\n
+"!\n"
 "interface Loopback0\n"
 " ipv4 address 10.10.10.10 255.255.255.255\n"
 " ipv6 address ::1/128\n"
@@ -254,7 +254,7 @@ replace: {
 "!\n" 
 "ssh server v2\n"
 "ssh server vrf default\n"
+"hw-module profile pbr vrf-redirect\n"
 "end\n"
   }
 }
-
