@@ -3,6 +3,7 @@ package qos_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
@@ -108,6 +109,16 @@ var (
 
 func TestTrafficQos(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	cliHandle := dut.RawAPIs().CLI(t)
+	resp, err := cliHandle.SendCommand(context.Background(), "show version")
+	t.Logf(resp)
+	if err != nil {
+		t.Error(err)
+	}
+	if strings.Contains(resp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
 	//Configure IPv6 addresses and VLANS on DUT
 	configureIpv6AndVlans(t, dut)
 
@@ -182,6 +193,16 @@ func TestTrafficQos(t *testing.T) {
 
 func TestScheduler(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	cliHandle := dut.RawAPIs().CLI(t)
+	resp, err := cliHandle.SendCommand(context.Background(), "show version")
+	t.Logf(resp)
+	if err != nil {
+		t.Error(err)
+	}
+	if strings.Contains(resp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
 
 	// Dial gRIBI
 	ctx := context.Background()

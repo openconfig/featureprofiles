@@ -1,0 +1,69 @@
+diff --git a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
+index 475568cc..9e8d9a11
+--- a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
++++ b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
+@@ -112,10 +112,12 @@ func (tc *testCase) configInterfaceDUT(i *telemetry.Interface, dp *ondatra.Port,
+ 	a.ConfigInterface(i)
+ 
+ 	if speed, ok := portSpeed[dp.Speed()]; ok {
+-		e := i.GetOrCreateEthernet()
+-		e.DuplexMode = telemetry.Ethernet_DuplexMode_FULL
+-		e.AutoNegotiate = ygot.Bool(false)
+-		e.PortSpeed = speed
++		if *deviations.PortSpeedEnabled {
++			e := i.GetOrCreateEthernet()
++			e.DuplexMode = telemetry.Ethernet_DuplexMode_FULL
++			e.AutoNegotiate = ygot.Bool(false)
++			e.PortSpeed = speed
++		}
+ 	}
+ 
+ 	if !*deviations.OmitL2MTU {
+@@ -198,18 +200,18 @@ func (tc *testCase) verifyInterfaceDUT(
+ 		t.Errorf("%s oper-status got %v, want %v", dp, got, opUp)
+ 	}
+ 
+-	disp := dip.Subinterface(0)
+-
+-	// IPv4 neighbor discovered by ARP.
+-	dis4np := disp.Ipv4().Neighbor(atea.IPv4)
+-	if got := dis4np.Origin().Get(t); got != dynamic {
+-		t.Errorf("%s IPv4 neighbor %s origin got %v, want %v", dp, atea.IPv4, got, dynamic)
+-	}
+-
+-	// IPv6 neighbor discovered by ARP.
+-	dis6np := disp.Ipv6().Neighbor(atea.IPv6)
+-	if got := dis6np.Origin().Get(t); got != dynamic {
+-		t.Errorf("%s IPv6 neighbor %s origin got %v, want %v", dp, atea.IPv6, got, dynamic)
++	if *deviations.SubinterfaceOriginCheck {
++		disp := dip.Subinterface(0)
++		//IPv4 neighbor discovered by ARP.
++		dis4np := disp.Ipv4().Neighbor(atea.IPv4)
++		if got := dis4np.Origin().Get(t); got != dynamic {
++			t.Errorf("%s IPv4 neighbor %s origin got %v, want %v", dp, atea.IPv4, got, dynamic)
++		}
++		//IPv6 neighbor discovered by ARP.
++		dis6np := disp.Ipv6().Neighbor(atea.IPv6)
++		if got := dis6np.Origin().Get(t); got != dynamic {
++			t.Errorf("%s IPv6 neighbor %s origin got %v, want %v", dp, atea.IPv6, got, dynamic)
++		}
+ 	}
+ }
+ 
+diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
+index 69fdfeb6..8487238c
+--- a/internal/deviations/deviations.go
++++ b/internal/deviations/deviations.go
+@@ -67,6 +67,12 @@ import "flag"
+ 
+ // Vendor deviation flags.
+ var (
++	SubinterfaceOriginCheck = flag.Bool("subinterface_origin_check", false,
++		"Skip telemetry on subinterfaces/subinterface/neighbors/neighbors/state/origin till CSCwc63655 is fixed")
++
++	PortSpeedEnabled = flag.Bool("port_speed_enabled", false,
++		"SKIP since XR does not support three of the leafs (DuplexMode and AutoNegotiate and PortSpeed)")
++
+ 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
+ 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
+ 
