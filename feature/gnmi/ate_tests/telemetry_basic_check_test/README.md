@@ -22,7 +22,7 @@ following features:
         *   /interfaces/interfaces/interface/state/admin-status
         *   /interfaces/interfaces/interface/state/oper-status
 
-*   Interface status
+*   Interface physical channel
 
     *   Check interface physical-channel exists and correct.
         *   /interfaces/interface/state/physical-channel
