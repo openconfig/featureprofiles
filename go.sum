@@ -184,6 +184,8 @@ github.com/mitchellh/go-wordwrap v1.0.1/go.mod h1:R62XHJLzvMFRBbcrT7m7WgmE1eOyTS
 github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
+github.com/open-traffic-generator/ondatra v0.0.0-20220921200922-8304183f148f h1:5vKUJkZs0DWo9/2BDBL1wMjLiR4jfJh0DA1R7Kj4xXc=
+github.com/open-traffic-generator/ondatra v0.0.0-20220921200922-8304183f148f/go.mod h1:/SUVxpkF/DwEx2+KBcW6Gy88IRxE8bVyx4K2nmi/PE4=
 github.com/open-traffic-generator/snappi/gosnappi v0.9.4 h1:BddTHM3xQHp2xbrYJvbSVlaYTjiA1xgVivkOFjcbQhg=
 github.com/open-traffic-generator/snappi/gosnappi v0.9.4/go.mod h1:elsB41LK8QapLrlfZJucYrQhxEw3ylGo3JgKo8kerZI=
 github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
@@ -209,10 +211,8 @@ github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e/go.mod h1:Sh6fs
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d/go.mod h1:x9tAZ4EwqCQ0jI8D6S8Yhw9Z0ee7/BxWQX0k0Uib5Q8=
 github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde h1:tSMKTQlWcHhdxQhn6P9myhLcoI+SzxF9e6hHWstCagU=
 github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde/go.mod h1:OmTWe7RyZj2CIzIgy4ovEBzCLBJzRvWSZmn7u02U9gU=
-github.com/openconfig/kne v0.1.4 h1:rX1Qk5SdtGlpYECJKYKxbNeGS4lEAjint6+NADqyn0o=
-github.com/openconfig/kne v0.1.4/go.mod h1:mg669QYYxkpqVnDlhJyMoaCF4mNnEJwOdslOflvONxI=
-github.com/openconfig/ondatra v0.0.0-20220914190154-cba46794fe2e h1:pXVdhKn9Fzl8b/dRMH3lIW1xgPm20ViH4Ur8+B+evhQ=
-github.com/openconfig/ondatra v0.0.0-20220914190154-cba46794fe2e/go.mod h1:7BXFr0NmiDI+q+lUXH0To+mgVFPAz91y6ktyrgM4cWA=
+github.com/openconfig/kne v0.1.6 h1:NcuRPSuvcbKHB+mWxztlQ8nuZRScMRsOX5T7s//jLXM=
+github.com/openconfig/kne v0.1.6/go.mod h1:Ua3W+2CbNsf8zk3v8KiFk7XUUN2ISYhvwjFXNqOpE2Y=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygnmi v0.2.3 h1:htROaQLjRPJ6gH3YIMUlVWAzlvRvEnUXHM/pnGVnHXc=

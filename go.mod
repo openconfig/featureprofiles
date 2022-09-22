@@ -2,6 +2,8 @@ module github.com/openconfig/featureprofiles
 
 go 1.19
 
+replace github.com/openconfig/ondatra => github.com/open-traffic-generator/ondatra v0.0.0-20220921200922-8304183f148f
+
 require (
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.8
@@ -38,7 +40,7 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde // indirect
-	github.com/openconfig/kne v0.1.4 // indirect
+	github.com/openconfig/kne v0.1.6 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
