@@ -189,7 +189,7 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uin
 
 			if found {
 				// TODO: weight returned is always 0. bug?
-				if *wantNh.Weight != *gotNh.Weight {
+				if len(got.NextHop) > 1 && *wantNh.Weight != *gotNh.Weight {
 					t.Logf("AFT Check for aft/next-hop-group/next-hop/state/weight got %d, want %d", *gotNh.Weight, *wantNh.Weight)
 					found = false
 				} else {
@@ -202,11 +202,9 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uin
 		}
 	}
 
-	// Need to add logic to ignore weights if length of paths are less than or equal to 1
-	// len(nhg.NextHop) != 1, weight is not displayed for if path is 1
-	// if want.BackupNextHopGroup != nil {
-	// 	c.CheckAftNHG(t, instance, *want.BackupNextHopGroup, *got.BackupNextHopGroup)
-	// }
+	if want.BackupNextHopGroup != nil {
+		c.CheckAftNHG(t, instance, *want.BackupNextHopGroup, *got.BackupNextHopGroup)
+	}
 }
 
 // CheckAftIPv4 checks an ipv4 entry against the cached configuration
