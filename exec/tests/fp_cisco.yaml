@@ -1,0 +1,30 @@
+name: fp_cisco
+owner: agvarghe@cisco.com
+testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
+binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
+
+tests:
+- name: ACL OC leaf level coverage 
+  path: feature/cisco/acl
+- name: AFT OC leaf level coverage 
+  path: feature/cisco/aft
+- name: BGP OC leaf level coverage 
+  path: feature/cisco/bgp
+- name: Interface OC leaf level coverage 
+  path: feature/cisco/interface 
+- name: LACP OC leaf level coverage 
+  path: feature/cisco/lacp
+- name: ISIS OC leaf level coverage 
+  path: feature/cisco/isis
+- name: LLDP OC leaf level coverage 
+  path: feature/cisco/lldp
+- name: Platform OC leaf level coverage 
+  path: feature/cisco/platform
+- name: Network-instance OC leaf level coverage 
+  path: feature/cisco/network-instance
+- name: QOS OC leaf level coverage 
+  path: feature/cisco/qos
+- name: RPL OC leaf level coverage 
+  path: feature/cisco/rpl
+- name: System OC leaf level coverage 
+  path: feature/cisco/system
