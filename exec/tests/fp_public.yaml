@@ -2,6 +2,7 @@ name: fp_public
 owner: mbagherz@cisco.com
 testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
 binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
+baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
 pretests:
   - name: pre_fp_gribi_test
     path: topologies/cisco/pretests/pre_fp_gribi_test.go
@@ -33,10 +34,13 @@ tests:
   path: feature/interface/aggregate/ate_tests/aggregate_test
 - name: RT-5.1 (Singleton Interface) 
   path: feature/interface/singleton/ate_tests/singleton_test
+  patch: exec/firex/plugins/fp_patch/singleton_test.patch
 - name: gNMI-1.5 (Telemetry Port Speed Test) 
   path: feature/gnmi/ate_tests/telemetry_port_speed_test
+  patch: exec/firex/plugins/fp_patch/telemetry_port_speed_test.patch
 - name: gNMI-1.10 (Telemetry Basic Check) 
   path: feature/gnmi/ate_tests/telemetry_basic_check_test
+  patch: exec/firex/plugins/fp_patch/telemetry_basic_check_test.patch
 - name: gNMI-1.11 (Telemetry Interface Packet Counters) 
   path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
 - name: RT-6.1 (Core LLDP TLV Population) 
@@ -64,6 +68,7 @@ tests:
   path: feature/gnoi/system/tests/traceroute_test
 - name: gNOI-4.1 (Software Upgrade) 
   path: feature/gnoi/os/tests/osinstall
+  patch: exec/firex/plugins/fp_patch/osinstall_test.patch
 - name: RT-1.3 (BGP Route Propagation) 
   path: feature/bgp/addpath/ate_tests/route_propagation_test
 - name: RT-1.5 (BGP Prefix Limit) 

@@ -31,11 +31,13 @@ ONDATRA_PATCHES = ['exec/firex/plugins/ondatra/0001-windows-ixia-path.patch']
 whitelist_arguments([
     'ondatra_repo_branch', 
     'fp_repo_branch', 
+    'ondatra_binding_path',
     'ondatra_testbed_path', 
+    'base_conf_path', 
     'fp_pre_tests',
     'fp_post_tests',
     'test_path', 
-    'test_args'
+    'test_args',
     'test_patch'
 ])
 
@@ -44,7 +46,8 @@ def BringupTestbed(self, uid, ws, images = None,
                         ondatra_repo_branch='main',
                         fp_repo_branch='master',                        
                         ondatra_testbed_path=None,
-                        ondatra_binding_path=None):
+                        ondatra_binding_path=None,
+                        base_conf_path=None):
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
 
@@ -67,8 +70,11 @@ def BringupTestbed(self, uid, ws, images = None,
 
     ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
     ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
-    
-    check_output(f"sed -i 's|$FP_ROOT|{fp_repo_dir}|g' " + ondatra_binding_path)
+
+    if base_conf_path:
+        base_conf_path = os.path.join(fp_repo_dir, base_conf_path)
+        check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
+
     with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
         fp.write("replace github.com/openconfig/ondatra => ../ondatra")
         
