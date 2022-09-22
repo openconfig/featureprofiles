@@ -136,7 +136,7 @@ func TestInterfacePhysicalChannel(t *testing.T) {
 	dp := dut.Port(t, "port1")
 
 	phyChannel := dut.Telemetry().Interface(dp.Name()).PhysicalChannel().Get(t)
-	t.Logf("Got %s PhysicalChannel from telmetry: %v", dp.Name(), phyChannel)
+	t.Logf("Got %q PhysicalChannel from telmetry: %v", dp.Name(), phyChannel)
 	if len(phyChannel) == 0 {
 		t.Errorf("Get(DUT port1 PhysicalChannel): got empty %v, want non-empty list", phyChannel)
 	}
