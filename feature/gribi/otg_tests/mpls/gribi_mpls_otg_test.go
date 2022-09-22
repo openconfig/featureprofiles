@@ -246,7 +246,7 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 
 		t.Logf("Starting MPLS traffic...")
 		otg.StartTraffic(t)
-		time.Sleep(180 * time.Second)
+		time.Sleep(10 * time.Second)
 		t.Logf("Stopping MPLS traffic...")
 		otg.StopTraffic(t)
 

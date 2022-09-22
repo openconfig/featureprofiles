@@ -1,10 +1,10 @@
-name: "lwotg"
+name: "arista-magna"
 nodes: {
   name: "ate"
   type: HOST
   config: {
-    image: "simpleate:latest"
-    command: "/app/simpleate"
+    image: "magna:latest"
+    command: "/app/magna"
     args: "-alsologtostderr"
     args: "-v=2"
     args: "-port=40051"
