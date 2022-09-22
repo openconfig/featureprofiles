@@ -52,7 +52,7 @@ duts {
   id: "dut"
   name: "R3-10.85.84.51:2014"  # Change this to the device hostname.
   config:{
-    gnmi_set_file: "$FP_ROOT/topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto"
+    gnmi_set_file: "$BASE_CONF_PATH"
   }
 
   # Options inherited by all protocols on this device unless
