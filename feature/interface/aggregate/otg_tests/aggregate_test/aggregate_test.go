@@ -393,12 +393,8 @@ func (tc *testCase) verifyATE(t *testing.T) {
 func (tc *testCase) setDutInterfaceWithState(t testing.TB, p *ondatra.Port, state bool) {
 	dc := tc.dut.Config()
 	i := &telemetry.Interface{Name: ygot.String(p.Name())}
-	i.Description = ygot.String(p.String())
-	i.Type = ethernetCsmacd
 	i.Enabled = ygot.Bool(state)
-	e := i.GetOrCreateEthernet()
-	e.AggregateId = ygot.String(tc.aggID)
-	dc.Interface(p.Name()).Replace(t, i)
+	dc.Interface(p.Name()).Update(t, i)
 }
 
 // sortPorts sorts the ports by the testbed port ID.
