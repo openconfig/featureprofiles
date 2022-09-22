@@ -1,0 +1,76 @@
+diff --git a/feature/gnmi/ate_tests/telemetry_basic_check_test/telemetry_basic_check_test.go b/feature/gnmi/ate_tests/telemetry_basic_check_test/telemetry_basic_check_test.go
+index fb40c2da..c59a7b2d
+--- a/feature/gnmi/ate_tests/telemetry_basic_check_test/telemetry_basic_check_test.go
++++ b/feature/gnmi/ate_tests/telemetry_basic_check_test/telemetry_basic_check_test.go
+@@ -325,29 +325,32 @@ func TestComponentParent(t *testing.T) {
+ 		regexpPattern string
+ 		parent        string
+ 	}{{
++		//NAME: "Rack 0-Fabric Card Slot 0", DESCR: "8812 Fabric Card Slot 0"
+ 		desc:          "Fabric",
+-		regexpPattern: "^Fabric[0-9]",
+-		parent:        componentParent["Fabric"],
++		regexpPattern: "^Rack [0-9]-Fabric Card Slot [0-9]$",
++		parent:        componentParent["Rack"],
+ 	}, {
++		//Cisco 8812 Fabric Card
+ 		desc:          "FabricChip",
+-		regexpPattern: "^FabricChip",
+-		parent:        componentParent["FabricChip"],
++		regexpPattern: "^[0-9]/FC[0-9]$",
++		parent:        componentParent["Rack"],
+ 	}, {
+ 		desc:          "Linecard",
+-		regexpPattern: "^Linecard[0-9]",
+-		parent:        componentParent["Linecard"],
++		regexpPattern: "^[0-9]/[0-9]/CPU[0-9]$",
++		parent:        componentParent["Rack"],
+ 	}, {
+ 		desc:          "Power supply",
+-		regexpPattern: "^PowerSupply[0-9]",
+-		parent:        componentParent["PowerSupply"],
++		regexpPattern: "^Rack [0-9]-[PSU|Power].*Slot [0-9]$",
++		parent:        componentParent["Rack"],
+ 	}, {
+ 		desc:          "Supervisor",
+-		regexpPattern: "^Supervisor[0-9]$",
+-		parent:        componentParent["Supervisor"],
++		regexpPattern: "^[0-9]/RP[0-9]/CPU[0-9]$",
++		parent:        componentParent["Rack"],
+ 	}, {
++		//"0/0/CPU0-LC-SW Control Ethernet Switch", DESCR: "LC-SW Control Ethernet Switch"
+ 		desc:          "SwitchChip",
+-		regexpPattern: "^SwitchChip",
+-		parent:        componentParent["SwitchChip"],
++		regexpPattern: "^[0-9]/[0-9]/CPU[0-9]-LC-SW.*Switch$",
++		parent:        componentParent["Rack"],
+ 	}}
+ 
+ 	for _, tc := range cases {
+@@ -380,7 +383,7 @@ func TestComponentParent(t *testing.T) {
+ 
+ func TestSoftwareVersion(t *testing.T) {
+ 	dut := ondatra.DUT(t, "dut")
+-	regexpPattern := "^Supervisor[0-9]"
++	regexpPattern := "^[0-9]/RP[0-9]/CPU[0-9]-.*$"
+ 
+ 	r, err := regexp.Compile(regexpPattern)
+ 	if err != nil {
+@@ -427,7 +430,7 @@ func TestSoftwareVersion(t *testing.T) {
+ func TestCPU(t *testing.T) {
+ 	dut := ondatra.DUT(t, "dut")
+ 
+-	r := regexp.MustCompile("^CPU")
++	r := regexp.MustCompile("^[0-9]/RP[0-9]/CPU[0-9]$")
+ 	cpus := findMatchedComponents(t, dut, r)
+ 	t.Logf("Found CPU list: %v", cpus)
+ 	if len(cpus) == 0 {
+@@ -453,7 +456,7 @@ func TestCPU(t *testing.T) {
+ 
+ func TestSupervisorLastRebootInfo(t *testing.T) {
+ 	dut := ondatra.DUT(t, "dut")
+-	regexpPattern := "^Supervisor[0-9]"
++	regexpPattern := "^[0-9]/RP[0-9]/CPU[0-9]$"
+ 
+ 	r, err := regexp.Compile(regexpPattern)
+ 	if err != nil {
