@@ -380,7 +380,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []string, b
 		}
 	}
 	ate.OTG().StartTraffic(t)
-	time.Sleep(5 * time.Second)
+	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), ateTop)
@@ -397,7 +397,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []string, b
 			lostPackets := int64(txPackets - rxPackets)
 			lossPct := lostPackets * 100 / int64(txPackets)
 			if got := lossPct; got > 0 {
-				t.Fatalf("LossPct for flow %s: got %v, want < 0.01", flow, got)
+				t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
 			}
 		} else {
 			recvMetric := ate.OTG().Telemetry().Flow(flow).Get(t)
