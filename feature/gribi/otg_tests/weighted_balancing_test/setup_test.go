@@ -209,13 +209,9 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 // setDutInterfaceState sets the admin state on the dut interface
 func setDutInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port, state bool) {
 	dc := dut.Config()
-	i := &telemetry.Interface{
-		Name:        ygot.String(p.Name()),
-		Description: ygot.String(p.String()),
-		Type:        telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
-	}
+	i := &telemetry.Interface{Name: ygot.String(p.Name())}
 	i.Enabled = ygot.Bool(state)
-	dc.Interface(p.Name()).Replace(t, i)
+	dc.Interface(p.Name()).Update(t, i)
 }
 
 // configureATE configures the topology of the ATE.
