@@ -108,12 +108,7 @@ func TestIPv4Entry(t *testing.T) {
 	configureDUT(t, dut)
 
 	ate := ondatra.ATE(t, "ate")
-	ateTop := configureATE(t, ate)
-	ateTop.Flows().Clear().Items()
-
-	port2Flow := createFlow(t, "Port 1 to Port 2", ate, ateTop, &atePort2)
-	port3Flow := createFlow(t, "Port 1 to Port 3", ate, ateTop, &atePort3)
-	ecmpFlow := createFlow(t, "Port 1 to Port 2 & 3", ate, ateTop, &atePort2, &atePort3)
+	configureATE(t, ate)
 
 	cases := []struct {
 		desc                 string
@@ -133,8 +128,8 @@ func TestIPv4Entry(t *testing.T) {
 				fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 					WithPrefix(dstPfx).WithNextHopGroup(nhgID),
 			},
-			wantGoodFlows: []string{port2Flow},
-			wantBadFlows:  []string{port3Flow},
+			wantGoodFlows: []string{"port2Flow"},
+			wantBadFlows:  []string{"port3Flow"},
 			wantOperationResults: []*client.OpResult{
 				fluent.OperationResult().
 					WithNextHopOperation(nh1ID).
@@ -165,7 +160,7 @@ func TestIPv4Entry(t *testing.T) {
 				fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 					WithPrefix(dstPfx).WithNextHopGroup(nhgID),
 			},
-			wantGoodFlows: []string{ecmpFlow},
+			wantGoodFlows: []string{"ecmpFlow"},
 			wantOperationResults: []*client.OpResult{
 				fluent.OperationResult().
 					WithNextHopOperation(nh1ID).
@@ -197,7 +192,7 @@ func TestIPv4Entry(t *testing.T) {
 				fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 					WithPrefix(dstPfx).WithNextHopGroup(nhgID),
 			},
-			wantBadFlows: []string{port2Flow, port3Flow},
+			wantBadFlows: []string{"port2Flow", "port3Flow"},
 			wantOperationResults: []*client.OpResult{
 				fluent.OperationResult().
 					WithNextHopGroupOperation(nhgID).
@@ -224,7 +219,7 @@ func TestIPv4Entry(t *testing.T) {
 				fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 					WithPrefix(dstPfx).WithNextHopGroup(nhgID),
 			},
-			wantBadFlows: []string{port2Flow, port3Flow},
+			wantBadFlows: []string{"port2Flow", "port3Flow"},
 			wantOperationResults: []*client.OpResult{
 				fluent.OperationResult().
 					WithNextHopOperation(nh1ID).
@@ -344,7 +339,6 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
 	otg.PushConfig(t, ateTop)
-
 	return modName
 }
 
@@ -354,28 +348,70 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []string, b
 		return
 	}
 
-	// var allFlows []string
+	var newGoodFlows, newBadFlows []string
 	allFlows := append(good, bad...)
-	t.Log(allFlows)
-	ate.OTG().StartTraffic(t, allFlows...)
+	ateTop.Flows().Clear().Items()
+	for _, flow := range allFlows {
+		if flow == "port2Flow" {
+			if elementInSlice(flow, good) {
+				newGoodFlows = append(newGoodFlows, createFlow(t, "Port 1 to Port 2", ate, ateTop, &atePort2))
+			}
+			if elementInSlice(flow, bad) {
+				newBadFlows = append(newBadFlows, createFlow(t, "Port 1 to Port 2", ate, ateTop, &atePort2))
+			}
+		}
+		if flow == "port3Flow" {
+			if elementInSlice(flow, good) {
+				newGoodFlows = append(newGoodFlows, createFlow(t, "Port 1 to Port 3", ate, ateTop, &atePort3))
+			}
+			if elementInSlice(flow, bad) {
+				newBadFlows = append(newBadFlows, createFlow(t, "Port 1 to Port 3", ate, ateTop, &atePort3))
+			}
+
+		}
+		if flow == "ecmpFlow" {
+			if elementInSlice(flow, good) {
+				newGoodFlows = append(newGoodFlows, createFlow(t, "ecmpFlow", ate, ateTop, &atePort2, &atePort3))
+			}
+			if elementInSlice(flow, bad) {
+				newBadFlows = append(newBadFlows, createFlow(t, "ecmpFlow", ate, ateTop, &atePort2, &atePort3))
+			}
+
+		}
+	}
+	ate.OTG().StartTraffic(t)
 	time.Sleep(5 * time.Second)
 	ate.OTG().StopTraffic(t)
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), ateTop)
 	otgutils.LogPortMetrics(t, ate.OTG(), ateTop)
 
-	for _, flow := range good {
-		recvMetric := ate.OTG().Telemetry().Flow(flow).Get(t)
-		txPackets := recvMetric.GetCounters().GetOutPkts()
-		rxPackets := recvMetric.GetCounters().GetInPkts()
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
-		if got := lossPct; got > 0 {
-			t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
+	for _, flow := range newGoodFlows {
+		var txPackets, rxPackets uint64
+		if flow == "ecmpFlow" {
+			for _, p := range ateTop.Ports().Items() {
+				portMetrics := ate.OTG().Telemetry().Port(p.Name()).Get(t)
+				txPackets = txPackets + portMetrics.GetCounters().GetOutFrames()
+				rxPackets = rxPackets + portMetrics.GetCounters().GetInFrames()
+			}
+			lostPackets := int64(txPackets - rxPackets)
+			lossPct := lostPackets * 100 / int64(txPackets)
+			if got := lossPct; got > 0 {
+				t.Fatalf("LossPct for flow %s: got %v, want < 0.01", flow, got)
+			}
+		} else {
+			recvMetric := ate.OTG().Telemetry().Flow(flow).Get(t)
+			txPackets = recvMetric.GetCounters().GetOutPkts()
+			rxPackets = recvMetric.GetCounters().GetInPkts()
+			lostPackets := txPackets - rxPackets
+			lossPct := lostPackets * 100 / txPackets
+			if got := lossPct; got > 0 {
+				t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
+			}
 		}
 	}
 
-	for _, flow := range bad {
+	for _, flow := range newBadFlows {
 		recvMetric := ate.OTG().Telemetry().Flow(flow).Get(t)
 		txPackets := recvMetric.GetCounters().GetOutPkts()
 		rxPackets := recvMetric.GetCounters().GetInPkts()
@@ -447,4 +483,13 @@ func setDutInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *att
 		}
 	}
 	dc.Interface(p.Name()).Replace(t, i)
+}
+
+func elementInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }
