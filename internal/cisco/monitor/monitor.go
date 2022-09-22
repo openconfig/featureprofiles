@@ -7,9 +7,9 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cisco/gnmiutil"
 	"github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/ygot/ygot"	
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygot/ygot"
 )
 
 type EventType int
@@ -23,10 +23,11 @@ const (
 type GNMIMonior struct {
 	Paths  []ygot.PathStruct
 	Consumer  gnmiutil.Consumer
+	DUT 	*ondatra.DUTDevice
 	//events map[string][]gnmiutil.DataPoint
 }
 
-func (monitor *GNMIMonior) Start(context context.Context, t testing.TB, shareStub bool, mode gpb.SubscriptionList_Mode) {
+func (monitor *GNMIMonior) Start(context context.Context, t *testing.T, shareStub bool, mode gpb.SubscriptionList_Mode) {
 	t.Helper()
 	for _, ygotPath := range monitor.Paths {
 		{
@@ -34,7 +35,7 @@ func (monitor *GNMIMonior) Start(context context.Context, t testing.TB, shareStu
 			if err != nil {
 				t.Fatalf("Could not start the monitor for path %v", ygotPath)
 			}
-			watcher, path, err := gnmiutil.Watch(context, ygotPath, []*gnmi.Path{path}, false, monitor.Consumer, mode)
+			watcher, path, err := gnmiutil.Watch(context,t,monitor.DUT, ygotPath, []*gnmi.Path{path}, false, monitor.Consumer, mode)
 			if err != nil {
 				t.Fatalf("Could not start the watcher for path %v", path)
 			}

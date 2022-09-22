@@ -37,6 +37,10 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
+	"github.com/openconfig/ondatra"
+	
+
+
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
@@ -177,17 +181,17 @@ func PathStructToString(ps ygot.PathStruct) string {
 }
 
 // MustGet calls Get and fails the calling test fatally on error.
-func MustGet(t testing.TB, n ygot.PathStruct, subPaths ...*gpb.Path) ([]*DataPoint, *gpb.Path) {
+/*func MustGet(t testing.TB, n ygot.PathStruct, subPaths ...*gpb.Path) ([]*DataPoint, *gpb.Path) {
 	t.Helper()
 	data, path, err := Get(context.Background(), n, subPaths...)
 	if err != nil {
 		t.Fatalf("Get(t) at path %s: %v", path, err)
 	}
 	return data, path
-}
+}*/
 
 // Get does gNMI ONCE subscription for the device under n. SubPaths, if set, override the subscription paths.
-func Get(ctx context.Context, n ygot.PathStruct, subPaths ...*gpb.Path) ([]*DataPoint, *gpb.Path, error) {
+/*func Get(ctx context.Context, n ygot.PathStruct, subPaths ...*gpb.Path) ([]*DataPoint, *gpb.Path, error) {
 	sub, path, err := subscribe(ctx, n, subPaths, gpb.SubscriptionList_ONCE)
 	if err != nil {
 		return nil, path, fmt.Errorf("cannot subscribe to gNMI client: %w", err)
@@ -197,7 +201,7 @@ func Get(ctx context.Context, n ygot.PathStruct, subPaths ...*gpb.Path) ([]*Data
 		return nil, path, err
 	}
 	return data, path, nil
-}
+}*/
 
 // Metadata contains to common fields and method for the generated Qualified structs.
 type Metadata struct {
@@ -249,7 +253,7 @@ type StoreFunc func(string, []*DataPoint) error
 // watch starts a gNMI subscription for the provided duration. Specifying subPaths is optional, if unset will subscribe to the path at n.
 // Note: For leaves the converter and predicate are evaluated once per DataPoint. For non-leaves, they are evaluated once per notification,
 // after the first sync is received.
-func Watch(ctx context.Context, n ygot.PathStruct, paths []*gpb.Path, isLeaf bool, consumer Consumer, mode gpb.SubscriptionList_Mode) (_ *Watcher, _ *gpb.Path, rerr error) {
+func Watch(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, n ygot.PathStruct, paths []*gpb.Path, isLeaf bool, consumer Consumer, mode gpb.SubscriptionList_Mode) (_ *Watcher, _ *gpb.Path, rerr error) {
 	//cancel := func() {}
 	//mode := gpb.SubscriptionList_ONCE
 	/*collectEnd := time.Now().Add(duration)
@@ -260,7 +264,7 @@ func Watch(ctx context.Context, n ygot.PathStruct, paths []*gpb.Path, isLeaf boo
 		defer closer.CloseVoidOnErr(&rerr, cancel)
 		mode = gpb.SubscriptionList_STREAM
 	}*/
-	sub, path, err := subscribe(ctx, n, paths, mode)
+	sub, path, err := subscribe(ctx,t, dut,n, paths, mode)
 	if err != nil {
 		return nil, path, fmt.Errorf("cannot subscribe to gNMI client: %w", err)
 	}
@@ -510,7 +514,7 @@ func (gs *getSubscriber) CloseSend() error {
 }
 
 // subscribe create a gNMI SubscribeClient. Specifying subPaths is optional, if unset will subscribe to the path at n.
-func subscribe(ctx context.Context, n ygot.PathStruct, subPaths []*gpb.Path, mode gpb.SubscriptionList_Mode) (_ gpb.GNMI_SubscribeClient, _ *gpb.Path, rerr error) {
+func subscribe(ctx context.Context,t *testing.T, dut *ondatra.DUTDevice, n ygot.PathStruct, subPaths []*gpb.Path, mode gpb.SubscriptionList_Mode) (_ gpb.GNMI_SubscribeClient, _ *gpb.Path, rerr error) {
 	path, opts, err := resolve(ctx, n)
 	if err != nil {
 		return nil, path, err
@@ -522,6 +526,8 @@ func subscribe(ctx context.Context, n ygot.PathStruct, subPaths []*gpb.Path, mod
 
 	usesGet := opts.useGetForConfig && mode == gpb.SubscriptionList_ONCE
 	var sub gpb.GNMI_SubscribeClient
+	//create a gnmi connection oper watch to support multi-threading
+	opts.client = dut.RawAPIs().GNMI().New(t)
 	if usesGet {
 		sub = &getSubscriber{
 			client: opts.client,
