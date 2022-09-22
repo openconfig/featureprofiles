@@ -8,10 +8,10 @@ var (
 	GRIBITrafficCheck = flag.Bool("gribi_traffic_check", true,
 		"This enable/disable traffic check for gribi tests.")
 
-	GRIBIAFTCheck = flag.Bool("gribi_aft_check", true,
+	GRIBIAFTCheck = flag.Bool("gribi_aft_check", false,
 		"This enable/disable AFT check for gribi entries in gribi tests.")
 
-	GRIBIAFTChainCheck = flag.Bool("gribi_aft_chain_check", true,
+	GRIBIAFTChainCheck = flag.Bool("gribi_aft_chain_check", false,
 		"This enable/disable AFT chain check for gribi prefix in gribi tests.")
 
 	GRIBIFIBCheck = flag.Bool("gribi_fib_check", true,
@@ -20,7 +20,7 @@ var (
 	GRIBIRIBCheck = flag.Bool("gribi_rib_check", true,
 		"This enable/disable  RIB ack check for gribi entries in gribi tests.")
 
-	GRIBIScale = flag.Uint("gribi_scale", 1,
+	GRIBIScale = flag.Uint("gribi_scale", 10,
 		"The number of gribi entries to be added in scale test.")
 
 	GRIBIConfidence = flag.Float64("gribi_confidence", 10.0,
