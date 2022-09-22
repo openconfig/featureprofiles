@@ -2,7 +2,7 @@ name: backup_nh
 owner: mananpat@cisco.com
 testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
 binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
-baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/binding/basecfgfp-ottawa-lab2-r3.proto
+baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
 pretests:
   - name: pre_fp_gribi_test
     path: topologies/cisco/pretests/pre_fp_gribi_test.go
