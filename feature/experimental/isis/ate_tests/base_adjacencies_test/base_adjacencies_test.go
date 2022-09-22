@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 
 const (
 	PTISIS   = telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
-	ISISName = "osiris"
+	ISISName = "DEFAULT"
 )
 
 func maybeUint32(t testing.TB, getter func(t testing.TB) uint32) (got uint32, ok bool) {
