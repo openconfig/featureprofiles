@@ -219,7 +219,6 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	fptest.LogYgot(t, "LACP", lacpPath, lacp)
 	lacpPath.Replace(t, lacp)
 
-	// Waiting 15s before configuring the port channel
 	tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Await(t, 20*time.Second, opUp)
 
 	agg := &telemetry.Interface{Name: ygot.String(tc.aggID)}
@@ -390,12 +389,41 @@ func (tc *testCase) verifyATE(t *testing.T) {
 
 }
 
+// setDutInterfaceWithState sets the admin state to a member of the lag
+func (tc *testCase) setDutInterfaceWithState(t testing.TB, p *ondatra.Port, state bool) {
+	dc := tc.dut.Config()
+	i := &telemetry.Interface{Name: ygot.String(p.Name())}
+	i.Description = ygot.String(p.String())
+	i.Type = ethernetCsmacd
+	i.Enabled = ygot.Bool(state)
+	e := i.GetOrCreateEthernet()
+	e.AggregateId = ygot.String(tc.aggID)
+	dc.Interface(p.Name()).Replace(t, i)
+}
+
 // sortPorts sorts the ports by the testbed port ID.
 func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	sort.SliceStable(ports, func(i, j int) bool {
 		return ports[i].ID() < ports[j].ID()
 	})
 	return ports
+}
+
+// incrementedMac uses a mac string and increments it by the given i
+func incrementedMac(mac string, i int) (string, error) {
+	macAddr, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", err
+	}
+	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
+	convMac = convMac + uint64(i)
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, convMac)
+	if err != nil {
+		return "", err
+	}
+	newMac := net.HardwareAddr(buf.Bytes()[2:8])
+	return newMac.String(), nil
 }
 
 func (tc *testCase) verifyMinLinks(t *testing.T) {
@@ -452,29 +480,14 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 
 				}
 				if tc.lagType == telemetry.IfAggregate_AggregationType_STATIC {
-					t.Skip("Setting the port status down doesn't work with kne/meshnet")
+					// Setting admin state down on the DUT interface. Setting the otg interface down has no effect in kne
+					dp := tc.dut.Port(t, port.ID())
+					tc.setDutInterfaceWithState(t, dp, false)
 				}
 			}
 			tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Await(t, 1*time.Minute, tf.want)
 		})
 	}
-}
-
-// incrementedMac uses a mac string and increments it by the given i
-func incrementedMac(mac string, i int) (string, error) {
-	macAddr, err := net.ParseMAC(mac)
-	if err != nil {
-		return "", err
-	}
-	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
-	convMac = convMac + uint64(i)
-	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.BigEndian, convMac)
-	if err != nil {
-		return "", err
-	}
-	newMac := net.HardwareAddr(buf.Bytes()[2:8])
-	return newMac.String(), nil
 }
 
 func TestNegotiation(t *testing.T) {
