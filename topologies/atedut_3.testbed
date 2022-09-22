@@ -6,7 +6,6 @@
 
 duts {
   id: "dut"
-  vendor: JUNIPER 
   ports {
     id: "port1"
   }
