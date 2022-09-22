@@ -461,28 +461,9 @@ func waitOTGARPEntry(t *testing.T) {
 // setDutInterfaceState sets the admin state on the dut interface
 func setDutInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *attrs.Attributes, p *ondatra.Port, state bool) {
 	dc := dut.Config()
-	i := &oc.Interface{
-		Name:        ygot.String(p.Name()),
-		Description: ygot.String(dutPort.Desc),
-		Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
-	}
+	i := &oc.Interface{Name: ygot.String(p.Name())}
 	i.Enabled = ygot.Bool(state)
-
-	e := i.GetOrCreateEthernet()
-	if dutPort.MAC != "" {
-		e.MacAddress = ygot.String(dutPort.MAC)
-	}
-
-	s := i.GetOrCreateSubinterface(0)
-	if dutPort.IPv4 != "" {
-		s4 := s.GetOrCreateIpv4()
-		s4.Enabled = ygot.Bool(state)
-		a4 := s4.GetOrCreateAddress(dutPort.IPv4)
-		if dutPort.IPv4Len > 0 {
-			a4.PrefixLength = ygot.Uint8(dutPort.IPv4Len)
-		}
-	}
-	dc.Interface(p.Name()).Replace(t, i)
+	dc.Interface(p.Name()).Update(t, i)
 }
 
 func elementInSlice(a string, list []string) bool {
