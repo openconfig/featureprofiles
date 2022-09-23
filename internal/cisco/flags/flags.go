@@ -11,7 +11,7 @@ var (
 	GRIBIAFTCheck = flag.Bool("gribi_aft_check", true,
 		"This enable/disable AFT check for gribi entries in gribi tests.")
 
-	GRIBIAFTChainCheck = flag.Bool("gribi_aft_chain_check", false,
+	GRIBIAFTChainCheck = flag.Bool("gribi_aft_chain_check", true,
 		"This enable/disable AFT chain check for gribi prefix in gribi tests.")
 
 	GRIBIFIBCheck = flag.Bool("gribi_fib_check", true,
@@ -33,7 +33,7 @@ var (
 
 	NonDefaultNetworkInstance = flag.String("nondefault_vrf", "TE", "The name used for the nondefault network instance for VRF.")
 
-	PbrInstance = flag.String("vrf_name", "DEFAULT", "Vrf name under which policy needs to be configured")
+	BgpInstance = flag.String("vrf_name", "default", "bgp instance name")
 )
 
 // GRIBICheck struct
