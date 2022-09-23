@@ -29,7 +29,7 @@ const (
 
 // configbasePBR, creates class map, policy and configures under source interface
 func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, protocol telemetry.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
-	pfpath := dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding()
+	pfpath := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
 
 	r := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r.SequenceId = ygot.Uint32(index)
@@ -53,7 +53,7 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 	p := pf.GetOrCreatePolicy(pbrName)
 	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
 	p.AppendRule(&r)
-	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Replace(t, &pf)
+	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Replace(t, &pf)
 
 	//configure PBR on ingress port
 	pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Replace(t, pbrName)
@@ -61,7 +61,7 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 
 // unconfigbasePBR, creates class map, policy and configures under source interface
 func unconfigbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
-	pfpath := dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding()
+	pfpath := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
 	pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Delete(t)
 	pfpath.Policy(pbrName).Delete(t)
 	pfpath.Delete(t)

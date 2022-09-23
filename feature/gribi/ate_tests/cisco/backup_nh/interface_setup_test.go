@@ -299,8 +299,8 @@ func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 // addBGPOC, configures ISIS on DUT
 func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	dev := &telemetry.Device{}
-	inst := dev.GetOrCreateNetworkInstance("default")
-	prot := inst.GetOrCreateProtocol(PTBGP, "default")
+	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.BgpInstance)
+	prot := inst.GetOrCreateProtocol(PTBGP, *ciscoFlags.BgpInstance)
 	bgp := prot.GetOrCreateBgp()
 	glob := bgp.GetOrCreateGlobal()
 	glob.As = ygot.Uint32(BGPAS)
@@ -321,7 +321,7 @@ func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	peer.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
 	peer.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
 
-	dutNode := dut.Config().NetworkInstance("default").Protocol(PTBGP, "default")
-	dutConf := dev.GetOrCreateNetworkInstance("default").GetOrCreateProtocol(PTBGP, "default")
+	dutNode := dut.Config().NetworkInstance(*ciscoFlags.BgpInstance).Protocol(PTBGP, *ciscoFlags.BgpInstance)
+	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.BgpInstance).GetOrCreateProtocol(PTBGP, *ciscoFlags.BgpInstance)
 	dutNode.Update(t, dutConf)
 }
