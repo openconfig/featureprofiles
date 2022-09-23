@@ -15,6 +15,8 @@
 package optics_power_and_bias_current_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -127,12 +129,18 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			dut.Config().Interface(dp.Name()).Replace(t, i)
 			dut.Telemetry().Interface(dp.Name()).OperStatus().Await(t, intUpdateTime, tc.expectedStatus)
 
-			mfgName := dut.Telemetry().Component(dp.Name()).MfgName().Get(t)
-			t.Logf("Transceiver MfgName: %s", mfgName)
-			// TODO: Remove the mfgName INNOLIGHT check after the issue is fixed.
-			if mfgName == "INNOLIGHT" {
-				t.Skipf("Optics from INNOLIGHT is not supported, skip it for now.")
+			transceiverName, err := findTransceiverName(dut, dp.Name())
+			if err != nil {
+				t.Fatalf("findTransceiver(%s, %s): %v", dut.Name(), dp.Name(), err)
 			}
+
+			component := dut.Telemetry().Component(transceiverName)
+			if !component.MfgName().Lookup(t).IsPresent() {
+				t.Skipf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiverName)
+			}
+
+			mfgName := component.MfgName().Get(t)
+			t.Logf("Transceiver MfgName: %s", mfgName)
 
 			channels := dut.Telemetry().Component(dp.Name()).Transceiver().ChannelAny()
 			inputPowers := channels.InputPower().Instant().Get(t)
@@ -153,3 +161,27 @@ func TestOpticsPowerUpdate(t *testing.T) {
 		})
 	}
 }
+
+// findTransceiverName provides name of transciever port corresponding to interface name
+func findTransceiverName(dut *ondatra.DUTDevice, interfaceName string) (string, error) {
+	var (
+		transceiverMap = map[ondatra.Vendor]string{
+			ondatra.ARISTA:  " transceiver",
+			ondatra.CISCO:   "",
+			ondatra.JUNIPER: "",
+		}
+	)
+	transceiverName := interfaceName
+	name, ok := transceiverMap[dut.Vendor()]
+	if !ok {
+		return "", fmt.Errorf("No transceiver interface available for DUT vendor %v", dut.Vendor())
+	}
+	if name != "" {
+		interfaceSplit := strings.Split(interfaceName, "/")
+		interfaceSplitres := interfaceSplit[:len(interfaceSplit)-1]
+		transceiverName = strings.Join(interfaceSplitres, "/") + name
+
+	}
+	return transceiverName, nil
+}
+
