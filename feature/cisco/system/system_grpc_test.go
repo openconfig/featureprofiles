@@ -89,6 +89,7 @@ func TestSysGrpcState(t *testing.T) {
 	})
 }
 func TestSysGrpcConfig(t *testing.T) {
+	t.Skip() // Skipped since grpc config changes affects other runs, will need to handle cleanup
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").Name()
