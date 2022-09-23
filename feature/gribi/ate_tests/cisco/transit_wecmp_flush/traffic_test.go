@@ -78,20 +78,20 @@ func generateBaseScenario(t *testing.T, ate *ondatra.ATEDevice, topoobj *ondatra
 func addNetworkAndProtocolsToAte(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopology) {
 	//Add prefixes/networks on ports
 	scale := uint32(10)
-	util.AddIpv4Network(t, topo, "1/1", "network101", "101.1.1.1/32", scale)
-	util.AddIpv4Network(t, topo, "1/2", "network102", "102.1.1.1/32", scale)
+	util.AddIpv4Network(t, topo, sortedAtePorts[0], "network101", "101.1.1.1/32", scale)
+	util.AddIpv4Network(t, topo, sortedAtePorts[1], "network102", "102.1.1.1/32", scale)
 	//Configure ISIS, BGP on TGN
-	util.AddAteISISL2(t, topo, "1/1", "490001", "isis_network1", 20, "120.1.1.1/32", scale)
-	util.AddAteISISL2(t, topo, "1/2", "490002", "isis_network2", 20, "121.1.1.1/32", scale)
-	util.AddAteEBGPPeer(t, topo, "1/1", "100.120.1.1", 64001, "bgp_network", "100.120.0.2", "130.1.1.1/32", scale, false)
-	util.AddAteEBGPPeer(t, topo, "1/2", "100.121.1.1", 64001, "bgp_network", "100.121.0.2", "131.1.1.1/32", scale, false)
+	util.AddAteISISL2(t, topo,sortedAtePorts[0], "490001", "isis_network1", 20, "120.1.1.1/32", scale)
+	util.AddAteISISL2(t, topo, sortedAtePorts[1], "490002", "isis_network2", 20, "121.1.1.1/32", scale)
+	util.AddAteEBGPPeer(t, topo, sortedAtePorts[0], "100.120.1.1", 64001, "bgp_network", "100.120.0.2", "130.1.1.1/32", scale, false)
+	util.AddAteEBGPPeer(t, topo, sortedAtePorts[1], "100.121.1.1", 64001, "bgp_network", "100.121.0.2", "131.1.1.1/32", scale, false)
 	//Configure loopbacks for BGP to use as source addresses
-	util.AddLoopback(t, topo, "1/1", "11.11.11.1/32")
-	util.AddLoopback(t, topo, "1/2", "12.12.12.1/32")
+	util.AddLoopback(t, topo, sortedAtePorts[0], "11.11.11.1/32")
+	util.AddLoopback(t, topo, sortedAtePorts[1], "12.12.12.1/32")
 	//BGP instance for traffic over gRIBI transit forwarding entries
 	//BGP uses DSCP48 for control traffic. Router needs to be configured to handle DSCP48 accordingly.
-	util.AddAteEBGPPeer(t, topo, "1/1", "12.12.12.1", 64001, "bgp_transit_network", "100.121.0.2", "11.11.11.1/32", 1, true)
-	util.AddAteEBGPPeer(t, topo, "1/2", "11.11.11.1", 64002, "bgp_transit_network", "100.122.0.2", "12.12.12.1/32", 1, true)
+	util.AddAteEBGPPeer(t, topo, sortedAtePorts[0], "12.12.12.1", 64001, "bgp_transit_network", "100.121.0.2", "11.11.11.1/32", 1, true)
+	util.AddAteEBGPPeer(t, topo, sortedAtePorts[1], "11.11.11.1", 64002, "bgp_transit_network", "100.122.0.2", "12.12.12.1/32", 1, true)
 }
 
 func getBaseFlow(t *testing.T, atePorts map[string]*ondatra.Interface, ate *ondatra.ATEDevice, flowName string, vrf ...string) *ondatra.Flow {
