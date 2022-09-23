@@ -8,10 +8,11 @@ import (
 )
 
 var (
-	GDPEntry = wbb.AclWbbIngressTableEntryInfo{
+	gdpTableEntry = wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{{
 		EtherType:     0x6007,
 		EtherTypeMask: 0xFFFF,
-	}
+	},
+	})[0].Entity.GetTableEntry()
 )
 
 var (
@@ -58,10 +59,10 @@ func testReadRPCFromPrimary(ctx context.Context, t *testing.T, args *testArgs) {
 	// Read ALL and log
 	res, err := readProgrammedEntry(ctx, t, deviceID, client)
 	if err != nil {
-		t.Errorf("There is error seen when reading entries, %v", err)
+		t.Fatal("There is error seen when reading entries, %v", err)
 	}
 
-	checkEntryExist(ctx, t, GDPEntry, res)
+	checkEntryExist(ctx, t, gdpTableEntry, res)
 }
 
 // Read RPC-Compliance:002
@@ -100,7 +101,7 @@ func testReadRPCFromBackup(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Errorf("There is error seen when reading entries, %v", err)
 	}
 
-	checkEntryExist(ctx, t, GDPEntry, res)
+	checkEntryExist(ctx, t, gdpTableEntry, res)
 }
 
 // Read RPC-Compliance:002
