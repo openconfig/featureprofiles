@@ -36,6 +36,10 @@ const (
 	timeout = time.Minute
 )
 
+const (
+	DECAP = "decap"
+)
+
 // Client provides access to GRIBI APIs of the DUT.
 //
 // Usage:
@@ -222,7 +226,7 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 
 	aftNh := c.getOrCreateAft(instance).GetOrCreateNextHop(nhIndex)
 
-	if address == "decap" {
+	if address == DECAP {
 		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
 		aftNh.DecapsulateHeader = telemetry.AftTypes_EncapsulationHeaderType_IPV4
 	} else if address != "" {
@@ -253,7 +257,7 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 
 	if check.AFTCheck {
 		//if address is "decap", prefix will be 0.0.0.0, nhInstance is "", and InterfaceRef is Null0
-		if address == "decap" {
+		if address == DECAP {
 			c.checkNH(t, nhIndex, "0.0.0.0", instance, "", "Null0")
 		} else {
 			c.checkNH(t, nhIndex, address, instance, nhInstance, interfaceRef)
@@ -286,12 +290,7 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 		}
 	}
 	if check.AFTCheck {
-		if instance != *flags.DefaultNetworkInstance {
-			// setting nhginstance to empty as there is no nhgInstance value set
-			c.checkIPv4e(t, prefix, nhgIndex, instance, "")
-		} else {
-			c.checkIPv4e(t, prefix, nhgIndex, instance, nhgInstance)
-		}
+		c.checkIPv4e(t, prefix, nhgIndex, instance, nhgInstance)
 	}
 }
 
@@ -338,7 +337,7 @@ func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance strin
 	aftNh, _ := c.getOrCreateAft(instance).NewNextHop(nhIndex)
 	aftNh.ProgrammedIndex = &nhIndex
 
-	if address == "decap" {
+	if address == DECAP {
 		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
 		aftNh.DecapsulateHeader = telemetry.AftTypes_EncapsulationHeaderType_IPV4
 	} else if address != "" {
@@ -450,7 +449,7 @@ func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string
 		WithIndex(nhIndex)
 	c.getOrCreateAft(instance).DeleteNextHop(nhIndex)
 
-	if address == "decap" {
+	if address == DECAP {
 		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
 	} else if address != "" {
 		NH = NH.WithIPAddress(address)

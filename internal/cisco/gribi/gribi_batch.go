@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/flags"
-	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
 )
@@ -64,12 +63,7 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 	}
 	if check.AFTCheck {
 		for _, prefix := range prefixes {
-			if instance != *ciscoFlags.DefaultNetworkInstance {
-				// setting nhginstance to empty as there is no nhgInstance value set
-				c.checkIPv4e(t, prefix, nhgIndex, instance, "")
-			} else {
-				c.checkIPv4e(t, prefix, nhgIndex, instance, nhgInstance)
-			}
+			c.checkIPv4e(t, prefix, nhgIndex, instance, nhgInstance)
 		}
 	}
 }

@@ -118,6 +118,10 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 
 func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string) {
 	t.Helper()
+	if instance != *ciscoFlags.DefaultNetworkInstance {
+		// setting nhginstance to empty as there is no nhgInstance value set
+		nhgInstance = ""
+	}
 	aftIPv4e := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Get(t)
 	if aftIPv4e.GetPrefix() != prefix {
 		t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", aftIPv4e.GetPrefix(), prefix)
@@ -188,7 +192,7 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uin
 			}
 
 			if found {
-				// TODO: weight returned is always 0. bug?
+				// if there is only 1 NH we need to ignore this check as fib doesn't store weight
 				if len(got.NextHop) > 1 && *wantNh.Weight != *gotNh.Weight {
 					t.Logf("AFT Check for aft/next-hop-group/next-hop/state/weight got %d, want %d", *gotNh.Weight, *wantNh.Weight)
 					found = false
@@ -291,6 +295,7 @@ func (c *Client) AftRemoveIPv4(t testing.TB, instance, prefix string) {
 						changed = true
 					}
 				}
+				// This logic is to update the database entry and delete NHG since there are no NH and BNHG associations left
 				if len(nhg.NextHop) == 0 && nhg.BackupNextHopGroup == nil {
 					aft.DeleteNextHopGroup(*nhg.Id)
 					changed = true
