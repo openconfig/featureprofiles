@@ -14,13 +14,29 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+var (
+	// exclude_LC = []string{"0/0/CPU0", "0/7/CPU0"}
+	exclude_LC = []string{}
+)
+
 func getComponentList(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) []string {
 	result := []string{}
 	resp := dut.Telemetry().ComponentAny().Get(t)
 	component := telemetry.Component{}
 	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
+
 	for _, c := range resp {
 		name := c.GetName()
+		match := false
+		for _, lc := range exclude_LC {
+			if strings.Contains(name, lc) {
+				match = true
+				break
+			}
+		}
+		if match {
+			continue
+		}
 		if match, _ := regexp.MatchString(".*-NPU\\d+", name); match && !strings.Contains(name, "FC") {
 			result = append(result, name)
 		}
@@ -129,7 +145,7 @@ func TestP4RTHA(t *testing.T) {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 
-	time.Sleep(3600 * time.Second)
+	// time.Sleep(3600 * time.Second)
 
 	for _, tt := range P4RTHATestcase {
 		t.Run(tt.name, func(t *testing.T) {
