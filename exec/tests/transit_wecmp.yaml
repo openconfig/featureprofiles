@@ -8,4 +8,3 @@ pretests:
 tests:
 - name: TRANSIT_WECMP (CD2 TC) 
   path: feature/gribi/ate_tests/cisco/transit_wecmp_flush
-  patch: exec/firex/plugins/fp_patch/transit_wecmp_flush.patch
