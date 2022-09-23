@@ -37,10 +37,15 @@ var (
 			fn:   makeProcessRestartTestcases(testHAProcessRestart, "ifmgr"),
 		},
 		{
-			name: "Process restart emsd",
-			desc: "P4RT HA: emsd Restart",
-			fn:   testHAProcessRestartEmsd,
+			name: "Process restart ifmgr",
+			desc: "P4RT HA: ifmgr Restart",
+			fn:   makeProcessRestartTestcases(testHAProcessRestart, "emsd"),
 		},
+		// {
+		// 	name: "Process restart emsd",
+		// 	desc: "P4RT HA: emsd Restart",
+		// 	fn:   testHAProcessRestartEmsd,
+		// },
 	}
 )
 
@@ -86,13 +91,13 @@ func testHAProcessRestart(ctx context.Context, t *testing.T, processName string,
 	for i := 0; i < len(args.npus); i++ {
 		psp.DeviceId = deviceID + uint64(i)
 		psp.Name = fmt.Sprint(psp.DeviceId)
-		if err := programmGDPMatchEntry(ctx, t, args.p4rtClientA, false); err != nil {
-			t.Fatalf("When Write on primary client, there is error after process restart, %v", err)
+		if err := programmGDPMatchEntryWithStreamParameter(ctx, t, psp, args.p4rtClientA, false); err != nil {
+			t.Fatalf("When Write on primary client, there is error after process restart, %v, %v", err, psp.DeviceId)
 		}
-		defer programmGDPMatchEntry(ctx, t, args.p4rtClientA, true)
+		defer programmGDPMatchEntryWithStreamParameter(ctx, t, psp, args.p4rtClientA, true)
 		for j, client := range backupClients {
 			psp.ElectionIdL = psp.ElectionIdL - uint64(j+1)
-			if err := programmGDPMatchEntry(ctx, t, client, false); err != nil {
+			if err := programmGDPMatchEntryWithStreamParameter(ctx, t, psp, client, false); err == nil {
 				t.Fatalf("When Write on backup client, there is error after process restart, %v", err)
 			}
 			psp.ElectionIdL = electionID
@@ -100,19 +105,23 @@ func testHAProcessRestart(ctx context.Context, t *testing.T, processName string,
 	}
 
 	// Apply Process restart
-	// config.CMDViaGNMI(ctx, t, args.dut, cli)
-	// t.Logf("Verify Read RPC.")
-	// for i := 0; i < len(args.npus); i++ {
-	// 	if err := programmGDPMatchEntry(ctx, t, args.p4rtClientA, false); err != nil {
-	// 		t.Fatalf("When Write on primary client, there is error after process restart, %v", err)
-	// 	}
-	// 	defer programmGDPMatchEntry(ctx, t, args.p4rtClientA, true)
-	// 	for _, client := range backupClients {
-	// 		if err := programmGDPMatchEntry(ctx, t, client, false); err != nil {
-	// 			t.Fatalf("When Write on backup client, there is error after process restart, %v", err)
-	// 		}
-	// 	}
-	// }
+	config.CMDViaGNMI(ctx, t, args.dut, cli)
+
+	t.Logf("Verify Read RPC.")
+	for i := 0; i < len(args.npus); i++ {
+		for _, client := range append([]*p4rt_client.P4RTClient{args.p4rtClientA}, backupClients...) {
+			entries, err := readProgrammedEntry(ctx, t, deviceID+uint64(i), client)
+			if err != nil {
+				t.Fatalf("When performing Read RPC, there is an error %v", err)
+			}
+			for _, entry := range entries {
+				if !compareEntry(ctx, t, gdpTableEntry, entry) {
+					t.Fatalf("The entry is not seen in the response %v", entry.String())
+				}
+			}
+
+		}
+	}
 }
 
 // HA Process Restart emsd
@@ -122,6 +131,10 @@ func testHAProcessRestartEmsd(ctx context.Context, t *testing.T, args *testArgs)
 	// Apply Process restart
 	cli := fmt.Sprint("process restart emsd")
 	config.CMDViaGNMI(ctx, t, args.dut, cli)
+
+	if err := recoverP4RTClients(ctx, t, args); err != nil {
+		t.Fatalf("Could not recover p4rt client: %v", err)
+	}
 
 	psp := p4rt_client.P4RTStreamParameters{
 		Name:        fmt.Sprint(deviceID),
@@ -144,4 +157,42 @@ func testHAProcessRestartEmsd(ctx context.Context, t *testing.T, args *testArgs)
 			psp.ElectionIdL = electionID
 		}
 	}
+}
+
+func recoverP4RTClients(ctx context.Context, t *testing.T, args *testArgs) error {
+	args.p4rtClientA.ServerDisconnect()
+	args.p4rtClientB.ServerDisconnect()
+	args.p4rtClientC.ServerDisconnect()
+	args.p4rtClientD.ServerDisconnect()
+
+	p4rtClientA := p4rt_client.P4RTClient{}
+	if err := p4rtClientA.P4rtClientSet(args.dut.RawAPIs().P4RT(t)); err != nil {
+		return err
+	}
+
+	p4rtClientB := p4rt_client.P4RTClient{}
+	if err := p4rtClientB.P4rtClientSet(args.dut.RawAPIs().P4RT(t)); err != nil {
+		return err
+	}
+
+	p4rtClientC := p4rt_client.P4RTClient{}
+	if err := p4rtClientC.P4rtClientSet(args.dut.RawAPIs().P4RT(t)); err != nil {
+		return err
+	}
+
+	p4rtClientD := p4rt_client.P4RTClient{}
+	if err := p4rtClientD.P4rtClientSet(args.dut.RawAPIs().P4RT(t)); err != nil {
+		return err
+	}
+
+	args.p4rtClientA = &p4rtClientA
+	args.p4rtClientB = &p4rtClientB
+	args.p4rtClientC = &p4rtClientC
+	args.p4rtClientD = &p4rtClientD
+
+	if err := setupScaleP4RTClient(ctx, t, args.npus, args); err != nil {
+		return err
+	}
+
+	return nil
 }
