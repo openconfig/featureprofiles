@@ -217,37 +217,65 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 	}
 }
 
-func (tc *testCase) verifyLAGMembers(t *testing.T) {
-	// Wait for DUT LAG members to be collecting and distributing.
-	for _, dp := range tc.dutPorts[1:] {
-		if tc.lagType == telemetry.IfAggregate_AggregationType_LACP {
-			t.Logf("Waiting LAG DUT port: %v to start collecting", dp)
-			tc.dut.Telemetry().Lacp().InterfaceAny().Member(dp.Name()).Collecting().Watch(
-				t, time.Minute, func(val *telemetry.QualifiedBool) bool {
-					return val.Val(t)
-				}).Await(t)
-			t.Logf("Waiting LAG DUT port: %v to start distributing", dp)
-			tc.dut.Telemetry().Lacp().InterfaceAny().Member(dp.Name()).Distributing().Watch(
-				t, time.Minute, func(val *telemetry.QualifiedBool) bool {
-					return val.Val(t)
-				}).Await(t)
-
-		}
+// Wait for LAG ports to be collecting and distributing and the LAG groups to be up on DUT and OTG
+func (tc *testCase) verifyLAG(t *testing.T) {
+	t.Logf("Waiting for LAG group on DUT to be up")
+	_, ok := tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Watch(
+		t, time.Minute, func(val *telemetry.QualifiedE_Interface_OperStatus) bool {
+			return val.Val(t) == opUp
+		}).Await(t)
+	if !ok {
+		t.Fatalf("DUT LAG is not ready. Expected %s got %s", opUp.String(), tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Get(t).String())
 	}
-	if tc.lagType == telemetry.IfAggregate_AggregationType_LACP {
-		otgutils.LogLacpMetrics(t, tc.ate.OTG(), tc.top)
-	}
-	// Waiting for LAG group to be up on OTG
-	t.Logf("Waiting LAG OTG port to be up")
-	_, ok := tc.ate.OTG().Telemetry().Lag("LAG").OperStatus().Watch(t, time.Minute,
+	t.Logf("Waiting for LAG group on OTG to be up")
+	_, ok = tc.ate.OTG().Telemetry().Lag("LAG").OperStatus().Watch(t, time.Minute,
 		func(val *otgtelemetry.QualifiedE_Lag_OperStatus) bool {
 			return val.IsPresent() && val.Val(t).String() == "UP"
 		}).Await(t)
 	if !ok {
 		otgutils.LogLagMetrics(t, tc.ate.OTG(), tc.top)
-		t.Fatalf("OTG LAG is not ready. Expected UP got %s", tc.ate.OTG().Telemetry().Lag("LAG").OperStatus().Get(t))
+		t.Fatalf("OTG LAG is not ready. Expected UP got %s", tc.ate.OTG().Telemetry().Lag("LAG").OperStatus().Get(t).String())
+	}
+
+	if tc.lagType == telemetry.IfAggregate_AggregationType_LACP {
+		t.Logf("Waiting LAG DUT ports to start collecting and distributing")
+		for _, dp := range tc.dutPorts[1:] {
+			_, ok := tc.dut.Telemetry().Lacp().InterfaceAny().Member(dp.Name()).Collecting().Watch(t, time.Minute,
+				func(val *telemetry.QualifiedBool) bool {
+					return val.Val(t)
+				}).Await(t)
+			if !ok {
+				t.Fatalf("DUT LAG port %v is not collecting", dp)
+			}
+			_, ok = tc.dut.Telemetry().Lacp().InterfaceAny().Member(dp.Name()).Distributing().Watch(t, time.Minute,
+				func(val *telemetry.QualifiedBool) bool {
+					return val.Val(t)
+				}).Await(t)
+			if !ok {
+				t.Fatalf("DUT LAG port %v is not distributing", dp)
+			}
+		}
+		t.Logf("Waiting LAG OTG ports to start collecting and distributing")
+		for _, p := range tc.atePorts[1:] {
+			_, ok := tc.ate.OTG().Telemetry().Lacp().LagMember(p.ID()).Collecting().Watch(t, time.Minute,
+				func(val *otgtelemetry.QualifiedBool) bool {
+					return val.IsPresent() && val.Val(t)
+				}).Await(t)
+			if !ok {
+				t.Fatalf("OTG LAG port %v is not collecting", p)
+			}
+			_, ok = tc.ate.OTG().Telemetry().Lacp().LagMember(p.ID()).Distributing().Watch(t, time.Minute,
+				func(val *otgtelemetry.QualifiedBool) bool {
+					return val.IsPresent() && val.Val(t)
+				}).Await(t)
+			if !ok {
+				t.Fatalf("OTG LAG port %v is not distributing", p)
+			}
+		}
+		otgutils.LogLacpMetrics(t, tc.ate.OTG(), tc.top)
 	}
 	otgutils.LogLagMetrics(t, tc.ate.OTG(), tc.top)
+
 }
 
 func (tc *testCase) configureDUT(t *testing.T) {
@@ -471,23 +499,7 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
 
-	// Waiting for LAG group to be up on OTG and DUT
-	t.Logf("Waiting LAG on DUT and OTG to be up with all members")
-	tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Await(t, time.Minute, opUp)
-	_, ok := tc.ate.OTG().Telemetry().Lag("LAG").OperStatus().Watch(t, time.Minute,
-		func(val *otgtelemetry.QualifiedE_Lag_OperStatus) bool {
-			return val.IsPresent() && val.Val(t).String() == "UP"
-		}).Await(t)
-	if !ok {
-		otgutils.LogLagMetrics(t, tc.ate.OTG(), tc.top)
-		t.Fatalf("OTG LAG is not ready. Expected UP got %s", tc.ate.OTG().Telemetry().Lag("LAG").OperStatus().Get(t))
-	}
-	tc.ate.OTG().Telemetry().Lag("LAG").Counters().MemberPortsUp().Watch(t, time.Minute,
-		func(val *otgtelemetry.QualifiedUint64) bool {
-			return val.IsPresent() && val.Val(t) == 8
-		}).Await(t)
-
-	otgutils.LogLagMetrics(t, tc.ate.OTG(), tc.top)
+	tc.verifyLAG(t)
 
 	beforeTrafficCounters := tc.getCounters(t, "before")
 
@@ -581,7 +593,6 @@ func TestBalancing(t *testing.T) {
 	tc.configureDUT(t)
 	t.Run("verifyDUT", tc.verifyDUT)
 	tc.configureATE(t)
-	t.Run("verifyLAGMembers", tc.verifyLAGMembers)
 
 	for _, tf := range tests {
 		t.Run(tf.desc, func(t *testing.T) {
