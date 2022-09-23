@@ -171,7 +171,6 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) 
 	ireq := &ospb.InstallRequest{
 		Request: &ospb.InstallRequest_TransferRequest{
 			TransferRequest: &ospb.TransferRequest{
-				Version:           *osVersion,
 				StandbySupervisor: standby,
 			},
 		},
