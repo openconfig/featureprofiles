@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -271,7 +272,7 @@ func configRP(t *testing.T, dut *ondatra.DUTDevice) {
 // addISISOC, configures ISIS on DUT
 func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 	dev := &telemetry.Device{}
-	inst := dev.GetOrCreateNetworkInstance("default")
+	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
@@ -290,16 +291,16 @@ func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 	level := isis.GetOrCreateLevel(2)
 	level.MetricStyle = 2
 
-	dutNode := dut.Config().NetworkInstance("default").Protocol(PTISIS, ISISName)
-	dutConf := dev.GetOrCreateNetworkInstance("default").GetOrCreateProtocol(PTISIS, ISISName)
+	dutNode := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
+	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
 	dutNode.Update(t, dutConf)
 }
 
 // addBGPOC, configures ISIS on DUT
 func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	dev := &telemetry.Device{}
-	inst := dev.GetOrCreateNetworkInstance("default")
-	prot := inst.GetOrCreateProtocol(PTBGP, "default")
+	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	prot := inst.GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	bgp := prot.GetOrCreateBgp()
 	glob := bgp.GetOrCreateGlobal()
 	glob.As = ygot.Uint32(BGPAS)
@@ -320,7 +321,7 @@ func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	peer.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
 	peer.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
 
-	dutNode := dut.Config().NetworkInstance("default").Protocol(PTBGP, "default")
-	dutConf := dev.GetOrCreateNetworkInstance("default").GetOrCreateProtocol(PTBGP, "default")
+	dutNode := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
+	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	dutNode.Update(t, dutConf)
 }
