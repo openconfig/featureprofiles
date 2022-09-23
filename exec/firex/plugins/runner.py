@@ -116,7 +116,9 @@ def BringupTestbed(self, uid, ws, images = None,
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
             f'-osfile {image_path} ' \
-            f'-osver {image_version}'
+            f'-osver {image_version}' \
+            f'-v 5 ' \
+            f'-alsologtostderr'
 
         logger.print(f'Executing osinstall command:\n {install_cmd}')
         logger.print(check_output(install_cmd, cwd=fp_repo_dir))
