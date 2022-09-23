@@ -122,9 +122,10 @@ def BringupTestbed(self, uid, ws, images = None,
         logger.print(check_output(install_cmd, cwd=fp_repo_dir))
         os.remove(image_path)
 
-# @app.task(base=FireX, bind=True)
-# def CleanupTestbed(self, uid, ws):
-#     shutil.rmtree(os.path.join(ws, f'go_pkgs'))
+@app.task(base=FireX, bind=True)
+def CleanupTestbed(self, uid, ws):
+    pass
+    # shutil.rmtree(os.path.join(ws, f'go_pkgs'))
 
 def testbed_uniqueness_args():
     return ["ondatra_binding_path", "base_conf_path"]
