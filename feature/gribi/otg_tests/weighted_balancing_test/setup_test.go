@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"math/rand"
 	"net"
 	"regexp"
 	"sort"
@@ -44,9 +45,9 @@ var (
 		"Randomize source IP addresses of the generated traffic.")
 	randomDstIP = flag.Bool("random_dst_ip", false,
 		"Randomize destination IP address of the generated traffic.")
-	randomSrcPort = flag.Bool("random_src_port", false,
+	randomSrcPort = flag.Bool("random_src_port", true,
 		"Randomize source ports of the generated traffic.")
-	randomDstPort = flag.Bool("random_dst_port", false,
+	randomDstPort = flag.Bool("random_dst_port", true,
 		"Randomize destination ports of the generated traffic.")
 
 	trafficPause = flag.Duration("traffic_pause", 0,
@@ -336,12 +337,12 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	}
 	tcp := flow.Packet().Add().Tcp()
 	if *randomSrcPort {
-		t.Errorf("Random source TCP port not yet supported")
+		tcp.SrcPort().SetValues(generateRandomPortList(65534))
 	} else {
 		tcp.SrcPort().SetChoice("increment").Increment().SetStart(1).SetCount(65534)
 	}
 	if *randomDstPort {
-		t.Errorf("Random destination TCP port not yet supported")
+		tcp.DstPort().SetValues(generateRandomPortList(65534))
 	} else {
 		tcp.DstPort().SetChoice("increment").Increment().SetStart(1).SetCount(65534)
 	}
@@ -392,6 +393,15 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 		ys[i] = float64(x) / float64(sum)
 	}
 	return ys, sum
+}
+
+// generates a list of random tcp ports values
+func generateRandomPortList(count int) []int32 {
+	a := make([]int32, count)
+	for index := range a {
+		a[index] = int32(rand.Intn(65536-1) + 1)
+	}
+	return a
 }
 
 // portWants converts the nextHop wanted weights to per-port wanted
