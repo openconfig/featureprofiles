@@ -16,6 +16,7 @@ package transitwecmpflush_test
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -26,7 +27,13 @@ import (
 
 var (
 	ixiaTopology = make(map[string]*ondatra.ATETopology)
+	sortedAtePorts      []string //keep sorted ports for ate, the first port is the send and the rest are recive
 )
+
+type atePort struct {
+	portName string
+	ip       string
+}
 
 func getIXIATopology(t *testing.T, ateName string) *ondatra.ATETopology {
 	topo, ok := ixiaTopology[ateName]
@@ -41,14 +48,29 @@ func getIXIATopology(t *testing.T, ateName string) *ondatra.ATETopology {
 }
 
 func generateBaseScenario(t *testing.T, ate *ondatra.ATEDevice, topoobj *ondatra.ATETopology) {
+	sortedAtePorts = []string{}
+	for _, port := range ate.Device.Ports() {
+		sortedAtePorts = append(sortedAtePorts, port.Name())
+	}
+	if len(sortedAtePorts) < 2 {
+		t.Fatalf("At least two ports are required for the test")
+	}
+	sort.Strings(sortedAtePorts)
+	if len(strings.Split(sortedAtePorts[0], "/")) != 2 {
+		t.Fatalf("Ate port name expected to be in format int/int, e.g., 1/6")
+	}
+	atePorttoIPs := make(map[string][]string) // generate ip for tgen
+	for i, port := range sortedAtePorts {
+		atePorttoIPs[port] = []string{
+			fmt.Sprintf("100.%d.1.2/24", 120+i),
+			fmt.Sprintf("100.%d.1.1", 120+i),
+		}
+	}
+
 	for _, p := range ate.Device.Ports() {
 		intf := topoobj.AddInterface(p.Name())
 		intf.WithPort(ate.Port(t, p.ID()))
-		for i := 0; i < 9; i++ {
-			if fmt.Sprintf("1/%d", i+1) == p.Name() {
-				intf.IPv4().WithAddress(fmt.Sprintf("100.%d.1.2/24", 120+i)).WithDefaultGateway(fmt.Sprintf("100.%d.1.1", 120+i))
-			}
-		}
+		intf.IPv4().WithAddress(atePorttoIPs[p.Name()][0]).WithDefaultGateway(atePorttoIPs[p.Name()][1])
 	}
 	addNetworkAndProtocolsToAte(t, ate, topoobj)
 }
@@ -75,8 +97,8 @@ func addNetworkAndProtocolsToAte(t *testing.T, ate *ondatra.ATEDevice, topo *ond
 func getBaseFlow(t *testing.T, atePorts map[string]*ondatra.Interface, ate *ondatra.ATEDevice, flowName string, vrf ...string) *ondatra.Flow {
 	flow := ate.Traffic().NewFlow(flowName)
 	t.Log("Setting up base flow...")
-	srcPort := "1/1"
-	dstPort := "1/2"
+	srcPort := sortedAtePorts[0]
+	dstPort := sortedAtePorts[1]
 	flow.WithSrcEndpoints(atePorts[srcPort])
 	flow.WithDstEndpoints(atePorts[dstPort])
 	ethheader := ondatra.NewEthernetHeader()
@@ -101,12 +123,15 @@ func getBaseFlow(t *testing.T, atePorts map[string]*ondatra.Interface, ate *onda
 func getScaleFlow(t *testing.T, atePorts map[string]*ondatra.Interface, ate *ondatra.ATEDevice, flowName string, scale int, vrf ...string) *ondatra.Flow {
 	flow := ate.Traffic().NewFlow(flowName)
 	t.Log("Setting up scale flow...")
-	flow.WithSrcEndpoints(atePorts["1/1"])
+	flow.WithSrcEndpoints(atePorts[sortedAtePorts[0]])
 
 	t.Log("Extending to multiple receiver ports...")
 	rxPorts := []ondatra.Endpoint{}
-	for i := 1; i < 9; i++ {
-		rxPorts = append(rxPorts, atePorts[fmt.Sprintf("1/%d", i)])
+	for i, port := range sortedAtePorts {
+		if i==0 {
+			continue
+		}
+		rxPorts = append(rxPorts, atePorts[port])
 	}
 	flow.WithDstEndpoints(rxPorts...)
 	ethheader := ondatra.NewEthernetHeader()
@@ -169,7 +194,7 @@ func performATEActionForMultipleFlows(t *testing.T, ateName string, expectPass b
 func getDSCPFlow(t *testing.T, atePorts map[string]*ondatra.Interface, ate *ondatra.ATEDevice, flowName string, scale int, dscp uint8, dstAddress string, rxPort string) *ondatra.Flow {
 	flow := ate.Traffic().NewFlow(flowName)
 	t.Log("Setting up flow -> ", flowName)
-	flow.WithSrcEndpoints(atePorts["1/1"])
+	flow.WithSrcEndpoints(atePorts[sortedAtePorts[0]])
 	flow.WithDstEndpoints(atePorts[rxPort])
 	ethheader := ondatra.NewEthernetHeader()
 	ethheader.WithSrcAddress("00:11:01:00:00:01")
