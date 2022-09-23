@@ -485,10 +485,10 @@ func testSameForwardingEntriesAcrossMultipleVrfs(t *testing.T, args *testArgs) {
 	args.topology.StartProtocols(t)
 	defer args.topology.StopProtocols(t)
 
-	dscp16FlowVrfTE := getDSCPFlow(t, portMaps, args.ate, "DSCP16_vrf_TE", 1, 16, "12.11.11.12", sortedAtePorts[1])
-	dscp10FlowVrfTE := getDSCPFlow(t, portMaps, args.ate, "DSCP10_vrf_TE", 1, 10, "12.11.11.11", sortedAtePorts[2])
-	dscp18Flow1VrfVRF1 := getDSCPFlow(t, portMaps, args.ate, "DSCP16_vrf_VRF1", 1, 18, "12.11.11.12", sortedAtePorts[1])
-	dscp18Flow2VrfVRF1 := getDSCPFlow(t, portMaps, args.ate, "DSCP10_vrf_VRF1", 1, 18, "12.11.11.11", sortedAtePorts[2])
+	dscp16FlowVrfTE := getDSCPFlow(t, portMaps, args.ate, "DSCP16_vrf_TE", 1, 16, "12.11.11.12", sortedAtePorts[2])
+	dscp10FlowVrfTE := getDSCPFlow(t, portMaps, args.ate, "DSCP10_vrf_TE", 1, 10, "12.11.11.11", sortedAtePorts[1])
+	dscp18Flow1VrfVRF1 := getDSCPFlow(t, portMaps, args.ate, "DSCP16_vrf_VRF1", 1, 18, "12.11.11.12", sortedAtePorts[2])
+	dscp18Flow2VrfVRF1 := getDSCPFlow(t, portMaps, args.ate, "DSCP10_vrf_VRF1", 1, 18, "12.11.11.11", sortedAtePorts[1])
 
 	checkTrafficFlows(t, args.ate, 60, dscp16FlowVrfTE, dscp10FlowVrfTE, dscp18Flow1VrfVRF1, dscp18Flow2VrfVRF1)
 }
