@@ -1,11 +1,11 @@
-// This package contains cisco specefic binding APIs to config a router using oc and text and cli.
-
+// Package config contains cisco specefic binding APIs to config a router using oc and text and cli.
 package config
 
 import (
 	"context"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -46,47 +46,6 @@ func Reload(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, beforeRel
 
 	time.Sleep(maxTimeout)
 
-	/*ctx, cncl := context.WithTimeout(context.Background(), time.Second*60)
-	defer cncl()
-	gnoiClient = dut.RawAPIs().GNOI().New(t) // new gno client can not be opended unless the reboot is finished*/
-
-	/*rebootTimeout := maxTimeout
-	switch {
-	case rebootTimeout == 0:
-		rebootTimeout = 6 * time.Minute
-	case rebootTimeout < 0:
-		t.Fatalf("reboot timeout must be a positive duration")
-	}
-	rebootDeadline := time.Now().Add(rebootTimeout)
-	retry := true
-	for retry {
-		if time.Now().After(rebootDeadline) {
-			retry = false
-			break
-		}
-		resp, err := gnoiClient.System().RebootStatus(ctx, &spb.RebootStatusRequest{})
-		switch {
-		case status.Code(err) == codes.Unimplemented:
-			// Unimplemented means we don't have a valid way
-			// to validate health of reboot.
-			t.Fatalf("Can not get the reboot status of dut %s", dut.Name())
-		case err == nil:
-			if !resp.GetActive() {
-				t.Fatalf("Reboot failed for dut  %s", dut.Name())
-			}
-		default:
-			// any other error just sleep.
-		}
-		statusWait := time.Duration(resp.GetWait()) * time.Nanosecond
-		if statusWait <= 0 {
-			statusWait = 30 * time.Second
-		}
-		time.Sleep(statusWait)
-	}
-	t.Fatalf("reboot of %s timed out after %s", dut.Name(), maxTimeout)
-	*/
-	// TODO: use select and channel to detect when the router reload is complete
-
 	if afterReloadConfig != "" {
 		TextWithGNMI(ctx, t, dut, afterReloadConfig)
 		t.Logf("The configuration %s \n is loaded correctly after reloading router %s", beforeReloadConfig, dut.Name())
@@ -97,6 +56,7 @@ func Reload(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, beforeRel
 func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) string {
 	t.Helper()
 	sshClient := dut.RawAPIs().CLI(t)
+	defer sshClient.Close()
 	cliOut := sshClient.Stdout()
 	cliIn := sshClient.Stdin()
 	if _, err := cliIn.Write([]byte(cfg)); err != nil {
@@ -442,4 +402,99 @@ func prettySetRequest(setRequest *gnmi.SetRequest) string {
 		writeVal(update.Val)
 	}
 	return buf.String()
+}
+
+// BackgroundCLI runs an admin command on the backgroun and fails if the command is unsucessful or does not return earlier than timeout
+// The command also fails if the response does not match the expeted reply pattern or matches the not-expected one
+func BackgroundCLI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string, expectedRep, notExpectedRep []string, period interface{}, timeOut time.Duration) {
+	t.Helper()
+	timer, ok := period.(*time.Timer)
+	if ok {
+		go func() {
+			<-timer.C
+			reply := CLIViaSSH(ctx, t, dut, cmd, timeOut)
+			t.Logf("Reply for %s : %s", cmd, reply)
+			verifyCLIOutput(t, reply, expectedRep, notExpectedRep)
+		}()
+	}
+
+	ticker, ok := period.(*time.Ticker)
+	if ok {
+		go func() {
+			for {
+				<-ticker.C
+				reply := CLIViaSSH(ctx, t, dut, cmd, timeOut)
+				t.Logf("Reply for %s : %s", cmd, reply)
+				verifyCLIOutput(t, reply, expectedRep, notExpectedRep)
+			}
+		}()
+	}
+}
+
+// CLIViaSSH run the cli command (show or admin) via ssh on the device
+func CLIViaSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string, timeout time.Duration) string {
+	t.Helper()
+	if !strings.HasSuffix(cmd, "\n") {
+		cmd = cmd + " \n"
+	}
+	sshClient := dut.RawAPIs().CLI(t)
+	defer sshClient.Close()
+	cliOut := sshClient.Stdout()
+	cliIn := sshClient.Stdin()
+	if _, err := cliIn.Write([]byte(cmd)); err != nil {
+		t.Fatalf("Failed to write using ssh: %v", err)
+	}
+	buf := make([]byte, 32768) // According to RFC 4253, max payload size for ssh is 32768
+	ch := make(chan bool)
+	response := ""
+	go func() {
+		for {
+			n, err := cliOut.Read(buf)
+			if err != nil {
+				if err == io.EOF {
+					response = fmt.Sprintf("%s%s", response, string(buf[:n]))
+					if strings.HasSuffix(response, "#") {
+						ch <- true
+						break
+					}
+				}
+				ch <- false
+				break
+			} else {
+				response = fmt.Sprintf("%s%s", response, string(buf[:n]))
+				if strings.HasSuffix(response, "#") {
+					ch <- true
+					break
+				}
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
+	select {
+	case resp := <-ch:
+		log.V(1).Infof("ssh command reply: %s", response)
+		if resp {
+			return response
+		}
+		t.Fatalf("Response message for ssh is not as expected %s", response)
+	case <-time.After(timeout):
+		t.Fatalf("Did not recieve the expected response (timeout)")
+	}
+	return ""
+}
+
+func verifyCLIOutput(t *testing.T, output string, match, notMatch []string) {
+	t.Helper()
+	for _, pattern := range match {
+		ok, err := regexp.MatchString(pattern, output)
+		if err != nil || !ok {
+			t.Fatalf("The command reply does not contain the expected pattern %s ", pattern)
+		}
+	}
+	for _, pattern := range notMatch {
+		ok, err := regexp.MatchString(pattern, output)
+		if err == nil && ok {
+			t.Fatalf("The command reply contains not expected pattern % s", pattern)
+		}
+	}
 }

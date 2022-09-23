@@ -31,11 +31,13 @@ ONDATRA_PATCHES = ['exec/firex/plugins/ondatra/0001-windows-ixia-path.patch']
 whitelist_arguments([
     'ondatra_repo_branch', 
     'fp_repo_branch', 
+    'ondatra_binding_path',
     'ondatra_testbed_path', 
+    'base_conf_path',
     'fp_pre_tests',
     'fp_post_tests',
     'test_path', 
-    'test_args'
+    'test_args',
     'test_patch'
 ])
 
@@ -44,7 +46,9 @@ def BringupTestbed(self, uid, ws, images = None,
                         ondatra_repo_branch='main',
                         fp_repo_branch='master',                        
                         ondatra_testbed_path=None,
-                        ondatra_binding_path=None):
+                        ondatra_binding_path=None,
+                        base_conf_path=None,
+                        skip_install=False):
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
 
@@ -67,8 +71,11 @@ def BringupTestbed(self, uid, ws, images = None,
 
     ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
     ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
-    
-    check_output(f"sed -i 's|$FP_ROOT|{fp_repo_dir}|g' " + ondatra_binding_path)
+
+    if base_conf_path:
+        base_conf_path = os.path.join(fp_repo_dir, base_conf_path)
+        check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
+
     with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
         fp.write("replace github.com/openconfig/ondatra => ../ondatra")
         
@@ -90,34 +97,39 @@ def BringupTestbed(self, uid, ws, images = None,
     ondatra_repo.git.add(update=True)
     ondatra_repo.git.commit('-m', 'patched for testing')
 
-    logger.print(f'Copying image {images}')
-    shutil.copy(images, fp_repo_dir)
-    image_path = os.path.join(fp_repo_dir, os.path.basename(images))
-    
-    image_version = check_output(
-        f"/usr/bin/isoinfo -i {image_path} -x '/MDATA/BUILD_IN.TXT;1' " \
-            f"| tail -n1 | cut -d'=' -f2 | cut -d'-' -f1", 
-        shell=True
-    ).strip()
-    logger.print(f'Image version: {image_version}')
+    if not skip_install:
+        logger.print(f'Copying image {images}')
+        shutil.copy(images, fp_repo_dir)
+        image_path = os.path.join(fp_repo_dir, os.path.basename(images))
+        
+        image_version = check_output(
+            f"/usr/bin/isoinfo -i {image_path} -x '/MDATA/BUILD_IN.TXT;1' " \
+                f"| tail -n1 | cut -d'=' -f2 | cut -d'-' -f1", 
+            shell=True
+        ).strip()
+        logger.print(f'Image version: {image_version}')
 
-    install_cmd = f'{GO_BIN} test -v ' \
-        f'./exec/utils/osinstall ' \
-        f'-timeout 0 ' \
-        f'-args ' \
-        f'-testbed {ondatra_testbed_path} ' \
-        f'-binding {ondatra_binding_path} ' \
-        f'-osfile {image_path} ' \
-        f'-osver {image_version}'
+        install_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/osinstall ' \
+            f'-timeout 0 ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} ' \
+            f'-osfile {image_path} ' \
+            f'-osver {image_version}'
 
-    logger.print(f'Executing osinstall command:\n {install_cmd}')
-    logger.print(check_output(install_cmd, cwd=fp_repo_dir))
-    os.remove(image_path)
+        logger.print(f'Executing osinstall command:\n {install_cmd}')
+        logger.print(check_output(install_cmd, cwd=fp_repo_dir))
+        os.remove(image_path)
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, uid, ws):
-    shutil.rmtree(os.path.join(ws, f'go_pkgs'))
+    pass
+    # shutil.rmtree(os.path.join(ws, f'go_pkgs'))
 
+def testbed_uniqueness_args():
+    return ["ondatra_binding_path", "base_conf_path"]
+    
 @register_test_framework_provider('b4_fp')
 def b4_fp_chain_provider(ws,
                          testsuite_id,

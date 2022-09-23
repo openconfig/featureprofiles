@@ -1,3 +1,4 @@
+// Package inputcisco provides basic data structure to generate input for tests.
 package inputcisco
 
 import (
