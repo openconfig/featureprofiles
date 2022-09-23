@@ -30,11 +30,6 @@ var (
 	sortedAtePorts      []string //keep sorted ports for ate, the first port is the send and the rest are recive
 )
 
-type atePort struct {
-	portName string
-	ip       string
-}
-
 func getIXIATopology(t *testing.T, ateName string) *ondatra.ATETopology {
 	topo, ok := ixiaTopology[ateName]
 	if !ok {
