@@ -13,6 +13,7 @@ import (
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -45,10 +46,20 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	i := uint64(0)
 	for _, c := range resp {
 		name := c.GetName()
+		match := false
+		for _, lc := range exclude_LC {
+			if strings.Contains(name, lc) {
+				match = true
+				break
+			}
+		}
+		if match {
+			continue
+		}
 		if match, _ := regexp.MatchString(".*-NPU\\d+", name); match && !strings.Contains(name, "FC") {
 			component.Name = ygot.String(name)
 			component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID + i)
-			dut.Config().Component(name).Replace(t, &component)
+			dut.Config().Component(name).Update(t, &component)
 			i += 1
 		}
 	}
@@ -271,14 +282,13 @@ func readProgrammedEntry(ctx context.Context, t *testing.T, device_id uint64, cl
 	for {
 		readResp, respErr := stream.Recv()
 		if respErr == io.EOF {
-			t.Logf("Response read done!")
 			break
 		} else if respErr != nil {
 			t.Logf("There is error when Reading response...%v", respErr)
 			return entities, respErr
 		} else {
 			for _, entry := range readResp.Entities {
-				t.Logf("Read Response with entry: %v", entry)
+				// t.Logf("Read Response with entry: %v", entry)
 				entities = append(entities, entry.GetTableEntry())
 			}
 		}
@@ -286,7 +296,7 @@ func readProgrammedEntry(ctx context.Context, t *testing.T, device_id uint64, cl
 	return entities, nil
 }
 
-func checkEntryExist(ctx context.Context, t *testing.T, want wbb.AclWbbIngressTableEntryInfo, response []*p4_v1.TableEntry) {
+func checkEntryExist(ctx context.Context, t *testing.T, want *p4_v1.TableEntry, response []*p4_v1.TableEntry) {
 	t.Helper()
 
 	// TODO: Need to fill the right verification logic
@@ -303,4 +313,26 @@ func checkEntryExist(ctx context.Context, t *testing.T, want wbb.AclWbbIngressTa
 	if !found {
 		t.Errorf("Entry is not found!")
 	}
+}
+
+func compareEntry(ctx context.Context, t *testing.T, want, got *p4_v1.TableEntry) bool {
+	ignoreFields := []string{"Match", "CounterData"}
+	opts := []cmp.Option{
+		cmpopts.IgnoreFields(p4_v1.TableEntry{}, ignoreFields...),
+	}
+	if match := cmp.Equal(*want, *got, opts...); !match {
+		return false
+	}
+	found := false
+	for _, gotEntry := range got.GetMatch() {
+		for _, wantEntry := range want.GetMatch() {
+			if cmp.Equal(*gotEntry, *wantEntry) {
+				found = true
+			}
+		}
+		if found {
+			break
+		}
+	}
+	return found
 }
