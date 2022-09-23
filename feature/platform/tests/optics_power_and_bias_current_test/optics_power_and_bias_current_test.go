@@ -184,4 +184,3 @@ func findTransceiverName(dut *ondatra.DUTDevice, interfaceName string) (string, 
 	}
 	return transceiverName, nil
 }
-
