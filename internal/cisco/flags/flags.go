@@ -5,11 +5,20 @@ import "flag"
 
 // cisco tests flags.
 var (
-	GRIBITrafficCheck = flag.Bool("gribi_traffic_check", false,
+	GRIBITrafficCheck = flag.Bool("gribi_traffic_check", true,
 		"This enable/disable traffic check for gribi tests.")
 
 	GRIBIAFTCheck = flag.Bool("gribi_aft_check", true,
 		"This enable/disable AFT check for gribi entries in gribi tests.")
+
+	GRIBINHTimer = flag.Int("gribi_nh_timer", 1,
+		"Wait time before executing aft call for NH")
+
+	GRIBINHGTimer = flag.Int("gribi_nhg_timer", 1,
+		"Wait time before executing aft call for NHG")
+
+	GRIBIIPv4Timer = flag.Int("gribi_ipv4_timer", 1,
+		"Wait time before executing aft call for IPv4")
 
 	GRIBIAFTChainCheck = flag.Bool("gribi_aft_chain_check", true,
 		"This enable/disable AFT chain check for gribi prefix in gribi tests.")

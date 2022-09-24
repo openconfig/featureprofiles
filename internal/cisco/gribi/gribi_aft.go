@@ -23,6 +23,7 @@ import (
 	"math/rand"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -48,6 +49,7 @@ func (c *Client) getAft(instance string) *telemetry.NetworkInstance_Afts {
 
 func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInstance, interfaceRef string) {
 	t.Helper()
+	time.Sleep(time.Duration(*ciscoFlags.GRIBINHTimer) * time.Second)
 	aftNHs := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopAny().Get(t)
 	found := false
 	for _, nh := range aftNHs {
@@ -77,6 +79,7 @@ func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInst
 
 func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance string, nhWeights map[uint64]uint64) {
 	t.Helper()
+	time.Sleep(time.Duration(*ciscoFlags.GRIBINHGTimer) * time.Second)
 	aftNHGs := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroupAny().Get(t)
 	found := false
 	for _, nhg := range aftNHGs {
@@ -118,6 +121,7 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 
 func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string) {
 	t.Helper()
+	time.Sleep(time.Duration(*ciscoFlags.GRIBIIPv4Timer) * time.Second)
 	if instance != *ciscoFlags.DefaultNetworkInstance {
 		// setting nhginstance to empty as there is no nhgInstance value set
 		nhgInstance = ""
@@ -306,10 +310,6 @@ func (c *Client) AftRemoveIPv4(t testing.TB, instance, prefix string) {
 				nhgInst := instance
 				if ipv4e.NextHopGroupNetworkInstance != nil {
 					nhgInst = *ipv4e.NextHopGroupNetworkInstance
-				}
-				//TODO: bug?
-				if nhgInst == "DEFAULT" {
-					nhgInst = "default"
 				}
 
 				if _, found := c.getAft(nhgInst).NextHopGroup[*ipv4e.NextHopGroup]; !found {

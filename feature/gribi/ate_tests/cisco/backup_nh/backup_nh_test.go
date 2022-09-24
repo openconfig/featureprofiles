@@ -30,7 +30,6 @@ import (
 	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
@@ -151,13 +150,9 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
-	defer args.interfaceaction(t, "port7", true)
-	defer args.interfaceaction(t, "port6", true)
-	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.25")
-	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.21")
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether127"})
-	}
+	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.26")
+	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.22")
+	args.client.AftPushConfig(t)
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
@@ -170,18 +165,15 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	args.interfaceaction(t, "port4", false)
 	args.interfaceaction(t, "port3", false)
 	args.interfaceaction(t, "port2", false)
-	defer args.interfaceaction(t, "port5", true)
-	defer args.interfaceaction(t, "port4", true)
-	defer args.interfaceaction(t, "port3", true)
-	defer args.interfaceaction(t, "port2", true)
-	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.17")
-	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.13")
-	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.9")
-	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.5")
 	// validate traffic dropping on backup
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
 	}
+	args.client.AftPushConfig(t)
+	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.18")
+	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.14")
+	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.10")
+	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.6")
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
@@ -189,6 +181,22 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
 		}
 	}
+
+	args.interfaceaction(t, "port7", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port5", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port3", true)
+	args.interfaceaction(t, "port2", true)
+	args.client.AftPopConfig(t)
+	//aft check
+	if *ciscoFlags.GRIBIAFTChainCheck {
+		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		for i := 0; i < len(randomItems); i++ {
+			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+		}
+	}
+
 }
 
 func testDeleteAddBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
@@ -262,7 +270,7 @@ func testDeleteAddBackupToDrop(ctx context.Context, t *testing.T, args *testArgs
 	//delete backup path and validate no traffic loss
 	args.client.ReplaceNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.DeleteNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.DeleteNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
@@ -361,7 +369,7 @@ func testBackupToTrafficLoss(ctx context.Context, t *testing.T, args *testArgs) 
 	//delete backup path and shut primary interfaces and validate traffic drops
 	args.client.ReplaceNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.DeleteNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.DeleteNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteNH(t, 10, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
 	args.interfaceaction(t, "port5", false)
@@ -1022,10 +1030,10 @@ func testBackupSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
 		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
 	}
-	args.client.AddNH(t, 10, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddNH(t, 100, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 100, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 100, 101, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
@@ -1069,20 +1077,20 @@ func testBackupSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("deleting all the IPV4 entries added")
 	args.client.FlushServer(t)
 
-	args.client.AddNH(t, 3000, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 3000, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 300, 0, map[uint64]uint64{3000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	args.client.AddNH(t, 100, "193.0.2.1", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 100, 300, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddNH(t, 2000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 2000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 200, 0, map[uint64]uint64{2000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "193.0.2.1/32", 200, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	args.client.DeleteIPv4(t, "193.0.2.1/32", 200, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.DeleteNHG(t, 200, 0, map[uint64]uint64{2000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.DeleteNH(t, 2000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteNH(t, 2000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
@@ -1115,11 +1123,11 @@ func testBackupMultiNH(ctx context.Context, t *testing.T, args *testArgs) {
 	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
 		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
 	}
-	args.client.AddNH(t, 10, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 10, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddNH(t, 100, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 200, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 100, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 200, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 100, 101, map[uint64]uint64{100: 50, 200: 50}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
@@ -1545,7 +1553,7 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
 
-	args.client.AddNH(t, 11, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 11, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 102, 0, map[uint64]uint64{11: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 100, 102, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
@@ -1605,7 +1613,7 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	// Creating a backup NHG with ID 101 (bkhgIndex_2)
 	// NH ID 10 (nhbIndex_2_1)
 
-	args.client.AddNH(t, 11, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 11, "192.0.2.29", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 102, 0, map[uint64]uint64{11: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Creating NHG ID 100 (nhgIndex_2_1) using backup NHG ID 101 (bkhgIndex_2)
@@ -1756,15 +1764,15 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.client.AddNH(t, 1001, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1002, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1003, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1004, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1001, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1002, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1003, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1004, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1001: 50, 1002: 30, 1003: 15, 1004: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddNH(t, 2001, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 2002, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 2001, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 2002, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2001: 60, 2002: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
@@ -1800,15 +1808,15 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.client.AddNH(t, 3001, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 3002, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 3003, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 3004, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 3001, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 3002, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 3003, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 3004, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 3000, 0, map[uint64]uint64{3001: 50, 3002: 30, 3003: 15, 3004: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.40/32", 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddNH(t, 4001, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 4002, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 4001, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 4002, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 4000, 0, map[uint64]uint64{4001: 60, 4002: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.42/32", 4000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
@@ -1866,15 +1874,15 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.client.AddNH(t, 1001, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1002, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1003, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1004, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1001, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1002, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1003, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1004, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1001: 50, 1002: 30, 1003: 15, 1004: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddNH(t, 2001, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 2002, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 2001, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 2002, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2001: 60, 2002: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
@@ -1910,15 +1918,15 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	//		- PATH2 NH ID 2100 (nhIndex_1_22), weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200 (nhIndex_1_23), weight  5, outgoing Port8
 
-	args.client.AddNH(t, 1001, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1002, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1003, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1004, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1001, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1002, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1003, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1004, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1001: 50, 1002: 30, 1003: 15, 1004: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddNH(t, 2001, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 2002, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 2001, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 2002, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2001: 60, 2002: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
@@ -2202,7 +2210,7 @@ func testRecursiveToNonrecursive(ctx context.Context, t *testing.T, args *testAr
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
-	args.client.AddNH(t, 3, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 3, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 11, 0, map[uint64]uint64{3: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// 192.0.2.40/32  Self-Site
@@ -2251,7 +2259,7 @@ func testNonrecursiveToRecursive(ctx context.Context, t *testing.T, args *testAr
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
-	args.client.AddNH(t, 3, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 3, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 11, 0, map[uint64]uint64{3: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// 192.0.2.40/32  Self-Site
@@ -2302,16 +2310,16 @@ func TestBackUp(t *testing.T) {
 	// Dial gRIBI
 	ctx := context.Background()
 
-	// Configure the DUT
-	configureDUT(t, dut)
-	configbasePBR(t, dut, "TE", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	defer unconfigbasePBR(t, dut)
-	// configure route-policy
-	configRP(t, dut)
-	// configure ISIS on DUT
-	addISISOC(t, dut, "Bundle-Ether127")
-	// configure BGP on DUT
-	addBGPOC(t, dut, "100.100.100.100")
+	// // Configure the DUT
+	// configureDUT(t, dut)
+	// configbasePBR(t, dut, "TE", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	// defer unconfigbasePBR(t, dut)
+	// // configure route-policy
+	// configRP(t, dut)
+	// // configure ISIS on DUT
+	// addISISOC(t, dut, "Bundle-Ether127")
+	// // configure BGP on DUT
+	// addBGPOC(t, dut, "100.100.100.100")
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
@@ -2330,126 +2338,126 @@ func TestBackUp(t *testing.T) {
 			desc: "Base usecase with 2 NHOP Groups - Backup Pointing to route (drop)",
 			fn:   testBackupToDrop,
 		},
-		{
-			name: "Delete add backup",
-			desc: "Deleting and Adding Back the Backup has no impact on traffic",
-			fn:   testDeleteAddBackupToDrop,
-		},
-		{
-			name: "Add backup after primary down",
-			desc: "Add the backup - After Primary links are down Traffic continues ot DROP",
-			fn:   testBackupToTrafficLoss,
-		},
-		{
-			name: "Update backup to another ID",
-			desc: "Modify Backup pointing to Different ID which is pointing to a different static rooute pointitng to DROP",
-			fn:   testUpdateBackUpToDropID,
-		},
-		{
-			name: "Backup pointing to decap",
-			desc: "Base usecase with 2 NHOP Groups - - Backup Pointing to Decap",
-			fn:   testBackupToDecap,
-		},
-		{
-			name: "flush forwarding chain with and without backup NH",
-			desc: "add testcase to flush forwarding chain with backup NHG only and forwarding chain with backup NHG",
-			fn:   testFlushForwarding,
-		},
-		{
-			name: "Backup change from static to decap",
-			desc: "While Primary Paths are down Modify the Backup from poiniting to a static route to a DECAP chain - Traffic resumes after Decap",
-			fn:   testBackupSwitchFromDropToDecap,
-		},
-		{
-			name: "Multiple NW Instance with different NHG, same NH and different NHG backup",
-			desc: "Multiple NW Instances (VRF's ) pointing to different NHG but same NH Entry but different NHG Backup",
-			fn:   testUpdateBackupToDifferentNHG,
-		},
-		{
-			name: "Get function validation",
-			desc: "add decap NH and related forwarding chain and validate them using GET function",
-			fn:   testValidateForwardingChain,
-		},
-		{
-			name: "IPv4BackUpSingleNH",
-			desc: "Single NH Ensure that backup NextHopGroup entries are honoured in gRIBI for NHGs containing a single NH",
-			fn:   testBackupSingleNH,
-		},
-		{
-			name: "IPv4BackUpMultiNH",
-			desc: "Multiple NHBackup NHG: Multiple NH Ensure that backup NHGs are honoured with NextHopGroup entries containing",
-			fn:   testBackupMultiNH,
-		},
-		{
-			name: "IPv4BackUpRemoveBackup",
-			desc: "Set primary and backup path with gribi and send traffic. Delete the backup NHG and check if impacts traffic",
-			fn:   testIPv4BackUpRemoveBackup,
-		},
-		{
-			name: "IPv4BackUpAddBkNHG",
-			desc: "Set primary path with gribi and shutdown all the primary path. Now add the backup NHG and  validate traffic ",
-			fn:   testIPv4BackUpAddBkNHG,
-		},
-		{
-			name: "IPv4BackUpToggleBkNHG",
-			desc: "Set primary and backup path with gribi and shutdown all the primary path. Now remove,readd the backup NHG and validate traffic ",
-			fn:   testIPv4BackUpToggleBkNHG,
-		},
-		{
-			name: "IPv4BackUpDecapToDrop",
-			desc: "Shutdown all the primary path and modify Backup NHG from Drop to Decap and validate traffic ",
-			fn:   testIPv4BackUpDecapToDrop,
-		},
-		{
-			name: "IPv4BackUpDropToDecap",
-			desc: "Shutdown all the primary path and modify Backup NHG from Decap to Drop and validate traffic ",
-			fn:   testIPv4BackUpDropToDecap,
-		},
-		{
-			name: "IPv4BackUpShutSite1",
-			desc: "Shutdown the primary path for 1 Site  and validate traffic is going through another primary and not backup ",
-			fn:   testIPv4BackUpShutSite1,
-		},
-		{
-			name: "IPv4BackUpModifyDecapNHG",
-			desc: "Shutdown all the primary path and modify Backup NHG from  Decap NHG 101 to Decap NHG 102 and validate traffic ",
-			fn:   testIPv4BackUpModifyDecapNHG,
-		},
-		{
-			name: "IPv4BackUpMultiplePrefixes",
-			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs and validate backup traffic ",
-			fn:   testIPv4BackUpMultiplePrefixes,
-		},
-		{
-			name: "IPv4BackUpMultipleVRF",
-			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
-			fn:   testIPv4BackUpMultipleVRF,
-		},
-		{
-			name: "IPv4BackUpFlapBGPISIS",
-			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
-			fn:   testIPv4BackUpFlapBGPISIS,
-		},
-		{
-			name: "IPv4BackupLCOIR",
-			desc: "Have Primary and backup configured on same LC and do a shut of primary. Followed by LC reload",
-			fn:   testIPv4BackUpLCOIR,
-		},
-		{
-			name: "IPv4MultipleNHG",
-			desc: "Have same primary and backup decap with multiple nhg",
-			fn:   testIPv4MultipleNHG,
-		},
-		{
-			name: "RecursiveToNonrecursive",
-			desc: "Change from recursive to non recursive path",
-			fn:   testRecursiveToNonrecursive,
-		},
-		{
-			name: "NonrecursiveToRecursive",
-			desc: "change from nonrecursive to recursive path",
-			fn:   testNonrecursiveToRecursive,
-		},
+		// {
+		// 	name: "Delete add backup",
+		// 	desc: "Deleting and Adding Back the Backup has no impact on traffic",
+		// 	fn:   testDeleteAddBackupToDrop,
+		// },
+		// {
+		// 	name: "Add backup after primary down",
+		// 	desc: "Add the backup - After Primary links are down Traffic continues ot DROP",
+		// 	fn:   testBackupToTrafficLoss,
+		// },
+		// {
+		// 	name: "Update backup to another ID",
+		// 	desc: "Modify Backup pointing to Different ID which is pointing to a different static rooute pointitng to DROP",
+		// 	fn:   testUpdateBackUpToDropID,
+		// },
+		// {
+		// 	name: "Backup pointing to decap",
+		// 	desc: "Base usecase with 2 NHOP Groups - - Backup Pointing to Decap",
+		// 	fn:   testBackupToDecap,
+		// },
+		// {
+		// 	name: "flush forwarding chain with and without backup NH",
+		// 	desc: "add testcase to flush forwarding chain with backup NHG only and forwarding chain with backup NHG",
+		// 	fn:   testFlushForwarding,
+		// },
+		// {
+		// 	name: "Backup change from static to decap",
+		// 	desc: "While Primary Paths are down Modify the Backup from poiniting to a static route to a DECAP chain - Traffic resumes after Decap",
+		// 	fn:   testBackupSwitchFromDropToDecap,
+		// },
+		// {
+		// 	name: "Multiple NW Instance with different NHG, same NH and different NHG backup",
+		// 	desc: "Multiple NW Instances (VRF's ) pointing to different NHG but same NH Entry but different NHG Backup",
+		// 	fn:   testUpdateBackupToDifferentNHG,
+		// },
+		// {
+		// 	name: "Get function validation",
+		// 	desc: "add decap NH and related forwarding chain and validate them using GET function",
+		// 	fn:   testValidateForwardingChain,
+		// },
+		// {
+		// 	name: "IPv4BackUpSingleNH",
+		// 	desc: "Single NH Ensure that backup NextHopGroup entries are honoured in gRIBI for NHGs containing a single NH",
+		// 	fn:   testBackupSingleNH,
+		// },
+		// {
+		// 	name: "IPv4BackUpMultiNH",
+		// 	desc: "Multiple NHBackup NHG: Multiple NH Ensure that backup NHGs are honoured with NextHopGroup entries containing",
+		// 	fn:   testBackupMultiNH,
+		// },
+		// {
+		// 	name: "IPv4BackUpRemoveBackup",
+		// 	desc: "Set primary and backup path with gribi and send traffic. Delete the backup NHG and check if impacts traffic",
+		// 	fn:   testIPv4BackUpRemoveBackup,
+		// },
+		// {
+		// 	name: "IPv4BackUpAddBkNHG",
+		// 	desc: "Set primary path with gribi and shutdown all the primary path. Now add the backup NHG and  validate traffic ",
+		// 	fn:   testIPv4BackUpAddBkNHG,
+		// },
+		// {
+		// 	name: "IPv4BackUpToggleBkNHG",
+		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path. Now remove,readd the backup NHG and validate traffic ",
+		// 	fn:   testIPv4BackUpToggleBkNHG,
+		// },
+		// {
+		// 	name: "IPv4BackUpDecapToDrop",
+		// 	desc: "Shutdown all the primary path and modify Backup NHG from Drop to Decap and validate traffic ",
+		// 	fn:   testIPv4BackUpDecapToDrop,
+		// },
+		// {
+		// 	name: "IPv4BackUpDropToDecap",
+		// 	desc: "Shutdown all the primary path and modify Backup NHG from Decap to Drop and validate traffic ",
+		// 	fn:   testIPv4BackUpDropToDecap,
+		// },
+		// {
+		// 	name: "IPv4BackUpShutSite1",
+		// 	desc: "Shutdown the primary path for 1 Site  and validate traffic is going through another primary and not backup ",
+		// 	fn:   testIPv4BackUpShutSite1,
+		// },
+		// {
+		// 	name: "IPv4BackUpModifyDecapNHG",
+		// 	desc: "Shutdown all the primary path and modify Backup NHG from  Decap NHG 101 to Decap NHG 102 and validate traffic ",
+		// 	fn:   testIPv4BackUpModifyDecapNHG,
+		// },
+		// {
+		// 	name: "IPv4BackUpMultiplePrefixes",
+		// 	desc: "Have same primary and backup links for 2 prefixes with different NHG IDs and validate backup traffic ",
+		// 	fn:   testIPv4BackUpMultiplePrefixes,
+		// },
+		// {
+		// 	name: "IPv4BackUpMultipleVRF",
+		// 	desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
+		// 	fn:   testIPv4BackUpMultipleVRF,
+		// },
+		// {
+		// 	name: "IPv4BackUpFlapBGPISIS",
+		// 	desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
+		// 	fn:   testIPv4BackUpFlapBGPISIS,
+		// },
+		// {
+		// 	name: "IPv4BackupLCOIR",
+		// 	desc: "Have Primary and backup configured on same LC and do a shut of primary. Followed by LC reload",
+		// 	fn:   testIPv4BackUpLCOIR,
+		// },
+		// {
+		// 	name: "IPv4MultipleNHG",
+		// 	desc: "Have same primary and backup decap with multiple nhg",
+		// 	fn:   testIPv4MultipleNHG,
+		// },
+		// {
+		// 	name: "RecursiveToNonrecursive",
+		// 	desc: "Change from recursive to non recursive path",
+		// 	fn:   testRecursiveToNonrecursive,
+		// },
+		// {
+		// 	name: "NonrecursiveToRecursive",
+		// 	desc: "change from nonrecursive to recursive path",
+		// 	fn:   testNonrecursiveToRecursive,
+		// },
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
