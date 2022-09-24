@@ -116,7 +116,9 @@ def BringupTestbed(self, uid, ws, images = None,
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
             f'-osfile {image_path} ' \
-            f'-osver {image_version}'
+            f'-osver {image_version} ' \
+            f'-v 5 ' \
+            f'-alsologtostderr'
 
         logger.print(f'Executing osinstall command:\n {install_cmd}')
         logger.print(check_output(install_cmd, cwd=fp_repo_dir))
@@ -293,6 +295,9 @@ def RunB4FPTest(self,
                         extra_env_vars=extra_env_vars,
                         cwd=fp_ws)
         stop_time = self.get_current_time()
+
+        check_output(f"sed -i 's|skipped|disabled|g' "+xunit_results_filepath)
+
     finally:
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
 
