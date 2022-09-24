@@ -3,8 +3,10 @@ module github.com/openconfig/featureprofiles
 go 1.19
 
 require (
+	github.com/cisco-open/go-p4 v0.0.0-20220713162912-85fd0d484625
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.8
+	github.com/google/gopacket v1.1.19
 	github.com/open-traffic-generator/snappi/gosnappi v0.9.4
 	github.com/openconfig/gnmi v0.0.0-20220617175856-41246b1b3507
 	github.com/openconfig/gnoi v0.0.0-20220809151450-6bddacd72ef8
