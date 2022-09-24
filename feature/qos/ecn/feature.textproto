@@ -40,3 +40,11 @@ config_path {
 telemetry_path {
   path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-drop-probability-percent"
 }
+
+# Interface
+config_path {
+  path: "/qos/interfaces/interface/output/queues/queue/config/queue-management-profile"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/queue-management-profile"
+}
