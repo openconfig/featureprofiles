@@ -54,10 +54,11 @@ func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInst
 	found := false
 	for _, nh := range aftNHs {
 		if nh.GetIpAddress() == address {
-			// if nh.GetProgrammedIndex() == nhIndex {
-			// 	if nh.GetIpAddress() != address {
-			// 		t.Fatalf("AFT Check failed for aft/next-hop/state/ip-address got %s, want %s", nh.GetIpAddress(), address)
-			// 	}
+			if nh.GetProgrammedIndex() == nhIndex {
+				if nh.GetIpAddress() != address {
+					t.Fatalf("AFT Check failed for aft/next-hop/state/ip-address got %s, want %s", nh.GetIpAddress(), address)
+				}
+			}
 			if nh.GetNetworkInstance() != nhInstance {
 				t.Fatalf("AFT Check failed for aft/next-hop/state/network-instance got %s, want %s", nh.GetNetworkInstance(), nhInstance)
 			}
