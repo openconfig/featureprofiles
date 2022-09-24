@@ -98,7 +98,8 @@ func TestChassisReboot(t *testing.T) {
 			}},
 	}
 
-	expectedVersion := dut.Telemetry().ComponentAny().SoftwareVersion().Get(t)
+	versions := dut.Telemetry().ComponentAny().SoftwareVersion().Get(t)
+	expectedVersion := FetchUniqueItems(t, versions)
 	sort.Strings(expectedVersion)
 	t.Logf("DUT software version: %v", expectedVersion)
 
@@ -167,7 +168,8 @@ func TestChassisReboot(t *testing.T) {
 				t.Errorf("Get boot time: got %v, want > %v", bootTimeAfterReboot, bootTimeBeforeReboot)
 			}
 
-			swVersion := dut.Telemetry().ComponentAny().SoftwareVersion().Get(t)
+			versions = dut.Telemetry().ComponentAny().SoftwareVersion().Get(t)
+			swVersion := FetchUniqueItems(t, versions)
 			sort.Strings(swVersion)
 			t.Logf("DUT software version after reboot: %v", swVersion)
 			if diff := cmp.Diff(expectedVersion, swVersion); diff != "" {
@@ -175,4 +177,18 @@ func TestChassisReboot(t *testing.T) {
 			}
 		})
 	}
+}
+
+func FetchUniqueItems(t *testing.T, s []string) []string {
+	itemExisted := make(map[string]bool)
+	var uniqueList []string
+	for _, item := range s {
+		if _, ok := itemExisted[item]; !ok {
+			itemExisted[item] = true
+			uniqueList = append(uniqueList, item)
+		} else {
+			t.Logf("Detected duplicated item: %v", item)
+		}
+	}
+	return uniqueList
 }
