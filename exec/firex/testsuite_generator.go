@@ -23,9 +23,10 @@ type GoTest struct {
 
 // FirexTest represents a single firex test suite
 type FirexTest struct {
-	Name  string
-	Owner string
-	Pyvxr struct {
+	Name     string
+	Owner    string
+	Priority string
+	Pyvxr    struct {
 		Topology string
 	}
 	Testbed   string
@@ -59,6 +60,11 @@ var (
     framework: b4_fp
     owners:
         - {{ $ft.Owner }}
+    {{- if eq $ft.Priority "high" }}
+    priority: BCT
+    {{- else if eq $ft.Priority "low" }}
+    priority: UT
+    {{- end }}
     {{- if $ft.Pyvxr.Topology }}
     plugins:
         - vxsim.py
