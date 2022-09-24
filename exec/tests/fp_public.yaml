@@ -18,6 +18,7 @@ tests:
   path: feature/experimental/platform/tests/optics_thresholds_test
 - name: TE-11.1 (Backup NHG Single NH) 
   path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
+  patch: exec/firex/plugins/fp_patch/backup_nhg_test.patch
 - name: RT-1.1 (Base BGP Session Parameters) 
   path: feature/experimental/bgp/ate_tests/base_bgp_session_parameters
 - name: RT-3.2 (Multiple <Protocol, DSCP> Rules for VRF Selection) 
