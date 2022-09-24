@@ -332,22 +332,16 @@ func configACL(d *telemetry.Device, name string) *telemetry.Acl_AclSet {
 	aclEntry10 := acl.GetOrCreateAclEntry(10)
 	aclEntry10.SequenceId = ygot.Uint32(10)
 	aclEntry10.GetOrCreateActions().ForwardingAction = telemetry.Acl_FORWARDING_ACTION_DROP
-	tp10 := aclEntry10.GetOrCreateTransport()
-	tp10.DestinationPort = telemetry.UnionUint16(bgpPort)
 	a := aclEntry10.GetOrCreateIpv4()
 	a.SourceAddress = ygot.String(aclNullPrefix)
 	a.DestinationAddress = ygot.String(ateDstCIDR)
-	a.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_TCP
 
 	aclEntry20 := acl.GetOrCreateAclEntry(20)
 	aclEntry20.SequenceId = ygot.Uint32(20)
 	aclEntry20.GetOrCreateActions().ForwardingAction = telemetry.Acl_FORWARDING_ACTION_DROP
-	tp20 := aclEntry20.GetOrCreateTransport()
-	tp20.SourcePort = telemetry.UnionUint16(bgpPort)
 	a2 := aclEntry20.GetOrCreateIpv4()
 	a2.SourceAddress = ygot.String(ateDstCIDR)
 	a2.DestinationAddress = ygot.String(aclNullPrefix)
-	a2.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_TCP
 
 	aclEntry30 := acl.GetOrCreateAclEntry(30)
 	aclEntry30.SequenceId = ygot.Uint32(30)
