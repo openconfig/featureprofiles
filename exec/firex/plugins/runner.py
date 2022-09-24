@@ -295,6 +295,9 @@ def RunB4FPTest(self,
                         extra_env_vars=extra_env_vars,
                         cwd=fp_ws)
         stop_time = self.get_current_time()
+
+        check_output(f"sed -i 's|skipped|disabled|g' "+xunit_results_filepath)
+
     finally:
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
 
