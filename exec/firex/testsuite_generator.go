@@ -89,7 +89,7 @@ var (
         {{- end }}
     script_paths:
         {{- range $j, $gt := $ft.Tests}}
-        - {{ $gt.Name }}:
+        - {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}:
             test_path: {{ $gt.Path }}
             {{- if $gt.Args }}
             test_args: {{ join $gt.Args " " }}
