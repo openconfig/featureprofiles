@@ -1,14 +1,13 @@
-MANANPAT-M-VJMD:backup_nh mananpat$ git diff ../../../../interface/aggregate/ate_tests/balancing_test/balancing_test.go
 diff --git a/feature/interface/aggregate/ate_tests/balancing_test/balancing_test.go b/feature/interface/aggregate/ate_tests/balancing_test/balancing_test.go
 index 49d5d693..5cc149e6 100644
 --- a/feature/interface/aggregate/ate_tests/balancing_test/balancing_test.go
 +++ b/feature/interface/aggregate/ate_tests/balancing_test/balancing_test.go
 @@ -238,7 +238,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
-        tc.configDstAggregateDUT(agg, &dutDst)
-        aggPath := d.Interface(tc.aggID)
-        fptest.LogYgot(t, tc.aggID, aggPath, agg)
--       aggPath.Replace(t, agg)
-+       aggPath.Update(t, agg)
+ 	tc.configDstAggregateDUT(agg, &dutDst)
+ 	aggPath := d.Interface(tc.aggID)
+ 	fptest.LogYgot(t, tc.aggID, aggPath, agg)
+-	aggPath.Replace(t, agg)
++	aggPath.Update(t, agg)
  
-        for n, port := range tc.dutPorts {
-                if n < 1 {
+ 	for n, port := range tc.dutPorts {
+ 		if n < 1 {
