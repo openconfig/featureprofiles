@@ -38,6 +38,7 @@ tests:
   patch: exec/firex/plugins/fp_patch/aggregrate_test.patch
 - name: RT-5.1 (Singleton Interface) 
   path: feature/interface/singleton/ate_tests/singleton_test
+  timeout: 7200
   patch: exec/firex/plugins/fp_patch/singleton_test.patch
 - name: gNMI-1.5 (Telemetry Port Speed Test) 
   path: feature/gnmi/ate_tests/telemetry_port_speed_test
