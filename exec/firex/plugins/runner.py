@@ -272,7 +272,7 @@ def RunB4FPTest(self,
     go_args = f'{go_args} ' \
                 f'-json ' \
                 f'-p 1 ' \
-                f'-timeout {test_timeout}'
+                f'-timeout {test_timeout}s'
 
     if not test_path:
         raise ValueError('test_path must be set for non-compiled go tests')
