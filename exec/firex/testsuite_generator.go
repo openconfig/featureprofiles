@@ -60,9 +60,9 @@ var (
     framework: b4_fp
     owners:
         - {{ $ft.Owner }}
-    {{- if eq $ft.Priority "high" }}
+    {{- if eq $ft.Priority "low" }}
     priority: BCT
-    {{- else if eq $ft.Priority "low" }}
+    {{- else if eq $ft.Priority "high" }}
     priority: UT
     {{- end }}
     {{- if $ft.Pyvxr.Topology }}
