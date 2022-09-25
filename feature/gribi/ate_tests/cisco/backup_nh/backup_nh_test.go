@@ -139,7 +139,7 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
-	//aft check
+	// //aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
@@ -150,9 +150,9 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
+	args.client.AftPushConfig(t)
 	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.26")
 	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.22")
-	args.client.AftPushConfig(t)
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
@@ -169,7 +169,6 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
 	}
-	args.client.AftPushConfig(t)
 	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.18")
 	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.14")
 	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.10")
