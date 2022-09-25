@@ -26,7 +26,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -164,39 +163,16 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := dut.Config()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutPort1))
+	d.Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
 
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutPort2))
+	d.Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
 
 	p3 := dut.Port(t, "port3")
-	i3 := &telemetry.Interface{Name: ygot.String(p3.Name())}
-	d.Interface(p3.Name()).Replace(t, configInterfaceDUT(i3, &dutPort3))
+	d.Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
 
 	p4 := dut.Port(t, "port4")
-	i4 := &telemetry.Interface{Name: ygot.String(p4.Name())}
-	d.Interface(p4.Name()).Replace(t, configInterfaceDUT(i4, &dutPort4))
-}
-
-// configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
-	i.Description = ygot.String(a.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
-	i.Enabled = ygot.Bool(true)
-
-	s := i.GetOrCreateSubinterface(0)
-
-	s4 := s.GetOrCreateIpv4()
-	s4a := s4.GetOrCreateAddress(a.IPv4)
-	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
-
-	s6 := s.GetOrCreateIpv6()
-	s6a := s6.GetOrCreateAddress(a.IPv6)
-	s6a.PrefixLength = ygot.Uint8(ipv6PrefixLen)
-
-	return i
+	d.Interface(p4.Name()).Replace(t, dutPort4.NewInterface(p4.Name()))
 }
 
 func TestBackup(t *testing.T) {
@@ -356,10 +332,15 @@ func flapinterface(t *testing.T, ate *ondatra.ATEDevice, port string, action boo
 func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, expectedNH []string) {
 	// check prefix and get NHG ID
 	aftPfxNHG := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(prefix).NextHopGroup()
-	aftPfxNHGVal := aftPfxNHG.Get(t)
+	aftPfxNHGVal, found := aftPfxNHG.Watch(t, 10*time.Second, func(val *telemetry.QualifiedUint64) bool {
+		return true
+	}).Await(t)
+	if !found {
+		t.Fatalf("Could not find prefix %s in telemetry AFT", dstPfx)
+	}
 
 	// using NHG ID validate NH
-	aftNHG := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(aftPfxNHGVal).Get(t)
+	aftNHG := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(aftPfxNHGVal.Val(t)).Get(t)
 	if got := len(aftNHG.NextHop); got < 1 && aftNHG.BackupNextHopGroup == nil {
 		t.Fatalf("Prefix %s reachability didn't switch to backup path", prefix)
 	}
