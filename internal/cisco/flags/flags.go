@@ -20,6 +20,9 @@ var (
 	GRIBIIPv4Timer = flag.Int("gribi_ipv4_timer", 1,
 		"Wait time before executing aft call for IPv4")
 
+	GRIBIRemoveTimer = flag.Int("gribi_remove_timer", 10,
+		"Wait time before executing aft call for IPv4")
+
 	GRIBIAFTChainCheck = flag.Bool("gribi_aft_chain_check", true,
 		"This enable/disable AFT chain check for gribi prefix in gribi tests.")
 

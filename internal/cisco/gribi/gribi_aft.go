@@ -279,7 +279,9 @@ func (c *Client) getCurrentAftConfig() map[string]*telemetry.NetworkInstance_Aft
 func (c *Client) AftRemoveIPv4(t testing.TB, instance, prefix string) {
 	t.Helper()
 
-	c.getAft(instance).DeleteIpv4Entry(prefix)
+	time.Sleep(time.Duration(*ciscoFlags.GRIBIRemoveTimer) * time.Second)
+
+	// c.getAft(instance).DeleteIpv4Entry(prefix)
 	changed := true
 
 	for changed {
@@ -287,7 +289,7 @@ func (c *Client) AftRemoveIPv4(t testing.TB, instance, prefix string) {
 		for _, aft := range c.getCurrentAftConfig() {
 			for nhIdx, nh := range aft.NextHop {
 				//TODO: is this sufficient?
-				if strings.HasPrefix(prefix, *nh.IpAddress) {
+				if strings.Compare(prefix, *nh.IpAddress) == 0 {
 					aft.DeleteNextHop(nhIdx)
 					changed = true
 				}
