@@ -575,7 +575,7 @@ func testEntryProgrammingPacketInAndChangePortID(ctx context.Context, t *testing
 
 	validatePackets(t, args, packets)
 
-	newPortID := ^portID
+	newPortID := ^portID % maxPortID
 	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.packetIO.SetIngressPorts(t, fmt.Sprint(newPortID))
 	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
@@ -1975,7 +1975,7 @@ func testPacketOutEgressWithChangePortId(ctx context.Context, t *testing.T, args
 	client := args.p4rtClientA
 	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
-	newPortID := ^portID
+	newPortID := ^portID % maxPortID
 	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
 		Name: ygot.String(portName),
@@ -2020,7 +2020,7 @@ func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, ar
 	client := args.p4rtClientA
 	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
-	newPortID := ^portID
+	newPortID := ^portID % maxPortID
 	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
 		Name: ygot.String(portName),

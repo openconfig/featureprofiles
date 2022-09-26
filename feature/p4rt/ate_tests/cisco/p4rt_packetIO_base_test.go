@@ -12,7 +12,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -33,6 +32,7 @@ var (
 	SUBMIT_TO_INGRESS     = uint32(1)
 	SUBMIT_TO_EGRESS      = uint32(0)
 	forusIP               = "10.10.10.10"
+	maxPortID             = uint32(0xFFFFFEFF)
 )
 
 // Testcase defines testcase structure

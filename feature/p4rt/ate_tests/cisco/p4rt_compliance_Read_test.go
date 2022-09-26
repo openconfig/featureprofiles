@@ -59,7 +59,7 @@ func testReadRPCFromPrimary(ctx context.Context, t *testing.T, args *testArgs) {
 	// Read ALL and log
 	res, err := readProgrammedEntry(ctx, t, deviceID, client)
 	if err != nil {
-		t.Fatal("There is error seen when reading entries, %v", err)
+		t.Errorf("There is error seen when reading entries, %v", err)
 	}
 
 	checkEntryExist(ctx, t, gdpTableEntry, res)

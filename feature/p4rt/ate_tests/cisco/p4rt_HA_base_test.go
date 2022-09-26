@@ -76,6 +76,7 @@ func TestP4RTHA(t *testing.T) {
 	configurePortID(ctx, t, dut)
 
 	npus := getComponentList(ctx, t, dut)
+	// npus = npus[:3]
 	// fmt.Println(len(npus), npus)
 
 	p4rtClientA := p4rt_client.P4RTClient{}
