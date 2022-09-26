@@ -11,6 +11,7 @@ import (
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -18,7 +19,6 @@ import (
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
-	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
 )
 
 type TrafficFlow interface {
@@ -38,7 +38,7 @@ type TrafficFlow interface {
 }
 
 type PacketIO interface {
-	GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo
+	GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbbIngressTableEntryInfo
 	ApplyConfig(t *testing.T, dut *ondatra.DUTDevice, delete bool)
 	GetPacketOut(t *testing.T, portID uint32, submitIngress bool) []*p4_v1.PacketOut
 	GetPacketTemplate(t *testing.T) *PacketIOPacket
@@ -66,7 +66,7 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 	err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   deviceID,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
-		Updates: wbb.AclWbbIngressTableEntryGet(
+		Updates: wbb.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(t, delete),
 		),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
@@ -816,7 +816,7 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 		client.Write(&p4_v1.WriteRequest{
 			DeviceId:   deviceID,
 			ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
-			Updates: wbb.AclWbbIngressTableEntryGet(
+			Updates: wbb.ACLWbbIngressTableEntryGet(
 				tableEntry,
 			),
 			Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
@@ -832,7 +832,7 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 		client.Write(&p4_v1.WriteRequest{
 			DeviceId:   deviceID,
 			ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
-			Updates: wbb.AclWbbIngressTableEntryGet(
+			Updates: wbb.ACLWbbIngressTableEntryGet(
 				tableEntry,
 			),
 			Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,

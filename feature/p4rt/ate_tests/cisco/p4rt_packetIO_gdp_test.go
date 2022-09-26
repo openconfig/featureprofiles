@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	"github.com/openconfig/ondatra"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
-	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
 )
 
 //-----------------------------//
@@ -177,12 +177,12 @@ type GDPPacketIO struct {
 	IngressPort string
 }
 
-func (gdp *GDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo {
+func (gdp *GDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
 	if delete {
 		actionType = p4_v1.Update_DELETE
 	}
-	return []*wbb.AclWbbIngressTableEntryInfo{&wbb.AclWbbIngressTableEntryInfo{
+	return []*wbb.ACLWbbIngressTableEntryInfo{&wbb.ACLWbbIngressTableEntryInfo{
 		Type:          actionType,
 		EtherType:     0x6007,
 		EtherTypeMask: 0xFFFF,

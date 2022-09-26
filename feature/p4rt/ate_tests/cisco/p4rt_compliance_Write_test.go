@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
-	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
 )
 
 var (
@@ -119,8 +119,8 @@ func testWriteRPCInsertTrapAction(ctx context.Context, t *testing.T, args *testA
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
@@ -152,8 +152,8 @@ func testWriteRPCInsertCopyAction(ctx context.Context, t *testing.T, args *testA
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
@@ -185,8 +185,8 @@ func testWriteRPCInsertNonExistDeviceID(ctx context.Context, t *testing.T, args 
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   ^uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
@@ -219,8 +219,8 @@ func testWriteRPCInsertWithLowerElectionID(ctx context.Context, t *testing.T, ar
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(99)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
@@ -253,8 +253,8 @@ func testWriteRPCInsertWithHigherElectionID(ctx context.Context, t *testing.T, a
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(101)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
@@ -283,8 +283,8 @@ func testWriteRPCBeforeSetForwardingPipeline(ctx context.Context, t *testing.T, 
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
@@ -367,8 +367,8 @@ func testWriteRPCInsertMalformedEntry(ctx context.Context, t *testing.T, args *t
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type: p4_v1.Update_INSERT,
 				// EtherType: 0x6007,
 			},
@@ -401,8 +401,8 @@ func testWriteRPCOOR(ctx context.Context, t *testing.T, args *testArgs) {
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type: p4_v1.Update_INSERT,
 				// EtherType: 0x6007,
 			},
@@ -436,8 +436,8 @@ func testWriteRPCModifyEntry(ctx context.Context, t *testing.T, args *testArgs) 
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:          p4_v1.Update_MODIFY,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
@@ -470,8 +470,8 @@ func testWriteRPCModifyMalformedEntry(ctx context.Context, t *testing.T, args *t
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:      p4_v1.Update_MODIFY,
 				EtherType: 0x6007,
 			},
@@ -505,8 +505,8 @@ func testWriteRPCModifyNonExistEntry(ctx context.Context, t *testing.T, args *te
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:          p4_v1.Update_MODIFY,
 				EtherType:     0x6666,
 				EtherTypeMask: 0xFFFF,
@@ -566,8 +566,8 @@ func testWriteRPCDeleteMalformedEntry(ctx context.Context, t *testing.T, args *t
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:      p4_v1.Update_DELETE,
 				EtherType: 0x6007,
 			},
@@ -601,8 +601,8 @@ func testWriteRPCDeleteNonExistEntry(ctx context.Context, t *testing.T, args *te
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:          p4_v1.Update_DELETE,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
@@ -637,8 +637,8 @@ func testWriteRPCWithUnspecificAction(ctx context.Context, t *testing.T, args *t
 	if err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   uint64(1),
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: uint64(100)},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:          p4_v1.Update_UNSPECIFIED,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,

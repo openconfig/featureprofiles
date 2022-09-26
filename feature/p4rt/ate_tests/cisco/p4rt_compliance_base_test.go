@@ -14,12 +14,12 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"google.golang.org/protobuf/testing/protocmp"
-	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
 )
 
 func getComponentID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) string {
@@ -94,8 +94,8 @@ func programmGDPMatchEntryWithStreamParameter(ctx context.Context, t *testing.T,
 	err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   streamParameter.DeviceId,
 		ElectionId: &p4_v1.Uint128{High: streamParameter.ElectionIdH, Low: streamParameter.ElectionIdL},
-		Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:          actionType,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,

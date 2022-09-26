@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	"github.com/openconfig/ondatra"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
-	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
 )
 
 // debug lpts platform pifib all
@@ -235,12 +235,12 @@ type LLDPPacketIO struct {
 	IngressPort string
 }
 
-func (lldp *LLDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo {
+func (lldp *LLDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
 	if delete {
 		actionType = p4_v1.Update_DELETE
 	}
-	return []*wbb.AclWbbIngressTableEntryInfo{&wbb.AclWbbIngressTableEntryInfo{
+	return []*wbb.ACLWbbIngressTableEntryInfo{&wbb.ACLWbbIngressTableEntryInfo{
 		Type:          actionType,
 		EtherType:     0x88cc,
 		EtherTypeMask: 0xFFFF,

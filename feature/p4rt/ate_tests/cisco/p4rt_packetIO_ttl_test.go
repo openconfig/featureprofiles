@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	"github.com/openconfig/ondatra"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
-	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
 )
 
 var (
@@ -215,37 +215,37 @@ type TTLPacketIO struct {
 	PacketOutObj *PacketIOPacket
 }
 
-func (ttl *TTLPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.AclWbbIngressTableEntryInfo {
+func (ttl *TTLPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
 	if delete {
 		actionType = p4_v1.Update_DELETE
 	}
-	entries := []*wbb.AclWbbIngressTableEntryInfo{}
+	entries := []*wbb.ACLWbbIngressTableEntryInfo{}
 	if ttl.IPv4 {
-		entries = append(entries, &wbb.AclWbbIngressTableEntryInfo{
+		entries = append(entries, &wbb.ACLWbbIngressTableEntryInfo{
 			Type:   actionType,
 			IsIpv4: uint8(1),
-			Ttl:    uint8(1),
+			TTL:    uint8(1),
 		})
 		if ttl.TtlTwo {
-			entries = append(entries, &wbb.AclWbbIngressTableEntryInfo{
+			entries = append(entries, &wbb.ACLWbbIngressTableEntryInfo{
 				Type:   actionType,
 				IsIpv4: uint8(1),
-				Ttl:    uint8(2),
+				TTL:    uint8(2),
 			})
 		}
 	}
 	if ttl.IPv6 {
-		entries = append(entries, &wbb.AclWbbIngressTableEntryInfo{
+		entries = append(entries, &wbb.ACLWbbIngressTableEntryInfo{
 			Type:   actionType,
 			IsIpv6: uint8(1),
-			Ttl:    uint8(1),
+			TTL:    uint8(1),
 		})
 		if ttl.TtlTwo {
-			entries = append(entries, &wbb.AclWbbIngressTableEntryInfo{
+			entries = append(entries, &wbb.ACLWbbIngressTableEntryInfo{
 				Type:   actionType,
 				IsIpv4: uint8(1),
-				Ttl:    uint8(2),
+				TTL:    uint8(2),
 			})
 		}
 	}

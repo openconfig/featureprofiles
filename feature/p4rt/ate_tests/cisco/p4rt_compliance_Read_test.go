@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"wwwin-github.cisco.com/rehaddad/go-wbb/p4info/wbb"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 )
 
 var (
-	gdpTableEntry = wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{{
+	gdpTableEntry = wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{{
 		EtherType:     0x6007,
 		EtherTypeMask: 0xFFFF,
 	},
