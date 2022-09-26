@@ -23,7 +23,7 @@ var (
 	GRIBIRemoveTimer = flag.Int("gribi_remove_timer", 10,
 		"Wait time before executing aft call for IPv4")
 
-	GRIBIAFTChainCheck = flag.Bool("gribi_aft_chain_check", true,
+	GRIBIAFTChainCheck = flag.Bool("gribi_aft_chain_check", false,
 		"This enable/disable AFT chain check for gribi prefix in gribi tests.")
 
 	GRIBIFIBCheck = flag.Bool("gribi_fib_check", true,
@@ -32,7 +32,7 @@ var (
 	GRIBIRIBCheck = flag.Bool("gribi_rib_check", true,
 		"This enable/disable  RIB ack check for gribi entries in gribi tests.")
 
-	GRIBIScale = flag.Uint("gribi_scale", 1,
+	GRIBIScale = flag.Uint("gribi_scale", 10,
 		"The number of gribi entries to be added in scale test.")
 
 	GRIBIConfidence = flag.Float64("gribi_confidence", 10.0,
