@@ -1,5 +1,5 @@
 diff --git a/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go b/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go
-index 45b4599b..607ed33c 100644
+index 45b4599b..2c794cd7 100644
 --- a/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go
 +++ b/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go
 @@ -16,6 +16,7 @@ package route_ack_test
@@ -30,8 +30,13 @@ index 45b4599b..607ed33c 100644
  	static.Enabled = ygot.Bool(true)
  	static.Identifier = telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
  	sr := static.GetOrCreateStatic(prefix)
-@@ -253,7 +258,7 @@ func TestRouteAck(t *testing.T) {
- 	configureNetworkInstance(t)
+@@ -250,10 +255,11 @@ func TestRouteAck(t *testing.T) {
+ 	top.Push(t).StartProtocols(t)
+ 
+ 	// Configure the DUT with static route 203.0.113.0/24
+-	configureNetworkInstance(t)
++	// Waiting for bug fix: CSCwc27278 [B4 FP: TE-15.1] setting vrf type failes for OC + GNMI
++	//configureNetworkInstance(t)
  	t.Logf("Configure the DUT with static route 203.0.113.0/24...")
  	dutConf := configStaticRoute(t, dut, ateDstNetCIDR, staticNH)
 -	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").Static(ateDstNetCIDR).Replace(t, dutConf)
