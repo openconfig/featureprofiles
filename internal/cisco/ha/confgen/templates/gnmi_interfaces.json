@@ -1,0 +1,1251 @@
+{
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "Loopback0",
+        "config": {
+          "name": "Loopback0",
+          "type": "iana-if-type:softwareLoopback"
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "openconfig-if-ip:ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "ip": "1.1.1.1",
+                      "config": {
+                        "ip": "1.1.1.1",
+                        "prefix-length": 32
+                      }
+                    }
+                  ]
+                }
+              },
+              "openconfig-if-ip:ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "ip": "1::1",
+                      "config": {
+                        "ip": "1::1",
+                        "prefix-length": 128
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "Bundle-Ether1",
+        "config": {
+          "name": "Bundle-Ether1",
+          "type": "iana-if-type:ieee8023adLag"
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 1,
+              "config": {
+                "index": 1
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "Bundle-Ether120",
+        "config": {
+          "name": "Bundle-Ether120",
+          "type": "iana-if-type:ieee8023adLag",
+          "enabled": false,
+          "description": "\"Towards Ixia\"",
+          "mtu": 9216
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "openconfig-if-ip:ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "ip": "100.120.1.1",
+                      "config": {
+                        "ip": "100.120.1.1",
+                        "prefix-length": 24
+                      }
+                    }
+                  ]
+                }
+              },
+              "openconfig-if-ip:ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "ip": "2000::100:120:1:1",
+                      "config": {
+                        "ip": "2000::100:120:1:1",
+                        "prefix-length": 126
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "mac-address": "00:01:00:02:00:00"
+          }
+        }
+      },
+      {
+        "name": "PTP0/RP1/CPU0/0",
+        "config": {
+          "name": "PTP0/RP1/CPU0/0",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FortyGigE0/0/0/4",
+        "config": {
+          "name": "FortyGigE0/0/0/4",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FortyGigE0/0/0/6",
+        "config": {
+          "name": "FortyGigE0/0/0/6",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FortyGigE0/3/0/1",
+        "config": {
+          "name": "FortyGigE0/3/0/1",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FortyGigE0/3/0/6",
+        "config": {
+          "name": "FortyGigE0/3/0/6",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FortyGigE0/3/0/9",
+        "config": {
+          "name": "FortyGigE0/3/0/9",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FortyGigE0/0/0/11",
+        "config": {
+          "name": "FortyGigE0/0/0/11",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FortyGigE0/0/0/12",
+        "config": {
+          "name": "FortyGigE0/0/0/12",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FortyGigE0/0/0/13",
+        "config": {
+          "name": "FortyGigE0/0/0/13",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FortyGigE0/0/0/29",
+        "config": {
+          "name": "FortyGigE0/0/0/29",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FortyGigE0/3/0/36",
+        "config": {
+          "name": "FortyGigE0/3/0/36",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FortyGigE0/3/0/41",
+        "config": {
+          "name": "FortyGigE0/3/0/41",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FortyGigE0/3/0/46",
+        "config": {
+          "name": "FortyGigE0/3/0/46",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/0",
+        "config": {
+          "name": "HundredGigE0/0/0/0",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/1",
+        "config": {
+          "name": "HundredGigE0/0/0/1",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/2",
+        "config": {
+          "name": "HundredGigE0/0/0/2",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/3",
+        "config": {
+          "name": "HundredGigE0/0/0/3",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/5",
+        "config": {
+          "name": "HundredGigE0/0/0/5",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/7",
+        "config": {
+          "name": "HundredGigE0/0/0/7",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/8",
+        "config": {
+          "name": "HundredGigE0/0/0/8",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/9",
+        "config": {
+          "name": "HundredGigE0/0/0/9",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/0",
+        "config": {
+          "name": "HundredGigE0/3/0/0",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/2",
+        "config": {
+          "name": "HundredGigE0/3/0/2",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/3",
+        "config": {
+          "name": "HundredGigE0/3/0/3",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/4",
+        "config": {
+          "name": "HundredGigE0/3/0/4",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/7",
+        "config": {
+          "name": "HundredGigE0/3/0/7",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/17",
+        "config": {
+          "name": "HundredGigE0/0/0/17",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/23",
+        "config": {
+          "name": "HundredGigE0/0/0/23",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/24",
+        "config": {
+          "name": "HundredGigE0/0/0/24",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/25",
+        "config": {
+          "name": "HundredGigE0/0/0/25",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/26",
+        "config": {
+          "name": "HundredGigE0/0/0/26",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        },
+        "hold-time": {
+          "config": {
+            "down": 10
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/27",
+        "config": {
+          "name": "HundredGigE0/0/0/27",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        },
+        "hold-time": {
+          "config": {
+            "up": 10
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/28",
+        "config": {
+          "name": "HundredGigE0/0/0/28",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        },
+        "hold-time": {
+          "config": {
+            "down": 10
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/32",
+        "config": {
+          "name": "HundredGigE0/0/0/32",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/33",
+        "config": {
+          "name": "HundredGigE0/0/0/33",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/0/0/35",
+        "config": {
+          "name": "HundredGigE0/0/0/35",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/10",
+        "config": {
+          "name": "HundredGigE0/3/0/10",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/12",
+        "config": {
+          "name": "HundredGigE0/3/0/12",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/13",
+        "config": {
+          "name": "HundredGigE0/3/0/13",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/15",
+        "config": {
+          "name": "HundredGigE0/3/0/15",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/16",
+        "config": {
+          "name": "HundredGigE0/3/0/16",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/18",
+        "config": {
+          "name": "HundredGigE0/3/0/18",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/19",
+        "config": {
+          "name": "HundredGigE0/3/0/19",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/21",
+        "config": {
+          "name": "HundredGigE0/3/0/21",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/22",
+        "config": {
+          "name": "HundredGigE0/3/0/22",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/23",
+        "config": {
+          "name": "HundredGigE0/3/0/23",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/24",
+        "config": {
+          "name": "HundredGigE0/3/0/24",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/25",
+        "config": {
+          "name": "HundredGigE0/3/0/25",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/27",
+        "config": {
+          "name": "HundredGigE0/3/0/27",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/28",
+        "config": {
+          "name": "HundredGigE0/3/0/28",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/30",
+        "config": {
+          "name": "HundredGigE0/3/0/30",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/31",
+        "config": {
+          "name": "HundredGigE0/3/0/31",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/33",
+        "config": {
+          "name": "HundredGigE0/3/0/33",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/34",
+        "config": {
+          "name": "HundredGigE0/3/0/34",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/37",
+        "config": {
+          "name": "HundredGigE0/3/0/37",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/39",
+        "config": {
+          "name": "HundredGigE0/3/0/39",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/40",
+        "config": {
+          "name": "HundredGigE0/3/0/40",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/42",
+        "config": {
+          "name": "HundredGigE0/3/0/42",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/43",
+        "config": {
+          "name": "HundredGigE0/3/0/43",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/45",
+        "config": {
+          "name": "HundredGigE0/3/0/45",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "HundredGigE0/3/0/47",
+        "config": {
+          "name": "HundredGigE0/3/0/47",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "MgmtEth0/RP1/CPU0/0",
+        "config": {
+          "name": "MgmtEth0/RP1/CPU0/0",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "openconfig-if-ip:ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "ip": "12.9.1.100",
+                      "config": {
+                        "ip": "12.9.1.100",
+                        "prefix-length": 16
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "FourHundredGigE0/3/0/5",
+        "config": {
+          "name": "FourHundredGigE0/3/0/5",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/3/0/8",
+        "config": {
+          "name": "FourHundredGigE0/3/0/8",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/0/0/10",
+        "config": {
+          "name": "FourHundredGigE0/0/0/10",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/0/0/14",
+        "config": {
+          "name": "FourHundredGigE0/0/0/14",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/0/0/15",
+        "config": {
+          "name": "FourHundredGigE0/0/0/15",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/0/0/16",
+        "config": {
+          "name": "FourHundredGigE0/0/0/16",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/0/0/18",
+        "config": {
+          "name": "FourHundredGigE0/0/0/18",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/0/0/19",
+        "config": {
+          "name": "FourHundredGigE0/0/0/19",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/0/0/20",
+        "config": {
+          "name": "FourHundredGigE0/0/0/20",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/0/0/21",
+        "config": {
+          "name": "FourHundredGigE0/0/0/21",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/0/0/22",
+        "config": {
+          "name": "FourHundredGigE0/0/0/22",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/0/0/30",
+        "config": {
+          "name": "FourHundredGigE0/0/0/30",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/0/0/31",
+        "config": {
+          "name": "FourHundredGigE0/0/0/31",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/0/0/34",
+        "config": {
+          "name": "FourHundredGigE0/0/0/34",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/3/0/11",
+        "config": {
+          "name": "FourHundredGigE0/3/0/11",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/3/0/14",
+        "config": {
+          "name": "FourHundredGigE0/3/0/14",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/3/0/17",
+        "config": {
+          "name": "FourHundredGigE0/3/0/17",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/3/0/20",
+        "config": {
+          "name": "FourHundredGigE0/3/0/20",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/3/0/26",
+        "config": {
+          "name": "FourHundredGigE0/3/0/26",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/3/0/29",
+        "config": {
+          "name": "FourHundredGigE0/3/0/29",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/3/0/32",
+        "config": {
+          "name": "FourHundredGigE0/3/0/32",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/3/0/35",
+        "config": {
+          "name": "FourHundredGigE0/3/0/35",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/3/0/38",
+        "config": {
+          "name": "FourHundredGigE0/3/0/38",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      },
+      {
+        "name": "FourHundredGigE0/3/0/44",
+        "config": {
+          "name": "FourHundredGigE0/3/0/44",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": false
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "auto-negotiate": false
+          }
+        }
+      }
+    ]
+  }
+}
