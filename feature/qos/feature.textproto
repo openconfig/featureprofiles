@@ -29,10 +29,22 @@ telemetry_path {
   path: "/qos/classifiers/classifier/terms/term/conditions/ipv4/state/dscp"
 }
 config_path {
+  path: "/qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set"
+}
+telemetry_path {
+  path: "/qos/classifiers/classifier/terms/term/conditions/ipv4/state/dscp-set"
+}
+config_path {
   path: "/qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp"
 }
 telemetry_path {
   path: "/qos/classifiers/classifier/terms/term/conditions/ipv6/state/dscp"
+}
+config_path {
+  path: "/qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set"
+}
+telemetry_path {
+  path: "/qos/classifiers/classifier/terms/term/conditions/ipv6/state/dscp-set"
 }
 config_path {
   path: "/qos/classifiers/classifier/terms/term/config/id"
@@ -62,11 +74,17 @@ telemetry_path {
 }
 
 # Interfaces
+config_path {
+  path: "/qos/interfaces/interface/input/classifiers/classifier/config/name"
+}
 telemetry_path {
   path: "/qos/interfaces/interface/input/classifiers/classifier/state/name"
 }
 config_path {
   path: "/qos/interfaces/interface/output/queues/queue/config/name"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/name"
 }
 config_path {
   path: "/qos/interfaces/interface/output/scheduler-policy/config/name"
@@ -76,6 +94,9 @@ telemetry_path {
 }
 
 # Queues
+config_path {
+  path: "/qos/queues/queue/config/name"
+}
 telemetry_path {
   path: "/qos/queues/queue/state/name"
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/ixnet"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -64,7 +65,7 @@ const (
 	plenIPv4               = 30
 	plenIPv6               = 126
 	tolerance              = 50
-	lossTolerance          = 1
+	lossTolerance          = 2
 )
 
 var (
@@ -127,7 +128,7 @@ func (tc *testCase) verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 
 type config struct {
 	topo     *ondatra.ATETopology
-	allNets  []*ondatra.Network
+	allNets  []*ixnet.Network
 	allFlows []*ondatra.Flow
 }
 
@@ -193,7 +194,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
 		WithHeaders(ethHeader, ipv6Header).
 		WithFrameSize(512)
 
-	return &config{topo, []*ondatra.Network{BGPNeti1, BGPNeti1v6}, []*ondatra.Flow{flowIPV4, flowIPV6}}
+	return &config{topo, []*ixnet.Network{BGPNeti1, BGPNeti1v6}, []*ondatra.Flow{flowIPV4, flowIPV6}}
 }
 
 type BGPNeighbor struct {
@@ -395,7 +396,7 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow,
 	t.Log("Traffic stopped")
 }
 
-func configureBGPRoutes(t *testing.T, topo *ondatra.ATETopology, allNets []*ondatra.Network, routeCount uint32) {
+func configureBGPRoutes(t *testing.T, topo *ondatra.ATETopology, allNets []*ixnet.Network, routeCount uint32) {
 	for _, net := range allNets {
 		netName := net.EndpointPB().GetNetworkName()
 		net.BGP().ClearASPathSegments()

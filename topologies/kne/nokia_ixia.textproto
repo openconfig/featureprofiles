@@ -1,0 +1,81 @@
+name: "nokia_ixia"
+nodes: {
+    name: "otg"
+    type: IXIA_TG
+    version: "0.0.1-3383"
+    services: {
+        key: 443
+        value: {
+            name: "https"
+            inside: 443
+        }
+    }
+    services: {
+        key: 40051
+        value: {
+            name: "grpc"
+            inside: 40051
+        }
+    }
+    services: {
+        key: 50051
+        value: {
+            name: "gnmi"
+            inside: 50051
+        }
+    }
+}
+
+nodes: {
+    name: "nokia"
+    vendor: NOKIA
+    type: NOKIA_SRL
+    model: "ixr10"
+    config: {
+        file: "nokia_srl.json"
+        image: "srlinux:latest"
+        cert: {
+            self_signed: {
+                cert_name: "kne-profile"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    services:{
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+            outside: 22
+        }
+    }
+    services:{
+        key: 57400
+        value: {
+            name: "gnmi"
+            inside: 57400
+            outside: 57400
+        }
+    }
+    services:{
+      key: 57401
+      value: {
+        name: "gribi"
+        inside: 57401
+        outside: 57401
+      }
+    }
+}
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "nokia"
+    z_int: "e1-1"
+}
+links: {
+    a_node: "nokia"
+    a_int: "e1-2"
+    z_node: "otg"
+    z_int: "eth2"
+}

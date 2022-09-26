@@ -332,10 +332,12 @@ a1v4.Protocol, _ = a1v4.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
 ## IP Addresses Assignment
 
 Netblocks used in the test topology should follow IPv4 Address Blocks Reserved
-for Documentation ([RFC 5737]) and IPv6 Address Prefix Reserved for
-Documentation ([RFC 3849]). In particular:
+for Documentation ([RFC 5737]), IPv4 reserved for Benchmarking Methodology
+([RFC 2544]), and IPv6 Address Prefix Reserved for Documentation ([RFC 3849]).
+In particular:
 
 [RFC 5737]: https://datatracker.ietf.org/doc/html/rfc5737
+[RFC 2544]: https://datatracker.ietf.org/doc/html/rfc2544
 [RFC 3849]: https://datatracker.ietf.org/doc/html/rfc3849
 
 ### IPv4
@@ -346,6 +348,7 @@ Documentation ([RFC 3849]). In particular:
     for traffic testing; split as needed.
 *   `TEST-NET-3`: (203.0.113.0/24): data plane destination network addresses
     used for traffic testing; split as needed.
+*   `BMWG`: (198.18.0.0/15): additional data plane networks.
 
 ### IPv6
 
