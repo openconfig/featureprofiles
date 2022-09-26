@@ -254,8 +254,5 @@ func (gdp *GDPPacketIO) GetPacketOutObj(t *testing.T) *PacketIOPacket {
 }
 
 func (gdp *GDPPacketIO) GetPacketOutExpectation(t *testing.T, submit_to_ingress bool) bool {
-	if submit_to_ingress {
-		return false
-	}
-	return true
+	return !submit_to_ingress
 }

@@ -152,6 +152,11 @@ var (
 			fn:   testPacketOutWithForUsIP,
 		},
 		{
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 Traffic With For-Us-IP(submit_to_ingress)",
+			desc: "Packet I/O-Traceroute-PacketOut:007 Ingress: dst IP is for us for the incoming packet, packet goes through lpts",
+			fn:   testPacketOutTTLOneWithForUsIP,
+		},
+		{
 			name: "Check PacketOut Without Programming TTL Match Entry(submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:012-013 Egress: Without any match entries, Injecting IP packet with any TTL, verify packets sent out on those egress interfaces",
 			fn:   testPacketOutEgressWithoutMatchEntry,
@@ -195,6 +200,11 @@ var (
 			name: "Flap Interface and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:023 Flap egress ports and verify the packets sent/dropped as port up/down",
 			fn:   testPacketOutEgressWithInterfaceFlap,
+		},
+		{
+			name: "Flap Interface and Check PacketOut(submit_to_ingress)",
+			desc: "Packet I/O-Traceroute-PacketOut:023 Flap egress ports and verify the packets sent/dropped as port up/down",
+			fn:   testPacketOutIngressWithInterfaceFlap,
 		},
 		{
 			name: "Check PacketOut Scale(submit_to_egress)",

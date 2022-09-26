@@ -33,7 +33,7 @@ var (
 		{
 			name: "SetForwardingPipelineCfg from primary with differnet election id",
 			desc: "SetForwardingPipelineConfig-Compliance:012 14.2 send SetForwardingPipelineConfig from primary with differnet election id value, verify the device behavior, verify xr returns with PERMISSION_DENIED",
-			fn:   testSetForwardingPipelineFromNonPrimary,
+			fn:   testSetForwardingPipelineFromPrimaryWithDifferentElectionID,
 		},
 		{
 			name: "SetForwardingPipelineCfg with VERIFY action with google p4info",

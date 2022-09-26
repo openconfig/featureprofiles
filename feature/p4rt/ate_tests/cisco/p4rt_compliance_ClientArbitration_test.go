@@ -62,16 +62,18 @@ var (
 			desc: "client arbitration-Compliance:010 Verify the advisory message is NOT sent out to other controllers on the different device-id when stream channel is broken for primary controller",
 			fn:   testAdvisoryMessageOnDifferentNPU,
 		},
-		// {
-		// 	name: "Send arbitration message with non-exist device Id in Client Arbitration",
-		// 	desc: "client arbitration-Compliance:011 5.3.1(a) device_id not found on device, terminate streamchannel and return NOT_FOUND error",
-		// 	fn:   testNonExistDeviceIdInClientArbitration,
-		// },
-		// {
-		// 	name: "Send same election Id as primary controller from other device controller in Client Arbitration",
-		// 	desc: "client arbitration-Compliance:012 5.3.1(b) same election-id already used for other controller(primary) on same device-id, terminate stream channel and return INVALID_ARGUMENT",
-		// 	fn:   testSameElectionIdAsPrimary,
-		// },
+		{
+			name: "Send arbitration message with non-exist device Id in Client Arbitration",
+			desc: "client arbitration-Compliance:011 5.3.1(a) device_id not found on device, terminate streamchannel and return NOT_FOUND error",
+			fn:   testNonExistDeviceIdInClientArbitration,
+			skip: true,
+		},
+		{
+			name: "Send same election Id as primary controller from other device controller in Client Arbitration",
+			desc: "client arbitration-Compliance:012 5.3.1(b) same election-id already used for other controller(primary) on same device-id, terminate stream channel and return INVALID_ARGUMENT",
+			fn:   testSameElectionIdAsPrimary,
+			skip: true,
+		},
 		{
 			name: "Send same election Id as primary controller from same device backup controller in Client Arbitration",
 			desc: "client arbitration-Compliance:013 5.3.1(b) same election-id already used for other controller(standby) on same device-id, terminate stream channel and return INVALID_ARGUMENT",
@@ -107,11 +109,12 @@ var (
 			desc: "client arbitration-Compliance:019 5.3.2(c) MasterArbitrationUpdate received on already connected controller, if role.config doesn't match exsiting, return INVALID_ARGUMENT",
 			fn:   testDiffernetRoleConfigOnExistingConnectedController,
 		},
-		// {
-		// 	name: "New controller sends same election Id as existing connected primary controller in Client Arbitration",
-		// 	desc: "client arbitration-Compliance:020 5.3.2(d) MasterArbitrationUpdate received on already connected controller, if election id is the same as existing, terminate stream and return INVALID_ARUGMENT. Same election-id sent from the different controller (for different sessions)",
-		// 	fn:   testSameElectionIdFromDifferentController,
-		// },
+		{
+			name: "New controller sends same election Id as existing connected primary controller in Client Arbitration",
+			desc: "client arbitration-Compliance:020 5.3.2(d) MasterArbitrationUpdate received on already connected controller, if election id is the same as existing, terminate stream and return INVALID_ARUGMENT. Same election-id sent from the different controller (for different sessions)",
+			fn:   testSameElectionIdFromDifferentController,
+			skip: true,
+		},
 		{
 			name: "New controller sends different role and same election Id as existing connected primary controller in Client Arbitration",
 			desc: "client arbitration-Compliance:021 5.3.2(e)(i)MasterArbitrationUpdate received on already connected controller, if election id is the same as existing related connected primary controller, verify role.config is updated and advisory message is sent to all controller related to that device-id + role",
@@ -140,7 +143,7 @@ var (
 		{
 			name: "New Primary notify non-primary controller in Client Arbitration",
 			desc: "client arbitration-Compliance:026 5.3.2(f)(1b)(ii) MasterArbitrationUpdate is accepted and processed, the controller will be primary based on the election-id and role. Also there is previous primary oron-going Write message from previous primary.Verify Server notific other controllers of the new primary via advisory message",
-			fn:   testNewPrimaryWithWriteFromPreviousPrimary,
+			fn:   testNewPrimaryNotifyOtherController,
 		},
 		{
 			name: "New Primary connects with existing on-going write from prevoius controller in Client Arbitration",

@@ -27,9 +27,10 @@ func getComponentID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) s
 	component := telemetry.Component{}
 	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
 	names := []string{}
+	pattern, _ := regexp.Compile(".*-NPU\\d+")
 	for _, c := range resp {
 		name := c.GetName()
-		if match, _ := regexp.MatchString(".*-NPU\\d+", name); match && !strings.Contains(name, "FC") {
+		if match := pattern.MatchString(name); match && !strings.Contains(name, "FC") {
 			names = append(names, name)
 		}
 	}
@@ -43,6 +44,8 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	resp := dut.Telemetry().ComponentAny().Get(t)
 	component := telemetry.Component{}
 	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
+	pattern, _ := regexp.Compile(".*-NPU\\d+")
+
 	i := uint64(0)
 	for _, c := range resp {
 		name := c.GetName()
@@ -56,7 +59,7 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 		if match {
 			continue
 		}
-		if match, _ := regexp.MatchString(".*-NPU\\d+", name); match && !strings.Contains(name, "FC") {
+		if match := pattern.MatchString(name); match && !strings.Contains(name, "FC") {
 			component.Name = ygot.String(name)
 			component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID + i)
 			dut.Config().Component(name).Update(t, &component)
