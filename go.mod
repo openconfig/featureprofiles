@@ -27,7 +27,6 @@ require (
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
 	sigs.k8s.io/yaml v1.3.0
-	wwwin-github.cisco.com/rehaddad/go-wbb v0.0.0-20220613172816-392a69f696ae
 )
 
 require (
