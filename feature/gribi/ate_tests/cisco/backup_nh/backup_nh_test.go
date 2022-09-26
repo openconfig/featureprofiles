@@ -30,6 +30,7 @@ import (
 	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
@@ -150,11 +151,11 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	//shutdown primary path one by one (destination end) and validate traffic switching to backup (port8)
 	args.interfaceaction(t, "port7", false)
 	args.interfaceaction(t, "port6", false)
-	args.client.AftPushConfig(t)
-	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.26")
-	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.22")
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.26")
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.22")
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -169,12 +170,12 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
 	}
-	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.18")
-	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.14")
-	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.10")
-	args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.6")
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.18")
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.14")
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.10")
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.6")
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -187,9 +188,9 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	args.interfaceaction(t, "port4", true)
 	args.interfaceaction(t, "port3", true)
 	args.interfaceaction(t, "port2", true)
-	args.client.AftPopConfig(t)
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPopConfig(t)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -2309,16 +2310,16 @@ func TestBackUp(t *testing.T) {
 	// Dial gRIBI
 	ctx := context.Background()
 
-	// // Configure the DUT
-	// configureDUT(t, dut)
-	// configbasePBR(t, dut, "TE", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	// defer unconfigbasePBR(t, dut)
-	// // configure route-policy
-	// configRP(t, dut)
-	// // configure ISIS on DUT
-	// addISISOC(t, dut, "Bundle-Ether127")
-	// // configure BGP on DUT
-	// addBGPOC(t, dut, "100.100.100.100")
+	// Configure the DUT
+	configureDUT(t, dut)
+	configbasePBR(t, dut, "TE", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	defer unconfigbasePBR(t, dut)
+	// configure route-policy
+	configRP(t, dut)
+	// configure ISIS on DUT
+	addISISOC(t, dut, "Bundle-Ether127")
+	// configure BGP on DUT
+	addBGPOC(t, dut, "100.100.100.100")
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
@@ -2337,126 +2338,126 @@ func TestBackUp(t *testing.T) {
 			desc: "Base usecase with 2 NHOP Groups - Backup Pointing to route (drop)",
 			fn:   testBackupToDrop,
 		},
-		// {
-		// 	name: "Delete add backup",
-		// 	desc: "Deleting and Adding Back the Backup has no impact on traffic",
-		// 	fn:   testDeleteAddBackupToDrop,
-		// },
-		// {
-		// 	name: "Add backup after primary down",
-		// 	desc: "Add the backup - After Primary links are down Traffic continues ot DROP",
-		// 	fn:   testBackupToTrafficLoss,
-		// },
-		// {
-		// 	name: "Update backup to another ID",
-		// 	desc: "Modify Backup pointing to Different ID which is pointing to a different static rooute pointitng to DROP",
-		// 	fn:   testUpdateBackUpToDropID,
-		// },
-		// {
-		// 	name: "Backup pointing to decap",
-		// 	desc: "Base usecase with 2 NHOP Groups - - Backup Pointing to Decap",
-		// 	fn:   testBackupToDecap,
-		// },
-		// {
-		// 	name: "flush forwarding chain with and without backup NH",
-		// 	desc: "add testcase to flush forwarding chain with backup NHG only and forwarding chain with backup NHG",
-		// 	fn:   testFlushForwarding,
-		// },
-		// {
-		// 	name: "Backup change from static to decap",
-		// 	desc: "While Primary Paths are down Modify the Backup from poiniting to a static route to a DECAP chain - Traffic resumes after Decap",
-		// 	fn:   testBackupSwitchFromDropToDecap,
-		// },
-		// {
-		// 	name: "Multiple NW Instance with different NHG, same NH and different NHG backup",
-		// 	desc: "Multiple NW Instances (VRF's ) pointing to different NHG but same NH Entry but different NHG Backup",
-		// 	fn:   testUpdateBackupToDifferentNHG,
-		// },
-		// {
-		// 	name: "Get function validation",
-		// 	desc: "add decap NH and related forwarding chain and validate them using GET function",
-		// 	fn:   testValidateForwardingChain,
-		// },
-		// {
-		// 	name: "IPv4BackUpSingleNH",
-		// 	desc: "Single NH Ensure that backup NextHopGroup entries are honoured in gRIBI for NHGs containing a single NH",
-		// 	fn:   testBackupSingleNH,
-		// },
-		// {
-		// 	name: "IPv4BackUpMultiNH",
-		// 	desc: "Multiple NHBackup NHG: Multiple NH Ensure that backup NHGs are honoured with NextHopGroup entries containing",
-		// 	fn:   testBackupMultiNH,
-		// },
-		// {
-		// 	name: "IPv4BackUpRemoveBackup",
-		// 	desc: "Set primary and backup path with gribi and send traffic. Delete the backup NHG and check if impacts traffic",
-		// 	fn:   testIPv4BackUpRemoveBackup,
-		// },
-		// {
-		// 	name: "IPv4BackUpAddBkNHG",
-		// 	desc: "Set primary path with gribi and shutdown all the primary path. Now add the backup NHG and  validate traffic ",
-		// 	fn:   testIPv4BackUpAddBkNHG,
-		// },
-		// {
-		// 	name: "IPv4BackUpToggleBkNHG",
-		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path. Now remove,readd the backup NHG and validate traffic ",
-		// 	fn:   testIPv4BackUpToggleBkNHG,
-		// },
-		// {
-		// 	name: "IPv4BackUpDecapToDrop",
-		// 	desc: "Shutdown all the primary path and modify Backup NHG from Drop to Decap and validate traffic ",
-		// 	fn:   testIPv4BackUpDecapToDrop,
-		// },
-		// {
-		// 	name: "IPv4BackUpDropToDecap",
-		// 	desc: "Shutdown all the primary path and modify Backup NHG from Decap to Drop and validate traffic ",
-		// 	fn:   testIPv4BackUpDropToDecap,
-		// },
-		// {
-		// 	name: "IPv4BackUpShutSite1",
-		// 	desc: "Shutdown the primary path for 1 Site  and validate traffic is going through another primary and not backup ",
-		// 	fn:   testIPv4BackUpShutSite1,
-		// },
-		// {
-		// 	name: "IPv4BackUpModifyDecapNHG",
-		// 	desc: "Shutdown all the primary path and modify Backup NHG from  Decap NHG 101 to Decap NHG 102 and validate traffic ",
-		// 	fn:   testIPv4BackUpModifyDecapNHG,
-		// },
-		// {
-		// 	name: "IPv4BackUpMultiplePrefixes",
-		// 	desc: "Have same primary and backup links for 2 prefixes with different NHG IDs and validate backup traffic ",
-		// 	fn:   testIPv4BackUpMultiplePrefixes,
-		// },
-		// {
-		// 	name: "IPv4BackUpMultipleVRF",
-		// 	desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
-		// 	fn:   testIPv4BackUpMultipleVRF,
-		// },
-		// {
-		// 	name: "IPv4BackUpFlapBGPISIS",
-		// 	desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
-		// 	fn:   testIPv4BackUpFlapBGPISIS,
-		// },
-		// {
-		// 	name: "IPv4BackupLCOIR",
-		// 	desc: "Have Primary and backup configured on same LC and do a shut of primary. Followed by LC reload",
-		// 	fn:   testIPv4BackUpLCOIR,
-		// },
-		// {
-		// 	name: "IPv4MultipleNHG",
-		// 	desc: "Have same primary and backup decap with multiple nhg",
-		// 	fn:   testIPv4MultipleNHG,
-		// },
-		// {
-		// 	name: "RecursiveToNonrecursive",
-		// 	desc: "Change from recursive to non recursive path",
-		// 	fn:   testRecursiveToNonrecursive,
-		// },
-		// {
-		// 	name: "NonrecursiveToRecursive",
-		// 	desc: "change from nonrecursive to recursive path",
-		// 	fn:   testNonrecursiveToRecursive,
-		// },
+		{
+			name: "Delete add backup",
+			desc: "Deleting and Adding Back the Backup has no impact on traffic",
+			fn:   testDeleteAddBackupToDrop,
+		},
+		{
+			name: "Add backup after primary down",
+			desc: "Add the backup - After Primary links are down Traffic continues ot DROP",
+			fn:   testBackupToTrafficLoss,
+		},
+		{
+			name: "Update backup to another ID",
+			desc: "Modify Backup pointing to Different ID which is pointing to a different static rooute pointitng to DROP",
+			fn:   testUpdateBackUpToDropID,
+		},
+		{
+			name: "Backup pointing to decap",
+			desc: "Base usecase with 2 NHOP Groups - - Backup Pointing to Decap",
+			fn:   testBackupToDecap,
+		},
+		{
+			name: "flush forwarding chain with and without backup NH",
+			desc: "add testcase to flush forwarding chain with backup NHG only and forwarding chain with backup NHG",
+			fn:   testFlushForwarding,
+		},
+		{
+			name: "Backup change from static to decap",
+			desc: "While Primary Paths are down Modify the Backup from poiniting to a static route to a DECAP chain - Traffic resumes after Decap",
+			fn:   testBackupSwitchFromDropToDecap,
+		},
+		{
+			name: "Multiple NW Instance with different NHG, same NH and different NHG backup",
+			desc: "Multiple NW Instances (VRF's ) pointing to different NHG but same NH Entry but different NHG Backup",
+			fn:   testUpdateBackupToDifferentNHG,
+		},
+		{
+			name: "Get function validation",
+			desc: "add decap NH and related forwarding chain and validate them using GET function",
+			fn:   testValidateForwardingChain,
+		},
+		{
+			name: "IPv4BackUpSingleNH",
+			desc: "Single NH Ensure that backup NextHopGroup entries are honoured in gRIBI for NHGs containing a single NH",
+			fn:   testBackupSingleNH,
+		},
+		{
+			name: "IPv4BackUpMultiNH",
+			desc: "Multiple NHBackup NHG: Multiple NH Ensure that backup NHGs are honoured with NextHopGroup entries containing",
+			fn:   testBackupMultiNH,
+		},
+		{
+			name: "IPv4BackUpRemoveBackup",
+			desc: "Set primary and backup path with gribi and send traffic. Delete the backup NHG and check if impacts traffic",
+			fn:   testIPv4BackUpRemoveBackup,
+		},
+		{
+			name: "IPv4BackUpAddBkNHG",
+			desc: "Set primary path with gribi and shutdown all the primary path. Now add the backup NHG and  validate traffic ",
+			fn:   testIPv4BackUpAddBkNHG,
+		},
+		{
+			name: "IPv4BackUpToggleBkNHG",
+			desc: "Set primary and backup path with gribi and shutdown all the primary path. Now remove,readd the backup NHG and validate traffic ",
+			fn:   testIPv4BackUpToggleBkNHG,
+		},
+		{
+			name: "IPv4BackUpDecapToDrop",
+			desc: "Shutdown all the primary path and modify Backup NHG from Drop to Decap and validate traffic ",
+			fn:   testIPv4BackUpDecapToDrop,
+		},
+		{
+			name: "IPv4BackUpDropToDecap",
+			desc: "Shutdown all the primary path and modify Backup NHG from Decap to Drop and validate traffic ",
+			fn:   testIPv4BackUpDropToDecap,
+		},
+		{
+			name: "IPv4BackUpShutSite1",
+			desc: "Shutdown the primary path for 1 Site  and validate traffic is going through another primary and not backup ",
+			fn:   testIPv4BackUpShutSite1,
+		},
+		{
+			name: "IPv4BackUpModifyDecapNHG",
+			desc: "Shutdown all the primary path and modify Backup NHG from  Decap NHG 101 to Decap NHG 102 and validate traffic ",
+			fn:   testIPv4BackUpModifyDecapNHG,
+		},
+		{
+			name: "IPv4BackUpMultiplePrefixes",
+			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs and validate backup traffic ",
+			fn:   testIPv4BackUpMultiplePrefixes,
+		},
+		{
+			name: "IPv4BackUpMultipleVRF",
+			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
+			fn:   testIPv4BackUpMultipleVRF,
+		},
+		{
+			name: "IPv4BackUpFlapBGPISIS",
+			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
+			fn:   testIPv4BackUpFlapBGPISIS,
+		},
+		{
+			name: "IPv4BackupLCOIR",
+			desc: "Have Primary and backup configured on same LC and do a shut of primary. Followed by LC reload",
+			fn:   testIPv4BackUpLCOIR,
+		},
+		{
+			name: "IPv4MultipleNHG",
+			desc: "Have same primary and backup decap with multiple nhg",
+			fn:   testIPv4MultipleNHG,
+		},
+		{
+			name: "RecursiveToNonrecursive",
+			desc: "Change from recursive to non recursive path",
+			fn:   testRecursiveToNonrecursive,
+		},
+		{
+			name: "NonrecursiveToRecursive",
+			desc: "change from nonrecursive to recursive path",
+			fn:   testNonrecursiveToRecursive,
+		},
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
