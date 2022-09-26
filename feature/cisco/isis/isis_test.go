@@ -23,7 +23,7 @@ func TestISISState(t *testing.T) {
 	time.Sleep(15 * time.Second)
 	isis := inputObj.Device(dut).Features().Isis[0]
 	peerIsis := inputObj.ATE(ate).Features().Isis[0]
-	isisPath := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isis.Name).Isis()
+	isisPath := dut.Telemetry().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isis.Name).Isis()
 	t.Run("Subscribe//network-instances/network-instance/protocols/protocol/isis/levels/level/state/level-number", func(t *testing.T) {
 		state := isisPath.Level(uint8(ft.GetIsisLevelType(isis.Level))).LevelNumber()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
