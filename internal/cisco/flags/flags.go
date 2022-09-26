@@ -45,6 +45,8 @@ var (
 
 	NonDefaultNetworkInstance = flag.String("nondefault_vrf", "TE", "The name used for the nondefault network instance for VRF.")
 
+	PbrInstance = flag.String("vrf_name", "DEFAULT", "pbr network instance")
+
 	BgpInstance = flag.String("vrf_name", "default", "bgp instance name")
 )
 
