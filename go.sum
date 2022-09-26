@@ -172,6 +172,7 @@ github.com/jstemmer/go-junit-report/v2 v2.0.1-0.20220823220451-7b10b4285462 h1:B
 github.com/jstemmer/go-junit-report/v2 v2.0.1-0.20220823220451-7b10b4285462/go.mod h1:mgHVr7VUo5Tn8OLVr1cKnLuEy0M92wdRntM99h7RkgQ=
 github.com/kentik/patricia v0.0.0-20201202224819-f9447a6e25f1 h1:D7qhJP3R49ZjUzpzKQ6B2H3lgejPs6DTO5gRomhhOpE=
 github.com/kentik/patricia v0.0.0-20201202224819-f9447a6e25f1/go.mod h1:2OfLA+0esiUJpwMjrH39pEk79cb8MvGTBS9YlZpejJ4=
+github.com/kentik/patricia v1.2.0/go.mod h1:6jY40ESetsbfi04/S12iJlsiS6DYL2B2W+WAcqoDHtw=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/kr/fs v0.1.0/go.mod h1:FFnZGqtBN9Gxj7eW1uZ42v5BccTP0vu6NEaFoC2HwRg=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
@@ -208,8 +209,10 @@ github.com/openconfig/goyang v1.1.0/go.mod h1:vX61x01Q46AzbZUzG617vWqh/cB+aisc+R
 github.com/openconfig/gribi v0.1.1-0.20210423184541-ce37eb4ba92f/go.mod h1:OoH46A2kV42cIXGyviYmAlGmn6cHjGduyC2+I9d/iVs=
 github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56 h1:IndsqbKNjq5UkF4aZ7Iy25bFTJrjOXOlhm5Q3a7SkBY=
 github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
+github.com/openconfig/gribi v0.1.1-0.20220622162620-08d53dffce45/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
 github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e h1:TXNaXJyaMLQSDEyFBH9gEWGaOD7RMWG/DY/YBv+GmE0=
 github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e/go.mod h1:Sh6fskyzLzDNOymhPCbHY8IniqYjj/auL4F/3xnPh28=
+github.com/openconfig/gribigo v0.0.0-20220920165304-98b0f3bbf1f7/go.mod h1:XFjHVplvGeKC3jNkDzh2fAVbPh4CVecZy11yhByAXw0=
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d/go.mod h1:x9tAZ4EwqCQ0jI8D6S8Yhw9Z0ee7/BxWQX0k0Uib5Q8=
 github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde h1:tSMKTQlWcHhdxQhn6P9myhLcoI+SzxF9e6hHWstCagU=
 github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde/go.mod h1:OmTWe7RyZj2CIzIgy4ovEBzCLBJzRvWSZmn7u02U9gU=
