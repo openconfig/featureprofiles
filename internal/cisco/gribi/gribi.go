@@ -36,6 +36,7 @@ const (
 	timeout = time.Minute
 )
 
+// DECAP constant declaration
 const (
 	DECAP = "decap"
 )
