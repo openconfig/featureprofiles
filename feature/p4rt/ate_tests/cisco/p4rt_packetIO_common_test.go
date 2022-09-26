@@ -233,11 +233,11 @@ func configureInterface(ctx context.Context, t *testing.T, dut *ondatra.DUTDevic
 		Name:    ygot.String(interfaceName),
 		Enabled: ygot.Bool(true),
 		Subinterface: map[uint32]*telemetry.Interface_Subinterface{
-			subInterface: &telemetry.Interface_Subinterface{
+			subInterface: {
 				Index: ygot.Uint32(subInterface),
 				Ipv4: &telemetry.Interface_Subinterface_Ipv4{
 					Address: map[string]*telemetry.Interface_Subinterface_Ipv4_Address{
-						ipv4Address: &telemetry.Interface_Subinterface_Ipv4_Address{
+						ipv4Address: {
 							Ip:           ygot.String(ipv4Address),
 							PrefixLength: ygot.Uint8(24),
 						},

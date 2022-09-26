@@ -95,7 +95,7 @@ func programmGDPMatchEntryWithStreamParameter(ctx context.Context, t *testing.T,
 		DeviceId:   streamParameter.DeviceId,
 		ElectionId: &p4_v1.Uint128{High: streamParameter.ElectionIdH, Low: streamParameter.ElectionIdL},
 		Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
-			&wbb.ACLWbbIngressTableEntryInfo{
+			{
 				Type:          actionType,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
@@ -268,7 +268,7 @@ func readProgrammedEntry(ctx context.Context, t *testing.T, device_id uint64, cl
 	stream, err := client.Read(&p4_v1.ReadRequest{
 		DeviceId: device_id,
 		Entities: []*p4_v1.Entity{
-			&p4_v1.Entity{
+			{
 				Entity: &p4_v1.Entity_TableEntry{},
 			},
 		},

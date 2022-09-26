@@ -240,7 +240,7 @@ func (lldp *LLDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbb
 	if delete {
 		actionType = p4_v1.Update_DELETE
 	}
-	return []*wbb.ACLWbbIngressTableEntryInfo{&wbb.ACLWbbIngressTableEntryInfo{
+	return []*wbb.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
 		EtherType:     0x88cc,
 		EtherTypeMask: 0xFFFF,
@@ -259,7 +259,7 @@ func (lldp *LLDPPacketIO) GetPacketOut(t *testing.T, portID uint32, submitIngres
 	packet := &p4_v1.PacketOut{
 		Payload: packetLLDPRequestGet(t),
 		Metadata: []*p4_v1.PacketMetadata{
-			&p4_v1.PacketMetadata{
+			{
 				MetadataId: uint32(1), // "egress_port"
 				Value:      []byte(fmt.Sprint(portID)),
 			},

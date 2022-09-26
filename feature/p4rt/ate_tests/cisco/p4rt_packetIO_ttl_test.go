@@ -263,7 +263,7 @@ func (ttl *TTLPacketIO) GetPacketOut(t *testing.T, portID uint32, submitIngress 
 		packet := &p4_v1.PacketOut{
 			Payload: ttl.packetTTLRequestGet(t, submitIngress, true),
 			Metadata: []*p4_v1.PacketMetadata{
-				&p4_v1.PacketMetadata{
+				{
 					MetadataId: uint32(1), // "egress_port"
 					Value:      []byte(fmt.Sprint(portID)),
 				},
@@ -283,7 +283,7 @@ func (ttl *TTLPacketIO) GetPacketOut(t *testing.T, portID uint32, submitIngress 
 		packet := &p4_v1.PacketOut{
 			Payload: ttl.packetTTLRequestGet(t, submitIngress, false),
 			Metadata: []*p4_v1.PacketMetadata{
-				&p4_v1.PacketMetadata{
+				{
 					MetadataId: uint32(1), // "egress_port"
 					Value:      []byte(fmt.Sprint(portID)),
 				},

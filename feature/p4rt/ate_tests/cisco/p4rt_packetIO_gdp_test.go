@@ -182,7 +182,7 @@ func (gdp *GDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbbIn
 	if delete {
 		actionType = p4_v1.Update_DELETE
 	}
-	return []*wbb.ACLWbbIngressTableEntryInfo{&wbb.ACLWbbIngressTableEntryInfo{
+	return []*wbb.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
 		EtherType:     0x6007,
 		EtherTypeMask: 0xFFFF,
@@ -198,7 +198,7 @@ func (gdp *GDPPacketIO) GetPacketOut(t *testing.T, portID uint32, submitIngress 
 	packet := &p4_v1.PacketOut{
 		Payload: packetGDPRequestGet(t),
 		Metadata: []*p4_v1.PacketMetadata{
-			&p4_v1.PacketMetadata{
+			{
 				MetadataId: uint32(1), // "egress_port"
 				Value:      []byte(fmt.Sprint(portID)),
 			},
