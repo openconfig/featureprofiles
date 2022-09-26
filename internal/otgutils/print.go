@@ -29,7 +29,7 @@ import (
 func LogFlowMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
 	var out strings.Builder
-	out.WriteString("\nFlow Metrics\n")
+	out.WriteString("\nOTG Flow Metrics\n")
 	fmt.Fprintln(&out, strings.Repeat("-", 80))
 	out.WriteString("\n")
 	fmt.Fprintf(&out, "%-25v%-15v%-15v%-15v%-15v\n", "Name", "Frames Tx", "Frames Rx", "FPS Tx", "FPS Rx")
@@ -51,7 +51,7 @@ func LogPortMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
 	var link string
 	var out strings.Builder
-	out.WriteString("\nPort Metrics\n")
+	out.WriteString("\nOTG Port Metrics\n")
 	fmt.Fprintln(&out, strings.Repeat("-", 120))
 	out.WriteString("\n")
 	fmt.Fprintf(&out,
@@ -133,11 +133,11 @@ func LogLacpMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 			synchronization := lacpMetric.GetSynchronization().String()
 			collecting := lacpMetric.GetCollecting()
 			distributing := lacpMetric.GetDistributing()
-			systemId := lacpMetric.GetSystemId()
-			partnerId := lacpMetric.GetPartnerId()
+			systemID := lacpMetric.GetSystemId()
+			partnerID := lacpMetric.GetPartnerId()
 			out.WriteString(fmt.Sprintf(
 				"%-10v%-15v%-18v%-15v%-15v%-20v%-20v\n",
-				lag.Name(), lagPort.PortName(), synchronization, collecting, distributing, systemId, partnerId,
+				lag.Name(), lagPort.PortName(), synchronization, collecting, distributing, systemID, partnerID,
 			))
 
 		}
