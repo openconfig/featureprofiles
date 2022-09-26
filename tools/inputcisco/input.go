@@ -1,8 +1,9 @@
+// Package inputcisco provides basic data structure to generate input for tests.
 package inputcisco
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -47,7 +48,7 @@ func unmarshall(data []byte, inType inputType) (*proto.Input, error) {
 }
 
 func getInput(inputFilePath string) (*proto.Input, error) {
-	inputFile, err := ioutil.ReadFile(inputFilePath)
+	inputFile, err := os.ReadFile(inputFilePath)
 	if err != nil {
 		return &proto.Input{}, errors.Wrapf(err, "failed to read input File proto %s", inputFilePath)
 	}

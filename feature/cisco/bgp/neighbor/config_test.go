@@ -16,7 +16,7 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	telemetryTimeout time.Duration = 10 * time.Second
+	telemetryTimeout time.Duration = 30 * time.Second
 	configApplyTime  time.Duration = 5 * time.Second // FIXME: Workaround
 	configDeleteTime time.Duration = 5 * time.Second // FIXME: Workaround
 	dutName          string        = "dut"
@@ -64,15 +64,16 @@ func TestNeighborAddress(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []string{
-		// "12.13.14.15",
-		// "2008:23::1",
-		"b:04:188:FaB:75:28:b:fd",
+		"1.2.3.4",
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
 	bgpConfig := dut.Config().NetworkInstance(networkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := dut.Telemetry().NetworkInstance(networkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpConfig.Global().As().Update(t, bgp_as)
+	time.Sleep(configApplyTime)
+	config := bgpConfig.Neighbor(neighbor_address).PeerAs()
+	t.Run("Update", func(t *testing.T) { config.Update(t, 34) })
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -867,7 +868,7 @@ func TestAfiSafiEnabled(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []bool{
-		// false,
+		false,
 		true,
 	}
 
@@ -882,6 +883,11 @@ func TestAfiSafiEnabled(t *testing.T) {
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled using value %v", input), func(t *testing.T) {
+
+			global_addr_family_config := bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+			t.Run("Update", func(t *testing.T) { global_addr_family_config.Update(t, input) })
+			time.Sleep(configApplyTime)
+
 			config := bgpConfig.Neighbor(neighbor_address).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
 			state := bgpState.Neighbor(neighbor_address).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
 
@@ -913,13 +919,22 @@ func TestAfiSafiMaxPrefixes(t *testing.T) {
 	bgpConfig := dut.Config().NetworkInstance(networkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := dut.Telemetry().NetworkInstance(networkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	baseConfig := baseBgpNeighborConfig(bgp_as)
-	baseConfig.Neighbor[neighbor_address].GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	baseConfig.Neighbor[neighbor_address].GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	bgpConfig.Update(t, baseConfig)
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes using value %v", input), func(t *testing.T) {
+
+			global_addr_family_config := bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+			t.Run("Update", func(t *testing.T) { global_addr_family_config.Update(t, true) })
+			time.Sleep(configApplyTime)
+
+			config_neighbor_addr := bgpConfig.Neighbor(neighbor_address).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+			t.Run("Update", func(t *testing.T) { config_neighbor_addr.Update(t, true) })
+			time.Sleep(configApplyTime)
+
 			config := bgpConfig.Neighbor(neighbor_address).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().PrefixLimit().MaxPrefixes()
 			state := bgpState.Neighbor(neighbor_address).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().PrefixLimit().MaxPrefixes()
 

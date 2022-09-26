@@ -13,8 +13,8 @@ require (
 	github.com/openconfig/gnoi v0.0.0-20220809151450-6bddacd72ef8
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.1.0
-	github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56
-	github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e
+	github.com/openconfig/gribi v0.1.1-0.20220622162620-08d53dffce45
+	github.com/openconfig/gribigo v0.0.0-20220920165304-98b0f3bbf1f7
 	github.com/openconfig/ondatra v0.0.0-20220914190154-cba46794fe2e
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.2.3
@@ -24,6 +24,7 @@ require (
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	github.com/yuin/goldmark v1.3.5
 	golang.org/x/crypto v0.0.0-20220518034528-6f7dac969898
+	golang.org/x/tools v0.1.5
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
 	sigs.k8s.io/yaml v1.3.0
@@ -55,9 +56,11 @@ require (
 	github.com/spf13/viper v1.12.0 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
+	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/net v0.0.0-20220826154423-83b083e8dc8b // indirect
 	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261 // indirect
 	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
 	google.golang.org/genproto v0.0.0-20220829175752-36a9c930ecbf // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

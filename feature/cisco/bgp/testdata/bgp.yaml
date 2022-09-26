@@ -14,12 +14,12 @@ feature:
         networkname: bgp_network
         useloopback: false
         neighbors:
-          - address: 100.120.1.2
+          - address: 100.120.1.1
             port: $ports.port1
             local_as: 64001
             nexthop: 100.120.1.2
             prefix: 130.1.1.1/32
-          - address: 100.121.1.2
+          - address: 100.121.1.1
             port: $ports.port2
             local_as: 64001
             nexthop: 100.121.1.2

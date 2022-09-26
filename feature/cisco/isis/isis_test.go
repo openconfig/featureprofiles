@@ -1,7 +1,6 @@
 package basetest
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -24,7 +23,7 @@ func TestISISState(t *testing.T) {
 	time.Sleep(15 * time.Second)
 	isis := inputObj.Device(dut).Features().Isis[0]
 	peerIsis := inputObj.ATE(ate).Features().Isis[0]
-	isisPath := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isis.Name).Isis()
+	isisPath := dut.Telemetry().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isis.Name).Isis()
 	t.Run("Subscribe//network-instances/network-instance/protocols/protocol/isis/levels/level/state/level-number", func(t *testing.T) {
 		state := isisPath.Level(uint8(ft.GetIsisLevelType(isis.Level))).LevelNumber()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -129,8 +128,8 @@ func TestISISState(t *testing.T) {
 		state := isisadjPath.UpTimestamp()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		if val != 0 {
-			t.Errorf("ISIS Adj UpTimeStamp: got %d, want %d", val, 0)
+		if val == 0 {
+			t.Errorf("ISIS Adj UpTimeStamp: got %d, want non-zero value", val)
 		}
 	})
 	t.Run("Subscribe//network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/local-extended-circuit-id", func(t *testing.T) {
@@ -161,9 +160,15 @@ func TestISISState(t *testing.T) {
 		state := isisadjPath.AreaAddress()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
-		fmt.Println(cmp.Diff(val, []string{"49.0001"}))
-		if cmp.Diff(val, []string{"49.0001", "49.0001"}) != "" {
-			t.Errorf("ISIS Adj AreaAddress: got %v, want %v", val, []oc.E_IsisTypes_AFI_SAFI_TYPE{oc.IsisTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.IsisTypes_AFI_SAFI_TYPE_IPV6_UNICAST})
+		found := false
+		for _, v := range val {
+			if v == "49.0001" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("ISIS Adj AreaAddress: got %v, want should contain %v", val, "49.0001")
 		}
 	})
 	t.Run("Subscribe//network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv6-address", func(t *testing.T) {
@@ -541,6 +546,8 @@ func TestISISState(t *testing.T) {
 	lsp := isisPath.Level(uint8(2)).
 		Lsp(peerIsis.Systemid)
 	tlvExtv6Prefix := lsp.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(peerIsis.Connectedv6Prefix)
+	// Subscribe at a higher YANG path level as per CSCwb73158
+	lsp.Get(t)
 	t.Run("Subscribe//network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/metric", func(t *testing.T) {
 		state := tlvExtv6Prefix.Metric()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)

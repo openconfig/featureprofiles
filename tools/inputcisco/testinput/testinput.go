@@ -1,3 +1,4 @@
+// Package testinput provides basic data structure to generate input for tests.
 package testinput
 
 import (

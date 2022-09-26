@@ -2,6 +2,7 @@ package basetest
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -398,9 +399,20 @@ func TestPlatformTransceiverState(t *testing.T) {
 func TestSubComponentSwmodule(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	t.Run("Subscribe///components/component/software-module/state/oc-sw-module:module-type", func(t *testing.T) {
-		state := dut.Telemetry().Component(Platform.SwPackage).SoftwareModule().ModuleType()
+		components := dut.Telemetry().ComponentAny().Name().Get(t)
+		regexpPattern := ".*xr-8000-qos-ea.*"
+		r, _ := regexp.Compile(regexpPattern)
+		var s1 []string
+		for _, c := range components {
+			if len(r.FindString(c)) > 0 {
+				s1 = append(s1, c)
+			}
+		}
+		s2 := "IOSXR-PKG/2 " + s1[0]
+		state := dut.Telemetry().Component(s2).SoftwareModule().ModuleType()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := state.Get(t)
+
 		if val != oc.PlatformSoftware_SOFTWARE_MODULE_TYPE_USERSPACE_PACKAGE {
 			t.Errorf("Platform ModuleType: got %s,want %s", val, oc.PlatformSoftware_SOFTWARE_MODULE_TYPE_USERSPACE_PACKAGE)
 
@@ -424,7 +436,17 @@ func TestSubComponentSwmoduleWildCard(t *testing.T) {
 func TestSubComponentSwmoduleStream(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	t.Run("Subscribe///components/component/software-module/state/oc-sw-module:module-type", func(t *testing.T) {
-		state := dut.Telemetry().Component(Platform.SwPackage).SoftwareModule().ModuleType()
+		components := dut.Telemetry().ComponentAny().Name().Get(t)
+		regexpPattern := ".*xr-8000-qos-ea.*"
+		r, _ := regexp.Compile(regexpPattern)
+		var s1 []string
+		for _, c := range components {
+			if len(r.FindString(c)) > 0 {
+				s1 = append(s1, c)
+			}
+		}
+		s2 := "IOSXR-PKG/2 " + s1[0]
+		state := dut.Telemetry().Component(s2).SoftwareModule().ModuleType()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		got := state.Collect(t, 35*time.Second).Await(t)
 		time.Sleep(35 * time.Second)

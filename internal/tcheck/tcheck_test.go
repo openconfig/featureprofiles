@@ -34,17 +34,17 @@ type MockQualified[T any] struct {
 }
 
 // Val returns the value of the sample, erroring out if not present.
-func (q *MockQualified[T]) Val(t testing.TB) T {
+func (path *MockQualified[T]) Val(t testing.TB) T {
 	t.Helper()
-	if !q.IsPresent() {
+	if !path.IsPresent() {
 		t.Fatal("No value present")
 	}
-	return q.val
+	return path.val
 }
 
 // IsPresent returns true if the qualified struct contains a value.
-func (q *MockQualified[T]) IsPresent() bool {
-	return q != nil && q.present
+func (path *MockQualified[T]) IsPresent() bool {
+	return path != nil && path.present
 }
 
 var _ qualified[string] = (*MockQualified[string])(nil)
@@ -143,15 +143,15 @@ type ConcreteWatcher[T any] struct {
 	ok    bool
 }
 
-func (w *ConcreteWatcher[T]) String() string {
-	return fmt.Sprintf("ConcreteWatcher(%v, %v)", w.value, w.ok)
+func (path *ConcreteWatcher[T]) String() string {
+	return fmt.Sprintf("ConcreteWatcher(%v, %v)", path.value, path.ok)
 }
 
-func (w *ConcreteWatcher[T]) Await(t testing.TB) (*MockQualified[T], bool) {
-	if w.ok {
-		return w.value, true
+func (path *ConcreteWatcher[T]) Await(t testing.TB) (*MockQualified[T], bool) {
+	if path.ok {
+		return path.value, true
 	}
-	return w.value, false
+	return path.value, false
 }
 
 // NewPath generates a fake path struct with no value

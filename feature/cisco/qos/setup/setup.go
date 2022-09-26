@@ -1,8 +1,8 @@
+// Package setup includes funtions to load oc model from a json file
 package setup
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -11,42 +11,35 @@ import (
 )
 
 var (
-	jsonConfig []uint8
 	oCPackages = []string{"system", "acl",
 		"networkinstance", "lacp", "local-routes", "lldp", "network-instance", "components", "qos", "interface"} // order is important
 )
 
-func findTestDataPath() string {
+func findTestDataPath(baseConfigFile string) string {
 	path, err := os.Getwd()
 	if err != nil {
 		panic(fmt.Sprintf("Error: %v", err))
 	}
 	for _, ocPkg := range oCPackages {
 		if strings.Contains(path, ocPkg) {
-			return strings.Split(path, ocPkg)[0] + "/" + ocPkg + "/testdata/base_config.json"
+			return strings.Split(path, ocPkg)[0] + "/" + ocPkg + "/testdata/" + baseConfigFile
 		}
 	}
-	return "testdata/base_config.json"
+	return "testdata/" + baseConfigFile
 }
 
 // BaseConfig returns the base configuration used for test setup
-func BaseConfig() *oc.Qos {
-	baseConfig := new(oc.Qos)
-	oc.Unmarshal(jsonConfig, baseConfig)
-	return baseConfig
-}
-
-func init() {
-	var err error
-	jsonConfig, err = ioutil.ReadFile(findTestDataPath())
+func BaseConfig(baseConfigFile string) *oc.Qos {
+	baseConfigPath := findTestDataPath(baseConfigFile)
+	jsonConfig, err := os.ReadFile(baseConfigPath)
 	if err != nil {
 		panic(fmt.Sprintf("Cannot load base config: %v", err))
 	}
-
-	var baseConfig oc.Qos
-	if err := oc.Unmarshal(jsonConfig, &baseConfig); err != nil {
+	baseConfig := new(oc.Qos)
+	if err := oc.Unmarshal(jsonConfig, baseConfig); err != nil {
 		panic(fmt.Sprintf("Cannot unmarshal base config: %v", err))
 	}
+	return baseConfig
 }
 
 // SkipSubscribe returns true when the test cases do not need to do subscribe for the leafs

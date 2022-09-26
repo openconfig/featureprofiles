@@ -6,26 +6,24 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
+	//"github.com/openconfig/testt"
 )
 
 var (
 	testTypeInput []oc.E_Qos_Classifier_Type = []oc.E_Qos_Classifier_Type{
-		oc.E_Qos_Classifier_Type(3), //MPLS
+		oc.E_Qos_Classifier_Type(2),
 	}
 	testNameInput []string = []string{
-		"i",
+		"pmap_new",
 	}
 )
 
-func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
-	bc := setup.BaseConfig()
+func setupQos(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *oc.Qos {
+	bc := setup.BaseConfig(baseConfigFile)
 	setup.ResetStruct(bc, []string{"Classifier"})
-	bcClassifier := setup.GetAnyValue(bc.Classifier)
-	setup.ResetStruct(bcClassifier, []string{})
 	dut.Config().Qos().Replace(t, bc)
 	return bc
 }
-
 func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
 	dut.Config().Qos().Delete(t)
 }
