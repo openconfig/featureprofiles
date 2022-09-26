@@ -24,7 +24,7 @@ func getComponentList(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice)
 	resp := dut.Telemetry().ComponentAny().Get(t)
 	component := telemetry.Component{}
 	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
-	pattern, _ := regexp.Compile(".*-NPU\\d+")
+	pattern, _ := regexp.Compile(`.*-NPU\d+`)
 
 	for _, c := range resp {
 		name := c.GetName()
