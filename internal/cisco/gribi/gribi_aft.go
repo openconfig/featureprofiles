@@ -54,11 +54,6 @@ func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInst
 	found := false
 	for _, nh := range aftNHs {
 		if nh.GetIpAddress() == address {
-			if nh.GetProgrammedIndex() == nhIndex {
-				if nh.GetIpAddress() != address {
-					t.Fatalf("AFT Check failed for aft/next-hop/state/ip-address got %s, want %s", nh.GetIpAddress(), address)
-				}
-			}
 			if nh.GetNetworkInstance() != nhInstance {
 				t.Fatalf("AFT Check failed for aft/next-hop/state/network-instance got %s, want %s", nh.GetNetworkInstance(), nhInstance)
 			}
@@ -66,8 +61,16 @@ func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInst
 				if iref.GetInterface() != interfaceRef {
 					t.Fatalf("AFT Check failed for aft/next-hop/interface-ref/state/interface got %s, want %s", iref.GetInterface(), interfaceRef)
 				}
-			} else if interfaceRef != "" {
-				t.Fatalf("AFT Check failed for aft/next-hop/interface-ref got none, want interface ref %s", interfaceRef)
+			} else {
+				if interfaceRef != "" {
+					t.Fatalf("AFT Check failed for aft/next-hop/interface-ref got none, want interface ref %s", interfaceRef)
+				}
+
+				if nh.GetProgrammedIndex() == nhIndex {
+					if nh.GetIpAddress() != address {
+						t.Fatalf("AFT Check failed for aft/next-hop/state/ip-address got %s, want %s", nh.GetIpAddress(), address)
+					}
+				}
 			}
 			found = true
 			break

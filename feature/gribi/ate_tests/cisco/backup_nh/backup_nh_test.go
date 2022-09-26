@@ -143,6 +143,7 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	// //aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		time.Sleep(time.Duration(*ciscoFlags.GRIBIAFTChainCheckWait) * time.Second)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
 		}
@@ -154,9 +155,10 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
 		args.client.AftPushConfig(t)
-		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.26")
-		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.22")
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		time.Sleep(time.Duration(*ciscoFlags.GRIBIAFTChainCheckWait) * time.Second)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
 		}
@@ -172,11 +174,12 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
-		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.18")
-		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.14")
-		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.10")
-		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, "192.0.2.6")
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		time.Sleep(time.Duration(*ciscoFlags.GRIBIAFTChainCheckWait) * time.Second)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
 		}
@@ -192,6 +195,7 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBIAFTChainCheck {
 		args.client.AftPopConfig(t)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+		time.Sleep(time.Duration(*ciscoFlags.GRIBIAFTChainCheckWait) * time.Second)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
 		}

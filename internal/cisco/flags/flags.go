@@ -8,16 +8,16 @@ var (
 	GRIBITrafficCheck = flag.Bool("gribi_traffic_check", true,
 		"This enable/disable traffic check for gribi tests.")
 
-	GRIBIAFTCheck = flag.Bool("gribi_aft_check", true,
+	GRIBIAFTCheck = flag.Bool("gribi_aft_check", false,
 		"This enable/disable AFT check for gribi entries in gribi tests.")
 
-	GRIBINHTimer = flag.Int("gribi_nh_timer", 1,
+	GRIBINHTimer = flag.Int("gribi_nh_timer", 5,
 		"Wait time before executing aft call for NH")
 
-	GRIBINHGTimer = flag.Int("gribi_nhg_timer", 1,
+	GRIBINHGTimer = flag.Int("gribi_nhg_timer", 5,
 		"Wait time before executing aft call for NHG")
 
-	GRIBIIPv4Timer = flag.Int("gribi_ipv4_timer", 1,
+	GRIBIIPv4Timer = flag.Int("gribi_ipv4_timer", 5,
 		"Wait time before executing aft call for IPv4")
 
 	GRIBIRemoveTimer = flag.Int("gribi_remove_timer", 10,
@@ -25,6 +25,9 @@ var (
 
 	GRIBIAFTChainCheck = flag.Bool("gribi_aft_chain_check", false,
 		"This enable/disable AFT chain check for gribi prefix in gribi tests.")
+
+	GRIBIAFTChainCheckWait = flag.Int("gribi_aft_chain_check_wait_timer", 5,
+		"Wait time before executing aft call for IPv4")
 
 	GRIBIFIBCheck = flag.Bool("gribi_fib_check", true,
 		"This enable/disable FIB ack check for gribi entries in gribi tests.")
@@ -45,9 +48,9 @@ var (
 
 	NonDefaultNetworkInstance = flag.String("nondefault_vrf", "TE", "The name used for the nondefault network instance for VRF.")
 
-	PbrInstance = flag.String("vrf_name", "DEFAULT", "pbr network instance")
+	PbrInstance = flag.String("pbr_instance", "DEFAULT", "pbr network instance")
 
-	BgpInstance = flag.String("vrf_name", "default", "bgp instance name")
+	BgpInstance = flag.String("bgp_instance", "default", "bgp instance name")
 )
 
 // GRIBICheck struct
