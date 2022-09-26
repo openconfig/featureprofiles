@@ -8,7 +8,12 @@ assignees: ''
 ---
 
 **Describe the bug**
-A clear and concise description of what the bug is.
+A clear and concise description of what the bug is.  An ideal bug
+should not have more than 5 or 6 steps in its "steps to reproduce."
+If you have a lot of steps to reproduce, try to retest it by eliminating
+each step one by one. If the bug occurs with any of those steps
+eliminated, you can leave that step out. Think of reasons why the bug
+could be happening. Explore those areas.
 
 **To Reproduce**
 Steps to reproduce the behavior:
