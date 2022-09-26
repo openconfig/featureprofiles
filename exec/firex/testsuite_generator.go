@@ -18,14 +18,17 @@ type GoTest struct {
 	Path       string
 	Patch      string
 	Args       []string
+	Timeout    int
 	ShouldFail bool
 }
 
 // FirexTest represents a single firex test suite
 type FirexTest struct {
-	Name  string
-	Owner string
-	Pyvxr struct {
+	Name     string
+	Owner    string
+	Priority string
+	Timeout  int
+	Pyvxr    struct {
 		Topology string
 	}
 	Testbed   string
@@ -59,10 +62,20 @@ var (
     framework: b4_fp
     owners:
         - {{ $ft.Owner }}
+    {{- if eq $ft.Priority "low" }}
+    priority: BCT
+    {{- else if eq $ft.Priority "high" }}
+    priority: UT
+    {{- end }}
     {{- if $ft.Pyvxr.Topology }}
     plugins:
         - vxsim.py
     topo_file: {{ $.Workspace }}/{{ $ft.Pyvxr.Topology }}
+    {{- end }}
+    {{- if gt $ft.Timeout 0 }}
+    plugins:
+        - change_inactivity_timeout.py
+    changed_inactivity_timeout: {{ $ft.Timeout }}
     {{- end }}
     ondatra_testbed_path: {{ $ft.Testbed }}
     {{- if $ft.Binding }}
@@ -83,7 +96,7 @@ var (
         {{- end }}
     script_paths:
         {{- range $j, $gt := $ft.Tests}}
-        - {{ $gt.Name }}:
+        - {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}:
             test_path: {{ $gt.Path }}
             {{- if $gt.Args }}
             test_args: {{ join $gt.Args " " }}
@@ -91,6 +104,7 @@ var (
             {{- if $gt.Patch }}
             test_patch: {{ $gt.Patch }}
             {{- end }}
+            test_timeout: {{ $gt.Timeout }}
         {{- end }}
     fp_post_tests:
         {{- range $j, $gt := $ft.Posttests}}
@@ -129,6 +143,26 @@ func main() {
 			log.Fatalf("Error unmarshaling test file: %v", err)
 		}
 		suite = append(suite, t)
+	}
+
+	for i := range suite {
+		if suite[i].Timeout > 0 {
+			for j := range suite[i].Tests {
+				if suite[i].Tests[j].Timeout == 0 {
+					suite[i].Tests[j].Timeout = suite[i].Timeout
+				}
+			}
+		}
+	}
+
+	for i := range suite {
+		maxTestTimeout := 0
+		for j := range suite[i].Tests {
+			if maxTestTimeout < suite[i].Tests[j].Timeout {
+				maxTestTimeout = suite[i].Tests[j].Timeout
+			}
+		}
+		suite[i].Timeout = 2 * maxTestTimeout
 	}
 
 	var testSuiteCode strings.Builder

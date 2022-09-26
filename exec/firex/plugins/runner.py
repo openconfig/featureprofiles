@@ -38,7 +38,8 @@ whitelist_arguments([
     'fp_post_tests',
     'test_path', 
     'test_args',
-    'test_patch'
+    'test_patch',
+    'test_timeout'
 ])
 
 @app.task(base=FireX, bind=True)
@@ -116,7 +117,9 @@ def BringupTestbed(self, uid, ws, images = None,
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
             f'-osfile {image_path} ' \
-            f'-osver {image_version}'
+            f'-osver {image_version} ' \
+            f'-v 5 ' \
+            f'-alsologtostderr'
 
         logger.print(f'Executing osinstall command:\n {install_cmd}')
         logger.print(check_output(install_cmd, cwd=fp_repo_dir))
@@ -147,6 +150,7 @@ def b4_fp_chain_provider(ws,
                          test_path=None,
                          test_args=None,
                          test_patch=None,
+                         test_timeout=0,
                          **kwargs):
 
     chain = InjectArgs(ws=ws,
@@ -161,6 +165,7 @@ def b4_fp_chain_provider(ws,
                     test_path=test_path,
                     test_args=test_args,
                     test_patch=test_patch,
+                    test_timeout=test_timeout,
                     **kwargs)
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
@@ -190,7 +195,7 @@ def b4_fp_chain_provider(ws,
             for k, v in pt.items():
                 chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = test_path, test_args = test_args)
+    chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = test_path, test_args = test_args, test_timeout = test_timeout)
 
     if fp_post_tests:
         for pt in fp_post_tests:
@@ -227,6 +232,7 @@ def RunB4FPTest(self,
                 ondatra_binding_path=None,
                 test_path=None,
                 test_args=None,
+                test_timeout=0,
                 go_args=None,
                 fp_ws = None,
                 ):
@@ -266,7 +272,7 @@ def RunB4FPTest(self,
     go_args = f'{go_args} ' \
                 f'-json ' \
                 f'-p 1 ' \
-                f'-timeout 0'
+                f'-timeout {test_timeout}s'
 
     if not test_path:
         raise ValueError('test_path must be set for non-compiled go tests')
@@ -293,6 +299,9 @@ def RunB4FPTest(self,
                         extra_env_vars=extra_env_vars,
                         cwd=fp_ws)
         stop_time = self.get_current_time()
+
+        check_output(f"sed -i 's|skipped|disabled|g' "+xunit_results_filepath)
+
     finally:
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
 

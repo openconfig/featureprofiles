@@ -32,12 +32,6 @@ duts {
   ports {
     id: "port8"
   }
-  ports {
-    id: "port9"
-  }
-  ports {
-    id: "port10"
-  }
 }
 
 ates {
@@ -65,9 +59,6 @@ ates {
   }
   ports {
     id: "port8"
-  }
-  ports {
-    id: "port9"
   }
 }
 
