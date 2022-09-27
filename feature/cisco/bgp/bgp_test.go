@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	ft "github.com/openconfig/featureprofiles/tools/inputcisco/feature"
 	oc "github.com/openconfig/ondatra/telemetry"
@@ -30,7 +31,7 @@ func TestBGPState(t *testing.T) {
 	for _, bgp := range inputObj.Device(dut).Features().Bgp {
 		for _, neighbor := range bgp.Neighbors {
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/description", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Description()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Description()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				description := state.Get(t)
 				if description != neighbor.GetDescription() {
@@ -38,7 +39,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Enabled()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Enabled()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				enabled := state.Get(t)
 				if enabled != true {
@@ -46,7 +47,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).PeerAs()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).PeerAs()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val != uint32(neighbor.PeerAs) {
@@ -54,7 +55,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).LocalAs()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).LocalAs()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val != uint32(neighbor.LocalAs) {
@@ -62,7 +63,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/established-transitions", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).EstablishedTransitions()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).EstablishedTransitions()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val == 0 {
@@ -70,7 +71,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/last-established", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).LastEstablished()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).LastEstablished()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val == 0 {
@@ -78,7 +79,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).PeerType()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).PeerType()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val != oc.BgpTypes_PeerType_EXTERNAL {
@@ -86,7 +87,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-address", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).NeighborAddress()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).NeighborAddress()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val != neighbor.GetAddress() {
@@ -94,7 +95,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/transport/local-address", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().LocalAddress()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().LocalAddress()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val != neighbor.GetLocalAddress() {
@@ -102,7 +103,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/transport/remote-address", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().RemoteAddress()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().RemoteAddress()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val != neighbor.GetAddress() {
@@ -110,7 +111,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/transport/local-port", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().LocalPort()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().LocalPort()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val == 0 {
@@ -118,7 +119,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/transport/remote-port", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().RemotePort()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().RemotePort()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val == 0 {
@@ -126,7 +127,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/transport/mtu-discovery", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().MtuDiscovery()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().MtuDiscovery()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val == true {
@@ -134,7 +135,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/transport/passive-mode", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().PassiveMode()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().PassiveMode()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val == true {
@@ -144,7 +145,7 @@ func TestBGPState(t *testing.T) {
 			for _, afisafi := range neighbor.Afisafi {
 				afitype := ft.GetAfisafiType(afisafi.Type)
 				t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/advertised", func(t *testing.T) {
-					state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).GracefulRestart().Advertised()
+					state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).GracefulRestart().Advertised()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := state.Get(t)
 					if val != true {
@@ -152,7 +153,7 @@ func TestBGPState(t *testing.T) {
 					}
 				})
 				t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/recieved", func(t *testing.T) {
-					state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).GracefulRestart().Received()
+					state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).GracefulRestart().Received()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := state.Get(t)
 					if val != true {
@@ -160,7 +161,7 @@ func TestBGPState(t *testing.T) {
 					}
 				})
 				t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/active", func(t *testing.T) {
-					state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Active()
+					state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Active()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := state.Get(t)
 					if val != true {
@@ -168,7 +169,7 @@ func TestBGPState(t *testing.T) {
 					}
 				})
 				t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/enabled", func(t *testing.T) {
-					state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Enabled()
+					state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Enabled()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := state.Get(t)
 					if val != true {
@@ -176,7 +177,7 @@ func TestBGPState(t *testing.T) {
 					}
 				})
 				t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/afi-safi-name", func(t *testing.T) {
-					state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).AfiSafiName()
+					state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).AfiSafiName()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := state.Get(t)
 					if val != afitype {
@@ -186,7 +187,7 @@ func TestBGPState(t *testing.T) {
 
 				if afitype == oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST {
 					t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/warning-threshold-pct", func(t *testing.T) {
-						state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Ipv4Unicast().PrefixLimit().WarningThresholdPct()
+						state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Ipv4Unicast().PrefixLimit().WarningThresholdPct()
 						defer observer.RecordYgot(t, "SUBSCRIBE", state)
 						val := state.Get(t)
 						if val == 0 {
@@ -194,7 +195,7 @@ func TestBGPState(t *testing.T) {
 						}
 					})
 					t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/max-prefixes", func(t *testing.T) {
-						state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Ipv4Unicast().PrefixLimit().MaxPrefixes()
+						state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Ipv4Unicast().PrefixLimit().MaxPrefixes()
 						defer observer.RecordYgot(t, "SUBSCRIBE", state)
 						val := state.Get(t)
 						if val == 0 {
@@ -203,7 +204,7 @@ func TestBGPState(t *testing.T) {
 					})
 				}
 				t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/prefixes/state/installed", func(t *testing.T) {
-					state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().Installed()
+					state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().Installed()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := state.Get(t)
 					if val == 0 {
@@ -211,7 +212,7 @@ func TestBGPState(t *testing.T) {
 					}
 				})
 				t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/prefixes/state/recieved-pre-policy", func(t *testing.T) {
-					state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().ReceivedPrePolicy()
+					state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().ReceivedPrePolicy()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := state.Get(t)
 					if val == 0 {
@@ -219,7 +220,7 @@ func TestBGPState(t *testing.T) {
 					}
 				})
 				t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/prefixes/state/recieved", func(t *testing.T) {
-					state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().Received()
+					state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().Received()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := state.Get(t)
 					if val == 0 {
@@ -227,7 +228,7 @@ func TestBGPState(t *testing.T) {
 					}
 				})
 				t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/prefixes/state/sent", func(t *testing.T) {
-					state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().Sent()
+					state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().Sent()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := state.Get(t)
 					if val == 0 {
@@ -237,7 +238,7 @@ func TestBGPState(t *testing.T) {
 
 			}
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/messages/recieved/state/notification", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Received().NOTIFICATION()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Received().NOTIFICATION()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val != 0 {
@@ -245,7 +246,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/messages/recieved/state/update", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Received().UPDATE()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Received().UPDATE()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val == 0 {
@@ -253,7 +254,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/messages/sent/state/notification", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Sent().NOTIFICATION()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Sent().NOTIFICATION()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val != 0 {
@@ -261,7 +262,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/messages/sent/state/update", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Sent().UPDATE()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Sent().UPDATE()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val == 0 {
@@ -269,7 +270,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/negotiaited-hold-time", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Timers().NegotiatedHoldTime()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Timers().NegotiatedHoldTime()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val == 0 {
@@ -277,7 +278,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/queues/state/input", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Queues().Input()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Queues().Input()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val != 0 {
@@ -285,7 +286,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/queues/state/output", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Queues().Output()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Queues().Output()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val != 0 {
@@ -293,7 +294,7 @@ func TestBGPState(t *testing.T) {
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/session-state/state/output", func(t *testing.T) {
-				state := dut.Telemetry().NetworkInstance("default").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).SessionState()
+				state := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).SessionState()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := state.Get(t)
 				if val != oc.Bgp_Neighbor_SessionState_ESTABLISHED {
