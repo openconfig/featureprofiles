@@ -39,7 +39,7 @@ func BaseConfig() *oc.Sampling {
 
 func init() {
 	var err error
-	jsonConfig, err = ioutil.ReadFile(findTestDataPath())
+	jsonConfig, err = os.ReadFile(findTestDataPath())
 	if err != nil {
 		panic(fmt.Sprintf("Cannot load base config: %v", err))
 	}
