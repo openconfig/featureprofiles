@@ -373,10 +373,10 @@ func (tc *testCase) verifyATE(t *testing.T) {
 	ap := tc.atePorts[0]
 	// State for the interface.
 	time.Sleep(3 * time.Second)
-	otgutils.LogLagMetrics(t, tc.ate.OTG(), tc.top)
+	otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
 
 	if tc.lagType == telemetry.IfAggregate_AggregationType_LACP {
-		otgutils.LogLacpMetrics(t, tc.ate.OTG(), tc.top)
+		otgutils.LogLACPMetrics(t, tc.ate.OTG(), tc.top)
 	}
 	portMetrics := tc.ate.OTG().Telemetry().Port(ap.ID()).Get(t)
 	if portMetrics.GetLink() != otgtelemetry.Port_Link_UP {
@@ -460,8 +460,8 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 					t.Logf("Taking otg port %s down in the LAG", port.ID())
 					tc.ate.OTG().DisableLACPMembers(t, []string{port.ID()})
 					time.Sleep(3 * time.Second)
-					otgutils.LogLacpMetrics(t, tc.ate.OTG(), tc.top)
-					otgutils.LogLagMetrics(t, tc.ate.OTG(), tc.top)
+					otgutils.LogLACPMetrics(t, tc.ate.OTG(), tc.top)
+					otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
 
 					t.Logf("Awaiting LAG DUT port: %v to stop collecting", dp)
 					tc.dut.Telemetry().Lacp().InterfaceAny().Member(dp.Name()).Collecting().Watch(
