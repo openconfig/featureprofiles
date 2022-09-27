@@ -28,10 +28,10 @@ var (
 	ztp_timeout    = 10 * time.Minute
 )
 var (
-	sshIP   = flag.String("ssh_ip", "173.39.51.67", "External IP address of management interface.")
-	sshPort = flag.String("ssh_port", "57778", "External Port of management interface")
-	sshUser = flag.String("ssh_user", "cafyauto", "External username for ssh")
-	sshPass = flag.String("ssh_pass", "cisco123", "External password for ssh")
+	sshIP   = flag.String("ssh_ip", "", "External IP address of management interface.")
+	sshPort = flag.String("ssh_port", "", "External Port of management interface")
+	sshUser = flag.String("ssh_user", "", "External username for ssh")
+	sshPass = flag.String("ssh_pass", "", "External password for ssh")
 )
 
 type pxe struct {
