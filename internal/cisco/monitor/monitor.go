@@ -101,12 +101,14 @@ type backGroundFunc func(t *testing.T, args *TestArgs, events *CachedConsumer)
 
 // BackgroundFunc runs a testing function in the background. The period can be ticker or simple timer. With simple timer the function only run once
 // Eeven refers to gnmi evelenet collected with streaming telemtry.
-func BackgroundFunc(ctx context.Context, t *testing.T, period interface{}, args *TestArgs, events *CachedConsumer, function backGroundFunc) {
+func BackgroundFunc(ctx context.Context, t *testing.T, period interface{}, args *TestArgs, events *CachedConsumer, function backGroundFunc, workGroup *sync.WaitGroup) {
 	t.Helper()
 	timer, ok := period.(*time.Timer)
 	if ok {
 		go func() {
 			<-timer.C
+			workGroup.Add(1)
+			defer workGroup.Done()
 			function(t, args, events)
 		}()
 	}
@@ -115,8 +117,17 @@ func BackgroundFunc(ctx context.Context, t *testing.T, period interface{}, args 
 	if ok {
 		go func() {
 			for {
-				<-ticker.C
-				function(t, args, events)
+				for _ = range ticker.C {
+					localWG := sync.WaitGroup{}
+					localWG.Add(1) // make sure only one instance of the same test can be excuted
+					workGroup.Add(1) 
+					go func() { // using goroutine to make sure the waitgroup can be done to prevent the whole test to be hanged when a test calls  Fatal
+						defer workGroup.Done()
+						defer localWG.Done()
+						function(t, args, events)
+					}()
+					localWG.Wait()
+				}
 			}
 		}()
 	}

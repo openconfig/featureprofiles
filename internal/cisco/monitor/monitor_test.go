@@ -89,7 +89,7 @@ func testPing(t *testing.T, args *TestArgs, event *CachedConsumer) {
 }
 
 
-func testBatchADDReplaceDeleteIPV4(t *testing.T, args *TestArgs, events *CachedConsumer, done chan bool)   {
+func testBatchADDReplaceDeleteIPV4(t *testing.T, args *TestArgs, events *CachedConsumer)   {
 	t.Helper()
 	t.Logf("Gribi test is started ....")
 	ciscoFlags.GRIBIFIBCheck = ygot.Bool(true)
@@ -153,7 +153,6 @@ func testBatchADDReplaceDeleteIPV4(t *testing.T, args *TestArgs, events *CachedC
 		}
 	}
 	t.Logf("Gribi test is completed succefully")
-	done <- true
 }
 
 func confifVRFS(t *testing.T, dut *ondatra.DUTDevice) {
@@ -184,8 +183,8 @@ func TestLoad(t *testing.T) {
 			//dut.Telemetry().System(),
 			//dut.Telemetry().ComponentAny(),
 			//dut.Telemetry().InterfaceAny(),
-			dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
-			dut.Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts(),
+			//dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
+			dut.Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance),
 		},
 		Consumer: eventConsumer,
 		DUT:      dut,
@@ -194,27 +193,28 @@ func TestLoad(t *testing.T) {
 	//go monitor.Start(ctx, t, true, gpb.SubscriptionList_ONCE)
 	monitor.Start(ctx, t, true, gpb.SubscriptionList_STREAM)
 	// start reset/apply config
+
 	// start gribi test writter
-	BackgroundFunc(ctx, t, time.NewTimer(1 * time.Second), testArgs, eventConsumer, testBatchADDReplaceDeleteIPV4)
+	testGroup:= &sync.WaitGroup{}
+	BackgroundFunc(ctx, t, time.NewTimer(1 * time.Second), testArgs, eventConsumer, testBatchADDReplaceDeleteIPV4,testGroup)
 	// start gribi tests getter
+
 	// start gnoi  ping
-	BackgroundFunc(ctx, t, time.NewTimer(10 * time.Second), testArgs, eventConsumer, testPing)
+	BackgroundFunc(ctx, t, time.NewTimer(10 * time.Second), testArgs, eventConsumer, testPing, testGroup)
 	// start p4rt
-	//runBackground(gribi, ) // add entries
+	//runBackground(gribi, ) 
 
-	// write other tests here rather. The monitor will recive and process all telemtry streams while the test is running
-
-	//
-	time.Sleep(80 * time.Second)
+	time.Sleep(11 * time.Second) // wait until the test start (the timer period + 1)
+	testGroup.Wait()
 	cancelMonitors()
 	for key, val := range eventConsumer.Cache.Items() {
-		ring := val.Object.(*ring.Ring)
+		ring := val.Object.(*ring.Ring) 
+		// just for debugging, will be removed later
 		fmt.Printf("%s:%d\n", key, ring.Len())
 		/*if ring.Prev().Value != nil {
 			fmt.Printf("%s:%d\n", key, ring.Len())
 		}*/
 	}
-	//time.Sleep(10 * time.Second)
 
 }
 
