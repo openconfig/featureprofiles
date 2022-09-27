@@ -74,11 +74,17 @@ telemetry_path {
 }
 
 # Interfaces
+config_path {
+  path: "/qos/interfaces/interface/input/classifiers/classifier/config/name"
+}
 telemetry_path {
   path: "/qos/interfaces/interface/input/classifiers/classifier/state/name"
 }
 config_path {
   path: "/qos/interfaces/interface/output/queues/queue/config/name"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/name"
 }
 config_path {
   path: "/qos/interfaces/interface/output/scheduler-policy/config/name"
@@ -88,6 +94,9 @@ telemetry_path {
 }
 
 # Queues
+config_path {
+  path: "/qos/queues/queue/config/name"
+}
 telemetry_path {
   path: "/qos/queues/queue/state/name"
 }
