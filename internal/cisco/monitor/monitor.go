@@ -3,13 +3,16 @@ package config
 
 import (
 	"context"
+	"container/ring"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/gnmiutil"
 	"github.com/openconfig/gnmi/proto/gnmi"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/patrickmn/go-cache"
+	
 )
 
 type EventType int
@@ -21,13 +24,24 @@ const (
 )
 
 type GNMIMonior struct {
-	Paths  []ygot.PathStruct
+	Paths     []ygot.PathStruct
 	Consumer  gnmiutil.Consumer
-	DUT 	*ondatra.DUTDevice
-	//events map[string][]gnmiutil.DataPoint
+	DUT       *ondatra.DUTDevice
+	Verifiers []interface{}
+	//StringVerifier Verifier[string]
+	//IntVerifier Verifier[int]
+
 }
 
-func (monitor *GNMIMonior) Start(context context.Context, t *testing.T, shareStub bool, mode gpb.SubscriptionList_Mode) {
+type Verfier interface {
+	Verify(t *testing.T)
+}
+
+type Datasource interface {
+	Get(key string) (interface{}, bool)
+}
+
+func (monitor *GNMIMonior) Start(context context.Context, t *testing.T, shareStub bool, mode gnmi.SubscriptionList_Mode) {
 	t.Helper()
 	for _, ygotPath := range monitor.Paths {
 		{
@@ -35,29 +49,121 @@ func (monitor *GNMIMonior) Start(context context.Context, t *testing.T, shareStu
 			if err != nil {
 				t.Fatalf("Could not start the monitor for path %v", ygotPath)
 			}
-			watcher, path, err := gnmiutil.Watch(context,t,monitor.DUT, ygotPath, []*gnmi.Path{path}, false, monitor.Consumer, mode)
+			watcher, path, err := gnmiutil.Watch(context, t, monitor.DUT, ygotPath, []*gnmi.Path{path}, false, monitor.Consumer, mode)
 			if err != nil {
 				t.Fatalf("Could not start the watcher for path %v", path)
 			}
 			// this need to be run as part of monitor group
 			go watcher.Await(t)
-		} 
+		}
 	}
 }
 
-/*writePath func write(path *gnmi.Path) {
-	pathStr, err := ygot.PathToString(path)
-	if err != nil {
-		pathStr = prototext.Format(path)
-	}
-	fmt.Fprintf(&buf, "%s\n", pathStr)
+type CachedConsumer struct {
+	Cache *cache.Cache
 }
 
-writeVal := func(val *gnmi.TypedValue) {
-	switch v := val.Value.(type) {
-	case *gnmi.TypedValue_JsonIetfVal:
-		fmt.Fprintf(&buf, "%s\n", v.JsonIetfVal)
-	default:
-		fmt.Fprintf(&buf, "%s\n", prototext.Format(val))
+func NewCachedConsumer(windowPeriod time.Duration) *CachedConsumer {
+	return &CachedConsumer{
+		Cache: cache.New(windowPeriod, windowPeriod+2),
+	}
+}
+func (consumer *CachedConsumer) Process(datapoints []*gnmiutil.DataPoint) {
+	//fmt.Println("Processing events")
+	for _, data := range datapoints {
+		pathStr, _ := ygot.PathToString(data.Path)
+		preValue, found := consumer.Cache.Get(pathStr); if found {
+			ring := preValue.(*ring.Ring)
+			ring = ring.Next()
+			ring.Value = data
+			consumer.Cache.Set(pathStr, ring, 0)
+			return 
+		}
+		ring:= ring.New(10) // let keep only last 10 values(5 minutes)
+		ring.Value = data
+		consumer.Cache.Set(pathStr, ring, 0)
+	}
+}
+
+func (consumer *CachedConsumer) Get(key string) (interface{}, bool) {
+	return consumer.Cache.Get(key)
+}
+
+
+type backGroundFunc func(t *testing.T, args interface{}, events CachedConsumer) 
+
+// BackgroundCLI runs an admin command on the backgroun and fails if the command is unsucessful or does not return earlier than timeout
+// The command also fails if the response does not match the expeted reply pattern or matches the not-expected one
+func BackgroundFunc(ctx context.Context, t *testing.T, period interface{}, args interface{}, events CachedConsumer, function backGroundFunc) {
+	t.Helper()
+	timer, ok := period.(*time.Timer)
+	if ok {
+		go func() {
+			<-timer.C
+			function(t, args, events)
+		}()
+	}
+
+	ticker, ok := period.(*time.Ticker)
+	if ok {
+		go func() {
+			for {
+				<-ticker.C
+				function(t, args, events)
+			}
+		}()
+	} 
+
+/*type VerifierType int
+const (
+	Once  VerifierType = iota + 1
+	Always
+	Ends
+	Flips
+	Starts
+	Regex
+	Sequence
+)
+
+type SignlePathVerfier struct{
+	datesource  Datasource
+	period time.Ticker
+	key string
+	expected []interface{}
+	typee VerifierType
+	window int
+	journal ring.Ring
+}
+ func NewSignlePathVerfier(t *testing.T, datasource Datasource, period time.Ticker, expected ) *SignlePathVerfier {
+	return & SignlePathVerfier{
+		datesource: datasource,
+		period: period,
+		expected:  ,
+	}
+ }
+
+func (v *SignlePathVerfier) Verify(t *testing.T) {
+	switch (v.Type) {
+	case Once:
+	if ! v.state {
+		if val==v.Value[0]  {
+			v.state = true
+		}
+	}
+	case Always:
+		if val!=v.Value[0]  {
+			t.Fatalf("%s is execpted to be %v all the times", v.Key, v.Value)
+		}
+	}
+
+}
+
+func (v *SignlePathVerfier) verificationLoop(t *testing.T) {
+    for {
+    	 <-v.Period.C
+		 val := v.Datesource.Get(v.Key)
+		 switch (v.Type) {
+			case Once:
+
 	}
 }*/
