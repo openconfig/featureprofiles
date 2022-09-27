@@ -156,7 +156,7 @@ func TestGlobalSampleSize(t *testing.T) {
 	var baseConfig *oc.Sampling = setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
-	t.Run(fmt.Sprintf("Testing /sampling/sflow/config/sample-size"), func(t *testing.T) {
+	t.Run("Testing /sampling/sflow/config/sample-size", func(t *testing.T) {
 		baseConfigSflow := baseConfig.Sflow
 		*baseConfigSflow.Enabled = true
 		*baseConfigSflow.SampleSize = 256

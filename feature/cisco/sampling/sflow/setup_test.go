@@ -13,15 +13,8 @@ var (
 	testEnabledInput []bool = []bool{
 		true,
 	}
-	testSamplingRateInput []uint32 = []uint32{
-		710,
-	}
 	testSampleSizeInput []uint16 = []uint16{
 		256,
-	}
-	testSourceAddressInput []string = []string{
-		"1.1.1.5",
-		"2001::1",
 	}
 )
 
