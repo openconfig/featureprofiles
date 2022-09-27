@@ -29,7 +29,7 @@ import (
 func LogFlowMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
 	var out strings.Builder
-	out.WriteString("\nFlow Metrics\n")
+	out.WriteString("\nOTG Flow Metrics\n")
 	fmt.Fprintln(&out, strings.Repeat("-", 80))
 	out.WriteString("\n")
 	fmt.Fprintf(&out, "%-25v%-15v%-15v%-15v%-15v\n", "Name", "Frames Tx", "Frames Rx", "FPS Tx", "FPS Rx")
@@ -51,7 +51,7 @@ func LogPortMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
 	var link string
 	var out strings.Builder
-	out.WriteString("\nPort Metrics\n")
+	out.WriteString("\nOTG Port Metrics\n")
 	fmt.Fprintln(&out, strings.Repeat("-", 120))
 	out.WriteString("\n")
 	fmt.Fprintf(&out,
@@ -73,6 +73,70 @@ func LogPortMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 			"%-25v%-15v%-15v%-15v%-15v%-15v%-15v%-15v\n",
 			p.Name(), txFrames, rxFrames, txBytes, rxBytes, txRate, rxRate, link,
 		))
+	}
+	fmt.Fprintln(&out, strings.Repeat("-", 120))
+	out.WriteString("\n\n")
+	t.Log(out.String())
+}
+
+// LogLAGMetrics is displaying otg lag stats.
+func LogLAGMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
+	t.Helper()
+	var out strings.Builder
+	out.WriteString("\nOTG LAG Metrics\n")
+	fmt.Fprintln(&out, strings.Repeat("-", 120))
+	out.WriteString("\n")
+	fmt.Fprintf(&out,
+		"%-25s%-15s%-15s%-15s%-20s\n",
+		"Name", "Oper Status", "Frames Tx", "Frames Rx", "Member Ports UP")
+	for _, lag := range c.Lags().Items() {
+		lagMetrics := otg.Telemetry().Lag(lag.Name()).Get(t)
+		operStatus := lagMetrics.GetOperStatus().String()
+		memberPortsUP := lagMetrics.GetCounters().GetMemberPortsUp()
+		framesTx := lagMetrics.GetCounters().GetOutFrames()
+		framesRx := lagMetrics.GetCounters().GetInFrames()
+		out.WriteString(fmt.Sprintf(
+			"%-25v%-15v%-15v%-15v%-20v\n",
+			lag.Name(), operStatus, framesTx, framesRx, memberPortsUP,
+		))
+	}
+	fmt.Fprintln(&out, strings.Repeat("-", 120))
+	out.WriteString("\n\n")
+	t.Log(out.String())
+}
+
+// LogLACPMetrics is displaying otg lacp stats.
+func LogLACPMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
+	t.Helper()
+	var out strings.Builder
+	out.WriteString("\nOTG LACP Metrics\n")
+	fmt.Fprintln(&out, strings.Repeat("-", 120))
+	out.WriteString("\n")
+	fmt.Fprintf(&out,
+		"%-10s%-15s%-18s%-15s%-15s%-20s%-20s\n",
+		"LAG",
+		"Member Port",
+		"Synchronization",
+		"Collecting",
+		"Distributing",
+		"System Id",
+		"Partner Id")
+
+	for _, lag := range c.Lags().Items() {
+		lagPorts := lag.Ports().Items()
+		for _, lagPort := range lagPorts {
+			lacpMetric := otg.Telemetry().Lacp().LagMember(lagPort.PortName()).Get(t)
+			synchronization := lacpMetric.GetSynchronization().String()
+			collecting := lacpMetric.GetCollecting()
+			distributing := lacpMetric.GetDistributing()
+			systemID := lacpMetric.GetSystemId()
+			partnerID := lacpMetric.GetPartnerId()
+			out.WriteString(fmt.Sprintf(
+				"%-10v%-15v%-18v%-15v%-15v%-20v%-20v\n",
+				lag.Name(), lagPort.PortName(), synchronization, collecting, distributing, systemID, partnerID,
+			))
+
+		}
 	}
 	fmt.Fprintln(&out, strings.Repeat("-", 120))
 	out.WriteString("\n\n")
