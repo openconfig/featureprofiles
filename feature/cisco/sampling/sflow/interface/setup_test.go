@@ -13,9 +13,6 @@ var (
 	testEnabledInput []bool = []bool{
 		true,
 	}
-	testSamplingRateInput []uint32 = []uint32{
-		710,
-	}
 	testNameInput []string = []string{
 		"Bundle-Ether1.1",
 		"Bundle-Ether1",
