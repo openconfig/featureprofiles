@@ -1,0 +1,107 @@
+diff --git a/feature/gnoi/os/tests/osinstall/osinstall_test.go b/feature/gnoi/os/tests/osinstall/osinstall_test.go
+index ef9a78df..021aafa2
+--- a/feature/gnoi/os/tests/osinstall/osinstall_test.go
++++ b/feature/gnoi/os/tests/osinstall/osinstall_test.go
+@@ -87,20 +87,31 @@ func TestOSInstall(t *testing.T) {
+ 	}
+ 	tc.fetchStandbySupervisorStatus(ctx, t)
+ 	tc.transferOS(ctx, t, false)
+-	tc.activateOS(ctx, t, false)
+-	if tc.dualSup {
+-		tc.transferOS(ctx, t, true)
+-		tc.activateOS(ctx, t, true)
++	noreboot := true
++	bootTime := tc.dut.Telemetry().System().BootTime().Get(t)
++	switch dut.Vendor() {
++	case ondatra.CISCO:
++		noreboot = false
++	}
++	tc.activateOS(ctx, t, false, noreboot)
++	switch dut.Vendor() {
++	case ondatra.CISCO:
++		t.Logf("Skipping Activate on Standby Supervisor")
++	default:
++		if tc.dualSup {
++			tc.transferOS(ctx, t, true)
++			tc.activateOS(ctx, t, true, noreboot)
++		}
+ 	}
+-	tc.rebootDUT(ctx, t)
++	tc.rebootDUT(ctx, t, bootTime, noreboot)
+ 	tc.verifyInstall(ctx, t)
+ }
+ 
+-func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) {
++func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool, noreboot bool) {
+ 	act, err := tc.osc.Activate(ctx, &ospb.ActivateRequest{
+ 		StandbySupervisor: standby,
+ 		Version:           *osVersion,
+-		NoReboot:          true,
++		NoReboot:          noreboot,
+ 	})
+ 	if err != nil {
+ 		t.Fatalf("OS.Activate request failed: %s", err)
+@@ -144,18 +155,18 @@ func (tc *testCase) fetchStandbySupervisorStatus(ctx context.Context, t *testing
+ 	}
+ }
+ 
+-func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T) {
+-	bootTime := tc.dut.Telemetry().System().BootTime().Get(t)
++func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T, bootTime uint64, noreboot bool) {
+ 	deadline := time.Now().Add(*timeout)
+-
+-	t.Log("Send DUT Reboot Request")
+-	_, err := tc.sc.Reboot(ctx, &spb.RebootRequest{
+-		Method:  spb.RebootMethod_COLD,
+-		Force:   true,
+-		Message: "Apply GNOI OS Software Install",
+-	})
+-	if err != nil && status.Code(err) != codes.Unavailable {
+-		t.Fatalf("System.Reboot request failed: %s", err)
++	if noreboot {
++		t.Log("Send DUT Reboot Request")
++		_, err := tc.sc.Reboot(ctx, &spb.RebootRequest{
++			Method:  spb.RebootMethod_COLD,
++			Force:   true,
++			Message: "Apply GNOI OS Software Install",
++		})
++		if err != nil && status.Code(err) != codes.Unavailable {
++			t.Fatalf("System.Reboot request failed: %s", err)
++		}
+ 	}
+ 	for {
+ 		var curBootTime *telemetry.QualifiedUint64
+@@ -250,13 +261,28 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool)
+ // verifyInstall validates the OS.Verify RPC returns no failures and version numbers match the
+ // newly requested software version.
+ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
+-	r, err := tc.osc.Verify(ctx, &ospb.VerifyRequest{})
+-	if err != nil {
+-		t.Fatalf("OS.Verify request failed: %s", err)
++	osc := tc.dut.RawAPIs().GNOI().New(t).OS()
++	deadline := time.Now().Add(5 * time.Minute)
++	for {
++		r, err := osc.Verify(ctx, &ospb.VerifyRequest{})
++		if err != nil {
++			t.Fatalf("OS.Verify request failed: %s", err)
++		}
++		if got, want := r.GetActivationFailMessage(), ""; got == want {
++			t.Logf("Activation Completed")
++			break
++		}
++		if time.Now().After(deadline) {
++			t.Fatal("Past deadline for Activation to Complete")
++		}
++		t.Logf("OS.Verify ActivationFailMessage: got %q,want %q", r.GetActivationFailMessage(), "")
++		t.Log("Waiting for Activation to Complete...")
++		time.Sleep(20 * time.Second)
+ 	}
+ 
+-	if got, want := r.GetActivationFailMessage(), ""; got != want {
+-		t.Errorf("OS.Verify ActivationFailMessage: got %q, want %q", got, want)
++	r, err := osc.Verify(ctx, &ospb.VerifyRequest{})
++	if err != nil {
++		t.Fatalf("OS.Verify request failed: %s", err)
+ 	}
+ 	if got, want := r.GetVersion(), *osVersion; got != want {
+ 		t.Errorf("OS.Verify Version: got %q, want %q", got, want)

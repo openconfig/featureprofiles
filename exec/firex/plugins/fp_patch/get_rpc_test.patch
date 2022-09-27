@@ -1,5 +1,5 @@
 diff --git a/feature/gribi/ate_tests/get_rpc_test/get_rpc_test.go b/feature/gribi/ate_tests/get_rpc_test/get_rpc_test.go
-index aa88a04e..4dfd488c 100644
+index aa88a04e..457190b7 100644
 --- a/feature/gribi/ate_tests/get_rpc_test/get_rpc_test.go
 +++ b/feature/gribi/ate_tests/get_rpc_test/get_rpc_test.go
 @@ -16,6 +16,7 @@ package get_rpc_test
@@ -10,15 +10,27 @@ index aa88a04e..4dfd488c 100644
  	"testing"
  	"time"
  
-@@ -82,6 +83,7 @@ var (
+@@ -82,6 +83,8 @@ var (
  
  var (
  	ateDstNetCIDR = []string{"198.51.100.0/26", "198.51.100.64/26", "198.51.100.128/26"}
-+	protocolName  = flag.String("protocol_name", "STATIC", "Name of the protocol to configure static route")
++	protocolName  = flag.String("protocol_name", "default", "Name of the protocol to configure static route")
++
  )
  
  const (
-@@ -318,7 +320,7 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
+@@ -299,8 +302,10 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
+ 	configureIPv4ViaClientAInstalled(t, args)
+ 
+ 	// Verify the above entries are active through AFT Telemetry.
++
+ 	for ip := range ateDstNetCIDR {
+ 		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
++		ipv4Path.Prefix().Await(t,60*time.Second,ateDstNetCIDR[ip])
+ 		if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR[ip]; got != want {
+ 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+ 		}
+@@ -318,7 +323,7 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
  	// are returned, with no entry returned for 198.51.100.192/64.
  	dc := args.dut.Config()
  	ni := dc.NetworkInstance(*deviations.DefaultNetworkInstance).

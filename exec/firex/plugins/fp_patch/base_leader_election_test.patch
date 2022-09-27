@@ -1,0 +1,19 @@
+diff --git a/feature/gribi/ate_tests/base_leader_election_test/base_leader_election_test.go b/feature/gribi/ate_tests/base_leader_election_test/base_leader_election_test.go
+index cf86782c..ea9d606b 100644
+--- a/feature/gribi/ate_tests/base_leader_election_test/base_leader_election_test.go
++++ b/feature/gribi/ate_tests/base_leader_election_test/base_leader_election_test.go
+@@ -205,9 +205,11 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
+ 
+ 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
+ 	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+-	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
+-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+-	}
++	// get is not reilable and can cause flakyness, replaced it with watch. will open a pull for this
++	ipv4Path.Prefix().Await(t, 30*time.Second, ateDstNetCIDR)
++	// if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
++	// 	t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
++	// }
+ 
+ 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
+ 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
