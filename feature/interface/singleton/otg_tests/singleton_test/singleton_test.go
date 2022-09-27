@@ -95,8 +95,20 @@ var (
 	}
 )
 
+// autoMode specifies the type of auto-negotiation behavior testing: forced, auto, and
+// auto-negotiation while also specifying duplex and speed.  The last case is permitted by
+// IEEE Std 802.3-2012 and OpenConfig.
+type autoMode int
+
+const (
+	forcedNegotiation autoMode = iota
+	autoNegotiation
+	autoNegotiationWithDuplexSpeed
+)
+
 type testCase struct {
-	mtu uint16 // This is the L3 MTU, i.e. the payload portion of an Ethernet frame.
+	mtu  uint16 // This is the L3 MTU, i.e. the payload portion of an Ethernet frame.
+	auto autoMode
 
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
@@ -119,11 +131,17 @@ var portSpeed = map[ondatra.Speed]telemetry.E_IfEthernet_ETHERNET_SPEED{
 func (tc *testCase) configInterfaceDUT(i *telemetry.Interface, dp *ondatra.Port, a *attrs.Attributes) {
 	a.ConfigInterface(i)
 
-	if speed, ok := portSpeed[dp.Speed()]; ok {
-		e := i.GetOrCreateEthernet()
-		e.DuplexMode = telemetry.Ethernet_DuplexMode_FULL
+	e := i.GetOrCreateEthernet()
+	if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
+		e.AutoNegotiate = ygot.Bool(true)
+	} else {
 		e.AutoNegotiate = ygot.Bool(false)
-		e.PortSpeed = speed
+	}
+	if tc.auto == forcedNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
+		if speed, ok := portSpeed[dp.Speed()]; ok {
+			e.DuplexMode = telemetry.Ethernet_DuplexMode_FULL
+			e.PortSpeed = speed
+		}
 	}
 
 	if !*deviations.OmitL2MTU {
@@ -218,6 +236,10 @@ func (tc *testCase) verifyInterfaceDUT(
 		di.GetSubinterface(0).GetIpv4().Mtu = ygot.Uint16(tc.mtu)
 		di.GetSubinterface(0).GetIpv6().Mtu = ygot.Uint32(uint32(tc.mtu))
 	}
+	// According to IEEE Std 802.3-2012 section 22.2.4.1.4, if PHY does not support
+	// auto-negotiation, then trying to enable it should be ignored.
+	di.GetOrCreateEthernet().AutoNegotiate = wantdi.GetOrCreateEthernet().AutoNegotiate
+
 	confirm.State(t, wantdi, di)
 
 	// State for the interface.
@@ -226,6 +248,22 @@ func (tc *testCase) verifyInterfaceDUT(
 	}
 	if got := di.GetOperStatus(); got != opUp {
 		t.Errorf("%s oper-status got %v, want %v", dp, got, opUp)
+	}
+
+	if speed, ok := portSpeed[dp.Speed()]; ok {
+		if tc.auto == forcedNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
+			if got := dip.Ethernet().PortSpeed().Get(t); got != speed {
+				t.Errorf("%s port-speed got %v, want %v", dp, got, speed)
+			}
+		}
+		if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
+			if dip.Ethernet().AutoNegotiate().Get(t) {
+				// Auto-negotiation is really enabled.
+				if got := dip.Ethernet().NegotiatedPortSpeed().Get(t); got != speed {
+					t.Errorf("%s negotiated-port-speed got %v, want %v", dp, got, speed)
+				}
+			}
+		}
 	}
 
 	disp := dip.Subinterface(0)
@@ -432,11 +470,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 	return lossPct < 0.5 // 0.5% loss.
 }
 
-func (tc *testCase) string() string {
-	return fmt.Sprintf("mtu=%d", tc.mtu)
-}
-
-func (tc *testCase) run(t *testing.T) {
+func (tc *testCase) testMTU(t *testing.T) {
 	tc.configureDUT(t)
 	tc.configureATE(t)
 
@@ -480,15 +514,59 @@ func TestSingleton(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
+	// These are the L3 MTUs, i.e. the payload portion of an Ethernet frame.
 	mtus := []uint16{1500, 5000, 9212}
+
 	for _, mtu := range mtus {
 		top := ate.OTG().NewConfig(t)
 		tc := &testCase{
-			mtu: mtu,
+			mtu:  mtu,
+			auto: forcedNegotiation,
+
 			dut: dut,
 			ate: ate,
 			top: top,
 		}
-		t.Run(tc.string(), tc.run)
+		t.Run(fmt.Sprintf("MTU=%d", mtu), tc.testMTU)
+	}
+}
+
+var autoModeName = map[autoMode]string{
+	forcedNegotiation:              "Forced",
+	autoNegotiation:                "Auto",
+	autoNegotiationWithDuplexSpeed: "AutoWithDuplexSpeed",
+}
+
+// TestNegotiate validates that port speed is reported correctly and that port telemetry
+// atches expected negotiated speeds for forced, auto-negotiation, and auto-negotiation
+// while overriding port speed and duplex.
+func TestNegotiate(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+
+	for auto, name := range autoModeName {
+		t.Run(name, func(t *testing.T) {
+			top := ate.OTG().NewConfig(t)
+			tc := &testCase{
+				mtu:  1500,
+				auto: auto,
+
+				dut: dut,
+				ate: ate,
+				top: top,
+			}
+
+			tc.configureDUT(t)
+			tc.configureATE(t)
+
+			t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t) })
+			t.Run("VerifyATE", func(t *testing.T) { tc.verifyATE(t) })
+			t.Run("Traffic", func(t *testing.T) {
+				got := tc.testFlow(t, tc.mtu, tc.configureIPv6FlowHeader, tc.waitOTGIPv6NeighborEntry)
+				if !got {
+					t.Errorf("Traffic flow got %v, want true", got)
+				}
+			})
+		})
 	}
 }
