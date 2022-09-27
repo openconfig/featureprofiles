@@ -24,7 +24,7 @@ following features:
 
 *   Interface physical channel
 
-    *   Check interface physical-channel exists and correct.
+    *   Check interface physical-channel exists.
         *   /interfaces/interface/state/physical-channel
 
 *   Interface status change
