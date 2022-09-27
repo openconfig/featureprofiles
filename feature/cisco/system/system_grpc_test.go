@@ -91,10 +91,10 @@ func TestSysGrpcState(t *testing.T) {
 }
 func TestSysGrpcConfig(t *testing.T) {
 	ctx := context.Background()
-        dut := ondatra.DUT(t, "dut")
-	
-        config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc name TEST\n commit \n", 10*time.Second)
-        defer config.TextWithSSH(context.Background(), t, dut, "configure \n  no grpc name TEST\n commit \n", 10*time.Second)
+	dut := ondatra.DUT(t, "dut")
+
+	config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc name TEST\n commit \n", 10*time.Second)
+	defer config.TextWithSSH(context.Background(), t, dut, "configure \n  no grpc name TEST\n commit \n", 10*time.Second)
 
 	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").Name()
