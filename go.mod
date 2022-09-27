@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/cisco-open/go-p4 v0.0.0-20220713162912-85fd0d484625
 	github.com/golang/glog v1.0.0
+	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.8
 	github.com/google/gopacket v1.1.19
 	github.com/open-traffic-generator/snappi/gosnappi v0.9.4
@@ -12,8 +13,8 @@ require (
 	github.com/openconfig/gnoi v0.0.0-20220809151450-6bddacd72ef8
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.1.0
-	github.com/openconfig/gribi v0.1.1-0.20220520020624-63905fc23f56
-	github.com/openconfig/gribigo v0.0.0-20220525162038-a471e9b7c03e
+	github.com/openconfig/gribi v0.1.1-0.20220622162620-08d53dffce45
+	github.com/openconfig/gribigo v0.0.0-20220920165304-98b0f3bbf1f7
 	github.com/openconfig/ondatra v0.0.0-20220914190154-cba46794fe2e
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.2.3
@@ -33,7 +34,6 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
