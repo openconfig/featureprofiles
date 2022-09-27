@@ -79,14 +79,12 @@ func LogPortMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Log(out.String())
 }
 
-// LogLagMetrics is displaying otg lag stats.
-func LogLagMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
+// LogLAGMetrics is displaying otg lag stats.
+func LogLAGMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
 	var out strings.Builder
 	out.WriteString("\nOTG LAG Metrics\n")
-	for i := 1; i <= 120; i++ {
-		out.WriteString("-")
-	}
+	fmt.Fprintln(&out, strings.Repeat("-", 120))
 	out.WriteString("\n")
 	fmt.Fprintf(&out,
 		"%-25s%-15s%-15s%-15s%-20s\n",
@@ -107,14 +105,12 @@ func LogLagMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Log(out.String())
 }
 
-// LogLacpMetrics is displaying otg lacp stats.
-func LogLacpMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
+// LogLACPMetrics is displaying otg lacp stats.
+func LogLACPMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
 	var out strings.Builder
 	out.WriteString("\nOTG LACP Metrics\n")
-	for i := 1; i <= 120; i++ {
-		out.WriteString("-")
-	}
+	fmt.Fprintln(&out, strings.Repeat("-", 120))
 	out.WriteString("\n")
 	fmt.Fprintf(&out,
 		"%-10s%-15s%-18s%-15s%-15s%-20s%-20s\n",

@@ -233,7 +233,7 @@ func (tc *testCase) verifyLAG(t *testing.T) {
 			return val.IsPresent() && val.Val(t).String() == "UP"
 		}).Await(t)
 	if !ok {
-		otgutils.LogLagMetrics(t, tc.ate.OTG(), tc.top)
+		otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
 		t.Fatalf("OTG LAG is not ready. Expected UP got %s", tc.ate.OTG().Telemetry().Lag("LAG").OperStatus().Get(t).String())
 	}
 
@@ -272,9 +272,9 @@ func (tc *testCase) verifyLAG(t *testing.T) {
 				t.Fatalf("OTG LAG port %v is not distributing", p)
 			}
 		}
-		otgutils.LogLacpMetrics(t, tc.ate.OTG(), tc.top)
+		otgutils.LogLACPMetrics(t, tc.ate.OTG(), tc.top)
 	}
-	otgutils.LogLagMetrics(t, tc.ate.OTG(), tc.top)
+	otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
 
 }
 
@@ -509,7 +509,7 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 
 	otgutils.LogPortMetrics(t, tc.ate.OTG(), tc.top)
 	otgutils.LogFlowMetrics(t, tc.ate.OTG(), tc.top)
-	otgutils.LogLagMetrics(t, tc.ate.OTG(), tc.top)
+	otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
 	recvMetric := tc.ate.OTG().Telemetry().Flow(flow.Name()).Get(t)
 	pkts := recvMetric.GetCounters().GetOutPkts()
 
