@@ -2,8 +2,9 @@
 package config
 
 import (
-	"context"
 	"container/ring"
+	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,10 +13,16 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/patrickmn/go-cache"
-	
 )
 
 type EventType int
+
+type TestArgs struct {
+	DUT *ondatra.DUTDevice
+	// ATE lock should be aquired before using ATE. Only one test can use the ATE at a time.
+	ATELock sync.Mutex
+	ATE     *ondatra.ATEDevice
+}
 
 const (
 	Update EventType = iota + 1
@@ -72,14 +79,15 @@ func (consumer *CachedConsumer) Process(datapoints []*gnmiutil.DataPoint) {
 	//fmt.Println("Processing events")
 	for _, data := range datapoints {
 		pathStr, _ := ygot.PathToString(data.Path)
-		preValue, found := consumer.Cache.Get(pathStr); if found {
+		preValue, found := consumer.Cache.Get(pathStr)
+		if found {
 			ring := preValue.(*ring.Ring)
 			ring = ring.Next()
 			ring.Value = data
 			consumer.Cache.Set(pathStr, ring, 0)
-			return 
+			return
 		}
-		ring:= ring.New(10) // let keep only last 10 values(5 minutes)
+		ring := ring.New(10) // let keep only last 10 values(5 minutes)
 		ring.Value = data
 		consumer.Cache.Set(pathStr, ring, 0)
 	}
@@ -89,12 +97,11 @@ func (consumer *CachedConsumer) Get(key string) (interface{}, bool) {
 	return consumer.Cache.Get(key)
 }
 
+type backGroundFunc func(t *testing.T, args *TestArgs, events *CachedConsumer)
 
-type backGroundFunc func(t *testing.T, args interface{}, events CachedConsumer) 
-
-// BackgroundCLI runs an admin command on the backgroun and fails if the command is unsucessful or does not return earlier than timeout
-// The command also fails if the response does not match the expeted reply pattern or matches the not-expected one
-func BackgroundFunc(ctx context.Context, t *testing.T, period interface{}, args interface{}, events CachedConsumer, function backGroundFunc) {
+// BackgroundFunc runs a testing function in the background. The period can be ticker or simple timer. With simple timer the function only run once
+// Eeven refers to gnmi evelenet collected with streaming telemtry.
+func BackgroundFunc(ctx context.Context, t *testing.T, period interface{}, args *TestArgs, events *CachedConsumer, function backGroundFunc) {
 	t.Helper()
 	timer, ok := period.(*time.Timer)
 	if ok {
@@ -112,8 +119,9 @@ func BackgroundFunc(ctx context.Context, t *testing.T, period interface{}, args 
 				function(t, args, events)
 			}
 		}()
-	} 
+	}
 }
+
 /*type VerifierType int
 const (
 	Once  VerifierType = iota + 1
