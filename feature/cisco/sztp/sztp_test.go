@@ -99,7 +99,7 @@ func TestPWLess(t *testing.T) {
 	if errPw != nil {
 		t.Error(errPw)
 	}
-	t.Log("show version from the box\n %s\n", outPw)
+	t.Log("show version from the box\n %v\n", outPw)
 }
 func TestCertAuth(t *testing.T) {
 	if *sshIP == "" {
@@ -122,7 +122,7 @@ func TestCertAuth(t *testing.T) {
 	if errCert != nil {
 		t.Error(errCert)
 	}
-	t.Log("The output is %s\n", outCert)
+	t.Log("The output is %v\n", outCert)
 }
 
 func TestPwDisable(t *testing.T) {
@@ -135,7 +135,7 @@ func TestPwDisable(t *testing.T) {
 	if errPwauth == nil {
 		t.Error(errPwauth)
 	}
-	t.Log("The output is %s\n", outPwauth)
+	t.Log("The output is %v\n", outPwauth)
 }
 
 func TestDiskEn(t *testing.T) {
@@ -236,9 +236,9 @@ func TestSZTP(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log("%s\n", ztp_resp)
+	t.Log("%v\n", ztp_resp)
 
-	t.Log("Sleep (%s) - allowing ztp and reload to complete\n\n", ztp_timeout)
+	t.Log("Sleep (%v) - allowing ztp and reload to complete\n\n", ztp_timeout)
 	time.Sleep(9 * time.Minute)
 	dut_new := ondatra.DUT(t, "dut")
 	cli_handle_new := dut_new.RawAPIs().CLI(t)
@@ -247,7 +247,7 @@ func TestSZTP(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log("%s\n", ztp_logs)
+	t.Log("%v\n", ztp_logs)
 	if strings.Contains(ztp_logs, "ZTP completed successfully") {
 	} else {
 		err = fmt.Errorf("ZTP Failed")
