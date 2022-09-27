@@ -113,7 +113,7 @@ func BackgroundFunc(ctx context.Context, t *testing.T, period interface{}, args 
 			}
 		}()
 	} 
-
+}
 /*type VerifierType int
 const (
 	Once  VerifierType = iota + 1
