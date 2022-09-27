@@ -121,6 +121,12 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 		ocName := dut.Port(t, a.Name).Name()
 		dut.Config().Interface(ocName).Replace(t, a.NewInterface(ocName))
 	}
+
+	t.Log("Configure Network Instance")
+	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	dutConfNIPath.RouterId().Replace(t, dutPort2.IPv4)
+
 	dutBGP := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	dutBGP.Replace(t, d.bgpOC)
@@ -282,12 +288,6 @@ func TestBGP(t *testing.T) {
 			}
 
 			dut := ondatra.DUT(t, "dut")
-
-			t.Log("Configure Network Instance")
-			dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-			dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-			dutConfNIPath.RouterId().Replace(t, dutPort2.IPv4)
-
 			tc.dut.Configure(t, dut)
 
 			ate := ondatra.ATE(t, "ate")
