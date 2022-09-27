@@ -490,12 +490,11 @@ func TestNegotiation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	aggID := netutil.NextBundleInterface(t, dut)
-	otg := ate.OTG()
 
 	lagTypes := []telemetry.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
 
 	for _, lagType := range lagTypes {
-		top := otg.NewConfig(t)
+		top := ate.OTG().NewConfig(t)
 
 		tc := &testCase{
 			dut:     dut,
