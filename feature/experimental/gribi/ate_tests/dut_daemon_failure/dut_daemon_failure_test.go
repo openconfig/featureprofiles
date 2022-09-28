@@ -303,7 +303,7 @@ func TestDUTDaemonFailure(t *testing.T) {
 
 	t.Run("KillGribiDaemon", func(t *testing.T) {
 
-		// Find the PID of gRIBI Daemon
+		// Find the PID of gRIBI Daemon.
 		var pName string = "unknown"
 		var pId uint64
 		t.Run("FindGribiDaemonPid", func(t *testing.T) {
@@ -316,7 +316,7 @@ func TestDUTDaemonFailure(t *testing.T) {
 				pName = "unknown-arista" //TODO
 			}
 
-			// Fetch the list of processes through telemetry
+			// Fetch the list of processes through telemetry.
 			pList := dut.Telemetry().System().ProcessAny().Get(t)
 			for _, proc := range pList {
 				if proc.GetName() == pName {
@@ -329,13 +329,13 @@ func TestDUTDaemonFailure(t *testing.T) {
 			}
 		})
 
-		// Kill gRIBI daemon through gNOI Kill Request
+		// Kill gRIBI daemon through gNOI Kill Request.
 		t.Run("ExecuteGnoiKill", func(t *testing.T) {
-			// TODO - pid type is uint64 in oc-system model, but uint32 in gNOI Kill Request proto
-			// Until the models are brought in line, typecasting the uint64 to uint32
+			// TODO - pid type is uint64 in oc-system model, but uint32 in gNOI Kill Request proto.
+			// Until the models are brought in line, typecasting the uint64 to uint32.
 			gNOIKillProcess(ctx, t, args, pName, uint32(pId))
 
-			// Wait for a bit for gRIBI daemon on the DUT to restart
+			// Wait for a bit for gRIBI daemon on the DUT to restart.
 			time.Sleep(30 * time.Second)
 
 		})

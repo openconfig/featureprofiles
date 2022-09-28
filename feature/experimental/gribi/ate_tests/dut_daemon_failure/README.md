@@ -41,3 +41,4 @@ Ensure that gRIBI entries are persisted over daemon failure.
 
 *   AFT
     *   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix/
+
