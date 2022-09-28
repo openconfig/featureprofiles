@@ -7,13 +7,13 @@ import (
 	"github.com/google/go-jsonnet"
 )
 
-type bundle struct {
+type Bundle struct {
 	Id                int
 	Interfaces        []string
 	SubInterfaceRange []int
 }
 
-func GenerateConfig(bundles []bundle) string {
+func GenerateConfig(bundles []Bundle, templatePath string) string {
 	vm := jsonnet.MakeVM()
 
 	if bundleJson, err := json.Marshal(bundles); err == nil {
@@ -22,7 +22,7 @@ func GenerateConfig(bundles []bundle) string {
 		log.Fatal(err)
 	}
 
-	genConfig, err := vm.EvaluateFile("templates/gnmi.jsonnet")
+	genConfig, err := vm.EvaluateFile(templatePath)
 	if err != nil {
 		log.Fatal(err)
 	}
