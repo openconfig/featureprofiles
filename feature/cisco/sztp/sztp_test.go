@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -41,7 +40,7 @@ func generateKeypair(client_ssh_dir string) error {
 	if err != nil {
 		return err
 	}
-	publicKeyBytes, err := ioutil.ReadFile(fmt.Sprintf("%sid_rsa.pub", client_ssh_dir))
+	publicKeyBytes, err := os.ReadFile(fmt.Sprintf("%sid_rsa.pub", client_ssh_dir))
 	if err != nil {
 		return err
 	}
@@ -50,7 +49,7 @@ func generateKeypair(client_ssh_dir string) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(fmt.Sprintf("%sid_rsa.bin", client_ssh_dir), []byte(rawDecodedKey), 0600)
+	err = os.WriteFile(fmt.Sprintf("%sid_rsa.bin", client_ssh_dir), []byte(rawDecodedKey), 0600)
 	if err != nil {
 		return err
 	}
