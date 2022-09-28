@@ -34,12 +34,6 @@ var (
 	sshPass = flag.String("ssh_pass", "", "External password for ssh")
 )
 
-type pxe struct {
-	Host     string
-	User     string
-	Password string
-	Port     int
-}
 
 // generates an rsa key pair in client_ssh_dir
 func generateKeypair(client_ssh_dir string) error {
@@ -155,6 +149,7 @@ func TestDiskEn(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+		t.Logf(resp)
 		t.Log("Waiting for the box to reload")
 		time.Sleep(8 * time.Minute)
 		t.Log("Executing disk-encryption after reload")
@@ -194,11 +189,11 @@ func TestTLS(t *testing.T) {
 	sshConf := scp.NewSSHConfigFromPassword(*sshUser, *sshPass)
 	scpClient, _ := scp.NewClient(fmt.Sprintf("%s:%s", *sshIP, *sshPort), sshConf, &scp.ClientOption{})
 	defer scpClient.Close()
-	errGrpcPem := scpClient.CopyFileFromRemote("/harddisk:/ems.pem", fmt.Sprintf("%s", remote_dir), &scp.FileTransferOption{})
+	errGrpcPem := scpClient.CopyFileFromRemote("/harddisk:/ems.pem", remote_dir, &scp.FileTransferOption{})
 	if errGrpcPem != nil {
 		t.Error(errGrpcPem)
 	}
-	errGrpcKey := scpClient.CopyFileFromRemote("/harddisk:/ems.key", fmt.Sprintf("%s", remote_dir), &scp.FileTransferOption{})
+	errGrpcKey := scpClient.CopyFileFromRemote("/harddisk:/ems.key", remote_dir, &scp.FileTransferOption{})
 	if errGrpcKey != nil {
 		t.Error(errGrpcKey)
 	}
