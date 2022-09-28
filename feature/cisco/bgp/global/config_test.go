@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
@@ -19,13 +20,12 @@ const (
 	configApplyTime  time.Duration = 5 * time.Second // FIXME: Workaround
 	configDeleteTime time.Duration = 5 * time.Second // FIXME: Workaround
 	dutName          string        = "dut"
-	networkInstance  string        = "default"
 	bgpInstance      string        = "TEST"
 	bgpAs            uint32        = 40000
 )
 
 func cleanup(t *testing.T, dut *ondatra.DUTDevice, bgpInst string) {
-	dut.Config().NetworkInstance(networkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp().Delete(t)
+	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp().Delete(t)
 	time.Sleep(configDeleteTime)
 }
 
@@ -45,8 +45,8 @@ func TestAs(t *testing.T) {
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/global/config/as using value %v", input), func(t *testing.T) {
 			bgpInst := fmt.Sprint(input)
-			bgpConfig := dut.Config().NetworkInstance(networkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp()
-			bgpState := dut.Telemetry().NetworkInstance(networkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp()
+			bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp()
+			bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp()
 			config := bgpConfig.Global().As()
 			state := bgpState.Global().As()
 
@@ -76,8 +76,8 @@ func TestRouterId(t *testing.T) {
 		"195.3.253.50",
 	}
 
-	bgpConfig := dut.Config().NetworkInstance(networkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(networkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
 	config := bgpConfig.Global().RouterId()
 	state := bgpState.Global().RouterId()
 
