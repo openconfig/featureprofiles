@@ -180,28 +180,6 @@ func PathStructToString(ps ygot.PathStruct) string {
 	return pathToString(p)
 }
 
-// MustGet calls Get and fails the calling test fatally on error.
-/*func MustGet(t testing.TB, n ygot.PathStruct, subPaths ...*gpb.Path) ([]*DataPoint, *gpb.Path) {
-	t.Helper()
-	data, path, err := Get(context.Background(), n, subPaths...)
-	if err != nil {
-		t.Fatalf("Get(t) at path %s: %v", path, err)
-	}
-	return data, path
-}*/
-
-// Get does gNMI ONCE subscription for the device under n. SubPaths, if set, override the subscription paths.
-/*func Get(ctx context.Context, n ygot.PathStruct, subPaths ...*gpb.Path) ([]*DataPoint, *gpb.Path, error) {
-	sub, path, err := subscribe(ctx, n, subPaths, gpb.SubscriptionList_ONCE)
-	if err != nil {
-		return nil, path, fmt.Errorf("cannot subscribe to gNMI client: %w", err)
-	}
-	data, err := receiveAll(sub, false, gpb.SubscriptionList_ONCE)
-	if err != nil {
-		return nil, path, err
-	}
-	return data, path, nil
-}*/
 
 // Metadata contains to common fields and method for the generated Qualified structs.
 type Metadata struct {
