@@ -107,7 +107,6 @@ func TestChassisReboot(t *testing.T) {
 
 	preRebootCompStatus := dut.Telemetry().ComponentAny().OperStatus().Get(t)
 	t.Logf("DUT components status pre reboot: %v", preRebootCompStatus)
-	t.Logf("Length of preRebootCompStatus: %v", len(preRebootCompStatus)) // remove later
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -179,7 +178,6 @@ func TestChassisReboot(t *testing.T) {
 
 			for {
 				postRebootCompStatus := dut.Telemetry().ComponentAny().OperStatus().Get(t)
-				t.Logf("post reboot: %v", postRebootCompStatus) // remove later
 
 				if len(preRebootCompStatus) == len(postRebootCompStatus) {
 					t.Logf("All components on the DUT are in responsive state")
