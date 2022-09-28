@@ -10,7 +10,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
+
 	//"github.com/google/go-cmp/cmp"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 )
 
 func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
@@ -164,7 +166,7 @@ func getBasePBROCConfig(t *testing.T, args *testArgs) (ygot.PathStruct, interfac
 	policy := telemetry.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
-	return args.dut.Config().NetworkInstance("default").PolicyForwarding(), &policy
+	return args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding(), &policy
 
 }
 
@@ -207,7 +209,7 @@ func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygot.PathStruct, inter
 	policy := telemetry.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
-	return args.dut.Config().NetworkInstance("default").PolicyForwarding(), &policy
+	return args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding(), &policy
 
 }
 
@@ -303,7 +305,7 @@ func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, 
 	path, basePolicy := getBasePBROCConfig(t, args)
 	config.GNMICommitReplaceWithOC(context.Background(), t, args.dut, baseConfigWithoutPBR, path, basePolicy)
 	t.Log("Add HWModule and set PBR to the right config, reload the router and check the traffic")
-	/*result := args.dut.Config().NetworkInstance("default").PolicyForwarding().Get(t)
+	/*result := args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Get(t)
 	if cmp.Diff(result,basePolicy)!="" {
 		fmt.Println(cmp.Diff(result,basePolicy))
 		// TODO: make the test case fail
