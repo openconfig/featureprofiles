@@ -7,7 +7,7 @@ import (
 	oc "github.com/openconfig/ondatra/telemetry"
 )
 
-var bundles = []bundle{
+var bundles = []Bundle{
 	{
 		Id:                121,
 		Interfaces:        []string{"HundredGigE0/0/0/1"},
@@ -49,7 +49,7 @@ var bundles = []bundle{
 }
 
 func TestGenerateConfig(t *testing.T) {
-	generatedConf := GenerateConfig(bundles)
+	generatedConf := GenerateConfig(bundles,)
 	if err := os.WriteFile("output.json", []byte(generatedConf), 0644); err != nil {
 		t.Fatalf(err.Error())
 	}
