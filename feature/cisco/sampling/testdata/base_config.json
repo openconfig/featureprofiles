@@ -1,0 +1,32 @@
+{
+  "openconfig-sampling-sflow:sflow": {
+    "collectors": {
+      "collector": [
+        {
+          "address": "1.1.1.2",
+          "port": 1025,
+          "state": {
+            "address": "1.1.1.2",
+            "network-instance": "TE",
+            "port": 1025
+          }
+        }
+      ]
+    },
+    "interfaces": {
+      "interface": [
+        {
+          "name": "Bundle-Ether1",
+          "state": {
+            "enabled": true,
+            "name": "Bundle-Ether1"
+          }
+        }
+      ]
+    },
+    "state": {
+      "enabled": true,
+      "sample-size": 128
+    }
+  }
+}

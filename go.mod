@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/cisco-open/go-p4 v0.0.0-20220713162912-85fd0d484625
 	github.com/golang/glog v1.0.0
+	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.8
 	github.com/google/gopacket v1.1.19
 	github.com/open-traffic-generator/snappi/gosnappi v0.9.4
@@ -20,12 +21,14 @@ require (
 	github.com/openconfig/ygot v0.24.2
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/pkg/errors v0.9.1
+	github.com/povsister/scp v0.0.0-20210427074412-33febfd9f13e
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	github.com/yuin/goldmark v1.3.5
 	golang.org/x/crypto v0.0.0-20220518034528-6f7dac969898
 	golang.org/x/tools v0.1.5
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
+	gopkg.in/yaml.v3 v3.0.1
 	sigs.k8s.io/yaml v1.3.0
 )
 
@@ -33,7 +36,6 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
@@ -64,6 +66,5 @@ require (
 	google.golang.org/genproto v0.0.0-20220829175752-36a9c930ecbf // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/uint128 v1.1.1 // indirect
 )
