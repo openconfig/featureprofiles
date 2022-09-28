@@ -125,7 +125,6 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Configure Network Instance")
 	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
 	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-	//dutConfNIPath.RouterId().Replace(t, dutPort2.IPv4)
 
 	dutBGP := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
