@@ -34,7 +34,6 @@ var (
 	sshPass = flag.String("ssh_pass", "", "External password for ssh")
 )
 
-
 // generates an rsa key pair in client_ssh_dir
 func generateKeypair(client_ssh_dir string) error {
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("ssh-keygen -t rsa -b 1024 -f %sid_rsa -N '' <<< y", client_ssh_dir))
