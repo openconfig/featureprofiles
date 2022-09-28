@@ -125,7 +125,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Configure Network Instance")
 	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
 	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-	dutConfNIPath.RouterId().Replace(t, dutPort2.IPv4)
+	//dutConfNIPath.RouterId().Replace(t, dutPort2.IPv4)
 
 	dutBGP := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -156,7 +156,8 @@ func TestBGP(t *testing.T) {
 		fullDesc: "Advertise prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
-				As: ygot.Uint32(dutAS),
+				As:       ygot.Uint32(dutAS),
+				RouterId: ygot.String(dutPort2.IPv4),
 			},
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				"192.0.2.2": {
@@ -190,7 +191,8 @@ func TestBGP(t *testing.T) {
 		fullDesc: "Advertise IPv6 prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
-				As: ygot.Uint32(dutAS),
+				As:       ygot.Uint32(dutAS),
+				RouterId: ygot.String(dutPort2.IPv4),
 			},
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				"2001:db8::2": {
@@ -237,7 +239,8 @@ func TestBGP(t *testing.T) {
 		fullDesc:   "IPv4 routes with an IPv6 next-hop when negotiating RFC5549 - validating that routes are accepted and advertised with the specified values.",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
-				As: ygot.Uint32(dutAS),
+				As:       ygot.Uint32(dutAS),
+				RouterId: ygot.String(dutPort2.IPv4),
 			},
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				"2001:db8::2": {
