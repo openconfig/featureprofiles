@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -31,12 +32,13 @@ const (
 )
 
 var (
-	npu0            = "0/RP0/CPU0-NPU0"
+	npu0            = *ciscoFlags.P4RTOcNPU // "0/RP0/CPU0-NPU0 for fixed platforms, provide Linecard NPU information otherwise"
 	npu0NodeID      = uint64(1)
 	deviceID        = uint64(1)
 	nonExistingPort = "FourHundredGigE0/5/0/100"
 	observer        = fptest.NewObserver("P4RT OC").AddCsvRecorder("ocreport").AddCsvRecorder("P4RT OC")
 )
+
 var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
@@ -201,8 +203,8 @@ func TestMain(m *testing.M) {
 func TestP4RTOC(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	configureDUT(t, dut)
 	initializeNPU(t, dut)
+	configureDUT(t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
@@ -225,7 +227,7 @@ func TestP4RTOC(t *testing.T) {
 	}
 }
 
-// configureATE configures port1, port2 and port3 on the ATE.
+// configureATE configures port1 through port8 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	top := ate.Topology().New()
 
@@ -280,6 +282,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
+// getNPUs returns all the available NPUs on the router, ignoring fabric npus.
 func getNPUs(t *testing.T, dut *ondatra.DUTDevice) []string {
 	var npus []string
 	l := dut.Telemetry().ComponentAny().Get(t)
@@ -291,9 +294,11 @@ func getNPUs(t *testing.T, dut *ondatra.DUTDevice) []string {
 
 		}
 	}
+	t.Log("Available NPUs on the system: ", npus)
 	return npus
 }
 
+// initializeNPU inialises base npu used in the tests. If the npu specified via flags is not available, first available npu is used.
 func initializeNPU(t *testing.T, dut *ondatra.DUTDevice) {
 	if npus := getNPUs(t, dut); len(npus) != 0 && !contains(npus, npu0) {
 		//initialize with first npu
@@ -303,6 +308,7 @@ func initializeNPU(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Using device :", npu0)
 }
 
+// contains finds if a string exists in an array of strings
 func contains(s []string, e string) bool {
 	for _, item := range s {
 		if item == e {
@@ -312,6 +318,7 @@ func contains(s []string, e string) bool {
 	return false
 }
 
+// configureP4RTIntf enables port-id on a specified interface
 func configureP4RTIntf(t *testing.T, dut *ondatra.DUTDevice, intf string, id uint32, intfType telemetry.E_IETFInterfaces_InterfaceType) {
 	i := &telemetry.Interface{
 		Type: intfType,
@@ -321,6 +328,7 @@ func configureP4RTIntf(t *testing.T, dut *ondatra.DUTDevice, intf string, id uin
 	dut.Config().Interface(intf).Replace(t, i)
 }
 
+// configureP4RTDevice configures device-id for a specified npu instance
 func configureP4RTDevice(t *testing.T, dut *ondatra.DUTDevice, npu string, nodeid uint64) {
 	ic := &telemetry.Component_IntegratedCircuit{}
 	ic.NodeId = ygot.Uint64(nodeid)
@@ -349,10 +357,10 @@ func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *te
 	return s
 }
 
-// configInterfaceDUT configures the interface with the Addrs.
+// configInterfaceDUT configures bundle interface with the Addrs.
 func configInterfaceDUT(i *telemetry.Interface, dutPort *attrs.Attributes) *telemetry.Interface {
 	i.Description = ygot.String(dutPort.Desc)
-	//i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = telemetry.IETFInterfaces_InterfaceType_ieee8023adLag
 	i.AppendSubinterface(getSubInterface(dutPort, 0, 0))
 	return i
 }
