@@ -291,7 +291,6 @@ func getNPUs(t *testing.T, dut *ondatra.DUTDevice) []string {
 			if name := each.GetName(); !strings.Contains(name, "FC") {
 				npus = append(npus, name)
 			}
-
 		}
 	}
 	t.Log("Available NPUs on the system: ", npus)
@@ -304,7 +303,6 @@ func initializeNPU(t *testing.T, dut *ondatra.DUTDevice) {
 		//initialize with first npu
 		npu0 = npus[0]
 	}
-
 	t.Log("Using device :", npu0)
 }
 

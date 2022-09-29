@@ -166,12 +166,6 @@ func testP4RTConfigurationWithBundleInterface(t *testing.T, args *testArgs) {
 func testP4RTConfigurationUsingGNMIUpdate(t *testing.T, args *testArgs) {
 
 	p1 := args.dut.Port(t, "port1")
-	// i1 := &telemetry.Interface{
-	// 	Type: telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
-	// 	Id:   ygot.Uint32(1),
-	// 	Name: ygot.String(p1.Name()),
-	// }
-	// args.dut.Config().Interface(p1.Name()).Update(t, i1)
 
 	config := args.dut.Config().Interface(p1.Name()).Id()
 	defer observer.RecordYgot(t, "UPDATE", config)
@@ -185,12 +179,6 @@ func testP4RTConfigurationUsingGNMIUpdate(t *testing.T, args *testArgs) {
 	}
 
 	p2 := args.dut.Port(t, "port2")
-	// i2 := &telemetry.Interface{
-	// 	Type: telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
-	// 	Id:   ygot.Uint32(2),
-	// 	Name: ygot.String(p2.Name()),
-	// }
-	// args.dut.Config().Interface(p2.Name()).Update(t, i2)
 
 	config = args.dut.Config().Interface(p2.Name()).Id()
 	defer observer.RecordYgot(t, "UPDATE", config)
