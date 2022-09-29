@@ -53,6 +53,7 @@ tests:
   path: feature/lldp/tests/core_lldp_tlv_population_test
 - name: gNMI-1.4 (Telemetry Inventory) 
   path: feature/platform/ate_tests/telemetry_inventory_test
+  patch: exec/firex/plugins/fp_patch/telemetry_inventory_test.patch
 - name: gNMI-1.13 (Telemetry Optics Power and Bias Current) 
   path: feature/platform/tests/optics_power_and_bias_current_test
 - name: gNMI-1.1 (cli Origin) 
@@ -126,5 +127,15 @@ tests:
     - '-protocol_name="default"'
 - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
   path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
+  args:
+    - '-p4rt_node_name="0/RP0/CPU0/0"'
 - name: TE-14.1 (gRIBI Scaling)
   path: feature/gribi/ate_tests/gribi_scaling
+- name: FP_GNMI_GET
+  path: feature/system/gnmi/get/tests
+- name: FP_GNMI_NTP
+  path: feature/system/ntp/tests
+- name: FP_GNMI_System
+  path: feature/system/ntp/tests
+
+
