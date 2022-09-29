@@ -91,12 +91,12 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 	for _, nhg := range aftNHGs {
 		if nhg.GetProgrammedId() == nhgIndex {
 			// commented out till we have fix for CSCwd15329
-			// if nhg.GetBackupNextHopGroup() != 0 {
-			// 	pid := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhg.GetBackupNextHopGroup()).ProgrammedId().Get(t)
-			// 	if pid != bkhgIndex {
-			// 		t.Fatalf("AFT Check failed for aft/next-hop-group/state/backup-next-hop-group got %d, want %d", nhg.GetBackupNextHopGroup(), bkhgIndex)
-			// 	}
-			// }
+			if nhg.GetBackupNextHopGroup() != 0 {
+				pid := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhg.GetBackupNextHopGroup()).ProgrammedId().Get(t)
+				if pid != bkhgIndex {
+					t.Fatalf("AFT Check failed for aft/next-hop-group/state/backup-next-hop-group got %d, want %d", nhg.GetBackupNextHopGroup(), bkhgIndex)
+				}
+			}
 			if len(nhg.NextHop) != 1 {
 				for nhIndex, nh := range nhg.NextHop {
 					// can be avoided by caching indices in client 'c'
@@ -151,6 +151,7 @@ func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instan
 
 // CheckAftNH checks a next-hop against the cached configuration
 func (c *Client) CheckAftNH(t testing.TB, instance string, programmedIndex, index uint64) bool {
+	time.Sleep(time.Duration(*ciscoFlags.GRIBIAFTChainCheckWait) * time.Second)
 	want := c.getAft(instance).NextHop[programmedIndex]
 	got := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(index).Get(t)
 	if *want.IpAddress != *got.IpAddress {
@@ -183,6 +184,7 @@ func (c *Client) CheckAftNH(t testing.TB, instance string, programmedIndex, inde
 
 // CheckAftNHG checks a next-hop-group against the cached configuration
 func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uint64) {
+	time.Sleep(time.Duration(*ciscoFlags.GRIBIAFTChainCheckWait) * time.Second)
 	want := c.getAft(instance).NextHopGroup[programmedID]
 	got := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(id).Get(t)
 
@@ -224,6 +226,7 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uin
 
 // CheckAftIPv4 checks an ipv4 entry against the cached configuration
 func (c *Client) CheckAftIPv4(t testing.TB, instance, prefix string) {
+	time.Sleep(time.Duration(*ciscoFlags.GRIBIAFTChainCheckWait) * time.Second)
 	want := c.getAft(instance).Ipv4Entry[prefix]
 	got := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Get(t)
 
