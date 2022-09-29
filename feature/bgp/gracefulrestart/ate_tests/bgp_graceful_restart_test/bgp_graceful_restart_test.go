@@ -117,7 +117,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Configure/update Network Instance")
 	dutConfNIPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance)
 	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-	dutConfNIPath.RouterId().Replace(t, dutDst.IPv4)
 }
 
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
@@ -148,6 +147,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *telemetry.NetworkInstance_Proto
 	bgp := &telemetry.NetworkInstance_Protocol_Bgp{}
 	g := bgp.GetOrCreateGlobal()
 	g.As = ygot.Uint32(as)
+	g.RouterId = ygot.String(dutDst.IPv4)
 	bgpgr := g.GetOrCreateGracefulRestart()
 	bgpgr.Enabled = ygot.Bool(true)
 	bgpgr.RestartTime = ygot.Uint16(grRestartTime)
@@ -332,22 +332,16 @@ func configACL(d *telemetry.Device, name string) *telemetry.Acl_AclSet {
 	aclEntry10 := acl.GetOrCreateAclEntry(10)
 	aclEntry10.SequenceId = ygot.Uint32(10)
 	aclEntry10.GetOrCreateActions().ForwardingAction = telemetry.Acl_FORWARDING_ACTION_DROP
-	tp10 := aclEntry10.GetOrCreateTransport()
-	tp10.DestinationPort = telemetry.UnionUint16(bgpPort)
 	a := aclEntry10.GetOrCreateIpv4()
 	a.SourceAddress = ygot.String(aclNullPrefix)
 	a.DestinationAddress = ygot.String(ateDstCIDR)
-	a.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_TCP
 
 	aclEntry20 := acl.GetOrCreateAclEntry(20)
 	aclEntry20.SequenceId = ygot.Uint32(20)
 	aclEntry20.GetOrCreateActions().ForwardingAction = telemetry.Acl_FORWARDING_ACTION_DROP
-	tp20 := aclEntry20.GetOrCreateTransport()
-	tp20.SourcePort = telemetry.UnionUint16(bgpPort)
 	a2 := aclEntry20.GetOrCreateIpv4()
 	a2.SourceAddress = ygot.String(ateDstCIDR)
 	a2.DestinationAddress = ygot.String(aclNullPrefix)
-	a2.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_TCP
 
 	aclEntry30 := acl.GetOrCreateAclEntry(30)
 	aclEntry30.SequenceId = ygot.Uint32(30)

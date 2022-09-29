@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -70,7 +71,7 @@ func TestMain(m *testing.M) {
 func TestSupervisorSwitchover(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	supervisors := findComponentsByType(t, dut, controlcardType)
+	supervisors := components.FindComponentsByType(t, dut, controlcardType)
 	t.Logf("Found supervisor list: %v", supervisors)
 	// Only perform the switchover for the chassis with dual RPs/Supervisors.
 	if len(supervisors) != 2 {
@@ -80,13 +81,13 @@ func TestSupervisorSwitchover(t *testing.T) {
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, supervisors)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
-	intfsEnabledBeforeSwitch := fetchEnabledIntfs(t, dut)
-	t.Logf("Enabled interfaces before switchover: %v", intfsEnabledBeforeSwitch)
-	if len(intfsEnabledBeforeSwitch) == 0 {
-		t.Errorf("Get the number of enabled interfaces for %q: got 0, want > 0", dut.Name())
+	intfsOperStatusUPBeforeSwitch := fetchOperStatusUPIntfs(t, dut)
+	t.Logf("intfsOperStatusUP interfaces before switchover: %v", intfsOperStatusUPBeforeSwitch)
+	if len(intfsOperStatusUPBeforeSwitch) == 0 {
+		t.Errorf("Get the number of intfsOperStatusUP interfaces for %q: got 0, want > 0", dut.Name())
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI().New(t)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: &tpb.Path{
 			Elem: []*tpb.PathElem{{Name: rpStandbyBeforeSwitch}},
@@ -140,10 +141,26 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", rpStandbyAfterSwitch, rpActiveBeforeSwitch)
 	}
 
-	intfsEnabledAfterSwitch := fetchEnabledIntfs(t, dut)
-	t.Logf("Enabled interfaces after switchover: %v", intfsEnabledAfterSwitch)
-	if diff := cmp.Diff(intfsEnabledAfterSwitch, intfsEnabledBeforeSwitch); diff != "" {
-		t.Errorf("Enabled interfaces differed (-want +got):\n%v", diff)
+	batch := dut.Telemetry().NewBatch()
+	for _, port := range intfsOperStatusUPBeforeSwitch {
+		dut.Telemetry().Interface(port).OperStatus().Batch(t, batch)
+	}
+	watch := batch.Watch(t, 5*time.Minute, func(val *telemetry.QualifiedDevice) bool {
+		for _, port := range intfsOperStatusUPBeforeSwitch {
+			if val.Val(t).GetInterface(port).GetOperStatus() != telemetry.Interface_OperStatus_UP {
+				return false
+			}
+		}
+		return true
+	})
+	if val, ok := watch.Await(t); !ok {
+		t.Fatalf("DUT did not reach target state withing %v: got %v", 5*time.Minute, val)
+	}
+
+	intfsOperStatusUPAfterSwitch := fetchOperStatusUPIntfs(t, dut)
+	t.Logf("intfsOperStatusUP interfaces after switchover: %v", intfsOperStatusUPAfterSwitch)
+	if diff := cmp.Diff(intfsOperStatusUPAfterSwitch, intfsOperStatusUPBeforeSwitch); diff != "" {
+		t.Errorf("intfsOperStatusUP interfaces differed (-want +got):\n%v", diff)
 	}
 
 	t.Log("Validate OC Switchover time/reason.")
@@ -163,33 +180,16 @@ func TestSupervisorSwitchover(t *testing.T) {
 	}
 }
 
-func findComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
-	components := dut.Telemetry().ComponentAny().Name().Get(t)
-	var s []string
-	for _, c := range components {
-		lookupType := dut.Telemetry().Component(c).Type().Lookup(t)
-		if !lookupType.IsPresent() {
-			t.Logf("Component %s type is not found", c)
-		} else {
-			componentType := lookupType.Val(t)
-			t.Logf("Component %s has type: %v", c, componentType)
-
-			switch v := componentType.(type) {
-			case telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
-				if v == cType {
-					s = append(s, c)
-				}
-			default:
-				t.Fatalf("Expected component type to be a hardware component, got (%T, %v)", componentType, componentType)
-			}
-		}
-	}
-	return s
-}
-
 func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
 	var activeRP, standbyRP string
 	for _, supervisor := range supervisors {
+		watch := dut.Telemetry().Component(supervisor).RedundantRole().Watch(
+			t, 10*time.Minute, func(val *telemetry.QualifiedE_PlatformTypes_ComponentRedundantRole) bool {
+				return val.IsPresent()
+			})
+		if val, ok := watch.Await(t); !ok {
+			t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+		}
 		role := dut.Telemetry().Component(supervisor).RedundantRole().Get(t)
 		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
 		if role == standbyController {
@@ -208,15 +208,15 @@ func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (
 	return standbyRP, activeRP
 }
 
-func fetchEnabledIntfs(t *testing.T, dut *ondatra.DUTDevice) []string {
-	intfsEnabled := []string{}
+func fetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice) []string {
+	intfsOperStatusUP := []string{}
 	intfs := dut.Telemetry().InterfaceAny().Name().Get(t)
 	for _, intf := range intfs {
-		enabled := dut.Telemetry().Interface(intf).Enabled().Lookup(t)
-		if enabled.IsPresent() && enabled.Val(t) {
-			intfsEnabled = append(intfsEnabled, intf)
+		operStatus := dut.Telemetry().Interface(intf).OperStatus().Lookup(t)
+		if operStatus.IsPresent() && operStatus.Val(t) == telemetry.Interface_OperStatus_UP {
+			intfsOperStatusUP = append(intfsOperStatusUP, intf)
 		}
 	}
-	sort.Strings(intfsEnabled)
-	return intfsEnabled
+	sort.Strings(intfsOperStatusUP)
+	return intfsOperStatusUP
 }
