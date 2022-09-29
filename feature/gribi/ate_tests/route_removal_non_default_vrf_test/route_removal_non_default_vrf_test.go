@@ -32,7 +32,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
-	"google3/ops/netops/lab/wbb/go/wbbtest"
 
 	gpb "github.com/openconfig/gribi/v1/proto/service"
 )
@@ -54,7 +53,7 @@ func TestMain(m *testing.M) {
 
 const (
 	ateDstNetEntryNonDefault = "198.51.100.0/24" // IP Entry to be injected in non-default network instance
-	ateDstNetEntryDefault    = "198.51.110.0/24" // IP Entry to be injected in default network instance
+	ateDstNetEntryDefault    = "203.0.113.0/24" // IP Entry to be injected in default network instance
 	nonDefaultVRF            = "VRF-1"           // Name of non-default network instance
 	clientAOriginElectionID  = 10
 	clientBOriginElectionID  = 9
@@ -161,7 +160,7 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 	t.Log("Inject entry for 198.51.100.0/24 in VRF-1 from gRIBI-B. This function also verifies entry via telemetry.")
 	injectIPEntry(ctx, t, dut, clientB, nonDefaultVRF, ateDstNetEntryNonDefault)
 
-	t.Log("Inject entry for 198.51.110.0/24 in default VRF from gRIBI-B. This function also verifies entry via telemetry.")
+	t.Log("Inject entry for 203.0.113.0/24 in default VRF from gRIBI-B. This function also verifies entry via telemetry.")
 	injectIPEntry(ctx, t, dut, clientB, *deviations.DefaultNetworkInstance, ateDstNetEntryDefault)
 
 	t.Run("flushNonZeroReference", func(t *testing.T) {
@@ -288,7 +287,7 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 		t.Logf("IP Entry for %s has NOT been removed from network instance: %s as confirmed from telemetry.", ateDstNetEntryNonDefault, nonDefaultVRF)
 	}
 
-	t.Log("Ensure that 198.51.110.0/24 (ateDstNetEntryDefault) has been removed by validating telemetry.")
+	t.Log("Ensure that 203.0.113.0/24 (ateDstNetEntryDefault) has been removed by validating telemetry.")
 	entry = verifyEntry(t, dut, *deviations.DefaultNetworkInstance, ateDstNetEntryDefault)
 	if entry {
 		t.Errorf("ipv4-entry/state/prefix contains entry %s, expected no entry", ateDstNetEntryDefault)
@@ -341,8 +340,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 
 	dut.Config().NetworkInstance(nonDefaultVRF).Replace(t, nonDefaultNI)
 	nip := dut.Config().NetworkInstance(nonDefaultVRF)
-	wbbtest.LogYgot(t, "Non default Network instance parameters", nip, nip.Get(t))
-
 }
 
 // networkInstance creates an OpenConfig network instance with the specified name
