@@ -9,3 +9,5 @@ pretests:
 tests:
 - name: PBR (CD5 TC) 
   path: feature/gribi/ate_tests/cisco/pbr
+  timeout: 9000
+
