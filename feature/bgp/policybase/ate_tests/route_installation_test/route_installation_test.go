@@ -464,6 +464,7 @@ func TestEstablish(t *testing.T) {
 	t.Log("Configure Network Instance")
 
 	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	dutConfNIPath.RouterId().Replace(t, dutDst.IPv4)
 
 	// Configure BGP+Neighbors on the DUT
@@ -519,6 +520,7 @@ func TestBGPPolicy(t *testing.T) {
 	t.Log("Configure Network Instance")
 
 	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	dutConfNIPath.RouterId().Replace(t, dutDst.IPv4)
 
 	cases := []struct {
