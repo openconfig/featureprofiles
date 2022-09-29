@@ -90,7 +90,6 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 	found := false
 	for _, nhg := range aftNHGs {
 		if nhg.GetProgrammedId() == nhgIndex {
-			// commented out till we have fix for CSCwd15329
 			if nhg.GetBackupNextHopGroup() != 0 {
 				pid := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhg.GetBackupNextHopGroup()).ProgrammedId().Get(t)
 				if pid != bkhgIndex {
