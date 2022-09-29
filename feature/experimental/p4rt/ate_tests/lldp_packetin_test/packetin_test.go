@@ -119,7 +119,6 @@ func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTCli
 // then validates packetin message metadata and payload.
 func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.leader
-	follower := args.follower
 
 	// Insert wbb acl entry on the DUT
 	if err := programmTableEntry(ctx, t, leader, args.packetIO, false); err != nil {
@@ -140,10 +139,6 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 		desc:       "PacketIn to Primary Controller",
 		client:     leader,
 		expectPass: true,
-	}, {
-		desc:       "PacketIn to Secondary Controller",
-		client:     follower,
-		expectPass: false,
 	}}
 
 	for _, test := range packetInTests {
