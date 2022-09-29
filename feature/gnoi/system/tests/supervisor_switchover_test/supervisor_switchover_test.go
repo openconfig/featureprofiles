@@ -88,12 +88,9 @@ func TestSupervisorSwitchover(t *testing.T) {
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
-	keys := map[string]string{"name": rpStandbyBeforeSwitch}
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: &tpb.Path{
-
-			Origin: "openconfig",
-			Elem:   []*tpb.PathElem{{Name: "components"}, {Name: "component", Key: keys}, {Name: "state"}, {Name: "location"}},
+			Elem: []*tpb.PathElem{{Name: rpStandbyBeforeSwitch}},
 		},
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)

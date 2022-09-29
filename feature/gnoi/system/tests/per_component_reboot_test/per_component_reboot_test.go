@@ -90,13 +90,11 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandby, rpActive)
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
-	keys := map[string]string{"name": rpStandby}
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
 		Subcomponents: []*tpb.Path{
 			{
-				Origin: "openconfig",
-				Elem:   []*tpb.PathElem{{Name: "components"}, {Name: "component", Key: keys}, {Name: "state"}, {Name: "location"}},
+				Elem: []*tpb.PathElem{{Name: rpStandby}},
 			},
 		},
 	}
@@ -149,14 +147,11 @@ func TestLinecardReboot(t *testing.T) {
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
-	keyslc := map[string]string{"name": removableLinecard}
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
 		Subcomponents: []*tpb.Path{
 			{
-
-				Origin: "openconfig-platform",
-				Elem:   []*tpb.PathElem{{Name: "components"}, {Name: "component", Key: keyslc}, {Name: "state"}, {Name: "location"}},
+				Elem: []*tpb.PathElem{{Name: removableLinecard}},
 			},
 		},
 	}
