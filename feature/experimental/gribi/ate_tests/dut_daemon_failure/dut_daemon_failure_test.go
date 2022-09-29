@@ -376,4 +376,3 @@ func TestDUTDaemonFailure(t *testing.T) {
 
 	t.Logf("Test run time: %s", time.Since(start))
 }
-
