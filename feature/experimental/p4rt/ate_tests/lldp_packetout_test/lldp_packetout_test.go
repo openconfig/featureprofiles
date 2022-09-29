@@ -246,6 +246,9 @@ func TestPacketOut(t *testing.T) {
 	configureDeviceId(ctx, t, dut)
 	configurePortId(ctx, t, dut)
 
+	t.Logf("Disable LLDP config")
+	dut.Config().Lldp().Enabled().Replace(t, false)
+
 	leader := p4rt_client.P4RTClient{}
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)

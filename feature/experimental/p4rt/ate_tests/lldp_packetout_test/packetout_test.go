@@ -58,10 +58,6 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4_v1.
 // testPacketOut sends out PacketOut with GDP payload on p4rt leader or
 // follower client, then verify DUT interface statistics
 func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
-
-	t.Logf("Disable LLDP config")
-	args.dut.Config().Lldp().Enabled().Replace(t, false)
-
 	leader := args.leader
 
 	packetOutTests := []struct {
