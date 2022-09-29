@@ -207,8 +207,8 @@ func testFlow(
 	flow := ate.Traffic().NewFlow("Flow").
 		WithSrcEndpoints(i1).
 		WithDstEndpoints(i2).
-		WithHeaders(headers...).
-		WithEgressTrackingEnabled(33 /* bit offset */, 15 /* width */)
+		WithHeaders(headers...)
+	flow.EgressTracking().WithOffset(33).WithWidth(15)
 
 	ate.Traffic().Start(t, flow)
 	time.Sleep(15 * time.Second)
