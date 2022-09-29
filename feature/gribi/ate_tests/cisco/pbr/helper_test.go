@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
@@ -31,14 +32,14 @@ func configureBaseDoubleRecusionVip1Entry(ctx context.Context, t *testing.T, arg
 	t.Helper()
 	c := args.clientA.Fluent(t)
 	c.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip1NhIndex+2).WithIPAddress(atePort2.IPv4),
-		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip1NhIndex+3).WithIPAddress(atePort3.IPv4),
-		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip1NhIndex+4).WithIPAddress(atePort4.IPv4),
-		fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(args.prefix.vip1NhgIndex+1).
+		fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithIndex(args.prefix.vip1NhIndex+2).WithIPAddress(atePort2.IPv4),
+		fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithIndex(args.prefix.vip1NhIndex+3).WithIPAddress(atePort3.IPv4),
+		fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithIndex(args.prefix.vip1NhIndex+4).WithIPAddress(atePort4.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithID(args.prefix.vip1NhgIndex+1).
 			AddNextHop(args.prefix.vip1NhIndex+2, 10).
 			AddNextHop(args.prefix.vip1NhIndex+3, 20).
 			AddNextHop(args.prefix.vip1NhIndex+4, 30),
-		fluent.IPv4Entry().WithNetworkInstance(instance).WithPrefix(util.GetIPPrefix(args.prefix.vip1Ip, 0, args.prefix.vipPrefixLength)).WithNextHopGroup(args.prefix.vip1NhgIndex+1),
+		fluent.IPv4Entry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithPrefix(util.GetIPPrefix(args.prefix.vip1Ip, 0, args.prefix.vipPrefixLength)).WithNextHopGroup(args.prefix.vip1NhgIndex+1),
 	)
 
 	if err := args.clientA.AwaitTimeout(ctx, t, time.Minute); err != nil {
@@ -83,16 +84,16 @@ func configureBaseDoubleRecusionVip2Entry(ctx context.Context, t *testing.T, arg
 	t.Helper()
 	c := args.clientA.Fluent(t)
 	c.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip2NhIndex+5).WithIPAddress(atePort5.IPv4),
-		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip2NhIndex+6).WithIPAddress(atePort6.IPv4),
-		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip2NhIndex+7).WithIPAddress(atePort7.IPv4),
-		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vip2NhIndex+8).WithIPAddress(atePort8.IPv4),
-		fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(args.prefix.vip2NhgIndex+1).
+		fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithIndex(args.prefix.vip2NhIndex+5).WithIPAddress(atePort5.IPv4),
+		fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithIndex(args.prefix.vip2NhIndex+6).WithIPAddress(atePort6.IPv4),
+		fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithIndex(args.prefix.vip2NhIndex+7).WithIPAddress(atePort7.IPv4),
+		fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithIndex(args.prefix.vip2NhIndex+8).WithIPAddress(atePort8.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithID(args.prefix.vip2NhgIndex+1).
 			AddNextHop(args.prefix.vip2NhIndex+5, 10).
 			AddNextHop(args.prefix.vip2NhIndex+6, 20).
 			AddNextHop(args.prefix.vip2NhIndex+7, 30).
 			AddNextHop(args.prefix.vip2NhIndex+8, 40),
-		fluent.IPv4Entry().WithNetworkInstance(instance).WithPrefix(util.GetIPPrefix(args.prefix.vip2Ip, 0, args.prefix.vipPrefixLength)).WithNextHopGroup(args.prefix.vip2NhgIndex+1),
+		fluent.IPv4Entry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithPrefix(util.GetIPPrefix(args.prefix.vip2Ip, 0, args.prefix.vipPrefixLength)).WithNextHopGroup(args.prefix.vip2NhgIndex+1),
 	)
 
 	if err := args.clientA.AwaitTimeout(ctx, t, time.Minute); err != nil {
@@ -136,9 +137,9 @@ func configureBaseDoubleRecusionVrfEntry(ctx context.Context, t *testing.T, scal
 	t.Helper()
 	c := args.clientA.Fluent(t)
 	c.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vrfNhIndex+1).WithIPAddress(args.prefix.vip1Ip),
-		fluent.NextHopEntry().WithNetworkInstance(instance).WithIndex(args.prefix.vrfNhIndex+2).WithIPAddress(args.prefix.vip2Ip),
-		fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(args.prefix.vrfNhgIndex+1).
+		fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithIndex(args.prefix.vrfNhIndex+1).WithIPAddress(args.prefix.vip1Ip),
+		fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithIndex(args.prefix.vrfNhIndex+2).WithIPAddress(args.prefix.vip2Ip),
+		fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.PbrInstance).WithID(args.prefix.vrfNhgIndex+1).
 			AddNextHop(args.prefix.vrfNhIndex+1, 15).
 			AddNextHop(args.prefix.vrfNhIndex+2, 85),
 	)
@@ -149,7 +150,7 @@ func configureBaseDoubleRecusionVrfEntry(ctx context.Context, t *testing.T, scal
 				WithNetworkInstance(args.prefix.vrfName).
 				WithPrefix(util.GetIPPrefix(hostIP, i, prefixLength)).
 				WithNextHopGroup(args.prefix.vrfNhgIndex+1).
-				WithNextHopGroupNetworkInstance(instance))
+				WithNextHopGroupNetworkInstance(*ciscoFlags.PbrInstance))
 	}
 	c.Modify().AddEntry(t, entries...)
 

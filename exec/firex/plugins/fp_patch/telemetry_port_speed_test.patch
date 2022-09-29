@@ -1,5 +1,5 @@
 diff --git a/feature/gnmi/ate_tests/telemetry_port_speed_test/telemetry_port_speed_test.go b/feature/gnmi/ate_tests/telemetry_port_speed_test/telemetry_port_speed_test.go
-index c7dca01a..dbc8ceb0
+index c7dca01a..d99f55a5
 --- a/feature/gnmi/ate_tests/telemetry_port_speed_test/telemetry_port_speed_test.go
 +++ b/feature/gnmi/ate_tests/telemetry_port_speed_test/telemetry_port_speed_test.go
 @@ -191,7 +191,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
@@ -11,3 +11,12 @@ index c7dca01a..dbc8ceb0
  		})
  	}
  
+@@ -199,7 +199,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
+ 	tc.configAggregateDUT(agg, &dutIPs)
+ 	aggPath := d.Interface(tc.aggID)
+ 	fptest.LogYgot(t, tc.aggID, aggPath, agg)
+-	aggPath.Replace(t, agg)
++	aggPath.Update(t, agg)
+ 	t.Cleanup(func() {
+ 		aggPath.Delete(t)
+ 	})
