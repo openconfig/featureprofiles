@@ -339,7 +339,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	niIntf.Interface = ygot.String(p1.Name())
 
 	dut.Config().NetworkInstance(nonDefaultVRF).Replace(t, nonDefaultNI)
-	nip := dut.Config().NetworkInstance(nonDefaultVRF)
 }
 
 // networkInstance creates an OpenConfig network instance with the specified name
