@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 
 const (
 	ateDstNetEntryNonDefault = "198.51.100.0/24" // IP Entry to be injected in non-default network instance
-	ateDstNetEntryDefault    = "203.0.113.0/24" // IP Entry to be injected in default network instance
+	ateDstNetEntryDefault    = "203.0.113.0/24"  // IP Entry to be injected in default network instance
 	nonDefaultVRF            = "VRF-1"           // Name of non-default network instance
 	clientAOriginElectionID  = 10
 	clientBOriginElectionID  = 9
