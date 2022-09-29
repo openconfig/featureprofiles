@@ -45,11 +45,11 @@ var (
 	METADATA_INGRESS_PORT = uint32(10)
 	METADATA_EGRESS_PORT  = uint32(0)
 	TTL1                  = uint8(1)
-	HopLimit1	          = uint8(1)
+	HopLimit1	      = uint8(1)
 	TTL0                  = uint8(0)
-	HopLimit0	          = uint8(0)
-	ipv4PrefixLen 		  = uint8(30)
-	ipv6PrefixLen 		  = uint8(12)
+	HopLimit0	      = uint8(0)
+	ipv4PrefixLen	  = uint8(30)
+	ipv6PrefixLen	  = uint8(12)
 
 )
 
@@ -129,7 +129,7 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 	return i
 }
 
-// configureDUT configures port1 and port2 on the DUT.
+//  configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := dut.Config()
 
