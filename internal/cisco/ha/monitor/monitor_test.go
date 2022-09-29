@@ -2,7 +2,7 @@
 package config
 
 import (
-	"container/ring"
+	//"container/ring"
 	"context"
 	"fmt"
 	"io"
@@ -28,7 +28,7 @@ import (
 const (
 	pingThreadScale          = 5    // # of parallel ping request to send
 	pingScale                = 2000 // # of ping message to send
-	AFTTelemtryUpdateTimeout = 60   // second
+	AFTTelemtryUpdateTimeout = 120   // second
 )
 
 func TestMain(m *testing.M) {
@@ -148,7 +148,7 @@ func testBatchADDReplaceDeleteIPV4(t *testing.T, args *TestArgs, events *CachedC
 	startTime := time.Now()
 	t.Logf("Gribi test is started at: %v", startTime)
 	ciscoFlags.GRIBIFIBCheck = ygot.Bool(true)
-	scale := uint(200000)
+	scale := uint(1500)
 	ciscoFlags.GRIBIScale = &scale
 	ciscoFlags.GRIBIChecks.AFTChainCheck = false
 	ciscoFlags.GRIBIChecks.AFTCheck = false
@@ -173,7 +173,6 @@ func testBatchADDReplaceDeleteIPV4(t *testing.T, args *TestArgs, events *CachedC
 	gribiC.AddNH(t, 41, "100.129.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks) // Not connected
 	gribiC.AddNHG(t, 100, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	gribiC.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-
 	// 11.11.11.0/32 Self-Site
 	t.Log("Gribi Test: Self-site")
 	prefixes := []string{}
@@ -184,13 +183,13 @@ func testBatchADDReplaceDeleteIPV4(t *testing.T, args *TestArgs, events *CachedC
 	gribiC.AddNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	gribiC.AddNHG(t, 1, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// Add
-	gribiC.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	gribiC.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	waitTime := 0
 	// check for receving update
 out:
 	for {
 		for _, prefix := range prefixes {
-			path := args.DUT.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
+			path := args.DUT.Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
 			strpath := gnmiutil.PathStructToString(path)
 			_, found := events.Cache.Get(strpath)
 			if found {
@@ -205,7 +204,7 @@ out:
 	}
 	// check to make sure we have update for all prefix
 	for _, prefix := range prefixes {
-		path := args.DUT.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
+		path := args.DUT.Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
 		strpath := gnmiutil.PathStructToString(path)
 		for {
 			_, found := events.Cache.Get(strpath)
@@ -253,8 +252,8 @@ func TestLoad(t *testing.T) {
 			//dut.Telemetry().InterfaceAny(),
 			//dut.Telemetry().System().Memory(),
 			//dut.Telemetry().System().CpuAny(),
-			//dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
-			//dut.Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance),
+			dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
+			dut.Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts(),
 		},
 		Consumer: eventConsumer,
 		DUT:      dut,
@@ -265,7 +264,7 @@ func TestLoad(t *testing.T) {
 	// start tests
 	testGroup := &sync.WaitGroup{}
 	// start reset/apply config
-	BackgroundFunc(ctx, t, time.NewTimer(10*time.Millisecond), testArgs, eventConsumer, testGNMISet, testGroup)
+	//BackgroundFunc(ctx, t, time.NewTimer(10*time.Millisecond), testArgs, eventConsumer, testGNMISet, testGroup)
 
 	// start gribi test writter
 	BackgroundFunc(ctx, t, time.NewTimer(1*time.Second), testArgs, eventConsumer, testBatchADDReplaceDeleteIPV4, testGroup)
@@ -275,18 +274,22 @@ func TestLoad(t *testing.T) {
 	BackgroundFunc(ctx, t, time.NewTimer(10*time.Second), testArgs, eventConsumer, testPing, testGroup)
 	// start p4rt
 	//runBackground(gribi, )
+	//BackgroundFunc(ctx, t, time.NewTimer(10*time.Second), testArgs, eventConsumer, testPing, testGroup)
 
 	time.Sleep(11 * time.Second) // wait until the test start (the timer period + 1)
 	testGroup.Wait()
 	cancelMonitors()
-	for key, val := range eventConsumer.Cache.Items() {
+	time.Sleep(60*time.Second)
+
+	/*for key, val := range eventConsumer.Cache.Items() {
 		ring := val.Object.(*ring.Ring)
 		// just for debugging, will be removed later
 		fmt.Printf("%s:%d\n", key, ring.Len())
 		/*if ring.Prev().Value != nil {
 			fmt.Printf("%s:%d\n", key, ring.Len())
 		}*/
-	}
+	//}
+	fmt.Println(len(eventConsumer.Cache.Items()))
 
 }
 
