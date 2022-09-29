@@ -14,7 +14,6 @@ import (
 const (
 	ipv4PrefixLen = 24
 	ipv6PrefixLen = 126
-	instance      = "default"
 	vlanMTU       = 1518
 )
 
