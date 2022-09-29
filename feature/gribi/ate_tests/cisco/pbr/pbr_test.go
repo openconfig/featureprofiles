@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -61,7 +62,7 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 		},
 	}
 
-	dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Replace(t, &policy)
 }
 
 func configNewPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string, dscp uint8) {
@@ -80,7 +81,7 @@ func configNewPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string, ds
 	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
 	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 
-	dut.Config().NetworkInstance("default").PolicyForwarding().Policy(policyName).Update(t, &p)
+	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Update(t, &p)
 }
 
 func configNewRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, ruleID uint32, protocol uint8, dscp ...uint8) {
@@ -93,7 +94,7 @@ func configNewRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, rule
 		r.Ipv4.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP
 	}
 	r.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
-	dut.Config().NetworkInstance(instance).PolicyForwarding().Policy(policyName).Rule(ruleID).Replace(t, &r)
+	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Rule(ruleID).Replace(t, &r)
 }
 
 func generatePhysicalInterfaceConfig(t *testing.T, name, ipv4 string, prefixlen uint8) *telemetry.Interface {
@@ -117,11 +118,11 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *t
 }
 
 func configPBRunderInterface(t *testing.T, args *testArgs, interfaceName, policyName string) {
-	args.dut.Config().NetworkInstance(instance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Replace(t, policyName)
+	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Replace(t, policyName)
 }
 
 func unconfigPBRunderInterface(t *testing.T, args *testArgs, interfaceName string) {
-	args.dut.Config().NetworkInstance(instance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Delete(t)
+	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Delete(t)
 }
 
 // Remove flowspec and add as pbr
@@ -132,7 +133,7 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 
 	t.Log("Configure PBR policy and Apply it under interface")
 	configBasePBR(t, dut)
-	dut.Config().NetworkInstance(instance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
+	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
 
 	t.Log("Reload the router to activate hw module config")
 	util.ReloadDUT(t, dut)
@@ -155,7 +156,7 @@ func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, sam
 	if !samePolicy {
 		policyName = "new-PBR"
 		configNewPolicy(t, args.dut, policyName, 0)
-		defer args.dut.Config().NetworkInstance(instance).PolicyForwarding().Policy(policyName).Delete(t)
+		defer args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Delete(t)
 	}
 	configPBRunderInterface(t, args, physicalInterface, policyName)
 	configPBRunderInterface(t, args, args.interfaces.in[0], pbrName)
@@ -205,7 +206,7 @@ func testChangePBRUnderInterface(ctx context.Context, t *testing.T, args *testAr
 
 	// Configure new policy that matches the dscp and protocol IPinIP
 	configNewPolicy(t, args.dut, newPbrName, dscpVal)
-	defer args.dut.Config().NetworkInstance(instance).PolicyForwarding().Policy(newPbrName).Delete(t)
+	defer args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(newPbrName).Delete(t)
 
 	// Change policy on the bunlde interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
@@ -262,8 +263,8 @@ func configurePBR(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance, i
 	p := policy.GetOrCreatePolicy(name)
 	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
 	p.AppendRule(&r1)
-	dut.Config().NetworkInstance("default").PolicyForwarding().Update(t, &policy)
-	//dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Update(t, &policy)
+	//dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Replace(t, &policy)
 }
 
 func configurePBRRule(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance, iptype string, index uint32, protocol telemetry.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
@@ -286,7 +287,7 @@ func configurePBRRule(t *testing.T, dut *ondatra.DUTDevice, name, networkInstanc
 		}
 	}
 	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
-	dut.Config().NetworkInstance("default").PolicyForwarding().Policy(name).Rule(index).Replace(t, &r1)
+	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(name).Rule(index).Replace(t, &r1)
 }
 
 func configureL2PBR(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance, iptype string, index uint32) {
@@ -310,7 +311,7 @@ func configureL2PBR(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance,
 	policy := telemetry.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
-	dut.Config().NetworkInstance("default").PolicyForwarding().Update(t, &policy)
+	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Update(t, &policy)
 }
 
 func configureL2PBRRule(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance, iptype string, index uint32) {
@@ -327,7 +328,7 @@ func configureL2PBRRule(t *testing.T, dut *ondatra.DUTDevice, name, networkInsta
 		}
 	}
 	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
-	dut.Config().NetworkInstance("default").PolicyForwarding().Policy(name).Rule(index).Replace(t, &r1)
+	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(name).Rule(index).Replace(t, &r1)
 }
 
 func getBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoint ondatra.Endpoint, flowName string, dscp uint8, ttl ...uint8) *ondatra.Flow {
@@ -397,11 +398,11 @@ func deletePBRPolicyAndClassMaps(ctx context.Context, t *testing.T, dut *ondatra
 		configToChange = configToChange + fmt.Sprintf("no class-map type traffic match-all %d_%s\n", i, policyName)
 	}
 	config.TextWithGNMI(ctx, t, dut, configToChange)
-	//dut.Config().NetworkInstance("default").PolicyForwarding().Policy(policyName).Delete(t)
+	//dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Delete(t)
 }
 
 func deletePBRPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
-	dut.Config().NetworkInstance("default").PolicyForwarding().Policy(policyName).Delete(t)
+	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Delete(t)
 }
 
 func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *testArgs) {
@@ -579,7 +580,7 @@ func testRemoveClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	// Remove existing class map
-	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Delete(t)
+	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(1).Delete(t)
 
 	// Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -601,7 +602,7 @@ func testChangeAction(ctx context.Context, t *testing.T, args *testArgs) {
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	// Change action for matching protocol IPinIP class
-	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Action().NetworkInstance().Replace(t, *ygot.String("VRF1"))
+	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(1).Action().NetworkInstance().Replace(t, *ygot.String("VRF1"))
 
 	// Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -618,7 +619,7 @@ func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	ruleID := uint32(10)
 	dscp := uint8(32)
 	configNewRule(t, args.dut, pbrName, ruleID, 4, dscp)
-	defer args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(ruleID).Delete(t)
+	defer args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(ruleID).Delete(t)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
@@ -629,7 +630,7 @@ func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	// Change action for matching protocol IPinIP class
-	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Action().NetworkInstance().Replace(t, *ygot.String("VRF1"))
+	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(1).Action().NetworkInstance().Replace(t, *ygot.String("VRF1"))
 
 	// Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -655,7 +656,7 @@ func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	t.Run("Delete apply-vrf-selection-policy leaf", func(t *testing.T) {
-		args.dut.Config().NetworkInstance(instance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Delete(t)
+		args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Delete(t)
 		defer configPBRunderInterface(t, args, interfaceName, pbrName)
 
 		// // TODO: enabled once gNMI Get works on XR
@@ -678,7 +679,7 @@ func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args
 	})
 
 	t.Run("Delete interface list entry", func(t *testing.T) {
-		args.dut.Config().NetworkInstance(instance).PolicyForwarding().Interface(interfaceName).Delete(t)
+		args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).Delete(t)
 		defer configPBRunderInterface(t, args, interfaceName, pbrName)
 
 		// // TODO: enabled once gNMI Get works on XR
@@ -716,7 +717,7 @@ func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Run("Remove dscp-set", func(t *testing.T) {
 		// Remove existing match field
-		args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().DscpSet().Delete(t)
+		args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().DscpSet().Delete(t)
 		defer configBasePBR(t, args.dut)
 
 		// // TODO: enabled once gNMI Get works on XR
@@ -745,7 +746,7 @@ func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 				DscpSet:  []uint8{10},
 			}
 			r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
-			args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Replace(t, r1)
+			args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(1).Replace(t, r1)
 		})
 		if !success {
 			t.Fatal("failed to apply pre-test configuration")
@@ -757,7 +758,7 @@ func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 
 		// Remove existing match field
 		success = t.Run("Delete", func(t *testing.T) {
-			args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Ipv4().Protocol().Delete(t)
+			args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(1).Ipv4().Protocol().Delete(t)
 		})
 		if !success {
 			t.FailNow()
@@ -792,8 +793,8 @@ func testModifyMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	// Modify match field for protocol IPinIP class
-	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Delete(t)
-	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().Protocol().Replace(t, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
+	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(1).Delete(t)
+	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().Protocol().Replace(t, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
 
 	// Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -815,7 +816,7 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	t.Run("Add dscp-set", func(t *testing.T) {
-		args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(1).Ipv4().DscpSet().Replace(t, []uint8{10, 12})
+		args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(1).Ipv4().DscpSet().Replace(t, []uint8{10, 12})
 		defer configBasePBR(t, args.dut)
 
 		// // TODO: enabled once gNMI Get works on XR
@@ -842,7 +843,7 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 	})
 
 	t.Run("Add protocol", func(t *testing.T) {
-		args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().Protocol().Replace(t, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
+		args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().Protocol().Replace(t, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
 		defer configBasePBR(t, args.dut)
 
 		// Create Traffic and check traffic
@@ -984,7 +985,7 @@ func testPolicesReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	policy := telemetry.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
-	args.dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Replace(t, &policy)
 
 	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }
@@ -1029,7 +1030,7 @@ func testPolicyReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
 	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{2: &r2, 3: &r3, 4: &r4}
 
-	args.dut.Config().NetworkInstance("default").PolicyForwarding().Policy(pbrName).Replace(t, &p)
+	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Replace(t, &p)
 
 	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }

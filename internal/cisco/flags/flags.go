@@ -51,6 +51,8 @@ var (
 	PbrInstance = flag.String("pbr_instance", "DEFAULT", "pbr network instance")
 
 	BgpInstance = flag.String("bgp_instance", "default", "bgp instance name")
+
+	P4RTOcNPU = flag.String("p4rt_oc_npu", "0/RP0/CPU0-NPU0", "P4RT device npu")
 )
 
 // GRIBICheck struct
