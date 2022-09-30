@@ -16,18 +16,22 @@ package base_hierarchical_nhg_update_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -79,16 +83,19 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: 30,
 	}
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: 30,
 	}
 	atePort3 = attrs.Attributes{
 		Name:    "atePort3",
+		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: 30,
 	}
@@ -107,8 +114,11 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 
-	p2flow := createFlow("Port 1 to Port 2", ate, top, &atePort2)
-	p3flow := createFlow("Port 1 to Port 3", ate, top, &atePort3)
+	p2flow := createFlow(t, "Port 1 to Port 2", ate, top, &atePort2)
+	p3flow := createFlow(t, "Port 1 to Port 3", ate, top, &atePort3)
+
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	gribic, err := gribiClient(ctx, t, dut)
 	if err != nil {
@@ -118,11 +128,11 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	addInterfaceRoute(ctx, t, gribic, p2ID, dut.Port(t, "port2").Name(), atePort2.IPv4)
 	addDestinationRoute(ctx, t, gribic)
 
-	validateTrafficFlows(t, ate, []*ondatra.Flow{p2flow}, []*ondatra.Flow{p3flow})
+	validateTrafficFlows(t, ate, p2flow, p3flow)
 
 	addInterfaceRoute(ctx, t, gribic, p3ID, dut.Port(t, "port3").Name(), atePort3.IPv4)
 
-	validateTrafficFlows(t, ate, []*ondatra.Flow{p3flow}, []*ondatra.Flow{p2flow})
+	validateTrafficFlows(t, ate, p3flow, p2flow)
 }
 
 // addDestinationRoute creates a GRIBI route to dstPfx via interfaceNH.
@@ -206,18 +216,16 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 	return c.Await(subctx, t)
 }
 
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	top := ate.OTG().NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
 	p3 := ate.Port(t, "port3")
 
-	atePort1.AddToATE(top, p1, &dutPort1)
-	atePort2.AddToATE(top, p2, &dutPort2)
-	atePort3.AddToATE(top, p3, &dutPort3)
-
-	top.Push(t).StartProtocols(t)
+	addToOTG(top, p1, &atePort1, &dutPort1)
+	addToOTG(top, p2, &atePort2, &dutPort2)
+	addToOTG(top, p3, &atePort3, &dutPort3)
 
 	return top
 }
@@ -250,22 +258,18 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
-func createFlow(name string, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology, dsts ...*attrs.Attributes) *ondatra.Flow {
-	hdr := ondatra.NewIPv4Header()
-	hdr.WithSrcAddress(dutPort1.IPv4).
-		DstAddressRange().WithMin(dstPfxMin).WithMax(dstPfxMax).WithCount(dstPfxCount)
+func createFlow(t testing.TB, name string, ate *ondatra.ATEDevice, ateTop gosnappi.Config, dst *attrs.Attributes) string {
+	modName := strings.Replace(name, " ", "_", -1)
+	flowipv4 := ateTop.Flows().Add().SetName(modName)
+	flowipv4.Metrics().SetEnable(true)
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{dst.Name + ".IPv4"})
+	v4 := flowipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort1.IPv4)
+	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
 
-	endpoints := []ondatra.Endpoint{}
-	for _, dst := range dsts {
-		endpoints = append(endpoints, ateTop.Interfaces()[dst.Name])
-	}
-
-	flow := ate.Traffic().NewFlow(name).
-		WithSrcEndpoints(ateTop.Interfaces()[atePort1.Name]).
-		WithDstEndpoints(endpoints...).
-		WithHeaders(ondatra.NewEthernetHeader(), hdr)
-
-	return flow
+	return modName
 }
 
 func gribiClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*fluent.GRIBIClient, error) {
@@ -290,25 +294,64 @@ func gribiClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*fl
 // 100% loss.
 //
 // TODO: Packets should be validated to arrive at ATE with destination MAC pMAC.
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []*ondatra.Flow, bad []*ondatra.Flow) {
-	if len(good) == 0 && len(bad) == 0 {
-		return
-	}
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, goodFlow, badFlow string) {
 
-	flows := append(good, bad...)
-	ate.Traffic().Start(t, flows...)
+	config := ate.OTG().FetchConfig(t)
+	waitOTGARPEntry(t)
+	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
-	ate.Traffic().Stop(t)
+	ate.OTG().StopTraffic(t)
 
-	for _, flow := range good {
-		if got := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t); got > 0 {
-			t.Fatalf("LossPct for flow %s: got %g, want 0", flow.Name(), got)
-		}
+	otgutils.LogFlowMetrics(t, ate.OTG(), config)
+	otgutils.LogPortMetrics(t, ate.OTG(), config)
+	if got := getLossPct(t, ate, goodFlow); got > 0 {
+		t.Errorf("LossPct for flow %s: got %v, want 0", goodFlow, got)
+	}
+	if got := getLossPct(t, ate, badFlow); got < 100 {
+		t.Errorf("LossPct for flow %s: got %v, want 100", badFlow, got)
 	}
 
-	for _, flow := range bad {
-		if got := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t); got < 100 {
-			t.Fatalf("LossPct for flow %s: got %g, want 100", flow.Name(), got)
-		}
+}
+
+// getLossPct returns the loss percentage for a given flow
+func getLossPct(t *testing.T, ate *ondatra.ATEDevice, flowName string) uint64 {
+	t.Helper()
+	recvMetric := ate.OTG().Telemetry().Flow(flowName).Get(t)
+	txPackets := recvMetric.GetCounters().GetOutPkts()
+	rxPackets := recvMetric.GetCounters().GetInPkts()
+	lostPackets := txPackets - rxPackets
+	if txPackets == 0 {
+		t.Fatalf("Tx packets shold be higher than 0 for flow %s", flowName)
 	}
+	lossPct := lostPackets * 100 / txPackets
+	return lossPct
+}
+
+// addToOTG adds elements to a gosnappi configuration
+func addToOTG(top gosnappi.Config, ap *ondatra.Port, port, peer *attrs.Attributes) {
+	top.Ports().Add().SetName(ap.ID())
+	dev := top.Devices().Add().SetName(port.Name)
+	eth := dev.Ethernets().Add().SetName(port.Name + ".Eth")
+	eth.SetPortName(ap.ID()).SetMac(port.MAC)
+
+	if port.MTU > 0 {
+		eth.SetMtu(int32(port.MTU))
+	}
+	if port.IPv4 != "" {
+		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+		ip.SetAddress(port.IPv4).SetGateway(peer.IPv4).SetPrefix(int32(port.IPv4Len))
+	}
+	if port.IPv6 != "" {
+		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv6")
+		ip.SetAddress(port.IPv6).SetGateway(peer.IPv6).SetPrefix(int32(port.IPv6Len))
+	}
+}
+
+// Waits for an ARP entry to be present for ATE Port1
+func waitOTGARPEntry(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	ate.OTG().Telemetry().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
 }
