@@ -153,12 +153,11 @@ func TestPortFlap(t *testing.T) {
 
 		t.Run(testName, func(t *testing.T) {
 			if i < len(atePorts) {
-				// t.Logf("Bringing down ate port: %v", atePorts[i])
 				// Setting admin state down on the DUT interface.
 				// Setting the otg interface down has no effect on kne
 				dp := dut.Port(t, atePorts[i].ID())
 				t.Logf("Bringing down dut port: %v", dp.Name())
-				setDutInterfaceState(t, dut, dp, false)
+				setDUTInterfaceState(t, dut, dp, false)
 
 				// ATE and DUT ports in the linked pair have the same ID(), but
 				// they are mapped to different Name().

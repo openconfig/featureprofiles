@@ -89,6 +89,7 @@ const (
 	plen = 30
 
 	ateSrcPort       = "ate:port1"
+	ateSrcPortMac    = "02:00:01:01:01:01"
 	ateSrcNetName    = "srcnet"
 	ateSrcNet        = "198.51.100.0"
 	ateSrcNetCIDR    = "198.51.100.0/24"
@@ -136,7 +137,6 @@ var (
 		"ate:port9": "192.0.2.34",
 	}
 )
-var ateMac = make(map[string]string)
 
 // nextHop describes the next hop configuration of a given test case.
 type nextHop struct {
@@ -207,8 +207,9 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	}
 }
 
-// setDutInterfaceState sets the admin state on the dut interface
-func setDutInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port, state bool) {
+// setDUTInterfaceState sets the admin state on the dut interface
+func setDUTInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port, state bool) {
+	t.Helper()
 	dc := dut.Config()
 	i := &telemetry.Interface{Name: ygot.String(p.Name())}
 	i.Enabled = ygot.Bool(state)
@@ -217,9 +218,9 @@ func setDutInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port,
 
 // configureATE configures the topology of the ATE.
 func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
+	t.Helper()
 	otg := ate.OTG()
 	config := otg.NewConfig(t)
-	startMac := "02:00:01:01:01:01"
 	for i, ap := range ate.Ports() {
 		// DUT and ATE ports are connected by the same names.
 		dutid := fmt.Sprintf("dut:%s", ap.ID())
@@ -227,8 +228,7 @@ func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 
 		config.Ports().Add().SetName(ap.ID())
 		dev := config.Devices().Add().SetName(ateid)
-		macAddress, _ := incrementedMac(startMac, i)
-		ateMac[ateid] = macAddress
+		macAddress, _ := incrementMAC(ateSrcPortMac, i)
 		eth := dev.Ethernets().Add().SetName(ateid + ".Eth").
 			SetPortName(ap.ID()).SetMac(macAddress)
 		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4").
@@ -313,16 +313,15 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
-	waitOTGARPEntry(t)
+	waitOTGARPEntry(t, time.Minute)
 	dstMac := ate.OTG().Telemetry().Interface(ateSrcPort + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
 	config.Flows().Clear().Items()
 	flow := config.Flows().Add().SetName("flow")
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Port().
 		SetTxName(re.FindStringSubmatch(ateSrcPort)[1])
-	flow.Packet().Add().SetChoice("tcp")
 	eth := flow.Packet().Add().Ethernet()
-	eth.Src().SetValue(ateMac[ateSrcPort])
+	eth.Src().SetValue(ateSrcPortMac)
 	eth.Dst().SetValue(dstMac)
 	ipv4 := flow.Packet().Add().Ipv4()
 	if *randomSrcIP {
@@ -347,7 +346,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 		tcp.DstPort().SetChoice("increment").Increment().SetStart(1).SetCount(65534)
 	}
 
-	flow.Size().SetFixed(100)
+	flow.Size().SetFixed(200)
 	ate.OTG().PushConfig(t, config)
 
 	if *trafficPause != 0 {
@@ -432,8 +431,8 @@ func debugGRIBI(t testing.TB, dut *ondatra.DUTDevice) {
 	}
 }
 
-// incrementedMac uses an mac string and increments it by the given i
-func incrementedMac(mac string, i int) (string, error) {
+// incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
+func incrementMAC(mac string, i int) (string, error) {
 	macAddr, err := net.ParseMAC(mac)
 	if err != nil {
 		return "", err
@@ -449,11 +448,12 @@ func incrementedMac(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-// waitOtgArpEntry ensures that ARP entries are present on the tx otg interface and traffic could be started
-func waitOTGARPEntry(t *testing.T) {
+// waitOTGArpEntry ensures that ARP entries are present on the tx otg interface and traffic could be started
+func waitOTGARPEntry(t *testing.T, timeout time.Duration) {
+	t.Helper()
 	ate := ondatra.ATE(t, "ate")
 	ate.OTG().Telemetry().Interface(ateSrcPort+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+		t, timeout, func(val *otgtelemetry.QualifiedString) bool {
 			return val.IsPresent()
 		}).Await(t)
 }
