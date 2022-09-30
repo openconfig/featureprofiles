@@ -15,9 +15,12 @@
 package optics_power_and_bias_current_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -50,7 +53,7 @@ func TestMain(m *testing.M) {
 func TestOpticsPowerBiasCurrent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	transceivers := findComponentsByType(t, dut, transceiverType)
+	transceivers := components.FindComponentsByType(t, dut, transceiverType)
 	t.Logf("Found transceiver list: %v", transceivers)
 	if len(transceivers) == 0 {
 		t.Fatalf("Get transceiver list for %q: got 0, want > 0", dut.Model())
@@ -67,11 +70,6 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 		mfgName := component.MfgName().Get(t)
 		t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
 
-		// TODO: Remove the mfgName INNOLIGHT check after the issue is fixed.
-		if mfgName == "INNOLIGHT" {
-			t.Logf("Optics from INNOLIGHT is not supported, skip it for now.")
-			continue
-		}
 		inputPowers := component.Transceiver().ChannelAny().InputPower().Instant().Get(t)
 		t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
 		if len(inputPowers) == 0 {
@@ -131,12 +129,18 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			dut.Config().Interface(dp.Name()).Replace(t, i)
 			dut.Telemetry().Interface(dp.Name()).OperStatus().Await(t, intUpdateTime, tc.expectedStatus)
 
-			mfgName := dut.Telemetry().Component(dp.Name()).MfgName().Get(t)
-			t.Logf("Transceiver MfgName: %s", mfgName)
-			// TODO: Remove the mfgName INNOLIGHT check after the issue is fixed.
-			if mfgName == "INNOLIGHT" {
-				t.Skipf("Optics from INNOLIGHT is not supported, skip it for now.")
+			transceiverName, err := findTransceiverName(dut, dp.Name())
+			if err != nil {
+				t.Fatalf("findTransceiver(%s, %s): %v", dut.Name(), dp.Name(), err)
 			}
+
+			component := dut.Telemetry().Component(transceiverName)
+			if !component.MfgName().Lookup(t).IsPresent() {
+				t.Skipf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiverName)
+			}
+
+			mfgName := component.MfgName().Get(t)
+			t.Logf("Transceiver MfgName: %s", mfgName)
 
 			channels := dut.Telemetry().Component(dp.Name()).Transceiver().ChannelAny()
 			inputPowers := channels.InputPower().Instant().Get(t)
@@ -158,26 +162,25 @@ func TestOpticsPowerUpdate(t *testing.T) {
 	}
 }
 
-func findComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
-	components := dut.Telemetry().ComponentAny().Name().Get(t)
-	var s []string
-	for _, c := range components {
-		lookupType := dut.Telemetry().Component(c).Type().Lookup(t)
-		if !lookupType.IsPresent() {
-			t.Logf("Component %s type is missing from telemetry", c)
-			continue
+// findTransceiverName provides name of transciever port corresponding to interface name
+func findTransceiverName(dut *ondatra.DUTDevice, interfaceName string) (string, error) {
+	var (
+		transceiverMap = map[ondatra.Vendor]string{
+			ondatra.ARISTA:  " transceiver",
+			ondatra.CISCO:   "",
+			ondatra.JUNIPER: "",
 		}
-		componentType := lookupType.Val(t)
-		t.Logf("Component %s has type: %v", c, componentType)
-
-		switch v := componentType.(type) {
-		case telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
-			if v == cType {
-				s = append(s, c)
-			}
-		default:
-			t.Logf("Detected non-hardware component: (%T, %v)", componentType, componentType)
-		}
+	)
+	transceiverName := interfaceName
+	name, ok := transceiverMap[dut.Vendor()]
+	if !ok {
+		return "", fmt.Errorf("No transceiver interface available for DUT vendor %v", dut.Vendor())
 	}
-	return s
+	if name != "" {
+		interfaceSplit := strings.Split(interfaceName, "/")
+		interfaceSplitres := interfaceSplit[:len(interfaceSplit)-1]
+		transceiverName = strings.Join(interfaceSplitres, "/") + name
+
+	}
+	return transceiverName, nil
 }
