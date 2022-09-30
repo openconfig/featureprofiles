@@ -160,6 +160,7 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string) *telemetry.NetworkInsta
 	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	bgp := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
+	global.RouterId = ygot.String(dutDst.IPv4)
 	global.As = ygot.Uint32(localAs)
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
@@ -511,11 +512,6 @@ func TestEstablish(t *testing.T) {
 	t.Logf("Start DUT interface Config")
 	configureDUT(t, dut)
 
-	t.Log("Configure Network Instance")
-
-	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfNIPath.RouterId().Replace(t, dutDst.IPv4)
-
 	// Configure BGP+Neighbors on the DUT
 	t.Logf("Start DUT BGP Config")
 	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -570,11 +566,6 @@ func TestBGPPolicy(t *testing.T) {
 	// Configure interface on the DUT
 	t.Logf("Start DUT interface Config")
 	configureDUT(t, dut)
-
-	t.Log("Configure Network Instance")
-
-	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfNIPath.RouterId().Replace(t, dutDst.IPv4)
 
 	cases := []struct {
 		desc                      string
