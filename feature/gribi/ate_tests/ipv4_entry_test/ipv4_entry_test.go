@@ -256,7 +256,6 @@ func TestIPv4Entry(t *testing.T) {
 			if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 				t.Fatalf("Await got error during session negotiation: %v", err)
 			}
-			// flush the entries,
 			if tc.downPort != nil {
 				ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(false).Send(t)
 				defer ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(true).Send(t)
