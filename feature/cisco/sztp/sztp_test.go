@@ -85,13 +85,13 @@ func TestPWLess(t *testing.T) {
 		t.Error(err)
 	}
 	t.Log("Trying to connect to box with public key\n\n")
-	ssh_pwless := "ssh -i id_rsa " + fmt.Sprintf("%s@%s -p %s", *sshUser, *sshIP, *sshPort) + " show version"
+	ssh_pwless := "ssh -i " + fmt.Sprintf("%sid_rsa ",client_ssh_dir) + fmt.Sprintf("%s@%s -p %s", *sshUser, *sshIP, *sshPort) + " show version"
 	t.Log(ssh_pwless)
 	outPw, errPw := exec.Command("bash", "-c", ssh_pwless).Output()
 	if errPw != nil {
 		t.Error(errPw)
 	}
-	t.Logf("show version from the box\n %v\n", outPw)
+	t.Logf("show version from the box\n %v\n", fmt.Sprintf("%s",outPw))
 }
 func TestCertAuth(t *testing.T) {
 	if *sshIP == "" {
@@ -114,14 +114,13 @@ func TestCertAuth(t *testing.T) {
 	if errCert != nil {
 		t.Error(errCert)
 	}
-	t.Logf("The output is %v\n", outCert)
+	t.Logf("The output is %v\n", fmt.Sprintf("%s",outCert))
 }
 
 func TestPwDisable(t *testing.T) {
 	if *sshIP == "" {
 		t.Fatal("--ssh_ip flag must be set.")
 	}
-
 	ssh_pwauth := "ssh -o PreferredAuthentications=cisco123 " + fmt.Sprintf("%s@%s -p %s", *sshUser, *sshIP, *sshPort)
 	outPwauth, errPwauth := exec.Command("bash", "-c", ssh_pwauth).Output()
 	if errPwauth == nil {
@@ -204,7 +203,7 @@ func TestTLS(t *testing.T) {
 		ClientAuth:         tls.NoClientCert,
 		InsecureSkipVerify: true,
 	}
-
+	t.Log("Connecting to grpc")
 	tlsCredential := credentials.NewTLS(configGrpc)
 	conn, err := grpc.Dial(
 		fmt.Sprintf("%s:%s", *sshIP, *sshPort),
@@ -222,7 +221,6 @@ func TestSZTP(t *testing.T) {
 	if *sshIP == "" {
 		t.Fatal("--ssh_ip flag must be set.")
 	}
-
 	dut := ondatra.DUT(t, "dut")
 	cli_handle := dut.RawAPIs().CLI(t)
 	ztp_resp, err := cli_handle.SendCommand(context.Background(), "ztp initiate noprompt")
