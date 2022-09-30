@@ -130,5 +130,15 @@ tests:
     - '-protocol_name="default"'
 - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
   path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
+  args:
+    - '-p4rt_node_name="0/RP0/CPU0/0"'
 - name: TE-14.1 (gRIBI Scaling)
   path: feature/gribi/ate_tests/gribi_scaling
+- name: FP_GNMI_GET
+  path: feature/system/gnmi/get/tests
+- name: FP_GNMI_NTP
+  path: feature/system/ntp/tests
+- name: FP_GNMI_System
+  path: feature/system/ntp/tests
+
+
