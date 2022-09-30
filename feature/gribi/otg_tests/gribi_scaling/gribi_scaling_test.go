@@ -339,7 +339,7 @@ func generateSubIntfPair(t *testing.T, top gosnappi.Config, dut *ondatra.DUTDevi
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 2))
 		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4, *deviations.DefaultNetworkInstance)
-		MAC, _ := incrementedMac(atePort1.MAC, i+1)
+		MAC, _ := incrementMAC(atePort1.MAC, i+1)
 		configureATE(t, top, ate, atePort, vlanID, name, MAC, dutIPv4, ateIPv4)
 		nextHops = append(nextHops, ateIPv4)
 	}
@@ -405,8 +405,8 @@ type testArgs struct {
 	top    gosnappi.Config
 }
 
-// incrementedMac uses a mac string and increments it by the given i
-func incrementedMac(mac string, i int) (string, error) {
+// incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
+func incrementMAC(mac string, i int) (string, error) {
 	macAddr, err := net.ParseMAC(mac)
 	if err != nil {
 		return "", err
