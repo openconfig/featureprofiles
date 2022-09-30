@@ -91,7 +91,7 @@ func TestPWLess(t *testing.T) {
 	if errPw != nil {
 		t.Error(errPw)
 	}
-	t.Logf("show version from the box\n %v\n", fmt.Sprintf("%s", outPw))
+	t.Logf("show version from the box\n %v\n", string(outPw))
 }
 func TestCertAuth(t *testing.T) {
 	if *sshIP == "" {
@@ -114,7 +114,7 @@ func TestCertAuth(t *testing.T) {
 	if errCert != nil {
 		t.Error(errCert)
 	}
-	t.Logf("The output is %v\n", fmt.Sprintf("%s", outCert))
+	t.Logf("The output is %v\n", string(outCert))
 }
 
 func TestPwDisable(t *testing.T) {
