@@ -65,12 +65,15 @@ tests:
   path: feature/system/gnmi/metadata/tests/annotation_test
 - name: gNOI-3.4 (Chassis Reboot Status and Reboot Cancellation) 
   path: feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
+  patch: exec/firex/plugins/fp_patch/chassis_reboot_status_and_cancel_test.patch  
 - name: gNOI-5.1 (Ping Test) 
   path: feature/gnoi/system/tests/ping_test
 - name: gNOI-3.3 (Supervisor Switchover) 
   path: feature/gnoi/system/tests/supervisor_switchover_test
+   patch: exec/firex/plugins/fp_patch/supervisor_switchover_test.patch
 - name: gNOI-3.2 (Per-Component Reboot) 
   path: feature/gnoi/system/tests/per_component_reboot_test
+  patch: exec/firex/plugins/fp_patch/per_component_reboot_test.patch
 - name: gNOI-5.2 (Traceroute Test) 
   path: feature/gnoi/system/tests/traceroute_test
 - name: gNOI-4.1 (Software Upgrade) 
