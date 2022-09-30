@@ -187,7 +187,7 @@ func TestChassisReboot(t *testing.T) {
 
 				if uint64(time.Since(startComp).Seconds()) > maxCompWaitTime {
 					t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
-					t.Errorf("All the components are not in responsive state post reboot")
+					t.Fatalf("All the components are not in responsive state post reboot")
 				}
 				time.Sleep(10 * time.Second)
 			}
