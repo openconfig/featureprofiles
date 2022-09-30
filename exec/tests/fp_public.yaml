@@ -70,7 +70,7 @@ tests:
   path: feature/gnoi/system/tests/ping_test
 - name: gNOI-3.3 (Supervisor Switchover) 
   path: feature/gnoi/system/tests/supervisor_switchover_test
-   patch: exec/firex/plugins/fp_patch/supervisor_switchover_test.patch
+  patch: exec/firex/plugins/fp_patch/supervisor_switchover_test.patch
 - name: gNOI-3.2 (Per-Component Reboot) 
   path: feature/gnoi/system/tests/per_component_reboot_test
   patch: exec/firex/plugins/fp_patch/per_component_reboot_test.patch
