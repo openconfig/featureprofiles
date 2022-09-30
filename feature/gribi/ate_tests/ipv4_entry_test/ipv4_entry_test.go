@@ -238,17 +238,25 @@ func TestIPv4Entry(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			gribic := dut.RawAPIs().GRIBI().Default(t)
 			c := fluent.NewClient()
-			c.Connection().WithStub(gribic).
-				WithRedundancyMode(fluent.ElectedPrimaryClient).
-				WithFIBACK().
-				WithInitialElectionID(1, 0)
+			if *deviations.GRIBIPreserveOnly {
+				c.Connection().WithStub(gribic).
+					WithRedundancyMode(fluent.ElectedPrimaryClient).
+					WithFIBACK().
+					WithInitialElectionID(1, 0).WithPersistence()
+			} else {
+				c.Connection().WithStub(gribic).
+					WithRedundancyMode(fluent.ElectedPrimaryClient).
+					WithFIBACK().
+					WithInitialElectionID(1, 0)
+			}
+
 			c.Start(ctx, t)
 			defer c.Stop(t)
 			c.StartSending(ctx, t)
 			if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 				t.Fatalf("Await got error during session negotiation: %v", err)
 			}
-
+			// flush the entries,
 			if tc.downPort != nil {
 				ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(false).Send(t)
 				defer ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(true).Send(t)
@@ -259,7 +267,13 @@ func TestIPv4Entry(t *testing.T) {
 				t.Fatalf("Await got error for entries: %v", err)
 			}
 			defer func() {
-				c.Modify().DeleteEntry(t, tc.entries...)
+				// To delete we should reverse the order of entries, i.e.,
+				// IPV4s  must be removed before NHGs, and NHGs must be removed before NHs
+				revEntries := []fluent.GRIBIEntry{}
+				for i := len(tc.entries) - 1; i >= 0; i-- {
+					revEntries = append(revEntries, tc.entries[i])
+				}
+				c.Modify().DeleteEntry(t, revEntries...)
 				if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 					t.Fatalf("Await got error for entries: %v", err)
 				}
