@@ -304,7 +304,6 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 
 	for ip := range ateDstNetCIDR {
 		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
-		ipv4Path.Prefix().Await(t, 60*time.Second, ateDstNetCIDR[ip])
 		if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR[ip]; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
