@@ -301,7 +301,6 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	configureIPv4ViaClientAInstalled(t, args)
 
 	// Verify the above entries are active through AFT Telemetry.
-
 	for ip := range ateDstNetCIDR {
 		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
 		if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR[ip]; got != want {
