@@ -1,3 +1,17 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Package gribigo_compliance_test invokes the compliance tests from gribigo.
 package gribigo_compliance_test
 
@@ -6,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gribigo/compliance"
@@ -22,6 +37,38 @@ var (
 	skipNonDefaultNINHG = flag.Bool("skip_non_default_ni_nhg", true, "skip tests that add entries to non-default network-instance")
 
 	nonDefaultNI = flag.String("non_default_ni", "non-default-vrf", "non-default network-instance name")
+
+	dutPort1 = attrs.Attributes{
+		Desc:    "dutPort1",
+		IPv4:    "192.0.2.0",
+		IPv4Len: 31,
+	}
+	dutPort2 = attrs.Attributes{
+		Desc:    "dutPort2",
+		IPv4:    "192.0.2.2",
+		IPv4Len: 31,
+	}
+	dutPort3 = attrs.Attributes{
+		Desc:    "dutPort3",
+		IPv4:    "192.0.2.4",
+		IPv4Len: 31,
+	}
+
+	atePort1 = attrs.Attributes{
+		Name:    "atePort1",
+		IPv4:    "192.0.2.1",
+		IPv4Len: 31,
+	}
+	atePort2 = attrs.Attributes{
+		Name:    "atePort2",
+		IPv4:    "192.0.2.3",
+		IPv4Len: 31,
+	}
+	atePort3 = attrs.Attributes{
+		Name:    "atePort3",
+		IPv4:    "192.0.2.5",
+		IPv4Len: 31,
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -50,14 +97,10 @@ func shouldSkip(tt *compliance.TestSpec) string {
 
 func TestCompliance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
-	ni := d.GetOrCreateNetworkInstance(*nonDefaultNI)
-	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
-	dut.Config().NetworkInstance(*nonDefaultNI).Replace(t, ni)
+	configureDUT(t, dut)
 
-	nip := dut.Config().NetworkInstance(*nonDefaultNI)
-	fptest.LogYgot(t, "nonDefaultNI", nip, nip.Get(t))
+	ate := ondatra.ATE(t, "ate")
+	configureATE(t, ate)
 
 	gribic := dut.RawAPIs().GRIBI().Default(t)
 
@@ -102,4 +145,41 @@ func TestCompliance(t *testing.T) {
 			tt.In.Fn(c, t, opts...)
 		})
 	}
+}
+
+// configureDUT configures port1-3 on the DUT.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	p1 := dut.Port(t, "port1")
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+
+	dut.Config().Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
+	dut.Config().Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
+	dut.Config().Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
+
+	d := &telemetry.Device{}
+	ni := d.GetOrCreateNetworkInstance(*nonDefaultNI)
+	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
+	dut.Config().NetworkInstance(*nonDefaultNI).Replace(t, ni)
+
+	nip := dut.Config().NetworkInstance(*nonDefaultNI)
+	fptest.LogYgot(t, "nonDefaultNI", nip, nip.Get(t))
+}
+
+// configreATE configures port1-3 on the ATE.
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
+	top := ate.Topology().New()
+
+	p1 := ate.Port(t, "port1")
+	p2 := ate.Port(t, "port2")
+	p3 := ate.Port(t, "port3")
+
+	atePort1.AddToATE(top, p1, &dutPort1)
+	atePort2.AddToATE(top, p2, &dutPort2)
+	atePort3.AddToATE(top, p3, &dutPort3)
+
+	top.Push(t).StartProtocols(t)
+
+	return top
 }

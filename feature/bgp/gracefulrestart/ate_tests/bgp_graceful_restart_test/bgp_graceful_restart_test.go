@@ -117,7 +117,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Configure/update Network Instance")
 	dutConfNIPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance)
 	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-	dutConfNIPath.RouterId().Replace(t, dutDst.IPv4)
 }
 
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
@@ -148,6 +147,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *telemetry.NetworkInstance_Proto
 	bgp := &telemetry.NetworkInstance_Protocol_Bgp{}
 	g := bgp.GetOrCreateGlobal()
 	g.As = ygot.Uint32(as)
+	g.RouterId = ygot.String(dutDst.IPv4)
 	bgpgr := g.GetOrCreateGracefulRestart()
 	bgpgr.Enabled = ygot.Bool(true)
 	bgpgr.RestartTime = ygot.Uint16(grRestartTime)
@@ -167,6 +167,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *telemetry.NetworkInstance_Proto
 			nv4.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
+			nv6.PeerGroup = ygot.String(peerGrpName)
 			nv6.PeerAs = ygot.Uint32(nbr.as)
 			nv6.Enabled = ygot.Bool(true)
 			nv6.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
