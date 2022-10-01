@@ -326,8 +326,8 @@ func (tc *testCase) configureDUT(t *testing.T) {
 
 }
 
-// incrementedMac uses a mac string and increments it by the given i
-func incrementedMac(mac string, i int) (string, error) {
+// incrementMAC uses a mac string and increments it by the given i
+func incrementMAC(mac string, i int) (string, error) {
 	macAddr, err := net.ParseMAC(mac)
 	if err != nil {
 		return "", err
@@ -369,7 +369,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	for i, p := range tc.atePorts[1:] {
 		port := tc.top.Ports().Add().SetName(p.ID())
 		lagPort := agg.Ports().Add()
-		newMac, err := incrementedMac(ateDst.MAC, i+1)
+		newMac, err := incrementMAC(ateDst.MAC, i+1)
 		if err != nil {
 			t.Fatal(err)
 		}
