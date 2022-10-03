@@ -33,7 +33,6 @@ import (
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/telemetry"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
-	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -273,7 +272,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 		agg.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
-			newMac, err := incrementedMac(ateDst.MAC, i+1)
+			newMac, err := incrementMAC(ateDst.MAC, i+1)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -283,7 +282,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 		agg.Protocol().SetChoice("lacp")
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
-			newMac, err := incrementedMac(ateDst.MAC, i+1)
+			newMac, err := incrementMAC(ateDst.MAC, i+1)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -301,20 +300,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 
 	// Fail early if the topology is bad.
 	tc.ate.OTG().PushConfig(t, tc.top)
-
-	ok := false
-	for n := 3; !ok; n-- {
-		if n == 0 {
-			t.Fatal("Not retrying ATE StartProtocols anymore.")
-		}
-		msg := testt.ExpectFatal(t, func(t testing.TB) {
-			t.Log("Trying ATE StartProtocols")
-			tc.ate.OTG().StartProtocols(t)
-			ok = true
-			t.Fatal("Success!")
-		})
-		t.Logf("ATE StartProtocols: %s", msg)
-	}
+	tc.ate.OTG().StartProtocols(t)
 }
 
 const (
@@ -405,8 +391,8 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-// incrementedMac uses a mac string and increments it by the given i
-func incrementedMac(mac string, i int) (string, error) {
+// incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
+func incrementMAC(mac string, i int) (string, error) {
 	macAddr, err := net.ParseMAC(mac)
 	if err != nil {
 		return "", err
