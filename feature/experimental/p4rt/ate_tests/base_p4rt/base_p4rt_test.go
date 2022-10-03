@@ -350,7 +350,7 @@ func TestP4rtConnect(t *testing.T) {
 		rStream, rErr := client.Read(&p4_v1.ReadRequest{
 			DeviceId: deviceid_list[index],
 			Entities: []*p4_v1.Entity{
-				&p4_v1.Entity{
+				{
 					Entity: &p4_v1.Entity_TableEntry{},
 				},
 			},
