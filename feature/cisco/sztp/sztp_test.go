@@ -14,12 +14,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	scp "github.com/povsister/scp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-        gpb "github.com/openconfig/gnmi/proto/gnmi"
-        "google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -189,49 +189,49 @@ func TestTLS(t *testing.T) {
 	if errGrpcPem != nil {
 		t.Error(errGrpcPem)
 	}
-	fmt.Printf("%vems.pem",remote_dir)
-        rootPEM, err := os.ReadFile(fmt.Sprintf("%sems.pem",remote_dir))
-        if err != nil {
-                t.Error(err)
-        }
-        roots := x509.NewCertPool()
-        ok := roots.AppendCertsFromPEM([]byte(rootPEM))
-        if !ok {
-                t.Error(ok)
-        }
-        configGrpc := &tls.Config{
-                RootCAs: roots,
-                InsecureSkipVerify: true,
-        }
-        t.Log("Connecting to grpc")
-        ctx := metadata.AppendToOutgoingContext(context.Background(),"username",*sshUser,"password",*sshPass)
-        tlsCredential := credentials.NewTLS(configGrpc)
-        conn, err := grpc.DialContext(ctx,
-                fmt.Sprintf("%s:%s", *sshIP, "7001"),
-                grpc.WithTransportCredentials(tlsCredential),
-        )
-        if err != nil {
-                t.Error(err)
-        }
-        gnmi, err := gpb.NewGNMIClient(conn), nil
-        if err != nil {
-                t.Error(err)
-        }
-        gNMI_out, err := gnmi.Get(ctx, &gpb.GetRequest{
-                        Path: []*gpb.Path{{
-                                Elem: []*gpb.PathElem{
-                                        {Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-                },
-                Type: gpb.GetRequest_CONFIG,
-                Encoding: gpb.Encoding_JSON_IETF,
-                })
+	fmt.Printf("%vems.pem", remote_dir)
+	rootPEM, err := os.ReadFile(fmt.Sprintf("%sems.pem", remote_dir))
+	if err != nil {
+		t.Error(err)
+	}
+	roots := x509.NewCertPool()
+	ok := roots.AppendCertsFromPEM([]byte(rootPEM))
+	if !ok {
+		t.Error(ok)
+	}
+	configGrpc := &tls.Config{
+		RootCAs:            roots,
+		InsecureSkipVerify: true,
+	}
+	t.Log("Connecting to grpc")
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "username", *sshUser, "password", *sshPass)
+	tlsCredential := credentials.NewTLS(configGrpc)
+	conn, err := grpc.DialContext(ctx,
+		fmt.Sprintf("%s:%s", *sshIP, "7001"),
+		grpc.WithTransportCredentials(tlsCredential),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	gnmi, err := gpb.NewGNMIClient(conn), nil
+	if err != nil {
+		t.Error(err)
+	}
+	gNMI_out, err := gnmi.Get(ctx, &gpb.GetRequest{
+		Path: []*gpb.Path{{
+			Elem: []*gpb.PathElem{
+				{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+		},
+		Type:     gpb.GetRequest_CONFIG,
+		Encoding: gpb.Encoding_JSON_IETF,
+	})
 	t.Logf("Gnmi Response using TLS:\n%v", gNMI_out)
-        if err != nil {
-                t.Error(err)
+	if err != nil {
+		t.Error(err)
 
-        }
+	}
 
-        defer conn.Close()
+	defer conn.Close()
 
 	defer config.TextWithSSH(context.Background(), t, dut, "configure \n grpc no-tls\n commit \n", 10*time.Second)
 
