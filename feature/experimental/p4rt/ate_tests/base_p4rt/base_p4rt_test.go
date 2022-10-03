@@ -33,7 +33,6 @@ import (
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
-	log "github.com/sirupsen/logrus"
 )
 
 type testArgs struct {
@@ -55,7 +54,7 @@ const (
 
 var (
 	// Path to the p4Info file for sending it with SetFwdPipelineConfig
-	p4InfoFile  = flag.String("p4info_file_location", "../wbb.p4info.pb.txt", "Path to the p4info file.")
+	p4InfoFile  = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName1 = "p4rt1"
 	streamName2 = "p4rt2"
 
@@ -204,7 +203,6 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 			if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamlist[index].Name, 1); arbErr != nil {
 				return errors.New("Errors seen in ClientArbitration response.")
 			}
-			log.Infof("Succesfully sent and recieved Arbitration request and response")
 		}
 	}
 
@@ -214,10 +212,9 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 		return errors.New("Errors seen when loading p4info file.")
 	}
 	setp4Info, _ := json.Marshal(p4Info)
-	fmt.Println(string(setp4Info))
 
 	// Send SetForwardingPipelineConfig for p4rt leader client.
-	log.Infof("Sending SetForwardingPipelineConfig")
+	fmt.Println("Sending SetForwardingPipelineConfig for both clients")
 	deviceid_list := []uint64{deviceId1, deviceId2}
 	for index, client := range clients {
 		if err := client.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
@@ -246,11 +243,11 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 		}
 		// Compare P4Info from GetForwardingPipelineConfig and SetForwardingPipelineConfig
 		getp4Info, _ := json.Marshal(resp.Config.P4Info)
-		fmt.Println(string(getp4Info))
 		if string(setp4Info) == string(getp4Info) {
-			log.Info("P4info matches fine \n")
+			fmt.Println("P4info matches fine for client", index)
 		} else {
-			log.Warningf("P4info does not match \n")
+			err := fmt.Errorf("P4info does not match for client %d", index)
+			fmt.Println(err.Error())
 		}
 	}
 	return nil
@@ -266,10 +263,11 @@ func verifyReadReceiveMatch(expected_update []*p4_v1.Update, received_entry *p4_
 		}
 	}
 	if matches == len(expected_update) {
-		log.Infof("Table match succesful")
+		fmt.Println("Table match succesful")
 		return nil
 	} else {
-		log.Warningf("Table match failed")
+		err := fmt.Errorf("P4info does not match")
+		fmt.Println(err.Error())
 		return errors.New("match unsuccesful")
 	}
 }
@@ -311,44 +309,38 @@ func TestP4rtConnect(t *testing.T) {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 
-	// Get Capbilities
-	_, err := args.client1.Capabilities(&p4_v1.CapabilitiesRequest{})
-	if err != nil {
-		log.Warningf("Capabilities err: %s", err)
-	}
-
 	// RPC Write to write the table entries to the P4RT Server
 	deviceid_list := []uint64{deviceId1, deviceId2}
 	clients := []*p4rt_client.P4RTClient{args.client1, args.client2}
 	for index, client := range clients {
-		err = client.Write(&p4_v1.WriteRequest{
+		err := client.Write(&p4_v1.WriteRequest{
 			DeviceId:   deviceid_list[index],
 			ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
-			Updates: wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-				&wbb.AclWbbIngressTableEntryInfo{
+			Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+				&wbb.ACLWbbIngressTableEntryInfo{
 					Type:          p4_v1.Update_INSERT,
 					EtherType:     0x6007,
 					EtherTypeMask: 0xFFFF,
 				},
-				&wbb.AclWbbIngressTableEntryInfo{
+				&wbb.ACLWbbIngressTableEntryInfo{
 					Type:          p4_v1.Update_INSERT,
 					EtherType:     0x88cc,
 					EtherTypeMask: 0xFFFF,
 				},
-				&wbb.AclWbbIngressTableEntryInfo{
+				&wbb.ACLWbbIngressTableEntryInfo{
 					Type:    p4_v1.Update_INSERT,
 					IsIpv4:  0x1,
-					Ttl:     0x1,
-					TtlMask: 0xFF,
+					TTL:     0x1,
+					TTLMask: 0xFF,
 				},
 			}),
 			Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
 		})
 		if err != nil {
 			countOK, countNotOK, errDetails := p4rt_client.P4RTWriteErrParse(err)
-			log.Infof("Write Partial Errors %d/%d: %s", countOK, countNotOK, errDetails)
+			t.Errorf("Write Partial Errors %d/%d: %s", countOK, countNotOK, errDetails)
 		} else {
-			log.Info("Write Success")
+			t.Logf("RPC Write Success for client %d", index)
 		}
 	}
 
@@ -364,59 +356,59 @@ func TestP4rtConnect(t *testing.T) {
 			},
 		})
 		if rErr != nil {
-			log.Fatal(rErr)
+			t.Fatalf("Received error")
 		}
 
 		readResp, respErr := rStream.Recv()
 		if respErr != nil {
-			log.Warningf("Read Response Err: %s", respErr)
+			t.Fatalf("Read Response Err: %s", respErr)
 		} else {
-			log.Infof("Read Response success")
+			t.Logf("Read Response success")
 		}
-		log.Infof("Verify Read response for client%d", index)
+		t.Logf("Verify Read response for client%d", index)
 
 		// Construct expected table for GDP to match with received table entry
-		expected_update := wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		expected_update := wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
 			},
 		})
 
-		if err = verifyReadReceiveMatch(expected_update, readResp); err != nil {
-			log.Warningf("Table entry for GDP %s", err)
+		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
+			t.Errorf("Table entry for GDP %s", err)
 			nomatch += 1
 		}
 
 		// Construct expected table for LLDP to match with received table entry
-		expected_update = wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		expected_update = wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x88cc,
 				EtherTypeMask: 0xFFFF,
 			},
 		})
-		if err = verifyReadReceiveMatch(expected_update, readResp); err != nil {
-			log.Warningf("Table entry for LLDP %s", err)
+		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
+			t.Errorf("Table entry for LLDP %s", err)
 			nomatch += 1
 		}
 
 		// Construct expected table for traceroute to match with received table entry
-		expected_update = wbb.AclWbbIngressTableEntryGet([]*wbb.AclWbbIngressTableEntryInfo{
-			&wbb.AclWbbIngressTableEntryInfo{
+		expected_update = wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			&wbb.ACLWbbIngressTableEntryInfo{
 				Type:    p4_v1.Update_INSERT,
 				IsIpv4:  0x1,
-				Ttl:     0x1,
-				TtlMask: 0xFF,
+				TTL:     0x1,
+				TTLMask: 0xFF,
 			},
 		})
-		if err = verifyReadReceiveMatch(expected_update, readResp); err != nil {
-			log.Warningf("Table entry for traceroute %s", err)
+		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
+			t.Errorf("Table entry for traceroute %s", err)
 			nomatch += 1
 		}
 	}
 	if nomatch > 0 {
-		log.Fatalf("Table entry matches failed")
+		t.Fatalf("Table entry matches failed")
 	}
 }
