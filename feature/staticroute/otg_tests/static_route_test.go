@@ -20,8 +20,8 @@ func TestGNMI(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
-	dp3 := dut.Port(t, "port3")
-	dp4 := dut.Port(t, "port4")
+	// dp3 := dut.Port(t, "port3")
+	// dp4 := dut.Port(t, "port4")
 
 	ifCfg1 := &telemetry.Interface{
 		Name:        ygot.String(dp1.Name()),
@@ -43,30 +43,30 @@ func TestGNMI(t *testing.T) {
 		GetOrCreateAddress("192.0.2.20").
 		PrefixLength = ygot.Uint8(31)
 
-	ifCfg3 := &telemetry.Interface{
-		Name:        ygot.String(dp3.Name()),
-		Description: ygot.String("To Ixia"),
-	}
+	// ifCfg3 := &telemetry.Interface{
+	// 	Name:        ygot.String(dp3.Name()),
+	// 	Description: ygot.String("To Ixia"),
+	// }
 
-	ifCfg3.GetOrCreateSubinterface(0).
-		GetOrCreateIpv4().
-		GetOrCreateAddress("192.0.2.30").
-		PrefixLength = ygot.Uint8(31)
+	// ifCfg3.GetOrCreateSubinterface(0).
+	// 	GetOrCreateIpv4().
+	// 	GetOrCreateAddress("192.0.2.30").
+	// 	PrefixLength = ygot.Uint8(31)
 
-	ifCfg4 := &telemetry.Interface{
-		Name:        ygot.String(dp4.Name()),
-		Description: ygot.String("To Ixia"),
-	}
+	// ifCfg4 := &telemetry.Interface{
+	// 	Name:        ygot.String(dp4.Name()),
+	// 	Description: ygot.String("To Ixia"),
+	// }
 
-	ifCfg4.GetOrCreateSubinterface(0).
-		GetOrCreateIpv4().
-		GetOrCreateAddress("192.0.2.40").
-		PrefixLength = ygot.Uint8(31)
+	// ifCfg4.GetOrCreateSubinterface(0).
+	// 	GetOrCreateIpv4().
+	// 	GetOrCreateAddress("192.0.2.40").
+	// 	PrefixLength = ygot.Uint8(31)
 
 	dut.Config().Interface(dp1.Name()).Replace(t, ifCfg1)
 	dut.Config().Interface(dp2.Name()).Replace(t, ifCfg2)
-	dut.Config().Interface(dp3.Name()).Replace(t, ifCfg3)
-	dut.Config().Interface(dp4.Name()).Replace(t, ifCfg4)
+	// dut.Config().Interface(dp3.Name()).Replace(t, ifCfg3)
+	// dut.Config().Interface(dp4.Name()).Replace(t, ifCfg4)
 
 	Ni1 := &telemetry.NetworkInstance{}
 

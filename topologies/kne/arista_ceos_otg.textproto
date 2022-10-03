@@ -72,15 +72,3 @@ links: {
     z_node: "ate"
     z_int: "eth2"
 }
-links: {
-    a_node: "ate"
-    a_int: "eth3"
-    z_node: "dut"
-    z_int: "eth3"
-}
-links: {
-    a_node: "dut"
-    a_int: "eth4"
-    z_node: "ate"
-    z_int: "eth4"
-}
