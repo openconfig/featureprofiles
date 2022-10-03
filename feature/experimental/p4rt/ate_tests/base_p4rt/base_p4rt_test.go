@@ -317,17 +317,17 @@ func TestP4rtConnect(t *testing.T) {
 			DeviceId:   deviceid_list[index],
 			ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
 			Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
-				&wbb.ACLWbbIngressTableEntryInfo{
+				{
 					Type:          p4_v1.Update_INSERT,
 					EtherType:     0x6007,
 					EtherTypeMask: 0xFFFF,
 				},
-				&wbb.ACLWbbIngressTableEntryInfo{
+				{
 					Type:          p4_v1.Update_INSERT,
 					EtherType:     0x88cc,
 					EtherTypeMask: 0xFFFF,
 				},
-				&wbb.ACLWbbIngressTableEntryInfo{
+				{
 					Type:    p4_v1.Update_INSERT,
 					IsIpv4:  0x1,
 					TTL:     0x1,
@@ -369,7 +369,7 @@ func TestP4rtConnect(t *testing.T) {
 
 		// Construct expected table for GDP to match with received table entry
 		expected_update := wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
-			&wbb.ACLWbbIngressTableEntryInfo{
+			{
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
@@ -383,7 +383,7 @@ func TestP4rtConnect(t *testing.T) {
 
 		// Construct expected table for LLDP to match with received table entry
 		expected_update = wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
-			&wbb.ACLWbbIngressTableEntryInfo{
+			{
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x88cc,
 				EtherTypeMask: 0xFFFF,
@@ -396,7 +396,7 @@ func TestP4rtConnect(t *testing.T) {
 
 		// Construct expected table for traceroute to match with received table entry
 		expected_update = wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
-			&wbb.ACLWbbIngressTableEntryInfo{
+			{
 				Type:    p4_v1.Update_INSERT,
 				IsIpv4:  0x1,
 				TTL:     0x1,
