@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package genutil implements helpers used in the generated Go telemetry API.
-// This code is cloned from ondatra repo
+// Package gnmiutil implements helpers used for monioring oc leafs. The code is adapted fron Ondatra code.
 package gnmiutil
 
 import (
@@ -62,6 +61,7 @@ type DataPoint struct {
 	Sync bool
 }
 
+// Consumer is an interface that should be implemented by entities recieving steraming events. 
 type Consumer interface {
 	Process(datapoints []*DataPoint)
 }
@@ -224,11 +224,8 @@ type QualifiedValue interface {
 	GetComplianceErrors() *ComplianceErrors
 }
 
-type StoreFunc func(string, []*DataPoint) error
 
-
-
-// watch starts a gNMI subscription for the provided duration. Specifying subPaths is optional, if unset will subscribe to the path at n.
+// Watch starts a gNMI subscription for the provided duration. Specifying subPaths is optional, if unset will subscribe to the path at n.
 // Note: For leaves the converter and predicate are evaluated once per DataPoint. For non-leaves, they are evaluated once per notification,
 // after the first sync is received.
 func Watch(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, n ygot.PathStruct, paths []*gpb.Path, isLeaf bool, consumer Consumer, mode gpb.SubscriptionList_Mode) (_ *Watcher, _ *gpb.Path, rerr error) {

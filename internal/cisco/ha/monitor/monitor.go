@@ -74,7 +74,7 @@ type CachedConsumer struct {
 	bufferSize int
 }
 
-// Initialize the CachedConsumer. The windowPeriod specefies the expiration time of the events that will be cached.
+// NewCachedConsumer Initialize the CachedConsumer. The windowPeriod specefies the expiration time of the events that will be cached.
 // bufferSize specefies the number of events that will be kept for each path 
 func NewCachedConsumer(windowPeriod time.Duration, bufferSize int) *CachedConsumer {
 	return &CachedConsumer{

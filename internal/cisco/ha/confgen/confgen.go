@@ -1,3 +1,4 @@
+//  Package confgen provide api for generating config at a very high scale using OC and JSONNET
 package confgen
 
 import (
@@ -6,18 +7,19 @@ import (
 
 	"github.com/google/go-jsonnet"
 )
-
+// Bundle stores a bundle information.
 type Bundle struct {
-	Id                int
+	ID                int
 	Interfaces        []string
 	SubInterfaceRange []int
 }
 
+// GenerateConfig generate configs based for a given bundles
 func GenerateConfig(bundles []Bundle, templatePath string) string {
 	vm := jsonnet.MakeVM()
 
-	if bundleJson, err := json.Marshal(bundles); err == nil {
-		vm.ExtCode("bundles", string(bundleJson))
+	if bundleJSON, err := json.Marshal(bundles); err == nil {
+		vm.ExtCode("bundles", string(bundleJSON))
 	} else {
 		log.Fatal(err)
 	}

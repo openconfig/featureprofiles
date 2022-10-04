@@ -1,4 +1,4 @@
-//  Package monitor contains utolity api for monitoring telemetry paths in background while running tests
+//  Package runner contains utolity api for monitoring telemetry paths in background while running tests
 //  A monitor pushes all event to the an event consumer that should provide process method.
 //  A monitor can monitor multipe paths, however provided paths should be disjoint. 
 
@@ -31,7 +31,7 @@ type TestArgs struct {
 // BackgroundTest is the signature of a test function that can be run in background
 type BackgroundTest func(t *testing.T, args *TestArgs, events *monitor.CachedConsumer)
 
-// BackgroundFunc runs a testing function in the background. The period can be ticker or simple timer. With simple timer the function only run once
+// RunTestInBackground runs a testing function in the background. The period can be ticker or simple timer. With simple timer the function only run once
 // Eeven refers to gnmi evelenet collected with streaming telemtry.
 func RunTestInBackground(ctx context.Context, t *testing.T, period interface{}, args *TestArgs, events *monitor.CachedConsumer, function BackgroundTest, workGroup *sync.WaitGroup) {
 	t.Helper()
@@ -66,7 +66,7 @@ func RunTestInBackground(ctx context.Context, t *testing.T, period interface{}, 
 }
 
 
-// BackgroundCLI runs an admin command on the backgroun and fails if the command is unsucessful or does not return earlier than timeout
+// RunCLIInBackground runs an admin command on the backgroun and fails if the command is unsucessful or does not return earlier than timeout
 // The command also fails if the response does not match the expeted reply pattern or matches the not-expected one
 func RunCLIInBackground(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string, expectedRep, notExpectedRep []string, period interface{}, timeOut time.Duration) {
 	t.Helper()
