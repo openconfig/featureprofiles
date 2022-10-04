@@ -69,9 +69,6 @@ var (
     framework: b4_fp
     owners:
         - {{ $ft.Owner }}
-    pip_pkgs:
-        - ixnetwork-restpy
-        - protobuf
     {{- if eq $ft.Priority "low" }}
     priority: BCT
     {{- else if eq $ft.Priority "high" }}
