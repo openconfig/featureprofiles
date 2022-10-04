@@ -320,8 +320,8 @@ func TestSupFailure(t *testing.T) {
 	switchoverReady := dut.Telemetry().Component(primaryBeforeSwitch).SwitchoverReady()
 	switchoverReady.Await(t, 30*time.Minute, true)
 	t.Logf("SwitchoverReady().Get(t): %v", switchoverReady.Get(t))
-	if !switchoverReady.Get(t) {
-		t.Errorf("switchoverReady.Get(t): got %v, want %v", switchoverReady.Get(t), true)
+	if got, want := switchoverReady.Get(t), true; got != want {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
