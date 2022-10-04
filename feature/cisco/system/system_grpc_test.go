@@ -3,6 +3,7 @@ package basetest
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/ondatra"
@@ -11,7 +12,7 @@ import (
 func TestSysGrpcState(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	t.Run("Subscribe /system/grpc-servers/grpc-server/config/port", func(t *testing.T) {
+	t.Run("Subscribe /system/grpc-servers/grpc-server/state/port", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			portNum := dut.Telemetry().System().GrpcServer("DEFAULT").Port().Get(t)
 			if portNum == uint16(0) || portNum > uint16(0) {
@@ -22,7 +23,7 @@ func TestSysGrpcState(t *testing.T) {
 			}
 		})
 	})
-	t.Run("Subscribe /system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
+	t.Run("Subscribe /system/grpc-servers/grpc-server/state/name", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			grpcName := dut.Telemetry().System().GrpcServer("DEFAULT").Name().Get(t)
 			if grpcName == "DEFAULT" {
@@ -33,7 +34,7 @@ func TestSysGrpcState(t *testing.T) {
 			}
 		})
 	})
-	t.Run("Subscribe /system/grpc-servers/grpc-server/config/enable", func(t *testing.T) {
+	t.Run("Subscribe /system/grpc-servers/grpc-server/state/enable", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			grpcEn := dut.Telemetry().System().GrpcServer("DEFAULT").Enable().Get(t)
 			if grpcEn == true {
@@ -44,7 +45,7 @@ func TestSysGrpcState(t *testing.T) {
 			}
 		})
 	})
-	t.Run("Subscribe /system/grpc-servers/grpc-server/config/transport-security", func(t *testing.T) {
+	t.Run("Subscribe /system/grpc-servers/grpc-server/state/transport-security", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
 			grpcTs := dut.Telemetry().System().GrpcServer("DEFAULT").TransportSecurity().Get(t)
 			if grpcTs == false {
@@ -89,8 +90,11 @@ func TestSysGrpcState(t *testing.T) {
 	})
 }
 func TestSysGrpcConfig(t *testing.T) {
-	t.Skip() // Skipped since grpc config changes affects other runs, will need to handle cleanup
 	dut := ondatra.DUT(t, "dut")
+
+	config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc name DEFAULT\n commit \n", 10*time.Second)
+	defer config.TextWithSSH(context.Background(), t, dut, "configure \n  no grpc name DEFAULT\n commit \n", 10*time.Second)
+
 	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").Name()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -102,16 +106,6 @@ func TestSysGrpcConfig(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").Name()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, "DEFAULT")
-
-	})
-	t.Run("Get //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
-		configName := dut.Config().System().GrpcServer("DEFAULT").Name().Get(t)
-		if configName == "DEFAULT" {
-			t.Logf("Got the expected grpc Name")
-
-		} else {
-			t.Errorf("Unexpected value for Name: %s", configName)
-		}
 
 	})
 
@@ -127,16 +121,6 @@ func TestSysGrpcConfig(t *testing.T) {
 		path.Replace(t, 57777)
 
 	})
-	t.Run("Get //system/grpc-servers/grpc-server/config/port", func(t *testing.T) {
-		configPort := dut.Config().System().GrpcServer("DEFAULT").Port().Get(t)
-		if configPort == uint16(0) || configPort > uint16(0) {
-			t.Logf("Got the expected port number")
-
-		} else {
-			t.Errorf("Unexpected value for Port: %v", configPort)
-		}
-
-	})
 	t.Run("Update //system/grpc-servers/grpc-server/config/enable", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").Enable()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -147,16 +131,6 @@ func TestSysGrpcConfig(t *testing.T) {
 		path := dut.Config().System().GrpcServer("DEFAULT").Enable()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, true)
-
-	})
-	t.Run("Get //system/grpc-servers/grpc-server/config/enable", func(t *testing.T) {
-		configEn := dut.Config().System().GrpcServer("DEFAULT").Enable().Get(t)
-		if configEn == true {
-			t.Logf("Got the expected grpc Enable ")
-
-		} else {
-			t.Errorf("Unexpected value for Enable: %v", configEn)
-		}
 
 	})
 	t.Run("Update //system/grpc-servers/grpc-server/config/transport-security", func(t *testing.T) {
@@ -171,20 +145,9 @@ func TestSysGrpcConfig(t *testing.T) {
 		path.Replace(t, false)
 
 	})
-	t.Run("Get //system/grpc-servers/grpc-server/config/transport-security", func(t *testing.T) {
-		configTs := dut.Config().System().GrpcServer("DEFAULT").TransportSecurity().Get(t)
-		if configTs == true {
-			t.Logf("Got the expected grpc Transport-Security ")
-
-		} else {
-			t.Errorf("Unexpected value for Transport-Security: %v", configTs)
-		}
-
-	})
 	//set non-default name
-	ctx := context.Background()
-	config.CMDViaGNMI(ctx, t, dut, "grpc name TEST\n")
-	defer config.CMDViaGNMI(ctx, t, dut, "no grpc name TEST\n")
+	config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc name TEST\n commit \n", 10*time.Second)
+	defer config.TextWithSSH(context.Background(), t, dut, "configure \n  no grpc name TEST\n commit \n", 10*time.Second)
 	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
 		path := dut.Config().System().GrpcServer("TEST").Name()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -196,14 +159,6 @@ func TestSysGrpcConfig(t *testing.T) {
 		path := dut.Config().System().GrpcServer("TEST").Name()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		path.Replace(t, "TEST")
-
-	})
-	t.Run("Get //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
-		configName := dut.Config().System().GrpcServer("TEST").Name().Get(t)
-		if configName != "TEST" {
-			t.Errorf("Unexpected value for Name: %s", configName)
-
-		}
 
 	})
 

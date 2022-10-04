@@ -15,18 +15,20 @@ require (
 	github.com/openconfig/goyang v1.1.0
 	github.com/openconfig/gribi v0.1.1-0.20220622162620-08d53dffce45
 	github.com/openconfig/gribigo v0.0.0-20220920165304-98b0f3bbf1f7
-	github.com/openconfig/ondatra v0.0.0-20220914190154-cba46794fe2e
+	github.com/openconfig/ondatra v0.0.0-20220928162613-3338c3259dd8
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.2.3
 	github.com/openconfig/ygot v0.24.2
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/pkg/errors v0.9.1
+	github.com/povsister/scp v0.0.0-20210427074412-33febfd9f13e
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	github.com/yuin/goldmark v1.3.5
 	golang.org/x/crypto v0.0.0-20220518034528-6f7dac969898
 	golang.org/x/tools v0.1.5
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
+	gopkg.in/yaml.v3 v3.0.1
 	sigs.k8s.io/yaml v1.3.0
 )
 
@@ -48,7 +50,7 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/openconfig/grpctunnel v0.0.0-20220524190229-125331eabdde // indirect
-	github.com/openconfig/kne v0.1.4 // indirect
+	github.com/openconfig/kne v0.1.6 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
@@ -69,6 +71,5 @@ require (
 	google.golang.org/genproto v0.0.0-20220829175752-36a9c930ecbf // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/uint128 v1.1.1 // indirect
 )

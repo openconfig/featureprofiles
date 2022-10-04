@@ -1,0 +1,164 @@
+diff --git a/feature/platform/ate_tests/telemetry_inventory_test/telemetry_inventory_test.go b/feature/platform/ate_tests/telemetry_inventory_test/telemetry_inventory_test.go
+index 5dcf48f7..049c848d
+--- a/feature/platform/ate_tests/telemetry_inventory_test/telemetry_inventory_test.go
++++ b/feature/platform/ate_tests/telemetry_inventory_test/telemetry_inventory_test.go
+@@ -27,10 +27,10 @@ import (
+ var activeStatus string = "ACTIVE"
+ 
+ var componentParent = map[string]string{
+-	"fabric":      "Chassis",
+-	"linecard":    "Chassis",
+-	"powersupply": "Chassis",
+-	"supervisor":  "Chassis",
++	"fabric":      "Rack",
++	"linecard":    "Rack",
++	"powersupply": "Power Module Slot",
++	"supervisor":  "Rack",
+ }
+ 
+ var componentType = map[string]string{
+@@ -116,8 +116,9 @@ func TestHardwarecards(t *testing.T) {
+ 		regexpPattern string
+ 		cardFields    properties
+ 	}{{
++		//NAME: "Rack 0", DESCR: "Cisco 8812 12-slot Chassis"
+ 		desc:          "Chassis",
+-		regexpPattern: "^Chassis",
++		regexpPattern: "^Rack [0-9]$",
+ 		cardFields: properties{
+ 			descriptionValidation: true,
+ 			idValidation:          false,
+@@ -134,7 +135,7 @@ func TestHardwarecards(t *testing.T) {
+ 		},
+ 	}, {
+ 		desc:          "Fabric",
+-		regexpPattern: "^Fabric[0-9]",
++		regexpPattern: "^Rack [0-9]-Fabric Card Slot [0-9]$",
+ 		cardFields: properties{
+ 			descriptionValidation: true,
+ 			idValidation:          true,
+@@ -142,7 +143,7 @@ func TestHardwarecards(t *testing.T) {
+ 			partNoValidation:      true,
+ 			serialNoValidation:    true,
+ 			mfgNameValidation:     true,
+-			mfgDateValidation:     true,
++			mfgDateValidation:     false,
+ 			hwVerValidation:       true,
+ 			fwVerValidation:       false,
+ 			operStatus:            activeStatus,
+@@ -151,7 +152,7 @@ func TestHardwarecards(t *testing.T) {
+ 		},
+ 	}, {
+ 		desc:          "FabricChip",
+-		regexpPattern: "^FabricChip",
++		regexpPattern: "^[0-9]/FC[0-9]$",
+ 		cardFields: properties{
+ 			descriptionValidation: true,
+ 			idValidation:          true,
+@@ -167,8 +168,9 @@ func TestHardwarecards(t *testing.T) {
+ 			pType:                 componentType["fabricchip"],
+ 		},
+ 	}, {
++		//NAME: "0/FT0-Fan 0", DESCR: "Fan Module"
+ 		desc:          "FAN",
+-		regexpPattern: "^Fan[0-9]",
++		regexpPattern: "[0-9]/FT[0-9]-Fan [0-9]",
+ 		cardFields: properties{
+ 			descriptionValidation: true,
+ 			idValidation:          false,
+@@ -185,7 +187,7 @@ func TestHardwarecards(t *testing.T) {
+ 		},
+ 	}, {
+ 		desc:          "Linecard",
+-		regexpPattern: "^Linecard[0-9]",
++		regexpPattern: "^[0-9]/[0-9]/CPU[0-9]$",
+ 		cardFields: properties{
+ 			descriptionValidation: true,
+ 			idValidation:          true,
+@@ -193,7 +195,7 @@ func TestHardwarecards(t *testing.T) {
+ 			partNoValidation:      true,
+ 			serialNoValidation:    true,
+ 			mfgNameValidation:     true,
+-			mfgDateValidation:     true,
++			mfgDateValidation:     false,
+ 			hwVerValidation:       true,
+ 			fwVerValidation:       false,
+ 			operStatus:            activeStatus,
+@@ -201,8 +203,9 @@ func TestHardwarecards(t *testing.T) {
+ 			pType:                 componentType["linecard"],
+ 		},
+ 	}, {
+-		desc:          "Power supply",
+-		regexpPattern: "^PowerSupply[0-9]",
++		desc: "Power supply",
++		//NAME: "0/PT0-PM2", DESCR: "6.3KW AC/HVAC/HVDC Power Supply"
++		regexpPattern: "^[0-9]/PT[0-9]-PM[0-9]$",
+ 		cardFields: properties{
+ 			descriptionValidation: true,
+ 			idValidation:          true,
+@@ -219,7 +222,7 @@ func TestHardwarecards(t *testing.T) {
+ 		},
+ 	}, {
+ 		desc:          "Supervisor",
+-		regexpPattern: "^Supervisor[0-9]$",
++		regexpPattern: "^[0-9]/RP[0-9]/CPU[0-9]$",
+ 		cardFields: properties{
+ 			descriptionValidation: true,
+ 			idValidation:          true,
+@@ -227,7 +230,7 @@ func TestHardwarecards(t *testing.T) {
+ 			partNoValidation:      true,
+ 			serialNoValidation:    true,
+ 			mfgNameValidation:     true,
+-			mfgDateValidation:     true,
++			mfgDateValidation:     false,
+ 			swVerValidation:       true,
+ 			hwVerValidation:       true,
+ 			fwVerValidation:       false,
+@@ -236,8 +239,9 @@ func TestHardwarecards(t *testing.T) {
+ 			pType:                 componentType["supervisor"],
+ 		},
+ 	}, {
++		//NAME: "0/0/CPU0-QSFP_DD  Optics Port 0", DESCR: "Optics Port Module"
+ 		desc:          "Transceiver",
+-		regexpPattern: "transceiver$",
++		regexpPattern: "^[0-9]/[0-9]/CPU[0-9]-QSFP.*",
+ 		cardFields: properties{
+ 			descriptionValidation: false,
+ 			idValidation:          false,
+@@ -245,7 +249,7 @@ func TestHardwarecards(t *testing.T) {
+ 			partNoValidation:      true,
+ 			serialNoValidation:    true,
+ 			mfgNameValidation:     true,
+-			mfgDateValidation:     true,
++			mfgDateValidation:     false,
+ 			swVerValidation:       false,
+ 			hwVerValidation:       true,
+ 			fwVerValidation:       false,
+@@ -340,7 +344,7 @@ func TestSwitchChip(t *testing.T) {
+ func TestTempSensor(t *testing.T) {
+ 	dut := ondatra.DUT(t, "dut")
+ 
+-	r := regexp.MustCompile("^TempSensor")
++	r := regexp.MustCompile("^[0-9]/RP[0-9]/CPU[0-9].*TEMP.*")
+ 	sensors := findMatchedComponents(t, dut, r)
+ 	t.Logf("Found TempSensor list: %v", sensors)
+ 
+@@ -531,8 +535,8 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
+ 		if p.parent != "" {
+ 			parent := component.Parent().Get(t)
+ 			t.Logf("Hardware card %s parent: %s", card, parent)
+-			if parent != p.parent {
+-				t.Errorf("component.Parent().Get(t) for %q): got %v, want %v", card, parent, p.parent)
++			if !strings.Contains(parent, p.parent) {
++				t.Errorf("component.Parent().Get(t) for %q): got %v, want start with %v", card, parent, p.parent)
+ 			}
+ 		}
+ 
+@@ -552,7 +556,6 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
+ 
+ func TestSoftwareModule(t *testing.T) {
+ 	// TODO: Enable Software Module test case here once supported
+-	t.Skipf("Telemetry path /components/component/software-module is not supported.")
+ 
+ 	dut := ondatra.DUT(t, "dut")
+ 	moduleTypes := dut.Telemetry().ComponentAny().SoftwareModule().ModuleType().Lookup(t)

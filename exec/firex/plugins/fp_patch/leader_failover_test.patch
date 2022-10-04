@@ -1,0 +1,25 @@
+diff --git a/feature/gribi/ate_tests/leader_failover_test/leader_failover_test.go b/feature/gribi/ate_tests/leader_failover_test/leader_failover_test.go
+index 5479a0f7..8138b1e4 100644
+--- a/feature/gribi/ate_tests/leader_failover_test/leader_failover_test.go
++++ b/feature/gribi/ate_tests/leader_failover_test/leader_failover_test.go
+@@ -250,7 +250,9 @@ func TestLeaderFailover(t *testing.T) {
+ 	}
+ 
+ 	t.Run("SINGLE_PRIMARY/PERSISTENCE=DELETE", func(t *testing.T) {
+-
++		if *deviations.GRIBIPreserveOnly {
++			t.Skip()
++		}
+ 		// Set parameters for gRIBI client clientA.
+ 		// Set Persistence to false.
+ 		clientA := &gribi.Client{
+@@ -289,6 +291,9 @@ func TestLeaderFailover(t *testing.T) {
+ 	})
+ 
+ 	t.Run("ShouldDelete", func(t *testing.T) {
++		if *deviations.GRIBIPreserveOnly {
++			t.Skip()
++		}
+ 
+ 		t.Logf("Verify through Telemetry and Traffic that the route to %s has been deleted after gRIBI client disconnected", ateDstNetCIDR)
+ 
