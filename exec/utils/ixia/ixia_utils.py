@@ -1,8 +1,8 @@
-from ixnetwork_restpy import TestPlatform
-from google.protobuf import text_format
-import binding_pb2
-
 def release_ports(binding_file_path):
+    from ixnetwork_restpy import TestPlatform
+    from google.protobuf import text_format
+    import binding_pb2
+
     with open(binding_file_path, 'rb') as fp:
         binding = text_format.Parse(fp.read(), binding_pb2.Binding())
         for device in binding.ates:
