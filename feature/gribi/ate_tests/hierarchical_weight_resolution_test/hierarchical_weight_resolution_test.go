@@ -208,19 +208,6 @@ func ipv4Entry(prefix string, networkInstance string, nhgIndex uint64, nextHopGr
 		WithNextHopGroupNetworkInstance(nextHopGroupNetworkInstance)
 }
 
-// chkInstalled uses chk library to validate a gRIBI result.
-func chkInstalled(t *testing.T, ip string, gRIBI *fluent.GRIBIClient, result fluent.ProgrammingResult) {
-	t.Helper()
-	chk.HasResult(t, gRIBI.Results(t),
-		fluent.OperationResult().
-			WithIPv4Operation(ip).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(result).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
-}
-
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
 func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, timeout time.Duration) error {
 	t.Helper()
@@ -258,8 +245,7 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *telemetry.Interfa
 // Sub Interfaces are also configured if numSubIntf > 0.
 func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.Config, p *ondatra.Port) {
 	t.Helper()
-	i := &telemetry.Interface{}
-	i = a.NewInterface(p.Name())
+	i := a.NewInterface(p.Name())
 
 	a.configSubinterfaceDUT(t, i)
 	intfPath := d.Interface(p.Name())
