@@ -13,8 +13,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/gnmiutil"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/confgen"
-	"github.com/openconfig/featureprofiles/internal/cisco/ha/runner"
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/monitor"
+	"github.com/openconfig/featureprofiles/internal/cisco/ha/runner"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -29,11 +29,11 @@ import (
 const (
 	pingThreadScale          = 5    // # of parallel ping request to send
 	pingScale                = 2000 // # of ping message to send
-	AFTTelemtryUpdateTimeout = 120   // second
+	AFTTelemtryUpdateTimeout = 120  // second
 )
 
 var (
-	configFilePath  = flag.String("gnmi_config_file", "", "Path for gNMI config file")
+	configFilePath = flag.String("gnmi_config_file", "", "Path for gNMI config file")
 )
 
 func TestMain(m *testing.M) {
@@ -82,7 +82,7 @@ func testGNMISet(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsu
 			ID: 128,
 		},
 	}
-	generatedConf := confgen.GenerateConfig(bundles,*configFilePath)
+	generatedConf := confgen.GenerateConfig(bundles, *configFilePath)
 	configRoot := &telemetry.Device{}
 	if err := telemetry.Unmarshal([]byte(generatedConf), configRoot); err != nil {
 		t.Fatalf(err.Error())
@@ -191,7 +191,7 @@ func testBatchADDReplaceDeleteIPV4(t *testing.T, args *runner.TestArgs, events *
 	gribiC.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	waitTime := 0
 
-	// check to make sure we get at least one update 
+	// check to make sure we get at least one update
 out:
 	for {
 		for _, prefix := range prefixes {
@@ -244,13 +244,13 @@ func TestLoad(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	configVRFS(t, dut)
 	testArgs := &runner.TestArgs{
-		DUT:    []*ondatra.DUTDevice{dut},
+		DUT:     []*ondatra.DUTDevice{dut},
 		ATE:     ate,
 		ATELock: sync.Mutex{},
 	}
 
-	eventConsumer := monitor.NewCachedConsumer(5 * time.Minute /*expiration time for events in the cache*/,
-		 10 /*number of events for keep for each leaf*/)
+	eventConsumer := monitor.NewCachedConsumer(5*time.Minute, /*expiration time for events in the cache*/
+		10 /*number of events for keep for each leaf*/)
 	monitor := monitor.GNMIMonior{
 		Paths: []ygot.PathStruct{
 			dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
@@ -272,13 +272,13 @@ func TestLoad(t *testing.T) {
 
 	// start gnoi  ping
 	runner.RunTestInBackground(ctx, t, time.NewTimer(10*time.Second), testArgs, eventConsumer, testPing, testGroup)
-	
+
 	// start p4rt test
 
 	time.Sleep(11 * time.Second) // wait until all the tests start (the timer period + 1)
 	testGroup.Wait()
 	cancelMonitors()
-	time.Sleep(60*time.Second)
+	time.Sleep(60 * time.Second)
 
 	/* sample code to read from cache for the last events
 	for key, val := range eventConsumer.Cache.Items() {

@@ -3,18 +3,16 @@ package runner
 
 import (
 	"context"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	"github.com/openconfig/featureprofiles/internal/cisco/ha/monitor"
+	"github.com/openconfig/ondatra"
 	"regexp"
 	"sync"
 	"testing"
 	"time"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/featureprofiles/internal/cisco/ha/monitor"
-	"github.com/openconfig/featureprofiles/internal/cisco/config"
-	
-
 )
 
-// TestArgs defines the arguments that test in background will receveis. 
+// TestArgs defines the arguments that test in background will receveis.
 // For simplicity we assume only one ATE is available and the test should use ATELock before using the ATE
 type TestArgs struct {
 	DUT []*ondatra.DUTDevice
@@ -22,7 +20,6 @@ type TestArgs struct {
 	ATELock sync.Mutex
 	ATE     *ondatra.ATEDevice
 }
-
 
 // BackgroundTest is the signature of a test function that can be run in background
 type BackgroundTest func(t *testing.T, args *TestArgs, events *monitor.CachedConsumer)
@@ -40,15 +37,15 @@ func RunTestInBackground(ctx context.Context, t *testing.T, period interface{}, 
 			function(t, args, events)
 		}()
 	}
-    // TODO: Not tested
+	// TODO: Not tested
 	ticker, ok := period.(*time.Ticker)
 	if ok {
 		go func() {
 			for {
-				for _ = range ticker.C {
+				for range ticker.C {
 					localWG := sync.WaitGroup{}
 					localWG.Add(1) // make sure only one instance of the same test can be excuted
-					workGroup.Add(1) 
+					workGroup.Add(1)
 					go func() { // using goroutine to make sure the waitgroup can be done to prevent the whole test to be hanged when a test calls  Fatal
 						defer workGroup.Done()
 						defer localWG.Done()
@@ -60,7 +57,6 @@ func RunTestInBackground(ctx context.Context, t *testing.T, period interface{}, 
 		}()
 	}
 }
-
 
 // RunCLIInBackground runs an admin command on the backgroun and fails if the command is unsucessful or does not return earlier than timeout
 // The command also fails if the response does not match the expeted reply pattern or matches the not-expected one

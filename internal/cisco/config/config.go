@@ -454,5 +454,3 @@ func CLIViaSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd st
 	}
 	return ""
 }
-
-

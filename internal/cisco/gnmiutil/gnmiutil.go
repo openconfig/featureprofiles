@@ -22,31 +22,27 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
-	"sync"
 
 	"golang.org/x/net/context"
 
 	log "github.com/golang/glog"
 	closer "github.com/openconfig/gocloser"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/util"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
-	"github.com/openconfig/ondatra"
-	
-
-
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 // subLock is to serlialize subscribe call to establish the connection
 var subLock sync.Mutex
-
 
 // DataPoint is a value of a gNMI path at a particular time.
 type DataPoint struct {
@@ -61,7 +57,7 @@ type DataPoint struct {
 	Sync bool
 }
 
-// Consumer is an interface that should be implemented by entities recieving steraming events. 
+// Consumer is an interface that should be implemented by entities recieving steraming events.
 type Consumer interface {
 	Process(datapoints []*DataPoint)
 }
@@ -180,7 +176,6 @@ func PathStructToString(ps ygot.PathStruct) string {
 	return pathToString(p)
 }
 
-
 // Metadata contains to common fields and method for the generated Qualified structs.
 type Metadata struct {
 	Path             *gpb.Path         // Path is the sample's YANG path.
@@ -224,7 +219,6 @@ type QualifiedValue interface {
 	GetComplianceErrors() *ComplianceErrors
 }
 
-
 // Watch starts a gNMI subscription for the provided duration. Specifying subPaths is optional, if unset will subscribe to the path at n.
 // Note: For leaves the converter and predicate are evaluated once per DataPoint. For non-leaves, they are evaluated once per notification,
 // after the first sync is received.
@@ -239,7 +233,7 @@ func Watch(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, n ygot.Pat
 		defer closer.CloseVoidOnErr(&rerr, cancel)
 		mode = gpb.SubscriptionList_STREAM
 	}*/
-	sub, path, err := subscribe(ctx,t, dut,n, paths, mode)
+	sub, path, err := subscribe(ctx, t, dut, n, paths, mode)
 	if err != nil {
 		return nil, path, fmt.Errorf("cannot subscribe to gNMI client: %w", err)
 	}
@@ -489,7 +483,7 @@ func (gs *getSubscriber) CloseSend() error {
 }
 
 // subscribe create a gNMI SubscribeClient. Specifying subPaths is optional, if unset will subscribe to the path at n.
-func subscribe(ctx context.Context,t *testing.T, dut *ondatra.DUTDevice, n ygot.PathStruct, subPaths []*gpb.Path, mode gpb.SubscriptionList_Mode) (_ gpb.GNMI_SubscribeClient, _ *gpb.Path, rerr error) {
+func subscribe(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, n ygot.PathStruct, subPaths []*gpb.Path, mode gpb.SubscriptionList_Mode) (_ gpb.GNMI_SubscribeClient, _ *gpb.Path, rerr error) {
 	path, opts, err := resolve(ctx, n)
 	if err != nil {
 		return nil, path, err

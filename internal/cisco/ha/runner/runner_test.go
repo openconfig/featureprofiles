@@ -6,12 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/monitor"
-	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
-	
+	"github.com/openconfig/ondatra/netutil"
 
 	"github.com/openconfig/ondatra"
 )
@@ -19,9 +18,8 @@ import (
 const (
 	pingThreadScale          = 5    // # of parallel ping request to send
 	pingScale                = 2000 // # of ping message to send
-	AFTTelemtryUpdateTimeout = 120   // second
+	AFTTelemtryUpdateTimeout = 120  // second
 )
-
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -40,7 +38,6 @@ func TestBackgroundCLI(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 }
-
 
 func testPing(t *testing.T, args *TestArgs, event *monitor.CachedConsumer) {
 	t.Helper()

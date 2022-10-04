@@ -49,7 +49,7 @@ var bundles = []Bundle{
 }
 
 func TestGenerateConfig(t *testing.T) {
-	generatedConf := GenerateConfig(bundles,"templates/gnmi.jsonnet")
+	generatedConf := GenerateConfig(bundles, "templates/gnmi.jsonnet")
 	if err := os.WriteFile("output.json", []byte(generatedConf), 0644); err != nil {
 		t.Fatalf(err.Error())
 	}

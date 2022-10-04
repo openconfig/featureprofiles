@@ -1,7 +1,6 @@
 //  Package monitor contains utolity api for monitoring telemetry paths in background while running tests
 //  A monitor pushes all event to the an event consumer that should provide process method.
-//  A monitor can monitor multipe paths, however provided paths should be disjoint. 
-
+//  A monitor can monitor multipe paths, however provided paths should be disjoint.
 
 package monitor
 
@@ -23,31 +22,33 @@ import (
 // Usage:
 //
 // eventConsumer := NewCachedConsumer(5 * time.Minute)
-// monitor := GNMIMonior{
-//	Paths: []ygot.PathStruct{
-//		dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
-//		dut.Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts(),
-//	},
-//	Consumer: eventConsumer,
-//	DUT:      dut,
-// }
+//
+//	monitor := GNMIMonior{
+//		Paths: []ygot.PathStruct{
+//			dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
+//			dut.Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts(),
+//		},
+//		Consumer: eventConsumer,
+//		DUT:      dut,
+//	}
+//
 // ctx, cancelMonitors := context.WithCancel(context.Background())
 // monitor.Start(ctx, t, true, gpb.SubscriptionList_STREAM)
 // start tests
 type GNMIMonior struct {
-	Paths     []ygot.PathStruct
-	Consumer  gnmiutil.Consumer
-	DUT       *ondatra.DUTDevice
+	Paths    []ygot.PathStruct
+	Consumer gnmiutil.Consumer
+	DUT      *ondatra.DUTDevice
 }
 
-// Datasource is used to store the telemtry events. 
+// Datasource is used to store the telemtry events.
 // Any datastore providing Get functionality can be used as the datasoiurce
 type Datasource interface {
 	Get(key string) (interface{}, bool)
 }
 
-// Start function starts the telemetry steraming for paths specefied when defining monitors. 
-// The received events passed to an event consumer for processing. 
+// Start function starts the telemetry steraming for paths specefied when defining monitors.
+// The received events passed to an event consumer for processing.
 func (monitor *GNMIMonior) Start(context context.Context, t *testing.T, shareStub bool, mode gnmi.SubscriptionList_Mode) {
 	t.Helper()
 	for _, ygotPath := range monitor.Paths {
@@ -67,21 +68,22 @@ func (monitor *GNMIMonior) Start(context context.Context, t *testing.T, shareStu
 }
 
 // CachedConsumer is a datasource and event consumer that use go-chache (local caching) to store the events.
-// It uses a cirrculat buffer to only store the last n event. 
-// It also implements process function, so it can be used as the event processor dicretly. 
+// It uses a cirrculat buffer to only store the last n event.
+// It also implements process function, so it can be used as the event processor dicretly.
 type CachedConsumer struct {
-	Cache *cache.Cache
+	Cache      *cache.Cache
 	bufferSize int
 }
 
 // NewCachedConsumer Initialize the CachedConsumer. The windowPeriod specefies the expiration time of the events that will be cached.
-// bufferSize specefies the number of events that will be kept for each path 
+// bufferSize specefies the number of events that will be kept for each path
 func NewCachedConsumer(windowPeriod time.Duration, bufferSize int) *CachedConsumer {
 	return &CachedConsumer{
-		Cache: cache.New(windowPeriod, windowPeriod+2),
+		Cache:      cache.New(windowPeriod, windowPeriod+2),
 		bufferSize: bufferSize,
 	}
 }
+
 // Process recives the event and saves them in the cach
 func (consumer *CachedConsumer) Process(datapoints []*gnmiutil.DataPoint) {
 	for _, data := range datapoints {
