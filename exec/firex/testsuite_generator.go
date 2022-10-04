@@ -44,11 +44,17 @@ var (
 		"test_desc_files", "", "comma separated list of test description yaml files.",
 	)
 
+	testNamesFlag = flag.String(
+		"test_names", "", "comma separated list of tests to include",
+	)
+
 	workspaceFlag = flag.String(
 		"workspace", "", "workspace used for firex launch.",
 	)
 
 	testDescFiles []string
+
+	testNames []string
 
 	workspace string
 )
@@ -58,6 +64,7 @@ var (
 		"join": strings.Join,
 	}).Parse(`
 {{- range $i, $ft := $.TestSuite }}
+{{- if gt (len $ft.Tests) 0 }}
 {{- .Name }}:
     framework: b4_fp
     owners:
@@ -115,6 +122,7 @@ var (
             {{- end }}
         {{- end }}
     smart_sanity_exclude: True
+{{- end }}
 {{ end }}
 `))
 )
@@ -126,6 +134,10 @@ func init() {
 	}
 	testDescFiles = strings.Split(*testDescFilesFlag, ",")
 	workspace = *workspaceFlag
+
+	if len(*testNamesFlag) > 0 {
+		testNames = strings.Split(*testNamesFlag, ",")
+	}
 }
 
 func main() {
@@ -145,6 +157,26 @@ func main() {
 		suite = append(suite, t)
 	}
 
+	// remove untargeted tests
+	if len(testNames) > 0 {
+		targetedTests := map[string]bool{}
+		for _, t := range testNames {
+			targetedTests[strings.Split(t, " ")[0]] = true
+		}
+
+		for i := range suite {
+			keptTests := []GoTest{}
+			for j := range suite[i].Tests {
+				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
+				if _, found := targetedTests[prefix]; found {
+					keptTests = append(keptTests, suite[i].Tests[j])
+				}
+			}
+			suite[i].Tests = keptTests
+		}
+	}
+
+	// adjust timeouts
 	for i := range suite {
 		if suite[i].Timeout > 0 {
 			for j := range suite[i].Tests {
