@@ -461,6 +461,7 @@ func (lldp *LLDPPacketIO) GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEn
 		Type:          actionType,
 		EtherType:     0x88cc,
 		EtherTypeMask: 0xFFFF,
+		Priority:      1,
 	}}
 }
 
