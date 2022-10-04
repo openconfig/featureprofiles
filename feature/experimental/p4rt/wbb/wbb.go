@@ -54,6 +54,7 @@ type ACLWbbIngressTableEntryInfo struct {
 	TTLMask         uint8
 	OuterVlanID     uint16 // lower 12 bits
 	OuterVlanIDMask uint16 // lower 12 bits
+	Priority        uint32
 }
 
 // Filling up P4RT Structs is a bit cumbersome, wrap things to simplify
