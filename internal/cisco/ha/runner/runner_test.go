@@ -42,7 +42,7 @@ func TestBackgroundCLI(t *testing.T) {
 }
 
 
-func testPing(t *testing.T, args TestArgs, event *monitor.CachedConsumer) {
+func testPing(t *testing.T, args *TestArgs, event *monitor.CachedConsumer) {
 	t.Helper()
 	startTime := time.Now()
 	t.Logf("Ping test is started at: %v", startTime)
