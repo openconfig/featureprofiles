@@ -15,3 +15,5 @@ def release_ports(binding_file_path):
                 vport = platform.Sessions.find() \
                     .Ixnetwork.Vport.find()
                 vport.ReleasePort()
+
+

@@ -69,8 +69,6 @@ var (
     framework: b4_fp
     owners:
         - {{ $ft.Owner }}
-    plugins:
-        - {{ $.Workspace }}/exec/utils/ixia/ixia_utils.py
     {{- if eq $ft.Priority "low" }}
     priority: BCT
     {{- else if eq $ft.Priority "high" }}

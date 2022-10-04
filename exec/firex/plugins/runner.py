@@ -12,7 +12,7 @@ from services.cflow.code_coverage_tasks import CollectCoverageData
 from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from test_framework import register_test_framework_provider
 from html_helper import get_link 
-from ixia_utils import release_ports
+from ixia.ixia_utils import release_ports
 from collections import namedtuple
 from pathlib import Path
 from gotest2html import GoTest2HTML
