@@ -223,10 +223,10 @@ def PatchFP(self, fp_repo, patch_path):
 @app.task(bind=True)
 def ReleaseIxiaPorts(self, ws, fp_ws, ondatra_binding_path):
     logger.print("Releasing ixia ports")
-    logger.print(f'{PYTHON_BIN} {fp_ws}/exec/firex/plugins/ixia/ixia_utils.py {ondatra_binding_path}')
     logger.print(
         check_output(
-            f'{PYTHON_BIN} {fp_ws}/exec/firex/plugins/ixia/ixia_utils.py {ondatra_binding_path}',
+            f'{PYTHON_BIN} {fp_ws}/exec/firex/plugins/ixia/ixia_utils.py {fp_ws}/{ondatra_binding_path}',
+            env=dict('PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION', 'python'),
             cwd=ws
         )
     )

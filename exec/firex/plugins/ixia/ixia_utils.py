@@ -15,7 +15,7 @@ class IxiaEnv(venv.EnvBuilder):
     def run_in_venv(self, command):
         command = [self.context.env_exe] + command
         print(command)
-        subprocess.run(command, capture_output=True)
+        subprocess.run(command)
 
 try:
     from ixnetwork_restpy import TestPlatform
