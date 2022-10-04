@@ -1,10 +1,13 @@
-// Package config contains cisco specefic binding APIs to config a router using oc and text and cli.
-package config
+//  Package monitor contains utolity api for monitoring telemetry paths in background while running tests
+//  A monitor pushes all event to the an event consumer that should provide process method.
+//  A monitor can monitor multipe paths, however provided paths should be disjoint. 
+
+
+package monitor
 
 import (
 	"container/ring"
 	"context"
-	"sync"
 	"testing"
 	"time"
 
@@ -15,39 +18,36 @@ import (
 	"github.com/patrickmn/go-cache"
 )
 
-type EventType int
-
-type TestArgs struct {
-	DUT *ondatra.DUTDevice
-	// ATE lock should be aquired before using ATE. Only one test can use the ATE at a time.
-	ATELock sync.Mutex
-	ATE     *ondatra.ATEDevice
-}
-
-const (
-	Update EventType = iota + 1
-	Replace
-	Delete
-)
-
+// GNMIMonior provides access to Monitoring Paths.
+//
+// Usage:
+//
+// eventConsumer := NewCachedConsumer(5 * time.Minute)
+// monitor := GNMIMonior{
+//	Paths: []ygot.PathStruct{
+//		dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
+//		dut.Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts(),
+//	},
+//	Consumer: eventConsumer,
+//	DUT:      dut,
+// }
+// ctx, cancelMonitors := context.WithCancel(context.Background())
+// monitor.Start(ctx, t, true, gpb.SubscriptionList_STREAM)
+// start tests
 type GNMIMonior struct {
 	Paths     []ygot.PathStruct
 	Consumer  gnmiutil.Consumer
 	DUT       *ondatra.DUTDevice
-	Verifiers []interface{}
-	//StringVerifier Verifier[string]
-	//IntVerifier Verifier[int]
-
 }
 
-type Verfier interface {
-	Verify(t *testing.T)
-}
-
+// Datasource is used to store the telemtry events. 
+// Any datastore providing Get functionality can be used as the datasoiurce
 type Datasource interface {
 	Get(key string) (interface{}, bool)
 }
 
+// Start function starts the telemetry steraming for paths specefied when defining monitors. 
+// The received events passed to an event consumer for processing. 
 func (monitor *GNMIMonior) Start(context context.Context, t *testing.T, shareStub bool, mode gnmi.SubscriptionList_Mode) {
 	t.Helper()
 	for _, ygotPath := range monitor.Paths {
@@ -66,17 +66,24 @@ func (monitor *GNMIMonior) Start(context context.Context, t *testing.T, shareStu
 	}
 }
 
+// CachedConsumer is a datasource and event consumer that use go-chache (local caching) to store the events.
+// It uses a cirrculat buffer to only store the last n event. 
+// It also implements process function, so it can be used as the event processor dicretly. 
 type CachedConsumer struct {
 	Cache *cache.Cache
+	bufferSize int
 }
 
-func NewCachedConsumer(windowPeriod time.Duration) *CachedConsumer {
+// Initialize the CachedConsumer. The windowPeriod specefies the expiration time of the events that will be cached.
+// bufferSize specefies the number of events that will be kept for each path 
+func NewCachedConsumer(windowPeriod time.Duration, bufferSize int) *CachedConsumer {
 	return &CachedConsumer{
 		Cache: cache.New(windowPeriod, windowPeriod+2),
+		bufferSize: bufferSize,
 	}
 }
+// Process recives the event and saves them in the cach
 func (consumer *CachedConsumer) Process(datapoints []*gnmiutil.DataPoint) {
-	//fmt.Println("Processing events")
 	for _, data := range datapoints {
 		pathStr, _ := ygot.PathToString(data.Path)
 		preValue, found := consumer.Cache.Get(pathStr)
@@ -87,102 +94,13 @@ func (consumer *CachedConsumer) Process(datapoints []*gnmiutil.DataPoint) {
 			consumer.Cache.Set(pathStr, ring, 0)
 			return
 		}
-		ring := ring.New(10) // let keep only last 10 values(5 minutes)
+		ring := ring.New(consumer.bufferSize) // let keep only last 10 values(5 minutes)
 		ring.Value = data
 		consumer.Cache.Set(pathStr, ring, 0)
 	}
 }
 
+// Get return the event related to a oc path specefid as the key
 func (consumer *CachedConsumer) Get(key string) (interface{}, bool) {
 	return consumer.Cache.Get(key)
 }
-
-type backGroundFunc func(t *testing.T, args *TestArgs, events *CachedConsumer)
-
-// BackgroundFunc runs a testing function in the background. The period can be ticker or simple timer. With simple timer the function only run once
-// Eeven refers to gnmi evelenet collected with streaming telemtry.
-func BackgroundFunc(ctx context.Context, t *testing.T, period interface{}, args *TestArgs, events *CachedConsumer, function backGroundFunc, workGroup *sync.WaitGroup) {
-	t.Helper()
-	timer, ok := period.(*time.Timer)
-	if ok {
-		go func() {
-			<-timer.C
-			workGroup.Add(1)
-			defer workGroup.Done()
-			function(t, args, events)
-		}()
-	}
-
-	ticker, ok := period.(*time.Ticker)
-	if ok {
-		go func() {
-			for {
-				for _ = range ticker.C {
-					localWG := sync.WaitGroup{}
-					localWG.Add(1) // make sure only one instance of the same test can be excuted
-					workGroup.Add(1) 
-					go func() { // using goroutine to make sure the waitgroup can be done to prevent the whole test to be hanged when a test calls  Fatal
-						defer workGroup.Done()
-						defer localWG.Done()
-						function(t, args, events)
-					}()
-					localWG.Wait()
-				}
-			}
-		}()
-	}
-}
-
-/*type VerifierType int
-const (
-	Once  VerifierType = iota + 1
-	Always
-	Ends
-	Flips
-	Starts
-	Regex
-	Sequence
-)
-
-type SignlePathVerfier struct{
-	datesource  Datasource
-	period time.Ticker
-	key string
-	expected []interface{}
-	typee VerifierType
-	window int
-	journal ring.Ring
-}
- func NewSignlePathVerfier(t *testing.T, datasource Datasource, period time.Ticker, expected ) *SignlePathVerfier {
-	return & SignlePathVerfier{
-		datesource: datasource,
-		period: period,
-		expected:  ,
-	}
- }
-
-func (v *SignlePathVerfier) Verify(t *testing.T) {
-	switch (v.Type) {
-	case Once:
-	if ! v.state {
-		if val==v.Value[0]  {
-			v.state = true
-		}
-	}
-	case Always:
-		if val!=v.Value[0]  {
-			t.Fatalf("%s is execpted to be %v all the times", v.Key, v.Value)
-		}
-	}
-
-}
-
-func (v *SignlePathVerfier) verificationLoop(t *testing.T) {
-    for {
-    	 <-v.Period.C
-		 val := v.Datesource.Get(v.Key)
-		 switch (v.Type) {
-			case Once:
-
-	}
-}*/
