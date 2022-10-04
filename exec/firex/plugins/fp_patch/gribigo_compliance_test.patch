@@ -1,17 +1,17 @@
-diff --git a/feature/gribi/tests/gribigo_compliance_test/gribigo_compliance_test.go b/feature/gribi/tests/gribigo_compliance_test/gribigo_compliance_test.go
-index 6350fb37..b8069847 100644
---- a/feature/gribi/tests/gribigo_compliance_test/gribigo_compliance_test.go
-+++ b/feature/gribi/tests/gribigo_compliance_test/gribigo_compliance_test.go
-@@ -20,6 +20,8 @@ var (
- 	skipSrvReorder      = flag.Bool("skip_reordering", true, "skip tests that rely on server side transaction reordering")
- 	skipImplicitReplace = flag.Bool("skip_implicit_replace", true, "skip tests for ADD operations that perform implicit replacement of existing entries")
- 	skipNonDefaultNINHG = flag.Bool("skip_non_default_ni_nhg", true, "skip tests that add entries to non-default network-instance")
-+	
-+	protocolName  = flag.String("protocol_name", "default", "Name of the protocol to configure static route")
+diff --git a/feature/gribi/ate_tests/gribigo_compliance_test/gribigo_compliance_test.go b/feature/gribi/ate_tests/gribigo_compliance_test/gribigo_compliance_test.go
+index 69e51bd2..04e5e9ca 100644
+--- a/feature/gribi/ate_tests/gribigo_compliance_test/gribigo_compliance_test.go
++++ b/feature/gribi/ate_tests/gribigo_compliance_test/gribigo_compliance_test.go
+@@ -38,6 +38,8 @@ var (
  
  	nonDefaultNI = flag.String("non_default_ni", "non-default-vrf", "non-default network-instance name")
- )
-@@ -53,7 +55,7 @@ func TestCompliance(t *testing.T) {
+ 
++	protocolName = flag.String("protocol_name", "default", "Name of the protocol to configure static route")
++
+ 	dutPort1 = attrs.Attributes{
+ 		Desc:    "dutPort1",
+ 		IPv4:    "192.0.2.0",
+@@ -160,7 +162,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
  	d := &telemetry.Device{}
  	ni := d.GetOrCreateNetworkInstance(*nonDefaultNI)
  	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
