@@ -48,9 +48,9 @@ var (
 	p4rtNodeName                              = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
 	streamName                                = "p4rt"
 	gdpInLayers           layers.EthernetType = 0x6007
-	deviceId                                  = *ygot.Uint64(1)
-	portId                                    = *ygot.Uint32(10)
-	electionId                                = *ygot.Uint64(100)
+	deviceID                                  = *ygot.Uint64(1)
+	portID                                    = *ygot.Uint32(10)
+	electionID                                = *ygot.Uint64(100)
 	METADATA_INGRESS_PORT                     = *ygot.Uint32(1)
 	METADATA_EGRESS_PORT                      = *ygot.Uint32(2)
 	SUBMIT_TO_INGRESS                         = *ygot.Uint32(1)
@@ -102,8 +102,8 @@ type testArgs struct {
 func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool) error {
 	t.Helper()
 	err := client.Write(&p4_v1.WriteRequest{
-		DeviceId:   deviceId,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
+		DeviceId:   deviceID,
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
 		Updates: wbb.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete),
 		),
@@ -165,7 +165,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			port := sortPorts(args.ate.Ports())[0].Name()
 			counter0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 
-			packets := args.packetIO.GetPacketOut(portId, false)
+			packets := args.packetIO.GetPacketOut(portID, false)
 			sendPackets(t, test.client, packets, packetCount)
 
 			// Wait for ate stats to be populated
@@ -263,7 +263,7 @@ func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	component := telemetry.Component{}
 	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
 	component.Name = ygot.String(*p4rtNodeName)
-	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceId)
+	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
 	dut.Config().Component(*p4rtNodeName).Replace(t, &component)
 }
 
@@ -271,7 +271,7 @@ func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	ports := sortPorts(dut.Ports())
 	for i, port := range ports {
-		dut.Config().Interface(port.Name()).Id().Replace(t, uint32(i)+portId)
+		dut.Config().Interface(port.Name()).Id().Replace(t, uint32(i)+portID)
 	}
 }
 
@@ -281,9 +281,9 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	// Setup p4rt-client stream parameters
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
-		DeviceId:    deviceId,
+		DeviceId:    deviceID,
 		ElectionIdH: uint64(0),
-		ElectionIdL: electionId,
+		ElectionIdL: electionID,
 	}
 
 	// Send ClientArbitration message on both p4rt leader and follower clients.
@@ -318,8 +318,8 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 
 	// Send SetForwardingPipelineConfig for p4rt leader client.
 	if err := args.leader.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
-		DeviceId:   deviceId,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
+		DeviceId:   deviceID,
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
 		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4_v1.ForwardingPipelineConfig{
 			P4Info: &p4Info,
@@ -336,7 +336,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 // getGDPParameter returns GDP related parameters for testPacketOut testcase.
 func getGDPParameter(t *testing.T) PacketIO {
 	return &GDPPacketIO{
-		IngressPort: fmt.Sprint(portId),
+		IngressPort: fmt.Sprint(portID),
 	}
 }
 
