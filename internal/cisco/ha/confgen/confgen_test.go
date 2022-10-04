@@ -9,42 +9,42 @@ import (
 
 var bundles = []Bundle{
 	{
-		Id:                121,
+		ID:                121,
 		Interfaces:        []string{"HundredGigE0/0/0/1"},
 		SubInterfaceRange: []int{100, 196},
 	},
 	{
-		Id:                122,
+		ID:                122,
 		Interfaces:        []string{"HundredGigE0/0/0/3"},
 		SubInterfaceRange: []int{100, 196},
 	},
 	{
-		Id:                123,
+		ID:                123,
 		Interfaces:        []string{"HundredGigE0/0/0/5"},
 		SubInterfaceRange: []int{100, 196},
 	},
 	{
-		Id:                124,
+		ID:                124,
 		Interfaces:        []string{"HundredGigE0/3/0/0"},
 		SubInterfaceRange: []int{100, 196},
 	},
 	{
-		Id:                125,
+		ID:                125,
 		Interfaces:        []string{"HundredGigE0/3/0/2"},
 		SubInterfaceRange: []int{100, 196},
 	},
 	{
-		Id:                126,
+		ID:                126,
 		Interfaces:        []string{"HundredGigE0/3/0/3"},
 		SubInterfaceRange: []int{100, 196},
 	},
 	{
-		Id:                127,
+		ID:                127,
 		Interfaces:        []string{"HundredGigE0/3/0/3"},
 		SubInterfaceRange: []int{100, 196},
 	},
 	{
-		Id: 128,
+		ID: 128,
 	},
 }
 

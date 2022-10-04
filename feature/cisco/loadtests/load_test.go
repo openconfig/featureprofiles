@@ -44,42 +44,42 @@ func testGNMISet(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsu
 	ports := args.DUT[0].Ports()
 	bundles := []confgen.Bundle{
 		{
-			Id:                121,
+			ID:                121,
 			Interfaces:        []string{ports[0].Name()},
 			SubInterfaceRange: []int{100, 196},
 		},
 		{
-			Id:                122,
+			ID:                122,
 			Interfaces:        []string{ports[1].Name()},
 			SubInterfaceRange: []int{100, 196},
 		},
 		{
-			Id:                123,
+			ID:                123,
 			Interfaces:        []string{ports[2].Name()},
 			SubInterfaceRange: []int{100, 196},
 		},
 		{
-			Id:                124,
+			ID:                124,
 			Interfaces:        []string{ports[3].Name()},
 			SubInterfaceRange: []int{100, 196},
 		},
 		{
-			Id:                125,
+			ID:                125,
 			Interfaces:        []string{ports[4].Name()},
 			SubInterfaceRange: []int{100, 196},
 		},
 		{
-			Id:                126,
+			ID:                126,
 			Interfaces:        []string{ports[5].Name()},
 			SubInterfaceRange: []int{100, 196},
 		},
 		{
-			Id:                127,
+			ID:                127,
 			Interfaces:        []string{ports[7].Name()},
 			SubInterfaceRange: []int{100, 196},
 		},
 		{
-			Id: 128,
+			ID: 128,
 		},
 	}
 	generatedConf := confgen.GenerateConfig(bundles,*configFilePath)
