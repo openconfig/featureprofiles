@@ -463,7 +463,9 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	})
 
 	t.Run("validateAFTWeights", func(t *testing.T) {
-		t.Skip("TODO: AFT Telemetry not supported.")
+		if *deviations.NextHopAFTNotSupported {
+			t.Skip("TODO: AFT Telemetry not supported.")
+		}
 
 		for _, tc := range []nhInfo{
 			{nhg: 1, index: 1, weight: 1},
