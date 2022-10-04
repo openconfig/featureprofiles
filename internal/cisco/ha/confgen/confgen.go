@@ -1,4 +1,4 @@
-//  Package confgen provide api for generating config at a very high scale using OC and JSONNET
+// Package confgen provide api for generating config at a very high scale using OC and JSONNET
 package confgen
 
 import (
@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/go-jsonnet"
 )
+
 // Bundle stores a bundle information.
 type Bundle struct {
 	ID                int
