@@ -20,7 +20,7 @@ import os
 import git 
 
 GO_BIN = '/auto/firex/bin/go'
-PYTHON_BIN = '/usr/cisco/bin/python3'
+PYTHON_BIN = '/auto/firex/sw/python/3.9.10/bin/python3.9'
 
 logger = get_task_logger(__name__)
 

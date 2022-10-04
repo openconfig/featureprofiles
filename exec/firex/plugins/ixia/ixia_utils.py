@@ -15,13 +15,14 @@ class IxiaEnv(venv.EnvBuilder):
     def run_in_venv(self, command):
         command = [self.context.env_exe] + command
         print(command)
-        return subprocess.check_call(command)
+        subprocess.run(command, capture_output=True)
 
 try:
     from ixnetwork_restpy import TestPlatform
     from google.protobuf import text_format
     import binding_pb2
 
+    print(f'Parsing binding file {sys.argv[1]}')
     with open(sys.argv[1], 'rb') as fp:
         binding = text_format.Parse(fp.read(), binding_pb2.Binding())
         for device in binding.ates:
@@ -34,6 +35,7 @@ try:
                 vport = platform.Sessions.find() \
                     .Ixnetwork.Vport.find()
                 vport.ReleasePort()
+    print('Ports released')
 except ModuleNotFoundError:
     ixiaVenv = IxiaEnv('ixia_venv')
     ixiaVenv.run_in_venv([__file__] + sys.argv[1:])
