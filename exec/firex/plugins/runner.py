@@ -192,7 +192,7 @@ def b4_fp_chain_provider(ws,
     if test_patch:
         chain |= PatchFP.s(fp_repo=fp_repo_dir, patch_path=test_patch)
 
-    chain |= ReleaseIxiaPorts.s(fp_ws=fp_repo_dir, ondatra_binding_path=ondatra_binding_path)
+    chain |= ReleaseIxiaPorts.s(ws=ws, fp_ws=fp_repo_dir, ondatra_binding_path=ondatra_binding_path)
 
     if fp_pre_tests:
         for pt in fp_pre_tests:
@@ -221,11 +221,14 @@ def PatchFP(self, fp_repo, patch_path):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def ReleaseIxiaPorts(self, fp_ws, ondatra_binding_path):
+def ReleaseIxiaPorts(self, ws, fp_ws, ondatra_binding_path):
     logger.print("Releasing ixia ports")
     logger.print(f'{PYTHON_BIN} {fp_ws}/exec/firex/plugins/ixia/ixia_utils.py {ondatra_binding_path}')
     logger.print(
-        check_output(f'{PYTHON_BIN} {fp_ws}/exec/firex/plugins/ixia/ixia_utils.py {ondatra_binding_path}')
+        check_output(
+            f'{PYTHON_BIN} {fp_ws}/exec/firex/plugins/ixia/ixia_utils.py {ondatra_binding_path}',
+            cwd=ws
+        )
     )
 
 # noinspection PyPep8Naming
