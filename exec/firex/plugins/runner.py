@@ -18,6 +18,11 @@ from gotest2html import GoTest2HTML
 import os
 import git 
 
+import sys
+sys.path.append('../../utils/ixia')
+
+from ixia_utils import release_ports
+
 GO_BIN = '/auto/firex/bin/go'
 
 logger = get_task_logger(__name__)
@@ -190,6 +195,8 @@ def b4_fp_chain_provider(ws,
     if test_patch:
         chain |= PatchFP.s(fp_repo=fp_repo_dir, patch_path=test_patch)
 
+    chain |= ReleaseIxiaPorts.s(ondatra_binding_path=ondatra_binding_path)
+
     if fp_pre_tests:
         for pt in fp_pre_tests:
             for k, v in pt.items():
@@ -214,7 +221,12 @@ def b4_fp_chain_provider(ws,
 def PatchFP(self, fp_repo, patch_path):
     repo = git.Repo(fp_repo)
     repo.git.apply([os.path.join(fp_repo, patch_path)])
-    
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def ReleaseIxiaPorts(self, ondatra_binding_path):
+    release_ports(ondatra_binding_path)
+
 # noinspection PyPep8Naming
 @app.task(bind=True, base=FireXRunnerBase)
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
