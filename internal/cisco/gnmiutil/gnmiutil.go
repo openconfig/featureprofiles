@@ -22,7 +22,6 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -41,8 +40,6 @@ import (
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
-// subLock is to serlialize subscribe call to establish the connection
-var subLock sync.Mutex
 
 // DataPoint is a value of a gNMI path at a particular time.
 type DataPoint struct {
@@ -542,46 +539,6 @@ func subscribe(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, n ygot
 	return sub, path, nil
 }
 
-// pathElemSlicesEqual compares whether two PathElem slices are equal.
-func pathElemSlicesEqual(a, b []*gpb.PathElem) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !util.PathElemsEqual(a[i], b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-// receiveAll receives data until the context deadline is reached, or when in
-// ONCE mode, a sync response is received.
-func receiveAll(sub gpb.GNMI_SubscribeClient, deletesExpected bool, mode gpb.SubscriptionList_Mode) (data []*DataPoint, err error) {
-	for {
-		var sync bool
-		data, sync, err = receive(sub, data, deletesExpected)
-		if err != nil {
-			if mode == gpb.SubscriptionList_ONCE && err == io.EOF {
-				// TODO: It is unclear whether "subscribe ONCE stream closed without sync_response"
-				// should be an error, so tolerate both scenarios.
-				// See https://github.com/openconfig/reference/pull/156
-				log.V(1).Infof("subscribe ONCE stream closed without sync_response.")
-				break
-			}
-			// DeadlineExceeded is expected when collections are complete.
-			if st, ok := status.FromError(err); ok && st.Code() == codes.DeadlineExceeded {
-				break
-			}
-			return nil, fmt.Errorf("error receiving gNMI response: %w", err)
-		}
-		if mode == gpb.SubscriptionList_ONCE && sync {
-			break
-		}
-	}
-	return data, nil
-}
-
 // receive processes a single response from the subscription stream. If an "update" response is
 // received, those points are appended to the given data and the result of that concatenation is
 // the first return value, and the second return value is false. If a "sync" response is received,
@@ -608,9 +565,9 @@ func receive(sub gpb.GNMI_SubscribeClient, data []*DataPoint, deletesExpected bo
 				return nil, err
 			}
 			// Record the deprecated Element field for clearer compliance error messages.
-			if elements := append(append([]string{}, n.GetPrefix().GetElement()...), p.GetElement()...); len(elements) > 0 {
-				j.Element = elements
-			}
+			//if elements := append(append([]string{}, n.GetPrefix().Element...), p.Element...); len(elements) > 0 {
+			//	j.Element = elements
+			//}
 			// Use the target only for the subscription but exclude from the datapoint construction.
 			j.Target = ""
 			return &DataPoint{Path: j, Value: val, Timestamp: ts, RecvTimestamp: recvTS}, nil

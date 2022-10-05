@@ -5,6 +5,7 @@ import (
 	"io"
 	"testing"
 	"time"
+	"sync"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/monitor"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -38,6 +39,27 @@ func TestBackgroundCLI(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 }
+
+func TestLoad(t *testing.T) {
+
+	dut := ondatra.DUT(t, "dut")
+	testArgs := &TestArgs{
+		DUT:     []*ondatra.DUTDevice{dut},
+		ATE:     nil,
+		ATELock: sync.Mutex{},
+	}
+	// start tests
+	testGroup := &sync.WaitGroup{}
+
+	// start gnoi  ping
+	RunTestInBackground(context.Background(), t, time.NewTimer(10*time.Second), testArgs, nil, testPing, testGroup)
+
+	time.Sleep(11 * time.Second) // wait until all the tests start (the timer period + 1)
+	testGroup.Wait()
+	time.Sleep(60 * time.Second)
+
+}
+
 
 func testPing(t *testing.T, args *TestArgs, event *monitor.CachedConsumer) {
 	t.Helper()

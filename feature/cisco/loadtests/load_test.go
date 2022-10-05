@@ -41,6 +41,10 @@ func TestMain(m *testing.M) {
 }
 
 func testGNMISet(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsumer) {
+	// TODO: The below code is not tested yet
+	if *configFilePath==""{
+		return
+	}
 	ports := args.DUT[0].Ports()
 	bundles := []confgen.Bundle{
 		{
@@ -265,7 +269,7 @@ func TestLoad(t *testing.T) {
 	// start tests
 	testGroup := &sync.WaitGroup{}
 	// start reset/apply config
-	//BackgroundFunc(ctx, t, time.NewTimer(10*time.Millisecond), testArgs, eventConsumer, testGNMISet, testGroup)
+	runner.RunTestInBackground(ctx, t, time.NewTimer(10*time.Millisecond), testArgs, eventConsumer, testGNMISet, testGroup)
 
 	// start gribi test writter
 	runner.RunTestInBackground(ctx, t, time.NewTimer(1*time.Second), testArgs, eventConsumer, testBatchADDReplaceDeleteIPV4, testGroup)
