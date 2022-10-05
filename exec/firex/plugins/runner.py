@@ -225,7 +225,7 @@ def ReleaseIxiaPorts(self, ws, fp_ws, ondatra_binding_path):
     logger.print("Releasing ixia ports")
     logger.print(
         check_output(
-            f'{PYTHON_BIN} {fp_ws}/exec/firex/plugins/ixia/ixia_utils.py {fp_ws}/{ondatra_binding_path}',
+            f'{PYTHON_BIN} {fp_ws}/exec/utils/ixia/release_ports.py {fp_ws}/{ondatra_binding_path}',
             env=dict(os.environ, PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION='python'),
             cwd=ws
         )

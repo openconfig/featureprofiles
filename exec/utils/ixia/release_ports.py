@@ -14,7 +14,6 @@ class IxiaEnv(venv.EnvBuilder):
 
     def run_in_venv(self, command):
         command = [self.context.env_exe] + command
-        print(command)
         subprocess.run(command)
 
 try:
@@ -28,6 +27,7 @@ try:
         for device in binding.ates:
             ixia = device.ixnetwork
             if ixia and ixia.target:
+                print(f'Ixia target: {ixia.target}')
                 platform = TestPlatform(ixia.target)
                 if ixia.username and ixia.password:
                     platform.Authenticate(ixia.username, ixia.password)
@@ -35,7 +35,7 @@ try:
                 vport = platform.Sessions.find() \
                     .Ixnetwork.Vport.find()
                 vport.ReleasePort()
-    print('Ports released')
+                print('Ports released')
 except ModuleNotFoundError:
     ixiaVenv = IxiaEnv('ixia_venv')
     ixiaVenv.run_in_venv([__file__] + sys.argv[1:])
