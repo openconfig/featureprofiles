@@ -8,8 +8,9 @@ Validate IPv4 support in gRIBI.
 
 *   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2, and ATE port-3
     to DUT port-3.
-*   Establish gRIBI client connection with DUT negotiating RIB_AND_FIB_ACK as
-    the requested ack_type.
+*   Establish gRIBI client connection with DUT, negotiating `RIB_AND_FIB_ACK` as
+    the requested `ack_type` and persistence mode `PRESERVE`. Flush all entries
+    after each case.
 *   Using gRIBI Modify RPC install the following IPv4Entry sets, and validate
     the specified behaviours:
     *   Single IPv4Entry -> NHG -> NH.
@@ -24,15 +25,18 @@ Validate IPv4 support in gRIBI.
         *   Validate that packets forwarded between ATE ports 1 and (2 and 3),
             ensuring that traffic is forwarded.
     *   Single IPv4Entry -> NHG -> non-existent NH.
-        *   Send a Modify() containing 2 AFTOperations that Install
+        *   Send a Modify() containing 2 AFTOperations that install
             198.51.100.0/24 to NextHopGroup containing next-hops that do not
             exist. Validate that FAILED error is received for all the 2
             operations. Ensure that traffic to 198.51.100.0/24 is blackholed.
     *   Single IPv4Entry -> NHG -> NH with down interface
         *   Install 198.51.100.0/24 to NextHopGroup containing a NextHop that
-            references (interface_ref) a down interface and override the
-            destination MAC (mac_address), ensure that FIB_PROGRAMMED is
+            references (interface\_ref) a down interface and override the
+            destination MAC (mac\_address), ensure that `FIB_PROGRAMMED` is
             returned.
+
+If the device supports it, repeat this test with gRIBI client persistence mode
+`DELETE` without flushing entries between cases.
 
 ## Config Parameter coverage
 
