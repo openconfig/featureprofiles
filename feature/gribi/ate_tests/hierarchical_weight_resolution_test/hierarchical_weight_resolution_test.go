@@ -558,7 +558,9 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	})
 
 	t.Run("validateAFTWeights", func(t *testing.T) {
-		t.Skip("TODO: AFT Telemetry not supported.")
+		if *deviations.NextHopAFTNotSupported {
+			t.Skip("TODO: AFT Telemetry not supported.")
+		}
 		testCases := []nhInfo{
 			{nhg: 1, index: 1, weight: 1},
 			{nhg: 1, index: 2, weight: 31},
