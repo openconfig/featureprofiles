@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 
 func testGNMISet(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsumer) {
 	// TODO: The below code is not tested yet
-	if *configFilePath==""{
+	if *configFilePath == "" {
 		return
 	}
 	ports := args.DUT[0].Ports()

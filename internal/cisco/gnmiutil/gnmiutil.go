@@ -40,7 +40,6 @@ import (
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
-
 // DataPoint is a value of a gNMI path at a particular time.
 type DataPoint struct {
 	Path *gpb.Path

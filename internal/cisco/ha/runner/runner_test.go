@@ -3,9 +3,9 @@ package runner
 import (
 	"context"
 	"io"
+	"sync"
 	"testing"
 	"time"
-	"sync"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/monitor"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -59,7 +59,6 @@ func TestLoad(t *testing.T) {
 	time.Sleep(60 * time.Second)
 
 }
-
 
 func testPing(t *testing.T, args *TestArgs, event *monitor.CachedConsumer) {
 	t.Helper()
