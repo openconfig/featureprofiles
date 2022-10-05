@@ -317,6 +317,13 @@ func TestSupFailure(t *testing.T) {
 	secondaryBeforeSwitch, primaryBeforeSwitch := findSecondaryController(t, dut, controllers)
 	t.Logf("Detected Secondary: %v, Primary: %v", secondaryBeforeSwitch, primaryBeforeSwitch)
 
+	switchoverReady := dut.Telemetry().Component(primaryBeforeSwitch).SwitchoverReady()
+	switchoverReady.Await(t, 30*time.Minute, true)
+	t.Logf("SwitchoverReady().Get(t): %v", switchoverReady.Get(t))
+	if got, want := switchoverReady.Get(t), true; got != want {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+	}
+
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: &tpb.Path{
