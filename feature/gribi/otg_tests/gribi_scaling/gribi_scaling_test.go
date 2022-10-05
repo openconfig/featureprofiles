@@ -332,7 +332,7 @@ func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *telemetry.Dev
 func generateSubIntfPair(t *testing.T, top gosnappi.Config, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPort, atePort *ondatra.Port, d *telemetry.Device) []string {
 	nextHops := []string{}
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
-	for i := 1; i <= nextHopCount; i++ {
+	for i := 0; i <= nextHopCount; i++ {
 		vlanID := uint16(i)
 		name := fmt.Sprintf(`dst%d`, i)
 		Index := uint32(i)
