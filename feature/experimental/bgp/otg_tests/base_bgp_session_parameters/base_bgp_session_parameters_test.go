@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -40,8 +41,9 @@ var (
 		IPv4Len: 30,
 	}
 	ateAttrs = attrs.Attributes{
-		//Desc:    "To DUT",
+		Desc:    "To DUT",
 		Name:    "ateSrc",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: 30,
 	}
@@ -204,21 +206,27 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // Function to configure ATE configs based on args and returns ate topology handle.
-func configureATE(t *testing.T, ateParams *bgpTestParams, connectionType connType) *ondatra.ATETopology {
+func configureATE(t *testing.T, ateParams *bgpTestParams, connectionType connType) gosnappi.Config {
 	ate := ondatra.ATE(t, "ate")
 	port1 := ate.Port(t, "port1")
-	topo := ate.Topology().New()
+	topo := ate.OTG().NewConfig(t)
 
-	iDut1 := topo.AddInterface(ateAttrs.Name).WithPort(port1)
-	iDut1.IPv4().WithAddress(ateAttrs.IPv4CIDR()).WithDefaultGateway(ateParams.peerIP)
-	bgpDut1 := iDut1.BGP()
+	topo.Ports().Add().SetName(port1.ID())
+	dev := topo.Devices().Add().SetName(ateAttrs.Name)
+	eth := dev.Ethernets().Add().SetName(ateAttrs.Name + ".Eth")
+	eth.SetPortName(port1.ID()).SetMac(ateAttrs.MAC)
+
+	ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+	ip.SetAddress(ateAttrs.IPv4).SetGateway(dutAttrs.IPv4).SetPrefix(int32(ateAttrs.IPv4Len))
+
+	bgp := dev.Bgp().SetRouterId(ateAttrs.IPv4)
+	peerBGP := bgp.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add()
+	peerBGP.SetName(ateAttrs.Name + ".BGP4.peer").Advanced().SetMd5Key(authPassword).SetHoldTimeInterval(ateHoldTime)
 
 	if connectionType == connInternal {
-		bgpDut1.AddPeer().WithPeerAddress(ateParams.peerIP).WithLocalASN(ateParams.localAS).WithTypeInternal().
-			WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
+		peerBGP.SetPeerAddress(ip.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 	} else {
-		bgpDut1.AddPeer().WithPeerAddress(ateParams.peerIP).WithLocalASN(ateParams.localAS).WithTypeExternal().
-			WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
+		peerBGP.SetPeerAddress(ip.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	}
 	return topo
 
@@ -304,6 +312,7 @@ func TestParameters(t *testing.T) {
 	ateIP := ateAttrs.IPv4
 	dutIP := dutAttrs.IPv4
 	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
 
 	// Configure Network instance type on DUT
 	t.Log("Configure Network Instance")
@@ -317,7 +326,7 @@ func TestParameters(t *testing.T) {
 	cases := []struct {
 		name      string
 		dutConf   *telemetry.NetworkInstance_Protocol_Bgp
-		ateConf   *ondatra.ATETopology
+		ateConf   gosnappi.Config
 		wantState *telemetry.NetworkInstance_Protocol_Bgp
 	}{
 		{
@@ -343,21 +352,22 @@ func TestParameters(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			// otg := ondatra.ATE(t, "ate").OTG()
 			fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 			t.Log("Clear BGP Configs on DUT")
 			dutConfPath.Replace(t, nil)
 			t.Log("Configure BGP Configs on DUT")
 			dutConfPath.Replace(t, tc.dutConf)
 			t.Log("Configure BGP on ATE")
-			tc.ateConf.Push(t)
-			tc.ateConf.StartProtocols(t)
+			ate.OTG().PushConfig(t, tc.ateConf)
+			ate.OTG().StartProtocols(t)
 			t.Log("Verify BGP session state : ESTABLISHED")
 			nbrPath.SessionState().Await(t, time.Second*100, telemetry.Bgp_Neighbor_SessionState_ESTABLISHED)
 			stateDut := statePath.Get(t)
 			wantState := tc.dutConf
 			confirm.State(t, wantState, stateDut)
 			t.Log("Clear BGP Configs on ATE")
-			tc.ateConf.StopProtocols(t)
+			ate.OTG().StopProtocols(t)
 		})
 	}
 }
