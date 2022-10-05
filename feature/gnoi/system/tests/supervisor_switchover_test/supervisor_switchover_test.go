@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -81,13 +80,20 @@ func TestSupervisorSwitchover(t *testing.T) {
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, supervisors)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
+	switchoverReady := dut.Telemetry().Component(rpActiveBeforeSwitch).SwitchoverReady()
+	switchoverReady.Await(t, 30*time.Minute, true)
+	t.Logf("SwitchoverReady().Get(t): %v", switchoverReady.Get(t))
+	if !switchoverReady.Get(t) {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", switchoverReady.Get(t), true)
+	}
+
 	intfsOperStatusUPBeforeSwitch := fetchOperStatusUPIntfs(t, dut)
 	t.Logf("intfsOperStatusUP interfaces before switchover: %v", intfsOperStatusUPBeforeSwitch)
 	if len(intfsOperStatusUPBeforeSwitch) == 0 {
 		t.Errorf("Get the number of intfsOperStatusUP interfaces for %q: got 0, want > 0", dut.Name())
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI().New(t)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: &tpb.Path{
 			Elem: []*tpb.PathElem{{Name: rpStandbyBeforeSwitch}},
@@ -155,12 +161,6 @@ func TestSupervisorSwitchover(t *testing.T) {
 	})
 	if val, ok := watch.Await(t); !ok {
 		t.Fatalf("DUT did not reach target state withing %v: got %v", 5*time.Minute, val)
-	}
-
-	intfsOperStatusUPAfterSwitch := fetchOperStatusUPIntfs(t, dut)
-	t.Logf("intfsOperStatusUP interfaces after switchover: %v", intfsOperStatusUPAfterSwitch)
-	if diff := cmp.Diff(intfsOperStatusUPAfterSwitch, intfsOperStatusUPBeforeSwitch); diff != "" {
-		t.Errorf("intfsOperStatusUP interfaces differed (-want +got):\n%v", diff)
 	}
 
 	t.Log("Validate OC Switchover time/reason.")

@@ -15,8 +15,9 @@ a new testbed configuration with the desired port types.
     the octets of IPv4.
     *   Ensure: ARP discovers static MAC address specified when port is
         configured with static MAC.
-*   TODO: Validate that port speed is reported correctly and that port telemetry
-    matches expected effective speeds.
+*   Validate that port speed is reported correctly and that port telemetry
+    matches expected negotiated speeds for forced, auto-negotiation, and
+    auto-negotiation while overriding port speed and duplex.
     *   TODO: If the port is a breakout, ensure that all breakout ports are
         correctly reported.
 *   For IPv4 and IPv6:
