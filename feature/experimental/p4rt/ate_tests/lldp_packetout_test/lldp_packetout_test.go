@@ -398,14 +398,20 @@ func packetLLDPRequestGet() []byte {
 		DstMAC:       net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x0E},
 		EthernetType: lldpInLayers,
 	}
-	payload := []byte{}
-	payLoadLen := 64
-	for i := 0; i < payLoadLen; i++ {
-		payload = append(payload, byte(i))
+
+	pktLLDP := &layers.LinkLayerDiscovery{
+		ChassisID: layers.LLDPChassisID{
+			Subtype: layers.LLDPChassisIDSubTypeMACAddr,
+			ID:      []byte{0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
+		},
+		PortID: layers.LLDPPortID{
+			Subtype: layers.LLDPPortIDSubtypeIfaceName,
+			ID:      []byte("port1"),
+		},
+		TTL: 100,
 	}
-	gopacket.SerializeLayers(buf, opts,
-		pktEth, gopacket.Payload(payload),
-	)
+
+	gopacket.SerializeLayers(buf, opts, pktEth, pktLLDP)
 	return buf.Bytes()
 }
 
