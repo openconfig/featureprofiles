@@ -22,11 +22,13 @@ import (
 	"net"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -46,9 +48,9 @@ var (
 	p4rtNodeName                              = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
 	streamName                                = "p4rt"
 	gdpInLayers           layers.EthernetType = 0x6007
-	deviceId                                  = *ygot.Uint64(1)
-	portId                                    = *ygot.Uint32(10)
-	electionId                                = *ygot.Uint64(100)
+	deviceID                                  = *ygot.Uint64(1)
+	portID                                    = *ygot.Uint32(10)
+	electionID                                = *ygot.Uint64(100)
 	METADATA_INGRESS_PORT                     = *ygot.Uint32(1)
 	METADATA_EGRESS_PORT                      = *ygot.Uint32(2)
 	SUBMIT_TO_INGRESS                         = *ygot.Uint32(1)
@@ -80,6 +82,113 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 )
+
+type PacketIO interface {
+	GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEntryInfo
+	GetPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut
+}
+
+type testArgs struct {
+	ctx      context.Context
+	leader   *p4rt_client.P4RTClient
+	follower *p4rt_client.P4RTClient
+	dut      *ondatra.DUTDevice
+	ate      *ondatra.ATEDevice
+	top      *ondatra.ATETopology
+	packetIO PacketIO
+}
+
+// programmTableEntry programs or deletes p4rt table entry based on delete flag.
+func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool) error {
+	t.Helper()
+	err := client.Write(&p4_v1.WriteRequest{
+		DeviceId:   deviceID,
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+		Updates: wbb.ACLWbbIngressTableEntryGet(
+			packetIO.GetTableEntry(delete),
+		),
+		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// sendPackets sends out packets via PacketOut message in StreamChannel.
+func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4_v1.PacketOut, packetCount int) {
+	count := packetCount / len(packets)
+	for _, packet := range packets {
+		for i := 0; i < count; i++ {
+			if err := client.StreamChannelSendMsg(
+				&streamName, &p4_v1.StreamMessageRequest{
+					Update: &p4_v1.StreamMessageRequest_Packet{
+						Packet: packet,
+					},
+				}); err != nil {
+				t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+			}
+		}
+	}
+}
+
+// testPacketOut sends out PacketOut with GDP payload on p4rt leader or
+// follower client, then verify DUT interface statistics
+func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
+	leader := args.leader
+	follower := args.follower
+
+	// Insert wbb acl entry on the DUT
+	if err := programmTableEntry(ctx, t, leader, args.packetIO, false); err != nil {
+		t.Fatalf("There is error when programming entry")
+	}
+	// Delete wbb acl entry on the device
+	defer programmTableEntry(ctx, t, leader, args.packetIO, true)
+
+	packetOutTests := []struct {
+		desc       string
+		client     *p4rt_client.P4RTClient
+		expectPass bool
+	}{{
+		desc:       "PacketOut from Primary Controller",
+		client:     leader,
+		expectPass: true,
+	}, {
+		desc:       "PacketOut from Secondary Controller",
+		client:     follower,
+		expectPass: false,
+	}}
+
+	for _, test := range packetOutTests {
+		t.Run(test.desc, func(t *testing.T) {
+			// Check initial packet counters
+			port := sortPorts(args.ate.Ports())[0].Name()
+			counter0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+
+			packets := args.packetIO.GetPacketOut(portID, false)
+			sendPackets(t, test.client, packets, packetCount)
+
+			// Wait for ate stats to be populated
+			time.Sleep(60 * time.Second)
+
+			// Check packet counters after packet out
+			counter1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+
+			// Verify InPkts stats to check P4RT stream
+			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
+
+			if test.expectPass {
+				if counter1-counter0 < uint64(float64(packetCount)*0.95) {
+					t.Fatalf("Not all the packets are received.")
+				}
+			} else {
+				if counter1-counter0 > uint64(float64(packetCount)*0.10) {
+					t.Fatalf("Unexpected packets are received.")
+				}
+			}
+		})
+	}
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -154,7 +263,7 @@ func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	component := telemetry.Component{}
 	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
 	component.Name = ygot.String(*p4rtNodeName)
-	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceId)
+	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
 	dut.Config().Component(*p4rtNodeName).Replace(t, &component)
 }
 
@@ -162,7 +271,7 @@ func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	ports := sortPorts(dut.Ports())
 	for i, port := range ports {
-		dut.Config().Interface(port.Name()).Id().Replace(t, uint32(i)+portId)
+		dut.Config().Interface(port.Name()).Id().Replace(t, uint32(i)+portID)
 	}
 }
 
@@ -172,9 +281,9 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	// Setup p4rt-client stream parameters
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
-		DeviceId:    deviceId,
+		DeviceId:    deviceID,
 		ElectionIdH: uint64(0),
-		ElectionIdL: electionId,
+		ElectionIdL: electionID,
 	}
 
 	// Send ClientArbitration message on both p4rt leader and follower clients.
@@ -209,8 +318,8 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 
 	// Send SetForwardingPipelineConfig for p4rt leader client.
 	if err := args.leader.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
-		DeviceId:   deviceId,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
+		DeviceId:   deviceID,
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
 		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4_v1.ForwardingPipelineConfig{
 			P4Info: &p4Info,
@@ -227,7 +336,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 // getGDPParameter returns GDP related parameters for testPacketOut testcase.
 func getGDPParameter(t *testing.T) PacketIO {
 	return &GDPPacketIO{
-		IngressPort: fmt.Sprint(portId),
+		IngressPort: fmt.Sprint(portID),
 	}
 }
 
@@ -300,6 +409,20 @@ func packetGDPRequestGet() []byte {
 		pktEth, gopacket.Payload(payload),
 	)
 	return buf.Bytes()
+}
+
+// GetTableEntry creates wbb acl entry related to GDP.
+func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEntryInfo {
+	actionType := p4_v1.Update_INSERT
+	if delete {
+		actionType = p4_v1.Update_DELETE
+	}
+	return []*wbb.ACLWbbIngressTableEntryInfo{{
+		Type:          actionType,
+		EtherType:     0x6007,
+		EtherTypeMask: 0xFFFF,
+		Priority:      1,
+	}}
 }
 
 // GetPacketOut generates PacketOut message with payload as GDP.
