@@ -24,6 +24,7 @@ nodes: {
             inside: 50051
         }
     }
+    
 }
 nodes: {
     name: "vxr"
