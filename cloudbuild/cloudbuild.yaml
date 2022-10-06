@@ -8,7 +8,7 @@ steps:
     - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type n2-standard-16 --preemptible
     - ZONE=us-west1-a
     - REMOTE_WORKSPACE=/tmp/workspace
-    - COMMAND=source /tmp/workspace/cloudbuild/arista.sh
+    - COMMAND=sudo -u user /tmp/workspace/cloudbuild/arista.sh
 options:
   pool:
     name: 'projects/disco-idea-817/locations/us-west1/workerPools/featureprofiles-workerpool'

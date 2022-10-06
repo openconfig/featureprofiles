@@ -15,7 +15,6 @@
 
 set -xe
 
-sudo -iu user
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
 pushd /tmp/workspace
