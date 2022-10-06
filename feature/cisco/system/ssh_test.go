@@ -6,10 +6,11 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-func TestSSSHServerEnableConfig(t *testing.T) {
+func TestSSHServerEnableConfig(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	config := dut.Config().System().SshServer().Enable()
 	enable := true
+	defer dut.Config().System().SshServer().Enable().Replace(t, true)
 	t.Run("Replace//system/ssh-server/config/enable", func(t *testing.T) {
 		defer observer.RecordYgot(t, "REPLACE", config)
 
@@ -34,6 +35,7 @@ func TestSSSHServerEnableConfig(t *testing.T) {
 
 func TestSSHEnableState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+	defer dut.Config().System().SshServer().Enable().Replace(t, true)
 	config := dut.Config().System().SshServer().Enable()
 	config.Replace(t, true)
 	defer config.Delete(t)
@@ -42,7 +44,7 @@ func TestSSHEnableState(t *testing.T) {
 		defer observer.RecordYgot(t, "SUBSCRIBE", config)
 		enabled := telemetry.Get(t)
 		if enabled != true {
-			t.Errorf("Ntp Enabled: got %t, want %t", enabled, true)
+			t.Errorf("SSH not Enabled: got %t, want %t", enabled, true)
 		}
 
 	})
