@@ -90,8 +90,8 @@ func TestSysGrpcState(t *testing.T) {
 	})
 }
 func TestSysGrpcConfig(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
 	t.Skip()
+	dut := ondatra.DUT(t, "dut")
 
 	config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc name DEFAULT\n commit \n", 10*time.Second)
 	defer config.TextWithSSH(context.Background(), t, dut, "configure \n  no grpc name DEFAULT\n commit \n", 10*time.Second)
