@@ -121,6 +121,11 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 		ocName := dut.Port(t, a.Name).Name()
 		dut.Config().Interface(ocName).Replace(t, a.NewInterface(ocName))
 	}
+
+	t.Log("Configure Network Instance")
+	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
 	dutBGP := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	dutBGP.Replace(t, d.bgpOC)
@@ -150,16 +155,19 @@ func TestBGP(t *testing.T) {
 		fullDesc: "Advertise prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
-				As: ygot.Uint32(dutAS),
+				As:       ygot.Uint32(dutAS),
+				RouterId: ygot.String(dutPort2.IPv4),
 			},
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				"192.0.2.2": {
 					PeerAs:          ygot.Uint32(ateAS1),
 					NeighborAddress: ygot.String("192.0.2.2"),
+					PeerGroup:       ygot.String("BGP-PEER-GROUP1"),
 				},
 				"192.0.2.6": {
 					PeerAs:          ygot.Uint32(ateAS2),
 					NeighborAddress: ygot.String("192.0.2.6"),
+					PeerGroup:       ygot.String("BGP-PEER-GROUP2"),
 				},
 			},
 		}},
@@ -182,11 +190,13 @@ func TestBGP(t *testing.T) {
 		fullDesc: "Advertise IPv6 prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
-				As: ygot.Uint32(dutAS),
+				As:       ygot.Uint32(dutAS),
+				RouterId: ygot.String(dutPort2.IPv4),
 			},
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				"2001:db8::2": {
 					PeerAs:          ygot.Uint32(ateAS1),
+					PeerGroup:       ygot.String("BGP-PEER-GROUP1"),
 					NeighborAddress: ygot.String("2001:db8::2"),
 					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
 						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
@@ -197,6 +207,7 @@ func TestBGP(t *testing.T) {
 				},
 				"2001:db8::6": {
 					PeerAs:          ygot.Uint32(ateAS2),
+					PeerGroup:       ygot.String("BGP-PEER-GROUP2"),
 					NeighborAddress: ygot.String("2001:db8::6"),
 					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
 						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
@@ -227,11 +238,13 @@ func TestBGP(t *testing.T) {
 		fullDesc:   "IPv4 routes with an IPv6 next-hop when negotiating RFC5549 - validating that routes are accepted and advertised with the specified values.",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
-				As: ygot.Uint32(dutAS),
+				As:       ygot.Uint32(dutAS),
+				RouterId: ygot.String(dutPort2.IPv4),
 			},
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				"2001:db8::2": {
 					PeerAs:          ygot.Uint32(ateAS1),
+					PeerGroup:       ygot.String("BGP-PEER-GROUP1"),
 					NeighborAddress: ygot.String("2001:db8::2"),
 					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
 						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
@@ -242,6 +255,7 @@ func TestBGP(t *testing.T) {
 				},
 				"192.0.2.6": {
 					PeerAs:          ygot.Uint32(ateAS2),
+					PeerGroup:       ygot.String("BGP-PEER-GROUP2"),
 					NeighborAddress: ygot.String("192.0.2.6"),
 					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
 						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
