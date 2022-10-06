@@ -58,7 +58,7 @@ func sysGrpcVerify(grpcPort uint16, grpcName string, grpcTs bool, grpcEn bool, t
 	} else {
 		t.Errorf("Unexpected value for Enable: %v", grpcEn)
 	}
-	if grpcTs == false {
+	if grpcTs == true {
 		t.Logf("Got the expected grpc Transport-Security")
 	} else {
 		t.Errorf("Unexpected value for Transport-Security: %v", grpcTs)
