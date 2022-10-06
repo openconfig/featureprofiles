@@ -32,11 +32,11 @@ func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 	dut.Config().Acl().Delete(t)
 }
 func TestStartLabelValue(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
-	t.Skip()
 
 	inputs := []oc.Acl_AclSet_AclEntry_Mpls_StartLabelValue_Union{
 		oc.UnionUint32(871788),
