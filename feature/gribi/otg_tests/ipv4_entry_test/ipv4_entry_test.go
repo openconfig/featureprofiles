@@ -207,7 +207,7 @@ func TestIPv4Entry(t *testing.T) {
 			},
 		},
 		{
-			// t.Skip("Hardware port not supported on KNE.")
+			// ate port link cannot be set to down in kne, therefore the downPort is a dut port
 			desc:     "Downed next-hop interface",
 			downPort: dut.Port(t, "port2"),
 			entries: []fluent.GRIBIEntry{
@@ -258,8 +258,8 @@ func TestIPv4Entry(t *testing.T) {
 			if tc.downPort != nil {
 				// Setting admin state down on the DUT interface.
 				// Setting the otg interface down has no effect on kne and is not yet supported in otg
-				setDutInterfaceWithState(t, dut, &dutPort2, tc.downPort, false)
-				defer setDutInterfaceWithState(t, dut, &dutPort2, tc.downPort, true)
+				setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, false)
+				defer setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, true)
 			}
 
 			c.Modify().AddEntry(t, tc.entries...)
@@ -318,7 +318,7 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 
 	// Multiple devices is not supported on the OTG flows
 	modName := strings.Replace(name, " ", "_", -1)
-	rxEndpoints := []string{}
+	var rxEndpoints []string
 	for _, dst := range dsts {
 		rxEndpoints = append(rxEndpoints, dst.Name+".IPv4")
 	}
@@ -342,7 +342,7 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	return modName
 }
 
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []string, bad []string) {
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string) {
 	ateTop := ate.OTG().FetchConfig(t)
 	if len(good) == 0 && len(bad) == 0 {
 		return
@@ -458,8 +458,8 @@ func waitOTGARPEntry(t *testing.T) {
 		}).Await(t)
 }
 
-// setDutInterfaceState sets the admin state on the dut interface
-func setDutInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *attrs.Attributes, p *ondatra.Port, state bool) {
+// setDUTInterfaceState sets the admin state on the dut interface
+func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *attrs.Attributes, p *ondatra.Port, state bool) {
 	dc := dut.Config()
 	i := &oc.Interface{Name: ygot.String(p.Name())}
 	i.Enabled = ygot.Bool(state)
