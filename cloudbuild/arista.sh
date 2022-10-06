@@ -15,13 +15,11 @@
 
 set -xe
 
-docker pull gcr.io/disco-idea-817/ceos:latest
-docker tag gcr.io/disco-idea-817/ceos ceos:latest
-kind load docker-image --name=kne ceos:latest
+kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
 pushd /tmp/workspace
 # TODO(bstoll): Replace this with the proper test execution process
-kne_cli create topologies/kne/arista_ceos.textproto
+kne create topologies/kne/arista_ceos.textproto
 cat >topologies/kne/testbed.kne.yml << EOF
 username: admin
 password: admin
