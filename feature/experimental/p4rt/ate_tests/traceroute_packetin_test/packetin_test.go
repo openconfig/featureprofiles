@@ -70,9 +70,9 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 	return nil
 }
 
-// decodePacket decodes L2 header in the packet and returns TTL.
+// decodePacket decodes L2 header in the packet and returns TTL. packetData[14:0] to remove first 14 bytes of Ethernet header 
 func decodePacket4(packetData []byte) uint8 {
-	packet := gopacket.NewPacket(packetData, layers.LayerTypeIPv4, gopacket.Default)
+	packet := gopacket.NewPacket(packetData[14:], layers.LayerTypeIPv4, gopacket.Default)
 	if IPv4 := packet.Layer(layers.LayerTypeIPv4); IPv4 != nil {
 		ipv4, _ := IPv4.(*layers.IPv4)
 		IPv4 := ipv4.TTL
@@ -81,9 +81,9 @@ func decodePacket4(packetData []byte) uint8 {
 	return 7
 }
 
-// decodePacket decodes IPV6 L2 header in the packet and returns HopLimit.
+// decodePacket decodes IPV6 L2 header in the packet and returns HopLimit. packetData[14:] to remove first 14 bytes of Ethernet header. 
 func decodePacket6(packetData []byte) uint8 {
-	packet := gopacket.NewPacket(packetData, layers.LayerTypeIPv6, gopacket.Default)
+	packet := gopacket.NewPacket(packetData[14:], layers.LayerTypeIPv6, gopacket.Default)
 	if IPv6 := packet.Layer(layers.LayerTypeIPv6);  IPv6 != nil {
 		ipv6, _ := IPv6.(*layers.IPv6)
 		IPv6 := ipv6.HopLimit
@@ -222,7 +222,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 											}
 									} else {
 										captureHopLimit := decodePacket6(packet.Pkt.GetPayload())
-									if captureHopLimit != HopLimit1 {
+									if captureHopLimit != HopLimit0 {
 										t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6")
 										}
 									}

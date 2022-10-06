@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"sort"
 	"testing"
-	"time"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -49,7 +48,7 @@ var (
 	TTL0                  = uint8(0)
 	HopLimit0	      = uint8(0)
 	ipv4PrefixLen	  = uint8(30)
-	ipv6PrefixLen	  = uint8(12)
+	ipv6PrefixLen	  = uint8(126)
 
 )
 
@@ -279,7 +278,6 @@ func TestPacketIn(t *testing.T) {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
-	time.Sleep(120 * time.Second)
 	args := &testArgs{
 		ctx:      ctx,
 		leader:   &leader,
@@ -360,8 +358,6 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, isI
 		return []*ondatra.Flow{flow}
 	}
 }
-
-
 
 // GetEgressPort returns expected egress port info in PacketIn.
 func (traceroute *TraceroutePacketIO) GetEgressPort() []string {
