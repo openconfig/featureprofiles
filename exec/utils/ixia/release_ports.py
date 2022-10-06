@@ -25,17 +25,25 @@ try:
     with open(sys.argv[1], 'rb') as fp:
         binding = text_format.Parse(fp.read(), binding_pb2.Binding())
         for device in binding.ates:
-            ixia = device.ixnetwork
-            if ixia and ixia.target:
-                print(f'Ixia target: {ixia.target}')
-                platform = TestPlatform(ixia.target)
-                if ixia.username and ixia.password:
-                    platform.Authenticate(ixia.username, ixia.password)
+            hostname = device.name
+            ixiaNet = device.ixnetwork
+            targetPorts = [p.name for p in device.ports]
+            print(f'Checking ports: {targetPorts} on chassis {hostname}')
+
+            if ixiaNet and ixiaNet.target:
+                platform = TestPlatform(ixiaNet.target)
+                if ixiaNet.username and ixiaNet.password:
+                    platform.Authenticate(ixiaNet.username, ixiaNet.password)
                 
-                vport = platform.Sessions.find() \
-                    .Ixnetwork.Vport.find()
-                vport.ReleasePort()
-                print('Ports released')
+                for session in platform.Sessions.find():
+                    for port in session.Ixnetwork.Vport.find():
+                        if not port.AssignedTo:
+                             continue
+                        chassis, card, port = port.AssignedTo.split(':')
+                        pname = card + '/' + port
+                        if chassis == hostname and pname in targetPorts:
+                            print(f'Port {pname} assigned; releasing...')
+                            port.ReleasePort()
 except ModuleNotFoundError:
     ixiaVenv = IxiaEnv('ixia_venv')
     ixiaVenv.run_in_venv([__file__] + sys.argv[1:])
