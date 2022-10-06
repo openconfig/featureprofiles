@@ -15,11 +15,11 @@
 
 set -xe
 
+kne deploy kne-internal/deploy/kne/kind-bridge.yaml
+
 docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga
 docker tag us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga ceos:latest
 kind load docker-image --name=kne ceos:latest
-
-kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
 pushd /tmp/workspace
 # TODO(bstoll): Replace this with the proper test execution process
