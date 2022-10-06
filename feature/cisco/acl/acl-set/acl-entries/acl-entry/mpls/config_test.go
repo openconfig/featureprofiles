@@ -15,7 +15,7 @@ func TestMain(m *testing.M) {
 }
 
 func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
-        t.Skip()
+	t.Skip()
 	bc := new(oc.Acl)
 	*bc = setup.BaseConfig()
 	setup.ResetStruct(bc, []string{"AclSet"})
@@ -30,7 +30,7 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 }
 
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
-        t.Skip()
+	t.Skip()
 	dut.Config().Acl().Delete(t)
 }
 func TestStartLabelValue(t *testing.T) {
