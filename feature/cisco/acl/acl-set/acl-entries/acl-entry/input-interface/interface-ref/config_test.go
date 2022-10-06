@@ -86,11 +86,11 @@ func TestInterface(t *testing.T) {
 	}
 }
 func TestSubinterface(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
-	t.Skip()
 
 	inputs := []uint32{
 		4030193341,
