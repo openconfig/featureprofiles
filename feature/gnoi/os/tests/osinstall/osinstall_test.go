@@ -73,6 +73,7 @@ func TestOSInstall(t *testing.T) {
 
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+	dp := dut.Port(t, "port1")
 
 	reader, err := packageReader(ctx)
 	if err != nil {
@@ -88,9 +89,14 @@ func TestOSInstall(t *testing.T) {
 	tc.fetchStandbySupervisorStatus(ctx, t)
 	tc.transferOS(ctx, t, false)
 	tc.activateOS(ctx, t, false)
-	if tc.dualSup {
-		tc.transferOS(ctx, t, true)
-		tc.activateOS(ctx, t, true)
+	switch dp.Device().Vendor() {
+	case ondatra.ARISTA, ondatra.CISCO:
+		if tc.dualSup {
+			tc.transferOS(ctx, t, true)
+			tc.activateOS(ctx, t, true)
+		}
+	case ondatra.JUNIPER:
+		fmt.Println("For Junos Evolved image transfer and activate standby are not needed")
 	}
 	tc.rebootDUT(ctx, t)
 	tc.verifyInstall(ctx, t)
