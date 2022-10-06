@@ -149,12 +149,14 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 
 	baselineFlow := tcArgs.createFlow("Baseline Path Flow", ateTop, &atePort2)
 	backupFlow := tcArgs.createFlow("Backup Path Flow", ateTop, &atePort3)
+	tcArgs.ate.OTG().PushConfig(t, ateTop)
 
 	cases := []struct {
 		desc               string
 		applyImpairmentFn  func()
 		removeImpairmentFn func()
 	}{
+		// Disabling otg / kne ports has no effect
 		// {
 		// 	desc: "Disable ATE port-2",
 		// 	applyImpairmentFn: func() {
@@ -256,6 +258,7 @@ func TestIndirectBackupNexthopGroup(t *testing.T) {
 
 	baselineFlow := tcArgs.createFlow("Baseline Path Flow", ateTop, &atePort2)
 	backupFlow := tcArgs.createFlow("Backup Path Flow", ateTop, &atePort3)
+	tcArgs.ate.OTG().PushConfig(t, ateTop)
 
 	t.Run("Validate Baseline Traffic Delivery", func(t *testing.T) {
 		tcArgs.validateTrafficFlows(t, ate, ateTop, baselineFlow, backupFlow)
@@ -292,6 +295,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	atePort2.AddToOTG(top, p2, &dutPort2)
 	atePort3.AddToOTG(top, p3, &dutPort3)
 
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 	return top
 }
 
@@ -471,7 +476,7 @@ func getLossPct(t *testing.T, ate *ondatra.ATEDevice, flowName string) uint64 {
 	rxPackets := recvMetric.GetCounters().GetInPkts()
 	lostPackets := txPackets - rxPackets
 	if txPackets == 0 {
-		t.Fatalf("Tx packets shold be higher than 0 for flow %s", flowName)
+		t.Fatalf("Tx packets should be higher than 0 for flow %s", flowName)
 	}
 	lossPct := lostPackets * 100 / txPackets
 	return lossPct
