@@ -8,6 +8,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+
 )
 
 func TestMain(m *testing.M) {
@@ -16,58 +18,51 @@ func TestMain(m *testing.M) {
 
 func TestGNMI(t *testing.T) {
 
+	// Configuration to be set in DUT Ports
+	config := []attrs.Attributes{
+		{
+			Name: "port1",
+			IPv4: "192.0.2.12",
+			IPv4Len: 31,
+			Desc: "From Ixia",
+		},
+		{
+			Name: "port2",
+			IPv4: "192.0.2.22",
+			IPv4Len: 31,
+			Desc: "To Ixia",
+		},
+		{
+			Name: "port3",
+			IPv4: "192.0.2.32",
+			IPv4Len: 31,
+			Desc: "To Ixia",
+		},
+		{
+			Name: "port4",
+			IPv4: "192.0.2.42",
+			IPv4Len: 31,
+			Desc: "To Ixia",
+		},
+	}
+
+
 	// Configure a DUT
 
 	dut := ondatra.DUT(t, "dut")
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
-	dp3 := dut.Port(t, "port3")
-	dp4 := dut.Port(t, "port4")
 
-	ifCfg1 := &telemetry.Interface{
-		Name:        ygot.String(dp1.Name()),
-		Description: ygot.String("From Ixia"),
-	}
+	for _, attributes := range config{ 
+		ifCfg := &telemetry.Interface{
+			Name: ygot.String(attributes.Name),
+			Description: ygot.String(attributes.Desc),
+		}
 
-	ifCfg1.GetOrCreateSubinterface(0).
+		ifCfg.GetOrCreateSubinterface(0).
 		GetOrCreateIpv4().
-		GetOrCreateAddress("192.0.2.12").
-		PrefixLength = ygot.Uint8(31)
+		GetOrCreateAddress(attributes.IPv4).PrefixLength = ygot.Uint8(attributes.IPv4Len)
 
-	ifCfg2 := &telemetry.Interface{
-		Name:        ygot.String(dp2.Name()),
-		Description: ygot.String("To Ixia"),
+		dut.Config().Interface(attributes.Name).Update(t, ifCfg)
 	}
-
-	ifCfg2.GetOrCreateSubinterface(0).
-		GetOrCreateIpv4().
-		GetOrCreateAddress("192.0.2.22").
-		PrefixLength = ygot.Uint8(31)
-
-	ifCfg3 := &telemetry.Interface{
-		Name:        ygot.String(dp3.Name()),
-		Description: ygot.String("To Ixia"),
-	}
-
-	ifCfg3.GetOrCreateSubinterface(0).
-		GetOrCreateIpv4().
-		GetOrCreateAddress("192.0.2.32").
-		PrefixLength = ygot.Uint8(31)
-
-	ifCfg4 := &telemetry.Interface{
-		Name:        ygot.String(dp4.Name()),
-		Description: ygot.String("To Ixia"),
-	}
-
-	ifCfg4.GetOrCreateSubinterface(0).
-		GetOrCreateIpv4().
-		GetOrCreateAddress("192.0.2.42").
-		PrefixLength = ygot.Uint8(31)
-
-	dut.Config().Interface(dp1.Name()).Update(t, ifCfg1)
-	dut.Config().Interface(dp2.Name()).Update(t, ifCfg2)
-	dut.Config().Interface(dp3.Name()).Update(t, ifCfg3)
-	dut.Config().Interface(dp4.Name()).Update(t, ifCfg4)
 
 	Ni1 := &telemetry.NetworkInstance{}
 
@@ -122,7 +117,7 @@ func TestGNMI(t *testing.T) {
 
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue("192.0.2.13")
-	v4.Dst().SetValue("192.0.2.43")
+	v4.Dst().SetValue("192.0.2.23")
 	ate.OTG().PushConfig(t,top)
 
 	ate.OTG().StartTraffic(t)
