@@ -26,12 +26,12 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	setup.ResetStruct(bcAclSetAclEntryInputInterface, []string{"InterfaceRef"})
 	bcAclSetAclEntryInputInterfaceInterfaceRef := bcAclSetAclEntryInputInterface.InterfaceRef
 	setup.ResetStruct(bcAclSetAclEntryInputInterfaceInterfaceRef, []string{})
-	dut.Config().Acl().Replace(t, bc)
+	//dut.Config().Acl().Replace(t, bc)
 	return bc
 }
 
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
-	dut.Config().Acl().Delete(t)
+	//dut.Config().Acl().Delete(t)
 }
 func TestInterface(t *testing.T) {
 	t.Skip()
@@ -91,7 +91,6 @@ func TestSubinterface(t *testing.T) {
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 	t.Skip()
-
 	inputs := []uint32{
 		4030193341,
 	}
