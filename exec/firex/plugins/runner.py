@@ -8,6 +8,7 @@ from microservices.firex_base import returns, flame, InjectArgs, FireX
 from microservices.runners.go_b4_tasks import B4GoClone, get_go_env, copy_test_logs_dir, write_output_from_results_json
 from microservices.runners.runner_base import FireXRunnerBase
 from microservices.testbed_tasks import register_testbed_file_generator
+from microservices.git_tasks import PipInstall
 from services.cflow.code_coverage_tasks import CollectCoverageData
 from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from test_framework import register_test_framework_provider
@@ -19,6 +20,7 @@ import os
 import git 
 
 GO_BIN = '/auto/firex/bin/go'
+PYTHON_BIN = '/auto/firex/sw/python/3.9.10/bin/python3.9'
 
 logger = get_task_logger(__name__)
 
@@ -190,6 +192,8 @@ def b4_fp_chain_provider(ws,
     if test_patch:
         chain |= PatchFP.s(fp_repo=fp_repo_dir, patch_path=test_patch)
 
+    chain |= ReleaseIxiaPorts.s(ws=ws, fp_ws=fp_repo_dir, ondatra_binding_path=ondatra_binding_path)
+
     if fp_pre_tests:
         for pt in fp_pre_tests:
             for k, v in pt.items():
@@ -214,7 +218,19 @@ def b4_fp_chain_provider(ws,
 def PatchFP(self, fp_repo, patch_path):
     repo = git.Repo(fp_repo)
     repo.git.apply([os.path.join(fp_repo, patch_path)])
-    
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def ReleaseIxiaPorts(self, ws, fp_ws, ondatra_binding_path):
+    logger.print("Releasing ixia ports")
+    logger.print(
+        check_output(
+            f'{PYTHON_BIN} {fp_ws}/exec/utils/ixia/release_ports.py {fp_ws}/{ondatra_binding_path}',
+            env=dict(os.environ, PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION='python'),
+            cwd=ws
+        )
+    )
+
 # noinspection PyPep8Naming
 @app.task(bind=True, base=FireXRunnerBase)
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
