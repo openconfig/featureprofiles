@@ -33,6 +33,8 @@ const (
 	rebootDelay           = 120
 	// Maximum reboot time is 900 seconds (15 minutes).
 	maxRebootTime = 900
+	// Maximum wait time for all components to be in responsive state
+	maxCompWaitTime = 600
 )
 
 func TestMain(m *testing.M) {
@@ -103,6 +105,9 @@ func TestChassisReboot(t *testing.T) {
 	sort.Strings(expectedVersion)
 	t.Logf("DUT software version: %v", expectedVersion)
 
+	preRebootCompStatus := dut.Telemetry().ComponentAny().OperStatus().Get(t)
+	t.Logf("DUT components status pre reboot: %v", preRebootCompStatus)
+
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			gnoiClient := dut.RawAPIs().GNOI().New(t)
@@ -166,6 +171,25 @@ func TestChassisReboot(t *testing.T) {
 			t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
 			if bootTimeAfterReboot <= bootTimeBeforeReboot {
 				t.Errorf("Get boot time: got %v, want > %v", bootTimeAfterReboot, bootTimeBeforeReboot)
+			}
+
+			startComp := time.Now()
+			t.Logf("Wait for all the components on DUT to come up")
+
+			for {
+				postRebootCompStatus := dut.Telemetry().ComponentAny().OperStatus().Get(t)
+
+				if len(preRebootCompStatus) == len(postRebootCompStatus) {
+					t.Logf("All components on the DUT are in responsive state")
+					time.Sleep(10 * time.Second)
+					break
+				}
+
+				if uint64(time.Since(startComp).Seconds()) > maxCompWaitTime {
+					t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
+					t.Fatalf("All the components are not in responsive state post reboot")
+				}
+				time.Sleep(10 * time.Second)
 			}
 
 			versions = dut.Telemetry().ComponentAny().SoftwareVersion().Get(t)
