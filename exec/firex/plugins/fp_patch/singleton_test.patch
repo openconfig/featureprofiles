@@ -1,8 +1,8 @@
 diff --git a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
-index 45e54c2d..22d8d9fe
+index 45e54c2d..e7f89948
 --- a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
 +++ b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
-@@ -123,16 +123,18 @@ var portSpeed = map[ondatra.Speed]telemetry.E_IfEthernet_ETHERNET_SPEED{
+@@ -123,16 +123,19 @@ var portSpeed = map[ondatra.Speed]telemetry.E_IfEthernet_ETHERNET_SPEED{
  func (tc *testCase) configInterfaceDUT(i *telemetry.Interface, dp *ondatra.Port, a *attrs.Attributes) {
  	a.ConfigInterface(i)
  
@@ -16,6 +16,7 @@ index 45e54c2d..22d8d9fe
 -		if speed, ok := portSpeed[dp.Speed()]; ok {
 -			e.DuplexMode = telemetry.Ethernet_DuplexMode_FULL
 -			e.PortSpeed = speed
++	// XR does not support DuplexMode, AutoNegotiate and PortSpeed, Skipping now
 +	if *deviations.PortSpeedEnabled {
 +		e := i.GetOrCreateEthernet()
 +		if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
@@ -31,7 +32,7 @@ index 45e54c2d..22d8d9fe
  		}
  	}
  
-@@ -236,18 +238,18 @@ func (tc *testCase) verifyInterfaceDUT(
+@@ -236,18 +239,19 @@ func (tc *testCase) verifyInterfaceDUT(
  		}
  	}
  
@@ -47,6 +48,7 @@ index 45e54c2d..22d8d9fe
 -	dis6np := disp.Ipv6().Neighbor(atea.IPv6)
 -	if got := dis6np.Origin().Get(t); got != dynamic {
 -		t.Errorf("%s IPv6 neighbor %s origin got %v, want %v", dp, atea.IPv6, got, dynamic)
++	// XR does not support neighbor/origin leaf. Tracked via bug CSCwc63655
 +	if *deviations.SubinterfaceOriginCheck {
 +		disp := dip.Subinterface(0)
 +		// IPv4 neighbor discovered by ARP.
@@ -62,13 +64,14 @@ index 45e54c2d..22d8d9fe
  	}
  }
  
-@@ -369,9 +371,13 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
+@@ -369,9 +373,14 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
  	// fragment the packet unless DF bit is set.  IPv6 never fragments.
  	// Under no circumstances should DUT send packets greater than MTU.
  
 -	octets := fpc.InOctets().Get(t) // Flow does not report out-octets.
 -	outPkts := fpc.OutPkts().Get(t)
 -	inPkts := fpc.InPkts().Get(t)
++	// CSCwc72236
 +	fpcounters := fpc.Get(t)
 +	//octets := fpc.InOctets().Get(t) // Flow does not report out-octets.
 +	//outPkts := fpc.OutPkts().Get(t)
@@ -79,12 +82,13 @@ index 45e54c2d..22d8d9fe
  	if outPkts == 0 {
  		t.Error("Flow did not send any packet")
  	} else if avg := octets / outPkts; avg > uint64(tc.mtu) {
-@@ -388,7 +394,8 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
+@@ -388,7 +397,9 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
  	} else if avg := octets / inPkts; avg > uint64(tc.mtu) {
  		t.Errorf("Flow destination packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
  	}
 -	if inPkts < p2OutDiff.unicast {
 +
++	// Tolerance added for ipv6 control packets
 +	if inPkts+5 < p2OutDiff.unicast {
  		t.Errorf("ATE received too few destination packets: got %d, want >= %d", inPkts, p2OutDiff.unicast)
  	}
