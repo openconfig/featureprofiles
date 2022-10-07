@@ -76,14 +76,14 @@ var (
 			NextHops:    []nextHop{{"ate:port2", 9, 0.9}, {"ate:port3", 1, 0.1}},
 		},
 		{
-			TestName:    "Weight_19_1",
-			Description: "Weight 19:1 - 95% traffic to NH1, 5% to NH2.",
-			NextHops:    []nextHop{{"ate:port2", 19, 0.95}, {"ate:port3", 1, 0.05}},
+			TestName:    "Weight_31_1",
+			Description: "Weight 31:1 - ~96.9% traffic to NH1, ~3.1% to NH2.",
+			NextHops:    []nextHop{{"ate:port2", 31, 0.96875}, {"ate:port3", 1, 0.03125}},
 		},
 		{
-			TestName:    "Weight_99_1",
-			Description: "Weight 99:1 - 99% traffic to NH1, 1% to NH2.",
-			NextHops:    []nextHop{{"ate:port2", 99, 0.99}, {"ate:port3", 1, 0.01}},
+			TestName:    "Weight_63_1",
+			Description: "Weight 63:1 - ~98.4% traffic to NH1, ~1.6% to NH2.",
+			NextHops:    []nextHop{{"ate:port2", 63, 0.984375}, {"ate:port3", 1, 0.015625}},
 		},
 	}
 

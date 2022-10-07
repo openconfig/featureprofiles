@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -74,17 +73,24 @@ func TestSupervisorSwitchover(t *testing.T) {
 	supervisors := components.FindComponentsByType(t, dut, controlcardType)
 	t.Logf("Found supervisor list: %v", supervisors)
 	// Only perform the switchover for the chassis with dual RPs/Supervisors.
-	if len(supervisors) != 2 {
-		t.Skipf("Dual RP/SUP is required on %v: got %v, want 2", dut.Model(), len(supervisors))
+	if got, want := len(supervisors), 2; got != want {
+		t.Skipf("Dual RP/SUP is required on %v: got %v, want %v", dut.Model(), got, want)
 	}
 
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, supervisors)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
+	switchoverReady := dut.Telemetry().Component(rpActiveBeforeSwitch).SwitchoverReady()
+	switchoverReady.Await(t, 30*time.Minute, true)
+	t.Logf("SwitchoverReady().Get(t): %v", switchoverReady.Get(t))
+	if got, want := switchoverReady.Get(t), true; got != want {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+	}
+
 	intfsOperStatusUPBeforeSwitch := fetchOperStatusUPIntfs(t, dut)
 	t.Logf("intfsOperStatusUP interfaces before switchover: %v", intfsOperStatusUPBeforeSwitch)
-	if len(intfsOperStatusUPBeforeSwitch) == 0 {
-		t.Errorf("Get the number of intfsOperStatusUP interfaces for %q: got 0, want > 0", dut.Name())
+	if got, want := len(intfsOperStatusUPBeforeSwitch), 0; got == want {
+		t.Errorf("Get the number of intfsOperStatusUP interfaces for %q: got %v, want > %v", dut.Name(), got, want)
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI().New(t)
@@ -104,7 +110,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 	if got := switchoverResponse.GetControlProcessor().GetElem()[0].GetName(); got != want {
 		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
 	}
-	if got := switchoverResponse.GetVersion(); len(got) == 0 {
+	if got, want := switchoverResponse.GetVersion(), ""; got == want {
 		t.Errorf("switchoverResponse.GetVersion(): got %v, want non-empty version", got)
 	}
 	if got := switchoverResponse.GetUptime(); got == 0 {
@@ -125,8 +131,8 @@ func TestSupervisorSwitchover(t *testing.T) {
 			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
 			break
 		}
-		if uint64(time.Since(startSwitchover).Seconds()) > maxSwitchoverTime {
-			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", time.Since(startSwitchover), maxSwitchoverTime)
+		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(maxSwitchoverTime); got >= want {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
 		}
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
@@ -134,11 +140,11 @@ func TestSupervisorSwitchover(t *testing.T) {
 	rpStandbyAfterSwitch, rpActiveAfterSwitch := findStandbyRP(t, dut, supervisors)
 	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
 
-	if rpActiveAfterSwitch != rpStandbyBeforeSwitch {
-		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", rpActiveAfterSwitch, rpStandbyBeforeSwitch)
+	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
+		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
 	}
-	if rpStandbyAfterSwitch != rpActiveBeforeSwitch {
-		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", rpStandbyAfterSwitch, rpActiveBeforeSwitch)
+	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
+		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
 	}
 
 	batch := dut.Telemetry().NewBatch()
@@ -157,22 +163,16 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Fatalf("DUT did not reach target state withing %v: got %v", 5*time.Minute, val)
 	}
 
-	intfsOperStatusUPAfterSwitch := fetchOperStatusUPIntfs(t, dut)
-	t.Logf("intfsOperStatusUP interfaces after switchover: %v", intfsOperStatusUPAfterSwitch)
-	if diff := cmp.Diff(intfsOperStatusUPAfterSwitch, intfsOperStatusUPBeforeSwitch); diff != "" {
-		t.Errorf("intfsOperStatusUP interfaces differed (-want +got):\n%v", diff)
-	}
-
 	t.Log("Validate OC Switchover time/reason.")
 	activeRP := dut.Telemetry().Component(rpActiveAfterSwitch)
-	if !activeRP.LastSwitchoverTime().Lookup(t).IsPresent() {
-		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got false, want true")
+	if got, want := activeRP.LastSwitchoverTime().Lookup(t).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got %v, want %v", got, want)
 	} else {
 		t.Logf("Found activeRP.LastSwitchoverTime(): %v", activeRP.LastSwitchoverTime().Get(t))
 	}
 
-	if !activeRP.LastSwitchoverReason().Lookup(t).IsPresent() {
-		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got false, want true")
+	if got, want := activeRP.LastSwitchoverReason().Lookup(t).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
 	} else {
 		lastSwitchoverReason := activeRP.LastSwitchoverReason().Get(t)
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())

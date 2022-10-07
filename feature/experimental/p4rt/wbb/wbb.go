@@ -63,65 +63,85 @@ func aclWbbIngressTableEntryGet(info *ACLWbbIngressTableEntryInfo) *p4_v1.Update
 		glog.Fatal("Nil info")
 	}
 
+	matchFields := []*p4_v1.FieldMatch{}
+
+	if info.IsIpv4 > 0 {
+		matchFields = append(matchFields, &p4_v1.FieldMatch{
+			FieldId: WbbMatchMap["is_ipv4"],
+			FieldMatchType: &p4_v1.FieldMatch_Optional_{
+				Optional: &p4_v1.FieldMatch_Optional{
+					Value: []byte{byte(info.IsIpv4)},
+				},
+			},
+		})
+	}
+
+	if info.IsIpv6 > 0 {
+		matchFields = append(matchFields, &p4_v1.FieldMatch{
+			FieldId: WbbMatchMap["is_ipv6"],
+			FieldMatchType: &p4_v1.FieldMatch_Optional_{
+				Optional: &p4_v1.FieldMatch_Optional{
+					Value: []byte{byte(info.IsIpv6)},
+				},
+			},
+		})
+	}
+
+	if info.EtherTypeMask > 0 {
+		matchFields = append(matchFields, &p4_v1.FieldMatch{
+			FieldId: WbbMatchMap["ether_type"],
+			FieldMatchType: &p4_v1.FieldMatch_Ternary_{
+				Ternary: &p4_v1.FieldMatch_Ternary{
+					Value: []byte{
+						byte(info.EtherType >> 8),
+						byte(info.EtherType & 0xFF),
+					},
+					Mask: []byte{
+						byte(info.EtherTypeMask >> 8),
+						byte(info.EtherTypeMask & 0xFF),
+					},
+				},
+			},
+		})
+	}
+
+	if info.TTLMask > 0 {
+		matchFields = append(matchFields, &p4_v1.FieldMatch{
+			FieldId: WbbMatchMap["ttl"],
+			FieldMatchType: &p4_v1.FieldMatch_Ternary_{
+				Ternary: &p4_v1.FieldMatch_Ternary{
+					Value: []byte{byte(info.TTL)},
+					Mask:  []byte{byte(info.TTLMask)},
+				},
+			},
+		})
+	}
+
+	if info.OuterVlanIDMask > 0 {
+		matchFields = append(matchFields, &p4_v1.FieldMatch{
+			FieldId: WbbMatchMap["outer_vlan_id"],
+			FieldMatchType: &p4_v1.FieldMatch_Ternary_{
+				Ternary: &p4_v1.FieldMatch_Ternary{
+					Value: []byte{
+						byte((info.OuterVlanID >> 8) & 0xF),
+						byte(info.OuterVlanID & 0xFF),
+					},
+					Mask: []byte{
+						byte((info.OuterVlanIDMask >> 8) & 0xF),
+						byte(info.OuterVlanIDMask & 0xFF),
+					},
+				},
+			},
+		})
+	}
+
 	update := &p4_v1.Update{
 		Type: info.Type,
 		Entity: &p4_v1.Entity{
 			Entity: &p4_v1.Entity_TableEntry{
 				TableEntry: &p4_v1.TableEntry{
 					TableId: WbbTableMap["acl_wbb_ingress_table"],
-					Match: []*p4_v1.FieldMatch{
-						{
-							FieldId: WbbMatchMap["is_ipv4"],
-							FieldMatchType: &p4_v1.FieldMatch_Optional_{
-								Optional: &p4_v1.FieldMatch_Optional{
-									Value: []byte{byte(info.IsIpv4)},
-								},
-							},
-						}, {
-							FieldId: WbbMatchMap["is_ipv6"],
-							FieldMatchType: &p4_v1.FieldMatch_Optional_{
-								Optional: &p4_v1.FieldMatch_Optional{
-									Value: []byte{byte(info.IsIpv6)},
-								},
-							},
-						}, {
-							FieldId: WbbMatchMap["ether_type"],
-							FieldMatchType: &p4_v1.FieldMatch_Ternary_{
-								Ternary: &p4_v1.FieldMatch_Ternary{
-									Value: []byte{
-										byte(info.EtherType >> 8),
-										byte(info.EtherType & 0xFF),
-									},
-									Mask: []byte{
-										byte(info.EtherTypeMask >> 8),
-										byte(info.EtherTypeMask & 0xFF),
-									},
-								},
-							},
-						}, {
-							FieldId: WbbMatchMap["ttl"],
-							FieldMatchType: &p4_v1.FieldMatch_Ternary_{
-								Ternary: &p4_v1.FieldMatch_Ternary{
-									Value: []byte{byte(info.TTL)},
-									Mask:  []byte{byte(info.TTLMask)},
-								},
-							},
-						}, {
-							FieldId: WbbMatchMap["outer_vlan_id"],
-							FieldMatchType: &p4_v1.FieldMatch_Ternary_{
-								Ternary: &p4_v1.FieldMatch_Ternary{
-									Value: []byte{
-										byte((info.OuterVlanID >> 8) & 0xF),
-										byte(info.OuterVlanID & 0xFF),
-									},
-									Mask: []byte{
-										byte((info.OuterVlanIDMask >> 8) & 0xF),
-										byte(info.OuterVlanIDMask & 0xFF),
-									},
-								},
-							},
-						},
-					},
+					Match:   matchFields,
 					Action: &p4_v1.TableAction{
 						Type: &p4_v1.TableAction_Action{
 							Action: &p4_v1.Action{
@@ -129,11 +149,11 @@ func aclWbbIngressTableEntryGet(info *ACLWbbIngressTableEntryInfo) *p4_v1.Update
 							},
 						},
 					},
+					Priority: int32(info.Priority),
 				},
 			},
 		},
 	}
-
 	return update
 }
 

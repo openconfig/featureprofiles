@@ -30,8 +30,8 @@ Ensure that traffic splits within a `NextHopGroup` are correctly honoured.
         *   Weight 1:1 - 50% per-NH.
         *   Weight 2:1 - 66% traffic to NH1, 33% to NH2.
         *   Weight 9:1 - 90% traffic to NH1, 10% to NH2.
-        *   Weight 19:1 - 95% traffic to NH1, 5% to NH2.
-        *   Weight 99:1 - 99% traffic to NH1, 1% to NH2.
+        *   Weight 31:1 - ~96.9% traffic to NH1, ~3.1% to NH2.
+        *   Weight 63:1 - ~98.4% traffic to NH1, ~1.6% to NH2.
 
 *   Validate that weights of:
 
