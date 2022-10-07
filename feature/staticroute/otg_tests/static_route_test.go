@@ -112,6 +112,7 @@ func TestGNMI(t *testing.T) {
 
 
 	flow := top.Flows().Add().SetName("Flow")
+	// transmit receive
 	flow.TxRx().Device().SetTxNames([]string{"src.IPv4"}).SetRxNames([]string{"dst3.IPv4"})
 	// flow.Size().SetFixed(int32(packetSize))
 
@@ -141,5 +142,9 @@ func TestGNMI(t *testing.T) {
 
 	lossPct := float32((outpkts - inpkts) * 100 / outpkts)
 	t.Logf("flow loss-pct %f", lossPct)
+
+	if lossPct>0 {
+		t.Errorf("Packets are not received. Got %f loss percentage and wanted 0",lossPct)
+	}
 
 }
