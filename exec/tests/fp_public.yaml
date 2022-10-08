@@ -112,6 +112,7 @@ tests:
   path: feature/gribi/ate_tests/route_removal_via_flush_test
 - name: TE-6.2 (Route Removal In Non Default VRF) 
   path: feature/gribi/ate_tests/route_removal_non_default_vrf_test
+  patch: exec/firex/plugins/fp_patch/route_removal_non_default_vrf_test.patch
 - name: TE-3.6 (ACK in the Presence of Other Routes) 
   path: feature/gribi/ate_tests/ack_in_presence_other_routes
   patch: exec/firex/plugins/fp_patch/route_ack_test.patch
@@ -134,10 +135,18 @@ tests:
   path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetin_test
   args:
     - '-p4rt_node_name="0/RP0/CPU0/0"'
+- name: P4RT-7.2 (LLDP PacketOut)
+  path: feature/experimental/p4rt/ate_tests/lldp_packetout_test/lldp_packetout_test.go
+  args:
+    - '-p4rt_node_name="0/RP0/CPU0/0"'
 - name: TE-8.2 (Supervisor Failure)
   path: feature/experimental/gribi/ate_tests/supervisor_failure
 - name: TE-14.1 (gRIBI Scaling)
   path: feature/gribi/ate_tests/gribi_scaling
+  patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
+  timeout: 7200
+- name: TE-8.2 (Supervisor Failure)
+  path: feature/experimental/gribi/ate_tests/supervisor_failure/
 - name: FP_GNMI_GET
   path: feature/system/gnmi/get/tests
 - name: FP_GNMI_NTP
