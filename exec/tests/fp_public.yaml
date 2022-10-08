@@ -140,7 +140,6 @@ tests:
   path: feature/gribi/ate_tests/gribi_scaling
   patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
   timeout: 7200
-
 - name: FP_GNMI_GET
   path: feature/system/gnmi/get/tests
 - name: FP_GNMI_NTP
