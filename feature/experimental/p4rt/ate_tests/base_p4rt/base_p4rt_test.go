@@ -25,6 +25,7 @@ import (
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -243,7 +244,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 		}
 		// Compare P4Info from GetForwardingPipelineConfig and SetForwardingPipelineConfig
 		getp4Info, _ := json.Marshal(resp.Config.P4Info)
-		if string(setp4Info) == string(getp4Info) {
+		if cmp.Equal(string(setp4Info), string(getp4Info)) {
 			fmt.Println("P4info matches fine for client", index)
 		} else {
 			err := fmt.Errorf("P4info does not match for client %d", index)
@@ -257,19 +258,17 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 func verifyReadReceiveMatch(expected_update []*p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
 
 	matches := 0
-	for i, table := range received_entry.Entities {
-		if table.Entity == expected_update[i].Entity.Entity {
+	for _, table := range received_entry.Entities {
+		if cmp.Equal(table.Entity, expected_update[0].Entity.Entity) {
+			fmt.Println("Table match succesful")
 			matches += 1
+			break
 		}
 	}
-	if matches == len(expected_update) {
-		fmt.Println("Table match succesful")
-		return nil
-	} else {
-		err := fmt.Errorf("P4info does not match")
-		fmt.Println(err.Error())
+	if matches == 0 {
 		return errors.New("match unsuccesful")
 	}
+	return nil
 }
 
 // TestP4rtConnect connects to the P4Runtime server over grpc
