@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package google_discovery_protocol_packetin_test
+package lldp_packetout_test
 
 import (
 	"context"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
+	"net"
 	"sort"
 	"testing"
 	"time"
@@ -40,20 +40,21 @@ import (
 
 const (
 	ipv4PrefixLen = 30
+	packetCount   = 100
 )
 
 var (
-	p4InfoFile            = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	p4rtNodeName          = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
-	gdpSrcMAC             = flag.String("gdp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
-	streamName            = "p4rt"
-	gdpMAC                = "00:0a:da:f0:f0:f0"
-	gdpEtherType          = *ygot.Uint32(0x6007)
-	deviceID              = *ygot.Uint64(1)
-	portID                = *ygot.Uint32(10)
-	electionID            = *ygot.Uint64(100)
-	METADATA_INGRESS_PORT = *ygot.Uint32(1)
-	METADATA_EGRESS_PORT  = *ygot.Uint32(2)
+	p4InfoFile                                = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	p4rtNodeName                              = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
+	streamName                                = "p4rt"
+	lldpInLayers          layers.EthernetType = 0x88cc
+	deviceID                                  = *ygot.Uint64(1)
+	portID                                    = *ygot.Uint32(10)
+	electionID                                = *ygot.Uint64(100)
+	METADATA_INGRESS_PORT                     = *ygot.Uint32(1)
+	METADATA_EGRESS_PORT                      = *ygot.Uint32(2)
+	SUBMIT_TO_INGRESS                         = *ygot.Uint32(1)
+	SUBMIT_TO_EGRESS                          = *ygot.Uint32(0)
 )
 
 var (
@@ -84,15 +85,7 @@ var (
 
 type PacketIO interface {
 	GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEntryInfo
-	GetPacketTemplate() *PacketIOPacket
-	GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow
-	GetEgressPort() []string
-	GetIngressPort() string
-}
-
-type PacketIOPacket struct {
-	SrcMAC, DstMAC *string
-	EthernetType   *uint32
+	GetPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut
 }
 
 type testArgs struct {
@@ -122,58 +115,27 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 	return nil
 }
 
-// decodePacket decodes L2 header in the packet and returns destination MAC and ethernet type.
-func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType) {
-	t.Helper()
-	packet := gopacket.NewPacket(packetData, layers.LayerTypeEthernet, gopacket.Default)
-	etherHeader := packet.Layer(layers.LayerTypeEthernet)
-	if etherHeader != nil {
-		header, decoded := etherHeader.(*layers.Ethernet)
-		if decoded {
-			return header.DstMAC.String(), header.EthernetType
-		}
-	}
-	return "", layers.EthernetType(0)
-}
-
-// testTraffic sends traffic flow for duration seconds.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, srcEndPoint *ondatra.Interface, duration int) {
-	t.Helper()
-	for _, flow := range flows {
-		flow.WithSrcEndpoints(srcEndPoint).WithDstEndpoints(srcEndPoint)
-	}
-	ate.Traffic().Start(t, flows...)
-	time.Sleep(time.Duration(duration) * time.Second)
-
-	ate.Traffic().Stop(t)
-}
-
-// fetchPackets reads p4rt packets sent to p4rt client.
-func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, expectNumber int) []*p4rt_client.P4RTPacketInfo {
-	t.Helper()
-	packets := []*p4rt_client.P4RTPacketInfo{}
-	for i := 0; i < expectNumber; i++ {
-		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
-		if err == io.EOF {
-			t.Logf("EOF error is seen in PacketIn.")
-			break
-		} else if err == nil {
-			if packet != nil {
-				packets = append(packets, packet)
+// sendPackets sends out packets via PacketOut message in StreamChannel.
+func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4_v1.PacketOut, packetCount int) {
+	count := packetCount / len(packets)
+	for _, packet := range packets {
+		for i := 0; i < count; i++ {
+			if err := client.StreamChannelSendMsg(
+				&streamName, &p4_v1.StreamMessageRequest{
+					Update: &p4_v1.StreamMessageRequest_Packet{
+						Packet: packet,
+					},
+				}); err != nil {
+				t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
 			}
-		} else {
-			t.Fatalf("There is error seen when receving packets. %v, %s", err, err)
-			break
 		}
 	}
-	return packets
 }
 
-// testPacketIn programs p4rt table entry and sends traffic related to GDP,
-// then validates packetin message metadata and payload.
-func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
+// testPacketOut sends out PacketOut with GDP payload on p4rt leader or
+// follower client, then verify DUT interface statistics
+func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.leader
-	follower := args.follower
 
 	// Insert wbb acl entry on the DUT
 	if err := programmTableEntry(ctx, t, leader, args.packetIO, false); err != nil {
@@ -182,69 +144,41 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	// Delete wbb acl entry on the device
 	defer programmTableEntry(ctx, t, leader, args.packetIO, true)
 
-	// Send GDP traffic from ATE
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, 300, 2), srcEndPoint, 10)
-
-	packetInTests := []struct {
+	packetOutTests := []struct {
 		desc       string
 		client     *p4rt_client.P4RTClient
 		expectPass bool
 	}{{
-		desc:       "PacketIn to Primary Controller",
+		desc:       "PacketOut from Primary Controller",
 		client:     leader,
 		expectPass: true,
-	}, {
-		desc:       "PacketIn to Secondary Controller",
-		client:     follower,
-		expectPass: false,
 	}}
 
-	for _, test := range packetInTests {
+	for _, test := range packetOutTests {
 		t.Run(test.desc, func(t *testing.T) {
-			// Extract packets from PacketIn message sent to p4rt client
-			packets := fetchPackets(ctx, t, test.client, 40)
+			// Check initial packet counters
+			port := sortPorts(args.ate.Ports())[0].Name()
+			counter0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 
-			if !test.expectPass {
-				if len(packets) > 0 {
-					t.Fatalf("Unexpected packets received.")
+			packets := args.packetIO.GetPacketOut(portID, false)
+			sendPackets(t, test.client, packets, packetCount)
+
+			// Wait for ate stats to be populated
+			time.Sleep(60 * time.Second)
+
+			// Check packet counters after packet out
+			counter1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+
+			// Verify InPkts stats to check P4RT stream
+			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
+
+			if test.expectPass {
+				if counter1-counter0 < uint64(float64(packetCount)*0.95) {
+					t.Fatalf("Not all the packets are received.")
 				}
 			} else {
-				if len(packets) == 0 {
-					t.Fatalf("There are no packets received.")
-				}
-				t.Logf("Start to decode packet and compare with expected packets.")
-				wantPacket := args.packetIO.GetPacketTemplate()
-				for _, packet := range packets {
-					if packet != nil {
-						if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
-							dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
-							if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
-								t.Fatalf("Packet in PacketIn message is not matching wanted packet.")
-							}
-						}
-
-						metaData := packet.Pkt.GetMetadata()
-						for _, data := range metaData {
-							if data.GetMetadataId() == METADATA_INGRESS_PORT {
-								if string(data.GetValue()) != args.packetIO.GetIngressPort() {
-									t.Fatalf("Ingress Port Id is not matching expectation.")
-								}
-							}
-							if data.GetMetadataId() == METADATA_EGRESS_PORT {
-								found := false
-								for _, portData := range args.packetIO.GetEgressPort() {
-									if string(data.GetValue()) == portData {
-										found = true
-									}
-								}
-								if !found {
-									t.Fatalf("Egress Port Id is not matching expectation.")
-								}
-
-							}
-						}
-					}
+				if counter1-counter0 > uint64(float64(packetCount)*0.10) {
+					t.Fatalf("Unexpected packets are received.")
 				}
 			}
 		})
@@ -319,8 +253,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// configureDeviceId configures p4rt device-id on the DUT.
-func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+// configureDeviceID configures p4rt device-id on the DUT.
+func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	component := telemetry.Component{}
 	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
 	component.Name = ygot.String(*p4rtNodeName)
@@ -328,8 +262,8 @@ func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	dut.Config().Component(*p4rtNodeName).Replace(t, &component)
 }
 
-// configurePortId configures p4rt port-id on the DUT.
-func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+// configurePortID configures p4rt port-id on the DUT.
+func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	ports := sortPorts(dut.Ports())
 	for i, port := range ports {
 		dut.Config().Interface(port.Name()).Id().Replace(t, uint32(i)+portID)
@@ -394,19 +328,14 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	return nil
 }
 
-// getGDPParameter returns GDP related parameters for testPacketIn testcase.
-func getGDPParameter(t *testing.T) PacketIO {
-	return &GDPPacketIO{
-		PacketIOPacket: PacketIOPacket{
-			SrcMAC:       gdpSrcMAC,
-			DstMAC:       &gdpMAC,
-			EthernetType: &gdpEtherType,
-		},
+// getLLDPParameter returns LLDP related parameters for testPacketOut testcase.
+func getLLDPParameter(t *testing.T) PacketIO {
+	return &LLDPPacketIO{
 		IngressPort: fmt.Sprint(portID),
 	}
 }
 
-func TestPacketIn(t *testing.T) {
+func TestPacketOut(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 
@@ -417,9 +346,12 @@ func TestPacketIn(t *testing.T) {
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
 
-	// Configure P4RT device-id and port-id
-	configureDeviceId(ctx, t, dut)
-	configurePortId(ctx, t, dut)
+	// Configure P4RT device-id and port-id on the DUT
+	configureDeviceID(ctx, t, dut)
+	configurePortID(ctx, t, dut)
+
+	t.Logf("Disable LLDP config")
+	dut.Config().Lldp().Enabled().Replace(t, false)
 
 	leader := p4rt_client.P4RTClient{}
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
@@ -444,51 +376,78 @@ func TestPacketIn(t *testing.T) {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 
-	args.packetIO = getGDPParameter(t)
-	testPacketIn(ctx, t, args)
+	args.packetIO = getLLDPParameter(t)
+	testPacketOut(ctx, t, args)
 }
 
-type GDPPacketIO struct {
-	PacketIOPacket
+type LLDPPacketIO struct {
+	PacketIO
 	IngressPort string
 }
 
-// GetTableEntry creates wbb acl entry related to GDP.
-func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEntryInfo {
+// packetLLDPRequestGet generates PacketOut payload for LLDP packets.
+func packetLLDPRequestGet() []byte {
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+	pktEth := &layers.Ethernet{
+		SrcMAC: net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
+		// LLDP MAC is 01:80:C2:00:00:0E
+		DstMAC:       net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x0E},
+		EthernetType: lldpInLayers,
+	}
+
+	pktLLDP := &layers.LinkLayerDiscovery{
+		ChassisID: layers.LLDPChassisID{
+			Subtype: layers.LLDPChassisIDSubTypeMACAddr,
+			ID:      []byte{0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
+		},
+		PortID: layers.LLDPPortID{
+			Subtype: layers.LLDPPortIDSubtypeIfaceName,
+			ID:      []byte("port1"),
+		},
+		TTL: 100,
+	}
+
+	gopacket.SerializeLayers(buf, opts, pktEth, pktLLDP)
+	return buf.Bytes()
+}
+
+// GetTableEntry creates wbb acl entry related to LLDP.
+func (lldp *LLDPPacketIO) GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
 	if delete {
 		actionType = p4_v1.Update_DELETE
 	}
 	return []*wbb.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
-		EtherType:     0x6007,
+		EtherType:     0x88cc,
 		EtherTypeMask: 0xFFFF,
 		Priority:      1,
 	}}
 }
 
-// GetPacketTemplate returns expected packets in PacketIn.
-func (gdp *GDPPacketIO) GetPacketTemplate() *PacketIOPacket {
-	return &gdp.PacketIOPacket
-}
-
-// GetTrafficFlow generates ATE traffic flows for GDP.
-func (gdp *GDPPacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow {
-	ethHeader := ondatra.NewEthernetHeader()
-	ethHeader.WithSrcAddress(*gdp.SrcMAC)
-	ethHeader.WithDstAddress(*gdp.DstMAC)
-	ethHeader.WithEtherType(*gdp.EthernetType)
-
-	flow := ate.Traffic().NewFlow("GDP").WithFrameSize(frameSize).WithFrameRateFPS(frameRate).WithHeaders(ethHeader)
-	return []*ondatra.Flow{flow}
-}
-
-// GetEgressPort returns expected egress port info in PacketIn.
-func (gdp *GDPPacketIO) GetEgressPort() []string {
-	return []string{"0"}
-}
-
-// GetIngressPort return expected ingress port info in PacketIn.
-func (gdp *GDPPacketIO) GetIngressPort() string {
-	return gdp.IngressPort
+// GetPacketOut generates PacketOut message with payload as LLDP.
+func (lldp *LLDPPacketIO) GetPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
+	packets := []*p4_v1.PacketOut{}
+	packet := &p4_v1.PacketOut{
+		Payload: packetLLDPRequestGet(),
+		Metadata: []*p4_v1.PacketMetadata{
+			{
+				MetadataId: uint32(1), // "egress_port"
+				Value:      []byte(fmt.Sprint(portID)),
+			},
+		},
+	}
+	if submitIngress {
+		packet.Metadata = append(packet.Metadata,
+			&p4_v1.PacketMetadata{
+				MetadataId: uint32(2), // "submit_to_ingress"
+				Value:      []byte{1},
+			})
+	}
+	packets = append(packets, packet)
+	return packets
 }
