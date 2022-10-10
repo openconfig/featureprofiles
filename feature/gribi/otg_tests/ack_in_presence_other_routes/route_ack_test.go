@@ -251,7 +251,7 @@ func routeAck(ctx context.Context, t *testing.T, args *testArgs) {
 	// ensure that the entry is active through AFT telemetry
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-3 via gRIBI-A", ateDstNetCIDR)
 	args.clientA.AddNH(t, nhIndex, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB, nil)
 	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
