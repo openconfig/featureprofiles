@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package google_discovery_protocol_packetout_test
+package lldp_packetout_test
 
 import (
 	"context"
@@ -47,7 +47,7 @@ var (
 	p4InfoFile                                = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	p4rtNodeName                              = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
 	streamName                                = "p4rt"
-	gdpInLayers           layers.EthernetType = 0x6007
+	lldpInLayers          layers.EthernetType = 0x88cc
 	deviceID                                  = *ygot.Uint64(1)
 	portID                                    = *ygot.Uint32(10)
 	electionID                                = *ygot.Uint64(100)
@@ -136,7 +136,6 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4_v1.
 // follower client, then verify DUT interface statistics
 func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.leader
-	follower := args.follower
 
 	// Insert wbb acl entry on the DUT
 	if err := programmTableEntry(ctx, t, leader, args.packetIO, false); err != nil {
@@ -153,10 +152,6 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		desc:       "PacketOut from Primary Controller",
 		client:     leader,
 		expectPass: true,
-	}, {
-		desc:       "PacketOut from Secondary Controller",
-		client:     follower,
-		expectPass: false,
 	}}
 
 	for _, test := range packetOutTests {
@@ -258,8 +253,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// configureDeviceId configures p4rt device-id on the DUT.
-func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+// configureDeviceID configures p4rt device-id on the DUT.
+func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	component := telemetry.Component{}
 	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
 	component.Name = ygot.String(*p4rtNodeName)
@@ -267,8 +262,8 @@ func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	dut.Config().Component(*p4rtNodeName).Replace(t, &component)
 }
 
-// configurePortId configures p4rt port-id on the DUT.
-func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+// configurePortID configures p4rt port-id on the DUT.
+func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	ports := sortPorts(dut.Ports())
 	for i, port := range ports {
 		dut.Config().Interface(port.Name()).Id().Replace(t, uint32(i)+portID)
@@ -333,9 +328,9 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	return nil
 }
 
-// getGDPParameter returns GDP related parameters for testPacketOut testcase.
-func getGDPParameter(t *testing.T) PacketIO {
-	return &GDPPacketIO{
+// getLLDPParameter returns LLDP related parameters for testPacketOut testcase.
+func getLLDPParameter(t *testing.T) PacketIO {
+	return &LLDPPacketIO{
 		IngressPort: fmt.Sprint(portID),
 	}
 }
@@ -352,8 +347,11 @@ func TestPacketOut(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	// Configure P4RT device-id and port-id on the DUT
-	configureDeviceId(ctx, t, dut)
-	configurePortId(ctx, t, dut)
+	configureDeviceID(ctx, t, dut)
+	configurePortID(ctx, t, dut)
+
+	t.Logf("Disable LLDP config")
+	dut.Config().Lldp().Enabled().Replace(t, false)
 
 	leader := p4rt_client.P4RTClient{}
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
@@ -378,17 +376,17 @@ func TestPacketOut(t *testing.T) {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 
-	args.packetIO = getGDPParameter(t)
+	args.packetIO = getLLDPParameter(t)
 	testPacketOut(ctx, t, args)
 }
 
-type GDPPacketIO struct {
+type LLDPPacketIO struct {
 	PacketIO
 	IngressPort string
 }
 
-// packetGDPRequestGet generates PacketOut payload for GDP packets.
-func packetGDPRequestGet() []byte {
+// packetLLDPRequestGet generates PacketOut payload for LLDP packets.
+func packetLLDPRequestGet() []byte {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		FixLengths:       true,
@@ -396,40 +394,46 @@ func packetGDPRequestGet() []byte {
 	}
 	pktEth := &layers.Ethernet{
 		SrcMAC: net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
-		// GDP MAC is 00:0A:DA:F0:F0:F0
-		DstMAC:       net.HardwareAddr{0x00, 0x0A, 0xDA, 0xF0, 0xF0, 0xF0},
-		EthernetType: gdpInLayers,
+		// LLDP MAC is 01:80:C2:00:00:0E
+		DstMAC:       net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x0E},
+		EthernetType: lldpInLayers,
 	}
-	payload := []byte{}
-	payLoadLen := 64
-	for i := 0; i < payLoadLen; i++ {
-		payload = append(payload, byte(i))
+
+	pktLLDP := &layers.LinkLayerDiscovery{
+		ChassisID: layers.LLDPChassisID{
+			Subtype: layers.LLDPChassisIDSubTypeMACAddr,
+			ID:      []byte{0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
+		},
+		PortID: layers.LLDPPortID{
+			Subtype: layers.LLDPPortIDSubtypeIfaceName,
+			ID:      []byte("port1"),
+		},
+		TTL: 100,
 	}
-	gopacket.SerializeLayers(buf, opts,
-		pktEth, gopacket.Payload(payload),
-	)
+
+	gopacket.SerializeLayers(buf, opts, pktEth, pktLLDP)
 	return buf.Bytes()
 }
 
-// GetTableEntry creates wbb acl entry related to GDP.
-func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEntryInfo {
+// GetTableEntry creates wbb acl entry related to LLDP.
+func (lldp *LLDPPacketIO) GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
 	if delete {
 		actionType = p4_v1.Update_DELETE
 	}
 	return []*wbb.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
-		EtherType:     0x6007,
+		EtherType:     0x88cc,
 		EtherTypeMask: 0xFFFF,
 		Priority:      1,
 	}}
 }
 
-// GetPacketOut generates PacketOut message with payload as GDP.
-func (gdp *GDPPacketIO) GetPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
+// GetPacketOut generates PacketOut message with payload as LLDP.
+func (lldp *LLDPPacketIO) GetPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
 	packets := []*p4_v1.PacketOut{}
 	packet := &p4_v1.PacketOut{
-		Payload: packetGDPRequestGet(),
+		Payload: packetLLDPRequestGet(),
 		Metadata: []*p4_v1.PacketMetadata{
 			{
 				MetadataId: uint32(1), // "egress_port"
