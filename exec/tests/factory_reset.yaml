@@ -1,0 +1,11 @@
+name: factory_reset 
+owner: sahubbal@cisco.com
+testbed: topologies/cisco/hw/8201/testbed
+binding: topologies/cisco/hw/8201/binding
+tests:
+- name: factory_reset 
+  path: feature/cisco/sztp/factory_reset_test.go
+  timeout: 5400 
+  args: 
+    - '-ssh_ip="173.39.51.67"'
+    - '-ssh_port="5000"'

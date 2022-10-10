@@ -1,0 +1,101 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+
+# These options are inherited throughout the entire binding for both the
+# DUT and the ATE, unless overridden by a specific device or protocol.
+options {
+  username: "cafyauto"
+  password: "cisco123"
+}
+
+duts {
+  id: "dut"
+  name: "DUT"  # Change this to the device hostname.
+
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  options {
+    insecure: true
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  # "<ip>:<port>"    --> reachable device ip and grpc port
+  gnmi {
+    target: "173.39.51.67:5001"
+  }
+  gribi {
+    target: "173.39.51.67:5001"
+  }
+  gnoi: {
+    target: "173.39.51.67:5001"
+  }
+
+  ssh {
+    target: "173.39.51.67:5000"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports: {
+    id: "peer_dut_1"
+    name: "FourHundredGigE0/0/0/0"
+  }
+
+  ports: {
+    id: "peer_dut_2"
+    name: "FourHundredGigE0/0/0/1"
+  }
+
+  ports {
+    id: "port1"
+    name: "FourHundredGigE0/0/0/10"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "FourHundredGigE0/0/0/11"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "FourHundredGigE0/0/0/12"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "FourHundredGigE0/0/0/13"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port5"
+    name: "FourHundredGigE0/0/0/14"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port6"
+    name: "FourHundredGigE0/0/0/15"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port7"
+    name: "FourHundredGigE0/0/0/16"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port8"
+    name: "FourHundredGigE0/0/0/17"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port9"
+    name: "FourHundredGigE0/0/0/18"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port10"
+    name: "FourHundredGigE0/0/0/19"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port11"
+    name: "FourHundredGigE0/0/0/20"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port12"
+    name: "FourHundredGigE0/0/0/21"  # Change this to the actual port name.
+  }
+}
