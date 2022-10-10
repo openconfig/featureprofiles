@@ -1,8 +1,8 @@
 diff --git a/feature/gnmi/ate_tests/telemetry_basic_check_test/telemetry_basic_check_test.go b/feature/gnmi/ate_tests/telemetry_basic_check_test/telemetry_basic_check_test.go
-index fb40c2da..c59a7b2d
+index 5e04f9e7..c985c537
 --- a/feature/gnmi/ate_tests/telemetry_basic_check_test/telemetry_basic_check_test.go
 +++ b/feature/gnmi/ate_tests/telemetry_basic_check_test/telemetry_basic_check_test.go
-@@ -325,29 +325,32 @@ func TestComponentParent(t *testing.T) {
+@@ -336,29 +336,32 @@ func TestComponentParent(t *testing.T) {
  		regexpPattern string
  		parent        string
  	}{{
@@ -47,7 +47,7 @@ index fb40c2da..c59a7b2d
  	}}
  
  	for _, tc := range cases {
-@@ -380,7 +383,7 @@ func TestComponentParent(t *testing.T) {
+@@ -391,7 +394,7 @@ func TestComponentParent(t *testing.T) {
  
  func TestSoftwareVersion(t *testing.T) {
  	dut := ondatra.DUT(t, "dut")
@@ -56,7 +56,7 @@ index fb40c2da..c59a7b2d
  
  	r, err := regexp.Compile(regexpPattern)
  	if err != nil {
-@@ -427,7 +430,7 @@ func TestSoftwareVersion(t *testing.T) {
+@@ -438,7 +441,7 @@ func TestSoftwareVersion(t *testing.T) {
  func TestCPU(t *testing.T) {
  	dut := ondatra.DUT(t, "dut")
  
@@ -65,7 +65,7 @@ index fb40c2da..c59a7b2d
  	cpus := findMatchedComponents(t, dut, r)
  	t.Logf("Found CPU list: %v", cpus)
  	if len(cpus) == 0 {
-@@ -453,7 +456,7 @@ func TestCPU(t *testing.T) {
+@@ -464,7 +467,7 @@ func TestCPU(t *testing.T) {
  
  func TestSupervisorLastRebootInfo(t *testing.T) {
  	dut := ondatra.DUT(t, "dut")
@@ -74,3 +74,29 @@ index fb40c2da..c59a7b2d
  
  	r, err := regexp.Compile(regexpPattern)
  	if err != nil {
+@@ -714,8 +717,10 @@ func TestIntfCounterUpdate(t *testing.T) {
+ 		WithFrameRatePct(15)
+ 
+ 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
+-	dutInPktsBeforeTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().InUnicastPkts().Get(t)
+-	dutOutPktsBeforeTraffic := dut.Telemetry().Interface(dp2.Name()).Counters().OutUnicastPkts().Get(t)
++	// CSCwc72236
++	dutPktsBeforeTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().Get(t)
++	dutInPktsBeforeTraffic := dutPktsBeforeTraffic.GetInUnicastPkts()
++	dutOutPktsBeforeTraffic := dutPktsBeforeTraffic.GetOutUnicastPkts()
+ 	t.Log("inPkts and outPkts counters before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
+ 
+ 	ate.Traffic().Start(t, flow)
+@@ -748,8 +753,10 @@ func TestIntfCounterUpdate(t *testing.T) {
+ 	if lossPct >= 0.1 {
+ 		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flow.Name(), lossPct)
+ 	}
+-	dutInPktsAfterTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().InUnicastPkts().Get(t)
+-	dutOutPktsAfterTraffic := dut.Telemetry().Interface(dp2.Name()).Counters().OutUnicastPkts().Get(t)
++	// CSCwc72236
++	dutPktsAfterTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().Get(t)
++	dutInPktsAfterTraffic := dutPktsAfterTraffic.GetInUnicastPkts()
++	dutOutPktsAfterTraffic := dutPktsAfterTraffic.GetOutUnicastPkts()
+ 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
+ 
+ 	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < ateInPkts {
