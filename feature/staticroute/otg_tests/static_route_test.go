@@ -3,6 +3,7 @@ package gnmi_test
 import (
 	"testing"
 	"time"
+	"strconv"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -19,7 +20,7 @@ func TestMain(m *testing.M) {
 func TestGNMI(t *testing.T) {
 
 	// Configuration to be set in DUT Ports
-	config := []attrs.Attributes{
+	configDUT := []attrs.Attributes{
 		{
 			Name: "port1",
 			IPv4: "192.0.2.12",
@@ -51,7 +52,7 @@ func TestGNMI(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 
-	for _, attributes := range config{ 
+	for _, attributes := range configDUT { 
 		ifCfg := &telemetry.Interface{
 			Name: ygot.String(attributes.Name),
 			Description: ygot.String(attributes.Desc),
@@ -68,56 +69,60 @@ func TestGNMI(t *testing.T) {
 
 	Ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").
 		GetOrCreateStatic("10.0.0.0/24").
-		GetOrCreateNextHop("h1").NextHop = telemetry.UnionString("192.0.2.12")
+		GetOrCreateNextHop("h1").NextHop = telemetry.UnionString("192.0.2.23")
 
 	dut.Config().NetworkInstance("default").Update(t, Ni1)
+
+	// ATE Ports Config
+	configATE := []attrs.Attributes {
+		{
+			Name: "src",
+			IPv4: "192.0.2.13",
+			MAC: "02:1a:c0:00:02:01",
+			IPv4Len: 31,
+		},
+		{
+			Name: "dst1",
+			IPv4: "192.0.2.23",
+			MAC: "02:1a:c0:00:02:02",
+			IPv4Len: 31,
+		},
+		{
+			Name: "dst2",
+			IPv4: "192.0.2.33",
+			MAC: "02:1a:c0:00:02:03",
+			IPv4Len: 31,
+		},
+		{
+			Name: "dst3",
+			IPv4: "192.0.2.43",
+			MAC: "02:1a:c0:00:02:04",
+			IPv4Len: 31,
+		},
+	}
 
 	//  Configure an ATE
 
 	ate := ondatra.ATE(t, "ate")
-	ap1 := ate.Port(t, "port1")
-	ap2 := ate.Port(t, "port2")
-	ap3 := ate.Port(t, "port3")
-	ap4 := ate.Port(t, "port4")
-
 	top := ate.OTG().NewConfig(t)
 
-	top.Ports().Add().SetName(ap1.ID())
-	i1 := top.Devices().Add().SetName(ap1.ID())
-	eth1 := i1.Ethernets().Add().SetName("src.Eth").SetPortName(i1.Name()).SetMac("02:1a:c0:00:02:01")
-	eth1.Ipv4Addresses().Add().SetName("src.IPv4").SetAddress("192.0.2.13").SetGateway("192.0.2.12").SetPrefix(int32(31))
-
-	top.Ports().Add().SetName(ap2.ID())
-	i2 := top.Devices().Add().SetName(ap2.ID())
-	eth2 := i2.Ethernets().Add().SetName("dst1.Eth").SetPortName(i2.Name()).SetMac("02:1a:c0:00:02:02")
-	eth2.Ipv4Addresses().Add().SetName("dst1.IPv4").SetAddress("192.0.2.23").SetGateway("192.0.2.22").SetPrefix(int32(31))
-
-	top.Ports().Add().SetName(ap3.ID())
-	i3 := top.Devices().Add().SetName(ap3.ID())
-	eth3 := i3.Ethernets().Add().SetName("dst2.Eth").SetPortName(i3.Name()).SetMac("02:1a:c0:00:02:05")
-	eth3.Ipv4Addresses().Add().SetName("dst2.IPv4").SetAddress("192.0.2.33").SetGateway("192.0.2.32").SetPrefix(int32(31))
+	for index,attributes := range configATE {
+		top.Ports().Add().SetName("port"+strconv.Itoa(index+1))
+		i := top.Devices().Add().SetName("port"+strconv.Itoa(index+1))
+		eth := i.Ethernets().Add().SetName(attributes.Name+".Eth").SetPortName(i.Name()).SetMac(attributes.MAC)
+		eth.Ipv4Addresses().Add().SetName(attributes.Name+".IPv4").SetAddress(attributes.IPv4).SetGateway(configDUT[index].IPv4).SetPrefix(int32(attributes.IPv4Len))
+	}
 	
-	top.Ports().Add().SetName(ap4.ID())
-	i4 := top.Devices().Add().SetName(ap4.ID())
-	eth4 := i4.Ethernets().Add().SetName("dst3.Eth").SetPortName(i4.Name()).SetMac("02:1a:c0:00:02:06")
-	eth4.Ipv4Addresses().Add().SetName("dst3.IPv4").SetAddress("192.0.2.43").SetGateway("192.0.2.42").SetPrefix(int32(31))
-
 	ate.OTG().PushConfig(t,top)
 	ate.OTG().StartProtocols(t)	
 
 
 	flow := top.Flows().Add().SetName("Flow")
-	// transmit receive
-	flow.TxRx().Device().SetTxNames([]string{"src.IPv4"}).SetRxNames([]string{"dst3.IPv4"})
-	// flow.Size().SetFixed(int32(packetSize))
-
-	// enabling flow metrics
-	b := true
-	flow.Metrics().Msg().Enable = &b
-
-	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue("192.0.2.13")
-	v4.Dst().SetValue("192.0.2.23")
+	flow.TxRx().Device().SetTxNames([]string{"src.IPv4"}).SetRxNames([]string{"dst1.IPv4"})
+	flow.Metrics().Msg().Enable = ygot.Bool(true)
+	endpoint := flow.Packet().Add().Ipv4()
+	endpoint.Src().SetValue("192.0.2.13")
+	endpoint.Dst().SetValue("10.0.0.0")
 	ate.OTG().PushConfig(t,top)
 
 	ate.OTG().StartTraffic(t)
