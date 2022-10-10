@@ -250,13 +250,12 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 	)
 	t.Logf("Program a backup pointing to ATE port-4 via gRIBI")
 	args.client.AddNH(t, NH3ID, atePort4.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.client.AddNHG(t, BackupNHGID, map[uint64]uint64{NH3ID: 10}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	args.client.AddNHG(t, BackupNHGID, map[uint64]uint64{NH3ID: 10}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB, nil)
 
 	t.Logf("an IPv4Entry for %s pointing to ATE port-2 and port-3 via gRIBI", dstPfx)
 	args.client.AddNH(t, NH1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 	args.client.AddNH(t, NH2ID, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	opts := []gribi.OptionalParam{gribi.BackupNHG(BackupNHGID)}
-	args.client.AddNHG(t, NHGID, map[uint64]uint64{NH1ID: 80, NH2ID: 20}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB, opts...)
+	args.client.AddNHG(t, NHGID, map[uint64]uint64{NH1ID: 80, NH2ID: 20}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB, &gribi.NHGOptions{BackupNHG: BackupNHGID})
 	args.client.AddIPv4(t, dstPfx, NHGID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 
 	// create flow

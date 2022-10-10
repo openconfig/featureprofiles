@@ -63,23 +63,10 @@ func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
 	return c.fluentC
 }
 
-// OptionalParam is used to pass additional parameters to gribi APIs
-type OptionalParam interface {
-	// IsTestOpt marks the TestOpt as implementing this interface.
-	IsOptionalParam()
-}
-
-// BKNHG is used to pass the backup nexthop group for adding next hop group
-type BKNHG struct {
-	id uint64
-}
-
-// IsOptionalParam marks backupNHG as implementing the OptionalParam interface.
-func (*BKNHG) IsOptionalParam() {}
-
-// BackupNHG creates a backupNHG
-func BackupNHG(id uint64) *BKNHG {
-	return &BKNHG{id: id}
+// NHGOptions are optional parameters to a GRIBI next-hop-group.
+type NHGOptions struct {
+	// BackupNHG specifies the backup next-hop-group to be used when all next-hops are unavailable.
+	BackupNHG uint64
 }
 
 // Start function start establish a client connection with the gribi server.
@@ -169,15 +156,15 @@ func (c *Client) BecomeLeader(t testing.TB) {
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
-func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult, opts ...OptionalParam) {
+func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult, opts *NHGOptions) {
 	t.Helper()
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
 	}
-	for _, param := range opts {
-		if bkp, ok := param.(*BKNHG); ok {
-			nhg.WithBackupNHG(bkp.id)
+	if opts != nil {
+		if opts.BackupNHG != 0 {
+			nhg.WithBackupNHG(opts.BackupNHG)
 		}
 	}
 	c.fluentC.Modify().AddEntry(t, nhg)
