@@ -2,7 +2,7 @@ name: "arista-ixia-lag"
 nodes: {
     name: "otg"
     type: IXIA_TG
-    version: "0.0.1-3383"
+    version: "0.0.1-3423"
     services: {
         key: 443
         value: {
