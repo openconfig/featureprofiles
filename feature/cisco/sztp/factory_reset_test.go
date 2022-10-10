@@ -20,7 +20,7 @@ import (
 var (
 	sshIP             = flag.String("ssh_ip", "", "External IP address of management interface.")
 	sshPort           = flag.String("ssh_port", "", "External Port of management interface")
-	rm_knownhosts     = fmt.Sprintf("%s/.ssh/known_hosts", os.Getenv("HOME"))
+	rmknownhosts      = fmt.Sprintf("%s/.ssh/known_hosts", os.Getenv("HOME"))
 	devicePaths       = []string{"/misc/disk1/"}
 	filesCreated      = []string{}
 	fileCreateDevRand = "bash  dd if=/dev/urandom of=%s bs=1M count=2"
@@ -38,9 +38,8 @@ func retryFunction(t *testing.T, attempts int, sleep time.Duration, f func() err
 		err = f()
 		if err == nil {
 			return nil
-		} else {
-			t.Logf("Exception: %v\n ", err)
 		}
+
 	}
 	return err
 }
@@ -53,7 +52,7 @@ func timedFunction(timeout time.Duration, f func() error) error {
 	}()
 	select {
 	case <-time.After(timeout * time.Second):
-		return errors.New("timed out\n")
+		return errors.New("timed out")
 	case result := <-result:
 		return result
 	}
@@ -131,7 +130,7 @@ func checkFiles(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // performs factory reset
-func factory_reset(t *testing.T, dut *ondatra.DUTDevice) {
+func factoryReset(t *testing.T, dut *ondatra.DUTDevice) {
 	createFiles(t, dut)
 	gnoiClient := dut.RawAPIs().GNOI().New(t)
 	facRe, err := gnoiClient.FactoryReset().Start(context.Background(), &frpb.StartRequest{FactoryOs: false, ZeroFill: false})
@@ -142,7 +141,7 @@ func factory_reset(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Sleep for 8 mins after factory reset and try connecting to box\n")
 	time.Sleep(8 * time.Minute)
 	checkGrpcHandle(t, dut, 30, 3, 10)
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("rm -rf %s", rm_knownhosts)).Run()
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("rm -rf %s", rmknownhosts)).Run()
 	if cmd != nil {
 		t.Error(cmd)
 	}
@@ -159,15 +158,15 @@ func TestFactoryReset(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	cli_handle := dut.RawAPIs().CLI(t)
-	showDiskEncryptionStatus, err := cli_handle.SendCommand(context.Background(), "show disk-encryption status")
+	cliHandle := dut.RawAPIs().CLI(t)
+	showDiskEncryptionStatus, err := cliHandle.SendCommand(context.Background(), "show disk-encryption status")
 	if err != nil {
 		t.Error(err)
 	}
 	t.Logf("%v", (showDiskEncryptionStatus))
 	if strings.Contains(showDiskEncryptionStatus, "Not Encrypted") {
 		t.Log("Performing Factory reset without Encryption\n")
-		factory_reset(t, dut)
+		factoryReset(t, dut)
 		t.Log("Stablise after factory reset\n")
 		time.Sleep(5 * time.Minute)
 		t.Log("Activate Encryption\n")
@@ -188,10 +187,10 @@ func TestFactoryReset(t *testing.T) {
 		}
 		t.Log("Wait for the system to stabalise\n")
 		time.Sleep(5 * time.Minute)
-		factory_reset(t, dut)
+		factoryReset(t, dut)
 	} else {
 		t.Log("Performing Factory reset with Encryption\n")
-		factory_reset(t, dut)
+		factoryReset(t, dut)
 		t.Log("Stablise after factory reset\n")
 		time.Sleep(5 * time.Minute)
 		t.Log("Deactivate Encryption\n")
@@ -212,7 +211,7 @@ func TestFactoryReset(t *testing.T) {
 		}
 		t.Logf("Wait for the system to stabalise\n")
 		time.Sleep(5 * time.Minute)
-		factory_reset(t, dut)
+		factoryReset(t, dut)
 	}
 
 }
