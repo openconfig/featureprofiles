@@ -11,15 +11,15 @@ import (
 	"testing"
 	"time"
 
-	//"crypto/tls"
-	//"crypto/x509"
-	//"github.com/openconfig/featureprofiles/internal/cisco/config"
-	//gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"crypto/tls"
+	"crypto/x509"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	scp "github.com/povsister/scp"
-	//"google.golang.org/grpc"
-	//"google.golang.org/grpc/credentials"
-	//"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -30,10 +30,10 @@ var (
 	ztp_timeout    = 10 * time.Minute
 )
 var (
-	sshIP   = flag.String("ssh_ip", "173.39.51.67", "External IP address of management interface.")
-	sshPort = flag.String("ssh_port", "57778", "External Port of management interface")
-	sshUser = flag.String("ssh_user", "cafyauto", "External username for ssh")
-	sshPass = flag.String("ssh_pass", "cisco123", "External password for ssh")
+	sshIP   = flag.String("ssh_ip", "", "External IP address of management interface.")
+	sshPort = flag.String("ssh_port", "", "External Port of management interface")
+	sshUser = flag.String("ssh_user", "", "External username for ssh")
+	sshPass = flag.String("ssh_pass", "", "External password for ssh")
 )
 
 // generates an rsa key pair in client_ssh_dir
@@ -131,7 +131,7 @@ func TestPwDisable(t *testing.T) {
 	}
 	t.Logf("The output is %v\n", outPwauth)
 }
-/*
+
 func TestDiskEn(t *testing.T) {
 	if *sshIP == "" {
 		t.Fatal("--ssh_ip flag must be set.")
@@ -265,4 +265,3 @@ func TestSZTP(t *testing.T) {
 		t.Error(err)
 	}
 }
-*/
