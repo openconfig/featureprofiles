@@ -41,15 +41,14 @@ var (
 	deviceId              = *ygot.Uint64(1)
 	portId                = *ygot.Uint32(10)
 	electionId            = *ygot.Uint64(100)
-	METADATA_INGRESS_PORT = uint32(10)
-	METADATA_EGRESS_PORT  = uint32(0)
+	METADATA_INGRESS_PORT = uint32(1)
+	METADATA_EGRESS_PORT  = uint32(2)
 	TTL1                  = uint8(1)
-	HopLimit1	      = uint8(1)
+	HopLimit1             = uint8(1)
 	TTL0                  = uint8(0)
-	HopLimit0	      = uint8(0)
-	ipv4PrefixLen	  = uint8(30)
-	ipv6PrefixLen	  = uint8(126)
-
+	HopLimit0             = uint8(0)
+	ipv4PrefixLen         = uint8(30)
+	ipv6PrefixLen         = uint8(126)
 )
 
 var (
@@ -58,7 +57,7 @@ var (
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
 		IPv4Len: ipv4PrefixLen,
-		IPv6Len:	ipv6PrefixLen,
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	atePort1 = attrs.Attributes{
@@ -66,7 +65,7 @@ var (
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
 		IPv4Len: ipv4PrefixLen,
-		IPv6Len:	ipv6PrefixLen,
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	dutPort2 = attrs.Attributes{
@@ -74,7 +73,7 @@ var (
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
 		IPv4Len: ipv4PrefixLen,
-		IPv6Len:	ipv6PrefixLen,
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	atePort2 = attrs.Attributes{
@@ -82,7 +81,7 @@ var (
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: ipv4PrefixLen,
-		IPv6Len:	ipv6PrefixLen,
+		IPv6Len: ipv6PrefixLen,
 	}
 )
 
@@ -128,7 +127,7 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 	return i
 }
 
-//  configureDUT configures port1 and port2 on the DUT.
+// configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := dut.Config()
 
@@ -245,10 +244,11 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 func getTracerouteParameter(t *testing.T) PacketIO {
 	return &TraceroutePacketIO{
 		PacketIOPacket: PacketIOPacket{
-			TTL: &TTL1,
+			TTL:      &TTL1,
 			HopLimit: &HopLimit1,
 		},
 		IngressPort: fmt.Sprint(portId),
+		EgressPort:  fmt.Sprint(portId),
 	}
 }
 
@@ -292,13 +292,14 @@ func TestPacketIn(t *testing.T) {
 	}
 
 	args.packetIO = getTracerouteParameter(t)
-	testPacketIn(ctx, t, args, true)	// testPacketin for Ipv4 
-	testPacketIn(ctx, t, args, false)	// testPacketin for Ipv6
+	testPacketIn(ctx, t, args, true)  // testPacketin for Ipv4
+	testPacketIn(ctx, t, args, false) // testPacketin for Ipv6
 }
 
 type TraceroutePacketIO struct {
 	PacketIOPacket
 	IngressPort string
+	EgressPort  string
 }
 
 // GetTableEntry creates wbb acl entry related to Traceroute protocol.
@@ -310,35 +311,35 @@ func (traceroute *TraceroutePacketIO) GetTableEntry(delete bool, IsIpv4 bool) []
 		}
 		return []*wbb.ACLWbbIngressTableEntryInfo{{
 			Type:    actionType,
-					IsIpv4:  0x1,
-					TTL:     0x1,
-					TTLMask: 0xFF,
+			IsIpv4:  0x1,
+			TTL:     0x1,
+			TTLMask: 0xFF,
 		},
-		{
-			Type:    actionType,
-					IsIpv4:  0x1,
-					TTL:     0x0,
-					TTLMask: 0xFF,
-		},
-	}
-	}	else {
-			actionType := p4_v1.Update_INSERT
+			{
+				Type:    actionType,
+				IsIpv4:  0x1,
+				TTL:     0x0,
+				TTLMask: 0xFF,
+			},
+		}
+	} else {
+		actionType := p4_v1.Update_INSERT
 		if delete {
 			actionType = p4_v1.Update_DELETE
 		}
 		return []*wbb.ACLWbbIngressTableEntryInfo{{
 			Type:    actionType,
-					IsIpv6:  0x1,
-					TTL:     0x1,
-					TTLMask: 0xFF,
+			IsIpv6:  0x1,
+			TTL:     0x1,
+			TTLMask: 0xFF,
 		},
-		{
-			Type:    actionType,
-					IsIpv6:  0x1,
-					TTL:     0x0,
-					TTLMask: 0xFF,
-		},}
-		}
+			{
+				Type:    actionType,
+				IsIpv6:  0x1,
+				TTL:     0x0,
+				TTLMask: 0xFF,
+			}}
+	}
 }
 
 // GetPacketTemplate returns expected packets in PacketIn.
@@ -346,28 +347,25 @@ func (traceroute *TraceroutePacketIO) GetPacketTemplate() *PacketIOPacket {
 	return &traceroute.PacketIOPacket
 }
 
-func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool,TTL uint8,  frameSize uint32, frameRate uint64) []*ondatra.Flow {
+func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []*ondatra.Flow {
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header().WithSrcAddress(atePort1.IPv4).WithDstAddress(dutPort1.IPv4).WithTTL(uint8(TTL)) //ttl=1 is traceroute/lldp traffic
 	ipv6Header := ondatra.NewIPv6Header().WithSrcAddress(atePort1.IPv6).WithDstAddress(dutPort1.IPv6).WithHopLimit(uint8(TTL))
 	if isIpv4 {
 		flow := ate.Traffic().NewFlow("IP4").WithFrameSize(frameSize).WithFrameRateFPS(frameRate).WithHeaders(ethHeader, ipv4Header)
-		return []*ondatra.Flow{flow} 
-	}	else {
+		return []*ondatra.Flow{flow}
+	} else {
 		flow := ate.Traffic().NewFlow("IP6").WithFrameSize(frameSize).WithFrameRateFPS(frameRate).WithHeaders(ethHeader, ipv6Header)
 		return []*ondatra.Flow{flow}
 	}
 }
 
 // GetEgressPort returns expected egress port info in PacketIn.
-func (traceroute *TraceroutePacketIO) GetEgressPort() []string {
-	return []string{"0"}
+func (traceroute *TraceroutePacketIO) GetEgressPort() string {
+	return traceroute.EgressPort
 }
 
 // GetIngressPort return expected ingress port info in PacketIn.
 func (traceroute *TraceroutePacketIO) GetIngressPort() string {
 	return traceroute.IngressPort
 }
-
-
-

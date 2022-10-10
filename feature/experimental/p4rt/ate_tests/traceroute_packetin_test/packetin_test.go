@@ -31,8 +31,8 @@ import (
 type PacketIO interface {
 	GetTableEntry(delete bool, IsIpv4 bool) []*wbb.ACLWbbIngressTableEntryInfo
 	GetPacketTemplate() *PacketIOPacket
-	GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool,TTL uint8, frameSize uint32, frameRate uint64) []*ondatra.Flow
-	GetEgressPort() []string
+	GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []*ondatra.Flow
+	GetEgressPort() string
 	GetIngressPort() string
 }
 
@@ -40,7 +40,7 @@ type PacketIOPacket struct {
 	TTL            *uint8
 	SrcMAC, DstMAC *string
 	EthernetType   *uint32
-	HopLimit	*uint8
+	HopLimit       *uint8
 }
 
 type testArgs struct {
@@ -70,7 +70,7 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 	return nil
 }
 
-// decodePacket decodes L2 header in the packet and returns TTL. packetData[14:0] to remove first 14 bytes of Ethernet header 
+// decodePacket decodes L2 header in the packet and returns TTL. packetData[14:0] to remove first 14 bytes of Ethernet header
 func decodePacket4(packetData []byte) uint8 {
 	packet := gopacket.NewPacket(packetData[14:], layers.LayerTypeIPv4, gopacket.Default)
 	if IPv4 := packet.Layer(layers.LayerTypeIPv4); IPv4 != nil {
@@ -81,10 +81,10 @@ func decodePacket4(packetData []byte) uint8 {
 	return 7
 }
 
-// decodePacket decodes IPV6 L2 header in the packet and returns HopLimit. packetData[14:] to remove first 14 bytes of Ethernet header. 
+// decodePacket decodes IPV6 L2 header in the packet and returns HopLimit. packetData[14:] to remove first 14 bytes of Ethernet header.
 func decodePacket6(packetData []byte) uint8 {
 	packet := gopacket.NewPacket(packetData[14:], layers.LayerTypeIPv6, gopacket.Default)
-	if IPv6 := packet.Layer(layers.LayerTypeIPv6);  IPv6 != nil {
+	if IPv6 := packet.Layer(layers.LayerTypeIPv6); IPv6 != nil {
 		ipv6, _ := IPv6.(*layers.IPv6)
 		IPv6 := ipv6.HopLimit
 		return IPv6
@@ -133,18 +133,18 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 
 	if IsIpv4 {
 		// Insert wbb acl entry on the DUT
-	if err := programmTableEntry(ctx, t, leader, args.packetIO, false, true); err != nil {
-		t.Fatalf("There is error when programming entry")
-	}
-	// Delete wbb acl entry on the device
-	defer programmTableEntry(ctx, t, leader, args.packetIO, true, true)
+		if err := programmTableEntry(ctx, t, leader, args.packetIO, false, true); err != nil {
+			t.Fatalf("There is error when programming entry")
+		}
+		// Delete wbb acl entry on the device
+		defer programmTableEntry(ctx, t, leader, args.packetIO, true, true)
 	} else {
 		// Insert wbb acl entry on the DUT
-	if err := programmTableEntry(ctx, t, leader, args.packetIO, false, false); err != nil {
-		t.Fatalf("There is error when programming entry")
-	}
-	// Delete wbb acl entry on the device
-	defer programmTableEntry(ctx, t, leader, args.packetIO, true, false)
+		if err := programmTableEntry(ctx, t, leader, args.packetIO, false, false); err != nil {
+			t.Fatalf("There is error when programming entry")
+		}
+		// Delete wbb acl entry on the device
+		defer programmTableEntry(ctx, t, leader, args.packetIO, true, false)
 	}
 
 	// Send GDP traffic from ATE
@@ -166,20 +166,19 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 
 	//CheckTTL struct for TTL/HopLimit=0,1
 	checkTTL := []struct {
-		desc       string
-		TTL     uint8
+		desc string
+		TTL  uint8
 	}{{
-		desc:       "TTL/HopLimit 1",
-		TTL:     1,
+		desc: "TTL/HopLimit 1",
+		TTL:  1,
 	}, {
-		desc:       "TTL/HopLimit 0",
-		TTL:     0,
+		desc: "TTL/HopLimit 0",
+		TTL:  0,
 	}}
-
 
 	for _, TTL := range checkTTL {
 		t.Log(TTL.desc)
-		testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4 , TTL.TTL, 300, 2), srcEndPoint, 10)
+		testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, TTL.TTL, 300, 2), srcEndPoint, 10)
 		for _, test := range packetInTests {
 			t.Run(test.desc, func(t *testing.T) {
 				// Extract packets from PacketIn message sent to p4rt client
@@ -199,7 +198,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 						if packet != nil {
 							if wantPacket.TTL != nil {
 								if IsIpv4 {
-									if TTL.TTL == 1{
+									if TTL.TTL == 1 {
 										captureTTL := decodePacket4(packet.Pkt.GetPayload())
 										if captureTTL != TTL1 {
 											t.Log(*wantPacket.TTL)
@@ -212,18 +211,18 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 											t.Log(*wantPacket.TTL)
 											t.Log(TTL)
 											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4")
+										}
 									}
-									}	
 								} else {
-									if TTL.TTL == 1{
+									if TTL.TTL == 1 {
 										captureHopLimit := decodePacket6(packet.Pkt.GetPayload())
 										if captureHopLimit != HopLimit1 {
 											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6")
-											}
+										}
 									} else {
 										captureHopLimit := decodePacket6(packet.Pkt.GetPayload())
-									if captureHopLimit != HopLimit0 {
-										t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6")
+										if captureHopLimit != HopLimit0 {
+											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6")
 										}
 									}
 								}
@@ -238,10 +237,8 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 								}
 								if data.GetMetadataId() == METADATA_EGRESS_PORT {
 									found := false
-									for _, portData := range args.packetIO.GetEgressPort() {
-										if string(data.GetValue()) == portData {
-											found = true
-										}
+									if string(data.GetValue()) == args.packetIO.GetEgressPort() {
+										found = true
 									}
 									if !found {
 										t.Fatalf("Egress Port Id is not matching expectation.")
@@ -256,6 +253,3 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 		}
 	}
 }
-
-
-
