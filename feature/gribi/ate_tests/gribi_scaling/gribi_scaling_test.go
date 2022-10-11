@@ -149,7 +149,6 @@ func createIPv4Entries(startIP string) []string {
 	for i := firstIP; i <= lastIP; i++ {
 		ip := make(net.IP, 4)
 		binary.BigEndian.PutUint32(ip, i)
-
 		entries = append(entries, fmt.Sprint(ip))
 	}
 	return entries
@@ -192,6 +191,13 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 			nextCount = 0
 		}
 	}
+	nhgCount := localIndex - index.nhgIndex
+	if nextCount == 0 { // last nhg without no nh needs to be ignored
+		nhgCount -= 1
+	}
+	// maxIPCount should be set based on the number of added nhg,
+	// otherwise ipv4entry may be added with invalid nhg id (Note. forward refrencing is not allowed)
+	index.maxIPCount = (len(ips) / nhgCount) + 1
 	nextCount = 0
 	localIndex = index.nhgIndex
 	for ip := range ips {
@@ -356,7 +362,8 @@ func configureSubinterfaceDUT(t *testing.T, d *telemetry.Device, dutPort *ondatr
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
 	if vlanID != 0 {
-		s.GetOrCreateVlan().VlanId = telemetry.UnionUint16(vlanID)
+		//s.GetOrCreateVlan().VlanId is deprecared, use the new leaf
+		s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
 	}
 
 	sipv4 := s.GetOrCreateIpv4()
