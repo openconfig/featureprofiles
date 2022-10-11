@@ -19,11 +19,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/feature/experimental/isis/ate_tests/internal/assert"
-	"github.com/openconfig/featureprofiles/feature/experimental/isis/ate_tests/internal/session"
+	"github.com/openconfig/featureprofiles/feature/experimental/isis/otg_tests/internal/assert"
+	"github.com/openconfig/featureprofiles/feature/experimental/isis/otg_tests/internal/session"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -33,6 +35,8 @@ func TestMain(m *testing.M) {
 
 func TestOverloadBit(t *testing.T) {
 	ts := session.NewWithISIS(t)
+	ts.ATE = ondatra.ATE(t, "ate")
+	otg := ts.ATE.OTG()
 	ts.PushAndStart(t)
 	telemPth := ts.DUTISISTelemetry(t)
 	ts.AwaitAdjacency(t)
@@ -47,25 +51,39 @@ func TestOverloadBit(t *testing.T) {
 		GetGlobal().
 		GetOrCreateLspBit().
 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
-	ts.PushDUT(t)
-	// TODO: Verify the link state database once device support is added.
+
+	//TOD: Replace this with ts.PushDUT
+	ts.PushDUTOverLoadBit(t)
+
 	overloads.Await(t, time.Second*10, 1)
 	assert.Value(t, setBit, true)
-	// TODO: Verify the link state database on the ATE once the ATE reports this properly
-	// ateTelemPth := ts.ATEISISTelemetry(t)
-	// ateDB := ateTelemPth.Level(2).LspAny()
-	// for _, nbr := range ateDB.Tlv(telemetry.IsisLsdbTypes_ISIS_TLV_TYPE_IS_NEIGHBOR_ATTRIBUTE).IsisNeighborAttribute().NeighborAny().Get(t) {
-	// }
+
+	_, ok := otg.Telemetry().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Flags().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedE_Lsps_FlagsSlice) bool {
+			for _, flag := range val.Val(t) {
+				if flag == otgtelemetry.Lsps_Flags_OVERLOAD {
+					return true
+				}
+			}
+			return false
+		}).Await(t)
+
+	if !ok {
+		t.Fatalf("OverLoad Bit not seen on learned lsp on ATE")
+	}
 }
 
 func TestMetric(t *testing.T) {
 	t.Logf("Starting...")
 	ts := session.NewWithISIS(t)
+	ts.ATE = ondatra.ATE(t, "ate")
+	configuredMetric := uint32(100)
+	otg := ts.ATE.OTG()
 	ts.DUTConf.GetNetworkInstance(*deviations.DefaultNetworkInstance).GetProtocol(session.PTISIS, session.ISISName).GetIsis().
 		GetInterface(ts.DUT.Port(t, "port1").Name()).
 		GetOrCreateLevel(2).
 		GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).
-		Metric = ygot.Uint32(100)
+		Metric = ygot.Uint32(configuredMetric)
 	ts.PushAndStart(t)
 	ts.AwaitAdjacency(t)
 
@@ -73,9 +91,15 @@ func TestMetric(t *testing.T) {
 	metric := telemPth.Interface(ts.DUT.Port(t, "port1").Name()).Level(2).
 		Af(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Metric()
 	assert.Value(t, metric, uint32(100))
-	// TODO: Verify the link state database on the ATE once the ATE reports this properly
-	// ateTelemPth := ts.ATEISISTelemetry(t)
-	// ateDB := ateTelemPth.Level(2).LspAny()
-	// for _, nbr := range ateDB.Tlv(telemetry.IsisLsdbTypes_ISIS_TLV_TYPE_IS_NEIGHBOR_ATTRIBUTE).IsisNeighborAttribute().NeighborAny().Get(t) {
-	// }
+
+	_, ok := otg.Telemetry().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedUint32) bool {
+			return val.Val(t) == configuredMetric
+		}).Await(t)
+
+	metricInReceivedLsp := otg.Telemetry().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().Get(t)
+
+	if !ok {
+		t.Fatalf("Metric not matched. Expected %d got %d ", configuredMetric, metricInReceivedLsp)
+	}
 }

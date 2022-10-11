@@ -22,6 +22,7 @@ package attrs
 import (
 	"fmt"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
@@ -125,4 +126,24 @@ func (a *Attributes) AddToATE(top *ondatra.ATETopology, ap *ondatra.Port, peer *
 			WithDefaultGateway(peer.IPv6)
 	}
 	return i
+}
+
+// AddDeviceToATE adds a new device to an ATETopology with these attributes.
+func (a *Attributes) AddDeviceToATE(top gosnappi.Config, ap *ondatra.Port, peer *Attributes) {
+	port := top.Ports().Add().SetName(ap.ID())
+	dev := top.Devices().Add().SetName(a.Name)
+	eth := dev.Ethernets().Add().
+		SetName(a.Name + ".eth").
+		SetPortName(port.Name()).
+		SetMac(a.MAC)
+	eth.Ipv4Addresses().Add().
+		SetName(a.Name + ".IPv4").
+		SetAddress(a.IPv4).
+		SetGateway(peer.IPv4).
+		SetPrefix(int32(a.IPv4Len))
+	eth.Ipv6Addresses().Add().
+		SetName(a.Name + ".IPv6").
+		SetAddress(a.IPv6).
+		SetGateway(peer.IPv6).
+		SetPrefix(int32(a.IPv6Len))
 }
