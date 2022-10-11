@@ -164,7 +164,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &telemetry.Device{}
 	ni := d.GetOrCreateNetworkInstance(*nonDefaultNI)
 	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
+	ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.DefaultProtocolStaticName)
 	dut.Config().NetworkInstance(*nonDefaultNI).Replace(t, ni)
 
 	nip := dut.Config().NetworkInstance(*nonDefaultNI)
