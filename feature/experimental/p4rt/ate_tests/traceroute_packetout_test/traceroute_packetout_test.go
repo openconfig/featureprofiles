@@ -51,7 +51,6 @@ var (
 	p4rtNodeName                               = flag.String("p4rt_node_name", "FPC0:NPU0", "component name for P4RT Node")
 	streamName                                 = "p4rt"
 	tracerouteipv4InLayers layers.EthernetType = 0x0800
-	tracerouteipv6InLayers layers.EthernetType = 0x86DD
 	METADATA_INGRESS_PORT                      = uint32(1)
 	METADATA_EGRESS_PORT                       = uint32(2)
 	SUBMIT_TO_INGRESS                          = uint32(2)
