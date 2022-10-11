@@ -189,7 +189,7 @@ func (s *TestSession) confDUTInterface(t testing.TB, portID string, attrs *attrs
 // If the ate is a DUTDevice, this calls Replace(); if it's an ATEDevice, it just updates s.top.
 func (s *TestSession) confATEInterface(t testing.TB, portID string, attrs, peerAttrs *attrs.Attributes) {
 	t.Helper()
-	attrs.AddDeviceToATE(s.ATETop, s.ATE.Port(t, portID), peerAttrs)
+	attrs.AddToOTG(s.ATETop, s.ATE.Port(t, portID), peerAttrs)
 }
 
 // WithISIS adds ISIS to a test session.
