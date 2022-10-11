@@ -31,10 +31,11 @@ import (
 )
 
 var (
-	skipFIBACK          = flag.Bool("skip_fiback", false, "skip tests that rely on FIB ACK")
-	skipSrvReorder      = flag.Bool("skip_reordering", true, "skip tests that rely on server side transaction reordering")
-	skipImplicitReplace = flag.Bool("skip_implicit_replace", true, "skip tests for ADD operations that perform implicit replacement of existing entries")
-	skipNonDefaultNINHG = flag.Bool("skip_non_default_ni_nhg", true, "skip tests that add entries to non-default network-instance")
+	skipFIBACK           = flag.Bool("skip_fiback", false, "skip tests that rely on FIB ACK")
+	skipSrvReorder       = flag.Bool("skip_reordering", true, "skip tests that rely on server side transaction reordering")
+	skipImplicitReplace  = flag.Bool("skip_implicit_replace", true, "skip tests for ADD operations that perform implicit replacement of existing entries")
+	skipIdempotentDelete = flag.Bool("skip_idempotent_delete", true, "Skip tests for idempotent DELETE operations")
+	skipNonDefaultNINHG  = flag.Bool("skip_non_default_ni_nhg", true, "skip tests that add entries to non-default network-instance")
 
 	nonDefaultNI = flag.String("non_default_ni", "non-default-vrf", "non-default network-instance name")
 
@@ -91,6 +92,8 @@ func shouldSkip(tt *compliance.TestSpec) string {
 		return "This RequiresImplicitReplace test is skipped by --skip_implicit_replace"
 	case *skipNonDefaultNINHG && tt.In.RequiresNonDefaultNINHG:
 		return "This RequiresNonDefaultNINHG test is skipped by --skip_non_default_ni_nhg"
+	case *skipIdempotentDelete && tt.In.RequiresIdempotentDelete:
+		return "This RequiresIdempotentDelete test is skipped by --skip_idempotent_delete"
 	}
 	return moreSkipReasons[tt.In.ShortName]
 }
