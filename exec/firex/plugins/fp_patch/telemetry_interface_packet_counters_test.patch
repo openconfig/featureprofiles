@@ -1,5 +1,5 @@
 diff --git a/feature/gnmi/ate_tests/telemetry_interface_packet_counters_test/telemetry_interface_packet_counters_test.go b/feature/gnmi/ate_tests/telemetry_interface_packet_counters_test/telemetry_interface_packet_counters_test.go
-index 293fc1ff..4f961b28
+index 293fc1ff..9bc2de9d
 --- a/feature/gnmi/ate_tests/telemetry_interface_packet_counters_test/telemetry_interface_packet_counters_test.go
 +++ b/feature/gnmi/ate_tests/telemetry_interface_packet_counters_test/telemetry_interface_packet_counters_test.go
 @@ -138,16 +138,17 @@ func TestInterfaceCounters(t *testing.T) {
@@ -30,19 +30,14 @@ index 293fc1ff..4f961b28
  	}}
  
  	for _, tc := range cases {
-@@ -339,27 +340,30 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
- 
- 		// We are testing that "enabled" is accepted by device when explicitly set to true,
+@@ -341,25 +342,28 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
  		// per: https://github.com/openconfig/featureprofiles/issues/253
--		i.Enabled = ygot.Bool(true)
--		s.Enabled = ygot.Bool(true)
+ 		i.Enabled = ygot.Bool(true)
+ 		s.Enabled = ygot.Bool(true)
 -		v4.Enabled = ygot.Bool(true)
--		v6.Enabled = ygot.Bool(true)
 +		// CSCwc72256
-+		//i.Enabled = ygot.Bool(true)
-+		//s.Enabled = ygot.Bool(true)
 +		//v4.Enabled = ygot.Bool(true)
-+		//v6.Enabled = ygot.Bool(true)
+ 		v6.Enabled = ygot.Bool(true)
  
  		dut.Config().Interface(intf.intfName).Replace(t, i)
  
