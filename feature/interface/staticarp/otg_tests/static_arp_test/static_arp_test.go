@@ -291,6 +291,7 @@ func testFlow(
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
 		otg.PushConfig(t, config)
+		otg.StartProtocols(t)
 		waitOTGARPEntry(t, "IPv4")
 	case "IPv6":
 		flowipv6 := config.Flows().Add().SetName("FlowIPv6")
@@ -307,6 +308,7 @@ func testFlow(
 		v4.Src().SetValue(ateSrc.IPv6)
 		v4.Dst().SetValue(ateDst.IPv6)
 		otg.PushConfig(t, config)
+		otg.StartProtocols(t)
 		waitOTGARPEntry(t, "IPv6")
 	}
 
