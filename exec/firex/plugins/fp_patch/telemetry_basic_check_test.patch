@@ -1,8 +1,33 @@
 diff --git a/feature/gnmi/ate_tests/telemetry_basic_check_test/telemetry_basic_check_test.go b/feature/gnmi/ate_tests/telemetry_basic_check_test/telemetry_basic_check_test.go
-index 5e04f9e7..c985c537
+index 5e04f9e7..99df7111
 --- a/feature/gnmi/ate_tests/telemetry_basic_check_test/telemetry_basic_check_test.go
 +++ b/feature/gnmi/ate_tests/telemetry_basic_check_test/telemetry_basic_check_test.go
-@@ -336,29 +336,32 @@ func TestComponentParent(t *testing.T) {
+@@ -35,7 +35,7 @@ import (
+ )
+ 
+ var (
+-	p4rtNodeName = flag.String("p4rt_node_name", "SwitchChip3/0", "component name for P4RT Node")
++	p4rtNodeName = flag.String("p4rt_node_name", "0/0/CPU0-NPU0", "component name for P4RT Node")
+ )
+ 
+ const (
+@@ -137,6 +137,7 @@ func TestInterfaceOperStatus(t *testing.T) {
+ }
+ 
+ func TestInterfacePhysicalChannel(t *testing.T) {
++	t.Skip("oc-transceiver support needed,tracked via CSCwb72703")
+ 	dut := ondatra.DUT(t, "dut")
+ 	dp := dut.Port(t, "port1")
+ 
+@@ -191,6 +192,7 @@ func TestInterfaceStatusChange(t *testing.T) {
+ }
+ 
+ func TestHardwarePort(t *testing.T) {
++	t.Skip("openconfig:interfaces/interface/state/hardware-port not supported , tracked via CSCwd10734")
+ 	dut := ondatra.DUT(t, "dut")
+ 	dp := dut.Port(t, "port1")
+ 
+@@ -336,29 +338,32 @@ func TestComponentParent(t *testing.T) {
  		regexpPattern string
  		parent        string
  	}{{
@@ -47,7 +72,7 @@ index 5e04f9e7..c985c537
  	}}
  
  	for _, tc := range cases {
-@@ -391,7 +394,7 @@ func TestComponentParent(t *testing.T) {
+@@ -391,7 +396,7 @@ func TestComponentParent(t *testing.T) {
  
  func TestSoftwareVersion(t *testing.T) {
  	dut := ondatra.DUT(t, "dut")
@@ -56,7 +81,7 @@ index 5e04f9e7..c985c537
  
  	r, err := regexp.Compile(regexpPattern)
  	if err != nil {
-@@ -438,7 +441,7 @@ func TestSoftwareVersion(t *testing.T) {
+@@ -438,7 +443,7 @@ func TestSoftwareVersion(t *testing.T) {
  func TestCPU(t *testing.T) {
  	dut := ondatra.DUT(t, "dut")
  
@@ -65,16 +90,27 @@ index 5e04f9e7..c985c537
  	cpus := findMatchedComponents(t, dut, r)
  	t.Logf("Found CPU list: %v", cpus)
  	if len(cpus) == 0 {
-@@ -464,7 +467,7 @@ func TestCPU(t *testing.T) {
+@@ -463,8 +468,9 @@ func TestCPU(t *testing.T) {
+ }
  
  func TestSupervisorLastRebootInfo(t *testing.T) {
++	t.Skip("/components/component/state/last-reboot-time and last-reboot-reason not supported , tracked via CSCwd07369")
  	dut := ondatra.DUT(t, "dut")
 -	regexpPattern := "^Supervisor[0-9]"
 +	regexpPattern := "^[0-9]/RP[0-9]/CPU[0-9]$"
  
  	r, err := regexp.Compile(regexpPattern)
  	if err != nil {
-@@ -714,8 +717,10 @@ func TestIntfCounterUpdate(t *testing.T) {
+@@ -514,7 +520,7 @@ func findMatchedComponents(t *testing.T, dut *ondatra.DUTDevice, r *regexp.Regex
+ 
+ func TestAFT(t *testing.T) {
+ 	// TODO: Remove t.Skipf() after the issue is fixed.
+-	t.Skipf("Test is skipped due to the failure")
++	//t.Skipf("Test is skipped due to the failure")
+ 
+ 	dut := ondatra.DUT(t, "dut")
+ 	afts := dut.Telemetry().NetworkInstanceAny().Afts().Lookup(t)
+@@ -714,8 +720,10 @@ func TestIntfCounterUpdate(t *testing.T) {
  		WithFrameRatePct(15)
  
  	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
@@ -87,7 +123,7 @@ index 5e04f9e7..c985c537
  	t.Log("inPkts and outPkts counters before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
  
  	ate.Traffic().Start(t, flow)
-@@ -748,8 +753,10 @@ func TestIntfCounterUpdate(t *testing.T) {
+@@ -748,8 +756,10 @@ func TestIntfCounterUpdate(t *testing.T) {
  	if lossPct >= 0.1 {
  		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flow.Name(), lossPct)
  	}
