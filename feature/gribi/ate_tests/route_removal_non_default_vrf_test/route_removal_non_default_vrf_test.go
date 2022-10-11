@@ -387,7 +387,7 @@ func verifyEntry(t *testing.T, dut *ondatra.DUTDevice, networkInstanceName strin
 func injectEntries(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, networkInstanceName string, ateDstNetCIDR string) {
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via gRIBI client", ateDstNetCIDR)
 	client.AddNH(t, nhIndex, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	client.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB, nil)
+	client.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 	client.AddIPv4(t, ateDstNetCIDR, nhgIndex, networkInstanceName, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 }
 

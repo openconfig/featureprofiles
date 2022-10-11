@@ -250,7 +250,7 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 	)
 	t.Logf("Program a backup pointing to ATE port-4 via gRIBI")
 	args.client.AddNH(t, NH3ID, atePort4.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.client.AddNHG(t, BackupNHGID, map[uint64]uint64{NH3ID: 10}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB, nil)
+	args.client.AddNHG(t, BackupNHGID, map[uint64]uint64{NH3ID: 10}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 
 	t.Logf("an IPv4Entry for %s pointing to ATE port-2 and port-3 via gRIBI", dstPfx)
 	args.client.AddNH(t, NH1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)

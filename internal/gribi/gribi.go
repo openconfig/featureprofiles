@@ -156,15 +156,15 @@ func (c *Client) BecomeLeader(t testing.TB) {
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
-func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult, opts *NHGOptions) {
+func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHGOptions) {
 	t.Helper()
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
 	}
-	if opts != nil {
-		if opts.BackupNHG != 0 {
-			nhg.WithBackupNHG(opts.BackupNHG)
+	for _, opt := range opts {
+		if opt != nil && opt.BackupNHG != 0 {
+			nhg.WithBackupNHG(opt.BackupNHG)
 		}
 	}
 	c.fluentC.Modify().AddEntry(t, nhg)

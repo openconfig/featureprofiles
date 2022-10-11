@@ -200,7 +200,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	// ensure that the entry is active through AFT telemetry and traffic.
 	t.Logf("an IPv4Entry for %s pointing to ATE port-3 via gRIBI-B", ateDstNetCIDR)
 	args.clientB.AddNH(t, nhIndex, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.clientB.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB, nil)
+	args.clientB.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 	args.clientB.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
@@ -218,7 +218,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	// ensure that the entry is ignored by the DUT.
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via gRIBI-A", ateDstNetCIDR)
 	args.clientA.AddNH(t, nhIndex+1, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.ProgrammingFailed)
-	args.clientA.AddNHG(t, nhgIndex+1, map[uint64]uint64{nhIndex + 1: 1}, *deviations.DefaultNetworkInstance, fluent.ProgrammingFailed, nil)
+	args.clientA.AddNHG(t, nhgIndex+1, map[uint64]uint64{nhIndex + 1: 1}, *deviations.DefaultNetworkInstance, fluent.ProgrammingFailed)
 	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+1, *deviations.DefaultNetworkInstance, "", fluent.ProgrammingFailed)
 
 	// Send a ModifyRequest from gRIBI-A specifying election_id 12,
@@ -227,7 +227,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	args.clientA.UpdateElectionID(t, 12, 0)
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via client gRIBI-A", ateDstNetCIDR)
 	args.clientA.AddNH(t, nhIndex+2, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex+2, map[uint64]uint64{nhIndex + 2: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB, nil)
+	args.clientA.AddNHG(t, nhgIndex+2, map[uint64]uint64{nhIndex + 2: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+2, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
