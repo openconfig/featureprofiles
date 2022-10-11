@@ -128,22 +128,22 @@ func (a *Attributes) AddToATE(top *ondatra.ATETopology, ap *ondatra.Port, peer *
 	return i
 }
 
-// AddDeviceToATE adds a new device to an ATETopology with these attributes.
-func (a *Attributes) AddDeviceToATE(top gosnappi.Config, ap *ondatra.Port, peer *Attributes) {
-	port := top.Ports().Add().SetName(ap.ID())
+// AddToOTG adds basic elements to a gosnappi configuration
+func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attributes) {
+	top.Ports().Add().SetName(ap.ID())
 	dev := top.Devices().Add().SetName(a.Name)
-	eth := dev.Ethernets().Add().
-		SetName(a.Name + ".eth").
-		SetPortName(port.Name()).
-		SetMac(a.MAC)
-	eth.Ipv4Addresses().Add().
-		SetName(a.Name + ".IPv4").
-		SetAddress(a.IPv4).
-		SetGateway(peer.IPv4).
-		SetPrefix(int32(a.IPv4Len))
-	eth.Ipv6Addresses().Add().
-		SetName(a.Name + ".IPv6").
-		SetAddress(a.IPv6).
-		SetGateway(peer.IPv6).
-		SetPrefix(int32(a.IPv6Len))
+	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth")
+	eth.SetPortName(ap.ID()).SetMac(a.MAC)
+
+	if a.MTU > 0 {
+		eth.SetMtu(int32(a.MTU))
+	}
+	if a.IPv4 != "" {
+		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+		ip.SetAddress(a.IPv4).SetGateway(peer.IPv4).SetPrefix(int32(a.IPv4Len))
+	}
+	if a.IPv6 != "" {
+		ip := eth.Ipv6Addresses().Add().SetName(dev.Name() + ".IPv6")
+		ip.SetAddress(a.IPv6).SetGateway(peer.IPv6).SetPrefix(int32(a.IPv6Len))
+	}
 }
