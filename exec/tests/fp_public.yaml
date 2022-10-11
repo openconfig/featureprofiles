@@ -47,6 +47,7 @@ tests:
   patch: exec/firex/plugins/fp_patch/telemetry_basic_check_test.patch
 - name: gNMI-1.11 (Telemetry Interface Packet Counters) 
   path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
+  patch: exec/firex/plugins/fp_patch/telemetry_interface_packet_counters_test.patch
 - name: RT-6.1 (Core LLDP TLV Population) 
   path: feature/lldp/tests/core_lldp_tlv_population_test
 - name: gNMI-1.4 (Telemetry Inventory) 
