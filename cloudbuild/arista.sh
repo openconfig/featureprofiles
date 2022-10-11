@@ -19,6 +19,8 @@ export PATH=${PATH}:/usr/local/go/bin:$(/usr/local/go/bin/go env GOPATH)/bin
 
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
+docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga
+docker tag us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga ceos:latest
 kind load docker-image --name=kne ceos:latest
 
 pushd /tmp/workspace
