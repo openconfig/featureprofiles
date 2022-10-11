@@ -362,7 +362,7 @@ func configureSubinterfaceDUT(t *testing.T, d *telemetry.Device, dutPort *ondatr
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
 	if vlanID != 0 {
-		//s.GetOrCreateVlan().VlanId is deprecared, use the new leaf
+		//s.GetOrCreateVlan().VlanId is deprecated, use the new leaf
 		s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
 	}
 
