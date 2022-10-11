@@ -92,4 +92,6 @@ var (
 	GRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
 
 	NextHopAFTNotSupported = flag.Bool("deviation_nexthop_aft_not_supported", false, "Device currently doesnot support AFT Next Hop Telemetry. A fully compliant device should support all types of AFT telemetry without this deviation.")
+
+	DefaultProtocolStaticName = flag.String("deviation_default_protocol_static_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
 )

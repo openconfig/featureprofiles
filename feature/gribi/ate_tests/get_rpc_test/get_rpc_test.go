@@ -16,7 +16,6 @@ package get_rpc_test
 
 import (
 	"context"
-	"flag"
 	"testing"
 	"time"
 
@@ -83,7 +82,6 @@ var (
 
 var (
 	ateDstNetCIDR = []string{"198.51.100.0/26", "198.51.100.64/26", "198.51.100.128/26"}
-	protocolName  = flag.String("protocol_name", "STATIC", "Name of the protocol to configure static route")
 )
 
 const (
@@ -320,7 +318,7 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	// are returned, with no entry returned for 198.51.100.192/64.
 	dc := args.dut.Config()
 	ni := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *protocolName)
+		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.DefaultProtocolStaticName)
 	static := &telemetry.NetworkInstance_Protocol_Static{
 		Prefix: ygot.String(staticCIDR),
 	}
@@ -372,7 +370,7 @@ func TestElectionID(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	//top.Push(t).StartProtocols(t)
 
 	// Connect gRIBI client to DUT referred to as gRIBI-A - using PRESERVE persistence and
 	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI-A as the leader via a
