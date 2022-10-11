@@ -16,7 +16,6 @@ package base_hierarchical_nhg_update_test
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -114,8 +113,10 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 
-	p2flow := createFlow(t, "Port 1 to Port 2", ate, top, &atePort2)
-	p3flow := createFlow(t, "Port 1 to Port 3", ate, top, &atePort3)
+	p2flow := "Port 1 to Port 2"
+	p3flow := "Port 1 to Port 3"
+	createFlow(t, p2flow, ate, top, &atePort2)
+	createFlow(t, p3flow, ate, top, &atePort3)
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
@@ -258,9 +259,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
-func createFlow(t testing.TB, name string, ate *ondatra.ATEDevice, ateTop gosnappi.Config, dst *attrs.Attributes) string {
-	modName := strings.Replace(name, " ", "_", -1)
-	flowipv4 := ateTop.Flows().Add().SetName(modName)
+func createFlow(t testing.TB, name string, ate *ondatra.ATEDevice, ateTop gosnappi.Config, dst *attrs.Attributes) {
+	flowipv4 := ateTop.Flows().Add().SetName(name)
 	flowipv4.Metrics().SetEnable(true)
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
@@ -268,8 +268,6 @@ func createFlow(t testing.TB, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
-
-	return modName
 }
 
 func gribiClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*fluent.GRIBIClient, error) {
