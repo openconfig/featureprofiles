@@ -19,8 +19,6 @@ export PATH=${PATH}:/usr/local/go/bin:$(/usr/local/go/bin/go env GOPATH)/bin
 
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
-docker pull us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga
-docker tag us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga ceos:latest
 kind load docker-image --name=kne ceos:latest
 
 pushd /tmp/workspace
@@ -30,7 +28,7 @@ cat >/tmp/testbed.kne.yml << EOF
 username: admin
 password: admin
 topology: ${PWD}/topologies/kne/arista_ceos.textproto
-cli: ${HOME}/go/bin/kne_cli
+cli: ${HOME}/go/bin/kne
 EOF
 go test -v feature/system/tests/*.go -kne-config /tmp/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
 go test -v feature/system/ntp/tests/*.go -kne-config /tmp/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
