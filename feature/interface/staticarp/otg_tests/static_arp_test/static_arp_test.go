@@ -175,41 +175,19 @@ func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
 	dstPort := config.Ports().Add().SetName(ap2.ID())
 
 	srcDev := config.Devices().Add().SetName(ateSrc.Name)
-	srcEth := srcDev.Ethernets().Add().
-		SetName(ateSrc.Name + ".eth").
-		SetPortName(srcPort.Name()).
-		SetMac(ateSrc.MAC)
-	srcEth.Ipv4Addresses().Add().
-		SetName(ateSrc.Name + ".IPv4").
-		SetAddress(ateSrc.IPv4).
-		SetGateway(dutSrc.IPv4).
-		SetPrefix(int32(ateSrc.IPv4Len))
-	srcEth.Ipv6Addresses().Add().
-		SetName(ateSrc.Name + ".IPv6").
-		SetAddress(ateSrc.IPv6).
-		SetGateway(dutSrc.IPv6).
-		SetPrefix(int32(ateSrc.IPv6Len))
+	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".eth").SetPortName(srcPort.Name()).SetMac(ateSrc.MAC)
+	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
+	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
 	dstDev := config.Devices().Add().SetName(ateDst.Name)
-	dstEth := dstDev.Ethernets().Add().
-		SetName(ateDst.Name + ".eth").
-		SetPortName(dstPort.Name()).
-		SetMac(ateDst.MAC)
-	dstEth.Ipv4Addresses().Add().
-		SetName(ateDst.Name + ".IPv4").
-		SetAddress(ateDst.IPv4).
-		SetGateway(dutDst.IPv4).
-		SetPrefix(int32(ateDst.IPv4Len))
-	dstEth.Ipv6Addresses().Add().
-		SetName(ateDst.Name + ".IPv6").
-		SetAddress(ateDst.IPv6).
-		SetGateway(dutDst.IPv6).
-		SetPrefix(int32(ateDst.IPv6Len))
+	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".eth").SetPortName(dstPort.Name()).SetMac(ateDst.MAC)
+	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
+	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
 
 	return ate, config
 }
 
-func checkArpEntry(t *testing.T, ipType string, poisoned bool) {
+func checkDUTEntry(t *testing.T, ipType string, poisoned bool) {
 	dut := ondatra.DUT(t, "dut")
 	var expectedMac string
 	if poisoned {
@@ -228,9 +206,9 @@ func checkArpEntry(t *testing.T, ipType string, poisoned bool) {
 	case "IPv6":
 		macAddress := dut.Telemetry().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv6().Neighbor(ateDst.IPv6).Get(t).LinkLayerAddress
 		if *macAddress != expectedMac {
-			t.Errorf("ARP entry for %v is %v and expected was %v", ateDst.IPv6, *macAddress, expectedMac)
+			t.Errorf("Neighbor entry for %v is %v and expected was %v", ateDst.IPv6, *macAddress, expectedMac)
 		} else {
-			t.Logf("ARP entry for %v is %v", ateDst.IPv6, *macAddress)
+			t.Logf("Neighbor entry for %v is %v", ateDst.IPv6, *macAddress)
 		}
 	}
 }
@@ -344,11 +322,11 @@ func TestStaticARP(t *testing.T) {
 	t.Run("NotPoisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
 			testFlow(t, ate, config, "IPv4", false)
-			checkArpEntry(t, "IPv4", false)
+			checkDUTEntry(t, "IPv4", false)
 		})
 		t.Run("IPv6", func(t *testing.T) {
 			testFlow(t, ate, config, "IPv6", false)
-			checkArpEntry(t, "IPv6", false)
+			checkDUTEntry(t, "IPv6", false)
 		})
 	})
 
@@ -358,11 +336,11 @@ func TestStaticARP(t *testing.T) {
 	t.Run("Poisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
 			testFlow(t, ate, config, "IPv4", true)
-			checkArpEntry(t, "IPv4", true)
+			checkDUTEntry(t, "IPv4", true)
 		})
 		t.Run("IPv6", func(t *testing.T) {
 			testFlow(t, ate, config, "IPv6", true)
-			checkArpEntry(t, "IPv6", true)
+			checkDUTEntry(t, "IPv6", true)
 		})
 	})
 }
