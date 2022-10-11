@@ -63,6 +63,12 @@ func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
 	return c.fluentC
 }
 
+// NHGOptions are optional parameters to a GRIBI next-hop-group.
+type NHGOptions struct {
+	// BackupNHG specifies the backup next-hop-group to be used when all next-hops are unavailable.
+	BackupNHG uint64
+}
+
 // Start function start establish a client connection with the gribi server.
 // By default the client is not the leader and for that function BecomeLeader
 // needs to be called.
@@ -150,11 +156,16 @@ func (c *Client) BecomeLeader(t testing.TB) {
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
-func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult) {
+func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHGOptions) {
 	t.Helper()
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
+	}
+	for _, opt := range opts {
+		if opt != nil && opt.BackupNHG != 0 {
+			nhg.WithBackupNHG(opt.BackupNHG)
+		}
 	}
 	c.fluentC.Modify().AddEntry(t, nhg)
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
@@ -230,4 +241,15 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, instance string, expect
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
+}
+
+// Flush flushes all the gribi entries
+func (c *Client) Flush(t testing.TB) {
+	t.Logf("Flush Entries in All Network Instances.")
+	if _, err := c.fluentC.Flush().
+		WithElectionOverride().
+		WithAllNetworkInstances().
+		Send(); err != nil {
+		t.Fatalf("Could not remove all gribi entries from dut %s, got error: %v", c.DUT.Name(), err)
+	}
 }
