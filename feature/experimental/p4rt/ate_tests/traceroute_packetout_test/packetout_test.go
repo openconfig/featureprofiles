@@ -78,6 +78,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			port := sortPorts(args.ate.Ports())[0].Name()
 
 			for _, ttl := range ttls {
+				t.Logf("Sending ipv4 packets with ttl = %d", ttl)
 				counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 				t.Logf("Initial number of packets: %d", counter_0)
 
@@ -119,6 +120,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			port := sortPorts(args.ate.Ports())[0].Name()
 
 			for _, ttl := range ttls {
+				t.Logf("Sending ipv6 packets with ttl = %d", ttl)
 				counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 				t.Logf("Initial number of packets: %d", counter_0)
 
