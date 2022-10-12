@@ -3,140 +3,149 @@ package gnmi_test
 import (
 	"testing"
 	"time"
-	"strconv"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-
 )
 
-var configDUT[]attrs.Attributes = []attrs.Attributes{
-	{
-		Name: "port1",
-		IPv4: "192.0.2.12",
-		IPv4Len: 31,
-		Desc: "From Ixia",
-	},
-	{
-		Name: "port2",
-		IPv4: "192.0.2.22",
-		IPv4Len: 31,
-		Desc: "To Ixia",
-	},
-	{
-		Name: "port3",
-		IPv4: "192.0.2.32",
-		IPv4Len: 31,
-		Desc: "To Ixia",
-	},
-	{
-		Name: "port4",
-		IPv4: "192.0.2.42",
-		IPv4Len: 31,
-		Desc: "To Ixia",
-	},
-}
+var (
+	dutPorts = map[string]attrs.Attributes{
+		"port1": {
+			IPv4:    "192.0.2.12",
+			IPv6:    "2001:db8::12",
+			IPv4Len: 31,
+			IPv6Len: 127,
+			Desc:    "ATE port 1 to DUT port 1",
+		},
+		"port2": {
+			IPv4:    "192.0.2.22",
+			IPv6:    "2001:db8::22",
+			IPv4Len: 31,
+			IPv6Len: 127,
+			Desc:    "DUT port 2 to ATE port 2",
+		},
+		"port3": {
+			IPv4:    "192.0.2.32",
+			IPv6:    "2001:db8::32",
+			IPv4Len: 31,
+			IPv6Len: 127,
+			Desc:    "DUT port 3 to ATE port 3",
+		},
+		"port4": {
+			IPv4:    "192.0.2.42",
+			IPv6:    "2001:db8::42",
+			IPv4Len: 31,
+			IPv6Len: 127,
+			Desc:    "DUT port 4 to ATE port 4",
+		},
+	}
 
-var configATE[]attrs.Attributes = []attrs.Attributes {
-	{
-		Name: "src",
-		IPv4: "192.0.2.13",
-		MAC: "02:1a:c0:00:02:01",
-		IPv4Len: 31,
-	},
-	{
-		Name: "dst1",
-		IPv4: "192.0.2.23",
-		MAC: "02:1a:c0:00:02:02",
-		IPv4Len: 31,
-	},
-	{
-		Name: "dst2",
-		IPv4: "192.0.2.33",
-		MAC: "02:1a:c0:00:02:03",
-		IPv4Len: 31,
-	},
-	{
-		Name: "dst3",
-		IPv4: "192.0.2.43",
-		MAC: "02:1a:c0:00:02:04",
-		IPv4Len: 31,
-	},
-}
+	atePorts = map[string]attrs.Attributes{
+		"port1": {
+			IPv4:    "192.0.2.13",
+			IPv6:    "2001:db8::13",
+			MAC:     "02:1a:c0:00:02:01",
+			IPv4Len: 31,
+			IPv6Len: 127,
+		},
+		"port2": {
+			IPv4:    "192.0.2.23",
+			IPv6:    "2001:db8::23",
+			MAC:     "02:1a:c0:00:02:02",
+			IPv4Len: 31,
+			IPv6Len: 127,
+		},
+		"port3": {
+			IPv4:    "192.0.2.33",
+			IPv6:    "2001:db8::33",
+			MAC:     "02:1a:c0:00:02:03",
+			IPv4Len: 31,
+			IPv6Len: 127,
+		},
+		"port4": {
+			IPv4:    "192.0.2.43",
+			IPv6:    "2001:db8::43",
+			MAC:     "02:1a:c0:00:02:04",
+			IPv4Len: 31,
+			IPv6Len: 127,
+		},
+	}
+)
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func TestGNMI(t *testing.T) {
+func TestStaticRouteSingleDestinationPort(t *testing.T) {
 
 	// Configure a DUT
 	dut := ondatra.DUT(t, "dut")
 
-	for _, attributes := range configDUT { 
+	for name, attributes := range dutPorts {
 		ifCfg := &telemetry.Interface{
-			Name: ygot.String(attributes.Name),
+			Name:        ygot.String(name),
 			Description: ygot.String(attributes.Desc),
 		}
 
 		ifCfg.GetOrCreateSubinterface(0).
-		GetOrCreateIpv4().
-		GetOrCreateAddress(attributes.IPv4).PrefixLength = ygot.Uint8(attributes.IPv4Len)
+			GetOrCreateIpv4().
+			GetOrCreateAddress(attributes.IPv4).PrefixLength = ygot.Uint8(attributes.IPv4Len)
 
-		dut.Config().Interface(attributes.Name).Update(t, ifCfg)
+		dut.Config().Interface(name).Update(t, ifCfg)
 	}
 
-	Ni1 := &telemetry.NetworkInstance{}
-	Ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").
+	ni := &telemetry.NetworkInstance{}
+	ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").
 		GetOrCreateStatic("10.0.0.0/24").
-		GetOrCreateNextHop("h1").NextHop = telemetry.UnionString("192.0.2.23")
+		GetOrCreateNextHop("h1").NextHop = telemetry.UnionString(atePorts["port2"].IPv4)
 
-	dut.Config().NetworkInstance("default").Update(t, Ni1)
+	dut.Config().NetworkInstance("default").Update(t, ni)
 
 	//  Configure an ATE
 
 	ate := ondatra.ATE(t, "ate")
 	top := ate.OTG().NewConfig(t)
 
-	for index,attributes := range configATE {
-		top.Ports().Add().SetName("port"+strconv.Itoa(index+1))
-		i := top.Devices().Add().SetName("port"+strconv.Itoa(index+1))
-		eth := i.Ethernets().Add().SetName(attributes.Name+".Eth").SetPortName(i.Name()).SetMac(attributes.MAC)
-		eth.Ipv4Addresses().Add().SetName(attributes.Name+".IPv4").SetAddress(attributes.IPv4).SetGateway(configDUT[index].IPv4).SetPrefix(int32(attributes.IPv4Len))
+	for name, attributes := range atePorts {
+		top.Ports().Add().SetName(name)
+		i := top.Devices().Add().SetName(name)
+		eth := i.Ethernets().Add().SetName(name + ".Eth").SetPortName(i.Name()).SetMac(attributes.MAC)
+		eth.Ipv4Addresses().Add().SetName(name + ".IPv4").SetAddress(attributes.IPv4).SetGateway(dutPorts[name].IPv4).SetPrefix(int32(attributes.IPv4Len))
 	}
-	
-	ate.OTG().PushConfig(t,top)
-	ate.OTG().StartProtocols(t)	
 
-	flow := top.Flows().Add().SetName("Flow")
-	flow.TxRx().Device().SetTxNames([]string{"src.IPv4"}).SetRxNames([]string{"dst1.IPv4"})
-	flow.Metrics().Msg().Enable = ygot.Bool(true)
-	endpoint := flow.Packet().Add().Ipv4()
-	endpoint.Src().SetValue("192.0.2.23")
-	endpoint.Dst().SetValue("10.0.0.0")
-	ate.OTG().PushConfig(t,top)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+
+	flowIPv4 := top.Flows().Add().SetName("FlowIPv4")
+	flowIPv4.TxRx().Device().SetTxNames([]string{"port1.IPv4"}).SetRxNames([]string{"port2.IPv4"})
+	flowIPv4.Metrics().SetEnable(true)
+	endpointIPv4 := flowIPv4.Packet().Add().Ipv4()
+	endpointIPv4.Src().SetValue(atePorts["port1"].IPv4)
+	endpointIPv4.Dst().SetValue("10.0.0.0")
+	ate.OTG().PushConfig(t, top)
 
 	ate.OTG().StartTraffic(t)
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	ate.OTG().StopTraffic(t)
 
-	fp := ate.OTG().Telemetry().Flow(flow.Name()).Get(t)
-	fpc := fp.GetCounters()
+	fpIPv4 := ate.OTG().Telemetry().Flow(flowIPv4.Name()).Get(t)
+	fpcIPv4 := fpIPv4.GetCounters()
 
-	outoctets := fpc.GetOutOctets()
-	outpkts := fpc.GetOutPkts()
-	inpkts := fpc.GetInPkts()
+	outoctetsIPv4 := fpcIPv4.GetOutOctets()
+	outpktsIPv4 := fpcIPv4.GetOutPkts()
+	inpktsIPv4 := fpcIPv4.GetInPkts()
 
-	t.Logf("outoctets are %d",outoctets)
-	t.Logf("inpkts are %d",inpkts)
-	t.Logf("outpkts are %d",outpkts)
-	lossPct := float32((outpkts - inpkts) * 100 / outpkts)
-	t.Logf("flow loss-pct %f", lossPct)
-	if lossPct>0 {
-		t.Errorf("Packets are not received. Got %f loss percentage and wanted 0",lossPct)
+	t.Logf("IPv4 Flow Details")
+	t.Logf("outoctets are %d", outoctetsIPv4)
+	t.Logf("inpkts are %d", inpktsIPv4)
+	t.Logf("outpkts are %d", outpktsIPv4)
+	lossPctIPv4 := float32((outpktsIPv4 - inpktsIPv4) * 100 / outpktsIPv4)
+	t.Logf("flow loss-pct %f", lossPctIPv4)
+	if lossPctIPv4 > 0 {
+		t.Errorf("Packets are not received. Got %f loss percentage and wanted 0", lossPctIPv4)
 	}
 
 }
