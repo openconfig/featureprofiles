@@ -171,6 +171,43 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	}
 }
 
+// startTraffic generates traffic flow from source network to
+// destination network via srcEndPoint to dstEndPoint.
+// Returns the flow object that it creates.
+func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface) *ondatra.Flow {
+	ethHeader := ondatra.NewEthernetHeader()
+	ipv4Header := ondatra.NewIPv4Header()
+	ipv4Header.DstAddressRange().
+		WithMin("203.0.113.1").
+		WithMax("203.0.113.250").
+		WithCount(250)
+
+	flow := ate.Traffic().NewFlow("Flow").
+		WithSrcEndpoints(srcEndPoint).
+		WithDstEndpoints(dstEndPoint).
+		WithHeaders(ethHeader, ipv4Header)
+
+	ate.Traffic().Start(t, flow)
+
+	return flow
+}
+
+// stopAndVerifyTraffic stops traffic on the ATE
+// and checks for packet loss for the given flow.
+func stopAndVerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
+
+	ate.Traffic().Stop(t)
+
+	time.Sleep(time.Minute)
+
+	flowPath := ate.Telemetry().Flow(flow.Name())
+	if got := flowPath.LossPct().Get(t); got != 0 {
+		t.Errorf("FAIL: LossPct for flow named %s got %g, want 0", flow.Name(), got)
+	} else {
+		t.Logf("LossPct for flow named %s got %g, want 0", flow.Name(), got)
+	}
+}
+
 // testArgs holds the objects needed by the test case.
 type testArgs struct {
 	ctx context.Context
@@ -234,7 +271,7 @@ func verifyGribiGet(ctx context.Context, t *testing.T, clientA *gribi.Client) {
 // gNOIKillProcess kills a daemon on the DUT, given its name and pid.
 func gNOIKillProcess(ctx context.Context, t *testing.T, args *testArgs, pName string, pID uint32) {
 	gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
-	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_KILL, Restart: true}
+	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
 	killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
 	t.Logf("Got kill process response: %v\n\n", killResponse)
 	if err != nil {
@@ -247,6 +284,7 @@ func TestDUTDaemonFailure(t *testing.T) {
 	start := time.Now()
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
+	var flow *ondatra.Flow
 
 	// Configure the DUT.
 	t.Logf("Configure DUT")
@@ -301,6 +339,18 @@ func TestDUTDaemonFailure(t *testing.T) {
 
 	})
 
+	t.Run("RestartTraffic", func(t *testing.T) {
+
+		srcEndPoint := top.Interfaces()[atePort1.Name]
+		dstEndPoint := top.Interfaces()[atePort2.Name]
+
+		flow = startTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+
+		t.Logf("Wait for 15 seconds")
+		time.Sleep(15 * time.Second)
+
+	})
+
 	t.Run("KillGribiDaemon", func(t *testing.T) {
 
 		// Find the PID of gRIBI Daemon.
@@ -311,9 +361,9 @@ func TestDUTDaemonFailure(t *testing.T) {
 			case ondatra.JUNIPER:
 				pName = "rpd"
 			case ondatra.CISCO:
-				pName = "unknown-cisco" //TODO
+				pName = "emsd"
 			case ondatra.ARISTA:
-				pName = "unknown-arista" //TODO
+				pName = "Gribi"
 			}
 
 			// Fetch the list of processes through telemetry.
@@ -346,8 +396,8 @@ func TestDUTDaemonFailure(t *testing.T) {
 			verifyAFT(ctx, t, args)
 		})
 
-		t.Run("VerifyTraffic", func(t *testing.T) {
-			verifyTraffic(ctx, t, args)
+		t.Run("VerifyTrafficContinuesToFlow", func(t *testing.T) {
+			stopAndVerifyTraffic(t, args.ate, flow)
 		})
 
 	})
