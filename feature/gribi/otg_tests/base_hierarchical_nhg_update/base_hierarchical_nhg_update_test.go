@@ -115,8 +115,8 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 
 	p2flow := "Port 1 to Port 2"
 	p3flow := "Port 1 to Port 3"
-	createFlow(t, p2flow, ate, top, &atePort2)
-	createFlow(t, p3flow, ate, top, &atePort3)
+	createFlow(t, p2flow, top, &atePort2)
+	createFlow(t, p3flow, top, &atePort3)
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
@@ -129,11 +129,12 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	addInterfaceRoute(ctx, t, gribic, p2ID, dut.Port(t, "port2").Name(), atePort2.IPv4)
 	addDestinationRoute(ctx, t, gribic)
 
-	validateTrafficFlows(t, ate, p2flow, p3flow)
+	waitOTGARPEntry(t)
+	validateTrafficFlows(t, p2flow, p3flow)
 
 	addInterfaceRoute(ctx, t, gribic, p3ID, dut.Port(t, "port3").Name(), atePort3.IPv4)
 
-	validateTrafficFlows(t, ate, p3flow, p2flow)
+	validateTrafficFlows(t, p3flow, p2flow)
 }
 
 // addDestinationRoute creates a GRIBI route to dstPfx via interfaceNH.
@@ -224,9 +225,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	p2 := ate.Port(t, "port2")
 	p3 := ate.Port(t, "port3")
 
-	addToOTG(top, p1, &atePort1, &dutPort1)
-	addToOTG(top, p2, &atePort2, &dutPort2)
-	addToOTG(top, p3, &atePort3, &dutPort3)
+	atePort1.AddToOTG(top, p1, &dutPort1)
+	atePort2.AddToOTG(top, p2, &dutPort2)
+	atePort3.AddToOTG(top, p3, &dutPort3)
 
 	return top
 }
@@ -259,7 +260,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
-func createFlow(t testing.TB, name string, ate *ondatra.ATEDevice, ateTop gosnappi.Config, dst *attrs.Attributes) {
+func createFlow(t testing.TB, name string, ateTop gosnappi.Config, dst *attrs.Attributes) {
 	flowipv4 := ateTop.Flows().Add().SetName(name)
 	flowipv4.Metrics().SetEnable(true)
 	e1 := flowipv4.Packet().Add().Ethernet()
@@ -292,57 +293,38 @@ func gribiClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*fl
 // 100% loss.
 //
 // TODO: Packets should be validated to arrive at ATE with destination MAC pMAC.
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, goodFlow, badFlow string) {
+func validateTrafficFlows(t *testing.T, goodFlow, badFlow string) {
 
-	config := ate.OTG().FetchConfig(t)
-	waitOTGARPEntry(t)
-	ate.OTG().StartTraffic(t)
+	otg := ondatra.ATE(t, "ate").OTG()
+	config := otg.FetchConfig(t)
+	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
-	ate.OTG().StopTraffic(t)
+	otg.StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, ate.OTG(), config)
-	otgutils.LogPortMetrics(t, ate.OTG(), config)
-	if got := getLossPct(t, ate, goodFlow); got > 0 {
+	otgutils.LogFlowMetrics(t, otg, config)
+	otgutils.LogPortMetrics(t, otg, config)
+	if got := getLossPct(t, goodFlow); got > 0 {
 		t.Errorf("LossPct for flow %s: got %v, want 0", goodFlow, got)
 	}
-	if got := getLossPct(t, ate, badFlow); got < 100 {
+	if got := getLossPct(t, badFlow); got < 100 {
 		t.Errorf("LossPct for flow %s: got %v, want 100", badFlow, got)
 	}
 
 }
 
 // getLossPct returns the loss percentage for a given flow
-func getLossPct(t *testing.T, ate *ondatra.ATEDevice, flowName string) uint64 {
+func getLossPct(t *testing.T, flowName string) uint64 {
 	t.Helper()
-	recvMetric := ate.OTG().Telemetry().Flow(flowName).Get(t)
+	otg := ondatra.ATE(t, "ate").OTG()
+	recvMetric := otg.Telemetry().Flow(flowName).Get(t)
 	txPackets := recvMetric.GetCounters().GetOutPkts()
 	rxPackets := recvMetric.GetCounters().GetInPkts()
 	lostPackets := txPackets - rxPackets
 	if txPackets == 0 {
-		t.Fatalf("Tx packets shold be higher than 0 for flow %s", flowName)
+		t.Fatalf("Tx packets should be higher than 0 for flow %s", flowName)
 	}
 	lossPct := lostPackets * 100 / txPackets
 	return lossPct
-}
-
-// addToOTG adds elements to a gosnappi configuration
-func addToOTG(top gosnappi.Config, ap *ondatra.Port, port, peer *attrs.Attributes) {
-	top.Ports().Add().SetName(ap.ID())
-	dev := top.Devices().Add().SetName(port.Name)
-	eth := dev.Ethernets().Add().SetName(port.Name + ".Eth")
-	eth.SetPortName(ap.ID()).SetMac(port.MAC)
-
-	if port.MTU > 0 {
-		eth.SetMtu(int32(port.MTU))
-	}
-	if port.IPv4 != "" {
-		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
-		ip.SetAddress(port.IPv4).SetGateway(peer.IPv4).SetPrefix(int32(port.IPv4Len))
-	}
-	if port.IPv6 != "" {
-		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv6")
-		ip.SetAddress(port.IPv6).SetGateway(peer.IPv6).SetPrefix(int32(port.IPv6Len))
-	}
 }
 
 // Waits for an ARP entry to be present for ATE Port1
