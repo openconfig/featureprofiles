@@ -102,8 +102,6 @@ func testTrafficSrc(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *
 
 	ate.Traffic().Stop(t)
 
-	time.Sleep(time.Minute)
-
 }
 func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
 	ethHeader := ondatra.NewEthernetHeader()
