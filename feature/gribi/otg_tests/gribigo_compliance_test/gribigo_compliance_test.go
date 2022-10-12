@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -31,11 +32,10 @@ import (
 )
 
 var (
-	skipFIBACK           = flag.Bool("skip_fiback", false, "skip tests that rely on FIB ACK")
-	skipSrvReorder       = flag.Bool("skip_reordering", true, "skip tests that rely on server side transaction reordering")
-	skipImplicitReplace  = flag.Bool("skip_implicit_replace", true, "skip tests for ADD operations that perform implicit replacement of existing entries")
-	skipIdempotentDelete = flag.Bool("skip_idempotent_delete", true, "Skip tests for idempotent DELETE operations")
-	skipNonDefaultNINHG  = flag.Bool("skip_non_default_ni_nhg", true, "skip tests that add entries to non-default network-instance")
+	skipFIBACK          = flag.Bool("skip_fiback", false, "skip tests that rely on FIB ACK")
+	skipSrvReorder      = flag.Bool("skip_reordering", true, "skip tests that rely on server side transaction reordering")
+	skipImplicitReplace = flag.Bool("skip_implicit_replace", true, "skip tests for ADD operations that perform implicit replacement of existing entries")
+	skipNonDefaultNINHG = flag.Bool("skip_non_default_ni_nhg", true, "skip tests that add entries to non-default network-instance")
 
 	nonDefaultNI = flag.String("non_default_ni", "non-default-vrf", "non-default network-instance name")
 
@@ -57,16 +57,19 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.1",
 		IPv4Len: 31,
 	}
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.3",
 		IPv4Len: 31,
 	}
 	atePort3 = attrs.Attributes{
 		Name:    "atePort3",
+		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.5",
 		IPv4Len: 31,
 	}
@@ -92,8 +95,6 @@ func shouldSkip(tt *compliance.TestSpec) string {
 		return "This RequiresImplicitReplace test is skipped by --skip_implicit_replace"
 	case *skipNonDefaultNINHG && tt.In.RequiresNonDefaultNINHG:
 		return "This RequiresNonDefaultNINHG test is skipped by --skip_non_default_ni_nhg"
-	case *skipIdempotentDelete && tt.In.RequiresIdempotentDelete:
-		return "This RequiresIdempotentDelete test is skipped by --skip_idempotent_delete"
 	}
 	return moreSkipReasons[tt.In.ShortName]
 }
@@ -171,18 +172,39 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configreATE configures port1-3 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	top := ate.OTG().NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
 	p3 := ate.Port(t, "port3")
 
-	atePort1.AddToATE(top, p1, &dutPort1)
-	atePort2.AddToATE(top, p2, &dutPort2)
-	atePort3.AddToATE(top, p3, &dutPort3)
+	addToOTG(top, p1, &atePort1, &dutPort1)
+	addToOTG(top, p2, &atePort2, &dutPort2)
+	addToOTG(top, p3, &atePort3, &dutPort3)
 
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	return top
+}
+
+// addToOTG adds elements to a gosnappi configuration
+func addToOTG(top gosnappi.Config, ap *ondatra.Port, port, peer *attrs.Attributes) {
+	top.Ports().Add().SetName(ap.ID())
+	dev := top.Devices().Add().SetName(port.Name)
+	eth := dev.Ethernets().Add().SetName(port.Name + ".Eth")
+	eth.SetPortName(ap.ID()).SetMac(port.MAC)
+
+	if port.MTU > 0 {
+		eth.SetMtu(int32(port.MTU))
+	}
+	if port.IPv4 != "" {
+		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+		ip.SetAddress(port.IPv4).SetGateway(peer.IPv4).SetPrefix(int32(port.IPv4Len))
+	}
+	if port.IPv6 != "" {
+		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv6")
+		ip.SetAddress(port.IPv6).SetGateway(peer.IPv6).SetPrefix(int32(port.IPv6Len))
+	}
 }
