@@ -114,10 +114,13 @@ func verifyNodeConfig(t *testing.T, nodeTelemetry *device.DevicePath, port *onda
 	} else {
 		t.Errorf("LLDP SystemName is not proper, got %s", state.GetSystemName())
 	}
-	if conf.GetInterface(port.Name()).GetName() != state.GetInterface(port.Name()).GetName() {
-		t.Errorf("LLDP interfaces/interface/state/name got: %s, want: %s.", state.GetInterface(port.Name()).GetName(),
-			conf.GetInterface(port.Name()).GetName())
+	if lldpEnabled {
+		if conf.GetInterface(port.Name()).GetName() != state.GetInterface(port.Name()).GetName() {
+			t.Errorf("LLDP interfaces/interface/state/name got: %s, want: %s.", state.GetInterface(port.Name()).GetName(),
+				conf.GetInterface(port.Name()).GetName())
+		}
 	}
+
 }
 
 // verifyNodeTelemetry verifies the telemetry values from the node such as port LLDP neighbor info.
