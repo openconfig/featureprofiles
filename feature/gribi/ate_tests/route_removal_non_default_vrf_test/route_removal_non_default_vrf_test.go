@@ -104,7 +104,6 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 
 	ateTop.Push(t).StartProtocols(t)
 	configureNetworkInstance(t, dut)
-	configureDUT(t, dut)
 
 	// Configure the gRIBI client clientA with election ID of 10.
 	clientA := &gribi.Client{
@@ -347,7 +346,9 @@ func networkInstance(t *testing.T, name string) *telemetry.NetworkInstance {
 	ni := d.GetOrCreateNetworkInstance(name)
 	ni.Description = ygot.String("Non Default routing instance created for testing")
 	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	ni.Enabled = ygot.Bool(true)
+	if !*deviations.VRFEnabled {
+		ni.Enabled = ygot.Bool(true)
+	}
 	ni.EnabledAddressFamilies = []telemetry.E_Types_ADDRESS_FAMILY{telemetry.Types_ADDRESS_FAMILY_IPV4, telemetry.Types_ADDRESS_FAMILY_IPV6}
 	return ni
 }

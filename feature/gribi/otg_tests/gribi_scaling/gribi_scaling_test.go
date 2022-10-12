@@ -288,7 +288,9 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *telemetry.Device, vrfs [
 		// entire VRF tree so the instance is created.
 		i := d.GetOrCreateNetworkInstance(vrf)
 		i.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		i.Enabled = ygot.Bool(true)
+		if !*deviations.VRFEnabled {
+			i.Enabled = ygot.Bool(true)
+		}
 		i.EnabledAddressFamilies = []telemetry.E_Types_ADDRESS_FAMILY{
 			telemetry.Types_ADDRESS_FAMILY_IPV4,
 			telemetry.Types_ADDRESS_FAMILY_IPV6,

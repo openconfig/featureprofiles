@@ -230,7 +230,9 @@ func configureNetworkInstance(t *testing.T) {
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) *telemetry.NetworkInstance_Protocol_Static {
 	d := &telemetry.Device{}
 	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
-	ni1.Enabled = ygot.Bool(true)
+	if !*deviations.VRFEnabled {
+		ni1.Enabled = ygot.Bool(true)
+	}
 	ni1.Name = ygot.String(*deviations.DefaultNetworkInstance)
 	ni1.Description = ygot.String("Static route added by gNMI-OC")
 	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC")
