@@ -69,7 +69,7 @@ import "flag"
 var (
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
-	
+
 	InterfaceOperStatus = flag.Bool("deviation_interface_operstatus", false,
 		"Device generates Interface_OperStatus_DOWN instead of Interface_OperStatus_LOWER_LAYER_DOWN for an aggregated link.")
 
