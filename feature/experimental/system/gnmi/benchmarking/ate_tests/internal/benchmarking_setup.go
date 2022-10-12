@@ -46,7 +46,7 @@ const (
 	routeCount            = 1
 	advertiseBGPRoutesv4  = "203.0.113.1"
 	authPassword          = "ISISAuthPassword"
-	advertiseISISRoutesv4 = "205.0.113.1"
+	advertiseISISRoutesv4 = "203.1.113.1"
 	isisInstance          = "DEFAULT"
 	bgpMed                = 25
 	isisMed               = 100
@@ -119,7 +119,8 @@ func createGNMIUpdate(map1 string, map2 string, configElem []M) *gpb.Update {
 
 	v, err := json.Marshal(j)
 	if err != nil {
-		fmt.Errorf("Marshal of intf config failed with unexpected error: %v", err)
+		err1 := fmt.Errorf("Marshal of intf config failed with unexpected error: %v", err)
+		fmt.Println(err1.Error())
 	}
 	update := &gpb.Update{
 		Path: &gpb.Path{Elem: []*gpb.PathElem{}},
@@ -223,7 +224,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) {
 func createGNMISetRequest(j map[string]interface{}) *gpb.SetRequest {
 	v, err := json.Marshal(j)
 	if err != nil {
-		fmt.Errorf("Marshal of intf config failed with unexpected error: %v", err)
+		err1 := fmt.Errorf("Marshal of intf config failed with unexpected error: %v", err)
+		fmt.Println(err1.Error())		
 	}
 
 	update := &gpb.Update{
