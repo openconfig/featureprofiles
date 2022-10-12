@@ -46,7 +46,7 @@ const (
 	routeCount            = 1
 	advertiseBGPRoutesv4  = "203.0.113.1"
 	authPassword          = "ISISAuthPassword"
-	advertiseISISRoutesv4 = "203.1.113.1"
+	advertiseISISRoutesv4 = "198.18.0.0"
 	isisInstance          = "DEFAULT"
 	bgpMed                = 25
 	isisMed               = 100
