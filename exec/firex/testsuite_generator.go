@@ -19,6 +19,7 @@ type GoTest struct {
 	Patch      string
 	Args       []string
 	Timeout    int
+	Skip       bool
 	ShouldFail bool
 }
 
@@ -28,6 +29,7 @@ type FirexTest struct {
 	Owner    string
 	Priority string
 	Timeout  int
+	Skip     bool
 	Pyvxr    struct {
 		Topology string
 	}
@@ -157,7 +159,7 @@ func main() {
 		suite = append(suite, t)
 	}
 
-	// remove untargeted tests
+	// Targeted mode: remove untargeted tests
 	if len(testNames) > 0 {
 		targetedTests := map[string]bool{}
 		for _, t := range testNames {
@@ -174,6 +176,25 @@ func main() {
 			}
 			suite[i].Tests = keptTests
 		}
+	} else {
+		// Normal mode: remove skipped tests
+		for i := range suite {
+			keptTests := []GoTest{}
+			for j := range suite[i].Tests {
+				if !suite[i].Tests[j].Skip {
+					keptTests = append(keptTests, suite[i].Tests[j])
+				}
+			}
+			suite[i].Tests = keptTests
+		}
+
+		kepSuite := []FirexTest{}
+		for i := range suite {
+			if !suite[i].Skip && len(suite[i].Tests) > 0 {
+				kepSuite = append(kepSuite, suite[i])
+			}
+		}
+		suite = kepSuite
 	}
 
 	// adjust timeouts
