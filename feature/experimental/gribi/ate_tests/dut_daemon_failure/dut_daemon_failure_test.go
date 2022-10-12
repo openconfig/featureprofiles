@@ -131,46 +131,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// testTraffic generates traffic flow from source network to
-// destination network via srcEndPoint to dstEndPoint and checks for
-// packet loss. The boolean flag wantLoss could be used to check
-// either for 100% loss (when set to true) or 0% loss (when set to false).
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface, wantLoss bool) {
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.DstAddressRange().
-		WithMin("203.0.113.1").
-		WithMax("203.0.113.250").
-		WithCount(250)
-
-	flow := ate.Traffic().NewFlow("Flow").
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint).
-		WithHeaders(ethHeader, ipv4Header)
-
-	ate.Traffic().Start(t, flow)
-	time.Sleep(15 * time.Second)
-	ate.Traffic().Stop(t)
-
-	time.Sleep(time.Minute)
-
-	flowPath := ate.Telemetry().Flow(flow.Name())
-
-	if !wantLoss {
-		if got := flowPath.LossPct().Get(t); got != 0 {
-			t.Errorf("FAIL: LossPct for flow named %s got %g, want 0", flow.Name(), got)
-		} else {
-			t.Logf("LossPct for flow named %s got %g, want 0", flow.Name(), got)
-		}
-	} else {
-		if got := flowPath.LossPct().Get(t); got != 100 {
-			t.Errorf("FAIL: LossPct for flow named %s got %g, want 100", flow.Name(), got)
-		} else {
-			t.Logf("LossPct for flow named %s got %g, want 100", flow.Name(), got)
-		}
-	}
-}
-
 // startTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint.
 // Returns the flow object that it creates.
@@ -241,7 +201,12 @@ func verifyTraffic(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify by running traffic that %s is active", ateDstNetCIDR)
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	dstEndPoint := args.top.Interfaces()[atePort2.Name]
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint, false)
+
+	flow := startTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+	t.Logf("Wait for 15 seconds")
+	time.Sleep(15 * time.Second)
+	stopAndVerifyTraffic(t, args.ate, flow)
+
 }
 
 // verifyGribiGet verifies through gRIBI Get RPC if a route is present on the DUT.
