@@ -78,6 +78,12 @@ var (
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 	}
+
+	gRIBIDaemons = map[ondatra.Vendor]string{
+		ondatra.ARISTA:  "Gribi",
+		ondatra.CISCO:   "emsd",
+		ondatra.JUNIPER: "rpd",
+	}
 )
 
 // configInterfaceDUT configures the DUT interfaces.
@@ -209,15 +215,15 @@ func verifyTraffic(ctx context.Context, t *testing.T, args *testArgs) {
 
 }
 
-// verifyGribiGet verifies through gRIBI Get RPC if a route is present on the DUT.
-func verifyGribiGet(ctx context.Context, t *testing.T, clientA *gribi.Client) {
+// verifyGRIBIGet verifies through gRIBI Get RPC if a route is present on the DUT.
+func verifyGRIBIGet(ctx context.Context, t *testing.T, clientA *gribi.Client) {
 	t.Logf("Verify through gRIBI Get RPC that %s is present", ateDstNetCIDR)
 	getResponse, err := clientA.Fluent(t).Get().WithNetworkInstance(*deviations.DefaultNetworkInstance).WithAFT(fluent.IPv4).Send()
 	if err != nil {
 		t.Errorf("Cannot Get: %v", err)
 	}
 	entries := getResponse.GetEntry()
-	var found bool = false
+	var found bool
 	for _, entry := range entries {
 		v := entry.Entry.(*grps.AFTEntry_Ipv4)
 		if prefix := v.Ipv4.GetPrefix(); prefix != "" {
@@ -244,12 +250,30 @@ func gNOIKillProcess(ctx context.Context, t *testing.T, args *testArgs, pName st
 	}
 }
 
+// findProcessByName uses telemetry to find out the PID of a process
+func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) uint64 {
+	pList := dut.Telemetry().System().ProcessAny().Get(t)
+	var pID uint64
+	for _, proc := range pList {
+		if proc.GetName() == pName {
+			pID = proc.GetPid()
+			t.Logf("Pid of daemon '%s' is '%d'", pName, pID)
+		}
+	}
+	return pID
+}
+
 func TestDUTDaemonFailure(t *testing.T) {
 
 	start := time.Now()
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	var flow *ondatra.Flow
+
+	// Check if vendor specific gRIBI daemon name has been added to gRIBIDaemons var
+	if _, ok := gRIBIDaemons[dut.Vendor()]; !ok {
+		t.Fatalf("Please add support for vendor %v in var gRIBIDaemons", dut.Vendor())
+	}
 
 	// Configure the DUT.
 	t.Logf("Configure DUT")
@@ -270,7 +294,7 @@ func TestDUTDaemonFailure(t *testing.T) {
 		top: top,
 	}
 
-	t.Run("SetupGribiConnection", func(t *testing.T) {
+	t.Run("SetupGRIBIConnection", func(t *testing.T) {
 
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to true.
@@ -316,31 +340,18 @@ func TestDUTDaemonFailure(t *testing.T) {
 
 	})
 
-	t.Run("KillGribiDaemon", func(t *testing.T) {
+	t.Run("KillGRIBIDaemon", func(t *testing.T) {
 
 		// Find the PID of gRIBI Daemon.
-		var pName string = "unknown"
 		var pId uint64
-		t.Run("FindGribiDaemonPid", func(t *testing.T) {
-			switch dut.Vendor() {
-			case ondatra.JUNIPER:
-				pName = "rpd"
-			case ondatra.CISCO:
-				pName = "emsd"
-			case ondatra.ARISTA:
-				pName = "Gribi"
-			}
+		pName := gRIBIDaemons[dut.Vendor()]
+		t.Run("FindGRIBIDaemonPid", func(t *testing.T) {
 
-			// Fetch the list of processes through telemetry.
-			pList := dut.Telemetry().System().ProcessAny().Get(t)
-			for _, proc := range pList {
-				if proc.GetName() == pName {
-					pId = proc.GetPid()
-					t.Logf("Pid of gRIBI daemon '%s' is '%d'", pName, pId)
-				}
-			}
+			pId = findProcessByName(ctx, t, dut, pName)
 			if pId == 0 {
-				t.Errorf("Couldn't find pid of gRIBI daemon '%s'", pName)
+				t.Fatalf("Couldn't find pid of gRIBI daemon '%s'", pName)
+			} else {
+				t.Logf("Pid of gRIBI daemon '%s' is '%d'", pName, pId)
 			}
 		})
 
@@ -383,8 +394,8 @@ func TestDUTDaemonFailure(t *testing.T) {
 			t.Fatalf("gRIBI Connection for clientA could not be re-established")
 		}
 
-		t.Run("VerifyGribiGet", func(t *testing.T) {
-			verifyGribiGet(ctx, t, clientA)
+		t.Run("VerifyGRIBIGet", func(t *testing.T) {
+			verifyGRIBIGet(ctx, t, clientA)
 		})
 
 	})
