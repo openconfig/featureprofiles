@@ -30,7 +30,7 @@ cat >/tmp/testbed.kne.yml << EOF
 username: admin
 password: admin
 topology: ${PWD}/topologies/kne/arista_ceos.textproto
-cli: ${HOME}/go/bin/kne
+cli: /usr/local/bin/kne
 EOF
 go test -v feature/system/tests/*.go -kne-config /tmp/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
 go test -v feature/system/ntp/tests/*.go -kne-config /tmp/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
