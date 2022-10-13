@@ -130,7 +130,7 @@ func createGNMIUpdate(map1 string, map2 string, configElem []M) *gpb.Update {
 }
 
 // buildOCInterfaceUpdate function is to build  OC config for interfaces.
-// It reads ports from binding file and returns gpb update message 
+// It reads ports from binding file and returns gpb update message
 // which will have configurations for all the ports.
 func buildOCInterfaceUpdate(t *testing.T) *gpb.Update {
 	dut := ondatra.DUT(t, "dut")
@@ -225,7 +225,7 @@ func createGNMISetRequest(j map[string]interface{}) *gpb.SetRequest {
 	v, err := json.Marshal(j)
 	if err != nil {
 		err1 := fmt.Errorf("Marshal of intf config failed with unexpected error: %v", err)
-		fmt.Println(err1.Error())		
+		fmt.Println(err1.Error())
 	}
 
 	update := &gpb.Update{
