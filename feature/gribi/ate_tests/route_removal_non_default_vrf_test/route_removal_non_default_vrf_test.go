@@ -346,7 +346,7 @@ func networkInstance(t *testing.T, name string) *telemetry.NetworkInstance {
 	ni := d.GetOrCreateNetworkInstance(name)
 	ni.Description = ygot.String("Non Default routing instance created for testing")
 	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	if !*deviations.VRFEnabled {
+	if !*deviations.VRFMissingEnabled {
 		ni.Enabled = ygot.Bool(true)
 	}
 	ni.EnabledAddressFamilies = []telemetry.E_Types_ADDRESS_FAMILY{telemetry.Types_ADDRESS_FAMILY_IPV4, telemetry.Types_ADDRESS_FAMILY_IPV6}
