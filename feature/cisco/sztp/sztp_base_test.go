@@ -15,10 +15,10 @@ import (
 )
 
 var (
-	sshIP   = flag.String("ssh_ip", "173.39.51.67", "External IP address of management interface.")
-	sshPort = flag.String("ssh_port", "5000", "External Port of management interface")
-	sshUser = flag.String("ssh_user", "cafyauto", "External username for ssh")
-	sshPass = flag.String("ssh_pass", "cisco123", "External password for ssh")
+	sshIP   = flag.String("ssh_ip", "", "External IP address of management interface.")
+	sshPort = flag.String("ssh_port", "", "External Port of management interface")
+	sshUser = flag.String("ssh_user", "", "External username for ssh")
+	sshPass = flag.String("ssh_pass", "", "External password for ssh")
 )
 
 const maxRebootTime = 40 // 40 mins wait time for the factory reset and sztp to kick in
