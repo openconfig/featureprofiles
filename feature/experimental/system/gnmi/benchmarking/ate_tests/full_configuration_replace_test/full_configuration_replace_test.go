@@ -19,10 +19,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/ate_tests/internal/benchmarking_setup"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/ate_tests/internal/benchmarking_setup"
 )
 
 func TestMain(m *testing.M) {
@@ -57,8 +57,7 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 
 // modIntfDesc builds OC config to modify description of a subset of interfaces.
 func modIntfDesc(t *testing.T) *gpb.Update {
-	type M map[string]interface{}
-	var intfConfig []M
+	var intfConfig []benchmarking_setup.M
 
 	dut := ondatra.DUT(t, "dut")
 	dutPorts := sortPorts(dut.Ports())
