@@ -1,9 +1,8 @@
-package sztp_test
+package sztp_base_test
 
 import (
 	"context"
 	"encoding/base64"
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,6 +12,7 @@ import (
 
 	"crypto/tls"
 	"crypto/x509"
+
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
@@ -28,12 +28,6 @@ var (
 	client_ca_dir  = client_ssh_dir
 	hostname, _    = os.Hostname()
 	ztp_timeout    = 10 * time.Minute
-)
-var (
-	sshIP   = flag.String("ssh_ip", "", "External IP address of management interface.")
-	sshPort = flag.String("ssh_port", "", "External Port of management interface")
-	sshUser = flag.String("ssh_user", "", "External username for ssh")
-	sshPass = flag.String("ssh_pass", "", "External password for ssh")
 )
 
 // generates an rsa key pair in client_ssh_dir
@@ -151,7 +145,8 @@ func TestDiskEn(t *testing.T) {
 		}
 		t.Logf(resp)
 		t.Log("Waiting for the box to reload")
-		time.Sleep(8 * time.Minute)
+		time.Sleep(2 * time.Minute)
+		DeviceBootStatus(t, dut)
 		t.Log("Executing disk-encryption after reload")
 		dut1 := ondatra.DUT(t, "dut")
 		cli_handle1 := dut1.RawAPIs().CLI(t)
@@ -250,7 +245,8 @@ func TestSZTP(t *testing.T) {
 	t.Logf("%v\n", ztp_resp)
 
 	t.Logf("Sleep (%v) - allowing ztp and reload to complete\n\n", ztp_timeout)
-	time.Sleep(9 * time.Minute)
+	time.Sleep(2 * time.Minute)
+	DeviceBootStatus(t, dut)
 	dut_new := ondatra.DUT(t, "dut")
 	cli_handle_new := dut_new.RawAPIs().CLI(t)
 
