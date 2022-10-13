@@ -83,22 +83,18 @@ func checkFiles(t *testing.T, dut *ondatra.DUTDevice) {
 
 func DeviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
 	startReboot := time.Now()
-	//t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-	fmt.Print("Wait for DUT to boot up by polling the telemetry output.")
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
 	for {
 		var currentTime string
-		//t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
-		fmt.Printf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
+		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
 
 		time.Sleep(3 * time.Minute)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = dut.Telemetry().System().CurrentDatetime().Get(t)
 		}); errMsg != nil {
-			//t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-			fmt.Printf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
 		} else {
-			//t.Logf("Device rebooted successfully with received time: %v", currentTime)
-			fmt.Printf("Device rebooted successfully with received time: %v", currentTime)
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
 			break
 		}
 
@@ -107,5 +103,4 @@ func DeviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
-	fmt.Printf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 }
