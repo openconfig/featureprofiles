@@ -15,6 +15,7 @@ import (
 // GoTest represents a single go test
 type GoTest struct {
 	Name       string
+	Owner      string
 	Path       string
 	Patch      string
 	Args       []string
@@ -66,11 +67,11 @@ var (
 		"join": strings.Join,
 	}).Parse(`
 {{- range $i, $ft := $.TestSuite }}
-{{- if gt (len $ft.Tests) 0 }}
-{{- .Name }}:
+{{- range $j, $gt := $ft.Tests}}
+{{ $gt.Name }}:
     framework: b4_fp
     owners:
-        - {{ $ft.Owner }}
+        - {{ $gt.Owner }}
     {{- if eq $ft.Priority "low" }}
     priority: BCT
     {{- else if eq $ft.Priority "high" }}
@@ -104,7 +105,6 @@ var (
             {{- end }}
         {{- end }}
     script_paths:
-        {{- range $j, $gt := $ft.Tests}}
         - {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}:
             test_path: {{ $gt.Path }}
             {{- if $gt.Args }}
@@ -114,7 +114,6 @@ var (
             test_patch: {{ $gt.Patch }}
             {{- end }}
             test_timeout: {{ $gt.Timeout }}
-        {{- end }}
     fp_post_tests:
         {{- range $j, $gt := $ft.Posttests}}
         - {{ $gt.Name }}:
@@ -197,13 +196,15 @@ func main() {
 		suite = kepSuite
 	}
 
-	// adjust timeouts
+	// adjust timeouts & owners
 	for i := range suite {
-		if suite[i].Timeout > 0 {
-			for j := range suite[i].Tests {
-				if suite[i].Tests[j].Timeout == 0 {
-					suite[i].Tests[j].Timeout = suite[i].Timeout
-				}
+		for j := range suite[i].Tests {
+			if suite[i].Timeout > 0 && suite[i].Tests[j].Timeout == 0 {
+				suite[i].Tests[j].Timeout = suite[i].Timeout
+			}
+
+			if len(suite[i].Owner) > 0 && len(suite[i].Tests[j].Owner) == 0 {
+				suite[i].Tests[j].Owner = suite[i].Owner
 			}
 		}
 	}
