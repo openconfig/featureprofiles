@@ -100,11 +100,11 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 				if test.expectPass {
 					if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
-						t.Errorf("Not all the packets are received.")
+						t.Fatalf("Not all the packets are received.")
 					}
 				} else {
 					if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
-						t.Errorf("Unexpected packets are received.")
+						t.Fatalf("Unexpected packets are received.")
 					}
 				}
 				time.Sleep(20 * time.Second)
@@ -142,11 +142,11 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 				if test.expectPass {
 					if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
-						t.Errorf("Not all the packets are received.")
+						t.Fatalf("Not all the packets are received.")
 					}
 				} else {
 					if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
-						t.Errorf("Unexpected packets are received.")
+						t.Fatalf("Unexpected packets are received.")
 					}
 				}
 				time.Sleep(20 * time.Second)
