@@ -90,18 +90,17 @@ func TestStaticRouteSingleDestinationPort(t *testing.T) {
 			Description: ygot.String(attributes.Desc),
 		}
 
-		ifCfg.GetSubinterface(0).
-			GetIpv4().
+		ifCfg.GetOrCreateSubinterface(0).
+			GetOrCreateIpv4().
 			GetOrCreateAddress(attributes.IPv4).PrefixLength = ygot.Uint8(attributes.IPv4Len)
 
 		dut.Config().Interface(name).Update(t, ifCfg)
 	}
 
 	ni := &telemetry.NetworkInstance{}
-	h := ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").
+	ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").
 		GetOrCreateStatic("10.0.0.0/24").
-		GetOrCreateNextHop("h")
-	h.NextHop = telemetry.UnionString(atePorts["port2"].IPv4)
+		GetOrCreateNextHop("h").NextHop = telemetry.UnionString(atePorts["port2"].IPv4)
 
 	dut.Config().NetworkInstance("default").Update(t, ni)
 
