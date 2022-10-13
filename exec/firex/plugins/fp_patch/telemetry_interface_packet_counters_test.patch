@@ -1,5 +1,5 @@
 diff --git a/feature/gnmi/ate_tests/telemetry_interface_packet_counters_test/telemetry_interface_packet_counters_test.go b/feature/gnmi/ate_tests/telemetry_interface_packet_counters_test/telemetry_interface_packet_counters_test.go
-index 293fc1ff..9bc2de9d
+index 293fc1ff..dd89e1d1
 --- a/feature/gnmi/ate_tests/telemetry_interface_packet_counters_test/telemetry_interface_packet_counters_test.go
 +++ b/feature/gnmi/ate_tests/telemetry_interface_packet_counters_test/telemetry_interface_packet_counters_test.go
 @@ -138,16 +138,17 @@ func TestInterfaceCounters(t *testing.T) {
@@ -30,7 +30,56 @@ index 293fc1ff..9bc2de9d
  	}}
  
  	for _, tc := range cases {
-@@ -341,25 +342,28 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
+@@ -206,17 +207,22 @@ func TestIntfCounterUpdate(t *testing.T) {
+ 		WithFrameRatePct(15)
+ 
+ 	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
+-	i1 := dut.Telemetry().Interface(dp1.Name())
++	// CSCwc72236
++	//i1 := dut.Telemetry().Interface(dp1.Name())
++	i1 := dut.Telemetry().Interface(dp1.Name()).Counters().Get(t)
+ 	// subintf1 := i1.Subinterface(0)
+ 	dutInPktsBeforeTraffic := map[string]uint64{
+-		"parent": i1.Counters().InUnicastPkts().Get(t),
++		//"parent": i1.Counters().InUnicastPkts().Get(t),
++		"parent": i1.GetInUnicastPkts(),
+ 		// "ipv4":   subintf1.Ipv4().Counters().InPkts().Get(t),
+ 		// "ipv6":   subintf1.Ipv6().Counters().InPkts().Get(t),
+ 	}
+-	i2 := dut.Telemetry().Interface(dp2.Name())
++	//i2 := dut.Telemetry().Interface(dp2.Name())
++	i2 := dut.Telemetry().Interface(dp2.Name()).Counters().Get(t)
+ 	// subintf2 := i2.Subinterface(0)
+ 	dutOutPktsBeforeTraffic := map[string]uint64{
+-		"parent": i2.Counters().OutUnicastPkts().Get(t),
++		//"parent": i2.Counters().OutUnicastPkts().Get(t),
++		"parent": i2.GetOutUnicastPkts(),
+ 		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
+ 		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
+ 	}
+@@ -269,14 +275,19 @@ func TestIntfCounterUpdate(t *testing.T) {
+ 		}
+ 	}
+ 
++	// CSCwc72236
++	i1 = dut.Telemetry().Interface(dp1.Name()).Counters().Get(t)
++	i2 = dut.Telemetry().Interface(dp2.Name()).Counters().Get(t)
+ 	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
+ 	dutInPktsAfterTraffic := map[string]uint64{
+-		"parent": i1.Counters().InUnicastPkts().Get(t),
++		//"parent": i1.Counters().InUnicastPkts().Get(t),
++		"parent": i1.GetInUnicastPkts(),
+ 		// "ipv4":   subintf1.Ipv4().Counters().InPkts().Get(t),
+ 		// "ipv6":   subintf1.Ipv6().Counters().InPkts().Get(t),
+ 	}
+ 	dutOutPktsAfterTraffic := map[string]uint64{
+-		"parent": i2.Counters().OutUnicastPkts().Get(t),
++		//"parent": i2.Counters().OutUnicastPkts().Get(t),
++		"parent": i2.GetOutUnicastPkts(),
+ 		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
+ 		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
+ 	}
+@@ -341,25 +352,28 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
  		// per: https://github.com/openconfig/featureprofiles/issues/253
  		i.Enabled = ygot.Bool(true)
  		s.Enabled = ygot.Bool(true)
@@ -69,7 +118,7 @@ index 293fc1ff..9bc2de9d
  
  	dut := ondatra.DUT(t, "dut")
  	dp := dut.Port(t, "port2")
-@@ -374,7 +378,7 @@ func TestInterfaceCPU(t *testing.T) {
+@@ -374,7 +388,7 @@ func TestInterfaceCPU(t *testing.T) {
  
  func TestInterfaceMgmt(t *testing.T) {
  	// TODO: Enable interface management test case here after bug is fixed.
