@@ -119,7 +119,7 @@ func CreateGNMIUpdate(map1 string, map2 string, configElem []M) *gpb.Update {
 
 	v, err := json.Marshal(j)
 	if err != nil {
-		err1 := fmt.Errorf("Marshal of intf config failed with unexpected error: %v", err)
+		err1 := fmt.Errorf("marshal of intf config failed with unexpected error: %v", err)
 		fmt.Println(err1.Error())
 	}
 	update := &gpb.Update{
@@ -224,7 +224,7 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 func CreateGNMISetRequest(j map[string]interface{}) *gpb.SetRequest {
 	v, err := json.Marshal(j)
 	if err != nil {
-		err1 := fmt.Errorf("Marshal of intf config failed with unexpected error: %v", err)
+		err1 := fmt.Errorf("marshal of intf config failed with unexpected error: %v", err)
 		fmt.Println(err1.Error())
 	}
 
