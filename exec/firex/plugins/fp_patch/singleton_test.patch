@@ -1,5 +1,5 @@
 diff --git a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
-index 45e54c2d..e7f89948
+index 45e54c2d..7e2e7e1c
 --- a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
 +++ b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
 @@ -123,16 +123,19 @@ var portSpeed = map[ondatra.Speed]telemetry.E_IfEthernet_ETHERNET_SPEED{
@@ -64,25 +64,38 @@ index 45e54c2d..e7f89948
  	}
  }
  
-@@ -369,9 +373,14 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
- 	// fragment the packet unless DF bit is set.  IPv6 never fragments.
- 	// Under no circumstances should DUT send packets greater than MTU.
+@@ -307,7 +311,7 @@ func diffCounters(before, after *counters) *counters {
  
--	octets := fpc.InOctets().Get(t) // Flow does not report out-octets.
--	outPkts := fpc.OutPkts().Get(t)
--	inPkts := fpc.InPkts().Get(t)
-+	// CSCwc72236
-+	fpcounters := fpc.Get(t)
-+	//octets := fpc.InOctets().Get(t) // Flow does not report out-octets.
-+	//outPkts := fpc.OutPkts().Get(t)
-+	//inPkts := fpc.InPkts().Get(t)
-+	octets := fpcounters.GetInOctets()
-+	outPkts := fpcounters.GetOutPkts()
-+	inPkts := fpcounters.GetInPkts()
+ // testFlow returns whether the traffic flow from ATE port1 to ATE
+ // port2 has been successfully detected.
+-func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.Header) bool {
++func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.Header, pktlmtu bool) bool {
+ 	i1 := tc.top.Interfaces()[ateSrc.Name]
+ 	i2 := tc.top.Interfaces()[ateDst.Name]
+ 	p1 := tc.dut.Port(t, "port1")
+@@ -372,13 +376,19 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
+ 	octets := fpc.InOctets().Get(t) // Flow does not report out-octets.
+ 	outPkts := fpc.OutPkts().Get(t)
+ 	inPkts := fpc.InPkts().Get(t)
++
  	if outPkts == 0 {
  		t.Error("Flow did not send any packet")
  	} else if avg := octets / outPkts; avg > uint64(tc.mtu) {
-@@ -388,7 +397,9 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
+ 		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
+ 	}
+-	if p1InDiff.unicast < outPkts {
+-		t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
++
++	if pktlmtu {
++		t.Logf("Skipping packet check for packets larger than MTU")
++	} else {
++		if p1InDiff.unicast < outPkts {
++			t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
++		}
+ 	}
+ 
+ 	if inPkts == 0 {
+@@ -388,7 +398,9 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
  	} else if avg := octets / inPkts; avg > uint64(tc.mtu) {
  		t.Errorf("Flow destination packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
  	}
@@ -93,8 +106,38 @@ index 45e54c2d..e7f89948
  		t.Errorf("ATE received too few destination packets: got %d, want >= %d", inPkts, p2OutDiff.unicast)
  	}
  	t.Logf("flow loss-pct %f", fp.LossPct().Get(t))
+@@ -416,17 +428,17 @@ func (tc *testCase) testMTU(t *testing.T) {
+ 				if c.shouldFrag {
+ 					t.Skip("Packet fragmentation is not expected at line rate.")
+ 				}
+-				if got := tc.testFlow(t, tc.mtu+64, c.ipHeader); got {
++				if got := tc.testFlow(t, tc.mtu+64, c.ipHeader, true); got {
+ 					t.Errorf("Traffic flow got %v, want false", got)
+ 				}
+ 			})
+ 			t.Run("PacketExactlyMTU", func(t *testing.T) {
+-				if got := tc.testFlow(t, tc.mtu, c.ipHeader); !got {
++				if got := tc.testFlow(t, tc.mtu, c.ipHeader, false); !got {
+ 					t.Errorf("Traffic flow got %v, want true", got)
+ 				}
+ 			})
+ 			t.Run("PacketSmallerThanMTU", func(t *testing.T) {
+-				if got := tc.testFlow(t, tc.mtu-64, c.ipHeader); !got {
++				if got := tc.testFlow(t, tc.mtu-64, c.ipHeader, false); !got {
+ 					t.Errorf("Traffic flow got %v, want true", got)
+ 				}
+ 			})
+@@ -486,7 +498,7 @@ func TestNegotiate(t *testing.T) {
+ 			t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t) })
+ 			t.Run("VerifyATE", func(t *testing.T) { tc.verifyATE(t) })
+ 			t.Run("Traffic", func(t *testing.T) {
+-				if got := tc.testFlow(t, tc.mtu, ondatra.NewIPv6Header()); !got {
++				if got := tc.testFlow(t, tc.mtu, ondatra.NewIPv6Header(), false); !got {
+ 					t.Errorf("Traffic flow got %v, want true", got)
+ 				}
+ 			})
 diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
-index 9ff35c71..aecc3f8c
+index 7aa75769..25d5b7f5 100644
 --- a/internal/deviations/deviations.go
 +++ b/internal/deviations/deviations.go
 @@ -67,6 +67,10 @@ import "flag"
