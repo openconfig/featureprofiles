@@ -404,8 +404,7 @@ func (a *testArgs) createFlow(name string, dst *attrs.Attributes) *ondatra.Flow 
 
 func (a *testArgs) validateAftTelemetry(t *testing.T) {
 	aftPfxNHG := a.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(dstPfx).NextHopGroup()
-	// CSCwc69142(CSC.ena,Update,cms)AFT shall use ON_CHANGE for TARGET_DEFINED mode
-	aftPfxNHGVal, found := aftPfxNHG.Watch(t, 60*time.Second, func(val *telemetry.QualifiedUint64) bool {
+	aftPfxNHGVal, found := aftPfxNHG.Watch(t, 10*time.Second, func(val *telemetry.QualifiedUint64) bool {
 		// Do nothing in this matching function, as we already filter on the prefix.
 		return true
 	}).Await(t)
