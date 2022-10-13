@@ -220,7 +220,18 @@ func TestIntfCounterUpdate(t *testing.T) {
 		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
 		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
 	}
-
+	if *deviations.CounterLeavesNotUpdated {
+		dutInPktsBeforeTraffic = map[string]uint64{
+			"parent": *i1.Counters().Get(t).InUnicastPkts,
+			// "ipv4":   *subintf1.Ipv4().Counters().Get(t).InPkts,
+			// "ipv6":   subintf1.Ipv6().Counters().Get(t).InPkts,
+		}
+		dutOutPktsBeforeTraffic = map[string]uint64{
+			"parent": *i2.Counters().Get(t).OutUnicastPkts,
+			// "ipv4":   *subintf2.Ipv4().Counters().Get(t).OutPkts,
+			// "ipv6":   *subintf2.Ipv6().Counters().Get(t).OutPkts,
+		}
+	}
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	t.Logf("inPkts: %v and outPkts: %v before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 	ate.Traffic().Start(t, ipv4Flow, ipv6Flow)
@@ -279,6 +290,18 @@ func TestIntfCounterUpdate(t *testing.T) {
 		"parent": i2.Counters().OutUnicastPkts().Get(t),
 		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
 		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
+	}
+	if *deviations.CounterLeavesNotUpdated {
+		dutInPktsAfterTraffic = map[string]uint64{
+			"parent": *i1.Counters().Get(t).InUnicastPkts,
+			// "ipv4":   *subintf1.Ipv4().Counters().Get(t).InPkts,
+			// "ipv6":   *subintf1.Ipv6().Counters().Get(t).InPkts,
+		}
+		dutOutPktsAfterTraffic = map[string]uint64{
+			"parent": *i2.Counters().Get(t).OutUnicastPkts,
+			// "ipv4":   *subintf2.Ipv4().Counters().Get(t).OutPkts,
+			// "ipv6":   *subintf2.Ipv6().Counters().Get(t).OutPkts,
+		}
 	}
 
 	t.Logf("inPkts: %v and outPkts: %v after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
