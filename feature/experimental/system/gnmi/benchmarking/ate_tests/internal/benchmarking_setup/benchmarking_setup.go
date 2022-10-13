@@ -67,7 +67,7 @@ type M map[string]interface{}
 
 // buildIPPool is to Build pool of ip addresses for both DUT and ATE interfaces.
 // It reads ports given in binding file to calculate ip addresses needed.
-func buildIPPool(t *testing.T) {
+func BuildIPPool(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	var dutIPIndex, ipSubnet, ateIPIndex int = 1, 2, 2
 	var endSubnetIndex int = 253
@@ -107,9 +107,9 @@ func nextIP(ip net.IP, ipIndex int, subnetIndex int) net.IP {
 	return net.ParseIP(s)
 }
 
-// createGNMIUpdate is to create GNMI update message . It will marshal the input
+// CreateGNMIUpdate is to create GNMI update message . It will marshal the input
 // strings provided and return gpb update message to the calling function.
-func createGNMIUpdate(map1 string, map2 string, configElem []M) *gpb.Update {
+func CreateGNMIUpdate(map1 string, map2 string, configElem []M) *gpb.Update {
 
 	j := map[string]interface{}{
 		map1: map[string]interface{}{
@@ -129,10 +129,10 @@ func createGNMIUpdate(map1 string, map2 string, configElem []M) *gpb.Update {
 	return update
 }
 
-// buildOCInterfaceUpdate function is to build  OC config for interfaces.
+// BuildOCInterfaceUpdate function is to build  OC config for interfaces.
 // It reads ports from binding file and returns gpb update message
 // which will have configurations for all the ports.
-func buildOCInterfaceUpdate(t *testing.T) *gpb.Update {
+func BuildOCInterfaceUpdate(t *testing.T) *gpb.Update {
 	dut := ondatra.DUT(t, "dut")
 	var intfConfig []M
 
@@ -173,13 +173,13 @@ func buildOCInterfaceUpdate(t *testing.T) *gpb.Update {
 		intfConfig = append(intfConfig, elem)
 	}
 
-	update := createGNMIUpdate("interfaces", "interface", intfConfig)
+	update := CreateGNMIUpdate("interfaces", "interface", intfConfig)
 	return update
 }
 
-// configureATE function is to configure ate ports with ipv4 , bgp
+// ConfigureATE function is to configure ate ports with ipv4 , bgp
 // and isis peers.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) {
+func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 	topo := ate.Topology().New()
 
 	for _, dp := range ate.Ports() {
@@ -219,9 +219,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) {
 	topo.StartProtocols(t)
 }
 
-// createGNMISetRequest function is to create GNMI setRequest message
+// CreateGNMISetRequest function is to create GNMI setRequest message
 // and returns gnmi set request to the calling function.
-func createGNMISetRequest(j map[string]interface{}) *gpb.SetRequest {
+func CreateGNMISetRequest(j map[string]interface{}) *gpb.SetRequest {
 	v, err := json.Marshal(j)
 	if err != nil {
 		err1 := fmt.Errorf("Marshal of intf config failed with unexpected error: %v", err)
@@ -241,8 +241,8 @@ func createGNMISetRequest(j map[string]interface{}) *gpb.SetRequest {
 	return gpbSetRequest
 }
 
-// configureGNMISetRequest function to used to configure GNMI setRequest on DUT.
-func configureGNMISetRequest(t *testing.T, gpbSetRequest *gpb.SetRequest) {
+// ConfigureGNMISetRequest function to used to configure GNMI setRequest on DUT.
+func ConfigureGNMISetRequest(t *testing.T, gpbSetRequest *gpb.SetRequest) {
 	dut := ondatra.DUT(t, "dut")
 	//t.Log("gnmiClient Set for OC modelled config")
 	//t.Log(gpbSetRequest)
@@ -258,7 +258,7 @@ func configureGNMISetRequest(t *testing.T, gpbSetRequest *gpb.SetRequest) {
 
 // buildOCBGPUpdate function to used build OC config for configuring
 // bgp on DUT , one peer for one physical interface will be configured.
-func buildOCBGPUpdate(t *testing.T) *gpb.Update {
+func BuildOCBGPUpdate(t *testing.T) *gpb.Update {
 	dut := ondatra.DUT(t, "dut")
 	var bgpNbrConfig []M
 	for _, dp := range dut.Ports() {
@@ -325,13 +325,13 @@ func buildOCBGPUpdate(t *testing.T) *gpb.Update {
 		},
 	}
 
-	update := createGNMIUpdate("network-instances", "network-instance", niConfig)
+	update := CreateGNMIUpdate("network-instances", "network-instance", niConfig)
 	return update
 }
 
 // buildOCISISUpdate function to used build OC ISIS configs
 // on DUT , one isis peer per port is configured.
-func buildOCISISUpdate(t *testing.T) *gpb.Update {
+func BuildOCISISUpdate(t *testing.T) *gpb.Update {
 	dut := ondatra.DUT(t, "dut")
 	var isisIntfConfig []M
 	for _, dp := range dut.Ports() {
@@ -453,13 +453,13 @@ func buildOCISISUpdate(t *testing.T) *gpb.Update {
 		},
 	}
 
-	update := createGNMIUpdate("network-instances", "network-instance", niConfig)
+	update := CreateGNMIUpdate("network-instances", "network-instance", niConfig)
 	return update
 }
 
-// verifyISISTelemetry function to used verify ISIS telemetry on DUT
+// VerifyISISTelemetry function to used verify ISIS telemetry on DUT
 // using OC isis telemetry path.
-func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
+func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "DEFAULT").Isis()
 	for _, dp := range dut.Ports() {
 		nbrPath := statePath.Interface(dp.Name())
@@ -474,9 +474,9 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// verifyBgpTelemetry function to verify BGP telemetry on DUT using
+// VerifyBgpTelemetry function to verify BGP telemetry on DUT using
 // BGP OC telemetry path.
-func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
+func VerifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	for _, peerAddr := range ateIPPool {
 		nbrIP := peerAddr.String()

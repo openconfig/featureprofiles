@@ -76,27 +76,27 @@ func modIntfDesc(t *testing.T) *gpb.Update {
 		}
 	}
 
-	update := benchmarking_setup.createGNMIUpdate("interfaces", "interface", intfConfig)
+	update := benchmarking_setup.CreateGNMIUpdate("interfaces", "interface", intfConfig)
 	return update
 }
 
 func TestGnmiFullConfigReplace(t *testing.T) {
 
-	benchmarking_setup.buildIPPool(t)
+	benchmarking_setup.BuildIPPool(t)
 
 	// Building gNMI Set request payload to configure interfaces, ISIS and BGP protocols
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{
-			benchmarking_setup.buildOCInterfaceUpdate(t),
-			benchmarking_setup.buildOCISISUpdate(t),
-			benchmarking_setup.buildOCBGPUpdate(t),
+			benchmarking_setup.BuildOCInterfaceUpdate(t),
+			benchmarking_setup.BuildOCISISUpdate(t),
+			benchmarking_setup.BuildOCBGPUpdate(t),
 		},
 	}
 
 	t.Logf("Sending gNMI Set request to configure interfaces, ISIS and BGP protocols")
 	//Start the timer.
 	start := time.Now()
-	benchmarking_setup.configureGNMISetRequest(t, gpbSetRequest)
+	benchmarking_setup.ConfigureGNMISetRequest(t, gpbSetRequest)
 
 	//End the timer and calculate time.
 	elapsed := time.Since(start)
@@ -112,7 +112,7 @@ func TestGnmiFullConfigReplace(t *testing.T) {
 
 	//Start the timer.
 	start = time.Now()
-	benchmarking_setup.configureGNMISetRequest(t, gpbSetRequest)
+	benchmarking_setup.ConfigureGNMISetRequest(t, gpbSetRequest)
 
 	//End the timer and calculate time.
 	elapsed = time.Since(start)
