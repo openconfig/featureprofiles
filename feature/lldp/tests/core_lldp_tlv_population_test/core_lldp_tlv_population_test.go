@@ -99,14 +99,20 @@ func verifyNodeConfig(t *testing.T, nodeTelemetry *device.DevicePath, port *onda
 	if lldpEnabled != state.GetEnabled() {
 		t.Errorf("LLDP enabled got: %t, want: %t.", state.GetEnabled(), lldpEnabled)
 	}
-	if conf.GetChassisId() != state.GetChassisId() {
-		t.Errorf("LLDP ChassisId got: %s, want: %s.", state.GetChassisId(), conf.GetChassisId())
+	if state.GetChassisId() != "" {
+		t.Logf("LLDP ChassisId got: %s", state.GetChassisId())
+	} else {
+		t.Errorf("LLDP chassisID is not proper, got %s", state.GetChassisId())
 	}
-	if conf.GetChassisIdType() != state.GetChassisIdType() {
-		t.Errorf("LLDP ChassisIdType got: %s, want: %s.", state.GetChassisIdType(), conf.GetChassisIdType())
+	if state.GetChassisIdType() != 0 {
+		t.Logf("LLDP ChassisIdType got: %s", state.GetChassisIdType())
+	} else {
+		t.Errorf("LLDP chassisIdType is not proper, got %s", state.GetChassisIdType())
 	}
-	if conf.GetSystemName() != state.GetSystemName() {
-		t.Errorf("LLDP SystemName got: %s, want: %s.", state.GetSystemName(), conf.GetSystemName())
+	if state.GetSystemName() != "" {
+		t.Logf("LLDP SystemName got: %s", state.GetSystemName())
+	} else {
+		t.Errorf("LLDP SystemName is not proper, got %s", state.GetSystemName())
 	}
 	if conf.GetInterface(port.Name()).GetName() != state.GetInterface(port.Name()).GetName() {
 		t.Errorf("LLDP interfaces/interface/state/name got: %s, want: %s.", state.GetInterface(port.Name()).GetName(),
