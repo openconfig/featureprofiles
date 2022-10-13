@@ -330,3 +330,37 @@ func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Inter
 	a.PrefixLength = ygot.Uint8(prefixlen)
 	return s
 }
+
+func FaultInjectionMechanism(t *testing.T, lcNumber string, componentName string, faultPointNumber string, returnValue string, activate bool){
+	dut := ondatra.DUT(t, "dut")
+		if activate {
+			sshString := "172.0."+lcNumber+".1"
+			t.Logf("%v", sshString)
+			fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf("do run ssh -oStrictHostKeyChecking=no %s /pkg/bin/fim_cli -c %s -a %s:%s",sshString,componentName,faultPointNumber,returnValue))
+
+			t.Logf("%v",fimRes)
+			if strings.Contains(fimRes, fmt.Sprintf("Enabling FP#%s", faultPointNumber)){
+				t.Logf("Successfull Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
+			} else {
+				t.Errorf("FaultPointNumber for component %v on faultnumber %v not enabled", componentName, faultPointNumber)
+			}
+			if err != nil {
+				t.Error(err)
+			}
+		} else {
+			sshString := "172.0."+lcNumber+".1"
+			t.Logf("%v", sshString)
+
+			fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf("do run ssh -oStrictHostKeyChecking=no %s /pkg/bin/fim_cli -c %s -r %s:%s",sshString,componentName,faultPointNumber,returnValue))
+			t.Logf("%v",fimRes)
+			if strings.Contains(fimRes, fmt.Sprintf("Disabling FP#%s", faultPointNumber)){
+				t.Logf("Successfull Disabled Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
+			} else {
+				t.Errorf("FaultPointNumber for component %v on faultnumber %v not disabled", componentName, faultPointNumber)
+			}
+			if err != nil {
+				t.Error(err)
+			}				
+		}
+}
+
