@@ -39,8 +39,8 @@ try:
                     for port in session.Ixnetwork.Vport.find():
                         if not port.AssignedTo:
                              continue
-                        chassis, card, port = port.AssignedTo.split(':')
-                        pname = card + '/' + port
+                        chassis, card, p = port.AssignedTo.split(':')
+                        pname = card + '/' + p
                         if chassis == hostname and pname in targetPorts:
                             print(f'Port {pname} assigned; releasing...')
                             port.ReleasePort()
