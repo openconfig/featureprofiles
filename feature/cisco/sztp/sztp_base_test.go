@@ -28,7 +28,6 @@ func TestMain(m *testing.M) {
 
 // creating files before factory reset
 func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
-	NewSSHconnection(t)
 	cli := dut.RawAPIs().CLI(t)
 	for _, folderPath := range devicePaths {
 		fPath := path.Join(folderPath, "devrandom.log")
