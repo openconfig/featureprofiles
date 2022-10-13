@@ -57,6 +57,7 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 
 // modIntfDesc builds OC config to modify description of a subset of interfaces.
 func modIntfDesc(t *testing.T) *gpb.Update {
+	type M map[string]interface{}
 	var intfConfig []M
 
 	dut := ondatra.DUT(t, "dut")
