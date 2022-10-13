@@ -27,20 +27,20 @@ var (
 			IPv6Len: 127,
 			Desc:    "DUT port 2 to ATE port 2",
 		},
-		"port3": {
-			IPv4:    "192.0.2.32",
-			IPv6:    "2001:db8::32",
-			IPv4Len: 31,
-			IPv6Len: 127,
-			Desc:    "DUT port 3 to ATE port 3",
-		},
-		"port4": {
-			IPv4:    "192.0.2.42",
-			IPv6:    "2001:db8::42",
-			IPv4Len: 31,
-			IPv6Len: 127,
-			Desc:    "DUT port 4 to ATE port 4",
-		},
+		// "port3": {
+		// 	IPv4:    "192.0.2.32",
+		// 	IPv6:    "2001:db8::32",
+		// 	IPv4Len: 31,
+		// 	IPv6Len: 127,
+		// 	Desc:    "DUT port 3 to ATE port 3",
+		// },
+		// "port4": {
+		// 	IPv4:    "192.0.2.42",
+		// 	IPv6:    "2001:db8::42",
+		// 	IPv4Len: 31,
+		// 	IPv6Len: 127,
+		// 	Desc:    "DUT port 4 to ATE port 4",
+		// },
 	}
 
 	atePorts = map[string]attrs.Attributes{
@@ -58,20 +58,20 @@ var (
 			IPv4Len: 31,
 			IPv6Len: 127,
 		},
-		"port3": {
-			IPv4:    "192.0.2.33",
-			IPv6:    "2001:db8::33",
-			MAC:     "02:1a:c0:00:02:03",
-			IPv4Len: 31,
-			IPv6Len: 127,
-		},
-		"port4": {
-			IPv4:    "192.0.2.43",
-			IPv6:    "2001:db8::43",
-			MAC:     "02:1a:c0:00:02:04",
-			IPv4Len: 31,
-			IPv6Len: 127,
-		},
+		// "port3": {
+		// 	IPv4:    "192.0.2.33",
+		// 	IPv6:    "2001:db8::33",
+		// 	MAC:     "02:1a:c0:00:02:03",
+		// 	IPv4Len: 31,
+		// 	IPv6Len: 127,
+		// },
+		// "port4": {
+		// 	IPv4:    "192.0.2.43",
+		// 	IPv6:    "2001:db8::43",
+		// 	MAC:     "02:1a:c0:00:02:04",
+		// 	IPv4Len: 31,
+		// 	IPv6Len: 127,
+		// },
 	}
 )
 
@@ -89,7 +89,7 @@ func TestStaticRouteSingleDestinationPort(t *testing.T) {
 			Name:        ygot.String(name),
 			Description: ygot.String(attributes.Desc),
 		}
-
+		// ifCfg.GetOrCreateSubinterface(0).GetOrCreateIpv4().Enabled = ygot.Bool(true)
 		ifCfg.GetOrCreateSubinterface(0).
 			GetOrCreateIpv4().
 			GetOrCreateAddress(attributes.IPv4).PrefixLength = ygot.Uint8(attributes.IPv4Len)
@@ -125,11 +125,11 @@ func TestStaticRouteSingleDestinationPort(t *testing.T) {
 	flow.Metrics().SetEnable(true)
 	endpoint := flow.Packet().Add().Ipv4()
 	endpoint.Src().SetValue(atePorts["port1"].IPv4)
-	endpoint.Dst().SetValue("10.0.0.0")
+	endpoint.Dst().SetValue("1.0.0.25")
 	ate.OTG().PushConfig(t, top)
 
 	ate.OTG().StartTraffic(t)
-	time.Sleep(1 * time.Second)
+	time.Sleep(180 * time.Second)
 	ate.OTG().StopTraffic(t)
 
 	fp := ate.OTG().Telemetry().Flow(flow.Name()).Get(t)
