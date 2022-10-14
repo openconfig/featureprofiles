@@ -113,7 +113,7 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 				}
 				if len(opts) > 0 {
 					for _, opt := range opts {
-						if opt != nil && opt.FRR == true {
+						if opt != nil && opt.FRR {
 							continue
 						}
 					}
