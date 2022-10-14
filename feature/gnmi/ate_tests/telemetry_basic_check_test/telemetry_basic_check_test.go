@@ -712,7 +712,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	dutInPktsBeforeTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().InUnicastPkts().Get(t)
 	dutOutPktsBeforeTraffic := dut.Telemetry().Interface(dp2.Name()).Counters().OutUnicastPkts().Get(t)
-	if *deviations.CounterLeavesNotUpdated {
+	if *deviations.InterfaceCountersFromContainer {
 		dutInPktsBeforeTraffic = *dut.Telemetry().Interface(dp1.Name()).Counters().Get(t).InUnicastPkts
 		dutOutPktsBeforeTraffic = *dut.Telemetry().Interface(dp2.Name()).Counters().Get(t).OutUnicastPkts
 	}
@@ -750,7 +750,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 	dutInPktsAfterTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().InUnicastPkts().Get(t)
 	dutOutPktsAfterTraffic := dut.Telemetry().Interface(dp2.Name()).Counters().OutUnicastPkts().Get(t)
-	if *deviations.CounterLeavesNotUpdated {
+	if *deviations.InterfaceCountersFromContainer {
 		dutInPktsAfterTraffic = *dut.Telemetry().Interface(dp1.Name()).Counters().Get(t).InUnicastPkts
 		dutOutPktsAfterTraffic = *dut.Telemetry().Interface(dp2.Name()).Counters().Get(t).OutUnicastPkts
 	}
