@@ -35,7 +35,7 @@ tests:
 - name: RT-5.2 (Aggregate Interfaces) 
   path: feature/interface/aggregate/ate_tests/aggregate_test
   args: 
-      "-deviation_interface_operstatus=true"
+      - '-deviation_interface_operstatus="true"'
 - name: RT-5.1 (Singleton Interface) 
   path: feature/interface/singleton/ate_tests/singleton_test
   timeout: 7200
@@ -92,7 +92,7 @@ tests:
 - name: TE-2.1 (gRIBI IPv4 Entry) 
   path: feature/gribi/ate_tests/ipv4_entry_test
   args:
-      - "-deviation_gribi_preserve_only=true"
+      - '-deviation_gribi_preserve_only="true"'
 - name: TE-4.1 (Base Leader Election) 
   path: feature/gribi/ate_tests/base_leader_election_test
   patch: exec/firex/plugins/fp_patch/base_leader_election_test.patch
