@@ -329,6 +329,7 @@ func getLossPct(t *testing.T, flowName string) uint64 {
 
 // Waits for an ARP entry to be present for ATE Port1
 func waitOTGARPEntry(t *testing.T) {
+	t.Helper()
 	ate := ondatra.ATE(t, "ate")
 	ate.OTG().Telemetry().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
 		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
