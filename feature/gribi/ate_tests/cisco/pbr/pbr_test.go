@@ -133,11 +133,11 @@ func configSrcIpDscp(t *testing.T, dut *ondatra.DUTDevice, policyName string, ds
 }
 func UpdateOnlySrcIp(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
 	seq_id := uint32(SeqID)
-	dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Policy(policyName).Rule(seq_id).Ipv4().SourceAddress().Update(t, srcAddr)
+	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Rule(seq_id).Ipv4().SourceAddress().Update(t, srcAddr)
 }
 func ReplaceOnlySrcIp(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
 	seq_id := uint32(SeqID)
-	dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Policy(policyName).Rule(seq_id).Ipv4().SourceAddress().Update(t, srcAddr)
+	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Rule(seq_id).Ipv4().SourceAddress().Update(t, srcAddr)
 }
 func ReplaceSrcIpRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string, SeqID uint32) {
 
