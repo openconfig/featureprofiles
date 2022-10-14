@@ -1,5 +1,5 @@
 diff --git a/feature/bgp/tests/local_bgp_test/local_bgp_test.go b/feature/bgp/tests/local_bgp_test/local_bgp_test.go
-index 1d6cd71..81f385e 100644
+index 1d6cd71..46a81d5 100644
 --- a/feature/bgp/tests/local_bgp_test/local_bgp_test.go
 +++ b/feature/bgp/tests/local_bgp_test/local_bgp_test.go
 @@ -48,60 +48,88 @@ const (
@@ -257,7 +257,7 @@ index 1d6cd71..81f385e 100644
                 },
         }
         for _, tc := range cases {
-@@ -298,12 +332,15 @@ func TestParameters(t *testing.T) {
+@@ -298,12 +332,18 @@ func TestParameters(t *testing.T) {
                                 t.Skip(tc.skipMsg)
                         }
                         // Disable BGP
@@ -265,6 +265,9 @@ index 1d6cd71..81f385e 100644
 -                       ateConfPath.Replace(t, nil)
 +                       dutConfPath.Delete(t)
 +                       ateConfPath.Delete(t)
++
++                       // to accomodate pyvxr
++                       time.Sleep(5 * time.Second)
 +
                         // Renable and wait to establish
 +                       t.Log("Re-enable and wait to establish")
@@ -276,7 +279,7 @@ index 1d6cd71..81f385e 100644
                         stateDut := statePath.Get(t)
                         wantState := tc.wantState
                         if wantState == nil {
-@@ -311,6 +348,7 @@ func TestParameters(t *testing.T) {
+@@ -311,6 +351,7 @@ func TestParameters(t *testing.T) {
                                 wantState = tc.dutConf
                         }
                         confirm.State(t, wantState, stateDut)
@@ -284,3 +287,4 @@ index 1d6cd71..81f385e 100644
                 })
         }
  }
+ 
