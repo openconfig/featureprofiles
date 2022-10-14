@@ -1,23 +1,16 @@
-# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
-# proto-message: openconfig.testing.Binding
-
-# This is an example static binding that demonstrates how to specify
-# options to be used in conjunction with the atedut_*.testbed
-# testbeds.
-
-# These options are inherited throughout the entire binding for both the
-# DUT and the ATE, unless overridden by a specific device or protocol.
-options {
-  username: "username"
-  password: "password"
-}
-
 duts {
   id: "dut"
   name: "DUT"  # Change this to the device hostname.
 
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
+  # telnet: -  telnet 10.85.84.47 2001, 2002
+  # Mgmt : 5.18.17.20
+  # Location : 22-18-17
+
+  # Exec server:
+  # ssh ott2lab-as3
+
   options {
     insecure: false 
     skip_verify: true
