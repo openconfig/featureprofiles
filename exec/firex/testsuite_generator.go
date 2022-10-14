@@ -14,14 +14,14 @@ import (
 
 // GoTest represents a single go test
 type GoTest struct {
-	Name       string
-	Owner      string
-	Path       string
-	Patch      string
-	Args       []string
-	Timeout    int
-	Skip       bool
-	ShouldFail bool
+	Name     string
+	Owner    string
+	Path     string
+	Patch    string
+	Args     []string
+	Timeout  int
+	Skip     bool
+	MustPass bool
 }
 
 // FirexTest represents a single firex test suite
@@ -114,6 +114,7 @@ var (
             test_patch: {{ $gt.Patch }}
             {{- end }}
             test_timeout: {{ $gt.Timeout }}
+            test_must_pass: {{ $gt.MustPass }}
     fp_post_tests:
         {{- range $j, $gt := $ft.Posttests}}
         - {{ $gt.Name }}:
