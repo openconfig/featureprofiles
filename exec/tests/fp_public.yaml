@@ -86,6 +86,7 @@ tests:
   path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
 - name: RT-1.7 (Local BGP Test) 
   path: feature/bgp/tests/local_bgp_test
+  patch: exec/firex/plugins/fp_patch/local_bgp_test.patch
 - name: RT-1.2 (BGP Policy & Route Installation) 
   path: feature/bgp/policybase/ate_tests/route_installation_test
 - name: TE-2.1 (gRIBI IPv4 Entry) 
