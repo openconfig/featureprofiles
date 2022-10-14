@@ -56,9 +56,12 @@ const (
 )
 
 var (
-	dutIPPool = make(map[string]net.IP)
-	ateIPPool = make(map[string]net.IP)
+	DutIPPool = make(map[string]net.IP)
+	AteIPPool = make(map[string]net.IP)
 )
+
+// type M is used in all functions for gnmi related functions.
+type M map[string]interface{}
 
 // BuildIPPool is to Build pool of ip addresses for both DUT and ATE interfaces.
 // It reads ports given in binding file to calculate ip addresses needed.
@@ -69,8 +72,8 @@ func BuildIPPool(t *testing.T) {
 	for _, dp := range dut.Ports() {
 		dutNextIP := nextIP(net.ParseIP(dutStartIPAddr), dutIPIndex, ipSubnet)
 		ateNextIP := nextIP(net.ParseIP(ateStartIPAddr), ateIPIndex, ipSubnet)
-		dutIPPool[dp.ID()] = dutNextIP
-		ateIPPool[dp.ID()] = ateNextIP
+		DutIPPool[dp.ID()] = dutNextIP
+		AteIPPool[dp.ID()] = ateNextIP
 
 		// Increment dut and ate host ip index by 4
 		dutIPIndex = dutIPIndex + 4
@@ -123,7 +126,6 @@ func CreateGNMIUpdate(map1 string, map2 string, configElem []M) *gpb.Update {
 // which will have configurations for all the ports.
 func BuildOCInterfaceUpdate(t *testing.T) *gpb.Update {
 	dut := ondatra.DUT(t, "dut")
-	type M map[string]interface{}
 	var intfConfig []M
 
 	for _, dp := range dut.Ports() {
@@ -146,9 +148,9 @@ func BuildOCInterfaceUpdate(t *testing.T) *gpb.Update {
 							"addresses": map[string]interface{}{
 								"address": []M{
 									{
-										"ip": dutIPPool[dp.ID()],
+										"ip": DutIPPool[dp.ID()],
 										"config": map[string]interface{}{
-											"ip":            dutIPPool[dp.ID()],
+											"ip":            DutIPPool[dp.ID()],
 											"prefix-length": plenIPv4,
 										},
 									},
@@ -175,32 +177,32 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 	for _, dp := range ate.Ports() {
 		atePortAttr := attrs.Attributes{
 			Name:    "ate" + dp.ID(),
-			IPv4:    ateIPPool[dp.ID()].String(),
+			IPv4:    AteIPPool[dp.ID()].String(),
 			IPv4Len: plenIPv4,
 		}
 		iDut1 := topo.AddInterface(dp.Name()).WithPort(dp)
-		iDut1.IPv4().WithAddress(atePortAttr.IPv4CIDR()).WithDefaultGateway(dutIPPool[dp.ID()].String())
+		iDut1.IPv4().WithAddress(atePortAttr.IPv4CIDR()).WithDefaultGateway(DutIPPool[dp.ID()].String())
 
 		// Add BGP routes and ISIS routes , ate port1 is ingress port.
 		if dp.ID() == "port1" {
 			//port1 is ingress port.
 			// Add BGP on ATE
 			bgpDut1 := iDut1.BGP()
-			bgpDut1.AddPeer().WithPeerAddress(dutIPPool[dp.ID()].String()).WithLocalASN(ateAS2).
+			bgpDut1.AddPeer().WithPeerAddress(DutIPPool[dp.ID()].String()).WithLocalASN(ateAS2).
 				WithTypeExternal()
 
 			// Add BGP on ATE
 			isisDut1 := iDut1.ISIS()
-			isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(dutIPPool[dp.ID()].String()).WithAuthMD5(authPassword)
+			isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DutIPPool[dp.ID()].String()).WithAuthMD5(authPassword)
 
 			netCIDR := fmt.Sprintf("%s/%d", advertiseBGPRoutesv4, 32)
 			bgpNeti1 := iDut1.AddNetwork("bgpNeti1")
-			bgpNeti1.IPv4().WithAddress(netCIDR).WithCount(routeCount)
+			bgpNeti1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
 			bgpNeti1.BGP().WithNextHopAddress(atePortAttr.IPv4)
 
 			netCIDR = fmt.Sprintf("%s/%d", advertiseISISRoutesv4, 32)
 			isisnet1 := iDut1.AddNetwork("isisnet1")
-			isisnet1.IPv4().WithAddress(netCIDR).WithCount(routeCount)
+			isisnet1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
 			isisnet1.ISIS().WithActive(true).WithIPReachabilityMetric(20)
 
 			continue
@@ -208,12 +210,12 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 
 		// Add BGP on ATE
 		bgpDut1 := iDut1.BGP()
-		bgpDut1.AddPeer().WithPeerAddress(dutIPPool[dp.ID()].String()).WithLocalASN(ateAS).
+		bgpDut1.AddPeer().WithPeerAddress(DutIPPool[dp.ID()].String()).WithLocalASN(AteAS).
 			WithTypeExternal()
 
 		// Add BGP on ATE
 		isisDut1 := iDut1.ISIS()
-		isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(dutIPPool[dp.ID()].String()).WithAuthMD5(authPassword)
+		isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DutIPPool[dp.ID()].String()).WithAuthMD5(authPassword)
 
 	}
 
@@ -261,18 +263,17 @@ func ConfigureGNMISetRequest(t *testing.T, gpbSetRequest *gpb.SetRequest) {
 // bgp on DUT , one peer for one physical interface will be configured.
 func BuildOCBGPUpdate(t *testing.T) *gpb.Update {
 	dut := ondatra.DUT(t, "dut")
-	type M map[string]interface{}
 	var bgpNbrConfig []M
 	for _, dp := range dut.Ports() {
-		asNum := ateAS
+		asNum := AteAS
 		if dp.ID() == "port1" {
 			asNum = ateAS2
 		}
 		elem := map[string]interface{}{
-			"neighbor-address": ateIPPool[dp.ID()],
+			"neighbor-address": AteIPPool[dp.ID()],
 			"config": map[string]interface{}{
-				"peer-group":       peerGrpName,
-				"neighbor-address": ateIPPool[dp.ID()],
+				"peer-group":       PeerGrpName,
+				"neighbor-address": AteIPPool[dp.ID()],
 				"enabled":          true,
 				"peer-as":          asNum,
 			},
@@ -295,7 +296,7 @@ func BuildOCBGPUpdate(t *testing.T) *gpb.Update {
 						"bgp": map[string]interface{}{
 							"global": map[string]interface{}{
 								"config": map[string]interface{}{
-									"as":        dutAS,
+									"as":        DutAS,
 									"router-id": dutStartIPAddr,
 								},
 								"afi-safis": map[string]interface{}{
@@ -313,10 +314,10 @@ func BuildOCBGPUpdate(t *testing.T) *gpb.Update {
 							"peer-groups": map[string]interface{}{
 								"peer-group": []M{
 									{
-										"peer-group-name": peerGrpName,
+										"peer-group-name": PeerGrpName,
 										"config": map[string]interface{}{
-											"peer-group-name": peerGrpName,
-											"peer-as":         ateAS,
+											"peer-group-name": PeerGrpName,
+											"peer-as":         AteAS,
 										},
 									},
 								},
@@ -339,7 +340,6 @@ func BuildOCBGPUpdate(t *testing.T) *gpb.Update {
 // on DUT , one isis peer per port is configured.
 func BuildOCISISUpdate(t *testing.T) *gpb.Update {
 	dut := ondatra.DUT(t, "dut")
-	type M map[string]interface{}
 	var isisIntfConfig []M
 	for _, dp := range dut.Ports() {
 		elem1 := map[string]interface{}{
@@ -400,7 +400,7 @@ func BuildOCISISUpdate(t *testing.T) *gpb.Update {
 				"protocol": []M{
 					{
 						"identifier": "ISIS",
-						"name":       isisInstance,
+						"name":       IsisInstance,
 						"isis": map[string]interface{}{
 							"global": map[string]interface{}{
 								"config": map[string]interface{}{
@@ -485,7 +485,7 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 // BGP OC telemetry path.
 func VerifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	for _, peerAddr := range ateIPPool {
+	for _, peerAddr := range AteIPPool {
 		nbrIP := peerAddr.String()
 		nbrPath := statePath.Neighbor(nbrIP)
 
