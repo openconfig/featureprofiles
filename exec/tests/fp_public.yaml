@@ -42,6 +42,7 @@ tests:
   patch: exec/firex/plugins/fp_patch/singleton_test.patch
 - name: gNMI-1.5 (Telemetry Port Speed Test) 
   path: feature/gnmi/ate_tests/telemetry_port_speed_test
+  patch: exec/firex/plugins/fp_patch/telemetry_port_speed_test.patch
 - name: gNMI-1.10 (Telemetry Basic Check) 
   path: feature/gnmi/ate_tests/telemetry_basic_check_test
   patch: exec/firex/plugins/fp_patch/telemetry_basic_check_test.patch
