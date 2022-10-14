@@ -113,11 +113,12 @@ func TestStaticRouteSingleDestinationPort(t *testing.T) {
 		dut.Config().Interface(pn).Update(t, ifCfg)
 	}
 
-	ni := &telemetry.NetworkInstance{}
-	ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").
-		GetOrCreateStatic("10.0.0.0/24").
-		GetOrCreateNextHop("h").NextHop = telemetry.UnionString(atePorts["port2"].IPv4)
-	dut.Config().NetworkInstance("default").Update(t, ni)
+	for port := range atePorts {
+		if port == "port1" {
+			continue
+		}
+		
+	}
 
 	//  Configure an ATE
 
@@ -143,45 +144,58 @@ func TestStaticRouteSingleDestinationPort(t *testing.T) {
 		"100.100.64.24": true,
 	}
 
-	for dst, want := range destinations {
-		t.Run(fmt.Sprintf("dst_%s", dst), func(t *testing.T) {
-			// Reset the flows to remove any previous ones.
-			top.Flows().Clear().Items()
-			// Configure the flow.
-			flow := top.Flows().Add().SetName("Flow")
-			flow.TxRx().Device().SetTxNames([]string{"port1.IPv4"}).SetRxNames([]string{"port2.IPv4"})
-			flow.Metrics().SetEnable(true)
 
-			// Add an Ethernet header with the source address of the ATE.
-			e1 := flow.Packet().Add().Ethernet()
-			e1.Src().SetValue(atePorts["port1"].MAC)
+	for dstport := range atePorts {
+		if dstport == "port1" {
+			continue
+		}
 
-			endpoint := flow.Packet().Add().Ipv4()
-			endpoint.Src().SetValue(atePorts["port1"].IPv4)
-			endpoint.Dst().SetValue(dst)
-			ate.OTG().PushConfig(t, top)
+		ni := &telemetry.NetworkInstance{}
+		ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").
+			GetOrCreateStatic("10.0.0.0/24").
+			GetOrCreateNextHop("h").NextHop = telemetry.UnionString(atePorts[dstport].IPv4)
+		dut.Config().NetworkInstance("default").Update(t,ni)
 
-			ate.OTG().StartTraffic(t)
-			time.Sleep(10 * time.Second)
-			ate.OTG().StopTraffic(t)
+		for dstaddr, want := range destinations {
+			t.Run(fmt.Sprintf("dstaddr_%s_dstport_%s", dstaddr, dstport), func(t *testing.T) {
+				// Reset the flows to remove any previous ones.
+				top.Flows().Clear().Items()
+				// Configure the flow.
+				flow := top.Flows().Add().SetName("Flow")
+				flow.TxRx().Device().SetTxNames([]string{"port1.IPv4"}).SetRxNames([]string{dstport + ".IPv4"})
+				flow.Metrics().SetEnable(true)
 
-			fp := ate.OTG().Telemetry().Flow(flow.Name()).Get(t)
-			fpc := fp.GetCounters()
+				// Add an Ethernet header with the source address of the ATE.
+				e1 := flow.Packet().Add().Ethernet()
+				e1.Src().SetValue(atePorts["port1"].MAC)
 
-			outoctets := fpc.GetOutOctets()
-			outpkts := fpc.GetOutPkts()
-			inpkts := fpc.GetInPkts()
+				endpoint := flow.Packet().Add().Ipv4()
+				endpoint.Src().SetValue(atePorts["port1"].IPv4)
+				endpoint.Dst().SetValue(dstaddr)
+				ate.OTG().PushConfig(t, top)
 
-			t.Logf("Destination: %s, IPv4 Flow Details", dst)
-			t.Logf("outoctets are %d", outoctets)
-			t.Logf("inpkts are %d", inpkts)
-			t.Logf("outpkts are %d", outpkts)
-			lossPct := float32((outpkts - inpkts) * 100 / outpkts)
-			t.Logf("flow loss-pct %f", lossPct)
-			if (lossPct > 0) != want {
-				t.Fatalf("Destination: %s, got loss percentage: %2f, want loss? %v", dst, lossPct, want)
-			}
-		})
+				ate.OTG().StartTraffic(t)
+				time.Sleep(1 * time.Second)
+				ate.OTG().StopTraffic(t)
+
+				fp := ate.OTG().Telemetry().Flow(flow.Name()).Get(t)
+				fpc := fp.GetCounters()
+
+				outoctets := fpc.GetOutOctets()
+				outpkts := fpc.GetOutPkts()
+				inpkts := fpc.GetInPkts()
+
+				t.Logf("Destination: %s, Port: %s, IPv4 Flow Details", dstaddr, dstport)
+				t.Logf("outoctets are %d", outoctets)
+				t.Logf("inpkts are %d", inpkts)
+				t.Logf("outpkts are %d", outpkts)
+				lossPct := float32((outpkts - inpkts) * 100 / outpkts)
+				t.Logf("flow loss-pct %f", lossPct)
+				if (lossPct > 0) != want {
+					t.Fatalf("Destination: %s, got loss percentage: %2f, want loss? %v", dstaddr, lossPct, want)
+				}
+			})
+		}
 	}
 
 }
