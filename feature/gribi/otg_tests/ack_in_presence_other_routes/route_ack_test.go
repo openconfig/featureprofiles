@@ -231,7 +231,6 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 	nInst1 := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Get(t)
 	static := nInst1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
 	static.Enabled = ygot.Bool(true)
-	static.Identifier = telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
 	sr := static.GetOrCreateStatic(prefix)
 	nh := sr.GetOrCreateNextHop("nhg1")
 	nh.NextHop = fpoc.UnionString(nexthop)
