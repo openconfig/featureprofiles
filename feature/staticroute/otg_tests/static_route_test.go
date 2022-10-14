@@ -1,4 +1,18 @@
-package gnmi_test
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package otg_tests
 
 import (
 	"fmt"
@@ -28,20 +42,20 @@ var (
 			IPv6Len: 127,
 			Desc:    "DUT port 2 to ATE port 2",
 		},
-		// "port3": {
-		// 	IPv4:    "192.0.2.32",
-		// 	IPv6:    "2001:db8::32",
-		// 	IPv4Len: 31,
-		// 	IPv6Len: 127,
-		// 	Desc:    "DUT port 3 to ATE port 3",
-		// },
-		// "port4": {
-		// 	IPv4:    "192.0.2.42",
-		// 	IPv6:    "2001:db8::42",
-		// 	IPv4Len: 31,
-		// 	IPv6Len: 127,
-		// 	Desc:    "DUT port 4 to ATE port 4",
-		// },
+		"port3": {
+			IPv4:    "192.0.2.32",
+			IPv6:    "2001:db8::32",
+			IPv4Len: 31,
+			IPv6Len: 127,
+			Desc:    "DUT port 3 to ATE port 3",
+		},
+		"port4": {
+			IPv4:    "192.0.2.42",
+			IPv6:    "2001:db8::42",
+			IPv4Len: 31,
+			IPv6Len: 127,
+			Desc:    "DUT port 4 to ATE port 4",
+		},
 	}
 
 	atePorts = map[string]attrs.Attributes{
@@ -59,20 +73,20 @@ var (
 			IPv4Len: 31,
 			IPv6Len: 127,
 		},
-		// "port3": {
-		// 	IPv4:    "192.0.2.33",
-		// 	IPv6:    "2001:db8::33",
-		// 	MAC:     "02:1a:c0:00:02:03",
-		// 	IPv4Len: 31,
-		// 	IPv6Len: 127,
-		// },
-		// "port4": {
-		// 	IPv4:    "192.0.2.43",
-		// 	IPv6:    "2001:db8::43",
-		// 	MAC:     "02:1a:c0:00:02:04",
-		// 	IPv4Len: 31,
-		// 	IPv6Len: 127,
-		// },
+		"port3": {
+			IPv4:    "192.0.2.33",
+			IPv6:    "2001:db8::33",
+			MAC:     "02:1a:c0:00:02:03",
+			IPv4Len: 31,
+			IPv6Len: 127,
+		},
+		"port4": {
+			IPv4:    "192.0.2.43",
+			IPv6:    "2001:db8::43",
+			MAC:     "02:1a:c0:00:02:04",
+			IPv4Len: 31,
+			IPv6Len: 127,
+		},
 	}
 )
 
