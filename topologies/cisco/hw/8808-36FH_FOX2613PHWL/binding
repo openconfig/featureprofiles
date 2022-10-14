@@ -88,34 +88,34 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "10/37"  # Change this to the actual port name.
+    name: "10/26"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "10/39"  # Change this to the actual port name.
+    name: "10/28"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "10/36"  # Change this to the actual port name.
+    name: "10/25"  # Change this to the actual port name.
   }
   ports {
     id: "port4"
-    name: "10/38"  # Change this to the actual port name.
+    name: "10/27"  # Change this to the actual port name.
   }
   ports {
     id: "port5"
-    name: "10/40"  # Change this to the actual port name.
+    name: "10/29"  # Change this to the actual port name.
   }
   ports {
     id: "port6"
-    name: "10/42"  # Change this to the actual port name.
+    name: "10/31"  # Change this to the actual port name.
   }
   ports {
     id: "port7"
-    name: "10/43"  # Change this to the actual port name.
+    name: "10/32"  # Change this to the actual port name.
   }
   ports {
     id: "port8"
-    name: "10/41"  # Change this to the actual port name.
+    name: "10/30"  # Change this to the actual port name.
   }
 }
