@@ -83,7 +83,7 @@ func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInst
 	}
 }
 
-func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance string, nhWeights map[uint64]uint64) {
+func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance string, nhWeights map[uint64]uint64, opts ...*NHGOptions) {
 	t.Helper()
 	time.Sleep(time.Duration(*ciscoFlags.GRIBINHGTimer) * time.Second)
 	aftNHGs := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroupAny().Get(t)
@@ -111,9 +111,17 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 						t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got nh:weight %d:%d, want none", nhPIndex, nh.GetWeight())
 					}
 				}
-				for nhIndex, weight := range nhWeights {
-					// extra entry in nhWeights
-					t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got none, want nh:weight %d:%d", nhIndex, weight)
+				if len(opts) > 0 {
+					for _, opt := range opts {
+						if opt != nil && opt.FRR == true {
+							continue
+						}
+					}
+				} else {
+					for nhIndex, weight := range nhWeights {
+						// extra entry in nhWeights
+						t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got none, want nh:weight %d:%d", nhIndex, weight)
+					}
 				}
 			}
 			found = true
