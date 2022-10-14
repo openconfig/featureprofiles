@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/feature/system/gnmi/benchmarking/ate_tests/internal/setup"
+	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/ate_tests/internal/setup"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 )

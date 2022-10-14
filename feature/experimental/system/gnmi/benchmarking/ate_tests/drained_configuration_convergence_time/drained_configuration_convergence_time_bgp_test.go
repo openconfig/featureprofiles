@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/feature/system/gnmi/benchmarking/ate_tests/internal/setup"
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/ate_tests/internal/setup"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
