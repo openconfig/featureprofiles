@@ -45,10 +45,18 @@ tests:
   patch: exec/firex/plugins/fp_patch/telemetry_port_speed_test.patch
 - name: gNMI-1.10 (Telemetry Basic Check) 
   path: feature/gnmi/ate_tests/telemetry_basic_check_test
+  args:
+      - '-deviation_interface_counters_from_container="true"'
+      - '-deviation_ipv4_missing_enabled="true"'
+      - '-deviation_subinterface_packet_counters_missing="true"'
   patch: exec/firex/plugins/fp_patch/telemetry_basic_check_test.patch
 - name: gNMI-1.11 (Telemetry Interface Packet Counters) 
   path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
-  patch: exec/firex/plugins/fp_patch/telemetry_interface_packet_counters_test.patch
+  args:
+      - '-deviation_interface_counters_from_container="true"'
+      - '-deviation_ipv4_missing_enabled="true"'
+      - '-deviation_subinterface_packet_counters_missing="true"'
+  #patch: exec/firex/plugins/fp_patch/telemetry_interface_packet_counters_test.patch
 - name: RT-6.1 (Core LLDP TLV Population) 
   path: feature/lldp/tests/core_lldp_tlv_population_test
 - name: gNMI-1.4 (Telemetry Inventory) 
@@ -99,6 +107,8 @@ tests:
 - name: TE-4.2 (Leader Failover) 
   path: feature/gribi/ate_tests/leader_failover_test
   patch: exec/firex/plugins/fp_patch/leader_failover_test.patch
+  args:
+      - '-deviation_gribi_preserve_only="true"'
 - name: TE-5.1 (gRIBI Get RPC) 
   path: feature/gribi/ate_tests/get_rpc_test
   patch: exec/firex/plugins/fp_patch/get_rpc_test.patch
@@ -108,7 +118,6 @@ tests:
   path: feature/gribi/ate_tests/ordering_ack_test
 - name: TE-3.7 (Base Hierarchical NHG Update) 
   path: feature/gribi/ate_tests/base_hierarchical_nhg_update
-  patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
 - name: TE-6.1 (Route Removal via Flush) 
