@@ -14,7 +14,6 @@
 
 // drained_configuration_convergence_time_test is used to verify isis test scenarios
 // as given in gnmi 1.3 testcase
-
 package drained_configuration_convergence_time_test
 
 import (

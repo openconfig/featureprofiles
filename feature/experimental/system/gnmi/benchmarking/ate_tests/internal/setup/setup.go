@@ -15,7 +15,6 @@
 // Package setup is scoped only to be used for scripts in path
 // feature/experimental/system/gnmi/benchmarking/ate_tests/
 // Do not use elsewhere.
-
 package setup
 
 import (
@@ -39,15 +38,18 @@ import (
 // Some of the variables defined below like DutAS, AteAS, PeerGrpName
 // RouteCount and IsisInstance are used in other files which import
 // setup.go
-
 const (
-	DutAS                 = 64500
-	AteAS                 = 64501
-	ateAS2                = 64502
-	PeerGrpName           = "BGP-PEER-GROUP"
-	plenIPv4              = 30
-	dutStartIPAddr        = "192.0.2.1"
-	ateStartIPAddr        = "192.0.2.2"
+	// DutAS can be exported
+	DutAS = 64500
+	// AteAs can be exported
+	AteAS  = 64501
+	ateAS2 = 64502
+	// PeerGrpName can be exported
+	PeerGrpName    = "BGP-PEER-GROUP"
+	plenIPv4       = 30
+	dutStartIPAddr = "192.0.2.1"
+	ateStartIPAddr = "192.0.2.2"
+	// RouteCount can be exported
 	RouteCount            = 200
 	advertiseBGPRoutesv4  = "203.0.113.1"
 	authPassword          = "ISISAuthPassword"
@@ -56,11 +58,13 @@ const (
 )
 
 var (
+	// DutIPPool can be exported
 	DutIPPool = make(map[string]net.IP)
+	// AteIPPool can be exported
 	AteIPPool = make(map[string]net.IP)
 )
 
-// type M is used in all functions for gnmi related functions.
+// M is type variable and can be exported
 type M map[string]interface{}
 
 // BuildIPPool is to Build pool of ip addresses for both DUT and ATE interfaces.

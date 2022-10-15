@@ -14,7 +14,6 @@
 
 // drained_configuration_convergence_time_test is used to verify bgp test scenarios
 // as given in gnmi1.3 testcase.
-
 package drained_configuration_convergence_time_test
 
 import (
@@ -38,7 +37,6 @@ func TestMain(m *testing.M) {
 
 var (
 	asPathRepeatValue      = 3
-	aclStatement1          = "10"
 	aclStatement2          = "20"
 	aclStatement3          = "30"
 	setAspathPrependPolicy = "SET-ASPATH-PREPEND"
