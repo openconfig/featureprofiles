@@ -33,12 +33,11 @@ var (
 // setISISOverloadBit is used to configure isis overload bit to true
 // using gnmi setrequest.
 func setISISOverloadBit(t *testing.T) *gpb.Update {
-	type M map[string]interface{}
-	setBitConfig := []M{
+	setBitConfig := []setup.M{
 		{
 			"name": "DEFAULT",
 			"protocols": map[string]interface{}{
-				"protocol": []M{
+				"protocol": []setup.M{
 					{
 						"identifier": "ISIS",
 						"name":       setup.IsisInstance,
@@ -67,17 +66,16 @@ func setISISOverloadBit(t *testing.T) *gpb.Update {
 // gnmi set request.
 func setISISMetric(t *testing.T) *gpb.Update {
 	dut := ondatra.DUT(t, "dut")
-	type M map[string]interface{}
-	var isisIntfConfig []M
+	var isisIntfConfig []setup.M
 	for _, dp := range dut.Ports() {
 		elem1 := map[string]interface{}{
 			"interface-id": dp.Name(),
 			"levels": map[string]interface{}{
-				"level": []M{
+				"level": []setup.M{
 					{
 						"level-number": 2,
 						"afi-safi": map[string]interface{}{
-							"af": []M{
+							"af": []setup.M{
 								{
 									"afi-name":  "IPV4",
 									"safi-name": "UNICAST",
@@ -97,14 +95,14 @@ func setISISMetric(t *testing.T) *gpb.Update {
 		isisIntfConfig = append(isisIntfConfig, elem1)
 	}
 
-	setMetricConfig := []M{
+	setMetricConfig := []setup.M{
 		{
 			"name": "DEFAULT",
 			"config": map[string]interface{}{
 				"type": "DEFAULT_INSTANCE",
 			},
 			"protocols": map[string]interface{}{
-				"protocol": []M{
+				"protocol": []setup.M{
 					{
 						"identifier": "ISIS",
 						"name":       setup.IsisInstance,
