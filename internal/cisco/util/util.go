@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+	"fmt"
+	"strings"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
