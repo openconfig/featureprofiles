@@ -107,6 +107,8 @@ tests:
 - name: TE-4.2 (Leader Failover) 
   path: feature/gribi/ate_tests/leader_failover_test
   patch: exec/firex/plugins/fp_patch/leader_failover_test.patch
+  args:
+      - '-deviation_gribi_preserve_only="true"'
 - name: TE-5.1 (gRIBI Get RPC) 
   path: feature/gribi/ate_tests/get_rpc_test
   patch: exec/firex/plugins/fp_patch/get_rpc_test.patch
