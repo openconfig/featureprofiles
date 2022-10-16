@@ -33,7 +33,7 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 		fPath := path.Join(folderPath, "devrandom.log")
 		_, err := cli.SendCommand(context.Background(), fmt.Sprintf(fileCreateDevRand, fPath))
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		t.Log("Check if the file is created")
 		time.Sleep(30 * time.Second)
@@ -41,7 +41,7 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 		fPath = path.Join(folderPath, ".devrandom.log")
 		_, err = cli.SendCommand(context.Background(), fmt.Sprintf(fileCreateDevRand, fPath))
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 
 		}
 
@@ -49,7 +49,7 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 		fPath = path.Join(folderPath, "largeFile.log")
 		_, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf(fileCreate, 100, fPath))
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 
 		filesCreated = append(filesCreated, fPath)
@@ -57,11 +57,11 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 	for _, fP := range filesCreated {
 		resp, err := cli.SendCommand(context.Background(), fmt.Sprintf(checkFileExists, fP))
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		t.Logf("%v", resp)
 		if !strings.Contains(resp, fileExists) {
-			t.Errorf("Unable to Create a file object %s in device %s", fP, dut.Name())
+			t.Fatalf("Unable to Create a file object %s in device %s", fP, dut.Name())
 		}
 	}
 
@@ -74,10 +74,10 @@ func checkFiles(t *testing.T, dut *ondatra.DUTDevice) {
 		resp, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf(checkFileExists, fP))
 		t.Logf(resp)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if strings.Contains(resp, fileExists) == true {
-			t.Errorf("File %s not cleared by system Reset, in device %s", fP, dut.Name())
+			t.Fatalf("File %s not cleared by system Reset, in device %s", fP, dut.Name())
 		}
 
 	}
@@ -101,7 +101,7 @@ func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 
 		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
-			t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
 		}
 	}
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())

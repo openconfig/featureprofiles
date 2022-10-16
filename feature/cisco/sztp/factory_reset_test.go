@@ -54,7 +54,7 @@ func TestFactoryReset(t *testing.T) {
 		enCiscoCommands = encryptionCommands{EncrytionStatus: "show disk-encryption status", EncryptionActivate: "disk-encryption activate", EncryptionDeactivate: "disk-encryption deactivate", DevicePaths: []string{"/misc/disk1"}}
 		t.Logf("Cisco commands for disk encryption %v ", enCiscoCommands)
 	default:
-		t.Fatalf("Disk Encryption commands for is missing for %v ", dut.Vendor().String())
+		t.Fatalf("Disk Encryption commands is missing for %v ", dut.Vendor().String())
 	}
 
 	cli := dut.RawAPIs().CLI(t)
