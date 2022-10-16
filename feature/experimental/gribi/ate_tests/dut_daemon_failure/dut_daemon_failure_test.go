@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package leader_failover_test
+package dut_daemon_failure_test
 
 import (
 	"context"
@@ -23,6 +23,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	gnps "github.com/openconfig/gnoi/system"
+	grps "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -75,6 +77,12 @@ var (
 		Name:    "atePort2",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
+	}
+
+	gRIBIDaemons = map[ondatra.Vendor]string{
+		ondatra.ARISTA:  "Gribi",
+		ondatra.CISCO:   "emsd",
+		ondatra.JUNIPER: "rpd",
 	}
 )
 
@@ -129,11 +137,10 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// testTraffic generates traffic flow from source network to
-// destination network via srcEndPoint to dstEndPoint and checks for
-// packet loss. The boolean flag wantLoss could be used to check
-// either for 100% loss (when set to true) or 0% loss (when set to false).
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface, wantLoss bool) {
+// startTraffic generates traffic flow from source network to
+// destination network via srcEndPoint to dstEndPoint.
+// Returns the flow object that it creates.
+func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface) *ondatra.Flow {
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.DstAddressRange().
@@ -147,25 +154,23 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 		WithHeaders(ethHeader, ipv4Header)
 
 	ate.Traffic().Start(t, flow)
-	time.Sleep(15 * time.Second)
+
+	return flow
+}
+
+// stopAndVerifyTraffic stops traffic on the ATE
+// and checks for packet loss for the given flow.
+func stopAndVerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
+
 	ate.Traffic().Stop(t)
 
 	time.Sleep(time.Minute)
 
 	flowPath := ate.Telemetry().Flow(flow.Name())
-
-	if !wantLoss {
-		if got := flowPath.LossPct().Get(t); got != 0 {
-			t.Errorf("FAIL: LossPct for flow named %s got %g, want 0", flow.Name(), got)
-		} else {
-			t.Logf("LossPct for flow named %s got %g, want 0", flow.Name(), got)
-		}
+	if got := flowPath.LossPct().Get(t); got != 0 {
+		t.Errorf("FAIL: LossPct for flow named %s got %g, want 0", flow.Name(), got)
 	} else {
-		if got := flowPath.LossPct().Get(t); got != 100 {
-			t.Errorf("FAIL: LossPct for flow named %s got %g, want 100", flow.Name(), got)
-		} else {
-			t.Logf("LossPct for flow named %s got %g, want 100", flow.Name(), got)
-		}
+		t.Logf("LossPct for flow named %s got %g, want 0", flow.Name(), got)
 	}
 }
 
@@ -197,38 +202,78 @@ func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 }
 
-// verifyNoAFT verifies through AFT Telemetry that a route is NOT present on the DUT.
-func verifyNoAFT(ctx context.Context, t *testing.T, args *testArgs) {
-	t.Logf("Verify through Telemetry that the route to %s is not present", ateDstNetCIDR)
-	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := ipv4Path.Prefix().Watch(t, time.Minute, func(val *telemetry.QualifiedString) bool {
-		return !val.IsPresent() || (val.IsPresent() && val.Val(t) == "")
-	}).Await(t); !ok {
-		t.Errorf("ipv4-entry/state/prefix got %s, want nil", got.Val(t))
-	}
-}
-
 // verifyTraffic verifies that traffic flows through the DUT without any loss.
 func verifyTraffic(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify by running traffic that %s is active", ateDstNetCIDR)
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	dstEndPoint := args.top.Interfaces()[atePort2.Name]
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint, false)
+
+	flow := startTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+	t.Logf("Wait for 15 seconds")
+	time.Sleep(15 * time.Second)
+	stopAndVerifyTraffic(t, args.ate, flow)
+
 }
 
-// verifyNoTraffic verifies that traffic is completely dropped at the DUT and incurs a 100% loss.
-func verifyNoTraffic(ctx context.Context, t *testing.T, args *testArgs) {
-	t.Logf("Verify by running traffic that the route to %s is not present", ateDstNetCIDR)
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()[atePort2.Name]
-	testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint, true)
+// verifyGRIBIGet verifies through gRIBI Get RPC if a route is present on the DUT.
+func verifyGRIBIGet(ctx context.Context, t *testing.T, clientA *gribi.Client) {
+	t.Logf("Verify through gRIBI Get RPC that %s is present", ateDstNetCIDR)
+	getResponse, err := clientA.Fluent(t).Get().WithNetworkInstance(*deviations.DefaultNetworkInstance).WithAFT(fluent.IPv4).Send()
+	if err != nil {
+		t.Errorf("Cannot Get: %v", err)
+	}
+	entries := getResponse.GetEntry()
+	var found bool
+	for _, entry := range entries {
+		v := entry.Entry.(*grps.AFTEntry_Ipv4)
+		if prefix := v.Ipv4.GetPrefix(); prefix != "" {
+			if prefix == ateDstNetCIDR {
+				found = true
+				t.Logf("Found route to %s in gRIBI Get response", ateDstNetCIDR)
+				break
+			}
+		}
+	}
+	if !found {
+		t.Errorf("Route to %s NOT found in gRIBI Get response", ateDstNetCIDR)
+	}
 }
 
-func TestLeaderFailover(t *testing.T) {
+// gNOIKillProcess kills a daemon on the DUT, given its name and pid.
+func gNOIKillProcess(ctx context.Context, t *testing.T, args *testArgs, pName string, pID uint32) {
+	gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
+	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
+	killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
+	t.Logf("Got kill process response: %v\n\n", killResponse)
+	if err != nil {
+		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
+	}
+}
+
+// findProcessByName uses telemetry to find out the PID of a process
+func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) uint64 {
+	pList := dut.Telemetry().System().ProcessAny().Get(t)
+	var pID uint64
+	for _, proc := range pList {
+		if proc.GetName() == pName {
+			pID = proc.GetPid()
+			t.Logf("Pid of daemon '%s' is '%d'", pName, pID)
+		}
+	}
+	return pID
+}
+
+func TestDUTDaemonFailure(t *testing.T) {
 
 	start := time.Now()
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
+	var flow *ondatra.Flow
+
+	// Check if vendor specific gRIBI daemon name has been added to gRIBIDaemons var
+	if _, ok := gRIBIDaemons[dut.Vendor()]; !ok {
+		t.Fatalf("Please add support for vendor %v in var gRIBIDaemons", dut.Vendor())
+	}
 
 	// Configure the DUT.
 	t.Logf("Configure DUT")
@@ -249,22 +294,18 @@ func TestLeaderFailover(t *testing.T) {
 		top: top,
 	}
 
-	t.Run("SINGLE_PRIMARY/PERSISTENCE=DELETE", func(t *testing.T) {
-		// This is an indicator test for gRIBI persistence DELETE, so we
-		// do not skip based on *deviations.GRIBIPreserveOnly.
+	t.Run("SetupGRIBIConnection", func(t *testing.T) {
 
 		// Set parameters for gRIBI client clientA.
-		// Set Persistence to false.
+		// Set Persistence to true.
 		clientA := &gribi.Client{
 			DUT:                  dut,
 			FibACK:               false,
-			Persistence:          false,
+			Persistence:          true,
 			InitialElectionIDLow: 10,
 		}
 
-		defer clientA.Close(t)
-
-		t.Log("Establish gRIBI client connection with PERSISTENCE set to FALSE/DELETE")
+		t.Log("Establish gRIBI client connection")
 		if err := clientA.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection for clientA could not be established")
 		}
@@ -280,110 +321,83 @@ func TestLeaderFailover(t *testing.T) {
 			t.Run("VerifyTraffic", func(t *testing.T) {
 				verifyTraffic(ctx, t, args)
 			})
-		})
 
-		t.Logf("Time check: %s", time.Since(start))
-
-		// Close below is done through defer.
-		t.Log("Close gRIBI client connection")
-	})
-
-	t.Run("ShouldDelete", func(t *testing.T) {
-		// This is an indicator test for gRIBI persistence DELETE, so we
-		// do not skip based on *deviations.GRIBIPreserveOnly.
-
-		t.Logf("Verify through Telemetry and Traffic that the route to %s has been deleted after gRIBI client disconnected", ateDstNetCIDR)
-
-		t.Run("VerifyNoAFT", func(t *testing.T) {
-			verifyNoAFT(ctx, t, args)
-		})
-
-		t.Run("VerifyNoTraffic", func(t *testing.T) {
-			verifyNoTraffic(ctx, t, args)
 		})
 
 		t.Logf("Time check: %s", time.Since(start))
 
 	})
 
-	t.Run("SINGLE_PRIMARY/PERSISTENCE=PRESERVE", func(t *testing.T) {
-		// Set parameters for gRIBI client clientA.
-		// Set Persistence to true.
-		clientA := &gribi.Client{
-			DUT:                  args.dut,
-			FibACK:               false,
-			Persistence:          true,
-			InitialElectionIDLow: 10,
-		}
+	t.Run("RestartTraffic", func(t *testing.T) {
 
-		t.Log("Reconnect clientA, with PERSISTENCE set to TRUE/PRESERVE")
-		if err := clientA.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection for clientA could not be re-established")
-		}
+		srcEndPoint := top.Interfaces()[atePort1.Name]
+		dstEndPoint := top.Interfaces()[atePort2.Name]
 
-		defer clientA.Close(t)
+		flow = startTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
 
-		t.Run("AddRoute", func(t *testing.T) {
+		t.Logf("Wait for 15 seconds")
+		time.Sleep(15 * time.Second)
 
-			t.Logf("Add gRIBI route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
-			addRoute(ctx, t, args, clientA)
+	})
 
-			t.Run("VerifyAFT", func(t *testing.T) {
-				verifyAFT(ctx, t, args)
-			})
+	t.Run("KillGRIBIDaemon", func(t *testing.T) {
 
-			t.Run("VerifyTraffic", func(t *testing.T) {
-				verifyTraffic(ctx, t, args)
-			})
+		// Find the PID of gRIBI Daemon.
+		var pId uint64
+		pName := gRIBIDaemons[dut.Vendor()]
+		t.Run("FindGRIBIDaemonPid", func(t *testing.T) {
+
+			pId = findProcessByName(ctx, t, dut, pName)
+			if pId == 0 {
+				t.Fatalf("Couldn't find pid of gRIBI daemon '%s'", pName)
+			} else {
+				t.Logf("Pid of gRIBI daemon '%s' is '%d'", pName, pId)
+			}
+		})
+
+		// Kill gRIBI daemon through gNOI Kill Request.
+		t.Run("ExecuteGnoiKill", func(t *testing.T) {
+			// TODO - pid type is uint64 in oc-system model, but uint32 in gNOI Kill Request proto.
+			// Until the models are brought in line, typecasting the uint64 to uint32.
+			gNOIKillProcess(ctx, t, args, pName, uint32(pId))
+
+			// Wait for a bit for gRIBI daemon on the DUT to restart.
+			time.Sleep(30 * time.Second)
+
 		})
 
 		t.Logf("Time check: %s", time.Since(start))
-
-		// Close below is done through defer.
-		t.Log("Close gRIBI client connection again")
-	})
-
-	t.Run("ShouldPreserve", func(t *testing.T) {
-		t.Logf("Verify through Telemetry and Traffic that the route to %s is preserved", ateDstNetCIDR)
 
 		t.Run("VerifyAFT", func(t *testing.T) {
 			verifyAFT(ctx, t, args)
 		})
 
-		t.Run("VerifyTraffic", func(t *testing.T) {
-			verifyTraffic(ctx, t, args)
+		t.Run("VerifyTrafficContinuesToFlow", func(t *testing.T) {
+			stopAndVerifyTraffic(t, args.ate, flow)
 		})
+
 	})
 
-	t.Run("ReconnectAndDelete", func(t *testing.T) {
+	t.Run("Re-establishGribiConnection", func(t *testing.T) {
+
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to true.
 		clientA := &gribi.Client{
-			DUT:                  args.dut,
+			DUT:                  dut,
 			FibACK:               false,
 			Persistence:          true,
 			InitialElectionIDLow: 10,
 		}
 
-		t.Log("Reconnect clientA")
+		t.Log("Re-establish gRIBI client connection")
 		if err := clientA.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection for clientA could not be re-established")
 		}
 
-		defer clientA.Close(t)
-
-		t.Run("DeleteRoute", func(t *testing.T) {
-			t.Logf("Delete route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
-			clientA.DeleteIPv4(t, ateDstNetCIDR, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-
-			t.Run("VerifyNoAFT", func(t *testing.T) {
-				verifyNoAFT(ctx, t, args)
-			})
-
-			t.Run("VerifyNoTraffic", func(t *testing.T) {
-				verifyNoTraffic(ctx, t, args)
-			})
+		t.Run("VerifyGRIBIGet", func(t *testing.T) {
+			verifyGRIBIGet(ctx, t, clientA)
 		})
+
 	})
 
 	t.Logf("Test run time: %s", time.Since(start))
