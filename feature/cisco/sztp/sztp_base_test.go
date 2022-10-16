@@ -2,7 +2,6 @@ package sztp_base_test
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"path"
 	"strings"
@@ -12,13 +11,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
-)
-
-var (
-	sshIP   = flag.String("ssh_ip", "173.39.51.67", "External IP address of management interface.")
-	sshPort = flag.String("ssh_port", "5000", "External Port of management interface")
-	sshUser = flag.String("ssh_user", "cafyauto", "External username for ssh")
-	sshPass = flag.String("ssh_pass", "cisco123", "External password for ssh")
 )
 
 const maxRebootTime = 40 // 40 mins wait time for the factory reset and sztp to kick in
@@ -72,10 +64,10 @@ func checkFiles(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, fP := range filesCreated {
 
 		resp, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf(checkFileExists, fP))
-		t.Logf(resp)
 		if err != nil {
 			t.Fatal(err)
 		}
+		t.Logf(resp)
 		if strings.Contains(resp, fileExists) == true {
 			t.Fatalf("File %s not cleared by system Reset, in device %s", fP, dut.Name())
 		}

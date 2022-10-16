@@ -3,6 +3,7 @@ package sztp_base_test
 import (
 	"context"
 	"encoding/base64"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -29,7 +30,12 @@ var (
 	hostname, _    = os.Hostname()
 	ztp_timeout    = 10 * time.Minute
 )
-
+var (
+	sshIP   = flag.String("ssh_ip", "", "External IP address of management interface.")
+	sshPort = flag.String("ssh_port", "", "External Port of management interface")
+	sshUser = flag.String("ssh_user", "", "External username for ssh")
+	sshPass = flag.String("ssh_pass", "", "External password for ssh")
+)
 // generates an rsa key pair in client_ssh_dir
 func generateKeypair(client_ssh_dir string) error {
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("ssh-keygen -t rsa -b 1024 -f %sid_rsa -N '' <<< y", client_ssh_dir))
