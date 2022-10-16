@@ -13,7 +13,6 @@ import (
 )
 
 var (
-	rmknownhosts      = fmt.Sprintf("%s/.ssh/known_hosts", os.Getenv("HOME"))
 	filesCreated      = []string{}
 	fileCreateDevRand = "bash  dd if=/dev/urandom of=%s bs=1M count=2"
 	checkFileExists   = "bash [ -f \"%s\" ] && echo \"YES_exists\""
