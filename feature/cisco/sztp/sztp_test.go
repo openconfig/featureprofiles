@@ -146,7 +146,7 @@ func TestDiskEn(t *testing.T) {
 		t.Logf(resp)
 		t.Log("Waiting for the box to reload")
 		time.Sleep(2 * time.Minute)
-		DeviceBootStatus(t, dut)
+		deviceBootStatus(t, dut)
 		t.Log("Executing disk-encryption after reload")
 		dut1 := ondatra.DUT(t, "dut")
 		cli_handle1 := dut1.RawAPIs().CLI(t)
@@ -246,7 +246,7 @@ func TestSZTP(t *testing.T) {
 
 	t.Logf("Sleep (%v) - allowing ztp and reload to complete\n\n", ztp_timeout)
 	time.Sleep(2 * time.Minute)
-	DeviceBootStatus(t, dut)
+	deviceBootStatus(t, dut)
 	dut_new := ondatra.DUT(t, "dut")
 	cli_handle_new := dut_new.RawAPIs().CLI(t)
 
