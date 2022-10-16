@@ -2,8 +2,6 @@ package sztp_base_test
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
