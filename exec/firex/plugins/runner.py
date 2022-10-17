@@ -81,7 +81,11 @@ def BringupTestbed(self, uid, ws, plat, framework,
         c = InjectArgs(**self.abog)
         c |= self.orig.s()
         testbed, testbed_path, *unused = self.enqueue_child_and_get_results(c)
-        ondatra_binding_path = testbed_path 
+
+        ondatra_binding_path = os.path.join(ondatra_repo_dir, 'topology.textproto')
+        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}',
+                        file=ondatra_binding_path)
+
 
     else:
         ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
@@ -288,19 +292,18 @@ def RunB4FPTest(self,
         f'-v 5 ' \
         f'-alsologtostderr'
 
-    ondatra_binding = ondatra_binding_path
-    if not ondatra_binding:
-        if not testbed_path or not os.path.isfile(testbed_path):
-            raise ValueError('`testbed_path` must be a path to the ondatra topo file for ondatra-based tests')
+    # if not ondatra_binding:
+    #     if not testbed_path or not os.path.isfile(testbed_path):
+    #         raise ValueError('`testbed_path` must be a path to the ondatra topo file for ondatra-based tests')
 
-        ondatra_dir = os.path.join(self.task_dir, 'ondatra')
-        silent_mkdir(ondatra_dir)
+    #     ondatra_dir = os.path.join(self.task_dir, 'ondatra')
+    #     silent_mkdir(ondatra_dir)
         
-        ondatra_binding = os.path.join(ondatra_dir, 'topology.textproto')
-        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}',
-                        file=ondatra_binding)
+    #     ondatra_binding = os.path.join(ondatra_dir, 'topology.textproto')
+    #     check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}',
+    #                     file=ondatra_binding)
 
-    test_args += f' -binding {ondatra_binding} -testbed {ondatra_testbed_path}'
+    test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path}'
 
     go_args = f'{go_args} ' \
                 f'-json ' \
