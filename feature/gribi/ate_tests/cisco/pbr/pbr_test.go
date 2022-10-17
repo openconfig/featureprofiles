@@ -131,16 +131,18 @@ func configSrcIpDscp(t *testing.T, dut *ondatra.DUTDevice, policyName string, ds
 
 	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Update(t, &p)
 }
-func UpdateOnlySrcIp(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
+func updateOnlySrcIp(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
 	seq_id := uint32(SeqID)
 	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Rule(seq_id).Ipv4().SourceAddress().Update(t, srcAddr)
 }
-func ReplaceOnlySrcIp(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
+func replaceOnlySrcIp(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
+	t.Helper()
 	seq_id := uint32(SeqID)
 	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Rule(seq_id).Ipv4().SourceAddress().Update(t, srcAddr)
 }
-func ReplaceSrcIpRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string, SeqID uint32) {
+func replaceSrcIpRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string, SeqID uint32) {
 
+	t.Helper()
 	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	seq_id := uint32(SeqID)
 	r1.SequenceId = &seq_id
@@ -151,8 +153,9 @@ func ReplaceSrcIpRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, s
 
 	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Rule(seq_id).Replace(t, &r1)
 }
-func ReplaceSrcpmap(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string, SeqID uint32) {
+func replaceSrcpmap(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string, SeqID uint32) {
 
+	t.Helper()
 	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	seq_id := uint32(SeqID)
 	r1.SequenceId = &seq_id
@@ -171,6 +174,7 @@ func ReplaceSrcpmap(t *testing.T, dut *ondatra.DUTDevice, policyName string, src
 
 	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Replace(t, &policy)
 }
+
 func configNewRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, ruleID uint32, protocol uint8, dscp ...uint8) {
 	r := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r.SequenceId = ygot.Uint32(ruleID)
@@ -1354,10 +1358,12 @@ func testReplaceAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Configure policy-map that matches the SrcIp, Dscp value
 	configSrcIpDscp(t, args.dut, PbrNameDscp, dscpVal, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameDscp)
 
 	//Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameDscp)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
@@ -1366,14 +1372,11 @@ func testReplaceAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
 
 	//Configure policy under bundle-interface
 
-	ReplaceOnlySrcIp(t, args.dut, PbrNameDscp, SourceAddress2)
+	replaceOnlySrcIp(t, args.dut, PbrNameDscp, SourceAddress2)
 	time.Sleep(10 * time.Second)
 
 	// Create Traffic and check traffic
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
-
-	defer deletePBRPolicy(t, args.dut, PbrNameDscp)
-	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 }
 
@@ -1391,10 +1394,12 @@ func testUpdateAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Configure policy-map that matches the SourceAddress
 	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
 
 	//Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
@@ -1403,14 +1408,11 @@ func testUpdateAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
 
 	//Configure policy under bundle-interface
 
-	UpdateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
+	updateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
 	time.Sleep(10 * time.Second)
 
 	//Create Traffic and check traffic
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
-
-	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
-	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 }
 func testUpdateAtSrcIpLeafNegative(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1427,10 +1429,12 @@ func testUpdateAtSrcIpLeafNegative(ctx context.Context, t *testing.T, args *test
 
 	// Configure policy-map that matches the SourceAddress
 	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
 
 	//Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
@@ -1438,21 +1442,17 @@ func testUpdateAtSrcIpLeafNegative(ctx context.Context, t *testing.T, args *test
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
 
 	//Configure policy under bundle-interface
-	UpdateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
+	updateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
 	time.Sleep(10 * time.Second)
 
 	//Create Traffic and traffic expected to fail
 	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
 
-	UpdateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress)
+	updateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress)
 	time.Sleep(10 * time.Second)
 
 	//Create Traffic and traffic expected to pass
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
-
-	fmt.Println("Passed gateway 3")
-	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
-	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 }
 func testReplaceSrcIpRule(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1470,27 +1470,26 @@ func testReplaceSrcIpRule(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Configure policy-map that matches the SrcIp, Dscp value
 	configSrcIpDscp(t, args.dut, PbrNameDscp, dscpVal, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameDscp)
 
 	//Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameDscp)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	//Create Traffic and check traffic
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
 
 	//Replace the rule with different src adddress
-	ReplaceSrcIpRule(t, args.dut, PbrNameDscp, SourceAddress2, SeqID)
+	replaceSrcIpRule(t, args.dut, PbrNameDscp, SourceAddress2, SeqID)
 
 	// Create Traffic and check traffic expected to fail
 	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
 
-	ReplaceSrcIpRule(t, args.dut, PbrNameDscp, SourceAddress, SeqID)
+	replaceSrcIpRule(t, args.dut, PbrNameDscp, SourceAddress, SeqID)
 
 	//Create Traffic and check traffic expected to pass
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
-
-	defer deletePBRPolicy(t, args.dut, PbrNameDscp)
-	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 }
 func testReplaceSrcIpEntirePolicy(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1509,23 +1508,22 @@ func testReplaceSrcIpEntirePolicy(ctx context.Context, t *testing.T, args *testA
 	// Configure policy-map that matches the SrcIp, Dscp value
 	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
 	configNewRule(t, args.dut, PbrNameSrc, SeqID2, protocolNum, dscpVal)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc2)
 
 	//Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	// Create Traffic and check traffic
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
 
 	//Replace the pmap with different rule and match
-	ReplaceSrcpmap(t, args.dut, PbrNameSrc2, SourceAddress2, SeqID2)
+	replaceSrcpmap(t, args.dut, PbrNameSrc2, SourceAddress2, SeqID2)
 
 	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc2)
 
 	// Create Traffic and check traffic expected to fail
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
-
-	defer deletePBRPolicy(t, args.dut, PbrNameSrc2)
-	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 }
