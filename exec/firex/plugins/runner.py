@@ -76,7 +76,7 @@ def BringupTestbed(self, uid, ws, images = None,
     ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
     ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
 
-    if base_conf_path:
+    if base_conf_path and len(base_conf_path) > 0:
         base_conf_path = os.path.join(fp_repo_dir, base_conf_path)
         check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
 
