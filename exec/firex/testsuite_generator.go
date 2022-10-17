@@ -79,6 +79,8 @@ var (
     plugins:
         - vxsim.py
     topo_file: {{ $.Workspace }}/{{ $ft.Pyvxr.Topology }}
+    {{- else }}
+    topo_file: ""
     {{- end }}
     {{- if gt $ft.Timeout 0 }}
     plugins:

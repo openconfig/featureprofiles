@@ -10,7 +10,7 @@ from microservices.runners.runner_base import FireXRunnerBase
 from microservices.testbed_tasks import register_testbed_file_generator
 from microservices.git_tasks import PipInstall
 from services.cflow.code_coverage_tasks import CollectCoverageData
-from ci_plugins.vxsim import GenerateGoB4TestbedFile
+from ci_plugins.vxsim import GenerateGoB4TestbedFile, BringupTestbed as VxSimBringUp
 from test_framework import register_test_framework_provider
 from html_helper import get_link 
 from collections import namedtuple
@@ -33,6 +33,7 @@ ONDATRA_PATCHES = ['exec/firex/plugins/ondatra/0001-windows-ixia-path.patch']
 whitelist_arguments([
     'ondatra_repo_branch', 
     'fp_repo_branch', 
+    'topo_file',
     'ondatra_binding_path',
     'ondatra_testbed_path', 
     'base_conf_path',
@@ -46,12 +47,15 @@ whitelist_arguments([
 ])
 
 @app.task(base=FireX, bind=True)
-def BringupTestbed(self, uid, ws, images = None,  
+def BringupTestbed(self, uid, ws, plat, framework,
+                        images = None,  
                         ondatra_repo_branch='main',
-                        fp_repo_branch='master',                        
+                        fp_repo_branch='master',  
+                        topo_file=None,                      
                         ondatra_testbed_path=None,
                         ondatra_binding_path=None,
                         base_conf_path=None,
+                        testbed_logs_dir=None,
                         skip_install=False):
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
@@ -73,12 +77,23 @@ def BringupTestbed(self, uid, ws, images = None,
 
     self.enqueue_child_and_get_results(c)
 
-    ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
-    ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
+    if topo_file and len(topo_file) > 0:
+        c = InjectArgs(**self.abog)
+        c |= self.orig.s()
+        self.enqueue_child_and_get_results(c)
 
-    if base_conf_path and len(base_conf_path) > 0:
-        base_conf_path = os.path.join(fp_repo_dir, base_conf_path)
-        check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
+        # self.orig.s(plat=plat, topo_file = topo_file, image_name = images)
+        # c = VxSimBringUp.undecorated(ws=ws, uid=uid, plat=plat, framework=framework, 
+        #     topo_file=topo_file,testbed_logs_dir=testbed_logs_dir, image_name = images)
+
+    else:
+        ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
+
+        if base_conf_path and len(base_conf_path) > 0:
+            base_conf_path = os.path.join(fp_repo_dir, base_conf_path)
+            check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
+    
+    ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
 
     with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
         fp.write("replace github.com/openconfig/ondatra => ../ondatra")
@@ -101,7 +116,7 @@ def BringupTestbed(self, uid, ws, images = None,
     ondatra_repo.git.add(update=True)
     ondatra_repo.git.commit('-m', 'patched for testing')
 
-    if not skip_install:
+    if (not topo_file or len(topo_file) == 0) and not skip_install:
         logger.print(f'Copying image {images}')
         shutil.copy(images, fp_repo_dir)
         image_path = os.path.join(fp_repo_dir, os.path.basename(images))
@@ -134,8 +149,8 @@ def CleanupTestbed(self, uid, ws):
     # shutil.rmtree(os.path.join(ws, f'go_pkgs'))
 
 def testbed_uniqueness_args():
-    return ["ondatra_binding_path", "base_conf_path"]
-    
+    return ["ondatra_binding_path", "base_conf_path", "topo_file"]
+ 
 @register_test_framework_provider('b4_fp')
 def b4_fp_chain_provider(ws,
                          testsuite_id,
