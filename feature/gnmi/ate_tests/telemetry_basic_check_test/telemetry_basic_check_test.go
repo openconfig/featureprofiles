@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -711,6 +712,10 @@ func TestIntfCounterUpdate(t *testing.T) {
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	dutInPktsBeforeTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().InUnicastPkts().Get(t)
 	dutOutPktsBeforeTraffic := dut.Telemetry().Interface(dp2.Name()).Counters().OutUnicastPkts().Get(t)
+	if *deviations.InterfaceCountersFromContainer {
+		dutInPktsBeforeTraffic = *dut.Telemetry().Interface(dp1.Name()).Counters().Get(t).InUnicastPkts
+		dutOutPktsBeforeTraffic = *dut.Telemetry().Interface(dp2.Name()).Counters().Get(t).OutUnicastPkts
+	}
 	t.Log("inPkts and outPkts counters before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 
 	ate.Traffic().Start(t, flow)
@@ -745,6 +750,10 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 	dutInPktsAfterTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().InUnicastPkts().Get(t)
 	dutOutPktsAfterTraffic := dut.Telemetry().Interface(dp2.Name()).Counters().OutUnicastPkts().Get(t)
+	if *deviations.InterfaceCountersFromContainer {
+		dutInPktsAfterTraffic = *dut.Telemetry().Interface(dp1.Name()).Counters().Get(t).InUnicastPkts
+		dutOutPktsAfterTraffic = *dut.Telemetry().Interface(dp2.Name()).Counters().Get(t).OutUnicastPkts
+	}
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
 	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < ateInPkts {
@@ -897,7 +906,9 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		s.Enabled = ygot.Bool(true)
+		if *deviations.InterfaceEnabled {
+			s.Enabled = ygot.Bool(true)
+		}
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		dut.Config().Interface(intf.intfName).Replace(t, i)
