@@ -41,7 +41,8 @@ whitelist_arguments([
     'test_path', 
     'test_args',
     'test_patch',
-    'test_timeout'
+    'test_timeout',
+    'test_must_pass'
 ])
 
 @app.task(base=FireX, bind=True)
@@ -153,6 +154,7 @@ def b4_fp_chain_provider(ws,
                          test_args=None,
                          test_patch=None,
                          test_timeout=0,
+                         test_must_pass=False,
                          **kwargs):
 
     chain = InjectArgs(ws=ws,
@@ -168,6 +170,7 @@ def b4_fp_chain_provider(ws,
                     test_args=test_args,
                     test_patch=test_patch,
                     test_timeout=test_timeout,
+                    test_must_pass=test_must_pass,
                     **kwargs)
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
