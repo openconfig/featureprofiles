@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -57,7 +58,7 @@ func testNextHopRemaining(
 	numUps int,
 	dut *ondatra.DUTDevice,
 	ate *ondatra.ATEDevice,
-	top *ondatra.ATETopology,
+	top gosnappi.Config,
 ) {
 	// Generate and analyze traffic.
 	atePorts, inPkts, outPkts := generateTraffic(t, ate, top)
@@ -98,7 +99,7 @@ func TestPortFlap(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().StartProtocols(t)
 
 	// Create nexthops across the dst atePorts.
 	atePorts := sortPorts(ate.Ports())
@@ -152,18 +153,16 @@ func TestPortFlap(t *testing.T) {
 
 		t.Run(testName, func(t *testing.T) {
 			if i < len(atePorts) {
-				t.Logf("Bringing down ate port: %v", atePorts[i])
-				ate.Actions().
-					NewSetPortState().
-					WithPort(atePorts[i]).
-					WithEnabled(false).
-					Send(t)
+				// Setting admin state down on the DUT interface.
+				// Setting the otg interface down has no effect on kne
+				dp := dut.Port(t, atePorts[i].ID())
+				t.Logf("Bringing down dut port: %v", dp.Name())
+				setDUTInterfaceState(t, dut, dp, false)
 
 				// ATE and DUT ports in the linked pair have the same ID(), but
 				// they are mapped to different Name().
-				dp := dut.Port(t, atePorts[i].ID())
-				dip := dt.Interface(dp.Name())
 				t.Logf("Awaiting DUT port down: %v", dp)
+				dip := dt.Interface(dp.Name())
 				dip.OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
 				t.Log("Port is down.")
 			}

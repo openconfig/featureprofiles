@@ -1,34 +1,14 @@
 diff --git a/feature/experimental/backup_nhg/ate_tests/backup_nhg_test/backup_nhg_test.go b/feature/experimental/backup_nhg/ate_tests/backup_nhg_test/backup_nhg_test.go
-index 480f4010..bf9d537e 100644
+index 480f4010..6484cb23 100644
 --- a/feature/experimental/backup_nhg/ate_tests/backup_nhg_test/backup_nhg_test.go
 +++ b/feature/experimental/backup_nhg/ate_tests/backup_nhg_test/backup_nhg_test.go
-@@ -152,15 +152,17 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
- 			desc: "Disable ATE port-2",
- 			applyImpairmentFn: func() {
- 				ateP2 := ate.Port(t, "port2")
--				dutP2 := dut.Port(t, "port2")
-+				// dutP2 := dut.Port(t, "port2")
- 				ate.Actions().NewSetPortState().WithPort(ateP2).WithEnabled(false).Send(t)
--				dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
-+				// CSCwc88672: 791, telemetry call for interface operational status returns flaky output
-+				// dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
- 			},
- 			removeImpairmentFn: func() {
- 				ateP2 := ate.Port(t, "port2")
--				dutP2 := dut.Port(t, "port2")
-+				// dutP2 := dut.Port(t, "port2")
- 				ate.Actions().NewSetPortState().WithPort(ateP2).WithEnabled(true).Send(t)
--				dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
-+				// CSCwc88672: 791, telemetry call for interface operational status returns flaky output
-+				// dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
- 			},
- 		},
- 		{
-@@ -179,6 +181,7 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
- 	}
- 	for _, tc := range cases {
- 		t.Run(tc.desc, func(t *testing.T) {
-+			time.Sleep(20 * time.Second)
- 			t.Run("Validate Baseline AFT Telemetry", func(t *testing.T) {
- 				tcArgs.validateAftTelemetry(t)
- 			})
+@@ -404,7 +404,8 @@ func (a *testArgs) createFlow(name string, dst *attrs.Attributes) *ondatra.Flow
+ 
+ func (a *testArgs) validateAftTelemetry(t *testing.T) {
+ 	aftPfxNHG := a.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(dstPfx).NextHopGroup()
+-	aftPfxNHGVal, found := aftPfxNHG.Watch(t, 10*time.Second, func(val *telemetry.QualifiedUint64) bool {
++	// CSCwc69142(CSC.ena,Update,cms)AFT shall use ON_CHANGE for TARGET_DEFINED mode
++	aftPfxNHGVal, found := aftPfxNHG.Watch(t, 60*time.Second, func(val *telemetry.QualifiedUint64) bool {
+ 		// Do nothing in this matching function, as we already filter on the prefix.
+ 		return true
+ 	}).Await(t)

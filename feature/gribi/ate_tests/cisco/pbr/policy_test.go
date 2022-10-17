@@ -304,6 +304,41 @@ var (
 			fn:   testAclAndPBRUnderSameInterface,
 		},
 		{
+			name: "Test Src-Ip match",
+			desc: "Verify PBR policy works with match Src-ip and action VRF redirect",
+			fn:   testSrcIp,
+		},
+		{
+			name: "Test Src-Ip match- Negative case ",
+			desc: "Verify PBR policy works with missmatched Src-ip and action VRF redirect",
+			fn:   testSrcIpNegative,
+		},
+		{
+			name: "Test Src-Ip and Dscp match",
+			desc: "Verify PBR policy works with match Src-ip,Dscp and action VRF redirect",
+			fn:   testPBRSrcIpWithDscp,
+		},
+		{
+			name: "Test Attach a Different SrcIp",
+			desc: "Verify PBR policy after attaching a different SrcIp and action VRF redirect",
+			fn:   testDettachAndAttachDifferentSrcIp,
+		},
+		{
+			name: "Test Attach a Wrong SrcIp",
+			desc: "Verify PBR policy after attaching a Wrong SrcIp and action VRF redirect",
+			fn:   testDettachAndAttachWrongSrcIp,
+		},
+		{
+			name: "Test Update SrcIp",
+			desc: "Verify PBR policy after Updating SrcIp and action VRF redirect",
+			fn:   testUpdateSrcIp,
+		},
+		{
+			name: "Test Update Wrong Scr Ip",
+			desc: "Verify PBR policy after updating Wrong Src-ip and action VRF redirect",
+			fn:   testUpdateWrongSrcIp,
+		},
+		{
 			name: "Test Replace Policies",
 			desc: "Test Replace Policies, it is skipped for now",
 			fn:   testPolicesReplace,

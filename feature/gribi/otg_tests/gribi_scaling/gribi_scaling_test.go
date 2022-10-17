@@ -15,6 +15,7 @@
 package te_14_1_gribi_scaling_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -76,6 +78,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -326,7 +329,7 @@ func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *telemetry.Dev
 // generateSubIntfPair takes the number of subInterfaces, dut,ate,ports and Ixia topology.
 // It configures ATE/DUT SubInterfaces on the target device
 // It returns a slice of the corresponding ATE IPAddresses.
-func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, ate *ondatra.ATEDevice, atePort *ondatra.Port, top *ondatra.ATETopology, d *telemetry.Device) []string {
+func generateSubIntfPair(t *testing.T, top gosnappi.Config, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPort, atePort *ondatra.Port, d *telemetry.Device) []string {
 	nextHops := []string{}
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 0; i <= nextHopCount; i++ {
@@ -336,7 +339,8 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 2))
 		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4, *deviations.DefaultNetworkInstance)
-		configureATE(t, top, atePort, name, vlanID, dutIPv4, ateIPv4+"/30")
+		MAC, _ := incrementMAC(atePort1.MAC, i+1)
+		configureATE(t, top, ate, atePort, vlanID, name, MAC, dutIPv4, ateIPv4)
 		nextHops = append(nextHops, ateIPv4)
 	}
 	configureInterfaceDUT(t, dutPort, d, "dst")
@@ -371,15 +375,18 @@ func configureSubinterfaceDUT(t *testing.T, d *telemetry.Device, dutPort *ondatr
 }
 
 // configureATE configures a single ATE layer 3 interface.
-func configureATE(t *testing.T, top *ondatra.ATETopology, atePort *ondatra.Port, Name string, vlanID uint16, dutIPv4 string, ateIPv4 string) {
+func configureATE(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, atePort *ondatra.Port, vlanID uint16, Name, MAC, dutIPv4, ateIPv4 string) {
 	t.Helper()
 
-	i := top.AddInterface(Name).WithPort(atePort)
+	dev := top.Devices().Add().SetName(Name + ".Dev")
+	eth := dev.Ethernets().Add().SetName(Name + ".Eth")
+	eth.Connection().SetChoice("port_name")
+	eth.SetPortName(atePort.ID()).SetMac(MAC)
 	if vlanID != 0 {
-		i.Ethernet().WithVLANID(vlanID)
+		eth.Vlans().Add().SetName(Name).SetId(int32(vlanID))
 	}
-	i.IPv4().WithAddress(ateIPv4)
-	i.IPv4().WithDefaultGateway(dutIPv4)
+	eth.Ipv4Addresses().Add().SetName(Name + ".IPv4").SetAddress(ateIPv4).SetGateway(dutIPv4).SetPrefix(int32(atePort1.IPv4Len))
+
 }
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
@@ -395,7 +402,24 @@ type testArgs struct {
 	client *fluent.GRIBIClient
 	dut    *ondatra.DUTDevice
 	ate    *ondatra.ATEDevice
-	top    *ondatra.ATETopology
+	top    gosnappi.Config
+}
+
+// incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
+func incrementMAC(mac string, i int) (string, error) {
+	macAddr, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", err
+	}
+	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
+	convMac = convMac + uint64(i)
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, convMac)
+	if err != nil {
+		return "", err
+	}
+	newMac := net.HardwareAddr(buf.Bytes()[2:8])
+	return newMac.String(), nil
 }
 
 func TestScaling(t *testing.T) {
@@ -407,19 +431,22 @@ func TestScaling(t *testing.T) {
 	gribic := dut.RawAPIs().GRIBI().Default(t)
 	dp1 := dut.Port(t, "port1")
 	ap1 := ate.Port(t, "port1")
-	top := ate.Topology().New()
+	top := ate.OTG().NewConfig(t)
+	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
 	vrfs := []string{*deviations.DefaultNetworkInstance, vrf1, vrf2, vrf3}
 	createVrf(t, dut, d, vrfs)
 	// configure an L3 subinterface of no vlan tagging under DUT port#1
 	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4, vrf1)
 	configureInterfaceDUT(t, dp1, d, "src")
-	configureATE(t, top, ap1, "src", 0, dutPort1.IPv4, atePort1.IPv4CIDR())
+	configureATE(t, top, ate, ap1, 0, "src", atePort1.MAC, dutPort1.IPv4, atePort1.IPv4)
 	pushConfig(t, dut, dp1, d)
-	dp2 := dut.Port(t, "port2")
 	ap2 := ate.Port(t, "port2")
+	dp2 := dut.Port(t, "port2")
+	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 	// subIntfIPs is the ATE IPv4 addresses for all the subInterfaces
-	subIntfIPs := generateSubIntfPair(t, dut, dp2, ate, ap2, top, d)
-	top.Push(t).StartProtocols(t)
+	subIntfIPs := generateSubIntfPair(t, top, dut, ate, dp2, ap2, d)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
 	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader via a

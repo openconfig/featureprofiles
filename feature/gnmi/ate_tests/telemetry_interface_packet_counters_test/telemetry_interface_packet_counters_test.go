@@ -220,7 +220,18 @@ func TestIntfCounterUpdate(t *testing.T) {
 		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
 		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
 	}
-
+	if *deviations.InterfaceCountersFromContainer {
+		dutInPktsBeforeTraffic = map[string]uint64{
+			"parent": *i1.Counters().Get(t).InUnicastPkts,
+			// "ipv4":   *subintf1.Ipv4().Counters().Get(t).InPkts,
+			// "ipv6":   subintf1.Ipv6().Counters().Get(t).InPkts,
+		}
+		dutOutPktsBeforeTraffic = map[string]uint64{
+			"parent": *i2.Counters().Get(t).OutUnicastPkts,
+			// "ipv4":   *subintf2.Ipv4().Counters().Get(t).OutPkts,
+			// "ipv6":   *subintf2.Ipv6().Counters().Get(t).OutPkts,
+		}
+	}
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	t.Logf("inPkts: %v and outPkts: %v before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 	ate.Traffic().Start(t, ipv4Flow, ipv6Flow)
@@ -279,6 +290,18 @@ func TestIntfCounterUpdate(t *testing.T) {
 		"parent": i2.Counters().OutUnicastPkts().Get(t),
 		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
 		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
+	}
+	if *deviations.InterfaceCountersFromContainer {
+		dutInPktsAfterTraffic = map[string]uint64{
+			"parent": *i1.Counters().Get(t).InUnicastPkts,
+			// "ipv4":   *subintf1.Ipv4().Counters().Get(t).InPkts,
+			// "ipv6":   *subintf1.Ipv6().Counters().Get(t).InPkts,
+		}
+		dutOutPktsAfterTraffic = map[string]uint64{
+			"parent": *i2.Counters().Get(t).OutUnicastPkts,
+			// "ipv4":   *subintf2.Ipv4().Counters().Get(t).OutPkts,
+			// "ipv6":   *subintf2.Ipv6().Counters().Get(t).OutPkts,
+		}
 	}
 
 	t.Logf("inPkts: %v and outPkts: %v after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
@@ -341,15 +364,20 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		// per: https://github.com/openconfig/featureprofiles/issues/253
 		i.Enabled = ygot.Bool(true)
 		s.Enabled = ygot.Bool(true)
-		v4.Enabled = ygot.Bool(true)
+		if !*deviations.IPv4MissingEnabled {
+			v4.Enabled = ygot.Bool(true)
+		}
 		v6.Enabled = ygot.Bool(true)
 
 		dut.Config().Interface(intf.intfName).Replace(t, i)
 
 		t.Logf("Validate that IPv4 and IPv6 addresses are enabled: %s", intf.intfName)
 		subint := dut.Telemetry().Interface(intf.intfName).Subinterface(0)
-		if !subint.Ipv4().Enabled().Get(t) {
-			t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
+
+		if !*deviations.IPv4MissingEnabled {
+			if !subint.Ipv4().Enabled().Get(t) {
+				t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
+			}
 		}
 		if !subint.Ipv6().Enabled().Get(t) {
 			t.Errorf("Ipv6().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
