@@ -8,7 +8,7 @@ var (
 	GRIBITrafficCheck = flag.Bool("gribi_traffic_check", true,
 		"This enable/disable traffic check for gribi tests.")
 
-	GRIBIAFTCheck = flag.Bool("gribi_aft_check", false,
+	GRIBIAFTCheck = flag.Bool("gribi_aft_check", true,
 		"This enable/disable AFT check for gribi entries in gribi tests.")
 
 	GRIBINHTimer = flag.Int("gribi_nh_timer", 5,

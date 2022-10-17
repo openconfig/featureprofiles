@@ -266,6 +266,7 @@ func Test_Ipv4_Protocol(t *testing.T) {
 }
 
 func Test_Ipv6_Protocol(t *testing.T) {
+	t.Skip() // The support for protocol leaf under IPv6 has been removed CSCwc29866
 	dut := ondatra.DUT(t, "dut")
 
 	t.Log("Remove Flowspec Config")
@@ -312,7 +313,7 @@ func Test_Network_instance(t *testing.T) {
 		r1.SequenceId = ygot.Uint32(1)
 		// openconfig-network-instance:network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance
 		r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
-		r1.Ipv6 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv6{
+		r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 			Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 		}
 

@@ -14,12 +14,14 @@ import (
 
 // GoTest represents a single go test
 type GoTest struct {
-	Name       string
-	Path       string
-	Patch      string
-	Args       []string
-	Timeout    int
-	ShouldFail bool
+	Name     string
+	Owner    string
+	Path     string
+	Patch    string
+	Args     []string
+	Timeout  int
+	Skip     bool
+	MustPass bool
 }
 
 // FirexTest represents a single firex test suite
@@ -28,6 +30,7 @@ type FirexTest struct {
 	Owner    string
 	Priority string
 	Timeout  int
+	Skip     bool
 	Pyvxr    struct {
 		Topology string
 	}
@@ -44,11 +47,17 @@ var (
 		"test_desc_files", "", "comma separated list of test description yaml files.",
 	)
 
+	testNamesFlag = flag.String(
+		"test_names", "", "comma separated list of tests to include",
+	)
+
 	workspaceFlag = flag.String(
 		"workspace", "", "workspace used for firex launch.",
 	)
 
 	testDescFiles []string
+
+	testNames []string
 
 	workspace string
 )
@@ -58,10 +67,11 @@ var (
 		"join": strings.Join,
 	}).Parse(`
 {{- range $i, $ft := $.TestSuite }}
-{{- .Name }}:
+{{- range $j, $gt := $ft.Tests}}
+{{ $gt.Name }}:
     framework: b4_fp
     owners:
-        - {{ $ft.Owner }}
+        - {{ $gt.Owner }}
     {{- if eq $ft.Priority "low" }}
     priority: BCT
     {{- else if eq $ft.Priority "high" }}
@@ -95,7 +105,6 @@ var (
             {{- end }}
         {{- end }}
     script_paths:
-        {{- range $j, $gt := $ft.Tests}}
         - {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}:
             test_path: {{ $gt.Path }}
             {{- if $gt.Args }}
@@ -105,7 +114,7 @@ var (
             test_patch: {{ $gt.Patch }}
             {{- end }}
             test_timeout: {{ $gt.Timeout }}
-        {{- end }}
+            test_must_pass: {{ $gt.MustPass }}
     fp_post_tests:
         {{- range $j, $gt := $ft.Posttests}}
         - {{ $gt.Name }}:
@@ -115,6 +124,7 @@ var (
             {{- end }}
         {{- end }}
     smart_sanity_exclude: True
+{{- end }}
 {{ end }}
 `))
 )
@@ -126,6 +136,10 @@ func init() {
 	}
 	testDescFiles = strings.Split(*testDescFilesFlag, ",")
 	workspace = *workspaceFlag
+
+	if len(*testNamesFlag) > 0 {
+		testNames = strings.Split(*testNamesFlag, ",")
+	}
 }
 
 func main() {
@@ -145,12 +159,53 @@ func main() {
 		suite = append(suite, t)
 	}
 
-	for i := range suite {
-		if suite[i].Timeout > 0 {
+	// Targeted mode: remove untargeted tests
+	if len(testNames) > 0 {
+		targetedTests := map[string]bool{}
+		for _, t := range testNames {
+			targetedTests[strings.Split(t, " ")[0]] = true
+		}
+
+		for i := range suite {
+			keptTests := []GoTest{}
 			for j := range suite[i].Tests {
-				if suite[i].Tests[j].Timeout == 0 {
-					suite[i].Tests[j].Timeout = suite[i].Timeout
+				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
+				if _, found := targetedTests[prefix]; found {
+					keptTests = append(keptTests, suite[i].Tests[j])
 				}
+			}
+			suite[i].Tests = keptTests
+		}
+	} else {
+		// Normal mode: remove skipped tests
+		for i := range suite {
+			keptTests := []GoTest{}
+			for j := range suite[i].Tests {
+				if !suite[i].Tests[j].Skip {
+					keptTests = append(keptTests, suite[i].Tests[j])
+				}
+			}
+			suite[i].Tests = keptTests
+		}
+
+		kepSuite := []FirexTest{}
+		for i := range suite {
+			if !suite[i].Skip && len(suite[i].Tests) > 0 {
+				kepSuite = append(kepSuite, suite[i])
+			}
+		}
+		suite = kepSuite
+	}
+
+	// adjust timeouts & owners
+	for i := range suite {
+		for j := range suite[i].Tests {
+			if suite[i].Timeout > 0 && suite[i].Tests[j].Timeout == 0 {
+				suite[i].Tests[j].Timeout = suite[i].Timeout
+			}
+
+			if len(suite[i].Owner) > 0 && len(suite[i].Tests[j].Owner) == 0 {
+				suite[i].Tests[j].Owner = suite[i].Owner
 			}
 		}
 	}

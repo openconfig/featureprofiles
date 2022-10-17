@@ -62,9 +62,4 @@ feature:
         ipv4_prefix_length: 24
         ipv6_address: 1::1
         ipv6_prefix_length: 128
-      - name: FourHundredGigE0/0/0/1 
-        members:
-          - $ports.port9
-        ipv4_address: 2.1.1.1
-        ipv4_prefix_length: 24
 
