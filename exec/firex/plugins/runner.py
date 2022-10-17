@@ -80,7 +80,6 @@ def BringupTestbed(self, uid, ws, plat, framework,
     if topo_file and len(topo_file) > 0:
         c = InjectArgs(**self.abog)
         c |= self.orig.s()
-        c |= GenerateB4FPTestbedFile.s()
         testbed, tb_data, testbed_path = self.enqueue_child_and_get_results(c)
         ondatra_binding_path = testbed_path
 
