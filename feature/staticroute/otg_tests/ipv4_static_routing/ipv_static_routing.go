@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otg_tests
+package ipv4_static_routing
 
 import (
 	"fmt"
@@ -29,29 +29,29 @@ import (
 var (
 	dutPorts = map[string]attrs.Attributes{
 		"port1": {
-			IPv4:    "192.0.2.12",
-			IPv6:    "2001:db8::12",
+			IPv4:    "198.51.100.12",
+			IPv6:    "2001:db8:1::12",
 			IPv4Len: 31,
 			IPv6Len: 127,
 			Desc:    "ATE port 1 to DUT port 1",
 		},
 		"port2": {
-			IPv4:    "192.0.2.22",
-			IPv6:    "2001:db8::22",
+			IPv4:    "198.51.100.22",
+			IPv6:    "2001:db8:1::22",
 			IPv4Len: 31,
 			IPv6Len: 127,
 			Desc:    "DUT port 2 to ATE port 2",
 		},
 		"port3": {
-			IPv4:    "192.0.2.32",
-			IPv6:    "2001:db8::32",
+			IPv4:    "198.51.100.32",
+			IPv6:    "2001:db8:1::32",
 			IPv4Len: 31,
 			IPv6Len: 127,
 			Desc:    "DUT port 3 to ATE port 3",
 		},
 		"port4": {
-			IPv4:    "192.0.2.42",
-			IPv6:    "2001:db8::42",
+			IPv4:    "198.51.100.42",
+			IPv6:    "2001:db8:1::42",
 			IPv4Len: 31,
 			IPv6Len: 127,
 			Desc:    "DUT port 4 to ATE port 4",
@@ -60,29 +60,29 @@ var (
 
 	atePorts = map[string]attrs.Attributes{
 		"port1": {
-			IPv4:    "192.0.2.13",
-			IPv6:    "2001:db8::13",
+			IPv4:    "198.51.100.13",
+			IPv6:    "2001:db8:1::13",
 			MAC:     "02:1a:c0:00:02:01",
 			IPv4Len: 31,
 			IPv6Len: 127,
 		},
 		"port2": {
-			IPv4:    "192.0.2.23",
-			IPv6:    "2001:db8::23",
+			IPv4:    "198.51.100.23",
+			IPv6:    "2001:db8:1::23",
 			MAC:     "02:1a:c0:00:02:02",
 			IPv4Len: 31,
 			IPv6Len: 127,
 		},
 		"port3": {
-			IPv4:    "192.0.2.33",
-			IPv6:    "2001:db8::33",
+			IPv4:    "198.51.100.33",
+			IPv6:    "2001:db8:1::33",
 			MAC:     "02:1a:c0:00:02:03",
 			IPv4Len: 31,
 			IPv6Len: 127,
 		},
 		"port4": {
-			IPv4:    "192.0.2.43",
-			IPv6:    "2001:db8::43",
+			IPv4:    "198.51.100.43",
+			IPv6:    "2001:db8:1::43",
 			MAC:     "02:1a:c0:00:02:04",
 			IPv4Len: 31,
 			IPv6Len: 127,
@@ -113,13 +113,6 @@ func TestStaticRouteSingleDestinationPort(t *testing.T) {
 		dut.Config().Interface(pn).Update(t, ifCfg)
 	}
 
-	for port := range atePorts {
-		if port == "port1" {
-			continue
-		}
-
-	}
-
 	//  Configure an ATE
 
 	ate := ondatra.ATE(t, "ate")
@@ -138,12 +131,13 @@ func TestStaticRouteSingleDestinationPort(t *testing.T) {
 	// destinations specifies an IP destination and whether the traffic should be
 	// lost.
 	destinations := map[string]bool{
-		"10.0.0.1":      false,
+		"192.0.2.6":      false,
 		"1.2.3.4":       true,
-		"10.0.0.42":     false,
+		"192.0.2.111":     false,
 		"100.100.64.24": true,
 	}
 
+	// check that traffic can be forwarded to each of the destination ports
 	for dstport := range atePorts {
 		if dstport == "port1" {
 			continue
@@ -151,7 +145,7 @@ func TestStaticRouteSingleDestinationPort(t *testing.T) {
 
 		ni := &telemetry.NetworkInstance{}
 		ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").
-			GetOrCreateStatic("10.0.0.0/24").
+			GetOrCreateStatic("192.0.2.0/24").
 			GetOrCreateNextHop("h").NextHop = telemetry.UnionString(atePorts[dstport].IPv4)
 		dut.Config().NetworkInstance("default").Update(t, ni)
 
