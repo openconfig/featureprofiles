@@ -117,7 +117,7 @@ func TestStaticRouteSingleDestinationPort(t *testing.T) {
 		if port == "port1" {
 			continue
 		}
-		
+
 	}
 
 	//  Configure an ATE
@@ -144,7 +144,6 @@ func TestStaticRouteSingleDestinationPort(t *testing.T) {
 		"100.100.64.24": true,
 	}
 
-
 	for dstport := range atePorts {
 		if dstport == "port1" {
 			continue
@@ -154,7 +153,7 @@ func TestStaticRouteSingleDestinationPort(t *testing.T) {
 		ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static").
 			GetOrCreateStatic("10.0.0.0/24").
 			GetOrCreateNextHop("h").NextHop = telemetry.UnionString(atePorts[dstport].IPv4)
-		dut.Config().NetworkInstance("default").Update(t,ni)
+		dut.Config().NetworkInstance("default").Update(t, ni)
 
 		for dstaddr, want := range destinations {
 			t.Run(fmt.Sprintf("dstaddr_%s_dstport_%s", dstaddr, dstport), func(t *testing.T) {
