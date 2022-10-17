@@ -18,6 +18,7 @@ package transitwecmpflush_test
 import (
 	"testing"
 
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -64,5 +65,5 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	policy := telemetry.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
-	dut.Config().NetworkInstance("default").PolicyForwarding().Replace(t, &policy)
+	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Replace(t, &policy)
 }
