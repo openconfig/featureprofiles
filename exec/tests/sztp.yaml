@@ -1,5 +1,6 @@
 name: sztp 
 owner: sahubbal@cisco.com
+priority: 6
 testbed: topologies/cisco/hw/8800-RP/dut_single.testbed
 binding: topologies/cisco/hw/8800-RP/mtb1_d12.binding
 tests:
