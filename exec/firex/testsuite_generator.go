@@ -91,6 +91,8 @@ var (
     {{- end }}
     {{- if $ft.Baseconf }}
     base_conf_path: {{ $ft.Baseconf }}
+    {{- else }}
+    base_conf_path: ""
     {{- end }}
     supported_platforms:
         - "8000"
