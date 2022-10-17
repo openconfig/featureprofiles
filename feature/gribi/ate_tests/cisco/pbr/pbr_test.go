@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
@@ -29,6 +28,8 @@ const (
 	SourceAddress2 = "198.61.100.0/32"
 	protocolNum    = 4
 )
+
+var weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
@@ -1347,9 +1348,6 @@ func testUpdateWrongSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
 func testReplaceAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program GRIBI entry on the router
-
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
-
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
@@ -1373,7 +1371,6 @@ func testReplaceAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
 	//Configure policy under bundle-interface
 
 	replaceOnlySrcIp(t, args.dut, PbrNameDscp, SourceAddress2)
-	time.Sleep(10 * time.Second)
 
 	// Create Traffic and check traffic
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
@@ -1383,9 +1380,6 @@ func testReplaceAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
 func testUpdateAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program GRIBI entry on the router
-
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
-
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
@@ -1407,9 +1401,7 @@ func testUpdateAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
 
 	//Configure policy under bundle-interface
-
 	updateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
-	time.Sleep(10 * time.Second)
 
 	//Create Traffic and check traffic
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
@@ -1418,9 +1410,6 @@ func testUpdateAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
 func testUpdateAtSrcIpLeafNegative(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program GRIBI entry on the router
-
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
-
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
@@ -1443,13 +1432,11 @@ func testUpdateAtSrcIpLeafNegative(ctx context.Context, t *testing.T, args *test
 
 	//Configure policy under bundle-interface
 	updateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
-	time.Sleep(10 * time.Second)
 
 	//Create Traffic and traffic expected to fail
 	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
 
 	updateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress)
-	time.Sleep(10 * time.Second)
 
 	//Create Traffic and traffic expected to pass
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
@@ -1458,8 +1445,6 @@ func testUpdateAtSrcIpLeafNegative(ctx context.Context, t *testing.T, args *test
 func testReplaceSrcIpRule(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program GRIBI entry on the router
-
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -1495,9 +1480,6 @@ func testReplaceSrcIpRule(ctx context.Context, t *testing.T, args *testArgs) {
 func testReplaceSrcIpEntirePolicy(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program GRIBI entry on the router
-
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
-
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
