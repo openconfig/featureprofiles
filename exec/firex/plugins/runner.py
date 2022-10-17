@@ -80,11 +80,9 @@ def BringupTestbed(self, uid, ws, plat, framework,
     if topo_file and len(topo_file) > 0:
         c = InjectArgs(**self.abog)
         c |= self.orig.s()
-        self.enqueue_child_and_get_results(c)
-
-        # self.orig.s(plat=plat, topo_file = topo_file, image_name = images)
-        # c = VxSimBringUp.undecorated(ws=ws, uid=uid, plat=plat, framework=framework, 
-        #     topo_file=topo_file,testbed_logs_dir=testbed_logs_dir, image_name = images)
+        c |= GenerateB4FPTestbedFile.s()
+        testbed, tb_data, testbed_path = self.enqueue_child_and_get_results(c)
+        ondatra_binding_path = testbed_path
 
     else:
         ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
@@ -145,8 +143,10 @@ def BringupTestbed(self, uid, ws, plat, framework,
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, uid, ws):
-    pass
     # shutil.rmtree(os.path.join(ws, f'go_pkgs'))
+    c = InjectArgs(**self.abog)
+    c |= self.orig.s()
+    self.enqueue_child_and_get_results(c)
 
 def testbed_uniqueness_args():
     return ["ondatra_binding_path", "base_conf_path", "topo_file"]
