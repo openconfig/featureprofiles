@@ -15,16 +15,16 @@ import (
 
 // GoTest represents a single go test
 type GoTest struct {
-	ID         int
-	Name       string
-	Owner      string
-	Priority   int
-	Path       string
-	Patch      string
-	Args       []string
-	Timeout    int
-	Skip       bool
-	ShouldFail bool
+	ID       int
+	Name     string
+	Owner    string
+	Priority int
+	Path     string
+	Patch    string
+	Args     []string
+	Timeout  int
+	Skip     bool
+	MustPass bool
 }
 
 // FirexTest represents a single firex test suite
