@@ -26,8 +26,8 @@ import (
 )
 
 var (
-	ixiaTopology = make(map[string]*ondatra.ATETopology)
-	sortedAtePorts      []string //keep sorted ports for ate, the first port is the send and the rest are recive
+	ixiaTopology   = make(map[string]*ondatra.ATETopology)
+	sortedAtePorts []string //keep sorted ports for ate, the first port is the send and the rest are recive
 )
 
 func getIXIATopology(t *testing.T, ateName string) *ondatra.ATETopology {
@@ -76,7 +76,7 @@ func addNetworkAndProtocolsToAte(t *testing.T, ate *ondatra.ATEDevice, topo *ond
 	util.AddIpv4Network(t, topo, sortedAtePorts[0], "network101", "101.1.1.1/32", scale)
 	util.AddIpv4Network(t, topo, sortedAtePorts[1], "network102", "102.1.1.1/32", scale)
 	//Configure ISIS, BGP on TGN
-	util.AddAteISISL2(t, topo,sortedAtePorts[0], "490001", "isis_network1", 20, "120.1.1.1/32", scale)
+	util.AddAteISISL2(t, topo, sortedAtePorts[0], "490001", "isis_network1", 20, "120.1.1.1/32", scale)
 	util.AddAteISISL2(t, topo, sortedAtePorts[1], "490002", "isis_network2", 20, "121.1.1.1/32", scale)
 	util.AddAteEBGPPeer(t, topo, sortedAtePorts[0], "100.120.1.1", 64001, "bgp_network", "100.120.0.2", "130.1.1.1/32", scale, false)
 	util.AddAteEBGPPeer(t, topo, sortedAtePorts[1], "100.121.1.1", 64001, "bgp_network", "100.121.0.2", "131.1.1.1/32", scale, false)
@@ -123,7 +123,7 @@ func getScaleFlow(t *testing.T, atePorts map[string]*ondatra.Interface, ate *ond
 	t.Log("Extending to multiple receiver ports...")
 	rxPorts := []ondatra.Endpoint{}
 	for i, port := range sortedAtePorts {
-		if i==0 {
+		if i == 0 {
 			continue
 		}
 		rxPorts = append(rxPorts, atePorts[port])
