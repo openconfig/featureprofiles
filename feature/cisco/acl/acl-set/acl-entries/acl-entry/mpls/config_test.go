@@ -24,20 +24,21 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	setup.ResetStruct(bcAclSetAclEntry, []string{"Mpls", "Actions"})
 	bcAclSetAclEntryMpls := bcAclSetAclEntry.Mpls
 	setup.ResetStruct(bcAclSetAclEntryMpls, []string{})
-	dut.Config().Acl().Replace(t, bc)
+	//dut.Config().Acl().Replace(t, bc)
 	return bc
 }
 
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
-	dut.Config().Acl().Delete(t)
+	//dut.Config().Acl().Delete(t)
 }
+
 func TestStartLabelValue(t *testing.T) {
+
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 	t.Skip()
-
 	inputs := []oc.Acl_AclSet_AclEntry_Mpls_StartLabelValue_Union{
 		oc.UnionUint32(871788),
 	}

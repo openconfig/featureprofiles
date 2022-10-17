@@ -1,6 +1,6 @@
 name: fp_cisco
 owner: agvarghe@cisco.com
-priority: low
+priority: 3
 testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
 binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
 baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfpcisco-ottawa-lab2-r3.proto
@@ -25,7 +25,7 @@ tests:
 - name: Network-instance OC leaf level coverage 
   path: feature/cisco/network-instance/...
 - name: QOS OC leaf level coverage 
-  path: feature/cisco/qos/...
+  path: feature/cisco/qos/ate_tests/...
 - name: RPL OC leaf level coverage 
   path: feature/cisco/rpl/...
 - name: System OC leaf level coverage 

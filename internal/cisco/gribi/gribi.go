@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	timeout = time.Minute
+	timeout = 2 * time.Minute
 )
 
 // DECAP constant declaration
@@ -67,6 +67,12 @@ type Client struct {
 }
 
 const responseTimeThreshold = 10000000 // nanosecond (10 ML)
+
+// NHGOptions are optional parameters to a GRIBI next-hop-group.
+type NHGOptions struct {
+	// BackupNHG specifies the backup next-hop-group to be used when all next-hops are unavailable.
+	FRR bool
+}
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
 func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
@@ -174,7 +180,7 @@ func (c *Client) checkNHGResult(t testing.TB, expectedResult fluent.ProgrammingR
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
-func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck) {
+func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck, opts ...*NHGOptions) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	aftNhg := c.getOrCreateAft(instance).GetOrCreateNextHopGroup(nhgIndex)
 	aftNhg.ProgrammedId = &nhgIndex
@@ -204,7 +210,7 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeigh
 	}
 
 	if check.AFTCheck {
-		c.checkNHG(t, nhgIndex, bkhgIndex, instance, nhWeights)
+		c.checkNHG(t, nhgIndex, bkhgIndex, instance, nhWeights, opts...)
 	}
 }
 
@@ -297,7 +303,7 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 
 // ReplaceNHG replaces a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
 // in a given network instance.
-func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck) {
+func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck, opts ...*NHGOptions) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	c.getOrCreateAft(instance).DeleteNextHopGroup(nhgIndex)
 	aftNhg, _ := c.getOrCreateAft(instance).NewNextHopGroup(nhgIndex)
@@ -325,7 +331,7 @@ func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhW
 	}
 
 	if check.AFTCheck {
-		c.checkNHG(t, nhgIndex, bkhgIndex, instance, nhWeights)
+		c.checkNHG(t, nhgIndex, bkhgIndex, instance, nhWeights, opts...)
 	}
 }
 

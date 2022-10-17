@@ -17,7 +17,7 @@ func TestInterfaceCfgs(t *testing.T) {
 		t.Error(err)
 	}
 	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
-	iute := inputObj.Device(dut).GetInterface("FourHundredGigE0/0/0/1")
+	iute := dut.Port(t, "port8")
 
 	t.Run("configInterface", func(t *testing.T) {
 		path := dut.Config().Interface(iut.Name())
@@ -101,7 +101,7 @@ func TestInterfaceCfgs(t *testing.T) {
 
 	})
 	t.Run("Update//interfaces/interface/config/type", func(t *testing.T) {
-		path := dut.Config().Interface(member).Type()
+		path := dut.Config().Interface(iute.Name()).Type()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 
@@ -602,15 +602,16 @@ func TestInterfaceState(t *testing.T) {
 
 		}
 	})
+	iute := dut.Port(t, "port8")
 	macAdd := "78:2a:67:b6:a8:08"
 	t.Run("Update//interfaces/interface/ethernet/config/mac-addres", func(t *testing.T) {
-		path := dut.Config().Interface(member).Ethernet().MacAddress()
+		path := dut.Config().Interface(iute.Name()).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, macAdd)
 
 	})
 	t.Run("Subscribe//interfaces/interface/ethernet/state/mac-address", func(t *testing.T) {
-		state := dut.Telemetry().Interface(member).Ethernet().MacAddress()
+		state := dut.Telemetry().Interface(iute.Name()).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		macadd := state.Get(t)
 		if macadd != macAdd {
@@ -619,13 +620,13 @@ func TestInterfaceState(t *testing.T) {
 		}
 	})
 	t.Run("Update//interfaces/interface/config/type", func(t *testing.T) {
-		path := dut.Config().Interface(member).Type()
+		path := dut.Config().Interface(iute.Name()).Type()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 
 	})
 	t.Run("Subscribe//interfaces/interface/state/type", func(t *testing.T) {
-		state := dut.Telemetry().Interface(member).Type()
+		state := dut.Telemetry().Interface(iute.Name()).Type()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		_type := state.Get(t)
 		if _type != oc.IETFInterfaces_InterfaceType_ethernetCsmacd {

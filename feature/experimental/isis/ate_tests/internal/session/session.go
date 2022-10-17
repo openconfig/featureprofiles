@@ -46,7 +46,7 @@ const (
 	DUTAreaAddress = "49.0001"
 	ATEAreaAddress = "49.0002"
 	DUTSysID       = "1920.0000.2001"
-	ISISName       = "osiris"
+	ISISName       = "DEFAULT"
 	pLen4          = 30
 	pLen6          = 126
 )
@@ -94,7 +94,6 @@ func addISISOC(dev *telemetry.Device, areaAddress, sysID, ifaceName string) {
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
-	glob.Instance = ygot.String(ISISName)
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
 	glob.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV6, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
@@ -227,6 +226,10 @@ func (s *TestSession) PushDUT(t testing.TB) {
 		node := s.DUT.Config().Interface(name)
 		node.Replace(t, conf)
 	}
+	//configure Network Instance
+	dutConfNIPath := s.DUT.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
 	// Push the ISIS protocol
 	dutNode := s.DUT.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
 	dutConf := s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)

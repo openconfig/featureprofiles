@@ -12,11 +12,14 @@ import (
 	"time"
 
 	"crypto/tls"
+	"crypto/x509"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	scp "github.com/povsister/scp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -85,13 +88,13 @@ func TestPWLess(t *testing.T) {
 		t.Error(err)
 	}
 	t.Log("Trying to connect to box with public key\n\n")
-	ssh_pwless := "ssh -i id_rsa " + fmt.Sprintf("%s@%s -p %s", *sshUser, *sshIP, *sshPort) + " show version"
+	ssh_pwless := "ssh -i " + fmt.Sprintf("%sid_rsa ", client_ssh_dir) + fmt.Sprintf("%s@%s -p %s", *sshUser, *sshIP, *sshPort) + " show version"
 	t.Log(ssh_pwless)
 	outPw, errPw := exec.Command("bash", "-c", ssh_pwless).Output()
 	if errPw != nil {
 		t.Error(errPw)
 	}
-	t.Logf("show version from the box\n %v\n", outPw)
+	t.Logf("show version from the box\n %v\n", string(outPw))
 }
 func TestCertAuth(t *testing.T) {
 	if *sshIP == "" {
@@ -114,14 +117,13 @@ func TestCertAuth(t *testing.T) {
 	if errCert != nil {
 		t.Error(errCert)
 	}
-	t.Logf("The output is %v\n", outCert)
+	t.Logf("The output is %v\n", string(outCert))
 }
 
 func TestPwDisable(t *testing.T) {
 	if *sshIP == "" {
 		t.Fatal("--ssh_ip flag must be set.")
 	}
-
 	ssh_pwauth := "ssh -o PreferredAuthentications=cisco123 " + fmt.Sprintf("%s@%s -p %s", *sshUser, *sshIP, *sshPort)
 	outPwauth, errPwauth := exec.Command("bash", "-c", ssh_pwauth).Output()
 	if errPwauth == nil {
@@ -170,51 +172,68 @@ func TestTLS(t *testing.T) {
 	if *sshIP == "" {
 		t.Fatal("--ssh_ip flag must be set.")
 	}
+	//t.Log("configuring grpc tls to generate the certificates/key")
 	dut := ondatra.DUT(t, "dut")
 	cli_handle := dut.RawAPIs().CLI(t)
-	t.Log("configuring grpc tls to generate the certificates/key")
-	config.TextWithSSH(context.Background(), t, dut, "configure \n no grpc no-tls\n commit \n", 10*time.Second)
-	rmGrpc, errRmGrpc := cli_handle.SendCommand(context.Background(), "run cp /misc/config/grpc/ems.pem /harddisk:")
+	rmGrpc, errRmGrpc := cli_handle.SendCommand(context.Background(), "run rm -rf /misc/config/grpc/")
 	t.Logf(rmGrpc)
 	if errRmGrpc != nil {
 		t.Error(errRmGrpc)
 	}
-	rmGrpc, errRmGrpc = cli_handle.SendCommand(context.Background(), "run cp /misc/config/grpc/ems.key /harddisk:")
-	t.Logf(rmGrpc)
-	if errRmGrpc != nil {
-		t.Error(errRmGrpc)
-	}
+	config.TextWithSSH(context.Background(), t, dut, "configure \n no grpc \n commit \n", 10*time.Second)
+	config.TextWithSSH(context.Background(), t, dut, "configure \n grpc port 57777 \n commit \n", 10*time.Second)
 	sshConf := scp.NewSSHConfigFromPassword(*sshUser, *sshPass)
 	scpClient, _ := scp.NewClient(fmt.Sprintf("%s:%s", *sshIP, *sshPort), sshConf, &scp.ClientOption{})
 	defer scpClient.Close()
-	errGrpcPem := scpClient.CopyFileFromRemote("/harddisk:/ems.pem", remote_dir, &scp.FileTransferOption{})
+	errGrpcPem := scpClient.CopyFileFromRemote("/misc/config/grpc/ems.pem", remote_dir, &scp.FileTransferOption{})
 	if errGrpcPem != nil {
 		t.Error(errGrpcPem)
 	}
-	errGrpcKey := scpClient.CopyFileFromRemote("/harddisk:/ems.key", remote_dir, &scp.FileTransferOption{})
-	if errGrpcKey != nil {
-		t.Error(errGrpcKey)
-	}
-	serverCert, err := tls.LoadX509KeyPair(fmt.Sprintf("%s/ems.pem", remote_dir), fmt.Sprintf("%s/ems.key", remote_dir))
+	fmt.Printf("%vems.pem", remote_dir)
+	rootPEM, err := os.ReadFile(fmt.Sprintf("%sems.pem", remote_dir))
 	if err != nil {
 		t.Error(err)
 	}
+	roots := x509.NewCertPool()
+	ok := roots.AppendCertsFromPEM([]byte(rootPEM))
+	if !ok {
+		t.Error(ok)
+	}
 	configGrpc := &tls.Config{
-		Certificates:       []tls.Certificate{serverCert},
-		ClientAuth:         tls.NoClientCert,
+		RootCAs:            roots,
 		InsecureSkipVerify: true,
 	}
-
+	t.Log("Connecting to grpc")
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "username", *sshUser, "password", *sshPass)
 	tlsCredential := credentials.NewTLS(configGrpc)
-	conn, err := grpc.Dial(
-		fmt.Sprintf("%s:%s", *sshIP, *sshPort),
+	conn, err := grpc.DialContext(ctx,
+		fmt.Sprintf("%s:%s", *sshIP, "7001"),
 		grpc.WithTransportCredentials(tlsCredential),
 	)
 	if err != nil {
 		t.Error(err)
 	}
+	gnmi, err := gpb.NewGNMIClient(conn), nil
+	if err != nil {
+		t.Error(err)
+	}
+	gNMI_out, err := gnmi.Get(ctx, &gpb.GetRequest{
+		Path: []*gpb.Path{{
+			Elem: []*gpb.PathElem{
+				{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+		},
+		Type:     gpb.GetRequest_CONFIG,
+		Encoding: gpb.Encoding_JSON_IETF,
+	})
+	t.Logf("Gnmi Response using TLS:\n%v", gNMI_out)
+	if err != nil {
+		t.Error(err)
+
+	}
+
 	defer conn.Close()
-	config.TextWithSSH(context.Background(), t, dut, "configure \n grpc no-tls\n commit \n", 10*time.Second)
+
+	defer config.TextWithSSH(context.Background(), t, dut, "configure \n grpc no-tls\n commit \n", 10*time.Second)
 
 }
 
@@ -222,7 +241,6 @@ func TestSZTP(t *testing.T) {
 	if *sshIP == "" {
 		t.Fatal("--ssh_ip flag must be set.")
 	}
-
 	dut := ondatra.DUT(t, "dut")
 	cli_handle := dut.RawAPIs().CLI(t)
 	ztp_resp, err := cli_handle.SendCommand(context.Background(), "ztp initiate noprompt")

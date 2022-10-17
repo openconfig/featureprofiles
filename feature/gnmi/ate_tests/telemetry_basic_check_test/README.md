@@ -22,6 +22,11 @@ following features:
         *   /interfaces/interfaces/interface/state/admin-status
         *   /interfaces/interfaces/interface/state/oper-status
 
+*   Interface physical channel
+
+    *   Check interface physical-channel exists.
+        *   /interfaces/interface/state/physical-channel
+
 *   Interface status change
 
     *   Check admin-status and oper-status are correct after interface flapping.
@@ -122,6 +127,7 @@ No configuration coverage.
 *   /interfaces/interface/state/hardware-port /interfaces/interface/state/id
 *   /interfaces/interface/state/oper-status
 *   /interfaces/interface/ethernet/state/port-speed
+*   /interfaces/interface/state/physical-channel
 *   /components/component/integrated-circuit/state/node-id
 *   /components/component/state/parent
 *   /interfaces/interface/state/counters/in-octets

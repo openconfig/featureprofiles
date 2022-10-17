@@ -1,0 +1,77 @@
+diff --git a/feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test/chassis_reboot_status_and_cancel_test.go b/feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test/chassis_reboot_status_and_cancel_test.go
+index 5410fb09..e7faf1d5 100644
+--- a/feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test/chassis_reboot_status_and_cancel_test.go
++++ b/feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test/chassis_reboot_status_and_cancel_test.go
+@@ -20,6 +20,7 @@ import (
+ 
+ 	"github.com/openconfig/featureprofiles/internal/fptest"
+ 	spb "github.com/openconfig/gnoi/system"
++	tpb "github.com/openconfig/gnoi/types"
+ 	"github.com/openconfig/ondatra"
+ )
+ 
+@@ -74,8 +75,16 @@ func TestRebootStatus(t *testing.T) {
+ 		{
+ 			desc: "reboot requested with delay",
+ 			rebootRequest: &spb.RebootRequest{
+-				Method:  spb.RebootMethod_COLD,
+-				Delay:   rebootDelay * oneMinuteInNanoSecond,
++				Method: spb.RebootMethod_COLD,
++				Delay:  rebootDelay * oneMinuteInNanoSecond,
++				Subcomponents: []*tpb.Path{
++
++					{
++						Origin: "openconfig",
++						Elem:   []*tpb.PathElem{{Name: "components"}, {Name: "component", Key: map[string]string{"name": "0/RP0/CPU0"}}},
++					},
++				},
++
+ 				Message: "Reboot chassis with delay",
+ 				Force:   true,
+ 			},
+@@ -94,7 +103,14 @@ func TestRebootStatus(t *testing.T) {
+ 				}
+ 			}
+ 
+-			resp, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
++			resp, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{
++
++				{
++					Origin: "openconfig",
++					Elem:   []*tpb.PathElem{{Name: "components"}, {Name: "component", Key: map[string]string{"name": "0/RP0/CPU0"}}, {Name: "state"}, {Name: "location"}},
++				},
++			},
++			})
+ 			t.Logf("DUT rebootStatus: %v, err: %v", resp, err)
+ 			if err != nil {
+ 				t.Fatalf("Failed to get reboot status with unexpected err: %v", err)
+@@ -150,7 +166,13 @@ func TestCancelReboot(t *testing.T) {
+ 		t.Fatalf("Failed to request reboot with unexpected err: %v", err)
+ 	}
+ 
+-	rebootStatus, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
++	rebootStatus, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{
++
++		{
++			Origin: "openconfig",
++			Elem:   []*tpb.PathElem{{Name: "components"}, {Name: "component", Key: map[string]string{"name": "0/RP0/CPU0"}}, {Name: "state"}, {Name: "location"}},
++		},
++	}})
+ 	t.Logf("DUT rebootStatus: %v, err: %v", rebootStatus, err)
+ 	if err != nil {
+ 		t.Fatalf("Failed to get reboot status with unexpected err: %v", err)
+@@ -166,7 +188,13 @@ func TestCancelReboot(t *testing.T) {
+ 		t.Fatalf("Failed to cancel reboot with unexpected err: %v", err)
+ 	}
+ 
+-	rebootStatus, err = gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
++	rebootStatus, err = gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{
++
++		{
++			Origin: "openconfig",
++			Elem:   []*tpb.PathElem{{Name: "components"}, {Name: "component", Key: map[string]string{"name": "0/RP0/CPU0"}}},
++		},
++	}})
+ 	t.Logf("DUT rebootStatus: %v, err: %v", rebootStatus, err)
+ 	if err != nil {
+ 		t.Fatalf("Failed to get reboot status with unexpected err: %v", err)

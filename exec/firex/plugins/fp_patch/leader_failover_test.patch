@@ -1,11 +1,11 @@
 diff --git a/feature/gribi/ate_tests/leader_failover_test/leader_failover_test.go b/feature/gribi/ate_tests/leader_failover_test/leader_failover_test.go
-index 5479a0f7..8138b1e4 100644
+index 792bc658..989efe2e 100644
 --- a/feature/gribi/ate_tests/leader_failover_test/leader_failover_test.go
 +++ b/feature/gribi/ate_tests/leader_failover_test/leader_failover_test.go
-@@ -250,7 +250,9 @@ func TestLeaderFailover(t *testing.T) {
- 	}
- 
+@@ -252,7 +252,9 @@ func TestLeaderFailover(t *testing.T) {
  	t.Run("SINGLE_PRIMARY/PERSISTENCE=DELETE", func(t *testing.T) {
+ 		// This is an indicator test for gRIBI persistence DELETE, so we
+ 		// do not skip based on *deviations.GRIBIPreserveOnly.
 -
 +		if *deviations.GRIBIPreserveOnly {
 +			t.Skip()
@@ -13,13 +13,14 @@ index 5479a0f7..8138b1e4 100644
  		// Set parameters for gRIBI client clientA.
  		// Set Persistence to false.
  		clientA := &gribi.Client{
-@@ -289,6 +291,9 @@ func TestLeaderFailover(t *testing.T) {
- 	})
- 
+@@ -291,7 +293,9 @@ func TestLeaderFailover(t *testing.T) {
  	t.Run("ShouldDelete", func(t *testing.T) {
+ 		// This is an indicator test for gRIBI persistence DELETE, so we
+ 		// do not skip based on *deviations.GRIBIPreserveOnly.
+-
 +		if *deviations.GRIBIPreserveOnly {
 +			t.Skip()
 +		}
- 
  		t.Logf("Verify through Telemetry and Traffic that the route to %s has been deleted after gRIBI client disconnected", ateDstNetCIDR)
  
+ 		t.Run("VerifyNoAFT", func(t *testing.T) {

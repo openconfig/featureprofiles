@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -14,20 +15,25 @@ import (
 
 // GoTest represents a single go test
 type GoTest struct {
-	Name       string
-	Path       string
-	Patch      string
-	Args       []string
-	Timeout    int
-	ShouldFail bool
+	ID       int
+	Name     string
+	Owner    string
+	Priority int
+	Path     string
+	Patch    string
+	Args     []string
+	Timeout  int
+	Skip     bool
+	MustPass bool
 }
 
 // FirexTest represents a single firex test suite
 type FirexTest struct {
 	Name     string
 	Owner    string
-	Priority string
+	Priority int
 	Timeout  int
+	Skip     bool
 	Pyvxr    struct {
 		Topology string
 	}
@@ -44,11 +50,17 @@ var (
 		"test_desc_files", "", "comma separated list of test description yaml files.",
 	)
 
+	testNamesFlag = flag.String(
+		"test_names", "", "comma separated list of tests to include",
+	)
+
 	workspaceFlag = flag.String(
 		"workspace", "", "workspace used for firex launch.",
 	)
 
 	testDescFiles []string
+
+	testNames []string
 
 	workspace string
 )
@@ -58,15 +70,11 @@ var (
 		"join": strings.Join,
 	}).Parse(`
 {{- range $i, $ft := $.TestSuite }}
-{{- .Name }}:
+{{- range $j, $gt := $ft.Tests}}
+{{ $gt.Name }}:
     framework: b4_fp
     owners:
-        - {{ $ft.Owner }}
-    {{- if eq $ft.Priority "low" }}
-    priority: BCT
-    {{- else if eq $ft.Priority "high" }}
-    priority: UT
-    {{- end }}
+        - {{ $gt.Owner }}
     {{- if $ft.Pyvxr.Topology }}
     plugins:
         - vxsim.py
@@ -83,6 +91,8 @@ var (
     {{- end }}
     {{- if $ft.Baseconf }}
     base_conf_path: {{ $ft.Baseconf }}
+    {{- else }}
+    base_conf_path: ""
     {{- end }}
     supported_platforms:
         - "8000"
@@ -95,8 +105,7 @@ var (
             {{- end }}
         {{- end }}
     script_paths:
-        {{- range $j, $gt := $ft.Tests}}
-        - {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}:
+        - ({{ $gt.ID }}) {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}:
             test_path: {{ $gt.Path }}
             {{- if $gt.Args }}
             test_args: {{ join $gt.Args " " }}
@@ -105,7 +114,6 @@ var (
             test_patch: {{ $gt.Patch }}
             {{- end }}
             test_timeout: {{ $gt.Timeout }}
-        {{- end }}
     fp_post_tests:
         {{- range $j, $gt := $ft.Posttests}}
         - {{ $gt.Name }}:
@@ -115,6 +123,7 @@ var (
             {{- end }}
         {{- end }}
     smart_sanity_exclude: True
+{{- end }}
 {{ end }}
 `))
 )
@@ -126,6 +135,10 @@ func init() {
 	}
 	testDescFiles = strings.Split(*testDescFilesFlag, ",")
 	workspace = *workspaceFlag
+
+	if len(*testNamesFlag) > 0 {
+		testNames = strings.Split(*testNamesFlag, ",")
+	}
 }
 
 func main() {
@@ -145,12 +158,61 @@ func main() {
 		suite = append(suite, t)
 	}
 
-	for i := range suite {
-		if suite[i].Timeout > 0 {
+	// Targeted mode: remove untargeted tests
+	if len(testNames) > 0 {
+		targetedTests := map[string]bool{}
+		for _, t := range testNames {
+			targetedTests[strings.Split(t, " ")[0]] = true
+		}
+
+		for i := range suite {
+			keptTests := []GoTest{}
 			for j := range suite[i].Tests {
-				if suite[i].Tests[j].Timeout == 0 {
-					suite[i].Tests[j].Timeout = suite[i].Timeout
+				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
+				if _, found := targetedTests[prefix]; found {
+					keptTests = append(keptTests, suite[i].Tests[j])
 				}
+			}
+			suite[i].Tests = keptTests
+		}
+	} else {
+		// Normal mode: remove skipped tests
+		for i := range suite {
+			keptTests := []GoTest{}
+			for j := range suite[i].Tests {
+				if !suite[i].Tests[j].Skip {
+					keptTests = append(keptTests, suite[i].Tests[j])
+				}
+			}
+			suite[i].Tests = keptTests
+		}
+
+		kepSuite := []FirexTest{}
+		for i := range suite {
+			if !suite[i].Skip && len(suite[i].Tests) > 0 {
+				kepSuite = append(kepSuite, suite[i])
+			}
+		}
+		suite = kepSuite
+	}
+
+	// adjust timeouts, priorities, & owners
+	for i := range suite {
+		if suite[i].Priority == 0 {
+			suite[i].Priority = 100000000
+		}
+
+		for j := range suite[i].Tests {
+			if suite[i].Tests[j].Priority == 0 {
+				suite[i].Tests[j].Priority = 100000000
+			}
+
+			if suite[i].Timeout > 0 && suite[i].Tests[j].Timeout == 0 {
+				suite[i].Tests[j].Timeout = suite[i].Timeout
+			}
+
+			if len(suite[i].Owner) > 0 && len(suite[i].Tests[j].Owner) == 0 {
+				suite[i].Tests[j].Owner = suite[i].Owner
 			}
 		}
 	}
@@ -163,6 +225,26 @@ func main() {
 			}
 		}
 		suite[i].Timeout = 2 * maxTestTimeout
+	}
+
+	// sort by priority
+	for _, suite := range suite {
+		sort.Slice(suite.Tests, func(i, j int) bool {
+			return suite.Tests[i].Priority < suite.Tests[j].Priority
+		})
+	}
+
+	sort.Slice(suite, func(i, j int) bool {
+		return suite[i].Priority < suite[j].Priority
+	})
+
+	// Assign ids to tests
+	id := 1
+	for i := range suite {
+		for j := range suite[i].Tests {
+			suite[i].Tests[j].ID = id
+			id = id + 1
+		}
 	}
 
 	var testSuiteCode strings.Builder
