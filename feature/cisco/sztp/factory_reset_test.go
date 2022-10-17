@@ -10,14 +10,6 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-var (
-	filesCreated      = []string{}
-	fileCreateDevRand = "bash  dd if=/dev/urandom of=%s bs=1M count=2"
-	checkFileExists   = "bash [ -f \"%s\" ] && echo \"YES_exists\""
-	fileExists        = "YES_exists"
-	fileCreate        = "bash fallocate -l %dM %s"
-)
-
 type encryptionCommands struct {
 	EncrytionStatus      string
 	EncryptionActivate   string
@@ -33,7 +25,7 @@ func factoryReset(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 	gnoiClient := dut.RawAPIs().GNOI().New(t)
 	facRe, err := gnoiClient.FactoryReset().Start(context.Background(), &frpb.StartRequest{FactoryOs: false, ZeroFill: false})
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Failed to initiate Factory Reset on the device, Error : %v occured ", err)
 	}
 	t.Logf("Factory reset Response %v ", facRe)
 	time.Sleep(2 * time.Minute)
@@ -58,7 +50,7 @@ func TestFactoryReset(t *testing.T) {
 
 	showDiskEncryptionStatus, err := cli.SendCommand(context.Background(), enCiscoCommands.EncrytionStatus)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Failed to send command %v on the device, Error: %v occured", enCiscoCommands.EncrytionStatus, err)
 	}
 	t.Logf("Disk encryption status %v", showDiskEncryptionStatus)
 
@@ -72,14 +64,14 @@ func TestFactoryReset(t *testing.T) {
 		t.Logf("Sleep for 5 mins after disk-encryption activate")
 		time.Sleep(5 * time.Minute)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("Failed to send command %v on the device, Error : %v occured", enCiscoCommands.EncryptionActivate, err)
 
 		}
 		t.Logf("%v", encrypt)
 		deviceBootStatus(t, dut)
 		encrypt, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), enCiscoCommands.EncrytionStatus)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("Failed to send command %v on the router, Error : %v occured", enCiscoCommands.EncrytionStatus, err)
 
 		}
 		t.Logf("%v", encrypt)
@@ -93,17 +85,17 @@ func TestFactoryReset(t *testing.T) {
 		time.Sleep(5 * time.Minute)
 		t.Log("Deactivate Encryption\n")
 		encrypt, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), enCiscoCommands.EncryptionDeactivate)
-		t.Logf("Sleep for 5 mins after disk-encryption deactivate")
-		time.Sleep(5 * time.Minute)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("Failed send command %v on the device, Error : %v occured", enCiscoCommands.EncryptionDeactivate, err)
 
 		}
 		t.Logf("%v", encrypt)
+		t.Logf("Sleep for 5 mins after disk-encryption deactivate")
+		time.Sleep(5 * time.Minute)
 		deviceBootStatus(t, dut)
 		encrypt, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), enCiscoCommands.EncrytionStatus)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("Failed to send command %v on the router, Error : %v occured", enCiscoCommands.EncrytionStatus, err)
 
 		}
 		t.Logf("%v", encrypt)

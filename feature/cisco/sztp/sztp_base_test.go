@@ -13,6 +13,14 @@ import (
 	"github.com/openconfig/testt"
 )
 
+var (
+	filesCreated      = []string{}
+	fileCreateDevRand = "bash  dd if=/dev/urandom of=%s bs=1M count=2"
+	checkFileExists   = "bash [ -f \"%s\" ] && echo \"YES_exists\""
+	fileExists        = "YES_exists"
+	fileCreate        = "bash fallocate -l %dM %s"
+)
+
 const maxRebootTime = 40 // 40 mins wait time for the factory reset and sztp to kick in
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -25,7 +33,7 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 		fPath := path.Join(folderPath, "devrandom.log")
 		_, err := cli.SendCommand(context.Background(), fmt.Sprintf(fileCreateDevRand, fPath))
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("Failed to create file devrandom.log in the path %v, Error: %v ", folderPath, err)
 		}
 		t.Log("Check if the file is created")
 		time.Sleep(30 * time.Second)
@@ -33,7 +41,7 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 		fPath = path.Join(folderPath, ".devrandom.log")
 		_, err = cli.SendCommand(context.Background(), fmt.Sprintf(fileCreateDevRand, fPath))
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("Failed to create file .devrandom.log in the path %v, Error: %v", folderPath, err)
 
 		}
 
@@ -41,7 +49,7 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 		fPath = path.Join(folderPath, "largeFile.log")
 		_, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf(fileCreate, 100, fPath))
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("Failed to create file largeFile.log in the path %v, Error: %v", folderPath, err)
 		}
 
 		filesCreated = append(filesCreated, fPath)
@@ -49,7 +57,7 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 	for _, fP := range filesCreated {
 		resp, err := cli.SendCommand(context.Background(), fmt.Sprintf(checkFileExists, fP))
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("Failed to send command %s on the device, Error: %v", fmt.Sprintf(checkFileExists, fP), err)
 		}
 		t.Logf("%v", resp)
 		if !strings.Contains(resp, fileExists) {
@@ -65,7 +73,7 @@ func checkFiles(t *testing.T, dut *ondatra.DUTDevice) {
 
 		resp, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf(checkFileExists, fP))
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("Failed to send command %s on the device, Error: %v", fmt.Sprintf(checkFileExists, fP), err)
 		}
 		t.Logf(resp)
 		if strings.Contains(resp, fileExists) == true {
