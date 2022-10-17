@@ -174,12 +174,10 @@ func TestStaticRouteSingleDestinationPort(t *testing.T) {
 				fp := ate.OTG().Telemetry().Flow(flow.Name()).Get(t)
 				fpc := fp.GetCounters()
 
-				outoctets := fpc.GetOutOctets()
 				outpkts := fpc.GetOutPkts()
 				inpkts := fpc.GetInPkts()
 
 				t.Logf("Destination: %s, Port: %s, IPv4 Flow Details", dstaddr, dstport)
-				t.Logf("outoctets are %d", outoctets)
 				t.Logf("inpkts are %d", inpkts)
 				t.Logf("outpkts are %d", outpkts)
 				lossPct := float32((outpkts - inpkts) * 100 / outpkts)
