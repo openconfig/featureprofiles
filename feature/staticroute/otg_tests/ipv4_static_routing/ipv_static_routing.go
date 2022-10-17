@@ -131,9 +131,9 @@ func TestStaticRouteSingleDestinationPort(t *testing.T) {
 	// destinations specifies an IP destination and whether the traffic should be
 	// lost.
 	destinations := map[string]bool{
-		"192.0.2.6":      false,
+		"192.0.2.6":     false,
 		"1.2.3.4":       true,
-		"192.0.2.111":     false,
+		"192.0.2.111":   false,
 		"100.100.64.24": true,
 	}
 
