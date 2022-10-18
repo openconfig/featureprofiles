@@ -10,7 +10,7 @@ from microservices.runners.runner_base import FireXRunnerBase
 from microservices.testbed_tasks import register_testbed_file_generator
 from microservices.git_tasks import PipInstall
 from services.cflow.code_coverage_tasks import CollectCoverageData
-from ci_plugins.vxsim import GenerateGoB4TestbedFile
+from ci_plugins.vxsim import GenerateGoB4TestbedFile, BringupTestbed as VxSimBringUp
 from test_framework import register_test_framework_provider
 from html_helper import get_link 
 from collections import namedtuple
@@ -33,6 +33,7 @@ ONDATRA_PATCHES = ['exec/firex/plugins/ondatra/0001-windows-ixia-path.patch']
 whitelist_arguments([
     'ondatra_repo_branch', 
     'fp_repo_branch', 
+    'topo_file',
     'ondatra_binding_path',
     'ondatra_testbed_path', 
     'base_conf_path',
@@ -46,9 +47,11 @@ whitelist_arguments([
 ])
 
 @app.task(base=FireX, bind=True)
-def BringupTestbed(self, uid, ws, images = None,  
+@returns('ondatra_binding_path')
+def BringupTestbed(self, ws, images = None,  
                         ondatra_repo_branch='main',
-                        fp_repo_branch='master',                        
+                        fp_repo_branch='master',  
+                        topo_file=None,                      
                         ondatra_testbed_path=None,
                         ondatra_binding_path=None,
                         base_conf_path=None,
@@ -73,12 +76,22 @@ def BringupTestbed(self, uid, ws, images = None,
 
     self.enqueue_child_and_get_results(c)
 
-    ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
-    ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
+    if topo_file and len(topo_file) > 0:
+        c = InjectArgs(**self.abog)
+        c |= self.orig.s()
+        testbed_path, *other = self.enqueue_child_and_get_results(c, return_keys=('testbed_path'))
 
-    if base_conf_path and len(base_conf_path) > 0:
-        base_conf_path = os.path.join(fp_repo_dir, base_conf_path)
-        check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
+        ondatra_binding_path = os.path.join(ondatra_repo_dir, 'topology.textproto')
+        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}', 
+            file=ondatra_binding_path)
+    else:
+        ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
+
+        if base_conf_path and len(base_conf_path) > 0:
+            base_conf_path = os.path.join(fp_repo_dir, base_conf_path)
+            check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
+    
+    ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
 
     with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
         fp.write("replace github.com/openconfig/ondatra => ../ondatra")
@@ -101,7 +114,7 @@ def BringupTestbed(self, uid, ws, images = None,
     ondatra_repo.git.add(update=True)
     ondatra_repo.git.commit('-m', 'patched for testing')
 
-    if not skip_install:
+    if (not topo_file or len(topo_file) == 0) and not skip_install:
         image_version = check_output(
             f"/usr/bin/isoinfo -i {images} -x '/MDATA/BUILD_IN.TXT;1' " \
                 f"| tail -n1 | cut -d'=' -f2 | cut -d'-' -f1", 
@@ -122,15 +135,16 @@ def BringupTestbed(self, uid, ws, images = None,
 
         logger.print(f'Executing osinstall command:\n {install_cmd}')
         logger.print(check_output(install_cmd, cwd=fp_repo_dir))
+    return ondatra_binding_path
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, uid, ws):
-    pass
     # shutil.rmtree(os.path.join(ws, f'go_pkgs'))
+    pass
 
 def testbed_uniqueness_args():
-    return ["ondatra_binding_path", "base_conf_path"]
-    
+    return ["ondatra_binding_path", "base_conf_path", "topo_file"]
+ 
 @register_test_framework_provider('b4_fp')
 def b4_fp_chain_provider(ws,
                          testsuite_id,
@@ -139,10 +153,10 @@ def b4_fp_chain_provider(ws,
                          test_log_directory_path,
                          xunit_results_filepath,
                          cflow,
+                         ondatra_testbed_path,
+                         ondatra_binding_path,
                          ondatra_repo_branch='main',
                          fp_repo_branch='master',
-                         ondatra_testbed_path=None,
-                         ondatra_binding_path=None,
                          fp_pre_tests=[],
                          fp_post_tests=[],
                          test_path=None,
@@ -195,14 +209,14 @@ def b4_fp_chain_provider(ws,
     if fp_pre_tests:
         for pt in fp_pre_tests:
             for k, v in pt.items():
-                chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
+                chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'),ondatra_binding_path=ondatra_binding_path)
 
-    chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = test_path, test_args = test_args, test_timeout = test_timeout)
+    chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = test_path, test_args = test_args, test_timeout = test_timeout, ondatra_binding_path=ondatra_binding_path)
 
     if fp_post_tests:
         for pt in fp_post_tests:
             for k, v in pt.items():
-                chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
+                chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path)
 
     chain |= GoTest2HTML.s(Path(test_log_directory_path) / f'{script_name}.json', Path(test_log_directory_path) / 'results.html')
     
@@ -223,7 +237,7 @@ def ReleaseIxiaPorts(self, ws, fp_ws, ondatra_binding_path):
     logger.print("Releasing ixia ports")
     logger.print(
         check_output(
-            f'{PYTHON_BIN} {fp_ws}/exec/utils/ixia/release_ports.py {fp_ws}/{ondatra_binding_path}',
+            f'{PYTHON_BIN} {fp_ws}/exec/utils/ixia/release_ports.py {ondatra_binding_path}',
             env=dict(os.environ, PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION='python'),
             cwd=ws
         )
@@ -238,10 +252,8 @@ def RunB4FPTest(self,
                 ws,
                 testsuite_id,
                 script_name,
-                script_path,
                 test_log_directory_path,
                 xunit_results_filepath,
-                testbed_path=None,
                 ondatra_testbed_path=None,
                 ondatra_binding_path=None,
                 test_path=None,
@@ -269,19 +281,7 @@ def RunB4FPTest(self,
         f'-v 5 ' \
         f'-alsologtostderr'
 
-    ondatra_binding = ondatra_binding_path
-    if not ondatra_binding:
-        if not testbed_path or not os.path.isfile(testbed_path):
-            raise ValueError('`testbed_path` must be a path to the ondatra topo file for ondatra-based tests')
-
-        ondatra_dir = os.path.join(self.task_dir, 'ondatra')
-        silent_mkdir(ondatra_dir)
-        
-        ondatra_binding = os.path.join(ondatra_dir, 'topology.textproto')
-        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}',
-                        file=ondatra_binding)
-
-    test_args += f' -binding {ondatra_binding} -testbed {ondatra_testbed_path}'
+    test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path}'
 
     go_args = f'{go_args} ' \
                 f'-json ' \
