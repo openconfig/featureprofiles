@@ -318,13 +318,42 @@ func TestQoSCounters(t *testing.T) {
 
 func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	var componentParent = map[string]string{
-		"Fabric":      "Chassis",
-		"FabricChip":  "Fabric",
-		"Linecard":    "Chassis",
-		"PowerSupply": "Chassis",
-		"Supervisor":  "Chassis",
-		"SwitchChip":  "Linecard",
+	var componentParent = map[ondatra.Vendor]map[string]string{
+		ondatra.CISCO: {
+			"Fabric":      "Rack",
+			"FabricChip":  "Rack",
+			"Linecard":    "Rack",
+			"PowerSupply": "Rack",
+			"Supervisor":  "Rack",
+			"SwitchChip":  "0/",
+		},
+		ondatra.ARISTA: {
+			"Fabric":      "Chassis",
+			"FabricChip":  "Fabric",
+			"Linecard":    "Chassis",
+			"PowerSupply": "Chassis",
+			"Supervisor":  "Chassis",
+			"SwitchChip":  "Linecard",
+		},
+	}
+	vendor := dut.Vendor()
+	vendorComponentMapping := map[ondatra.Vendor]map[string]string{
+		ondatra.CISCO: {
+			"Fabric":       "^Rack [0-9]-Fabric Card Slot [0-9]$",
+			"FabricChip":   "^[0-9]/FC[0-9]$",
+			"Linecard":     "^[0-9]/[0-9]/CPU[0-9]$",
+			"Power supply": "^Rack [0-9]-[PSU|Power].*Slot [0-9]$",
+			"Supervisor":   "^[0-9]/RP[0-9]/CPU[0-9]$",
+			"SwitchChip":   "^[0-9]/[0-9]/CPU[0-9]-LC-SW.*Switch$",
+		},
+		ondatra.ARISTA: {
+			"Fabric":       "^Fabric[0-9]",
+			"FabricChip":   "^FabricChip",
+			"Linecard":     "^Linecard[0-9]",
+			"Power supply": "^PowerSupply[0-9]",
+			"Supervisor":   "^Supervisor[0-9]$",
+			"SwitchChip":   "^SwitchChip",
+		},
 	}
 
 	cases := []struct {
@@ -333,28 +362,28 @@ func TestComponentParent(t *testing.T) {
 		parent        string
 	}{{
 		desc:          "Fabric",
-		regexpPattern: "^Fabric[0-9]",
-		parent:        componentParent["Fabric"],
+		regexpPattern: vendorComponentMapping[vendor]["Fabric"],
+		parent:        componentParent[vendor]["Fabric"],
 	}, {
 		desc:          "FabricChip",
-		regexpPattern: "^FabricChip",
-		parent:        componentParent["FabricChip"],
+		regexpPattern: vendorComponentMapping[vendor]["FabricChip"],
+		parent:        componentParent[vendor]["FabricChip"],
 	}, {
 		desc:          "Linecard",
-		regexpPattern: "^Linecard[0-9]",
-		parent:        componentParent["Linecard"],
+		regexpPattern: vendorComponentMapping[vendor]["Linecard"],
+		parent:        componentParent[vendor]["Linecard"],
 	}, {
 		desc:          "Power supply",
-		regexpPattern: "^PowerSupply[0-9]",
-		parent:        componentParent["PowerSupply"],
+		regexpPattern: vendorComponentMapping[vendor]["Power supply"],
+		parent:        componentParent[vendor]["Power supply"],
 	}, {
 		desc:          "Supervisor",
-		regexpPattern: "^Supervisor[0-9]$",
-		parent:        componentParent["Supervisor"],
+		regexpPattern: vendorComponentMapping[vendor]["Supervisor"],
+		parent:        componentParent[vendor]["Supervisor"],
 	}, {
 		desc:          "SwitchChip",
-		regexpPattern: "^SwitchChip",
-		parent:        componentParent["SwitchChip"],
+		regexpPattern: vendorComponentMapping[vendor]["SwitchChip"],
+		parent:        componentParent[vendor]["SwitchChip"],
 	}}
 
 	for _, tc := range cases {
@@ -387,7 +416,11 @@ func TestComponentParent(t *testing.T) {
 
 func TestSoftwareVersion(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	regexpPattern := "^Supervisor[0-9]"
+	cardMap := map[ondatra.Vendor]string{
+		ondatra.ARISTA: "^Supervisor[0-9]",
+		ondatra.CISCO:  "^[0-9]/RP[0-9]/CPU[0-9]-.*$",
+	}
+	regexpPattern := cardMap[dut.Vendor()]
 
 	r, err := regexp.Compile(regexpPattern)
 	if err != nil {
@@ -434,7 +467,12 @@ func TestSoftwareVersion(t *testing.T) {
 func TestCPU(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	r := regexp.MustCompile("^CPU")
+	supervisorMap := map[ondatra.Vendor]string{
+		ondatra.ARISTA: "^Supervisor[0-9]",
+		ondatra.CISCO:  "^[0-9]/RP[0-9]/CPU[0-9]$",
+	}
+	regexpPattern := supervisorMap[dut.Vendor()]
+	r := regexp.MustCompile(regexpPattern)
 	cpus := findMatchedComponents(t, dut, r)
 	t.Logf("Found CPU list: %v", cpus)
 	if len(cpus) == 0 {
