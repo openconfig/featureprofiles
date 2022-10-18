@@ -1,5 +1,5 @@
 diff --git a/feature/gnoi/os/tests/osinstall/osinstall_test.go b/feature/gnoi/os/tests/osinstall/osinstall_test.go
-index ef9a78df..ebc5a791 100644
+index ef9a78df..8a8fb1c3 100644
 --- a/feature/gnoi/os/tests/osinstall/osinstall_test.go
 +++ b/feature/gnoi/os/tests/osinstall/osinstall_test.go
 @@ -23,6 +23,7 @@ import (
@@ -15,7 +15,7 @@ index ef9a78df..ebc5a791 100644
  
  func TestOSInstall(t *testing.T) {
 +	*osFile = os.Getenv("XR_IMAGE_PATH")
-+	*osVersion = os.Getenv("XR_IMAGE_VERSION") 
++	*osVersion = os.Getenv("XR_IMAGE_VERSION")
  	if *osFile == "" || *osVersion == "" {
  		t.Fatal("Missing osfile or osver args")
  	}
@@ -27,10 +27,10 @@ index ef9a78df..ebc5a791 100644
 -	if tc.dualSup {
 +	if *deviations.OSActiavteRequiresReboot {
 +		bootTime := tc.dut.Telemetry().System().BootTime().Get(t)
-+		tc.activateOS(ctx, t, true,false)
-+		tc.verifyRebootStatus(t,bootTime,*timeout)
++		tc.activateOS(ctx, t, false /*standby*/, false /*noreboot*/)
++		tc.verifyRebootStatus(t, bootTime, *timeout)
 +	} else {
-+		tc.activateOS(ctx, t, false,true)
++		tc.activateOS(ctx, t, false /*standby*/, true /*noreboot*/)
 +	}
 +	// Install OS on standby if required
 +	if !*deviations.NoOSInstallForStandbyRP && tc.dualSup {
@@ -38,12 +38,12 @@ index ef9a78df..ebc5a791 100644
 -		tc.activateOS(ctx, t, true)
 +		if *deviations.OSActiavteRequiresReboot {
 +			bootTime := tc.dut.Telemetry().System().BootTime().Get(t)
-+			tc.activateOS(ctx, t, true,false)
-+			tc.verifyRebootStatus(t,bootTime,*timeout)
++			tc.activateOS(ctx, t, true, false)
++			tc.verifyRebootStatus(t, bootTime, *timeout)
 +		} else {
-+			tc.activateOS(ctx, t, true,true)
++			tc.activateOS(ctx, t, true, true)
 +		}
-+	}	
++	}
 +
 +	if !*deviations.OSActiavteRequiresReboot { // device is already rebooted during activation
 +		tc.rebootDUT(ctx, t)
@@ -100,7 +100,7 @@ index ef9a78df..ebc5a791 100644
 +	if err != nil && status.Code(err) != codes.Unavailable {
 +		t.Fatalf("System.Reboot request failed: %s", err)
 +	}
-+	tc.verifyRebootStatus(t, bootTime,*timeout)
++	tc.verifyRebootStatus(t, bootTime, *timeout)
 +}
 +
  func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) {
