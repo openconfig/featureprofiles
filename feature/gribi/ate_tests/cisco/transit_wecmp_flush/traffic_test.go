@@ -16,6 +16,7 @@ package transitwecmpflush_test
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -25,7 +26,8 @@ import (
 )
 
 var (
-	ixiaTopology = make(map[string]*ondatra.ATETopology)
+	ixiaTopology   = make(map[string]*ondatra.ATETopology)
+	sortedAtePorts []string //keep sorted ports for ate, the first port is the send and the rest are recive
 )
 
 func getIXIATopology(t *testing.T, ateName string) *ondatra.ATETopology {
@@ -41,14 +43,29 @@ func getIXIATopology(t *testing.T, ateName string) *ondatra.ATETopology {
 }
 
 func generateBaseScenario(t *testing.T, ate *ondatra.ATEDevice, topoobj *ondatra.ATETopology) {
+	sortedAtePorts = []string{}
+	for _, port := range ate.Device.Ports() {
+		sortedAtePorts = append(sortedAtePorts, port.Name())
+	}
+	if len(sortedAtePorts) < 2 {
+		t.Fatalf("At least two ports are required for the test")
+	}
+	sort.Strings(sortedAtePorts)
+	if len(strings.Split(sortedAtePorts[0], "/")) != 2 {
+		t.Fatalf("Ate port name expected to be in format int/int, e.g., 1/6")
+	}
+	atePorttoIPs := make(map[string][]string) // generate ip for tgen
+	for i, port := range sortedAtePorts {
+		atePorttoIPs[port] = []string{
+			fmt.Sprintf("100.%d.1.2/24", 120+i),
+			fmt.Sprintf("100.%d.1.1", 120+i),
+		}
+	}
+
 	for _, p := range ate.Device.Ports() {
 		intf := topoobj.AddInterface(p.Name())
 		intf.WithPort(ate.Port(t, p.ID()))
-		for i := 0; i < 9; i++ {
-			if fmt.Sprintf("1/%d", i+1) == p.Name() {
-				intf.IPv4().WithAddress(fmt.Sprintf("100.%d.1.2/24", 120+i)).WithDefaultGateway(fmt.Sprintf("100.%d.1.1", 120+i))
-			}
-		}
+		intf.IPv4().WithAddress(atePorttoIPs[p.Name()][0]).WithDefaultGateway(atePorttoIPs[p.Name()][1])
 	}
 	addNetworkAndProtocolsToAte(t, ate, topoobj)
 }
@@ -56,27 +73,27 @@ func generateBaseScenario(t *testing.T, ate *ondatra.ATEDevice, topoobj *ondatra
 func addNetworkAndProtocolsToAte(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopology) {
 	//Add prefixes/networks on ports
 	scale := uint32(10)
-	util.AddIpv4Network(t, topo, "1/1", "network101", "101.1.1.1/32", scale)
-	util.AddIpv4Network(t, topo, "1/2", "network102", "102.1.1.1/32", scale)
+	util.AddIpv4Network(t, topo, sortedAtePorts[0], "network101", "101.1.1.1/32", scale)
+	util.AddIpv4Network(t, topo, sortedAtePorts[1], "network102", "102.1.1.1/32", scale)
 	//Configure ISIS, BGP on TGN
-	util.AddAteISISL2(t, topo, "1/1", "490001", "isis_network1", 20, "120.1.1.1/32", scale)
-	util.AddAteISISL2(t, topo, "1/2", "490002", "isis_network2", 20, "121.1.1.1/32", scale)
-	util.AddAteEBGPPeer(t, topo, "1/1", "100.120.1.1", 64001, "bgp_network", "100.120.0.2", "130.1.1.1/32", scale, false)
-	util.AddAteEBGPPeer(t, topo, "1/2", "100.121.1.1", 64001, "bgp_network", "100.121.0.2", "131.1.1.1/32", scale, false)
+	util.AddAteISISL2(t, topo, sortedAtePorts[0], "490001", "isis_network1", 20, "120.1.1.1/32", scale)
+	util.AddAteISISL2(t, topo, sortedAtePorts[1], "490002", "isis_network2", 20, "121.1.1.1/32", scale)
+	util.AddAteEBGPPeer(t, topo, sortedAtePorts[0], "100.120.1.1", 64001, "bgp_network", "100.120.0.2", "130.1.1.1/32", scale, false)
+	util.AddAteEBGPPeer(t, topo, sortedAtePorts[1], "100.121.1.1", 64001, "bgp_network", "100.121.0.2", "131.1.1.1/32", scale, false)
 	//Configure loopbacks for BGP to use as source addresses
-	util.AddLoopback(t, topo, "1/1", "11.11.11.1/32")
-	util.AddLoopback(t, topo, "1/2", "12.12.12.1/32")
+	util.AddLoopback(t, topo, sortedAtePorts[0], "11.11.11.1/32")
+	util.AddLoopback(t, topo, sortedAtePorts[1], "12.12.12.1/32")
 	//BGP instance for traffic over gRIBI transit forwarding entries
 	//BGP uses DSCP48 for control traffic. Router needs to be configured to handle DSCP48 accordingly.
-	util.AddAteEBGPPeer(t, topo, "1/1", "12.12.12.1", 64001, "bgp_transit_network", "100.121.0.2", "11.11.11.1/32", 1, true)
-	util.AddAteEBGPPeer(t, topo, "1/2", "11.11.11.1", 64002, "bgp_transit_network", "100.122.0.2", "12.12.12.1/32", 1, true)
+	util.AddAteEBGPPeer(t, topo, sortedAtePorts[0], "12.12.12.1", 64001, "bgp_transit_network", "100.121.0.2", "11.11.11.1/32", 1, true)
+	util.AddAteEBGPPeer(t, topo, sortedAtePorts[1], "11.11.11.1", 64002, "bgp_transit_network", "100.122.0.2", "12.12.12.1/32", 1, true)
 }
 
 func getBaseFlow(t *testing.T, atePorts map[string]*ondatra.Interface, ate *ondatra.ATEDevice, flowName string, vrf ...string) *ondatra.Flow {
 	flow := ate.Traffic().NewFlow(flowName)
 	t.Log("Setting up base flow...")
-	srcPort := "1/1"
-	dstPort := "1/2"
+	srcPort := sortedAtePorts[0]
+	dstPort := sortedAtePorts[1]
 	flow.WithSrcEndpoints(atePorts[srcPort])
 	flow.WithDstEndpoints(atePorts[dstPort])
 	ethheader := ondatra.NewEthernetHeader()
@@ -101,12 +118,15 @@ func getBaseFlow(t *testing.T, atePorts map[string]*ondatra.Interface, ate *onda
 func getScaleFlow(t *testing.T, atePorts map[string]*ondatra.Interface, ate *ondatra.ATEDevice, flowName string, scale int, vrf ...string) *ondatra.Flow {
 	flow := ate.Traffic().NewFlow(flowName)
 	t.Log("Setting up scale flow...")
-	flow.WithSrcEndpoints(atePorts["1/1"])
+	flow.WithSrcEndpoints(atePorts[sortedAtePorts[0]])
 
 	t.Log("Extending to multiple receiver ports...")
 	rxPorts := []ondatra.Endpoint{}
-	for i := 1; i < 9; i++ {
-		rxPorts = append(rxPorts, atePorts[fmt.Sprintf("1/%d", i)])
+	for i, port := range sortedAtePorts {
+		if i == 0 {
+			continue
+		}
+		rxPorts = append(rxPorts, atePorts[port])
 	}
 	flow.WithDstEndpoints(rxPorts...)
 	ethheader := ondatra.NewEthernetHeader()
@@ -169,7 +189,7 @@ func performATEActionForMultipleFlows(t *testing.T, ateName string, expectPass b
 func getDSCPFlow(t *testing.T, atePorts map[string]*ondatra.Interface, ate *ondatra.ATEDevice, flowName string, scale int, dscp uint8, dstAddress string, rxPort string) *ondatra.Flow {
 	flow := ate.Traffic().NewFlow(flowName)
 	t.Log("Setting up flow -> ", flowName)
-	flow.WithSrcEndpoints(atePorts["1/1"])
+	flow.WithSrcEndpoints(atePorts[sortedAtePorts[0]])
 	flow.WithDstEndpoints(atePorts[rxPort])
 	ethheader := ondatra.NewEthernetHeader()
 	ethheader.WithSrcAddress("00:11:01:00:00:01")
