@@ -112,16 +112,16 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
-	dut := ondatra.DUT(t, "dut")
+	//dut := ondatra.DUT(t, "dut")
 
-	t.Log("#################################################################################################")
-	t.Log("TRIED INJECTING FAULT ")
-	t.Log("#################################################################################################")
+	//t.Log("#################################################################################################")
+	//t.Log("TRIED INJECTING FAULT ")
+	//t.Log("#################################################################################################")
 	//dut.RawAPIs().CLI(t).SendCommand(ctx, "run ssh 172.0.0.1 /pkg/bin/fim_cli -c ofa_la_srv -a 37:-1")
 	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	t.Log("#################################################################################################")
-	t.Log("EXECUTION AFTER INJECTING FAULT ")
-	dut.RawAPIs().CLI(t).SendCommand(ctx, "run ssh 172.0.0.1 /pkg/bin/fim_cli -c ofa_la_srv -a 3:3482356236")
+	//t.Log("#################################################################################################")
+	//t.Log("EXECUTION AFTER INJECTING FAULT ")
+	//dut.RawAPIs().CLI(t).SendCommand(ctx, "run ssh 172.0.0.1 /pkg/bin/fim_cli -c ofa_la_srv -a 3:3482356236")
 
 	args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
@@ -2498,8 +2498,8 @@ func TestBackUp(t *testing.T) {
 				ctx:    ctx,
 				client: &client,
 				dut:    dut,
-				ate:    ate,
-				top:    top,
+				//ate:    ate,
+				//top:    top,
 			}
 			tt.fn(ctx, t, args)
 		})
