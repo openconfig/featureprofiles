@@ -1,5 +1,5 @@
 diff --git a/feature/gnoi/os/tests/osinstall/osinstall_test.go b/feature/gnoi/os/tests/osinstall/osinstall_test.go
-index ef9a78df..8a8fb1c3 100644
+index ef9a78df..6daff1db 100644
 --- a/feature/gnoi/os/tests/osinstall/osinstall_test.go
 +++ b/feature/gnoi/os/tests/osinstall/osinstall_test.go
 @@ -23,6 +23,7 @@ import (
@@ -19,36 +19,29 @@ index ef9a78df..8a8fb1c3 100644
  	if *osFile == "" || *osVersion == "" {
  		t.Fatal("Missing osfile or osver args")
  	}
-@@ -87,20 +90,36 @@ func TestOSInstall(t *testing.T) {
+@@ -87,20 +90,30 @@ func TestOSInstall(t *testing.T) {
  	}
  	tc.fetchStandbySupervisorStatus(ctx, t)
  	tc.transferOS(ctx, t, false)
 -	tc.activateOS(ctx, t, false)
 -	if tc.dualSup {
 +	if *deviations.OSActiavteRequiresReboot {
-+		bootTime := tc.dut.Telemetry().System().BootTime().Get(t)
 +		tc.activateOS(ctx, t, false /*standby*/, false /*noreboot*/)
-+		tc.verifyRebootStatus(t, bootTime, *timeout)
 +	} else {
 +		tc.activateOS(ctx, t, false /*standby*/, true /*noreboot*/)
 +	}
-+	// Install OS on standby if required
++
 +	if !*deviations.NoOSInstallForStandbyRP && tc.dualSup {
  		tc.transferOS(ctx, t, true)
 -		tc.activateOS(ctx, t, true)
 +		if *deviations.OSActiavteRequiresReboot {
-+			bootTime := tc.dut.Telemetry().System().BootTime().Get(t)
 +			tc.activateOS(ctx, t, true, false)
-+			tc.verifyRebootStatus(t, bootTime, *timeout)
 +		} else {
 +			tc.activateOS(ctx, t, true, true)
 +		}
-+	}
-+
-+	if !*deviations.OSActiavteRequiresReboot { // device is already rebooted during activation
-+		tc.rebootDUT(ctx, t)
  	}
--	tc.rebootDUT(ctx, t)
++	
+ 	tc.rebootDUT(ctx, t)
  	tc.verifyInstall(ctx, t)
  }
  
@@ -62,50 +55,6 @@ index ef9a78df..8a8fb1c3 100644
  	})
  	if err != nil {
  		t.Fatalf("OS.Activate request failed: %s", err)
-@@ -144,19 +163,8 @@ func (tc *testCase) fetchStandbySupervisorStatus(ctx context.Context, t *testing
- 	}
- }
- 
--func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T) {
--	bootTime := tc.dut.Telemetry().System().BootTime().Get(t)
--	deadline := time.Now().Add(*timeout)
--
--	t.Log("Send DUT Reboot Request")
--	_, err := tc.sc.Reboot(ctx, &spb.RebootRequest{
--		Method:  spb.RebootMethod_COLD,
--		Force:   true,
--		Message: "Apply GNOI OS Software Install",
--	})
--	if err != nil && status.Code(err) != codes.Unavailable {
--		t.Fatalf("System.Reboot request failed: %s", err)
--	}
-+func (tc *testCase) verifyRebootStatus(t *testing.T, bootTime uint64, timeout time.Duration) {
-+	deadline := time.Now().Add(timeout)
- 	for {
- 		var curBootTime *telemetry.QualifiedUint64
- 
-@@ -180,6 +188,21 @@ func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T) {
- 	}
- }
- 
-+func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T) {
-+	bootTime := tc.dut.Telemetry().System().BootTime().Get(t)
-+
-+	t.Log("Send DUT Reboot Request")
-+	_, err := tc.sc.Reboot(ctx, &spb.RebootRequest{
-+		Method:  spb.RebootMethod_COLD,
-+		Force:   true,
-+		Message: "Apply GNOI OS Software Install",
-+	})
-+	if err != nil && status.Code(err) != codes.Unavailable {
-+		t.Fatalf("System.Reboot request failed: %s", err)
-+	}
-+	tc.verifyRebootStatus(t, bootTime, *timeout)
-+}
-+
- func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) {
- 	ctx, cancel := context.WithCancel(ctx)
- 	defer cancel()
 diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
 index c85f112b..74da3a1f 100644
 --- a/internal/deviations/deviations.go
