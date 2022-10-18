@@ -5,7 +5,7 @@ from subprocess import check_output
 
 lineup = 'xr-dev'
 nightly_label = '*NIGHTLY*'
-image_subpath = 'img-8000/8000-x64.iso'
+image_subpaths = ['8000/8000-x64.iso', 'img-8000/8000-x64.iso']
 
 candidates = []
 pims_output = check_output([
@@ -43,9 +43,13 @@ for label in candidates:
     
     for result in js:
         if result.get('Status') == 'Successful':
-            location = os.path.join(result.get('Image Location'), image_subpath)
-            if os.path.exists(location):
-                image_path = location
+            image_dir = result.get('Image Location')
+            for subpath in image_subpaths:
+                location = os.path.join(image_dir, subpath)
+                if os.path.exists(location):
+                    image_path = location
+                    break
+            if image_path:
                 break
     if image_path:
         break

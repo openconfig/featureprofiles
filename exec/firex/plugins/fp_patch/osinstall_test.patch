@@ -1,5 +1,5 @@
 diff --git a/feature/gnoi/os/tests/osinstall/osinstall_test.go b/feature/gnoi/os/tests/osinstall/osinstall_test.go
-index ef9a78df..6daff1db 100644
+index ef9a78df..3e38eea5 100644
 --- a/feature/gnoi/os/tests/osinstall/osinstall_test.go
 +++ b/feature/gnoi/os/tests/osinstall/osinstall_test.go
 @@ -23,6 +23,7 @@ import (
@@ -19,7 +19,7 @@ index ef9a78df..6daff1db 100644
  	if *osFile == "" || *osVersion == "" {
  		t.Fatal("Missing osfile or osver args")
  	}
-@@ -87,20 +90,30 @@ func TestOSInstall(t *testing.T) {
+@@ -87,20 +90,32 @@ func TestOSInstall(t *testing.T) {
  	}
  	tc.fetchStandbySupervisorStatus(ctx, t)
  	tc.transferOS(ctx, t, false)
@@ -40,8 +40,10 @@ index ef9a78df..6daff1db 100644
 +			tc.activateOS(ctx, t, true, true)
 +		}
  	}
-+	
++
  	tc.rebootDUT(ctx, t)
++	// reconnect GNOI client
++	tc.osc = tc.dut.RawAPIs().GNOI().New(t).OS()
  	tc.verifyInstall(ctx, t)
  }
  
