@@ -2,7 +2,6 @@ package factory_reset_base
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"path"
 	"strings"
@@ -15,10 +14,11 @@ import (
 )
 
 var (
-	sshIP   = flag.String("ssh_ip", "", "External IP address of management interface.")
-	sshPort = flag.String("ssh_port", "", "External Port of management interface")
-	sshUser = flag.String("ssh_user", "", "External username for ssh")
-	sshPass = flag.String("ssh_pass", "", "External password for ssh")
+	filesCreated      = []string{}
+	fileCreateDevRand = "bash  dd if=/dev/urandom of=%s bs=1M count=2"
+	checkFileExists   = "bash [ -f \"%s\" ] && echo \"YES_exists\""
+	fileExists        = "YES_exists"
+	fileCreate        = "bash fallocate -l %dM %s"
 )
 
 const maxRebootTime = 40 // 40 mins wait time for the factory reset and sztp to kick in
@@ -33,14 +33,15 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 		fPath := path.Join(folderPath, "devrandom.log")
 		_, err := cli.SendCommand(context.Background(), fmt.Sprintf(fileCreateDevRand, fPath))
 		if err != nil {
-			t.Error(err)
+			t.Fatalf("Failed to create file devrandom.log in the path %v, Error: %v ", folderPath, err)
 		}
-		time.Sleep(2 * time.Second)
+		t.Log("Check if the file is created")
+		time.Sleep(30 * time.Second)
 		filesCreated = append(filesCreated, fPath)
 		fPath = path.Join(folderPath, ".devrandom.log")
 		_, err = cli.SendCommand(context.Background(), fmt.Sprintf(fileCreateDevRand, fPath))
 		if err != nil {
-			t.Error(err)
+			t.Fatalf("Failed to create file .devrandom.log in the path %v, Error: %v", folderPath, err)
 
 		}
 
@@ -48,7 +49,7 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 		fPath = path.Join(folderPath, "largeFile.log")
 		_, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf(fileCreate, 100, fPath))
 		if err != nil {
-			t.Error(err)
+			t.Fatalf("Failed to create file largeFile.log in the path %v, Error: %v", folderPath, err)
 		}
 
 		filesCreated = append(filesCreated, fPath)
@@ -56,10 +57,11 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 	for _, fP := range filesCreated {
 		resp, err := cli.SendCommand(context.Background(), fmt.Sprintf(checkFileExists, fP))
 		if err != nil {
-			t.Error(err)
+			t.Fatalf("Failed to send command %s on the device, Error: %v", fmt.Sprintf(checkFileExists, fP), err)
 		}
+		t.Logf("%v", resp)
 		if !strings.Contains(resp, fileExists) {
-			t.Errorf("Unable to Create a file object %s in device %s", fP, dut.Name())
+			t.Fatalf("Unable to Create a file object %s in device %s", fP, dut.Name())
 		}
 	}
 
@@ -70,42 +72,37 @@ func checkFiles(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, fP := range filesCreated {
 
 		resp, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf(checkFileExists, fP))
-		t.Logf(resp)
 		if err != nil {
-			t.Error(err)
+			t.Fatalf("Failed to send command %s on the device, Error: %v", fmt.Sprintf(checkFileExists, fP), err)
 		}
+		t.Logf(resp)
 		if strings.Contains(resp, fileExists) == true {
-			t.Errorf("File %s not cleared by system Reset, in device %s", fP, dut.Name())
+			t.Fatalf("File %s not cleared by system Reset, in device %s", fP, dut.Name())
 		}
 
 	}
 }
 
-func DeviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
+func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
 	startReboot := time.Now()
-	//t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-	fmt.Print("Wait for DUT to boot up by polling the telemetry output.")
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
 	for {
 		var currentTime string
-		//t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
-		fmt.Printf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
+		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
 
 		time.Sleep(3 * time.Minute)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = dut.Telemetry().System().CurrentDatetime().Get(t)
 		}); errMsg != nil {
-			//t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-			fmt.Printf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
 		} else {
-			//t.Logf("Device rebooted successfully with received time: %v", currentTime)
-			fmt.Printf("Device rebooted successfully with received time: %v", currentTime)
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
 			break
 		}
 
 		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
-			t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
 		}
 	}
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
-	fmt.Printf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 }
