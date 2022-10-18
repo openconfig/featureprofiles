@@ -215,7 +215,7 @@ def b4_fp_chain_provider(ws,
 @app.task(bind=True)
 def PatchFP(self, fp_repo, patch_path):
     repo = git.Repo(fp_repo)
-    repo.git.apply([os.path.join(fp_repo, patch_path)])
+    repo.git.apply(['--whitespace=fix', os.path.join(fp_repo, patch_path)])
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
