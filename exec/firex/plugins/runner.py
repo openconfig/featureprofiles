@@ -47,15 +47,14 @@ whitelist_arguments([
 ])
 
 @app.task(base=FireX, bind=True)
-def BringupTestbed(self, uid, ws, plat, framework,
-                        images = None,  
+@returns('ondatra_binding_path')
+def BringupTestbed(self, ws, images = None,  
                         ondatra_repo_branch='main',
                         fp_repo_branch='master',  
                         topo_file=None,                      
                         ondatra_testbed_path=None,
                         ondatra_binding_path=None,
                         base_conf_path=None,
-                        testbed_logs_dir=None,
                         skip_install=False):
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
@@ -85,8 +84,6 @@ def BringupTestbed(self, uid, ws, plat, framework,
         ondatra_binding_path = os.path.join(ondatra_repo_dir, 'topology.textproto')
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}',
                         file=ondatra_binding_path)
-
-
     else:
         ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
 
@@ -143,6 +140,7 @@ def BringupTestbed(self, uid, ws, plat, framework,
         logger.print(f'Executing osinstall command:\n {install_cmd}')
         logger.print(check_output(install_cmd, cwd=fp_repo_dir))
         os.remove(image_path)
+    return ondatra_binding_path
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, uid, ws):
@@ -160,10 +158,10 @@ def b4_fp_chain_provider(ws,
                          test_log_directory_path,
                          xunit_results_filepath,
                          cflow,
+                         ondatra_testbed_path,
+                         ondatra_binding_path,
                          ondatra_repo_branch='main',
                          fp_repo_branch='master',
-                         ondatra_testbed_path=None,
-                         ondatra_binding_path=None,
                          fp_pre_tests=[],
                          fp_post_tests=[],
                          test_path=None,
@@ -244,7 +242,7 @@ def ReleaseIxiaPorts(self, ws, fp_ws, ondatra_binding_path):
     logger.print("Releasing ixia ports")
     logger.print(
         check_output(
-            f'{PYTHON_BIN} {fp_ws}/exec/utils/ixia/release_ports.py {fp_ws}/{ondatra_binding_path}',
+            f'{PYTHON_BIN} {fp_ws}/exec/utils/ixia/release_ports.py {ondatra_binding_path}',
             env=dict(os.environ, PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION='python'),
             cwd=ws
         )
