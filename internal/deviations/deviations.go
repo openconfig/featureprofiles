@@ -67,6 +67,12 @@ import "flag"
 
 // Vendor deviation flags.
 var (
+	PortSpeedDuplexAutoNegotiateEnabled = flag.Bool("port_speed_enabled", false,
+		"Deviation for DuplexMode and AutoNegotiate and PortSpeed")
+
+	MissingSubinterfaceOriginLeaf = flag.Bool("subinterface_origin_check", false,
+		"Deviation for subinterfaces/subinterface/neighbors/neighbors/state/origin")
+
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 

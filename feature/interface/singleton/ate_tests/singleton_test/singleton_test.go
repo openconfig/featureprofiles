@@ -123,16 +123,19 @@ var portSpeed = map[ondatra.Speed]telemetry.E_IfEthernet_ETHERNET_SPEED{
 func (tc *testCase) configInterfaceDUT(i *telemetry.Interface, dp *ondatra.Port, a *attrs.Attributes) {
 	a.ConfigInterface(i)
 
-	e := i.GetOrCreateEthernet()
-	if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
-		e.AutoNegotiate = ygot.Bool(true)
-	} else {
-		e.AutoNegotiate = ygot.Bool(false)
-	}
-	if tc.auto == forcedNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
-		if speed, ok := portSpeed[dp.Speed()]; ok {
-			e.DuplexMode = telemetry.Ethernet_DuplexMode_FULL
-			e.PortSpeed = speed
+	// Deviation for DuplexMode, AutoNegotiate and PortSpeed
+	if *deviations.PortSpeedDuplexAutoNegotiateEnabled {
+		e := i.GetOrCreateEthernet()
+		if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
+			e.AutoNegotiate = ygot.Bool(true)
+		} else {
+			e.AutoNegotiate = ygot.Bool(false)
+		}
+		if tc.auto == forcedNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
+			if speed, ok := portSpeed[dp.Speed()]; ok {
+				e.DuplexMode = telemetry.Ethernet_DuplexMode_FULL
+				e.PortSpeed = speed
+			}
 		}
 	}
 
@@ -235,20 +238,20 @@ func (tc *testCase) verifyInterfaceDUT(
 			}
 		}
 	}
-
-	disp := dip.Subinterface(0)
-
-	// IPv4 neighbor discovered by ARP.
-	dis4np := disp.Ipv4().Neighbor(atea.IPv4)
-	if got := dis4np.Origin().Get(t); got != dynamic {
-		t.Errorf("%s IPv4 neighbor %s origin got %v, want %v", dp, atea.IPv4, got, dynamic)
+	if *deviations.MissingSubinterfaceOriginLeaf {
+		disp := dip.Subinterface(0)
+		// IPv4 neighbor discovered by ARP.
+		dis4np := disp.Ipv4().Neighbor(atea.IPv4)
+		if got := dis4np.Origin().Get(t); got != dynamic {
+			t.Errorf("%s IPv4 neighbor %s origin got %v, want %v", dp, atea.IPv4, got, dynamic)
+		}
+		// IPv6 neighbor discovered by ARP.
+		dis6np := disp.Ipv6().Neighbor(atea.IPv6)
+		if got := dis6np.Origin().Get(t); got != dynamic {
+			t.Errorf("%s IPv6 neighbor %s origin got %v, want %v", dp, atea.IPv6, got, dynamic)
+		}
 	}
 
-	// IPv6 neighbor discovered by ARP.
-	dis6np := disp.Ipv6().Neighbor(atea.IPv6)
-	if got := dis6np.Origin().Get(t); got != dynamic {
-		t.Errorf("%s IPv6 neighbor %s origin got %v, want %v", dp, atea.IPv6, got, dynamic)
-	}
 }
 
 // verifyDUT checks the telemetry against the parameters set by
