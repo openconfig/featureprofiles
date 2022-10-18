@@ -79,13 +79,11 @@ def BringupTestbed(self, ws, images = None,
     if topo_file and len(topo_file) > 0:
         c = InjectArgs(**self.abog)
         c |= self.orig.s()
-        testbed, testbed_path, *unused = self.enqueue_child_and_get_results(c)
+        testbed_path, *other = self.enqueue_child_and_get_results(c, return_keys=('testbed_path'))
 
         ondatra_binding_path = os.path.join(ondatra_repo_dir, 'topology.textproto')
-        logger.print(
-            check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}',
-                        file=ondatra_binding_path)
-        )
+        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}', 
+            file=ondatra_binding_path)
     else:
         ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
 
@@ -259,10 +257,8 @@ def RunB4FPTest(self,
                 ws,
                 testsuite_id,
                 script_name,
-                script_path,
                 test_log_directory_path,
                 xunit_results_filepath,
-                testbed_path=None,
                 ondatra_testbed_path=None,
                 ondatra_binding_path=None,
                 test_path=None,
