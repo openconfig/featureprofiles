@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	timeout = time.Minute
+	timeout = 2 * time.Minute
 )
 
 // DECAP constant declaration

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -14,8 +15,10 @@ import (
 
 // GoTest represents a single go test
 type GoTest struct {
+	ID       int
 	Name     string
 	Owner    string
+	Priority int
 	Path     string
 	Patch    string
 	Args     []string
@@ -28,7 +31,7 @@ type GoTest struct {
 type FirexTest struct {
 	Name     string
 	Owner    string
-	Priority string
+	Priority int
 	Timeout  int
 	Skip     bool
 	Pyvxr    struct {
@@ -72,11 +75,6 @@ var (
     framework: b4_fp
     owners:
         - {{ $gt.Owner }}
-    {{- if eq $ft.Priority "low" }}
-    priority: BCT
-    {{- else if eq $ft.Priority "high" }}
-    priority: UT
-    {{- end }}
     {{- if $ft.Pyvxr.Topology }}
     plugins:
         - vxsim.py
@@ -93,6 +91,8 @@ var (
     {{- end }}
     {{- if $ft.Baseconf }}
     base_conf_path: {{ $ft.Baseconf }}
+    {{- else }}
+    base_conf_path: ""
     {{- end }}
     supported_platforms:
         - "8000"
@@ -105,7 +105,7 @@ var (
             {{- end }}
         {{- end }}
     script_paths:
-        - {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}:
+        - ({{ $gt.ID }}) {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}:
             test_path: {{ $gt.Path }}
             {{- if $gt.Args }}
             test_args: {{ join $gt.Args " " }}
@@ -114,7 +114,6 @@ var (
             test_patch: {{ $gt.Patch }}
             {{- end }}
             test_timeout: {{ $gt.Timeout }}
-            test_must_pass: {{ $gt.MustPass }}
     fp_post_tests:
         {{- range $j, $gt := $ft.Posttests}}
         - {{ $gt.Name }}:
@@ -197,9 +196,17 @@ func main() {
 		suite = kepSuite
 	}
 
-	// adjust timeouts & owners
+	// adjust timeouts, priorities, & owners
 	for i := range suite {
+		if suite[i].Priority == 0 {
+			suite[i].Priority = 100000000
+		}
+
 		for j := range suite[i].Tests {
+			if suite[i].Tests[j].Priority == 0 {
+				suite[i].Tests[j].Priority = 100000000
+			}
+
 			if suite[i].Timeout > 0 && suite[i].Tests[j].Timeout == 0 {
 				suite[i].Tests[j].Timeout = suite[i].Timeout
 			}
@@ -218,6 +225,26 @@ func main() {
 			}
 		}
 		suite[i].Timeout = 2 * maxTestTimeout
+	}
+
+	// sort by priority
+	for _, suite := range suite {
+		sort.Slice(suite.Tests, func(i, j int) bool {
+			return suite.Tests[i].Priority < suite.Tests[j].Priority
+		})
+	}
+
+	sort.Slice(suite, func(i, j int) bool {
+		return suite[i].Priority < suite[j].Priority
+	})
+
+	// Assign ids to tests
+	id := 1
+	for i := range suite {
+		for j := range suite[i].Tests {
+			suite[i].Tests[j].ID = id
+			id = id + 1
+		}
 	}
 
 	var testSuiteCode strings.Builder
