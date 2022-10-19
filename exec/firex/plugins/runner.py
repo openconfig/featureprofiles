@@ -80,10 +80,10 @@ def BringupTestbed(self, ws, images = None,
         c = InjectArgs(**self.abog)
         c |= self.orig.s()
         testbed_path, *other = self.enqueue_child_and_get_results(c, return_keys=('testbed_path'))
+        logger.print(f'Testbed path: {testbed_path}')
 
         ondatra_binding_path = os.path.join(ondatra_repo_dir, 'topology.textproto')
-        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}', 
-            file=ondatra_binding_path)
+        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path} > {ondatra_binding_path}')
     else:
         ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
 
