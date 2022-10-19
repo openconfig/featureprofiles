@@ -40,7 +40,7 @@
 
 duts {
   id: "dut"
-  name: "R1-10.85.65.155 2014"  # Change this to the device hostname.
+  name: "DUT"  # Change this to the device hostname.
    config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
@@ -116,7 +116,7 @@ ates {
   ixnetwork {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
-    target: "10.85.84.194"
+    target: "10.85.109.25"
     #target :"10.85.84.161:12009"
     skip_verify: true
     username: "admin"
