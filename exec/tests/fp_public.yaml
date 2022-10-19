@@ -17,7 +17,7 @@ tests:
   owner: agvarghe@cisco.com
   priority: 1
   mustpass: true
-- name: 2. gNOI-3.1 (Complete Chassis Reboot) 
+- name: gNOI-3.1 (Complete Chassis Reboot) 
   path: feature/gnoi/system/tests/complete_chassis_reboot
   owner: arvbaska@cisco.com
   priority: 2
@@ -34,7 +34,7 @@ tests:
   owner: sprem@cisco.com
   priority: 4
   mustpass: true
-- name: P4RT-3.1 (Google Discovery Protocol PacketOut)
+- name: P4RT-3.1 (Google Discovery Protocol PacketIn)
   path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetin_test
   args:
     - '-p4rt_node_name="0/RP0/CPU0/0"'
@@ -50,10 +50,7 @@ tests:
   mustpass: true
 - name: TE-15.1 (gRIBI Compliance) 
   path: feature/gribi/ate_tests/gribigo_compliance_test
-  patch: exec/firex/plugins/fp_patch/gribigo_compliance_test.patch
   priority: 7
-  args: 
-    - '-protocol_name="default"'
   owner: mananpat@cisco.com
   mustpass: true
 - name: TE-2.1 (gRIBI IPv4 Entry) 
@@ -79,9 +76,6 @@ tests:
   mustpass: true
 - name: TE-5.1 (gRIBI Get RPC) 
   path: feature/gribi/ate_tests/get_rpc_test
-  patch: exec/firex/plugins/fp_patch/get_rpc_test.patch
-  args: 
-    - '-protocol_name="default"'
   owner: mananpat@cisco.com
   mustpass: true
   priority: 11
@@ -113,9 +107,6 @@ tests:
   priority: 16
 - name: TE-3.6 (ACK in the Presence of Other Routes) 
   path: feature/gribi/ate_tests/ack_in_presence_other_routes
-  patch: exec/firex/plugins/fp_patch/route_ack_test.patch
-  args: 
-    - '-protocol_name="default"'
   owner: mananpat@cisco.com
   priority: 17
   mustpass: true
@@ -225,7 +216,6 @@ tests:
   owner: agvarghe@cisco.com
   priority: 34
   mustpass: true
-  #patch: exec/firex/plugins/fp_patch/telemetry_interface_packet_counters_test.patch
 - name: gNMI-1.4 (Telemetry Inventory) 
   path: feature/platform/ate_tests/telemetry_inventory_test
   patch: exec/firex/plugins/fp_patch/telemetry_inventory_test.patch
