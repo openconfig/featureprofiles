@@ -110,35 +110,3 @@ index 5e04f9e7..067c5b17
  
  	dut := ondatra.DUT(t, "dut")
  	afts := dut.Telemetry().NetworkInstanceAny().Afts().Lookup(t)
-@@ -714,8 +720,13 @@ func TestIntfCounterUpdate(t *testing.T) {
- 		WithFrameRatePct(15)
- 
- 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
--	dutInPktsBeforeTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().InUnicastPkts().Get(t)
--	dutOutPktsBeforeTraffic := dut.Telemetry().Interface(dp2.Name()).Counters().OutUnicastPkts().Get(t)
-+	// CSCwc72236
-+	//dutInPktsBeforeTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().InUnicastPkts().Get(t)
-+	//dutOutPktsBeforeTraffic := dut.Telemetry().Interface(dp2.Name()).Counters().OutUnicastPkts().Get(t)
-+	dutdp1PktsBeforeTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().Get(t)
-+	dutdp2PktsBeforeTraffic := dut.Telemetry().Interface(dp2.Name()).Counters().Get(t)
-+	dutInPktsBeforeTraffic := dutdp1PktsBeforeTraffic.GetInUnicastPkts()
-+	dutOutPktsBeforeTraffic := dutdp2PktsBeforeTraffic.GetOutUnicastPkts()
- 	t.Log("inPkts and outPkts counters before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
- 
- 	ate.Traffic().Start(t, flow)
-@@ -748,8 +759,13 @@ func TestIntfCounterUpdate(t *testing.T) {
- 	if lossPct >= 0.1 {
- 		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flow.Name(), lossPct)
- 	}
--	dutInPktsAfterTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().InUnicastPkts().Get(t)
--	dutOutPktsAfterTraffic := dut.Telemetry().Interface(dp2.Name()).Counters().OutUnicastPkts().Get(t)
-+	// CSCwc72236
-+	//dutInPktsAfterTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().InUnicastPkts().Get(t)
-+	//dutOutPktsAfterTraffic := dut.Telemetry().Interface(dp2.Name()).Counters().OutUnicastPkts().Get(t)
-+	dutdp1PktsAfterTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().Get(t)
-+	dutdp2PktsAfterTraffic := dut.Telemetry().Interface(dp1.Name()).Counters().Get(t)
-+	dutInPktsAfterTraffic := dutdp1PktsAfterTraffic.GetInUnicastPkts()
-+	dutOutPktsAfterTraffic := dutdp2PktsAfterTraffic.GetOutUnicastPkts()
- 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
- 
- 	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < ateInPkts {
