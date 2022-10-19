@@ -15,7 +15,7 @@ Ensure that protocol and DSCP based VRF selection is configured correctly.
         No received IPv6 in network-instance 10.
     *   Matching of IPinIP protocol - to network-instance 10 for all input
         IPinIP, no received IPv4 or IPv6 in network-instance 10.
-    *   Matching of IPv4 to network-instance 10, and IPv6 to network-instance 1.
+    *   Matching of IPv4 to network-instance 10, and IPv6 to network-instance 20.
         Ensure that only IPv4 packets are seen at egress VLAN 10, and IPv6 at
         received VLAN 20.
     *   Match IPinIP, single DSCP 46 - routed to network-instance 10. Ensure

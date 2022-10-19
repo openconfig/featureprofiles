@@ -48,27 +48,10 @@ var (
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
-
 	dutSrc = attrs.Attributes{
 		Desc:    "Ingress to ATE Source",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
-		IPv4Len: plen4,
-		IPv6Len: plen6,
-	}
-
-	ateSrc2 = attrs.Attributes{
-		Name:    "ATE to Ingress Source2",
-		IPv4:    "192.0.2.14",
-		IPv6:    "2001:db8::e",
-		IPv4Len: plen4,
-		IPv6Len: plen6,
-	}
-
-	dutSrc2 = attrs.Attributes{
-		Desc:    "Ingress to ATE source2",
-		IPv4:    "192.0.2.13",
-		IPv6:    "2001:db8::d",
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
@@ -80,7 +63,6 @@ var (
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
-
 	dutDst = attrs.Attributes{
 		Desc:    "Egress VLAN 10 to ATE",
 		IPv4:    "192.0.2.5",
@@ -111,8 +93,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	// Configure ingress interface
 	t.Logf("*** Configuring interfaces on DUT ...")
 	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutSrc, &ateSrc, 1, vlan10))
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutSrc2, &ateSrc2, 2, vlan20))
+	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutSrc, &ateSrc, 0, 0))
 
 	// Configure egress interface
 	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
@@ -130,11 +111,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 
 	// Configure default NI and forwarding policy
 	t.Logf("*** Configuring default instance forwarding policy on DUT ...")
-	dutConfPath := dut.Config().NetworkInstance("DEFAULT")
+	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
 	dutConfPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-	policyConfPath := dut.Config().NetworkInstance("DEFAULT").PolicyForwarding()
-	policyDutConf := configForwardingPolicy(p1.Name(), "DEFAULT", &ateSrc2)
-	policyConfPath.Replace(t, policyDutConf)
+	policyDutConf := configForwardingPolicy()
+	dutConfPath.PolicyForwarding().Replace(t, policyDutConf)
 }
 
 func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, subintfindex uint32, vlan uint16) *telemetry.Interface {
@@ -172,7 +152,6 @@ func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, subi
 
 // Configure Network instance on the DUT
 func configNetworkInstance(name string, peer *attrs.Attributes) *telemetry.NetworkInstance {
-
 	d := &telemetry.Device{}
 	ni := d.GetOrCreateNetworkInstance(name)
 
@@ -188,127 +167,69 @@ func configNetworkInstance(name string, peer *attrs.Attributes) *telemetry.Netwo
 	return ni
 }
 
-func configForwardingPolicy(name string, matchType string, ate *attrs.Attributes) *telemetry.NetworkInstance_PolicyForwarding {
-
+func configForwardingPolicy() *telemetry.NetworkInstance_PolicyForwarding {
 	d := &telemetry.Device{}
-	ni := d.GetOrCreateNetworkInstance(name)
+	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	ipv4Address := "0.0.0.0/0"
 	ipv6Address := "::/0"
-	filterIpv4Src := ate.IPv4 + "/32"
-	// TODO dscpset := []uint8{42, 46}
 
 	// Match policy
 	policyFwding := ni.GetOrCreatePolicyForwarding()
 
-	fwdPolicy1 := policyFwding.GetOrCreatePolicy("Match-IpipDscp4246")
-	// TODO fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().DscpSet = dscpset
-	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
-	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(uint8(ipipProtocol))
+	fwdPolicy1 := policyFwding.GetOrCreatePolicy("match-ipv4")
+	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
 	fwdPolicy1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy1.GetOrCreateRule(2).GetOrCreateIpv4().Dscp = ygot.Uint8(42)
-	fwdPolicy1.GetOrCreateRule(2).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(uint8(ipipProtocol))
-	fwdPolicy1.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy1.GetOrCreateRule(3).GetOrCreateIpv4().SourceAddress = ygot.String(ipv4Address)
-	fwdPolicy1.GetOrCreateRule(3).GetOrCreateAction().Discard = ygot.Bool(true)
-	// TODO fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv6().DscpSet = dscpset
-	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv6().Dscp = ygot.Uint8(46)
-	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv6().Protocol = telemetry.UnionUint8(uint8(ipipProtocol))
-	fwdPolicy1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy1.GetOrCreateRule(2).GetOrCreateIpv6().Dscp = ygot.Uint8(42)
-	fwdPolicy1.GetOrCreateRule(2).GetOrCreateIpv6().Protocol = telemetry.UnionUint8(uint8(ipipProtocol))
-	fwdPolicy1.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy1.GetOrCreateRule(3).GetOrCreateIpv6().SourceAddress = ygot.String(ipv6Address)
-	fwdPolicy1.GetOrCreateRule(3).GetOrCreateAction().Discard = ygot.Bool(true)
 
-	fwdPolicy2 := policyFwding.GetOrCreatePolicy("Match-IpipDscp46")
-	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
-	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(uint8(ipipProtocol))
+	fwdPolicy2 := policyFwding.GetOrCreatePolicy("match-ipip")
+	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(ipipProtocol)
 	fwdPolicy2.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy2.GetOrCreateRule(2).GetOrCreateIpv4().SourceAddress = ygot.String(ipv4Address)
-	fwdPolicy2.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(true)
-	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv6().Dscp = ygot.Uint8(46)
-	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv6().Protocol = telemetry.UnionUint8(uint8(ipipProtocol))
-	fwdPolicy2.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy2.GetOrCreateRule(2).GetOrCreateIpv6().SourceAddress = ygot.String(ipv6Address)
-	fwdPolicy2.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(true)
 
-	fwdPolicy3 := policyFwding.GetOrCreatePolicy("Match-IpipNoDscp")
-	fwdPolicy3.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(uint8(ipipProtocol))
-	fwdPolicy3.GetOrCreateRule(1).GetOrCreateIpv4().Dscp = ygot.Uint8(0)
+	fwdPolicy3 := policyFwding.GetOrCreatePolicy("match-ip4ip6")
+	fwdPolicy3.GetOrCreateRule(1).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
 	fwdPolicy3.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy3.GetOrCreateRule(2).GetOrCreateIpv4().SourceAddress = ygot.String(ipv4Address)
-	fwdPolicy3.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(true)
-	fwdPolicy3.GetOrCreateRule(1).GetOrCreateIpv6().Protocol = telemetry.UnionUint8(uint8(ipipProtocol))
-	fwdPolicy3.GetOrCreateRule(1).GetOrCreateIpv6().Dscp = ygot.Uint8(0)
-	fwdPolicy3.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy3.GetOrCreateRule(2).GetOrCreateIpv6().SourceAddress = ygot.String(ipv6Address)
-	fwdPolicy3.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(true)
+	fwdPolicy3.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
+	fwdPolicy3.GetOrCreateRule(3).GetOrCreateAction().NetworkInstance = ygot.String("20")
 
-	fwdPolicy4 := policyFwding.GetOrCreatePolicy("Match-Ipv4")
-	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(uint8(ipipProtocol))
-	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv6().SourceAddress = ygot.String(ipv6Address)
-	fwdPolicy4.GetOrCreateRule(1).GetOrCreateAction().Discard = ygot.Bool(true)
-	fwdPolicy4.GetOrCreateRule(2).GetOrCreateIpv4().SourceAddress = ygot.String(ipv4Address)
-	fwdPolicy4.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("10")
+	fwdPolicy4 := policyFwding.GetOrCreatePolicy("match-ipip-dscp46")
+	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(ipipProtocol)
+	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
+	fwdPolicy4.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
 
-	fwdPolicy5 := policyFwding.GetOrCreatePolicy("Match-Ipv4-Specific")
-	fwdPolicy5.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(uint8(ipipProtocol))
-	fwdPolicy5.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(filterIpv4Src)
-	fwdPolicy5.GetOrCreateRule(1).GetOrCreateIpv6().SourceAddress = ygot.String(ipv6Address)
-	fwdPolicy5.GetOrCreateRule(1).GetOrCreateAction().Discard = ygot.Bool(true)
-	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().SourceAddress = ygot.String(ipv4Address)
+	fwdPolicy5 := policyFwding.GetOrCreatePolicy("match-ipip-dscp42or46")
+	fwdPolicy5.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(ipipProtocol)
+	fwdPolicy5.GetOrCreateRule(1).GetOrCreateIpv4().Dscp = ygot.Uint8(42)
+	fwdPolicy5.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
+	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(ipipProtocol)
+	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
 	fwdPolicy5.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("10")
-
-	fwdPolicy6 := policyFwding.GetOrCreatePolicy("Match-Ipv4v6")
-	fwdPolicy6.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(uint8(ipipProtocol))
-	fwdPolicy6.GetOrCreateRule(1).GetOrCreateAction().Discard = ygot.Bool(true)
-	fwdPolicy6.GetOrCreateRule(2).GetOrCreateIpv4().SourceAddress = ygot.String(ipv4Address)
-	fwdPolicy6.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy6.GetOrCreateRule(1).GetOrCreateIpv6().Protocol = telemetry.UnionUint8(uint8(ipipProtocol))
-	fwdPolicy6.GetOrCreateRule(1).GetOrCreateAction().Discard = ygot.Bool(true)
-	fwdPolicy6.GetOrCreateRule(2).GetOrCreateIpv6().Protocol = telemetry.UnionUint8(uint8(ipipProtocol))
-	fwdPolicy6.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(true)
-	fwdPolicy6.GetOrCreateRule(3).GetOrCreateIpv6().SourceAddress = ygot.String(ipv6Address)
-	fwdPolicy6.GetOrCreateRule(3).GetOrCreateAction().NetworkInstance = ygot.String("20")
 
 	return policyFwding
 }
 
 // Apply forwarding policy on the interface
 func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort string, matchType string) {
-
 	t.Logf("*** Applying forwarding policy %v on interface %v ... ", matchType, ingressPort)
 
 	d := &telemetry.Device{}
 	dut := ondatra.DUT(t, "dut")
 
-	intf := d.GetOrCreateNetworkInstance("DEFAULT").GetOrCreatePolicyForwarding().GetOrCreateInterface("et-0/0/1.1")
+	intf := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	intf.ApplyForwardingPolicy = ygot.String(matchType)
 	intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
-	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(1)
-
-	intf2 := d.GetOrCreateNetworkInstance("DEFAULT").GetOrCreatePolicyForwarding().GetOrCreateInterface("et-0/0/1.2")
-	intf2.ApplyForwardingPolicy = ygot.String(matchType)
-	intf2.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
-	intf2.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(2)
+	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
 	// Configure default NI and forwarding policy
-	intfConfPath := dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Interface("et-0/0/1.1")
+	intfConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
 	intfConfPath.Replace(t, intf)
-
-	intfConfPath2 := dut.Config().NetworkInstance("DEFAULT").PolicyForwarding().Interface("et-0/0/1.2")
-	intfConfPath2.Replace(t, intf2)
 
 	// Restart Protocols after policy change
 	ate.Topology().New().StopProtocols(t)
 	time.Sleep(sleepOnChange)
 	ate.Topology().New().StartProtocols(t)
 	time.Sleep(sleepOnChange)
-
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
-
 	t.Logf("*** Configuring ATE interfaces ...")
 	topo := ate.Topology().New()
 
@@ -316,14 +237,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
 	p2 := ate.Port(t, "port2")
 
 	i1 := topo.AddInterface(ateSrc.Name).WithPort(p1)
-	i1.Ethernet().WithVLANID(vlan10)
 	i1.IPv4().WithAddress(ateSrc.IPv4CIDR()).WithDefaultGateway(dutSrc.IPv4)
 	i1.IPv6().WithAddress(ateSrc.IPv6CIDR()).WithDefaultGateway(dutSrc.IPv6)
-
-	i4 := topo.AddInterface(ateSrc2.Name).WithPort(p1)
-	i4.Ethernet().WithVLANID(vlan20)
-	i4.IPv4().WithAddress(ateSrc2.IPv4CIDR()).WithDefaultGateway(dutSrc2.IPv4)
-	i4.IPv6().WithAddress(ateSrc2.IPv6CIDR()).WithDefaultGateway(dutSrc2.IPv6)
 
 	i2 := topo.AddInterface(ateDst.Name).WithPort(p2)
 	i2.Ethernet().WithVLANID(vlan10)
@@ -345,13 +260,11 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
 	// Create traffic flows
 	t.Logf("*** Configuring ATE flows ...")
 	ipv4FlowVlan10 := ate.Traffic().NewFlow("Ipv4Vlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipv4FlowVlan10_Src2 := ate.Traffic().NewFlow("Ipv4Vlan10_Src2").WithSrcEndpoints(i4).WithDstEndpoints(i2).WithHeaders(ethHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
 	ipv6FlowVlan10 := ate.Traffic().NewFlow("Ipv6Vlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipv6Header).WithFrameSize(512).WithFrameRatePct(5)
 	ipipFlowVlan10 := ate.Traffic().NewFlow("IpipVlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipipHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
 	ipipDscp46FlowVlan10 := ate.Traffic().NewFlow("IpipDscp46Vlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipipDscp46Header, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
 	ipipDscp42FlowVlan10 := ate.Traffic().NewFlow("IpipDscp42Vlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipipDscp42Header, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
 	ipv4FlowVlan20 := ate.Traffic().NewFlow("Ipv4Vlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipv4FlowVlan20_Src2 := ate.Traffic().NewFlow("Ipv4Vlan20_Src2").WithSrcEndpoints(i4).WithDstEndpoints(i3).WithHeaders(ethHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
 	ipv6FlowVlan20 := ate.Traffic().NewFlow("Ipv6Vlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipv6Header).WithFrameSize(512).WithFrameRatePct(5)
 	ipipFlowVlan20 := ate.Traffic().NewFlow("IpipVlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipipHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
 	ipipDscp46FlowVlan20 := ate.Traffic().NewFlow("IpipDscp46Vlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipipDscp46Header, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
@@ -360,12 +273,11 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
 	t.Logf("Pushing config to ATE and starting protocols...")
 	topo.Push(t)
 	topo.StartProtocols(t)
-	return []*ondatra.Flow{ipv4FlowVlan10, ipv4FlowVlan10_Src2, ipv6FlowVlan10, ipipFlowVlan10, ipipDscp46FlowVlan10, ipipDscp42FlowVlan10,
-		ipv4FlowVlan20, ipv4FlowVlan20_Src2, ipv6FlowVlan20, ipipFlowVlan20, ipipDscp46FlowVlan20, ipipDscp42FlowVlan20}
+	return []*ondatra.Flow{ipv4FlowVlan10, ipv6FlowVlan10, ipipFlowVlan10, ipipDscp46FlowVlan10, ipipDscp42FlowVlan10,
+		ipv4FlowVlan20, ipv6FlowVlan20, ipipFlowVlan20, ipipDscp46FlowVlan20, ipipDscp42FlowVlan20}
 }
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
-
 	t.Logf("*** Sending traffic from ATE ...")
 	t.Logf("*** Starting traffic ...")
 	ate.Traffic().Start(t, allFlows...)
@@ -395,7 +307,6 @@ func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice, flowName string, 
 }
 
 func contains(item string, items []string) bool {
-
 	flag := false
 	for _, j := range items {
 		if item == j {
@@ -407,22 +318,19 @@ func contains(item string, items []string) bool {
 
 // verifyTraffic confirms that every traffic flow has the expected amount of loss (0% or 100%
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, passFlows []string) {
-
 	for _, flow := range flows {
 		t.Logf("*** Verifying %v traffic on ATE ... ", flow.Name())
 		captureTrafficStats(t, ate, flow.Name(), false)
 		lossPct := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t)
 		if contains(flow.Name(), passFlows) {
 			if lossPct > 0 {
-				t.Logf("Traffic Loss Pct for Flow: %v got %v want 0", flow.Name(), lossPct)
-				t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", flow.Name(), lossPct)
+				t.Errorf("Traffic Loss Pct for flow %s: got %v, want 0", flow.Name(), lossPct)
 			} else {
 				t.Logf("Traffic Test Passed!")
 			}
 		} else {
 			if lossPct < 100 {
-				t.Logf("Traffic is expected to fail for Flow: %v got %v want 100%% failure", flow.Name(), lossPct)
-				t.Errorf("Traffic is expected to fail %s\n got %v, want 100%% failure", flow.Name(), lossPct)
+				t.Errorf("Traffic is expected to fail for flow %s: got %v, want 100%%", flow.Name(), lossPct)
 			} else {
 				t.Logf("Traffic Test Passed!")
 			}
@@ -431,7 +339,6 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, 
 }
 
 func TestVrfPolicy(t *testing.T) {
-
 	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
@@ -442,46 +349,43 @@ func TestVrfPolicy(t *testing.T) {
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
 	allFlows := configureATE(t, ate)
-	sendTraffic(t, ate, allFlows)
 
-	// Verify ATE Traffic
-	t.Run("VRF_Selection", func(t *testing.T) {
-		t.Run("MatchIPv4", func(t *testing.T) {
-			applyForwardingPolicy(t, ate, p1.Name(), "Match-Ipv4")
+	tcs := []struct {
+		desc      string
+		policy    string
+		passFlows []string
+	}{
+		{
+			desc:      "Match IPv4",
+			policy:    "match-ipv4",
+			passFlows: []string{"IPv4Vlan10", "IpipVlan10", "IpipDscp46Vlan10", "IpipDscp42Vlan10"},
+		},
+		{
+			desc:      "Match IPinIP",
+			policy:    "match-ipip",
+			passFlows: []string{"IpipVlan10", "IpipDscp46Vlan10", "IpipDscp42Vlan10"},
+		},
+		{
+			desc:      "Match IPv4 and IPv6",
+			policy:    "match-ip4ip6",
+			passFlows: []string{"Ipv4Vlan10", "IpipVlan10", "IpipDscp46Vlan10", "IpipDscp42Vlan10", "Ipv6Vlan20"},
+		},
+		{
+			desc:      "Match IPinIP DSCP 46",
+			policy:    "match-ipip-dscp46",
+			passFlows: []string{"IpipDscp46Vlan10"},
+		},
+		{
+			desc:      "Match IPinIP DSCP 42 or 46",
+			policy:    "match-ipip-dscp42or46",
+			passFlows: []string{"IpipDscp46Vlan10", "IpipDscp46Vlan10"},
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.desc, func(t *testing.T) {
+			applyForwardingPolicy(t, ate, p1.Name(), tc.policy)
 			sendTraffic(t, ate, allFlows)
-			passFlows := []string{"Ipv4Vlan10", "ipv4FlowVlan10_Src2"}
-			verifyTraffic(t, ate, allFlows, passFlows)
+			verifyTraffic(t, ate, allFlows, tc.passFlows)
 		})
-		t.Run("MatchIPv4-Specific", func(t *testing.T) {
-			applyForwardingPolicy(t, ate, p1.Name(), "Match-Ipv4-Specific")
-			sendTraffic(t, ate, allFlows)
-			passFlows := []string{"Ipv4Vlan10"}
-			verifyTraffic(t, ate, allFlows, passFlows)
-		})
-		t.Run("MatchIPv4v6", func(t *testing.T) {
-			applyForwardingPolicy(t, ate, p1.Name(), "Match-Ipv4v6")
-			sendTraffic(t, ate, allFlows)
-			passFlows := []string{"Ipv4Vlan10", "ipv4FlowVlan10_Src2", "Ipv6Vlan20"}
-			verifyTraffic(t, ate, allFlows, passFlows)
-		})
-		t.Run("MatchIPIP", func(t *testing.T) {
-			applyForwardingPolicy(t, ate, p1.Name(), "Match-IpipNoDscp")
-			sendTraffic(t, ate, allFlows)
-			passFlows := []string{"IpipVlan10"}
-			verifyTraffic(t, ate, allFlows, passFlows)
-		})
-		t.Run("MatchIPIPDscp46", func(t *testing.T) {
-			applyForwardingPolicy(t, ate, p1.Name(), "Match-IpipDscp46")
-			sendTraffic(t, ate, allFlows)
-			passFlows := []string{"IpipDscp46Vlan10"}
-			verifyTraffic(t, ate, allFlows, passFlows)
-		})
-		t.Run("MatchIPIPDscp4246", func(t *testing.T) {
-			applyForwardingPolicy(t, ate, p1.Name(), "Match-IpipDscp42")
-			sendTraffic(t, ate, allFlows)
-			passFlows := []string{"IpipDscp46Vlan10", "IpipDscp42Vlan10"}
-			verifyTraffic(t, ate, allFlows, passFlows)
-		})
-	})
-
+	}
 }
