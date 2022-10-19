@@ -184,19 +184,6 @@ func MustNew(t testing.TB) *TestSession {
 	return v
 }
 
-// NewWithISIS creates a new TestSession using the default global config,
-// configuring the interfaces and a basic IS-IS adjacency between the two. This
-// does NOT push any config to the devices.
-func NewWithISIS(t testing.TB) (*TestSession, error) {
-	t.Helper()
-	s, err := New(t)
-	if err != nil {
-		return nil, err
-	}
-	s.WithISIS()
-	return s, nil
-}
-
 // WithISIS adds ISIS to a test session.
 func (s *TestSession) WithISIS() *TestSession {
 	addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name())
@@ -281,7 +268,7 @@ func (s *TestSession) AwaitAdjacency() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return got.Path.String(), nil
+	return got.Path.GetElem()[10].GetKey()["system-id"], nil
 }
 
 // MustAdjacency waits up to a minute for an IS-IS adjacency to form between

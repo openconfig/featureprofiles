@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/feature/experimental/isis/ate_tests/internal/session"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/check"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -34,6 +35,17 @@ import (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+// EqualToDefault is the same as check.Equal unless the AllowNilForDefaults
+// deviation is set, in which case it uses check.EqualOrNil to allow the device
+// to return a nil value. This should only be used when `val` is the default
+// for this particular query.
+func EqualToDefault[T any](query ygnmi.SingletonQuery[T], val T) check.Validator {
+	if *deviations.AllowNilForDefaults {
+		return check.EqualOrNil(query, val)
+	}
+	return check.Equal(query, val)
 }
 
 // TestBasic configures IS-IS on the DUT and confirms that the various values and defaults propagate
@@ -57,7 +69,7 @@ func TestBasic(t *testing.T) {
 	t.Run("read_config", func(t *testing.T) {
 		for _, vd := range []check.Validator{
 			check.Equal(isisRoot.Global().Net().State(), []string{"49.0001.1920.0000.2001.00"}),
-			check.Equal(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_1_2),
+			EqualToDefault(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_1_2),
 			check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 			check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 			check.Equal(isisRoot.Level(2).Enabled().State(), true),
@@ -102,22 +114,23 @@ func TestBasic(t *testing.T) {
 		t.Run("packet_counters", func(t *testing.T) {
 			pCounts := port1ISIS.Level(2).PacketCounters()
 			for _, vd := range []check.Validator{
-				check.EqualOrNil(pCounts.Csnp().Dropped().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Csnp().Processed().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Csnp().Received().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Csnp().Sent().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Psnp().Dropped().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Psnp().Processed().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Psnp().Received().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Psnp().Sent().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Lsp().Dropped().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Lsp().Processed().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Lsp().Received().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Lsp().Sent().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Iih().Dropped().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Iih().Processed().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Iih().Received().State(), uint32(0)),
-				check.EqualOrNil(pCounts.Iih().Sent().State(), uint32(0)),
+				EqualToDefault(pCounts.Csnp().Dropped().State(), uint32(0)),
+				EqualToDefault(pCounts.Csnp().Processed().State(), uint32(0)),
+				EqualToDefault(pCounts.Csnp().Received().State(), uint32(0)),
+				EqualToDefault(pCounts.Csnp().Sent().State(), uint32(0)),
+				EqualToDefault(pCounts.Psnp().Dropped().State(), uint32(0)),
+				EqualToDefault(pCounts.Psnp().Processed().State(), uint32(0)),
+				EqualToDefault(pCounts.Psnp().Received().State(), uint32(0)),
+				EqualToDefault(pCounts.Psnp().Sent().State(), uint32(0)),
+				EqualToDefault(pCounts.Lsp().Dropped().State(), uint32(0)),
+				EqualToDefault(pCounts.Lsp().Processed().State(), uint32(0)),
+				EqualToDefault(pCounts.Lsp().Received().State(), uint32(0)),
+				EqualToDefault(pCounts.Lsp().Sent().State(), uint32(0)),
+				EqualToDefault(pCounts.Iih().Dropped().State(), uint32(0)),
+				EqualToDefault(pCounts.Iih().Processed().State(), uint32(0)),
+				EqualToDefault(pCounts.Iih().Received().State(), uint32(0)),
+				// Don't check IIH sent - the device can send hellos even if the other
+				// end is offline.
 			} {
 				t.Run(vd.RelPath(pCounts), func(t *testing.T) {
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -130,15 +143,15 @@ func TestBasic(t *testing.T) {
 		t.Run("circuit_counters", func(t *testing.T) {
 			cCounts := port1ISIS.CircuitCounters()
 			for _, vd := range []check.Validator{
-				check.EqualOrNil(cCounts.AdjChanges().State(), uint32(0)),
-				check.EqualOrNil(cCounts.AdjNumber().State(), uint32(0)),
-				check.EqualOrNil(cCounts.AuthFails().State(), uint32(0)),
-				check.EqualOrNil(cCounts.AuthTypeFails().State(), uint32(0)),
-				check.EqualOrNil(cCounts.IdFieldLenMismatches().State(), uint32(0)),
-				check.EqualOrNil(cCounts.LanDisChanges().State(), uint32(0)),
-				check.EqualOrNil(cCounts.MaxAreaAddressMismatches().State(), uint32(0)),
-				check.EqualOrNil(cCounts.RejectedAdj().State(), uint32(0)),
-				check.EqualOrNil(cCounts.InitFails().State(), uint32(0)),
+				EqualToDefault(cCounts.AdjChanges().State(), uint32(0)),
+				EqualToDefault(cCounts.AdjNumber().State(), uint32(0)),
+				EqualToDefault(cCounts.AuthFails().State(), uint32(0)),
+				EqualToDefault(cCounts.AuthTypeFails().State(), uint32(0)),
+				EqualToDefault(cCounts.IdFieldLenMismatches().State(), uint32(0)),
+				EqualToDefault(cCounts.LanDisChanges().State(), uint32(0)),
+				EqualToDefault(cCounts.MaxAreaAddressMismatches().State(), uint32(0)),
+				EqualToDefault(cCounts.RejectedAdj().State(), uint32(0)),
+				EqualToDefault(cCounts.InitFails().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(cCounts), func(t *testing.T) {
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -150,18 +163,18 @@ func TestBasic(t *testing.T) {
 		t.Run("level_counters", func(t *testing.T) {
 			sysCounts := isisRoot.Level(2).SystemLevelCounters()
 			for _, vd := range []check.Validator{
-				check.EqualOrNil(sysCounts.AuthFails().State(), uint32(0)),
-				check.EqualOrNil(sysCounts.AuthTypeFails().State(), uint32(0)),
-				check.EqualOrNil(sysCounts.CorruptedLsps().State(), uint32(0)),
-				check.EqualOrNil(sysCounts.DatabaseOverloads().State(), uint32(0)),
-				check.EqualOrNil(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
-				check.EqualOrNil(sysCounts.IdLenMismatch().State(), uint32(0)),
-				check.EqualOrNil(sysCounts.LspErrors().State(), uint32(0)),
-				check.EqualOrNil(sysCounts.MaxAreaAddressMismatches().State(), uint32(0)),
-				check.EqualOrNil(sysCounts.ManualAddressDropFromAreas().State(), uint32(0)),
-				check.EqualOrNil(sysCounts.OwnLspPurges().State(), uint32(0)),
-				check.EqualOrNil(sysCounts.SeqNumSkips().State(), uint32(0)),
-				check.EqualOrNil(sysCounts.PartChanges().State(), uint32(0)),
+				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
+				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
+				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
+				EqualToDefault(sysCounts.DatabaseOverloads().State(), uint32(0)),
+				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
+				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
+				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
+				EqualToDefault(sysCounts.MaxAreaAddressMismatches().State(), uint32(0)),
+				EqualToDefault(sysCounts.ManualAddressDropFromAreas().State(), uint32(0)),
+				EqualToDefault(sysCounts.OwnLspPurges().State(), uint32(0)),
+				EqualToDefault(sysCounts.SeqNumSkips().State(), uint32(0)),
+				EqualToDefault(sysCounts.PartChanges().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(sysCounts), func(t *testing.T) {
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -217,20 +230,20 @@ func TestBasic(t *testing.T) {
 		// processed/received/sent counters are nonzero while all the error and dropped counters remain
 		// at 0.
 		pCounts := port1ISIS.Level(2).PacketCounters()
-		t.Run("wait_for_processed", func(t *testing.T) {
-			deadline = time.Now().Add(time.Second * 5)
-			for _, vd := range []check.Validator{
-				check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
-				check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
-				check.NotEqual(pCounts.Psnp().Processed().State(), uint32(0)),
-			} {
-				t.Run(vd.RelPath(pCounts), func(t *testing.T) {
-					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
-						t.Fatalf("No messages in active adjacency after 5s: %v", err)
-					}
-				})
-			}
-		})
+
+		// Note: This is not a subtest because a failure here
+		deadline = time.Now().Add(time.Second * 5)
+		for _, vd := range []check.Validator{
+			check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
+			check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
+			check.NotEqual(pCounts.Psnp().Processed().State(), uint32(0)),
+		} {
+			t.Run(vd.RelPath(pCounts), func(t *testing.T) {
+				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
+					t.Fatalf("No messages in active adjacency after 5s: %v", err)
+				}
+			})
+		}
 		deadline = time.Now().Add(time.Second)
 		t.Run("packet_counters", func(t *testing.T) {
 			pCounts := port1ISIS.Level(2).PacketCounters()
@@ -353,7 +366,13 @@ func TestHelloPadding(t *testing.T) {
 				t.Fatalf("No IS-IS adjacency formed: %v", err)
 			}
 			telemPth := session.ISISPath().Global()
-			if err := check.Equal(telemPth.HelloPadding().State(), tc.mode).Check(ts.DUTClient); err != nil {
+			var vd check.Validator
+			if tc.mode == oc.Isis_HelloPaddingType_STRICT {
+				vd = EqualToDefault(telemPth.HelloPadding().State(), oc.Isis_HelloPaddingType_STRICT)
+			} else {
+				vd = check.Equal(telemPth.HelloPadding().State(), tc.mode)
+			}
+			if err := vd.Check(ts.DUTClient); err != nil {
 				t.Error(err)
 			}
 		})
