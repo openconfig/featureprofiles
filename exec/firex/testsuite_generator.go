@@ -15,7 +15,7 @@ import (
 
 // GoTest represents a single go test
 type GoTest struct {
-	ID       int
+	ID       string
 	Name     string
 	Owner    string
 	Priority int
@@ -239,10 +239,16 @@ func main() {
 	})
 
 	// Assign ids to tests
+	numTestCases := 1
+	for i := range suite {
+		numTestCases += len(suite[i].Tests)
+	}
+
 	id := 1
+	widthNeeded := len(fmt.Sprint(numTestCases))
 	for i := range suite {
 		for j := range suite[i].Tests {
-			suite[i].Tests[j].ID = id
+			suite[i].Tests[j].ID = fmt.Sprintf("%0"+fmt.Sprint(widthNeeded)+"d", id)
 			id = id + 1
 		}
 	}

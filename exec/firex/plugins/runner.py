@@ -102,12 +102,8 @@ def BringupTestbed(self, uid, ws, images = None,
     ondatra_repo.git.commit('-m', 'patched for testing')
 
     if not skip_install:
-        logger.print(f'Copying image {images}')
-        shutil.copy(images, fp_repo_dir)
-        image_path = os.path.join(fp_repo_dir, os.path.basename(images))
-        
         image_version = check_output(
-            f"/usr/bin/isoinfo -i {image_path} -x '/MDATA/BUILD_IN.TXT;1' " \
+            f"/usr/bin/isoinfo -i {images} -x '/MDATA/BUILD_IN.TXT;1' " \
                 f"| tail -n1 | cut -d'=' -f2 | cut -d'-' -f1", 
             shell=True
         ).strip()
@@ -119,14 +115,13 @@ def BringupTestbed(self, uid, ws, images = None,
             f'-args ' \
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
-            f'-osfile {image_path} ' \
+            f'-osfile {images} ' \
             f'-osver {image_version} ' \
             f'-v 5 ' \
             f'-alsologtostderr'
 
         logger.print(f'Executing osinstall command:\n {install_cmd}')
         logger.print(check_output(install_cmd, cwd=fp_repo_dir))
-        os.remove(image_path)
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, uid, ws):
@@ -220,7 +215,7 @@ def b4_fp_chain_provider(ws,
 @app.task(bind=True)
 def PatchFP(self, fp_repo, patch_path):
     repo = git.Repo(fp_repo)
-    repo.git.apply([os.path.join(fp_repo, patch_path)])
+    repo.git.apply(['--whitespace=fix', os.path.join(fp_repo, patch_path)])
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
