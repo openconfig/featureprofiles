@@ -50,8 +50,9 @@ func TestMain(m *testing.M) {
 // where WW:XX:YY:ZZ are the four octets of the IPv4 in hex.  The 0x02
 // means the MAC address is locally administered.
 const (
-	plen4 = 30
-	plen6 = 126
+	plen4                      = 30
+	plen6                      = 126
+	Ipv6ControlPacketTolerance = 6
 )
 
 var (
@@ -307,7 +308,7 @@ func diffCounters(before, after *counters) *counters {
 
 // testFlow returns whether the traffic flow from ATE port1 to ATE
 // port2 has been successfully detected.
-func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.Header) bool {
+func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.Header, pktlmtu bool) bool {
 	i1 := tc.top.Interfaces()[ateSrc.Name]
 	i2 := tc.top.Interfaces()[ateDst.Name]
 	p1 := tc.dut.Port(t, "port1")
@@ -372,13 +373,19 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 	octets := fpc.InOctets().Get(t) // Flow does not report out-octets.
 	outPkts := fpc.OutPkts().Get(t)
 	inPkts := fpc.InPkts().Get(t)
+
 	if outPkts == 0 {
 		t.Error("Flow did not send any packet")
 	} else if avg := octets / outPkts; avg > uint64(tc.mtu) {
 		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
 	}
-	if p1InDiff.unicast < outPkts {
-		t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
+
+	if pktlmtu {
+		t.Logf("Skipping packet check for packets larger than MTU")
+	} else {
+		if p1InDiff.unicast < outPkts {
+			t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
+		}
 	}
 
 	if inPkts == 0 {
@@ -388,7 +395,9 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 	} else if avg := octets / inPkts; avg > uint64(tc.mtu) {
 		t.Errorf("Flow destination packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
 	}
-	if inPkts < p2OutDiff.unicast {
+
+	// Tolerance added for ipv6 control packets
+	if inPkts+Ipv6ControlPacketTolerance < p2OutDiff.unicast {
 		t.Errorf("ATE received too few destination packets: got %d, want >= %d", inPkts, p2OutDiff.unicast)
 	}
 	t.Logf("flow loss-pct %f", fp.LossPct().Get(t))
@@ -416,17 +425,17 @@ func (tc *testCase) testMTU(t *testing.T) {
 				if c.shouldFrag {
 					t.Skip("Packet fragmentation is not expected at line rate.")
 				}
-				if got := tc.testFlow(t, tc.mtu+64, c.ipHeader); got {
+				if got := tc.testFlow(t, tc.mtu+64, c.ipHeader, true); got {
 					t.Errorf("Traffic flow got %v, want false", got)
 				}
 			})
 			t.Run("PacketExactlyMTU", func(t *testing.T) {
-				if got := tc.testFlow(t, tc.mtu, c.ipHeader); !got {
+				if got := tc.testFlow(t, tc.mtu, c.ipHeader, false); !got {
 					t.Errorf("Traffic flow got %v, want true", got)
 				}
 			})
 			t.Run("PacketSmallerThanMTU", func(t *testing.T) {
-				if got := tc.testFlow(t, tc.mtu-64, c.ipHeader); !got {
+				if got := tc.testFlow(t, tc.mtu-64, c.ipHeader, false); !got {
 					t.Errorf("Traffic flow got %v, want true", got)
 				}
 			})
@@ -486,7 +495,7 @@ func TestNegotiate(t *testing.T) {
 			t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t) })
 			t.Run("VerifyATE", func(t *testing.T) { tc.verifyATE(t) })
 			t.Run("Traffic", func(t *testing.T) {
-				if got := tc.testFlow(t, tc.mtu, ondatra.NewIPv6Header()); !got {
+				if got := tc.testFlow(t, tc.mtu, ondatra.NewIPv6Header(), false); !got {
 					t.Errorf("Traffic flow got %v, want true", got)
 				}
 			})
