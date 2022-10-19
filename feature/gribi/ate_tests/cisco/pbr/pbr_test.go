@@ -1553,7 +1553,7 @@ func testSrcIpMoreRules(ctx context.Context, t *testing.T, args *testArgs) {
 
 	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
 	configUpdateRule(t, args.dut, PbrNameSrc, dscpVal)
-	//defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
 
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
