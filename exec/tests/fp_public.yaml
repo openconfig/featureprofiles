@@ -266,11 +266,12 @@ tests:
   priority: 43
 - name: FP_GNMI_NTP
   path: feature/system/ntp/tests
+  patch: exec/firex/plugins/fp_patch/system_ntp_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
   priority: 44
 - name: FP_GNMI_System
-  path: feature/system/ntp/tests
+  path: feature/system/tests
   owner: agvarghe@cisco.com
   mustpass: false
   priority: 45
