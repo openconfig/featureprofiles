@@ -1,14 +1,14 @@
 name: sztp 
 owner: sahubbal@cisco.com
 priority: 6
-testbed: topologies/cisco/hw/8800-RP/dut_single.testbed
-binding: topologies/cisco/hw/8800-RP/mtb1_d12.binding
+testbed: topologies/cisco/hw/8201-RP_FOC2503NLRY/testbed 
+binding: topologies/cisco/hw/8800-RP_FOC2503NLRY/binding
 tests:
 - name: sztp 
   path: feature/cisco/sztp
   args: 
     - '-ssh_ip="173.39.51.67"'
-    - '-ssh_port="7000"'
+    - '-ssh_port="5000"'
     - '-ssh_ip="cisco"'
     - '-ssh_ip="cisco123"'
 
