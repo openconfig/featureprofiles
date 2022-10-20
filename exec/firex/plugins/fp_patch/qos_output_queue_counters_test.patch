@@ -1,8 +1,26 @@
 diff --git a/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go b/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
-index 372f0342..f34ea2e1 100644
+index 372f0342..bbb610ed 100644
 --- a/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
 +++ b/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
-@@ -105,12 +105,13 @@ func TestQoSCounters(t *testing.T) {
+@@ -15,6 +15,7 @@
+ package qos_output_queue_counters_test
+ 
+ import (
++	"sort"
+ 	"testing"
+ 	"time"
+ 
+@@ -65,7 +66,9 @@ func TestQoSCounters(t *testing.T) {
+ 	dp2 := dut.Port(t, "port2")
+ 
+ 	// Configure DUT interfaces.
++
+ 	ConfigureDUTIntf(t, dut)
++	ConfigureDutQos(t, dut)
+ 
+ 	// Configure ATE interfaces.
+ 	ate := ondatra.ATE(t, "ate")
+@@ -105,12 +108,13 @@ func TestQoSCounters(t *testing.T) {
  		}
  	case ondatra.CISCO:
  		trafficFlows = map[string]*trafficData{
@@ -14,19 +32,78 @@ index 372f0342..f34ea2e1 100644
 -			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: "1"},
 +			"flow-nc1": {frameSize: 1000, trafficRate: 3, dscp: 56, queue: "tc7"},
 +			"flow-nc2": {frameSize: 1000, trafficRate: 3, dscp: 41, queue: "tc6"},
-+			"flow-af4": {frameSize: 400, trafficRate: 2, dscp: 32, queue: "tc5"},
-+			"flow-af3": {frameSize: 300, trafficRate: 2, dscp: 24, queue: "tc4"},
-+			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: "tc3"},
-+			"flow-af1": {frameSize: 1100, trafficRate: 2, dscp: 8, queue: "tc2"},
-+			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: "tc1"},
++			"flow-af4": {frameSize: 400, trafficRate: 2, dscp: 33, queue: "tc5"},
++			"flow-af3": {frameSize: 300, trafficRate: 2, dscp: 25, queue: "tc4"},
++			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 17, queue: "tc3"},
++			"flow-af1": {frameSize: 1100, trafficRate: 2, dscp: 9, queue: "tc2"},
++			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 1, queue: "tc1"},
  		}
  	default:
  		t.Fatalf("Output queue mapping is missing for %v", dut.Vendor().String())
-@@ -216,6 +217,6 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
- 		}
- 		a := s.GetOrCreateAddress(intf.ipAddr)
- 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
--		dut.Config().Interface(intf.intfName).Replace(t, i)
-+		dut.Config().Interface(intf.intfName).Update(t, i)
+@@ -219,3 +223,66 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
+ 		dut.Config().Interface(intf.intfName).Replace(t, i)
  	}
  }
++
++func ConfigureDutQos(t *testing.T, dut *ondatra.DUTDevice) {
++	dp1 := dut.Port(t, "port1")
++	dp2 := dut.Port(t, "port2")
++	d := &telemetry.Device{}
++	qos := d.GetOrCreateQos()
++	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
++	for _, queue := range queues {
++		q1 := qos.GetOrCreateQueue(queue)
++		q1.Name = ygot.String(queue)
++		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
++	}
++	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
++	schedule := schedulerpol.GetOrCreateScheduler(1)
++	var ind uint64
++	ind = 0
++
++	for _, schedqueue := range queues {
++		input := schedule.GetOrCreateInput(schedqueue)
++		input.Id = ygot.String(schedqueue)
++		input.Weight = ygot.Uint64(7 - ind)
++		input.Queue = ygot.String(schedqueue)
++		dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input(*input.Id).Update(t, input)
++		ind += 1
++	}
++	schedinterface := qos.GetOrCreateInterface(dp2.Name())
++	schedinterface.InterfaceId = ygot.String(dp2.Name())
++	dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name().Update(t, "eg_policy1111")
++	time.Sleep(30 * time.Second)
++	qosi := d.GetOrCreateQos()
++	classifiers := qosi.GetOrCreateClassifier("pmap9")
++	classifiers.Name = ygot.String("pmap9")
++	classifiers.Type = telemetry.Qos_Classifier_Type_IPV4
++	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
++	sort.Sort(sort.StringSlice(classmaps))
++	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
++	sort.Sort(sort.StringSlice(tclass))
++	dscps := []int{1, 9, 17, 25, 33, 41, 56}
++	sort.Sort(sort.IntSlice(dscps))
++
++	for index, classmap := range classmaps {
++		terms := classifiers.GetOrCreateTerm(classmap)
++		terms.Id = ygot.String(classmap)
++		conditions := terms.GetOrCreateConditions()
++		ipv4dscp := conditions.GetOrCreateIpv4()
++		ipv4dscp.Dscp = ygot.Uint8(uint8(dscps[index]))
++
++		actions := terms.GetOrCreateActions()
++		actions.TargetGroup = ygot.String(tclass[index])
++		fwdgroups := qosi.GetOrCreateForwardingGroup(tclass[index])
++		fwdgroups.Name = ygot.String(tclass[index])
++		fwdgroups.OutputQueue = ygot.String(tclass[index])
++		dut.Config().Qos().Update(t, qosi)
++	}
++	classinterface := qosi.GetOrCreateInterface(dp1.Name())
++	classinterface.InterfaceId = ygot.String(dp1.Name())
++	Inputs := classinterface.GetOrCreateInput()
++	Inputs.GetOrCreateClassifier(telemetry.Input_Classifier_Type_IPV4).Name = ygot.String("pmap9")
++	Inputs.GetOrCreateClassifier(telemetry.Input_Classifier_Type_IPV6).Name = ygot.String("pmap9")
++	Inputs.GetOrCreateClassifier(telemetry.Input_Classifier_Type_MPLS).Name = ygot.String("pmap9")
++	//TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
++	dut.Config().Qos().Interface(*classinterface.InterfaceId).Update(t, classinterface)
++}

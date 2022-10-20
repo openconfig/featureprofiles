@@ -51,7 +51,7 @@ func testChangeFlowSpecToPBR(t *testing.T, args *testArgs) {
 	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
 	config.Reload(args.ctx, t, args.dut, configToChange, "", 6*time.Minute)
 	configbasePBR(t, args.dut)
-	args.dut.Config().NetworkInstance("default").PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
+	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
 }
 
 func testCD2ConnectedNHIP(t *testing.T, args *testArgs) {
@@ -457,8 +457,8 @@ func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) 
 	args.topology.StartProtocols(t)
 	defer args.topology.StopProtocols(t)
 
-	dscp16Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP16", 1, 16, "12.11.11.12", "1/3")
-	dscp10Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP10", 1, 10, "12.11.11.11", "1/2")
+	dscp16Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP16", 1, 16, "12.11.11.12", sortedAtePorts[1])
+	dscp10Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP10", 1, 10, "12.11.11.11", sortedAtePorts[2])
 
 	checkTrafficFlows(t, args.ate, 60, dscp16Flow, dscp10Flow)
 }
@@ -485,10 +485,10 @@ func testSameForwardingEntriesAcrossMultipleVrfs(t *testing.T, args *testArgs) {
 	args.topology.StartProtocols(t)
 	defer args.topology.StopProtocols(t)
 
-	dscp16FlowVrfTE := getDSCPFlow(t, portMaps, args.ate, "DSCP16_vrf_TE", 1, 16, "12.11.11.12", "1/3")
-	dscp10FlowVrfTE := getDSCPFlow(t, portMaps, args.ate, "DSCP10_vrf_TE", 1, 10, "12.11.11.11", "1/2")
-	dscp18Flow1VrfVRF1 := getDSCPFlow(t, portMaps, args.ate, "DSCP16_vrf_VRF1", 1, 18, "12.11.11.12", "1/3")
-	dscp18Flow2VrfVRF1 := getDSCPFlow(t, portMaps, args.ate, "DSCP10_vrf_VRF1", 1, 18, "12.11.11.11", "1/2")
+	dscp16FlowVrfTE := getDSCPFlow(t, portMaps, args.ate, "DSCP16_vrf_TE", 1, 16, "12.11.11.12", sortedAtePorts[2])
+	dscp10FlowVrfTE := getDSCPFlow(t, portMaps, args.ate, "DSCP10_vrf_TE", 1, 10, "12.11.11.11", sortedAtePorts[1])
+	dscp18Flow1VrfVRF1 := getDSCPFlow(t, portMaps, args.ate, "DSCP16_vrf_VRF1", 1, 18, "12.11.11.12", sortedAtePorts[2])
+	dscp18Flow2VrfVRF1 := getDSCPFlow(t, portMaps, args.ate, "DSCP10_vrf_VRF1", 1, 18, "12.11.11.11", sortedAtePorts[1])
 
 	checkTrafficFlows(t, args.ate, 60, dscp16FlowVrfTE, dscp10FlowVrfTE, dscp18Flow1VrfVRF1, dscp18Flow2VrfVRF1)
 }
@@ -1164,8 +1164,8 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//Generate flows over ISIS and BGP sessions.
-	isisFlow := util.GetBoundedFlow(t, args.ate, args.topology, "1/1", "1/2", "isis_network1", "isis_network2", "isis", 16)
-	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, "1/1", "1/2", "bgp_network", "bgp_network", "bgp", 16)
+	isisFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "isis_network1", "isis_network2", "isis", 16)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "bgp_network", "bgp_network", "bgp", 16)
 	scaleFlow := getScaleFlow(t, args.topology.Interfaces(), args.ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.90, isisFlow, bgpFlow, scaleFlow)
@@ -1209,7 +1209,7 @@ func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 
 	//Configure BGP on TGN
 	//Generate DSCP48 flow
-	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, "1/1", "1/2", "bgp_transit_network", "bgp_transit_network", "bgp", 48)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "bgp_transit_network", "bgp_transit_network", "bgp", 48)
 
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.99, bgpFlow)
@@ -1485,7 +1485,7 @@ func testChangePeerAddress(t *testing.T, args *testArgs) {
 	// topology.Update(t)
 
 	// Undo
-	defer portMaps["1/2"].IPv4().WithAddress(fmt.Sprintf("100.%d.1.2/24", 120+i)).WithDefaultGateway(fmt.Sprintf("100.%d.1.1", 120+i))
+	defer portMaps[sortedAtePorts[1]].IPv4().WithAddress(fmt.Sprintf("100.%d.1.2/24", 120+i)).WithDefaultGateway(fmt.Sprintf("100.%d.1.1", 120+i))
 	defer topology.Update(t)
 
 	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
@@ -1592,7 +1592,7 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 
 	//Outer header TTL decrements by 1, DSCP stays same over gRIBI forwarding entry.
 	//flow with dscp=48, ttl=100
-	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, "1/1", "1/2", "network101", "network102", "dscpTtlFlow", 48, 100)
+	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "network102", "dscpTtlFlow", 48, 100)
 	//add acl with dscp=48, ttl=99. Transit traffic will have ttl decremented by 1
 	aclName := "ttl_dscp"
 	aclConfig := util.GetIpv4Acl(aclName, 10, 48, 99, telemetry.Acl_FORWARDING_ACTION_ACCEPT)
