@@ -309,8 +309,11 @@ def RunB4FPTest(self,
 
     start_time = self.get_current_time()
     try:
+        inactivity_timeout = 1800
+        if test_timeout > 0: inactivity_timeout = 2*test_timeout
+
         self.run_script(cmd,
-                        inactivity_timeout=2*test_timeout,
+                        inactivity_timeout=inactivity_timeout,
                         ok_nonzero_returncodes=(1,),
                         extra_env_vars=extra_env_vars,
                         cwd=fp_ws)
