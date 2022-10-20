@@ -31,7 +31,12 @@ try:
             print(f'Checking ports: {targetPorts} on chassis {hostname}')
 
             if ixiaNet and ixiaNet.target:
-                platform = TestPlatform(ixiaNet.target)
+                if ':' in ixiaNet.target:
+                    ip, port = ixiaNet.target.split(':')
+                    platform = TestPlatform(ip, port)
+                else:
+                    platform = TestPlatform(ixiaNet.target)
+
                 if ixiaNet.username and ixiaNet.password:
                     platform.Authenticate(ixiaNet.username, ixiaNet.password)
                 
