@@ -54,15 +54,9 @@ var (
 		"test_names", "", "comma separated list of tests to include",
 	)
 
-	workspaceFlag = flag.String(
-		"workspace", "", "workspace used for firex launch.",
-	)
-
 	testDescFiles []string
 
 	testNames []string
-
-	workspace string
 )
 
 var (
@@ -78,7 +72,9 @@ var (
     {{- if $ft.Pyvxr.Topology }}
     plugins:
         - vxsim.py
-    topo_file: {{ $.Workspace }}/{{ $ft.Pyvxr.Topology }}
+    topo_file: {{ $ft.Pyvxr.Topology }}
+    {{- else }}
+    topo_file: ""
     {{- end }}
     {{- if gt $ft.Timeout 0 }}
     plugins:
@@ -88,6 +84,8 @@ var (
     ondatra_testbed_path: {{ $ft.Testbed }}
     {{- if $ft.Binding }}
     ondatra_binding_path: {{ $ft.Binding }}
+    {{- else }}
+    ondatra_binding_path: ""
     {{- end }}
     {{- if $ft.Baseconf }}
     base_conf_path: {{ $ft.Baseconf }}
@@ -134,7 +132,6 @@ func init() {
 		log.Fatal("test_desc_files must be set.")
 	}
 	testDescFiles = strings.Split(*testDescFilesFlag, ",")
-	workspace = *workspaceFlag
 
 	if len(*testNamesFlag) > 0 {
 		testNames = strings.Split(*testNamesFlag, ",")
@@ -259,7 +256,6 @@ func main() {
 		Workspace string
 	}{
 		TestSuite: suite,
-		Workspace: workspace,
 	})
 
 	fmt.Printf("%v", testSuiteCode.String())

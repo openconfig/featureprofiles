@@ -1,0 +1,27 @@
+diff --git a/feature/system/ntp/tests/server_test.go b/feature/system/ntp/tests/server_test.go
+index 9e072605..af4c43d1
+--- a/feature/system/ntp/tests/server_test.go
++++ b/feature/system/ntp/tests/server_test.go
+@@ -40,7 +40,8 @@ func TestNtpServerConfigurability(t *testing.T) {
+ 			state := dut.Telemetry().System().Ntp()
+ 
+ 			ntpServer := telemetry.System_Ntp_Server{
+-				Address: &testCase.address,
++				Address:         &testCase.address,
++				AssociationType: telemetry.Server_AssociationType_SERVER,
+ 			}
+ 			config.Server(testCase.address).Replace(t, &ntpServer)
+ 
+diff --git a/feature/system/ntp/tests/system_ntp_test.go b/feature/system/ntp/tests/system_ntp_test.go
+index 194ff630..0d5b1670
+--- a/feature/system/ntp/tests/system_ntp_test.go
++++ b/feature/system/ntp/tests/system_ntp_test.go
+@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
+ 
+ // TestNtpEnable validates the NTP enable path does not return an error.
+ func TestNtpEnable(t *testing.T) {
+-	t.Skip("Need working implementation to validate against")
++	//t.Skip("Need working implementation to validate against")
+ 
+ 	dut := ondatra.DUT(t, "dut")
+ 	config := dut.Config().System().Ntp()
