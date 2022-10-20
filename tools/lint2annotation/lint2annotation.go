@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// The lint2annotation command converts Go analysis Diagnostic messages into GitHub annotations.
 package main
 
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -31,21 +33,20 @@ type diag struct {
 type jsonOutput map[string]map[string][]diag
 
 func main() {
-	outfile := os.Args[1]
-	outBytes, err := os.ReadFile(outfile)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	out := jsonOutput{}
-	if err := json.Unmarshal(outBytes, &out); err != nil {
-		log.Fatal(err)
-	}
-	for _, pkg := range out {
-		for _, diags := range pkg {
-			for _, diag := range diags {
-				pos := strings.Split(diag.Posn, ":")
-				fmt.Printf("::error file=%s,line=%s,col=%s::%s\n", pos[0], pos[1], pos[2], diag.Message)
+	dec := json.NewDecoder(os.Stdin)
+	for {
+		out := jsonOutput{}
+		if err := dec.Decode(&out); err == io.EOF {
+			break
+		} else if err != nil {
+			log.Fatal(err)
+		}
+		for _, pkg := range out {
+			for _, diags := range pkg {
+				for _, diag := range diags {
+					pos := strings.Split(diag.Posn, ":")
+					fmt.Printf("::error file=%s,line=%s,col=%s::%s\n", pos[0], pos[1], pos[2], diag.Message)
+				}
 			}
 		}
 	}

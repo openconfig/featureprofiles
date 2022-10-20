@@ -167,6 +167,4 @@ jobs:
     - name: Get Ondatra linter
       run: go install github.com/openconfig/ondatra/gnmi/migrator@latest
     - name: Run Ondatra linter
-      run: |
-        migrator -json ./feature/... > lint.json
-        go run ./tools/lint2annotation lint.json
+      run: migrator -json ./feature/... | go run ./tools/lint2annotation
