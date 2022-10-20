@@ -6,7 +6,6 @@ pyvxr:
 tests:
 - name: ACL OC leaf level coverage 
   path: feature/cisco/acl/...
-  timeout: 60
 - name: AFT OC leaf level coverage 
   path: feature/cisco/aft/...
 - name: BGP OC leaf level coverage 
