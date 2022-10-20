@@ -11,9 +11,9 @@ tests:
 - name: gNOI-4.1 (Software Upgrade) 
   path: feature/gnoi/os/tests/osinstall
   patch: exec/firex/plugins/fp_patch/osinstall_test.patch
-  args:
-      - '-deviation_osactiavte_requires_reboot="true"'
-      - '-deviation_no_osinstall_for_standby_rp="true"'
+  #args:
+  #    - '-deviation_osactiavte_requires_reboot="true"'
+  #    - '-deviation_no_osinstall_for_standby_rp="true"'
   owner: agvarghe@cisco.com
   priority: 1
   mustpass: true
