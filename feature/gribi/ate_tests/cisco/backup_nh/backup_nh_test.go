@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/testt"
 )
 
 func TestMain(m *testing.M) {
@@ -108,29 +110,21 @@ func testBackupToDrop(ctx context.Context, t *testing.T, args *testArgs) {
 	//		- PATH1 NH ID 2000, weight 60, outgoing Port6
 	//		- PATH2 NH ID 2100, weight 35, outgoing Port7
 	//		- PATH3 NH ID 2200, weight  5, outgoing Port8
+	//util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "33", "3482356236", true)
+	//util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "37", "-1", true)
+	util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "27", "24", true)
+	util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "37", "-1", true)
 	args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
-	//dut := ondatra.DUT(t, "dut")
-
-	//t.Log("#################################################################################################")
-	//t.Log("TRIED INJECTING FAULT ")
-	//t.Log("#################################################################################################")
-	//dut.RawAPIs().CLI(t).SendCommand(ctx, "run ssh 172.0.0.1 /pkg/bin/fim_cli -c ofa_la_srv -a 37:-1")
-	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	//t.Log("#################################################################################################")
-	//t.Log("EXECUTION AFTER INJECTING FAULT ")
-	//dut.RawAPIs().CLI(t).SendCommand(ctx, "run ssh 172.0.0.1 /pkg/bin/fim_cli -c ofa_la_srv -a 3:3482356236")
-
+	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, true, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	//t.Log("#################################################################################################")
-	//t.Log("EXECUTION AFTER INJECTING FAULT ")
-	//t.Log("#################################################################################################")
 	args.client.AddNH(t, 2000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 2100, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, true, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60, 2100: 40}, *ciscoFlags.DefaultNetworkInstance, true, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// LEVEL 2
@@ -2319,6 +2313,64 @@ func testNonrecursiveToRecursive(ctx context.Context, t *testing.T, args *testAr
 	}
 }
 
+func testFaultInject(ctx context.Context, t *testing.T, args *testArgs) {
+	// Elect client as leader and flush all the past entries
+	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
+	args.client.BecomeLeader(t)
+	args.client.FlushServer(t)
+
+	// adding drop route to NULL
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
+	// adding default route pointing to Valid Path
+	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+
+	//injecting fault to fail NHG
+	util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "33", "3482356236", true)
+	util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "37", "-1", true)
+	defer util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "33", "3482356236", false)
+	defer util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "37", "-1", false)
+
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, true, ciscoFlags.GRIBIChecks) //catch the error as it is expected and aborb the panic
+	}); strings.Contains(*errMsg, "FIB_FAILED") {
+		t.Logf("Got the expected error on injecting fault, testt.CaptureFatal errMsg: %s", *errMsg)
+	} else {
+		t.Fatalf("FIB FAILED not caused by the injected fault, %v", *errMsg)
+	}
+	//removing faults related to NHG
+	util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "33", "3482356236", false)
+	util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "37", "-1", false)
+	args.client.FlushServer(t)
+	args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	//Activating faults to test failure for AddIPv4
+	util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "3", "3482356236", true)
+	defer util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "3", "3482356236", false)
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks) //catch the error as it is expected and aborb the panic
+	}); strings.Contains(*errMsg, "FIB_FAILED") {
+		t.Logf("Got the expected error on injecting fault, testt.CaptureFatal errMsg: %s", *errMsg)
+	} else {
+		t.Fatalf("FIB FAILED not caused by the injected fault")
+	}
+
+}
+
 func TestBackUp(t *testing.T) {
 	t.Log("Name: BackUp")
 	t.Log("Description: Connect gRIBI client and B to DUT using SINGLE_PRIMARY client redundancy with persistance and RibACK")
@@ -2476,6 +2528,11 @@ func TestBackUp(t *testing.T) {
 			desc: "change from nonrecursive to recursive path",
 			fn:   testNonrecursiveToRecursive,
 		},
+		{
+			name: "FaultInjectionTest",
+			desc: "Inject relevent faults for NH/NHG/IPV4 - Fault Injection Test",
+			fn:   testFaultInject,
+		},
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2498,8 +2555,8 @@ func TestBackUp(t *testing.T) {
 				ctx:    ctx,
 				client: &client,
 				dut:    dut,
-				//ate:    ate,
-				//top:    top,
+				ate:    ate,
+				top:    top,
 			}
 			tt.fn(ctx, t, args)
 		})

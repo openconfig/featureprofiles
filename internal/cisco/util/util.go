@@ -4,14 +4,14 @@ package util
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"math/rand"
 	"net"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
-	"fmt"
-	"strings"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
@@ -333,36 +333,39 @@ func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Inter
 	return s
 }
 
-func FaultInjectionMechanism(t *testing.T, lcNumber string, componentName string, faultPointNumber string, returnValue string, activate bool){
-	dut := ondatra.DUT(t, "dut")
-		if activate {
-			sshString := "172.0."+lcNumber+".1"
-			t.Logf("%v", sshString)
-			fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf("do run ssh -oStrictHostKeyChecking=no %s /pkg/bin/fim_cli -c %s -a %s:%s",sshString,componentName,faultPointNumber,returnValue))
+func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber string, componentName string, faultPointNumber string, returnValue string, activate bool) {
+	sshString := "172.0." + lcNumber + ".1"
+	var fimActivate string
+	var fimDeactivate string
+	if returnValue != "" {
+		fimActivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no %s /pkg/bin/fim_cli -c %s -a %s:%s", sshString, componentName, faultPointNumber, returnValue)
+		fimDeactivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no %s /pkg/bin/fim_cli -c %s -r %s:%s", sshString, componentName, faultPointNumber, returnValue)
+	} else {
+		fimActivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no %s /pkg/bin/fim_cli -c %s -a %s ", sshString, componentName, faultPointNumber)
+		fimDeactivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no %s /pkg/bin/fim_cli -c %s -r %s ", sshString, componentName, faultPointNumber)
+	}
+	if activate {
 
-			t.Logf("%v",fimRes)
-			if strings.Contains(fimRes, fmt.Sprintf("Enabling FP#%s", faultPointNumber)){
-				t.Logf("Successfull Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
-			} else {
-				t.Errorf("FaultPointNumber for component %v on faultnumber %v not enabled", componentName, faultPointNumber)
-			}
-			if err != nil {
-				t.Error(err)
-			}
+		fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fimActivate)
+		if strings.Contains(fimRes, fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
+			t.Logf("Successfull Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
 		} else {
-			sshString := "172.0."+lcNumber+".1"
-			t.Logf("%v", sshString)
-
-			fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf("do run ssh -oStrictHostKeyChecking=no %s /pkg/bin/fim_cli -c %s -r %s:%s",sshString,componentName,faultPointNumber,returnValue))
-			t.Logf("%v",fimRes)
-			if strings.Contains(fimRes, fmt.Sprintf("Disabling FP#%s", faultPointNumber)){
-				t.Logf("Successfull Disabled Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
-			} else {
-				t.Errorf("FaultPointNumber for component %v on faultnumber %v not disabled", componentName, faultPointNumber)
-			}
-			if err != nil {
-				t.Error(err)
-			}				
+			t.Fatalf("FaultPointNumber for component %v on faultnumber %v not enabled", componentName, faultPointNumber)
 		}
+		if err != nil {
+			t.Fatalf("Error while sending enable fault point %v", err)
+		}
+		t.Logf("%v", fimRes)
+	} else {
+		fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fimDeactivate)
+		t.Logf("%v", fimRes)
+		if strings.Contains(fimRes, fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
+			t.Logf("Successfull Disabled Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
+		} else {
+			t.Fatalf("FaultPointNumber for component %v on faultnumber %v not disabled", componentName, faultPointNumber)
+		}
+		if err != nil {
+			t.Fatalf("Error while sending disable fault point %v", err)
+		}
+	}
 }
-
