@@ -79,6 +79,8 @@ var (
     plugins:
         - vxsim.py
     topo_file: {{ $.Workspace }}/{{ $ft.Pyvxr.Topology }}
+    {{- else }}
+    topo_file: ""
     {{- end }}
     {{- if gt $ft.Timeout 0 }}
     plugins:
@@ -88,6 +90,8 @@ var (
     ondatra_testbed_path: {{ $ft.Testbed }}
     {{- if $ft.Binding }}
     ondatra_binding_path: {{ $ft.Binding }}
+    {{- else }}
+    ondatra_binding_path: ""
     {{- end }}
     {{- if $ft.Baseconf }}
     base_conf_path: {{ $ft.Baseconf }}

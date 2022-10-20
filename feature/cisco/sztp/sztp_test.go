@@ -1,4 +1,4 @@
-package sztp_test
+package sztp_base_test
 
 import (
 	"context"
