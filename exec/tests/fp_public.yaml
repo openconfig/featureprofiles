@@ -266,6 +266,7 @@ tests:
   priority: 43
 - name: FP_GNMI_GET
   path: feature/system/gnmi/get/tests
+  patch: exec/firex/plugins/fp_patch/get_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
   priority: 44
