@@ -364,6 +364,16 @@ var (
 			fn:   testUpdateAtSrcIpLeaf,
 		},
 		{
+			name: "Test Src-Ip with many rules",
+			desc: "Verify PBR policy works with match Src-ip after update at src-ip and action VRF redirect",
+			fn:   testSrcIpMoreRules,
+		},
+		{
+			name: "Test Src-Ip with Dscp value",
+			desc: "Verify PBR policy works with match Src-ip and Dscp after update at src-ip and action VRF redirect",
+			fn:   testSrcIpWithDscp,
+		},
+		{
 			name: "Test Replace Policies",
 			desc: "Test Replace Policies, it is skipped for now",
 			fn:   testPolicesReplace,
