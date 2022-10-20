@@ -1,11 +1,9 @@
-name: factory_reset 
+name: factory_reset
+skip: true 
 owner: sahubbal@cisco.com
-testbed: topologies/cisco/hw/8201/testbed
-binding: topologies/cisco/hw/8201/binding
+testbed: topologies/cisco/hw/8201-RP_FOC2503NLRY/testbed
+binding: topologies/cisco/hw/8201-RP_FOC2503NLRY/binding
 tests:
 - name: factory_reset 
   path: feature/cisco/sztp/factory_reset_test.go
   timeout: 5400 
-  args: 
-    - '-ssh_ip="173.39.51.67"'
-    - '-ssh_port="5000"'

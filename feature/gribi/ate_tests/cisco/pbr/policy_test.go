@@ -339,6 +339,41 @@ var (
 			fn:   testUpdateWrongSrcIp,
 		},
 		{
+			name: "Test Replace Src-Ip at Leaf Level",
+			desc: "Verify PBR policy works with match Src-ip after replace at src-ip and action VRF redirect",
+			fn:   testReplaceAtSrcIpLeaf,
+		},
+		{
+			name: "Test Replace Src-Ip at Leaf Level-Negative",
+			desc: "Verify PBR policy works with match Src-ip after update at src-ip - Negative case and action VRF redirect",
+			fn:   testUpdateAtSrcIpLeafNegative,
+		},
+		{
+			name: "Test Replace Src-Ip at Rules Level",
+			desc: "Verify PBR policy works with match Src-ip after replace at rule level and action VRF redirect",
+			fn:   testReplaceSrcIpRule,
+		},
+		{
+			name: "Test Replace Src-Ip at Leaf Level",
+			desc: "Verify PBR policy works with match Src-ip after replace at src-ip and action VRF redirect",
+			fn:   testReplaceSrcIpEntirePolicy,
+		},
+		{
+			name: "Test Update Src-Ip at Leaf Level",
+			desc: "Verify PBR policy works with match Src-ip after update at src-ip and action VRF redirect",
+			fn:   testUpdateAtSrcIpLeaf,
+		},
+		{
+			name: "Test Src-Ip with many rules",
+			desc: "Verify PBR policy works with match Src-ip after update at src-ip and action VRF redirect",
+			fn:   testSrcIpMoreRules,
+		},
+		{
+			name: "Test Src-Ip with Dscp value",
+			desc: "Verify PBR policy works with match Src-ip and Dscp after update at src-ip and action VRF redirect",
+			fn:   testSrcIpWithDscp,
+		},
+		{
 			name: "Test Replace Policies",
 			desc: "Test Replace Policies, it is skipped for now",
 			fn:   testPolicesReplace,

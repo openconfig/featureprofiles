@@ -180,7 +180,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	static.GetOrCreateNextHop("AUTO_drop_2").
 		NextHop = telemetry.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
 	staticp := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").
+		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
 		Static(discardCIDR)
 	fptest.LogYgot(t, "discard route", staticp, static)
 	staticp.Replace(t, static)

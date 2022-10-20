@@ -36,6 +36,7 @@ duts {
 
   ssh {
     target: "173.39.51.67:5000"
+    skip_verify: true
   }
 
   # Before this binding can be used with a topology, add ports mapping

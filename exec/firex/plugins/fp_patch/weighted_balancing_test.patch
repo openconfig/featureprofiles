@@ -1,0 +1,26 @@
+diff --git a/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go b/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go
+index 70a9a00f..232a2e42 100644
+--- a/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go
++++ b/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go
+@@ -168,7 +168,7 @@ func TestPortFlap(t *testing.T) {
+ 				t.Log("Port is down.")
+ 			}
+ 			testNextHopRemaining(t, numUps, dut, ate, top)
+-			debugGRIBI(t, dut)
++			//debugGRIBI(t, dut)
+ 		})
+ 	}
+ }
+diff --git a/feature/gribi/ate_tests/weighted_balancing_test/weighted_balancing_test.go b/feature/gribi/ate_tests/weighted_balancing_test/weighted_balancing_test.go
+index ac5767ec..812a4711 100644
+--- a/feature/gribi/ate_tests/weighted_balancing_test/weighted_balancing_test.go
++++ b/feature/gribi/ate_tests/weighted_balancing_test/weighted_balancing_test.go
+@@ -208,7 +208,7 @@ func TestWeightedBalancing(t *testing.T) {
+ 						t.Skipf("Testbed provides only %d ports, but test case needs %d.", got, want)
+ 					}
+ 					testNextHop(ctx, t, c.NextHops, s.Scale, gribic, ate, top)
+-					debugGRIBI(t, dut)
++					//debugGRIBI(t, dut)
+ 				})
+ 			}
+ 		})

@@ -1,10 +1,8 @@
 name: fp_cisco
 owner: agvarghe@cisco.com
-priority: low
-testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
-binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
-baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfpcisco-ottawa-lab2-r3.proto
-
+testbed: topologies/cisco/pyvxr/testbed
+pyvxr:
+  topology: topologies/cisco/pyvxr/topo.yaml
 tests:
 - name: ACL OC leaf level coverage 
   path: feature/cisco/acl/...
@@ -25,7 +23,7 @@ tests:
 - name: Network-instance OC leaf level coverage 
   path: feature/cisco/network-instance/...
 - name: QOS OC leaf level coverage 
-  path: feature/cisco/qos/ate_tests/...
+  path: feature/cisco/qos/...
 - name: RPL OC leaf level coverage 
   path: feature/cisco/rpl/...
 - name: System OC leaf level coverage 
