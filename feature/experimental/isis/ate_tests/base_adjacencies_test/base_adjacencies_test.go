@@ -68,7 +68,7 @@ func TestBasic(t *testing.T) {
 
 	t.Run("read_config", func(t *testing.T) {
 		for _, vd := range []check.Validator{
-			check.Equal(isisRoot.Global().Net().State(), []string{"49.0001.1920.0000.2001.00"}),
+			check.Equal(isisRoot.Global().Net().State(), []string{session.DUTNET}),
 			EqualToDefault(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_1_2),
 			check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 			check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
