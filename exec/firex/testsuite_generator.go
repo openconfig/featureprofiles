@@ -139,7 +139,7 @@ func init() {
 }
 
 func main() {
-	suite := []FirexTest{}
+	suite := []FirexTest{}x
 
 	for _, f := range testDescFiles {
 		data, err := os.ReadFile(f)
