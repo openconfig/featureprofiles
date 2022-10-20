@@ -92,7 +92,7 @@ tests:
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
   args:
-      - '-traffic_duration="10s"'
+      - '-traffic_duration="20s"'
   mustpass: false
   priority: 14
 - name: TE-3.3 (Hierarchical weight resolution)
