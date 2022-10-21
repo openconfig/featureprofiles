@@ -30,7 +30,7 @@ const (
 	minimumPingRequestSize        = 64
 	maximumDefaultPingRequestSize = 1512
 	maximumPingRequestSize        = 9202
-	minimumPingReplySize          = 64
+	minimumPingReplySize          = 56
 	icmpHeaderSize                = 20
 	// Set Minimum value to 1 to verify the field is not empty.
 	minimumPingReplyTTL      = 1
