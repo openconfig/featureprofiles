@@ -6,6 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	//"time"
+
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -137,16 +140,17 @@ func TestTrafficQos(t *testing.T) {
 			t.Logf("Description: %s", tt.desc)
 
 			clientA := gribi.Client{
-				DUT:                  ondatra.DUT(t, "dut"),
-				FibACK:               false,
-				Persistence:          true,
-				InitialElectionIDLow: 1,
+				DUT:                   dut,
+				FibACK:                *ciscoFlags.GRIBIFIBCheck,
+				Persistence:           true,
+				InitialElectionIDLow:  10,
+				InitialElectionIDHigh: 0,
 			}
 			defer clientA.Close(t)
 			if err := clientA.Start(t); err != nil {
 				t.Fatalf("Could not initialize gRIBI: %v", err)
 			}
-			clientA.BecomeLeader(t)
+			//clientA.BecomeLeader(t)
 
 			interfaceList := []string{}
 			for i := 121; i < 128; i++ {
@@ -226,16 +230,18 @@ func TestScheduler(t *testing.T) {
 			t.Logf("Description: %s", tt.desc)
 
 			clientA := gribi.Client{
-				DUT:                  ondatra.DUT(t, "dut"),
-				FibACK:               false,
-				Persistence:          true,
-				InitialElectionIDLow: 10,
+
+				DUT:                   dut,
+				FibACK:                *ciscoFlags.GRIBIFIBCheck,
+				Persistence:           true,
+				InitialElectionIDLow:  10,
+				InitialElectionIDHigh: 0,
 			}
 			defer clientA.Close(t)
 			if err := clientA.Start(t); err != nil {
 				t.Fatalf("Could not initialize gRIBI: %v", err)
 			}
-			clientA.BecomeLeader(t)
+			//clientA.BecomeLeader(t)
 
 			interfaceList := []string{}
 			for i := 121; i < 128; i++ {
