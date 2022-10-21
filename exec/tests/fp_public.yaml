@@ -115,6 +115,7 @@ tests:
   priority: 17
 - name: TE-3.6 (ACK in the Presence of Other Routes) 
   path: feature/gribi/ate_tests/ack_in_presence_other_routes
+  patch: feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.patch
   owner: mananpat@cisco.com
   priority: 18
   mustpass: true
