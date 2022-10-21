@@ -355,10 +355,6 @@ def GenerateB4FPTestbedFile(self,
 def GoReporting(self, fp_ws, script_name, test_log_directory_path):
     json_log_file = os.path.join(test_log_directory_path, f'{script_name}.json')
     html_report = os.path.join(test_log_directory_path, f'{script_name}.html')
-    md_report = os.path.join(test_log_directory_path, f'{script_name}.md')
 
     check_output(f'{PYTHON_BIN} {fp_ws}/exec/utils/reporting/gotest2html.py "{json_log_file}"', 
             file=html_report)
-
-    check_output(f'{PYTHON_BIN} {fp_ws}/exec/utils/reporting/gotest2html.py --md "{json_log_file}"', 
-        file=md_report) 
