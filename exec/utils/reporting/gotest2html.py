@@ -1,5 +1,4 @@
-from firexapp.engine.celery import app
-
+import argparse
 import json
 import os
 
@@ -88,6 +87,15 @@ class GoTest:
             "pass": self._pass_text(),
             "_children": [c.to_table_data() for c in self._children]
         }
+
+    def to_md_string(self, level = 0):
+        em = ''
+        if level == 0: em = '**'
+        md = ('&nbsp;&nbsp;&nbsp;&nbsp;' * level) + ' ' + em + self.get_name() + em + ' | ' + self._pass_text() + '\n'
+        for c in self._children:
+            md += c.to_md_string(level+1)
+        md += ''
+        return md
 
 def _generate_html(table_data, summary_data):
     return """
@@ -279,9 +287,32 @@ def to_html(files):
     summary["failed"] = summary["total"] - summary["passed"]
     return _generate_html(json.dumps(data), json.dumps([summary]))
 
+def to_markdown(files):
+    md = ""
+    for f in files:
+        content = _read_log_file(f)
+        test = _parse(f, json.loads(content))
+        md += "### " + test.get_qualified_name()+ "\n"
+        md +=  "Test | Pass\n"
+        md += "-----|------\n"
+        for t in test._children:
+            md += t.to_md_string()
+    return md
 
-# noinspection PyPep8Naming
-@app.task(bind=True)
-def GoTest2HTML(self, json_log_file, html_output_file):
-    with open(html_output_file, 'w') as fp:
-        fp.write(to_html([json_log_file]))
+def _is_valid_file(parser, arg):
+    if not os.path.exists(arg):
+        parser.error("File %s does not exist" % arg)
+    else:
+        return arg
+
+parser = argparse.ArgumentParser(description='Generate HTML report from go test logs')
+parser.add_argument('files', metavar='FILE', nargs='+',
+                    type=lambda x: _is_valid_file(parser, x),
+                    help='go test log files in json format')
+parser.add_argument('--md', default=False, action='store_true', help="generate md report")
+args = parser.parse_args()
+
+if args.md:
+    print(to_markdown(args.files))
+else:
+    print(to_html(args.files))

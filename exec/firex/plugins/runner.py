@@ -15,7 +15,6 @@ from test_framework import register_test_framework_provider
 from html_helper import get_link 
 from collections import namedtuple
 from pathlib import Path
-from gotest2html import GoTest2HTML
 import os
 import git 
 
@@ -169,7 +168,7 @@ def b4_fp_chain_provider(ws,
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
-                    script_name=script_name,
+                    script_name=script_path,
                     script_path=script_path,
                     test_log_directory_path=test_log_directory_path,
                     xunit_results_filepath=xunit_results_filepath,
@@ -219,7 +218,7 @@ def b4_fp_chain_provider(ws,
             for k, v in pt.items():
                 chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path)
 
-    chain |= GoTest2HTML.s(Path(test_log_directory_path) / f'{script_name}.json', Path(test_log_directory_path) / 'results.html')
+    chain |= GoReporting.s(fp_ws=fp_repo_dir, test_log_directory_path=test_log_directory_path)
     
     if cflow:
         chain |= CollectCoverageData.s(pyats_testbed='@testbed')
@@ -350,3 +349,16 @@ def GenerateB4FPTestbedFile(self,
         testbed_connection_info=testbed_connection_info,
         configure_unicon=configure_unicon)
     return self.enqueue_child_and_get_results(c, return_keys=('testbed', 'tb_data', 'testbed_path'))
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def GoReporting(self, fp_ws, script_name, test_log_directory_path):
+    json_log_file = os.path.join(test_log_directory_path, f'{script_name}.json')
+    html_report = os.path.join(test_log_directory_path, f'{script_name}.html')
+    md_report = os.path.join(test_log_directory_path, f'{script_name}.md')
+
+    check_output(f'{PYTHON_BIN} {fp_ws}/utils/reporting/gotest2html.py "{json_log_file}"', 
+            file=html_report)
+
+    check_output(f'{PYTHON_BIN} {fp_ws}/utils/reporting/gotest2html.py --md "{json_log_file}"', 
+        file=md_report) 
