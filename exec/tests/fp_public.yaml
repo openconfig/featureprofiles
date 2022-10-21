@@ -20,7 +20,7 @@ tests:
 - name: gNOI-3.1 (Complete Chassis Reboot) 
   path: feature/gnoi/system/tests/complete_chassis_reboot
   owner: arvbaska@cisco.com
-  priority: 101
+  priority: 2
   mustpass: true
 - name: gNOI-5.1 (Ping Test) 
   path: feature/gnoi/system/tests/ping_test
@@ -86,6 +86,7 @@ tests:
   priority: 12
 - name: TE-3.7 (Base Hierarchical NHG Update) 
   path: feature/gribi/ate_tests/base_hierarchical_nhg_update
+  patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
   owner: mananpat@cisco.com
   mustpass: false
   priority: 13
@@ -201,7 +202,6 @@ tests:
   priority: 32
 - name: gNMI-1.5 (Telemetry Port Speed Test) 
   path: feature/gnmi/ate_tests/telemetry_port_speed_test
-  patch: exec/firex/plugins/fp_patch/telemetry_port_speed_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
   priority: 33
@@ -269,16 +269,18 @@ tests:
   priority: 43
 - name: FP_GNMI_GET
   path: feature/system/gnmi/get/tests
+  patch: exec/firex/plugins/fp_patch/get_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
   priority: 44
 - name: FP_GNMI_NTP
   path: feature/system/ntp/tests
+  patch: exec/firex/plugins/fp_patch/system_ntp_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
   priority: 45
 - name: FP_GNMI_System
-  path: feature/system/ntp/tests
+  path: feature/system/tests
   owner: agvarghe@cisco.com
   mustpass: false
   priority: 46

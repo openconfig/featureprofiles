@@ -54,15 +54,9 @@ var (
 		"test_names", "", "comma separated list of tests to include",
 	)
 
-	workspaceFlag = flag.String(
-		"workspace", "", "workspace used for firex launch.",
-	)
-
 	testDescFiles []string
 
 	testNames []string
-
-	workspace string
 )
 
 var (
@@ -78,16 +72,15 @@ var (
     {{- if $ft.Pyvxr.Topology }}
     plugins:
         - vxsim.py
-    topo_file: {{ $.Workspace }}/{{ $ft.Pyvxr.Topology }}
-    {{- end }}
-    {{- if gt $ft.Timeout 0 }}
-    plugins:
-        - change_inactivity_timeout.py
-    changed_inactivity_timeout: {{ $ft.Timeout }}
+    topo_file: {{ $ft.Pyvxr.Topology }}
+    {{- else }}
+    topo_file: ""
     {{- end }}
     ondatra_testbed_path: {{ $ft.Testbed }}
     {{- if $ft.Binding }}
     ondatra_binding_path: {{ $ft.Binding }}
+    {{- else }}
+    ondatra_binding_path: ""
     {{- end }}
     {{- if $ft.Baseconf }}
     base_conf_path: {{ $ft.Baseconf }}
@@ -134,7 +127,6 @@ func init() {
 		log.Fatal("test_desc_files must be set.")
 	}
 	testDescFiles = strings.Split(*testDescFilesFlag, ",")
-	workspace = *workspaceFlag
 
 	if len(*testNamesFlag) > 0 {
 		testNames = strings.Split(*testNamesFlag, ",")
@@ -217,16 +209,6 @@ func main() {
 		}
 	}
 
-	for i := range suite {
-		maxTestTimeout := 0
-		for j := range suite[i].Tests {
-			if maxTestTimeout < suite[i].Tests[j].Timeout {
-				maxTestTimeout = suite[i].Tests[j].Timeout
-			}
-		}
-		suite[i].Timeout = 2 * maxTestTimeout
-	}
-
 	// sort by priority
 	for _, suite := range suite {
 		sort.Slice(suite.Tests, func(i, j int) bool {
@@ -259,7 +241,6 @@ func main() {
 		Workspace string
 	}{
 		TestSuite: suite,
-		Workspace: workspace,
 	})
 
 	fmt.Printf("%v", testSuiteCode.String())
