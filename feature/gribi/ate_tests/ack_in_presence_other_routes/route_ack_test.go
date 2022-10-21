@@ -199,7 +199,7 @@ func configureNetworkInstance(t *testing.T) {
 // configStaticRoute configures a static route.
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) *telemetry.NetworkInstance_Protocol {
 	ni1 := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Get(t)
-	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
+	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	static.Enabled = ygot.Bool(true)
 	static.Identifier = telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
 	sr := static.GetOrCreateStatic(prefix)
@@ -249,7 +249,7 @@ func TestRouteAck(t *testing.T) {
 	configureNetworkInstance(t)
 	t.Logf("Configure the DUT with static route 203.0.113.0/24...")
 	dutConf := configStaticRoute(t, dut, ateDstNetCIDR, staticNH)
-	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Update(t, dutConf)
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Update(t, dutConf)
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
 	ipv4Path := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
 	if got, ok := ipv4Path.Prefix().Watch(t, time.Minute, func(val *telemetry.QualifiedString) bool {
