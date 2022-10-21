@@ -68,7 +68,7 @@ func TestBasic(t *testing.T) {
 
 	t.Run("read_config", func(t *testing.T) {
 		for _, vd := range []check.Validator{
-			check.Equal(isisRoot.Global().Net().State(), []string{session.DUTNET}),
+			check.Equal(isisRoot.Global().Net().State(), []string{"49.0001.1920.0000.2001.00"}),
 			EqualToDefault(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_1_2),
 			check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 			check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
@@ -151,7 +151,6 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(cCounts.LanDisChanges().State(), uint32(0)),
 				EqualToDefault(cCounts.MaxAreaAddressMismatches().State(), uint32(0)),
 				EqualToDefault(cCounts.RejectedAdj().State(), uint32(0)),
-				EqualToDefault(cCounts.InitFails().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(cCounts), func(t *testing.T) {
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -171,10 +170,8 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
 				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
 				EqualToDefault(sysCounts.MaxAreaAddressMismatches().State(), uint32(0)),
-				EqualToDefault(sysCounts.ManualAddressDropFromAreas().State(), uint32(0)),
 				EqualToDefault(sysCounts.OwnLspPurges().State(), uint32(0)),
 				EqualToDefault(sysCounts.SeqNumSkips().State(), uint32(0)),
-				EqualToDefault(sysCounts.PartChanges().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(sysCounts), func(t *testing.T) {
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -226,12 +223,14 @@ func TestBasic(t *testing.T) {
 	})
 
 	t.Run("counters_after_adjacency", func(t *testing.T) {
-		// Wait for at least one CSNP, PSNP, and LSP to have gone by, then confirm the corresponding
-		// processed/received/sent counters are nonzero while all the error and dropped counters remain
-		// at 0.
+		// Wait for at least one CSNP, PSNP, and LSP to have gone by, then confirm
+		// the corresponding processed/received/sent counters are nonzero while all
+		// the error and dropped counters remain at 0.
 		pCounts := port1ISIS.Level(2).PacketCounters()
 
-		// Note: This is not a subtest because a failure here
+		// Note: This is not a subtest because a failure here means checking the
+		//   rest of the counters is pointless - none of them will change if we
+		//   haven't been exchanging IS-IS messages.
 		deadline = time.Now().Add(time.Second * 5)
 		for _, vd := range []check.Validator{
 			check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
@@ -285,7 +284,6 @@ func TestBasic(t *testing.T) {
 				check.Equal(cCounts.IdFieldLenMismatches().State(), uint32(0)),
 				check.Equal(cCounts.LanDisChanges().State(), uint32(0)),
 				check.Equal(cCounts.MaxAreaAddressMismatches().State(), uint32(0)),
-				check.Equal(cCounts.InitFails().State(), uint32(0)),
 				check.Equal(cCounts.RejectedAdj().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(cCounts), func(t *testing.T) {
@@ -310,8 +308,6 @@ func TestBasic(t *testing.T) {
 				check.Equal(sysCounts.MaxAreaAddressMismatches().State(), uint32(0)),
 				check.Equal(sysCounts.OwnLspPurges().State(), uint32(0)),
 				check.Equal(sysCounts.SeqNumSkips().State(), uint32(0)),
-				check.Equal(sysCounts.ManualAddressDropFromAreas().State(), uint32(0)),
-				check.Equal(sysCounts.PartChanges().State(), uint32(0)),
 				check.Predicate(sysCounts.SpfRuns().State(), fmt.Sprintf("want > %v", spfBefore), func(got uint32) bool {
 					return got > spfBefore
 				}),

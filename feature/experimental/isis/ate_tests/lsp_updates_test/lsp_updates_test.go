@@ -40,8 +40,13 @@ func TestOverloadBit(t *testing.T) {
 	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
 	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
 	deadline := time.Now().Add(time.Second)
+	checkSetBit := check.Equal(setBit.State(), false)
+	if *deviations.AllowNilForDefaults {
+		checkSetBit = check.EqualOrNil(setBit.State(), false)
+	}
+
 	for _, vd := range []check.Validator{
-		check.Equal(setBit.State(), false),
+		checkSetBit,
 		check.Equal(overloads.State(), uint32(0)),
 	} {
 		if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
