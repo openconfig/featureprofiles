@@ -292,17 +292,19 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *telemetry.Device, vrfs [
 	for _, vrf := range vrfs {
 		// For non-default VRF, we want to replace the
 		// entire VRF tree so the instance is created.
-		i := d.GetOrCreateNetworkInstance(vrf)
-		i.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		i.Enabled = ygot.Bool(true)
-		i.EnabledAddressFamilies = []telemetry.E_Types_ADDRESS_FAMILY{
-			telemetry.Types_ADDRESS_FAMILY_IPV4,
-			telemetry.Types_ADDRESS_FAMILY_IPV6,
+		if vrf != *deviations.DefaultNetworkInstance {
+			i := d.GetOrCreateNetworkInstance(vrf)
+			i.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+			i.Enabled = ygot.Bool(true)
+			i.EnabledAddressFamilies = []telemetry.E_Types_ADDRESS_FAMILY{
+				telemetry.Types_ADDRESS_FAMILY_IPV4,
+				telemetry.Types_ADDRESS_FAMILY_IPV6,
+			}
+			i.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
+			dut.Config().NetworkInstance(vrf).Replace(t, i)
+			nip := dut.Config().NetworkInstance(vrf)
+			fptest.LogYgot(t, "nonDefaultNI", nip, nip.Get(t))
 		}
-		i.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
-		dut.Config().NetworkInstance(vrf).Replace(t, i)
-		nip := dut.Config().NetworkInstance(vrf)
-		fptest.LogYgot(t, "nonDefaultNI", nip, nip.Get(t))
 	}
 }
 
