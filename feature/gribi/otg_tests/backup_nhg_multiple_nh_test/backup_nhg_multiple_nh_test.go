@@ -19,14 +19,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 )
 
 const (
@@ -41,7 +45,7 @@ const (
 type testArgs struct {
 	dut    *ondatra.DUTDevice
 	ate    *ondatra.ATEDevice
-	top    *ondatra.ATETopology
+	top    gosnappi.Config
 	ctx    context.Context
 	client *gribi.Client
 }
@@ -57,6 +61,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:2",
@@ -73,6 +78,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:6",
@@ -89,6 +95,7 @@ var (
 
 	atePort3 = attrs.Attributes{
 		Name:    "atePort3",
+		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:a",
@@ -105,6 +112,7 @@ var (
 
 	atePort4 = attrs.Attributes{
 		Name:    "atePort4",
+		MAC:     "02:00:04:01:01:01",
 		IPv4:    "192.0.2.14",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:E",
@@ -117,44 +125,18 @@ func TestMain(m *testing.M) {
 }
 
 // configureATE configures ports on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	top := ate.OTG().NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
-	i1.IPv6().
-		WithAddress(atePort1.IPv6CIDR()).
-		WithDefaultGateway(dutPort1.IPv6)
-
 	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
-	i2.IPv6().
-		WithAddress(atePort2.IPv6CIDR()).
-		WithDefaultGateway(dutPort2.IPv6)
-
 	p3 := ate.Port(t, "port3")
-	i3 := top.AddInterface(atePort3.Name).WithPort(p3)
-	i3.IPv4().
-		WithAddress(atePort3.IPv4CIDR()).
-		WithDefaultGateway(dutPort3.IPv4)
-	i3.IPv6().
-		WithAddress(atePort3.IPv6CIDR()).
-		WithDefaultGateway(dutPort3.IPv6)
-
 	p4 := ate.Port(t, "port4")
-	i4 := top.AddInterface(atePort4.Name).WithPort(p4)
-	i4.IPv4().
-		WithAddress(atePort4.IPv4CIDR()).
-		WithDefaultGateway(dutPort4.IPv4)
-	i4.IPv6().
-		WithAddress(atePort4.IPv6CIDR()).
-		WithDefaultGateway(dutPort4.IPv6)
+
+	atePort1.AddToOTG(top, p1, &dutPort1)
+	atePort2.AddToOTG(top, p2, &dutPort2)
+	atePort3.AddToOTG(top, p3, &dutPort3)
+	atePort4.AddToOTG(top, p4, &dutPort4)
 
 	return top
 }
@@ -186,7 +168,8 @@ func TestBackup(t *testing.T) {
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	t.Run("IPv4BackUpSwitch", func(t *testing.T) {
 		t.Logf("Name: IPv4BackUpSwitch")
@@ -264,67 +247,72 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 	// validate programming using AFT
 	aftCheck(t, args.dut, dstPfx, []string{"192.0.2.6", "192.0.2.10"})
 	// Validate traffic over primary path port2, port3
-	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port2", "port3"})
+	validateTrafficFlows(t, args.ate, args.top, BaseFlow, false)
 
 	//shutdown port2
-	flapinterface(t, args.ate, "port2", false)
-	defer flapinterface(t, args.ate, "port2", true)
+	flapinterface(t, args.dut, "port2", false)
+	defer flapinterface(t, args.dut, "port2", true)
 	// validate programming using AFT
 	aftCheck(t, args.dut, dstPfx, []string{"192.0.2.10"})
 	// Validate traffic over primary path port3
-	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port3"})
+	validateTrafficFlows(t, args.ate, args.top, BaseFlow, false)
 
 	//shutdown port3
-	flapinterface(t, args.ate, "port3", false)
-	defer flapinterface(t, args.ate, "port3", true)
+	flapinterface(t, args.dut, "port3", false)
+	defer flapinterface(t, args.dut, "port3", true)
 	// validate programming using AFT
 	aftCheck(t, args.dut, dstPfx, []string{"192.0.2.14"})
 	// validate traffic over backup
-	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port4"})
+	validateTrafficFlows(t, args.ate, args.top, BaseFlow, false)
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx
-func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, name string) *ondatra.Flow {
-	srcEndPoint := top.Interfaces()[atePort1.Name]
-	dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range top.Interfaces() {
-		if intf != "atePort1" {
-			dstEndPoint = append(dstEndPoint, intf_data)
-		}
-	}
-	hdr := ondatra.NewIPv4Header()
-	hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dstPfxMin).WithCount(1)
+func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name string) string {
 
-	flow := ate.Traffic().NewFlow(name).
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint...).
-		WithHeaders(ondatra.NewEthernetHeader(), hdr).WithFrameSize(300)
+	flowipv4 := top.Flows().Add().SetName(name)
+	flowipv4.Metrics().SetEnable(true)
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	flowipv4.TxRx().Port().SetTxName(atePort1.Name)
+	waitOTGARPEntry(t)
+	dstMac := ate.OTG().Telemetry().Interface(atePort1.Name + ".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().Get(t)
+	e1.Dst().SetChoice("value").SetValue(dstMac)
+	v4 := flowipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort1.IPv4)
+	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(1)
+	ate.OTG().PushConfig(t, top)
+	return name
 
-	return flow
 }
 
 // validateTrafficFlows verifies that the flow on ATE and check interface counters on DUT
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow, drop bool, d_port []string) {
-	ate.Traffic().Start(t, flow)
-	time.Sleep(60 * time.Second)
-	ate.Traffic().Stop(t)
-	flowPath := ate.Telemetry().Flow(flow.Name())
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, ateTop gosnappi.Config, flow string, drop bool) {
+	ate.OTG().StartTraffic(t)
+	time.Sleep(10 * time.Second)
+	ate.OTG().StopTraffic(t)
+	otgutils.LogFlowMetrics(t, ate.OTG(), ateTop)
+	otgutils.LogPortMetrics(t, ate.OTG(), ateTop)
+	flowPath := ate.OTG().Telemetry().Flow(flow)
 	got := flowPath.LossPct().Get(t)
 	if drop {
 		if got != 100 {
-			t.Fatalf("Traffic passing for flow %s got %f, want 100 percent loss", flow.Name(), got)
+			t.Fatalf("Traffic passing for flow %s got %f, want 100 percent loss", flow, got)
 		}
 	} else {
 		if got > 0 {
-			t.Fatalf("LossPct for flow %s got %f, want 0", flow.Name(), got)
+			t.Fatalf("LossPct for flow %s got %f, want 0", flow, got)
 		}
 	}
 }
 
 // flapinterface shut/unshut interface, action true bringsup the interface and false brings it down
-func flapinterface(t *testing.T, ate *ondatra.ATEDevice, port string, action bool) {
-	ateP := ate.Port(t, port)
-	ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(action).Send(t)
+func flapinterface(t *testing.T, dut *ondatra.DUTDevice, port string, action bool) {
+	// When running on kne the corresponding DUT port will be taken down
+	dutP := dut.Port(t, port)
+	dc := dut.Config()
+	i := &telemetry.Interface{Name: ygot.String(dutP.Name())}
+	i.Enabled = ygot.Bool(action)
+	dc.Interface(dutP.Name()).Update(t, i)
 }
 
 // aftCheck does ipv4, NHG and NH aft check
@@ -358,4 +346,13 @@ func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, expectedNH []
 			}
 		}
 	}
+}
+
+// Waits for at least one ARP entry on the tx OTG interface
+func waitOTGARPEntry(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	ate.OTG().Telemetry().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
+		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
 }
