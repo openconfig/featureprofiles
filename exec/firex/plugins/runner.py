@@ -78,7 +78,7 @@ def BringupTestbed(self, ws, images = None,
 
     if topo_file and len(topo_file) > 0:
         c = InjectArgs(**self.abog)
-        c |= self.orig.s(plat='8000')
+        c |= self.orig.s(plat='8000', topo_file=os.path.join(fp_repo_dir, topo_file))
         testbed_path, *other = self.enqueue_child_and_get_results(c, return_keys=('testbed_path'))
         logger.print(f'Testbed path: {testbed_path}')
         
@@ -309,7 +309,11 @@ def RunB4FPTest(self,
 
     start_time = self.get_current_time()
     try:
+        inactivity_timeout = 1800
+        if test_timeout > 0: inactivity_timeout = 2*test_timeout
+
         self.run_script(cmd,
+                        inactivity_timeout=inactivity_timeout,
                         ok_nonzero_returncodes=(1,),
                         extra_env_vars=extra_env_vars,
                         cwd=fp_ws)
