@@ -333,39 +333,42 @@ func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Inter
 	return s
 }
 
-func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber string, componentName string, faultPointNumber string, returnValue string, activate bool) {
-	sshString := "172.0." + lcNumber + ".1"
-	var fimActivate string
-	var fimDeactivate string
-	if returnValue != "" {
-		fimActivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no %s /pkg/bin/fim_cli -c %s -a %s:%s", sshString, componentName, faultPointNumber, returnValue)
-		fimDeactivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no %s /pkg/bin/fim_cli -c %s -r %s:%s", sshString, componentName, faultPointNumber, returnValue)
-	} else {
-		fimActivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no %s /pkg/bin/fim_cli -c %s -a %s ", sshString, componentName, faultPointNumber)
-		fimDeactivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no %s /pkg/bin/fim_cli -c %s -r %s ", sshString, componentName, faultPointNumber)
-	}
-	if activate {
+func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []string, componentName string, faultPointNumber string, returnValue string, activate bool) {
 
-		fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fimActivate)
-		if strings.Contains(fimRes, fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
-			t.Logf("Successfull Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
+	for _, lineCard := range lcNumber {
+		var fimActivate string
+		var fimDeactivate string
+		if returnValue != "" {
+			fimActivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -a %s:%s", lineCard, componentName, faultPointNumber, returnValue)
+			fimDeactivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -r %s:%s", lineCard, componentName, faultPointNumber, returnValue)
 		} else {
-			t.Fatalf("FaultPointNumber for component %v on faultnumber %v not enabled", componentName, faultPointNumber)
+			fimActivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -a %s ", lineCard, componentName, faultPointNumber)
+			fimDeactivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -r %s ", lineCard, componentName, faultPointNumber)
 		}
-		if err != nil {
-			t.Fatalf("Error while sending enable fault point %v", err)
-		}
-		t.Logf("%v", fimRes)
-	} else {
-		fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fimDeactivate)
-		t.Logf("%v", fimRes)
-		if strings.Contains(fimRes, fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
-			t.Logf("Successfull Disabled Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
+		if activate {
+			fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fimActivate)
+			if strings.Contains(fimRes, fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
+				t.Logf("Successfull Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
+			} else {
+				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not enabled", componentName, faultPointNumber)
+			}
+			if err != nil {
+				t.Fatalf("Error while sending enable fault point %v", err)
+			}
+			t.Logf("%v", fimRes)
 		} else {
-			t.Fatalf("FaultPointNumber for component %v on faultnumber %v not disabled", componentName, faultPointNumber)
+			fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fimDeactivate)
+			t.Logf("%v", fimRes)
+			if strings.Contains(fimRes, fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
+				t.Logf("Successfull Disabled Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
+			} else {
+				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not disabled", componentName, faultPointNumber)
+			}
+			if err != nil {
+				t.Fatalf("Error while sending disable fault point %v", err)
+			}
 		}
-		if err != nil {
-			t.Fatalf("Error while sending disable fault point %v", err)
-		}
+
 	}
+
 }

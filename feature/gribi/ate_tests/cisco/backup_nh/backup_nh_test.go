@@ -2311,9 +2311,6 @@ func testNonrecursiveToRecursive(ctx context.Context, t *testing.T, args *testAr
 func testFaultInject(ctx context.Context, t *testing.T, args *testArgs) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
-	args.client.BecomeLeader(t)
-	args.client.FlushServer(t)
-
 	// adding drop route to NULL
 	t.Log("Adding a drop route to Null")
 	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
@@ -2326,26 +2323,27 @@ func testFaultInject(ctx context.Context, t *testing.T, args *testArgs) {
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 
+	args.client.BecomeLeader(t)
+	args.client.FlushServer(t)
+	args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
 	//injecting fault to fail NHG
-	util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "33", "3482356236", true)
-	util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "37", "-1", true)
-	defer util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "33", "3482356236", false)
-	defer util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "37", "-1", false)
-
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", true)
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", true)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", false)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", false)
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
-		args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
-		args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
-		args.client.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
 		args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, true, ciscoFlags.GRIBIChecks) //catch the error as it is expected and aborb the panic
-	}); strings.Contains(*errMsg, "FIB_FAILED") {
+	}); strings.Contains(*errMsg, "Add NHG ID: 1000>, Status: FIB_FAILED") {
 		t.Logf("Got the expected error on injecting fault, testt.CaptureFatal errMsg: %s", *errMsg)
 	} else {
 		t.Fatalf("FIB FAILED not caused by the injected fault, %v", *errMsg)
 	}
 	//removing faults related to NHG
-	util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "33", "3482356236", false)
-	util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "37", "-1", false)
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", false)
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", false)
 	args.client.FlushServer(t)
 	args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
@@ -2354,11 +2352,31 @@ func testFaultInject(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//Activating faults to test failure for AddIPv4
-	util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "3", "3482356236", true)
-	defer util.FaultInjectionMechanism(t, args.dut, "0", "ofa_la_srv", "3", "3482356236", false)
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", true)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", false)
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 		args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks) //catch the error as it is expected and aborb the panic
-	}); strings.Contains(*errMsg, "FIB_FAILED") {
+	}); strings.Contains(*errMsg, "IPv4: 192.0.2.40/32>, Status: FIB_FAILED") {
+		t.Logf("Got the expected error on injecting fault, testt.CaptureFatal errMsg: %s", *errMsg)
+	} else {
+		t.Fatalf("FIB FAILED not caused by the injected fault")
+	}
+	//Deactivating the fault injected for AddIPv4
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", false)
+	args.client.BecomeLeader(t)
+	args.client.FlushServer(t)
+	args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", true)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", false)
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks) //catch the error as it is expected and aborb the panic
+	}); strings.Contains(*errMsg, "Delete IPv4: 192.0.2.40/32>, Status: FIB_PROGRAMMED") {
 		t.Logf("Got the expected error on injecting fault, testt.CaptureFatal errMsg: %s", *errMsg)
 	} else {
 		t.Fatalf("FIB FAILED not caused by the injected fault")
