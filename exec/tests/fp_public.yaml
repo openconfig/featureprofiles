@@ -15,12 +15,12 @@ tests:
   #    - '-deviation_osactiavte_requires_reboot="true"'
   #    - '-deviation_no_osinstall_for_standby_rp="true"'
   owner: agvarghe@cisco.com
-  priority: 1
+  priority: 100
   mustpass: true
 - name: gNOI-3.1 (Complete Chassis Reboot) 
   path: feature/gnoi/system/tests/complete_chassis_reboot
   owner: arvbaska@cisco.com
-  priority: 2
+  priority: 101
   mustpass: true
 - name: gNOI-5.1 (Ping Test) 
   path: feature/gnoi/system/tests/ping_test
