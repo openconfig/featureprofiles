@@ -17,23 +17,23 @@
 package session
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/networkinstance"
+	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
 	"github.com/openconfig/ondatra/ixnet"
-	"github.com/openconfig/ondatra/telemetry/networkinstance"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
-
-	telemetry "github.com/openconfig/ondatra/telemetry"
 )
 
 // PTISIS is shorthand for the long oc protocol type constant
-const PTISIS = telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
+const PTISIS = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
 
 // The testbed consists of a dut and an ate with two connections, labeled ISISIntf and Intf2.
 // ISISIntf links dut:port1 and ate:port1, which are assigned 192.0.2.1/30 and 192.0.2.2/30
@@ -52,8 +52,10 @@ const (
 )
 
 var (
+	// Network entity title for the DUT
+	DUTNET = fmt.Sprintf("%v.%v.00", DUTAreaAddress, DUTSysID)
 	// DUTISISAttrs has attributes for the DUT ISIS connection on port1
-	DUTISISAttrs = &attrs.Attributes{
+	DUTISISAttrs = &Attributes{
 		Desc:    "DUT to ATE with IS-IS",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
@@ -61,16 +63,16 @@ var (
 		IPv6Len: pLen6,
 	}
 	// ATEISISAttrs has attributes for the ATE ISIS connection on port1
-	ATEISISAttrs = &attrs.Attributes{
+	ATEISISAttrs = &Attributes{
 		Name:    "port1",
+		Desc:    "ATE to DUT with IS-IS",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
-		Desc:    "ATE to DUT with IS-IS",
 		IPv4Len: pLen4,
 		IPv6Len: pLen6,
 	}
 	// DUTTrafficAttrs has attributes for the DUT end of the traffic connection (port2)
-	DUTTrafficAttrs = &attrs.Attributes{
+	DUTTrafficAttrs = &Attributes{
 		Desc:    "DUT to ATE secondary link",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
@@ -78,35 +80,45 @@ var (
 		IPv6Len: pLen6,
 	}
 	// ATETrafficAttrs has attributes for the ATE end of the traffic connection (port2)
-	ATETrafficAttrs = &attrs.Attributes{
+	ATETrafficAttrs = &Attributes{
 		Name:    "port2",
+		Desc:    "ATE to DUT secondary link",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
-		Desc:    "ATE to DUT secondary link",
 		IPv4Len: pLen4,
 		IPv6Len: pLen6,
 	}
 )
 
+// ISISPath is shorthand for ProtocolPath().Isis().
+func ISISPath() *networkinstance.NetworkInstance_Protocol_IsisPath {
+	return ProtocolPath().Isis()
+}
+
+// ProtocolPath returns the path to the IS-IS protocol named ISISName on the
+// default network instance.
+func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
+	return ocpath.Root().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
+}
+
 // addISISOC configures basic IS-IS on a device.
-func addISISOC(dev *telemetry.Device, areaAddress, sysID, ifaceName string) {
+func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
+	glob.Instance = ygot.String(ISISName)
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
-	glob.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	glob.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV6, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	intf := isis.GetOrCreateInterface(ifaceName)
-	intf.CircuitType = telemetry.IsisTypes_CircuitType_POINT_TO_POINT
+	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
 	intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
 }
 
 // addISISTopo configures basic IS-IS on an ATETopology interface.
 func addISISTopo(iface *ondatra.Interface, areaAddress, sysID string) {
-	// Find the interface (why doesn't ondatra have a function for this?)
-	// configure IS-IS on it
 	isis := iface.ISIS()
 	isis.
 		WithAreaID(areaAddress).
@@ -116,146 +128,171 @@ func addISISTopo(iface *ondatra.Interface, areaAddress, sysID string) {
 		WithLevelL2()
 }
 
-// TestSession is a convenience wrapper around the dut, ate, ports, and topology we're using.
+// TestSession is a convenience wrapper around the dut, ate, ports, and
+// topology we're using.
 type TestSession struct {
-	DUT *ondatra.DUTDevice
-	ATE *ondatra.ATEDevice
-	// DUTConf, ATEConf, and ATETop can be modified by tests; calling .Push() will apply them to the
-	// dut and ate.
-	DUTConf, ATEConf *telemetry.Device
-	ATETop           *ondatra.ATETopology
+	DUT       *ondatra.DUTDevice
+	DUTClient *ygnmi.Client
+	ATE       *ondatra.ATEDevice
+	// Rather than looking these up all the time, we fetch all the relevant ports
+	// and interfaces at setup time.
+	DUTPort1, DUTPort2, ATEPort1, ATEPort2 *ondatra.Port
+	ATEIntf1, ATEIntf2                     *ondatra.Interface
+	// DUTConf and ATETop can be modified by tests; calling .Push() will apply
+	// them to the dut and ate.
+	DUTConf *oc.Root
+	ATETop  *ondatra.ATETopology
 }
 
-// DUTISISTelemetry gets the telemetry PathStruct for /network-instance[default]/protocol[ISIS]/isis on the DUT
-func (s *TestSession) DUTISISTelemetry(t testing.TB) *networkinstance.NetworkInstance_Protocol_IsisPath {
-	return s.DUT.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName).Isis()
-}
-
-// ATEISISTelemetry gets the telemetry PathStruct for /network-instance[default]/protocol[ISIS]/isis on the ATE
-func (s *TestSession) ATEISISTelemetry(t testing.TB) *networkinstance.NetworkInstance_Protocol_IsisPath {
-	return s.ATE.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName).Isis()
-}
-
-// ATEInterface returns an ondatra.Interface for the port with the given name, or nil if our ATE is
-// actually an ondatra.DUTDevice.
-func (s *TestSession) ATEInterface(t testing.TB, portID string) *ondatra.Interface {
-	iface, ok := s.ATETop.Interfaces()[portID]
-	if !ok {
-		t.Logf("Available ATE Interfaces:")
-		for name := range s.ATETop.Interfaces() {
-			t.Logf("  %v", name)
-		}
-		t.Fatalf("No ATE interface with ID %v", portID)
-	}
-	return iface
-}
-
-// New creates a new TestSession using the default global config, and configures
-// the interfaces on the dut and the ate.
-func New(t testing.TB) *TestSession {
+// New creates a new TestSession using the default global config, and
+// configures the interfaces on the dut and the ate.
+func New(t testing.TB) (*TestSession, error) {
 	t.Helper()
 	s := &TestSession{}
 	s.DUT = ondatra.DUT(t, "dut")
-	s.DUTConf = &telemetry.Device{}
-	s.confDUTInterface(t, "port1", DUTISISAttrs)
-	s.confDUTInterface(t, "port2", DUTTrafficAttrs)
+	var err error
+	s.DUTClient, err = ygnmi.NewClient(s.DUT.RawAPIs().GNMI().Default(t), ygnmi.WithTarget(s.DUT.ID()))
+	if err != nil {
+		return nil, fmt.Errorf("unable to connect to gNMI on %v: %w", s.DUT, err)
+	}
+	s.DUTPort1 = s.DUT.Port(t, "port1")
+	s.DUTPort2 = s.DUT.Port(t, "port2")
+	s.DUTConf = &oc.Root{}
+	// configure dut ports
+	DUTISISAttrs.ConfigInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort1.Name()))
+	DUTTrafficAttrs.ConfigInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort2.Name()))
 
-	s.ATE = ondatra.ATE(t, "ate")
-	s.ATETop = s.ATE.Topology().New()
-	s.confATEInterface(t, "port1", ATEISISAttrs, DUTISISAttrs)
-	s.confATEInterface(t, "port2", ATETrafficAttrs, DUTTrafficAttrs)
-	return s
+	// If there is no ate, any operation that requires the ATE will call
+	// t.Fatal() instead. This is helpful for debugging the parts of the test
+	// that don't use an ATE.
+	if ate, ok := ondatra.ATEs(t)["ate"]; ok {
+		s.ATE = ate
+		s.ATEPort1 = s.ATE.Port(t, "port1")
+		s.ATEPort2 = s.ATE.Port(t, "port2")
+		s.ATETop = s.ATE.Topology().New()
+		s.ATEIntf1 = ATEISISAttrs.AddToATE(s.ATETop, s.ATEPort1, DUTISISAttrs)
+		s.ATEIntf2 = ATETrafficAttrs.AddToATE(s.ATETop, s.ATEPort2, DUTTrafficAttrs)
+	}
+	return s, nil
 }
 
-// NewWithISIS creates a new TestSession using the default global config, configuring the interfaces
-// and a basic IS-IS adjacency between the two. This does NOT push any config to the devices.
-func NewWithISIS(t testing.TB) *TestSession {
+// MustNew creates a new TestSession or Fatal()s if anything goes wrong.
+func MustNew(t testing.TB) *TestSession {
 	t.Helper()
-	s := New(t)
-	s.WithISIS(t)
-	return s
-}
-
-// confDUTInterface sets the given attributes on the specified interface on the dut. portID should
-// be an ID from the testbed, e.g. "port1" or "port2".
-func (s *TestSession) confDUTInterface(t testing.TB, portID string, attrs *attrs.Attributes) {
-	t.Helper()
-	intfName := s.DUT.Port(t, portID).Name()
-	attrs.ConfigInterface(s.DUTConf.GetOrCreateInterface(intfName))
-}
-
-// confATEInterface configures the expected interface on the ate.
-// If the ate is a DUTDevice, this calls Replace(); if it's an ATEDevice, it just updates s.top.
-func (s *TestSession) confATEInterface(t testing.TB, portID string, attrs, peerAttrs *attrs.Attributes) {
-	t.Helper()
-	attrs.AddToATE(s.ATETop, s.ATE.Port(t, portID), peerAttrs)
+	v, err := New(t)
+	if err != nil {
+		t.Fatalf("Unable to initialize topology: %v", err)
+	}
+	return v
 }
 
 // WithISIS adds ISIS to a test session.
-func (s *TestSession) WithISIS(t testing.TB) *TestSession {
-	t.Helper()
-	addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUT.Port(t, "port1").Name())
-	if s.ATEInterface(t, "port1") == nil {
-		t.Fatalf("Nil interface:\n***\nATE: %v\n***\n***\nIfaces:\n%v\n***\nPortName: %v\n***\n", s.ATE, s.ATETop.Interfaces(), s.ATE.Port(t, "port1").Name())
+func (s *TestSession) WithISIS() *TestSession {
+	addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name())
+	if s.ATE != nil {
+		addISISTopo(s.ATEIntf1, ATEAreaAddress, "*")
 	}
-	addISISTopo(s.ATEInterface(t, "port1"), ATEAreaAddress, "*")
 	return s
 }
 
-// ConfigISIS takes two functions, one that operates on an OC IS-IS block and one that operates on
-// an ondatra ATE IS-IS block. The first will be applied to the IS-IS block of ts.DUTConfig; if the
-// ATE is an ATEDevice, the second will be applied to s.ATETop, otherwise the first will be called
-// again on s.ATEConf
-func (s *TestSession) ConfigISIS(t testing.TB, ocFn func(*telemetry.NetworkInstance_Protocol_Isis), ateFn func(*ixnet.ISIS)) {
+// ConfigISIS takes two functions, one that operates on an OC IS-IS block and
+// one that operates on an ondatra ATE IS-IS block. The first will be applied
+// to the IS-IS block of ts.DUTConfig, and the second will be applied to the
+// IS-IS configuration of ts.ATETop
+func (s *TestSession) ConfigISIS(ocFn func(*oc.NetworkInstance_Protocol_Isis), ateFn func(*ixnet.ISIS)) {
 	ocFn(s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName).GetOrCreateIsis())
-	ateFn(s.ATEInterface(t, "port1").ISIS())
+	if s.ATE != nil {
+		ateFn(s.ATEIntf1.ISIS())
+	}
 }
 
-// PushAndStart calss PushDUT and PushAndStartATE to send config to both devices.
-func (s *TestSession) PushAndStart(t testing.TB) {
+// PushAndStart calls PushDUT and PushAndStartATE to send config to both
+// devices.
+func (s *TestSession) PushAndStart(t testing.TB) error {
 	t.Helper()
-	s.PushDUT(t)
+	if err := s.PushDUT(context.Background()); err != nil {
+		return err
+	}
 	s.PushAndStartATE(t)
+	return nil
 }
 
-// PushDUT replaces DUT config with s.dutConf. Only interfaces and the ISIS protocol are written.
-func (s *TestSession) PushDUT(t testing.TB) {
-	t.Helper()
+// PushDUT replaces DUT config with s.dutConf. Only interfaces and the ISIS
+// protocol are written.
+func (s *TestSession) PushDUT(ctx context.Context) error {
 	// Push the interfaces
 	for name, conf := range s.DUTConf.Interface {
-		node := s.DUT.Config().Interface(name)
-		node.Replace(t, conf)
+		_, err := ygnmi.Replace(ctx, s.DUTClient, ocpath.Root().Interface(name).Config(), conf)
+		if err != nil {
+			return fmt.Errorf("configuring interface %s: %w", name, err)
+		}
 	}
-	//configure Network Instance
-	dutConfNIPath := s.DUT.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-
 	// Push the ISIS protocol
-	dutNode := s.DUT.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
+	if _, err := ygnmi.Replace(ctx, s.DUTClient, ocpath.Root().NetworkInstance(*deviations.DefaultNetworkInstance).Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE); err != nil {
+		return fmt.Errorf("configuring network instance: %w", err)
+	}
 	dutConf := s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
-	dutNode.Replace(t, dutConf)
+	_, err := ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
+	if err != nil {
+		return fmt.Errorf("configuring ISIS: %w", err)
+	}
+	return nil
 }
 
-// PushAndStartATE configures the ATE, using s.ATEConfig if the ATE is a DUTDevice and s.ATETop if the ATE
-// is an ATEDevice. If it is an ATEDevice, this will also call StartProtocols() on it.
+// PushAndStartATE pushes the ATETop to the ATE and starts protocols on it.
 func (s *TestSession) PushAndStartATE(t testing.TB) {
 	t.Helper()
+	if s.ATE == nil {
+		t.Fatal("Cannot run test without ATE")
+	}
 	s.ATETop.Push(t).StartProtocols(t)
 }
 
-// AwaitAdjacency waits up to a minute for the dut to report that the ISISIntf link has formed an
-// IS-IS adjaceny, logging the full state and Fataling out if it doesn't.
-func (s *TestSession) AwaitAdjacency(t testing.TB) {
-	t.Logf("Waiting for any adjacency to form on %v...", s.DUT.Port(t, "port1").Name())
-	telem := s.DUT.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
-	intf := telem.Isis().Interface(s.DUT.Port(t, "port1").Name())
-
-	_, ok := intf.LevelAny().AdjacencyAny().AdjacencyState().Watch(t, time.Minute,
-		func(val *telemetry.QualifiedE_IsisTypes_IsisInterfaceAdjState) bool {
-			return val.IsPresent() && val.Val(t) == telemetry.IsisTypes_IsisInterfaceAdjState_UP
-		}).Await(t)
-	if !ok {
-		fptest.LogYgot(t, fmt.Sprintf("IS-IS state on %v has no adjacencies", s.DUT.Port(t, "port1").Name()), intf, intf.Get(t))
-		t.Fatal("No IS-IS adjacencies reported.")
+// AwaitAdjacency waits up to a minute for the dut to report that the ISISIntf
+// link has formed any IS-IS adjacency, returning the adjacency ID or an error
+// if one doesn't form.
+func (s *TestSession) AwaitAdjacency() (string, error) {
+	intf := ISISPath().Interface(s.DUTPort1.Name())
+	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	watcher := ygnmi.WatchAll(ctx, s.DUTClient, query, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) error {
+		if val == nil || !val.IsPresent() {
+			return ygnmi.Continue
+		}
+		v, _ := val.Val()
+		if v == oc.Isis_IsisInterfaceAdjState_UP {
+			return nil
+		}
+		return ygnmi.Continue
+	})
+	got, err := watcher.Await()
+	if err != nil {
+		return "", err
 	}
+	return got.Path.GetElem()[10].GetKey()["system-id"], nil
+}
+
+// MustAdjacency waits up to a minute for an IS-IS adjacency to form between
+// the DUT and the ATE; it returns the adjacency ID or calls t.Fatal no
+// adjacency forms.
+func (s *TestSession) MustAdjacency(t testing.TB) string {
+	adjID, err := s.AwaitAdjacency()
+	if err != nil {
+		t.Fatalf("Waiting for adjacency to form: %v", err)
+	}
+	return adjID
+}
+
+// MustATEInterface returns the ATE interface for the portID, or calls t.Fatal
+// if this fails.
+func (s *TestSession) MustATEInterface(t testing.TB, portID string) *ondatra.Interface {
+	if s.ATE == nil {
+		t.Fatal("Cannot run test without ATE")
+	}
+	iface, ok := s.ATETop.Interfaces()[portID]
+	if !ok {
+		t.Fatalf("No ATE interface with ID %v", portID)
+	}
+	return iface
 }
