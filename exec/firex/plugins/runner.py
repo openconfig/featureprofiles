@@ -299,7 +299,7 @@ def RunB4FPTest(self,
           f'--junitfile {xunit_results_filepath} ' \
           f'--junitfile-testsuite-name short ' \
           f'--junitfile-testcase-classname short ' \
-          f'--jsonfile {json_results_file} ' \
+          f'--jsonfile "{json_results_file}" ' \
           f'--format testname ' \
           f'--debug ' \
           f'--raw-command ' \
