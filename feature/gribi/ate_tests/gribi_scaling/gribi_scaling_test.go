@@ -293,7 +293,7 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *telemetry.Device, vrfs [
 			telemetry.Types_ADDRESS_FAMILY_IPV4,
 			telemetry.Types_ADDRESS_FAMILY_IPV6,
 		}
-		i.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
+		i.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 		dut.Config().NetworkInstance(vrf).Replace(t, i)
 		nip := dut.Config().NetworkInstance(vrf)
 		fptest.LogYgot(t, "nonDefaultNI", nip, nip.Get(t))
