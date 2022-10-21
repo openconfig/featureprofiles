@@ -11,11 +11,11 @@ tests:
 - name: gNOI-4.1 (Software Upgrade) 
   path: feature/gnoi/os/tests/osinstall
   patch: exec/firex/plugins/fp_patch/osinstall_test.patch
-  args:
-      - '-deviation_osactiavte_requires_reboot="true"'
-      - '-deviation_no_osinstall_for_standby_rp="true"'
+  #args:
+  #    - '-deviation_osactiavte_requires_reboot="true"'
+  #    - '-deviation_no_osinstall_for_standby_rp="true"'
   owner: agvarghe@cisco.com
-  priority: 1
+  priority: 100
   mustpass: true
 - name: gNOI-3.1 (Complete Chassis Reboot) 
   path: feature/gnoi/system/tests/complete_chassis_reboot
@@ -92,8 +92,10 @@ tests:
   priority: 13
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
+  patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
   args:
       - '-traffic_duration="20s"'
+      - '-traffic_pause="2s"'
   mustpass: false
   priority: 14
 - name: TE-3.3 (Hierarchical weight resolution)
