@@ -40,7 +40,8 @@ func TestNtpServerConfigurability(t *testing.T) {
 			state := dut.Telemetry().System().Ntp()
 
 			ntpServer := telemetry.System_Ntp_Server{
-				Address: &testCase.address,
+				Address:         &testCase.address,
+				AssociationType: telemetry.Server_AssociationType_SERVER,
 			}
 			config.Server(testCase.address).Replace(t, &ntpServer)
 
