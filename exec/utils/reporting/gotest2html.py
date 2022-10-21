@@ -87,7 +87,7 @@ class GoTest:
             "pass": self._pass_text(),
             "_children": [c.to_table_data() for c in self._children]
         }
-
+        
     def to_md_string(self, level = 0):
         em = ''
         if level == 0: em = '**'
@@ -129,8 +129,8 @@ def _generate_html(table_data, summary_data):
 <div id="table"></div>
 <script>
 $(function () {
-    var data = String.raw`"""+table_data+"""`
-    var summary_data = String.raw`""" + summary_data + """`
+    var data = String.raw`"""+table_data.replace("`", "'")+"""`
+    var summary_data = String.raw`""" + summary_data.replace("`", "'") + """`
 
     new Tabulator("#summary", {
         layout: "fitColumns",
@@ -277,7 +277,6 @@ def _read_log_file(file):
 def to_html(files):
     data = [ ]
     summary = {"total": 0, "passed": 0, "failed": 0}
-
     for f in files:
         content = _read_log_file(f)
         test = _parse(f, json.loads(content))
@@ -285,19 +284,34 @@ def to_html(files):
         summary["passed"] += len(test.get_passed_descendants())
         data.append(test.to_table_data())
     summary["failed"] = summary["total"] - summary["passed"]
-    return _generate_html(json.dumps(data), json.dumps([summary]))
+    return _generate_html(json.dumps(data), json.dumps(summary))
+
 
 def to_markdown(files):
     md = ""
+    summary = {"total": 0, "passed": 0, "failed": 0}
+
     for f in files:
         content = _read_log_file(f)
         test = _parse(f, json.loads(content))
+        summary["total"] += len(test.get_descendants())
+        summary["passed"] += len(test.get_passed_descendants())
+
         md += "### " + test.get_qualified_name()+ "\n"
         md +=  "Test | Pass\n"
         md += "-----|------\n"
+
         for t in test._children:
             md += t.to_md_string()
-    return md
+
+    summary["failed"] = summary["total"] - summary["passed"]
+    summary_md = f"""
+Total | Passed | Failed
+------|--------|-------
+{summary["total"]} | {summary["passed"]} | {summary["failed"]}
+"""
+    
+    return summary_md + md
 
 def _is_valid_file(parser, arg):
     if not os.path.exists(arg):
