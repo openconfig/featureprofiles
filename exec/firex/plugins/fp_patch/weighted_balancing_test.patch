@@ -1,26 +1,29 @@
-diff --git a/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go b/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go
-index 70a9a00f..232a2e42 100644
---- a/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go
-+++ b/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go
-@@ -168,7 +168,7 @@ func TestPortFlap(t *testing.T) {
- 				t.Log("Port is down.")
- 			}
- 			testNextHopRemaining(t, numUps, dut, ate, top)
--			debugGRIBI(t, dut)
-+			//debugGRIBI(t, dut)
- 		})
+diff --git a/feature/gribi/ate_tests/weighted_balancing_test/setup_test.go b/feature/gribi/ate_tests/weighted_balancing_test/setup_test.go
+index 77185678..b47bc620 100644
+--- a/feature/gribi/ate_tests/weighted_balancing_test/setup_test.go
++++ b/feature/gribi/ate_tests/weighted_balancing_test/setup_test.go
+@@ -169,12 +169,13 @@ func dutInterface(p *ondatra.Port) *telemetry.Interface {
+ // configureDUT configures all the interfaces on the DUT.
+ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
+ 	dc := dut.Config()
+-
++	// XR use recursive for null route that cuases issues for trafic
++	// need to discuss with google about this
+ 	// We add a discard route so that when the nexthop interface goes
+ 	// down, the device does not attempt to route packets through the
+ 	// default gateway 0.0.0.0/0.  Packets destined to the more specific
+ 	// next hop CIDRs will be routed.
+-	static := &telemetry.NetworkInstance_Protocol_Static{
++	/*static := &telemetry.NetworkInstance_Protocol_Static{
+ 		Prefix: ygot.String(discardCIDR),
  	}
- }
-diff --git a/feature/gribi/ate_tests/weighted_balancing_test/weighted_balancing_test.go b/feature/gribi/ate_tests/weighted_balancing_test/weighted_balancing_test.go
-index ac5767ec..812a4711 100644
---- a/feature/gribi/ate_tests/weighted_balancing_test/weighted_balancing_test.go
-+++ b/feature/gribi/ate_tests/weighted_balancing_test/weighted_balancing_test.go
-@@ -208,7 +208,7 @@ func TestWeightedBalancing(t *testing.T) {
- 						t.Skipf("Testbed provides only %d ports, but test case needs %d.", got, want)
- 					}
- 					testNextHop(ctx, t, c.NextHops, s.Scale, gribic, ate, top)
--					debugGRIBI(t, dut)
-+					//debugGRIBI(t, dut)
- 				})
- 			}
- 		})
+ 	static.GetOrCreateNextHop("AUTO_drop_2").
+@@ -183,7 +184,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
+ 		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
+ 		Static(discardCIDR)
+ 	fptest.LogYgot(t, "discard route", staticp, static)
+-	staticp.Replace(t, static)
++	staticp.Replace(t, static)*/
+ 
+ 	for _, dp := range dut.Ports() {
+ 		if i := dutInterface(dp); i != nil {
