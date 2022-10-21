@@ -341,7 +341,7 @@ func TestDeviationInfo(t *testing.T) {
 		desc: "Explicitly given default values should result in the empty map.",
 		args: []string{
 			"-deviation_foo=false",
-			"-deviation_bar=default",
+			"-deviation_bar=DEFAULT",
 			"-deviation_qux=42",
 		},
 		want: map[string]string{},
@@ -350,13 +350,13 @@ func TestDeviationInfo(t *testing.T) {
 		desc: "Only the deviations should be enumerated.",
 		args: []string{
 			"-deviation_foo",
-			"-deviation_bar=notdefault",
+			"-deviation_bar=NOT_DEFAULT",
 			// no -deviation_qux
 			"-xyzzy=opensesame", // not a deviation.
 		},
 		want: map[string]string{
 			"deviation.foo": "true",
-			"deviation.bar": "notdefault",
+			"deviation.bar": "NOT_DEFAULT",
 		},
 	}}
 
@@ -366,7 +366,7 @@ func TestDeviationInfo(t *testing.T) {
 
 			fs := flag.NewFlagSet("", flag.ContinueOnError)
 			fs.Bool("deviation_foo", false, "foo is a bool deviation")
-			fs.String("deviation_bar", "default", "bar is a string deviation")
+			fs.String("deviation_bar", "DEFAULT", "bar is a string deviation")
 			fs.Int("deviation_qux", 42, "qux is an int deviation")
 			fs.String("xyzzy", "letmein", "xyzzy is not a deviation")
 
