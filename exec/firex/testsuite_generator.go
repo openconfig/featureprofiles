@@ -76,11 +76,6 @@ var (
     {{- else }}
     topo_file: ""
     {{- end }}
-    {{- if gt $ft.Timeout 0 }}
-    plugins:
-        - change_inactivity_timeout.py
-    changed_inactivity_timeout: {{ $ft.Timeout }}
-    {{- end }}
     ondatra_testbed_path: {{ $ft.Testbed }}
     {{- if $ft.Binding }}
     ondatra_binding_path: {{ $ft.Binding }}
@@ -212,16 +207,6 @@ func main() {
 				suite[i].Tests[j].Owner = suite[i].Owner
 			}
 		}
-	}
-
-	for i := range suite {
-		maxTestTimeout := 0
-		for j := range suite[i].Tests {
-			if maxTestTimeout < suite[i].Tests[j].Timeout {
-				maxTestTimeout = suite[i].Tests[j].Timeout
-			}
-		}
-		suite[i].Timeout = 2 * maxTestTimeout
 	}
 
 	// sort by priority
