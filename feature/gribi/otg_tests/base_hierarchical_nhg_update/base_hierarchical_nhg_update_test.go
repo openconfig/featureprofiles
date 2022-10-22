@@ -316,9 +316,9 @@ func validateTrafficFlows(t *testing.T, goodFlow, badFlow string) {
 func getLossPct(t *testing.T, flowName string) uint64 {
 	t.Helper()
 	otg := ondatra.ATE(t, "ate").OTG()
-	recvMetric := otg.Telemetry().Flow(flowName).Get(t)
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
+	flowStats := otg.Telemetry().Flow(flowName).Get(t)
+	txPackets := flowStats.GetCounters().GetOutPkts()
+	rxPackets := flowStats.GetCounters().GetInPkts()
 	lostPackets := txPackets - rxPackets
 	if txPackets == 0 {
 		t.Fatalf("Tx packets should be higher than 0 for flow %s", flowName)
