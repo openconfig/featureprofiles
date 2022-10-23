@@ -89,7 +89,7 @@ class GoTest:
         return len(self.get_passed_descendants()) - self.get_total_skipped()
     
     def get_total_failed(self):
-        return self.get_total() - self.get_total_passed()
+        return self.get_total() - self.get_total_passed() - self.get_total_skipped()
 
     def _pass_text(self):
         if len(self.get_descendants()) == 0:
@@ -160,7 +160,7 @@ def _generate_html(table_data, summary_data):
 <script>
 $(function () {
     var data = String.raw`"""+table_data.replace("`", "'")+"""`
-    var summary_data = String.raw`""" + summary_data.replace("`", "'") + """`
+    var summary_data = String.raw`"""+summary_data+"""`
 
     new Tabulator("#summary", {
         layout: "fitColumns",
@@ -310,17 +310,16 @@ def _read_log_file(file):
 
 def to_html(files):
     data = [ ]
-    summary = {"total": 0, "passed": 0, "failed": 0}
+    summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
     for f in files:
         content = _read_log_file(f)
         test = _parse(f, json.loads(content))
-        summary["total"] += len(test.get_descendants())
-        summary["skipped"] += len(test.get_skipped_descendants())
-        summary["passed"] += len(test.get_passed_descendants())
+        summary["total"] += test.get_total()
+        summary["skipped"] += test.get_total_skipped()
+        summary["passed"] += test.get_total_passed()
+        summary["failed"] += test.get_total_failed()
         data.append(test.to_table_data())
-    summary["failed"] = summary["total"] - summary["passed"]
-    summary["passed"] = summary["passed"] - summary["skipped"]
-    return _generate_html(json.dumps(data), json.dumps(summary))
+    return _generate_html(json.dumps(data), json.dumps([summary]))
 
 
 def to_markdown(files):
@@ -331,18 +330,13 @@ def to_markdown(files):
     for f in files:
         content = _read_log_file(f)
         test = _parse(f, json.loads(content))
-        total = len(test.get_descendants())
-        skiped = len(test.get_skipped_descendants())
-        passed = len(test.get_passed_descendants())
-        failed = total - passed
-        passed -= skiped
 
         suite_summary.append({
             "suite": test.get_qualified_name(),
-            "total": total, 
-            "passed": passed, 
-            "failed": failed,
-            "skipped": skiped
+            "total": test.get_total(), 
+            "passed": test.get_total_passed(), 
+            "failed": test.get_total_failed(),
+            "skipped": test.get_total_skipped()
         })
 
         details_md += "### " + test.get_qualified_name()+ "\n"
