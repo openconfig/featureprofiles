@@ -1,9 +1,12 @@
 import argparse
+import pathlib
 import json
 import os
+import re
 
 def _to_md_anchor(s):
-    return f'[{s}](#{s.lower().replace(" ", "-").replace("(", "").replace(")","")})'
+    sanitized = re.sub('[^0-9a-zA-Z_\-\s]+', '', s).strip().replace(' ', '-').lower()
+    return f'[{s}](#{sanitized})'
 
 class GoTest:
     def __init__(self, name, pkg = None, parent = None):
@@ -75,6 +78,18 @@ class GoTest:
 
     def get_status(self):
         return self._status
+
+    def get_total(self):
+        return len(self.get_descendants())
+    
+    def get_total_skipped(self):
+        return len(self.get_skipped_descendants())
+
+    def get_total_passed(self):
+        return len(self.get_passed_descendants()) - self.get_total_skipped()
+    
+    def get_total_failed(self):
+        return self.get_total() - self.get_total_passed()
 
     def _pass_text(self):
         if len(self.get_descendants()) == 0:
@@ -251,7 +266,7 @@ def _get_parent(test_map, entry, default):
 
 def _parse(file, json_data):
     test_map = {}
-    top_test = GoTest(os.path.basename(file.split('.')[0]), file)
+    top_test = GoTest(pathlib.Path(file).stem, file)
 
     for entry in json_data:
         if 'Test' not in entry:
@@ -312,6 +327,7 @@ def to_markdown(files):
     details_md = "## Tests\n"
     suite_summary = []
 
+    files.sort()
     for f in files:
         content = _read_log_file(f)
         test = _parse(f, json.loads(content))
@@ -342,15 +358,32 @@ def to_markdown(files):
             details_md += "-----|------\n"
             details_md += t.to_md_string(recursive=True)
     
-    suite_summary_md = "## Summary\n"
+    suite_summary_md = "## Test Suites\n"
     suite_summary_md += f"""
-Suite | Total | Passed | Failed | Skipped
-------|-------|--------|--------|--------
+Suite | Total | Passed | Failed | Skipped | Result
+------|-------|--------|--------|---------|--------
 """
-    for s in suite_summary:
-        suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]} | {s["failed"]} | {s["skipped"]}\n'
 
-    return suite_summary_md + details_md
+    total, passed, failed, skipped = [0] * 4
+    for s in suite_summary:
+        total += s["total"]
+        passed += s["passed"]
+        failed += s["failed"]
+        skipped += s["skipped"]
+
+        result = ':white_check_mark:'
+        if s["failed"] > 0: result = ':x:'
+        suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]} | {s["failed"]} | {s["skipped"]} | {result}\n'
+
+    return f"""
+## Summary
+Total | Passed | Failed | Skipped
+------|--------|--------|---------
+{total}|{passed}|{failed}|{skipped}
+""" + suite_summary_md + details_md
+
+def parse_json(file):
+    return _parse(file, json.loads(_read_log_file(file)))
 
 def _is_valid_file(parser, arg):
     if not os.path.exists(arg):
@@ -358,14 +391,15 @@ def _is_valid_file(parser, arg):
     else:
         return arg
 
-parser = argparse.ArgumentParser(description='Generate HTML report from go test logs')
-parser.add_argument('files', metavar='FILE', nargs='+',
-                    type=lambda x: _is_valid_file(parser, x),
-                    help='go test log files in json format')
-parser.add_argument('--md', default=False, action='store_true', help="generate md report")
-args = parser.parse_args()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Generate HTML report from go test logs')
+    parser.add_argument('files', metavar='FILE', nargs='+',
+                        type=lambda x: _is_valid_file(parser, x),
+                        help='go test log files in json format')
+    parser.add_argument('--md', default=False, action='store_true', help="generate md report")
+    args = parser.parse_args()
 
-if args.md:
-    print(to_markdown(args.files))
-else:
-    print(to_html(args.files))
+    if args.md:
+        print(to_markdown(args.files))
+    else:
+        print(to_html(args.files))
