@@ -212,7 +212,7 @@ func TestNonexistingID(t *testing.T) {
 
 	fakeGetResp := &plqpb.GetResponse{
 		Results: map[string]*plqpb.QualificationResult{
-			id: &plqpb.QualificationResult{
+			id: {
 				Status: &status.Status{
 					Code:    int32(5),
 					Message: "ID not found for result",
@@ -239,7 +239,7 @@ func TestNonexistingID(t *testing.T) {
 
 	fakeDeleteResp := &plqpb.DeleteResponse{
 		Results: map[string]*status.Status{
-			id: &status.Status{
+			id: {
 				Code:    int32(5),
 				Message: "ID not found for deletion",
 			},
@@ -287,7 +287,7 @@ func TestLinkQuality(t *testing.T) {
 
 	generatorCreateRequest := &plqpb.CreateRequest{
 		Interfaces: []*plqpb.QualificationConfiguration{
-			&plqpb.QualificationConfiguration{
+			{
 				Id:            plqID,
 				InterfaceName: dp1.Name(),
 				EndpointType: &plqpb.QualificationConfiguration_PacketGenerator{
@@ -322,7 +322,7 @@ func TestLinkQuality(t *testing.T) {
 
 	reflectorCreateRequest := &plqpb.CreateRequest{
 		Interfaces: []*plqpb.QualificationConfiguration{
-			&plqpb.QualificationConfiguration{
+			{
 				Id:            plqID,
 				InterfaceName: dp2.Name(),
 				EndpointType: &plqpb.QualificationConfiguration_PmdLoopback{
@@ -372,7 +372,7 @@ func TestLinkQuality(t *testing.T) {
 
 	fakeCreateResp := &plqpb.CreateResponse{
 		Status: map[string]*status.Status{
-			plqID: &status.Status{
+			plqID: {
 				Code:    int32(0), //OK = 0 and HTTP Mapping: 200 OK.
 				Message: "request id " + plqID,
 			},
@@ -401,7 +401,7 @@ func TestLinkQuality(t *testing.T) {
 
 	fakeGetResp := &plqpb.GetResponse{
 		Results: map[string]*plqpb.QualificationResult{
-			plqID: &plqpb.QualificationResult{
+			plqID: {
 				Id:                              plqID,
 				InterfaceName:                   dp1.Name(),
 				State:                           plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED,
