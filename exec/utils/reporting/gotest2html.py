@@ -1,9 +1,11 @@
 import argparse
-from datetime import datetime
 import pathlib
 import json
 import os
 import re
+
+from datetime import datetime
+from constants import base_logs_url, base_logs_dir
 
 def _to_md_anchor(s):
     sanitized = re.sub('[^0-9a-zA-Z_\-\s]+', '', s).strip().replace(' ', '-').lower()
@@ -55,7 +57,7 @@ class GoTestSuite:
 
     def get_last_run_id(self):
         return self._last_run_id
-
+        
     def get_stats(self):
         stats = {
             'total': 0,
@@ -85,6 +87,7 @@ class GoTestSuite:
 
         for test in self._tests:
             suite_summary.append({
+                "test": test,
                 "suite": test.get_qualified_name(),
                 "total": test.get_total(), 
                 "passed": test.get_total_passed(), 
@@ -108,8 +111,8 @@ class GoTestSuite:
         
         suite_summary_md = "## Test Suites\n"
         suite_summary_md += f"""
-Suite | Total | Passed | Failed | Regressed | Skipped | Result
-------|-------|--------|--------|-----------|---------|-------
+Suite | Total | Passed | Failed | Regressed | Skipped | Logs | Result
+------|-------|--------|--------|-----------|---------|------|-------
 """
 
         total, passed, failed, skipped, regressed = [0] * 5
@@ -124,7 +127,8 @@ Suite | Total | Passed | Failed | Regressed | Skipped | Result
             if s['regressed'] > 0: result = ':warning:'
             elif s['failed'] > 0: result = ':x:'
 
-            suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]} | {s["failed"]} | {s["regressed"]} | {s["skipped"]} | {result}\n'
+            suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]}'
+            suite_summary_md += f'| {s["failed"]} | {s["regressed"]} | {s["skipped"]} | [Logs]({s["test"].get_logs_url()}) | {result}\n'
 
         return f"""
 ## Summary
@@ -135,7 +139,7 @@ Total | Passed | Failed | Regressed | Skipped
 
 
 class GoTest:
-    def __init__(self, name, pkg = None, parent = None):
+    def __init__(self, name, pkg = None, parent = None, logs_url = ''):
         self._qname = name
         self._name = name
         self._pkg = pkg
@@ -143,13 +147,14 @@ class GoTest:
         self._children = []
         self._output = ''
         self._status = ''
+        self._logs_url = logs_url
 
         if parent and parent.get_parent():
             self._name = self._qname[len(parent.get_qualified_name()):]
 
     @staticmethod
     def from_json_obj(obj, parent = None):
-        gt = GoTest(obj['name'], obj['pkg'], parent)
+        gt = GoTest(obj['name'], obj['pkg'], parent, logs_url = obj['logs_url'])
         gt._qname = obj['qname']
         gt._status = obj['status']
         gt._children = [GoTest.from_json_obj(c, parent) for c in obj['children']]
@@ -200,6 +205,9 @@ class GoTest:
 
     def get_parent(self):
         return self._parent
+
+    def get_logs_url(self):
+        return self._logs_url
 
     def mark_passed(self):
         self._status = 'Pass'
@@ -264,6 +272,7 @@ class GoTest:
             'name': self._name,
             'pkg': self._pkg,
             'status': self._status,
+            'logs_url': self._logs_url,
             'children': [c.to_json_obj() for c in self._children],
         }
         
@@ -428,7 +437,7 @@ def _get_parent(test_map, entry, default):
 def _parse(file, json_data, suite_name=None):
     test_map = {}
     if not suite_name: suite_name = pathlib.Path(file).stem
-    top_test = GoTest(suite_name, file)
+    top_test = GoTest(suite_name, file, logs_url=file.replace(base_logs_dir, base_logs_url))
 
     for entry in json_data:
         if 'Test' not in entry:

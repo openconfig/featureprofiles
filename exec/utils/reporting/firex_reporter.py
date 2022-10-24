@@ -2,16 +2,12 @@ from datetime import datetime
 import json
 from pathlib import Path
 from gotest2html import GoTestSuite, parse_json
+from constants import tests_dir, base_tracker_url, base_logs_url, base_logs_dir
 
 import os
 import re
 import yaml
 import argparse
-
-
-tests_dir = "exec/tests/"
-base_logs_dir = "/auto/firex-logs-ott/gob4/"
-base_tracker_url = "https://firex-north.cisco.com/test_tracker/#"
 
 def _get_testsuites():
     test_suites = []
@@ -52,7 +48,6 @@ now = datetime.now().timestamp()
 if not os.path.exists(data_dir):
     os.makedirs(data_dir)
 
-
 logs_dir = os.path.join(base_logs_dir, firex_id, 'tests_logs')
 
 summary_md = """
@@ -62,8 +57,8 @@ Total | Passed | Failed | Regressed | Skipped
 """
 details_md = """
 ## Test Suites
-Suite | Total | Passed | Failed | Regressed | Skipped | Last Run | Result
-------|-------|--------|--------|-----------|---------|----------|-------
+Suite | Total | Passed | Failed | Regressed | Skipped | Last Run | Logs | Result
+------|-------|--------|--------|-----------|---------|----------|------|-------
 """
 
 total, passed, failed, skipped, regressed = [0] * 5
@@ -111,7 +106,7 @@ for ts in  _get_testsuites():
     elif suite_stats['failed'] > 0: suite_results = ':x:'
 
     details_md += f"[{ts['name']}]({ts['name']}.md)|{suite_stats['total']}|{suite_stats['passed']}|{suite_stats['failed']}"
-    details_md += f"|{suite_stats['regressed']}|{suite_stats['skipped']}|[{suite_time}]({base_tracker_url}/{firex_id})|{suite_results}\n"
+    details_md += f"|{suite_stats['regressed']}|{suite_stats['skipped']}|[{suite_time}]({base_tracker_url}{firex_id})|[Logs]({base_logs_url}{firex_id}/tests_logs/)|{suite_results}\n"
 
 summary_md += f"{total}|{passed}|{failed}|{regressed}|{skipped}\n"
 
