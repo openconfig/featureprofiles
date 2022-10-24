@@ -25,9 +25,8 @@ import (
 )
 
 type diag struct {
-	Category string `json:"category,omitempty"`
-	Posn     string `json:"posn"`
-	Message  string `json:"message"`
+	Posn    string `json:"posn"`
+	Message string `json:"message"`
 }
 
 type jsonOutput map[string]map[string][]diag
