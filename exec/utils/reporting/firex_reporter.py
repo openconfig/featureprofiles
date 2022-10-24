@@ -45,6 +45,8 @@ args = parser.parse_args()
 
 firex_id = args.firex_id
 out_dir = args.out_dir
+data_dir = os.path.join(out_dir, 'data')
+
 now = datetime.now().timestamp()
 
 if not os.path.exists(out_dir):
@@ -68,7 +70,7 @@ total, passed, failed, skipped, regressed = [0] * 5
 test_id_map = _get_test_id_name_map(logs_dir)
 
 for ts in  _get_testsuites():
-    ts_data_file = os.path.join(out_dir, f"{ts['name']}.json")
+    ts_data_file = os.path.join(data_dir, f"{ts['name']}.json")
     if os.path.exists(ts_data_file):
         with open(ts_data_file, 'r') as fp:
             go_test_suite = GoTestSuite.from_json_obj(json.loads(fp.read()))
