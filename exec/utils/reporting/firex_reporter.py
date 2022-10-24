@@ -49,8 +49,8 @@ data_dir = os.path.join(out_dir, 'data')
 
 now = datetime.now().timestamp()
 
-if not os.path.exists(out_dir):
-    os.makedirs(out_dir)
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
 
 
 logs_dir = os.path.join(base_logs_dir, firex_id, 'tests_logs')
