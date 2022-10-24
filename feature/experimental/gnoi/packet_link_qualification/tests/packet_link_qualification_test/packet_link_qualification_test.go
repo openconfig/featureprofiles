@@ -17,20 +17,12 @@ package packet_link_qualification_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-)
-
-var (
-	scPrepTimeout      = 30 * time.Second
-	wbbPacketSize      = 9000 // jumbo packet size in bytes
-	defaultPacketSize  = 1500 // default packet size in bytes
-	wbbLinkUtilization = 0.01 // 10%
 )
 
 func TestMain(m *testing.M) {
