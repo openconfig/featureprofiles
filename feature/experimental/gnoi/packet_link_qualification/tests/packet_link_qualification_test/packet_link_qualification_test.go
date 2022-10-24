@@ -22,8 +22,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
 	"github.com/openconfig/ondatra"
-	dpb "google.golang.org/protobuf/types/known/durationpb"
-	tpb "google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -120,7 +120,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 
 	fakePlqResp := &plqpb.CapabilitiesResponse{
 		MaxHistoricalResultsPerInterface: uint64(2),
-		Time:                             &tpb.Timestamp{Seconds: int64(1666312526)},
+		Time:                             &timestamppb.Timestamp{Seconds: int64(1666312526)},
 		NtpSynced:                        true,
 		Generator: &plqpb.GeneratorCapabilities{
 			PacketGenerator: &plqpb.PacketGeneratorCapabilities{
@@ -128,15 +128,15 @@ func TestCapabilitiesResponse(t *testing.T) {
 				MaxMtu:              uint32(9000),
 				MaxBps:              uint64(4e11),
 				MaxPps:              uint64(5e8),
-				MinSetupDuration:    &dpb.Duration{Seconds: int64(30)},
-				MinTeardownDuration: &dpb.Duration{Seconds: int64(30)},
-				MinSampleInterval:   &dpb.Duration{Seconds: int64(10)},
+				MinSetupDuration:    &durationpb.Duration{Seconds: int64(30)},
+				MinTeardownDuration: &durationpb.Duration{Seconds: int64(30)},
+				MinSampleInterval:   &durationpb.Duration{Seconds: int64(10)},
 			},
 		},
 		Reflector: &plqpb.ReflectorCapabilities{
 			PmdLoopback: &plqpb.PmdLoopbackCapabilities{
-				MinSetupDuration:    &dpb.Duration{Seconds: int64(30)},
-				MinTeardownDuration: &dpb.Duration{Seconds: int64(30)},
+				MinSetupDuration:    &durationpb.Duration{Seconds: int64(30)},
+				MinTeardownDuration: &durationpb.Duration{Seconds: int64(30)},
 			},
 		},
 	}
