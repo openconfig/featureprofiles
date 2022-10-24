@@ -134,7 +134,7 @@ jobs:
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
         restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Go vet
-      run: go vet ./...
+      run: GOGC=30 go vet ./...
     - name: Gofmt
       run: |
         # gofmt always returns true, so we use grep '^' which returns
