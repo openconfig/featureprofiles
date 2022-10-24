@@ -98,3 +98,38 @@ func TestTopology(t *testing.T) {
 		})
 	}
 }
+
+func TestProperties(t *testing.T) {
+	TestPlanID = "UnitTest-1.1"
+	*knownIssueURL = "https://example.com"
+
+	got := Properties(&binding.Reservation{})
+	t.Log(got)
+
+	if got, want := got["test.plan_id"], TestPlanID; got != want {
+		t.Errorf("Property test.plan_id got %q, want %q", got, want)
+	}
+	if got, want := got["known_issue_url"], *knownIssueURL; got != want {
+		t.Errorf("Property known_issue_url got %q, want %q", got, want)
+	}
+
+	wantKeys := []string{
+		"build.go_version",
+		"build.path",
+		"build.main.path",
+		"build.main.version",
+		"build.main.sum",
+		"test.path",
+		"test.plan_id",
+		"topology",
+		"time.begin",
+		"time.end",
+		"known_issue_url",
+	}
+
+	for _, k := range wantKeys {
+		if _, ok := got[k]; !ok {
+			t.Errorf("Missing key from Properties: %s", k)
+		}
+	}
+}

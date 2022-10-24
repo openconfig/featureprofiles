@@ -2,7 +2,7 @@
 //
 // The values collected are:
 //
-//   - build.go_version - from runtime/debug.BuildInfo.GoVersion.
+//   - build.go_version - from runtime/debug.BuildInfo.GoVersion
 //   - build.path - from runtime/debug.BuildInfo.Path
 //   - build.main.path - from runtime/debug.BuildInfo.Main.Path
 //   - build.main.version - from runtime/debug.BuildInfo.Main.Version

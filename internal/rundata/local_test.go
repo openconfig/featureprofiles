@@ -30,7 +30,7 @@ func TestBuildInfo(t *testing.T) {
 		"build.main.sum",
 	} {
 		if _, ok := m[k]; !ok {
-			t.Errorf("Missing key %q from buildInfo", k)
+			t.Errorf("Missing key from buildInfo: %s", k)
 		}
 	}
 }
@@ -173,6 +173,7 @@ func TestGitInfoWithRepo(t *testing.T) {
 
 	got := make(map[string]string)
 	gitInfoWithRepo(got, repo)
+	t.Log(got)
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("gitInfoWithRepo -want, +got:\n%s", diff)
@@ -216,6 +217,7 @@ func TestGitInfoWithRepo_NotClean(t *testing.T) {
 
 	got := make(map[string]string)
 	gitInfoWithRepo(got, repo)
+	t.Log(got)
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("gitInfoWithRepo -want, +got:\n%s", diff)
@@ -235,6 +237,7 @@ func TestGitInfoWithRepo_NoOriginHead(t *testing.T) {
 
 	got := make(map[string]string)
 	gitInfoWithRepo(got, repo)
+	t.Log(got)
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("gitInfoWithRepo -want, +got:\n%s", diff)
@@ -294,6 +297,7 @@ func TestGitInfo(t *testing.T) {
 	if gotWd != string(wantWd) {
 		t.Errorf("gitInfo got %q, want %q", gotWd, wantWd)
 	}
+	t.Log(got)
 
 	if got["git.status"] != "" {
 		// The output formats differ slightly.
@@ -373,6 +377,7 @@ func TestDeviationInfo(t *testing.T) {
 			fs.Parse(c.args)
 			got := make(map[string]string)
 			deviationInfo(got, fs)
+			t.Log(got)
 
 			if diff := cmp.Diff(c.want, got); diff != "" {
 				t.Errorf("deviationInfo -want, +got:\n%s", diff)
@@ -384,6 +389,15 @@ func TestDeviationInfo(t *testing.T) {
 func TestLocal(t *testing.T) {
 	m := make(map[string]string)
 	local(m)
-	t.Log("This test case is only to demonstrate that local rundata can be collected end to end.  There is no value check.")
 	t.Log(m)
+
+	for _, k := range []string{
+		"test.path",
+		"time.begin",
+		"time.end",
+	} {
+		if _, ok := m[k]; !ok {
+			t.Errorf("Missing key from local: %s", k)
+		}
+	}
 }
