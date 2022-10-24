@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 import pathlib
 import json
 import os
@@ -7,6 +8,127 @@ import re
 def _to_md_anchor(s):
     sanitized = re.sub('[^0-9a-zA-Z_\-\s]+', '', s).strip().replace(' ', '-').lower()
     return f'[{s}](#{sanitized})'
+
+class GoTestSuite:
+    def __init__(self, run_id = '', last_updated = datetime.now().timestamp()):
+        self._tests = []
+        self._last_run_id = run_id
+        self._last_updated = last_updated
+
+    @staticmethod
+    def from_json_obj(obj):
+        ts = GoTestSuite(run_id = obj['last_run_id'], last_updated=obj['last_updated'])
+        ts._tests = [GoTest.from_json_obj(c) for c in obj['tests']]
+        return ts
+
+    def update(self, run_id, go_tests, last_updated = datetime.now().timestamp()):
+        self._last_run_id = run_id
+        self._last_updated = last_updated
+
+        prev_passed = []
+        for t in self.get_tests(recursive=True):
+            if t.did_pass() and not t.did_skip():
+                prev_passed.append(t.get_qualified_name())
+
+        self._tests = go_tests
+        for t in self.get_tests(recursive=True):
+            if t.did_fail() and t.get_qualified_name() in prev_passed:
+                t.mark_regressed()
+
+    def add_test(self, go_test):
+        self._tests.append(go_test)
+
+    def get_tests(self, recursive=False):
+        if not recursive:
+            return self._tests
+        tests = [t for t in self._tests]
+        for t in self._tests:
+            tests.extend(t.get_descendants())
+        return tests
+
+    def get_last_updated(self):
+        return self._last_updated
+
+    def get_last_run_id(self):
+        return self._last_run_id
+
+    def get_stats(self):
+        stats = {
+            'total': 0,
+            'passed': 0,
+            'failed': 0,
+            'skipped': 0,
+            'regressed': 0,
+        }
+        for t in self.get_tests():
+            stats['total'] += t.get_total()
+            stats['passed'] += t.get_total_passed()
+            stats['failed'] += t.get_total_failed()
+            stats['skipped'] += t.get_total_skipped()
+            stats['regressed'] += t.get_total_regressed()
+        return stats
+
+    def to_json_obj(self):
+        return {
+            'last_run_id': self.get_last_run_id(),
+            'last_updated': self.get_last_updated(),
+            'tests': [t.to_json_obj() for t in self._tests]
+        }
+
+    def to_md_string(self):
+        details_md = "## Tests\n"
+        suite_summary = []
+
+        for test in self._tests:
+            suite_summary.append({
+                "suite": test.get_qualified_name(),
+                "total": test.get_total(), 
+                "passed": test.get_total_passed(), 
+                "failed": test.get_total_failed(),
+                "skipped": test.get_total_skipped(),
+                "regressed": test.get_total_regressed()
+            })
+
+            details_md += "### " + test.get_qualified_name()+ "\n"
+            details_md +=  "Test | Pass\n"
+            details_md += "-----|------\n"
+
+            for t in test._children:
+                details_md += t.to_md_string()
+
+            for t in test._children:
+                details_md += "#### " + t.get_qualified_name()+ "\n"
+                details_md +=  "Test | Pass\n"
+                details_md += "-----|------\n"
+                details_md += t.to_md_string(recursive=True)
+        
+        suite_summary_md = "## Test Suites\n"
+        suite_summary_md += f"""
+Suite | Total | Passed | Failed | Regressed | Skipped | Result
+------|-------|--------|--------|-----------|---------|-------
+"""
+
+        total, passed, failed, skipped, regressed = [0] * 5
+        for s in suite_summary:
+            total += s["total"]
+            passed += s["passed"]
+            failed += s["failed"]
+            skipped += s["skipped"]
+            regressed += s["regressed"]
+
+            result = ':white_check_mark:'
+            if s['regressed'] > 0: result = ':warning:'
+            elif s['failed'] > 0: result = ':x:'
+
+            suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]} | {s["failed"]} | {s["regressed"]} | {s["skipped"]} | {result}\n'
+
+        return f"""
+## Summary
+Total | Passed | Failed | Regressed | Skipped
+------|--------|--------|-----------|--------
+{total}|{passed}|{failed}|{regressed}|{skipped}
+""" + suite_summary_md + details_md
+
 
 class GoTest:
     def __init__(self, name, pkg = None, parent = None):
@@ -20,6 +142,14 @@ class GoTest:
 
         if parent and parent.get_parent():
             self._name = self._qname[len(parent.get_qualified_name()):]
+
+    @staticmethod
+    def from_json_obj(obj, parent = None):
+        gt = GoTest(obj['name'], obj['pkg'], parent)
+        gt._qname = obj['qname']
+        gt._status = obj['status']
+        gt._children = [GoTest.from_json_obj(c, parent) for c in obj['children']]
+        return gt
 
     def append_output(self, str):
         self._output += str
@@ -41,7 +171,7 @@ class GoTest:
         return self._output
 
     def get_descendants(self):
-        desc = self._children.copy()
+        desc = [c for c in self._children]
         for c in self._children:
             desc.extend(c.get_descendants())
         return desc
@@ -58,6 +188,12 @@ class GoTest:
             desc.extend(c.get_skipped_descendants())
         return desc
 
+    def get_regressed_descendants(self):
+        desc = [c for c in self._children if c.did_regress()]
+        for c in self._children:
+            desc.extend(c.get_regressed_descendants())
+        return desc
+
     def get_parent(self):
         return self._parent
 
@@ -70,11 +206,20 @@ class GoTest:
     def mark_skipped(self):
         self._status = 'Skip'
 
+    def mark_regressed(self):
+        self._status = 'Regression'
+
     def did_pass(self):
         return self._status == 'Pass' or self._status == 'Skip'
 
     def did_skip(self):
         return self._status == 'Skip'
+
+    def did_regress(self):
+        return self._status == 'Regression'
+
+    def did_fail(self):
+        return self._status == 'Fail'
 
     def get_status(self):
         return self._status
@@ -84,6 +229,9 @@ class GoTest:
     
     def get_total_skipped(self):
         return len(self.get_skipped_descendants())
+
+    def get_total_regressed(self):
+        return len(self.get_regressed_descendants())
 
     def get_total_passed(self):
         return len(self.get_passed_descendants()) - self.get_total_skipped()
@@ -106,6 +254,15 @@ class GoTest:
             return 'Pass'
         return 'Fail'
 
+    def to_json_obj(self):
+        return {
+            'qname': self._qname,
+            'name': self._name,
+            'pkg': self._pkg,
+            'status': self._status,
+            'children': [c.to_json_obj() for c in self._children],
+        }
+        
     def to_table_data(self):
         return {
             "name": self.get_qualified_name(),
@@ -264,9 +421,10 @@ def _get_parent(test_map, entry, default):
             return c
     return default
 
-def _parse(file, json_data):
+def _parse(file, json_data, suite_name=None):
     test_map = {}
-    top_test = GoTest(pathlib.Path(file).stem, file)
+    if not suite_name: suite_name = pathlib.Path(file).stem
+    top_test = GoTest(suite_name, file)
 
     for entry in json_data:
         if 'Test' not in entry:
@@ -312,8 +470,11 @@ def to_html(files):
     data = [ ]
     summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
     for f in files:
-        content = _read_log_file(f)
-        test = _parse(f, json.loads(content))
+        try:
+            content = _read_log_file(f)
+            test = _parse(f, json.loads(content))
+        except: continue
+
         summary["total"] += test.get_total()
         summary["skipped"] += test.get_total_skipped()
         summary["passed"] += test.get_total_passed()
@@ -323,61 +484,17 @@ def to_html(files):
 
 
 def to_markdown(files):
-    details_md = "## Tests\n"
-    suite_summary = []
-
-    files.sort()
+    test_suite = GoTestSuite()
     for f in files:
-        content = _read_log_file(f)
-        test = _parse(f, json.loads(content))
+        try:
+            content = _read_log_file(f)
+            test = _parse(f, json.loads(content))
+            test_suite.add_test(test)
+        except: continue
+    return test_suite.to_md_string()
 
-        suite_summary.append({
-            "suite": test.get_qualified_name(),
-            "total": test.get_total(), 
-            "passed": test.get_total_passed(), 
-            "failed": test.get_total_failed(),
-            "skipped": test.get_total_skipped()
-        })
-
-        details_md += "### " + test.get_qualified_name()+ "\n"
-        details_md +=  "Test | Pass\n"
-        details_md += "-----|------\n"
-
-        for t in test._children:
-            details_md += t.to_md_string()
-
-        for t in test._children:
-            details_md += "#### " + t.get_qualified_name()+ "\n"
-            details_md +=  "Test | Pass\n"
-            details_md += "-----|------\n"
-            details_md += t.to_md_string(recursive=True)
-    
-    suite_summary_md = "## Test Suites\n"
-    suite_summary_md += f"""
-Suite | Total | Passed | Failed | Skipped | Result
-------|-------|--------|--------|---------|--------
-"""
-
-    total, passed, failed, skipped = [0] * 4
-    for s in suite_summary:
-        total += s["total"]
-        passed += s["passed"]
-        failed += s["failed"]
-        skipped += s["skipped"]
-
-        result = ':white_check_mark:'
-        if s["failed"] > 0: result = ':x:'
-        suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]} | {s["failed"]} | {s["skipped"]} | {result}\n'
-
-    return f"""
-## Summary
-Total | Passed | Failed | Skipped
-------|--------|--------|---------
-{total}|{passed}|{failed}|{skipped}
-""" + suite_summary_md + details_md
-
-def parse_json(file):
-    return _parse(file, json.loads(_read_log_file(file)))
+def parse_json(file, suite_name=None):
+    return _parse(file, json.loads(_read_log_file(file)), suite_name=suite_name)
 
 def _is_valid_file(parser, arg):
     if not os.path.exists(arg):
