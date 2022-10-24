@@ -26,13 +26,17 @@ class GoTestSuite:
         self._last_updated = last_updated
 
         prev_passed = []
+        prev_regressed = []
         for t in self.get_tests(recursive=True):
             if t.did_pass() and not t.did_skip():
                 prev_passed.append(t.get_qualified_name())
+            if t.did_regress():
+                prev_regressed.append(t.get_qualified_name())
 
         self._tests = go_tests
         for t in self.get_tests(recursive=True):
-            if t.did_fail() and t.get_qualified_name() in prev_passed:
+            if t.did_fail() and (t.get_qualified_name() in prev_passed 
+                or t.get_qualified_name() in prev_regressed):
                 t.mark_regressed()
 
     def add_test(self, go_test):
