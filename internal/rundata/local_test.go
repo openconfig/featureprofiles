@@ -127,6 +127,9 @@ func TestGitHead(t *testing.T) {
 	}
 
 	got, gotWhen, err := gitHead(repo)
+	if err != nil {
+		t.Fatalf("Could not get gitHead: %v", err)
+	}
 	if got != want.String() {
 		t.Errorf("Commit hash got %q, want %q", got, want)
 	}
