@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 // to return a nil value. This should only be used when `val` is the default
 // for this particular query.
 func EqualToDefault[T any](query ygnmi.SingletonQuery[T], val T) check.Validator {
-	if *deviations.AllowNilForDefaults {
+	if *deviations.MissingValueForDefaults {
 		return check.EqualOrNil(query, val)
 	}
 	return check.Equal(query, val)
