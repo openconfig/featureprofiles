@@ -37,8 +37,9 @@ class GoTestSuite:
 
         self._tests = go_tests
         for t in self.get_tests(recursive=True):
-            if t.did_fail() and (t.get_qualified_name() in prev_passed 
-                or t.get_qualified_name() in prev_regressed):
+            if (len(t.get_children()) == 0 and t.did_fail() 
+                and (t.get_qualified_name() in prev_passed 
+                    or t.get_qualified_name() in prev_regressed)):
                 t.mark_regressed()
 
     def add_test(self, go_test):
@@ -179,6 +180,9 @@ class GoTest:
 
     def get_output(self):
         return self._output
+
+    def get_children(self):
+        return self._children
 
     def get_descendants(self):
         desc = [c for c in self._children]
