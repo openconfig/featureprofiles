@@ -77,7 +77,6 @@ for ts in  _get_testsuites():
     go_tests = []
     for t in ts['tests']:
         if t['name'] in test_id_map:
-            print(t['name'])
             test_id = test_id_map[t['name']]
             log_files = [str(p) for p in Path(logs_dir).glob(f"{test_id}/*.json")]
             try:
@@ -110,7 +109,7 @@ for ts in  _get_testsuites():
     elif suite_stats['total'] > 0: suite_results = ':white_check_mark:'
 
     details_md += f"[{ts['name']}]({ts['name']}.md)|{suite_stats['total']}|{suite_stats['passed']}|{suite_stats['failed']}"
-    details_md += f"|{suite_stats['regressed']}|{suite_stats['skipped']}|[{suite_time}]({base_tracker_url}{firex_id})|[Logs]({base_logs_url}{firex_id}/tests_logs/)|{suite_results}\n"
+    details_md += f"|{suite_stats['regressed']}|{suite_stats['skipped']}|[{suite_time}]({base_tracker_url}{go_test_suite.get_last_run_id()})|[Logs]({base_logs_url}{go_test_suite.get_last_run_id()}/tests_logs/)|{suite_results}\n"
 
 summary_md += f"{total}|{passed}|{failed}|{regressed}|{skipped}\n"
 
