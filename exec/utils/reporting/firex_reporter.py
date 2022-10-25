@@ -31,7 +31,9 @@ def _get_test_id_name_map(logs_dir):
             matches = re.match("<div><a\shref=\".*\/tests_logs/(.*)\">(.*)</a></div>", line)
             if len(matches.groups()) == 2:
                 id, name = [x.strip() for x in matches.groups()]
-                test_id_map[' '.join(name.split()[1:])] = id
+                name = name.replace('(Patched)', '').strip()
+                name = ' '.join(name.split()[1:])
+                test_id_map[name] = id
     return test_id_map
 
 parser = argparse.ArgumentParser(description='Generate MD FireX report')
@@ -75,6 +77,7 @@ for ts in  _get_testsuites():
     go_tests = []
     for t in ts['tests']:
         if t['name'] in test_id_map:
+            print(t['name'])
             test_id = test_id_map[t['name']]
             log_files = [str(p) for p in Path(logs_dir).glob(f"{test_id}/*.json")]
             try:
