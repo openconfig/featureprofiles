@@ -104,9 +104,10 @@ for ts in  _get_testsuites():
     regressed += suite_stats['regressed']
 
     suite_time = datetime.fromtimestamp(go_test_suite.get_last_updated()).strftime("%y-%m-%d %H:%M")
-    suite_results = ':white_check_mark:'
+    suite_results = ''
     if suite_stats['regressed'] > 0: suite_results = ':warning:'
     elif suite_stats['failed'] > 0: suite_results = ':x:'
+    elif suite_stats['total'] > 0: suite_results = ':white_check_mark:'
 
     details_md += f"[{ts['name']}]({ts['name']}.md)|{suite_stats['total']}|{suite_stats['passed']}|{suite_stats['failed']}"
     details_md += f"|{suite_stats['regressed']}|{suite_stats['skipped']}|[{suite_time}]({base_tracker_url}{firex_id})|[Logs]({base_logs_url}{firex_id}/tests_logs/)|{suite_results}\n"
