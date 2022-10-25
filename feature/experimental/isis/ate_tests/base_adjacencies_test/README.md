@@ -6,22 +6,39 @@ Base IS-IS functionality and adjacency establishment.
 
 ## Procedure
 
-*   Configure IS-IS for ATE port-1 and DUT port-1.
-    *   Configure DUT with global hello padding set to `DISABLED` accepted.
-        Interface-specific ISIS hello padding configuration not accepted.
-*   Ensure that adjacencies are established with:
-    *   Hello authentication enabled.
-    *   Global hello padding disabled.
-*   With ISIS level authentication enabled and hello authentication enabled:
-    *   Ensure that IPv4 and IPv6 prefixes that are advertised as attached
-        prefixes within each LSP are correctly installed into the DUT routing
-        table, by ensuring that packets are received to the attached prefix when
-        forwarded from ATE port-1.
-    *   Ensure that IPv4 and IPv6 prefixes that are advertised as part of an
-        (emulated) neighboring system are installed into the DUT routing table,
-        and validate that packets are sent and received to them.
-*   With a known LSP content, ensure that the telemetry received from the device
-    for the LSP matches the expected content.
+*   Basic fields test
+    *   Configure DUT:port1 for an IS-IS session with ATE:port1.
+    *   Read back the configuration to ensure that all fields are readable and
+        have been set properly (or correctly have their default value).
+    *   Check that all relevant counters are readable and are 0 since the
+        adjacency has not yet been established.
+    *   Push ATE configuration for the other end of the adjacency, and wait for
+        the adjacency to form.
+    *   Check that the various state fields of the adjacency are reported
+        correctly.
+    *   Check that error counters are still 0 and that packet counters have all
+        increased.
+*   Hello padding test
+    *   Configure IS-IS between DUT:port1 and ATE:port1 for each possible value
+        of hello padding (DISABLED, STRICT, etc.)
+    *   Confirm in each case that that adjacency forms and the correct values
+        are reported back by the device.
+*   Authentication test
+    *   Configure IS-IS between DUT:port1 and ATE:port1 With authentication
+        disabled, then enabled in TEXT mode, then enabled in MD5 mode.
+    *   Confirm in each case that that adjacency forms and the correct values
+        are reported back by the device.
+*   Routing test
+    *   With ISIS level authentication enabled and hello authentication enabled:
+        *   Ensure that IPv4 and IPv6 prefixes that are advertised as attached
+            prefixes within each LSP are correctly installed into the DUT
+            routing table, by ensuring that packets are received to the attached
+            prefix when forwarded from ATE port-1.
+        *   Ensure that IPv4 and IPv6 prefixes that are advertised as part of an
+            (emulated) neighboring system are installed into the DUT routing
+            table, and validate that packets are sent and received to them.
+    *   With a known LSP content, ensure that the telemetry received from the
+        device for the LSP matches the expected content.
 
 ## Config Parameter coverage
 
@@ -34,7 +51,7 @@ Base IS-IS functionality and adjacency establishment.
     *   TODO: global/config/authentication-check
     *   global/config/net
     *   global/config/level-capability
-    *   TODO: global/config/hello-padding
+    *   global/config/hello-padding
     *   global/afi-safi/af/config/enabled
     *   levels/level/config/level-number
     *   levels/level/config/enabled
@@ -99,7 +116,6 @@ Base IS-IS functionality and adjacency establishment.
     *   interfaces/interfaces/circuit-counters/state/auth-fails
     *   interfaces/interfaces/circuit-counters/state/auth-type-fails
     *   interfaces/interfaces/circuit-counters/state/id-field-len-mismatches
-    *   interfaces/interfaces/circuit-counters/state/init-fails
     *   interfaces/interfaces/circuit-counters/state/lan-dis-changes
     *   interfaces/interfaces/circuit-counters/state/max-area-address-mismatch
     *   interfaces/interfaces/circuit-counters/state/rejected-adj
@@ -126,10 +142,8 @@ Base IS-IS functionality and adjacency establishment.
     *   levels/level/system-level-counters/state/exceeded-max-seq-nums
     *   levels/level/system-level-counters/state/id-len-mismatch
     *   levels/level/system-level-counters/state/lsp-errors
-    *   levels/level/system-level-counters/state/manual-address-drop-from-area
     *   levels/level/system-level-counters/state/max-area-address-mismatches
     *   levels/level/system-level-counters/state/own-lsp-purges
-    *   levels/level/system-level-counters/state/part-changes
     *   levels/level/system-level-counters/state/seq-num-skips
     *   levels/level/system-level-counters/state/spf-runs
 
