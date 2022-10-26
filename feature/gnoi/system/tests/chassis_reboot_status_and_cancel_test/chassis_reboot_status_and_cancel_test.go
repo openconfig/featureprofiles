@@ -20,6 +20,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 )
 
@@ -93,8 +94,16 @@ func TestRebootStatus(t *testing.T) {
 					t.Fatalf("Failed to request reboot with unexpected err: %v", err)
 				}
 			}
+			statusReq := &spb.RebootStatusRequest{
+				Subcomponents: []*tpb.Path{
+					{
+						Origin: "openconfig",
+						Elem:   []*tpb.PathElem{{Name: "components"}, {Name: "component", Key: map[string]string{"name": "0/RP0/CPU0"}}},
+					},
+				},
+			}
 
-			resp, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
+			resp, err := gnoiClient.System().RebootStatus(context.Background(), statusReq)
 			t.Logf("DUT rebootStatus: %v, err: %v", resp, err)
 			if err != nil {
 				t.Fatalf("Failed to get reboot status with unexpected err: %v", err)
@@ -117,6 +126,7 @@ func TestRebootStatus(t *testing.T) {
 		})
 
 		t.Logf("Cancel reboot request after the test")
+
 		rebootCancel, err := gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
 		if err != nil {
 			t.Fatalf("Failed to cancel reboot with unexpected err: %v", err)
@@ -149,8 +159,15 @@ func TestCancelReboot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to request reboot with unexpected err: %v", err)
 	}
-
-	rebootStatus, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
+	statusReq := &spb.RebootStatusRequest{
+		Subcomponents: []*tpb.Path{
+			{
+				Origin: "openconfig",
+				Elem:   []*tpb.PathElem{{Name: "components"}, {Name: "component", Key: map[string]string{"name": "0/RP0/CPU0"}}},
+			},
+		},
+	}
+	rebootStatus, err := gnoiClient.System().RebootStatus(context.Background(), statusReq)
 	t.Logf("DUT rebootStatus: %v, err: %v", rebootStatus, err)
 	if err != nil {
 		t.Fatalf("Failed to get reboot status with unexpected err: %v", err)
@@ -166,7 +183,7 @@ func TestCancelReboot(t *testing.T) {
 		t.Fatalf("Failed to cancel reboot with unexpected err: %v", err)
 	}
 
-	rebootStatus, err = gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
+	rebootStatus, err = gnoiClient.System().RebootStatus(context.Background(), statusReq)
 	t.Logf("DUT rebootStatus: %v, err: %v", rebootStatus, err)
 	if err != nil {
 		t.Fatalf("Failed to get reboot status with unexpected err: %v", err)
