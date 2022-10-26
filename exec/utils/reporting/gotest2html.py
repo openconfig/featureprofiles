@@ -85,16 +85,16 @@ class GoTestSuite:
             })
 
             details_md += "### " + test.get_qualified_name()+ "\n"
-            details_md +=  "Test | Package | Logs | Pass\n"
-            details_md += "------|---------|------|------\n"
+            details_md +=  "Test | Logs | Pass\n"
+            details_md += "------|------|------\n"
 
             for t in test._children:
                 details_md += t.to_md_string()
 
             for t in test._children:
                 details_md += "#### " + t.get_qualified_name()+ "\n"
-                details_md +=  "Test | Package | Logs | Pass\n"
-                details_md += "------|---------|------|-----\n"
+                details_md +=  "Test | Logs | Pass\n"
+                details_md += "------|------|------\n"
                 details_md += t.to_md_string(recursive=True)
         
         suite_summary_md = "## Test Suites\n"
