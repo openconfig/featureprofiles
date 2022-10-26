@@ -18,14 +18,15 @@ package session
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/ixnet"
 	"github.com/openconfig/ondatra/telemetry/networkinstance"
 	"github.com/openconfig/ygot/ygot"
 
@@ -46,7 +47,8 @@ const (
 	DUTAreaAddress = "49.0001"
 	ATEAreaAddress = "49.0002"
 	DUTSysID       = "1920.0000.2001"
-	ISISName       = "osiris"
+	ATESysID       = "640000000001"
+	ISISName       = "DEFAULT"
 	pLen4          = 30
 	pLen6          = 126
 )
@@ -63,6 +65,7 @@ var (
 	// ATEISISAttrs has attributes for the ATE ISIS connection on port1
 	ATEISISAttrs = &attrs.Attributes{
 		Name:    "port1",
+		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
 		Desc:    "ATE to DUT with IS-IS",
@@ -80,6 +83,7 @@ var (
 	// ATETrafficAttrs has attributes for the ATE end of the traffic connection (port2)
 	ATETrafficAttrs = &attrs.Attributes{
 		Name:    "port2",
+		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		Desc:    "ATE to DUT secondary link",
@@ -105,16 +109,28 @@ func addISISOC(dev *telemetry.Device, areaAddress, sysID, ifaceName string) {
 }
 
 // addISISTopo configures basic IS-IS on an ATETopology interface.
-func addISISTopo(iface *ondatra.Interface, areaAddress, sysID string) {
-	// Find the interface (why doesn't ondatra have a function for this?)
-	// configure IS-IS on it
-	isis := iface.ISIS()
-	isis.
-		WithAreaID(areaAddress).
-		WithTERouterID(sysID).
-		WithNetworkTypePointToPoint().
-		WithWideMetricEnabled(true).
-		WithLevelL2()
+func addISISTopo(dev gosnappi.Device, areaAddress, sysID string) {
+
+	devIsis := dev.Isis().
+		SetSystemId(sysID).
+		SetName("devIsis")
+
+	devIsis.Basic().
+		SetHostname(devIsis.Name()).SetLearnedLspFilter(true)
+
+	devIsis.Advanced().
+		SetAreaAddresses([]string{strings.Replace(areaAddress, ".", "", -1)})
+
+	devIsisInt := devIsis.Interfaces().
+		Add().
+		SetEthName(dev.Ethernets().Items()[0].Name()).
+		SetName("devIsisInt").
+		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
+		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2)
+
+	devIsisInt.Advanced().
+		SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
+
 }
 
 // TestSession is a convenience wrapper around the dut, ate, ports, and topology we're using.
@@ -124,7 +140,7 @@ type TestSession struct {
 	// DUTConf, ATEConf, and ATETop can be modified by tests; calling .Push() will apply them to the
 	// dut and ate.
 	DUTConf, ATEConf *telemetry.Device
-	ATETop           *ondatra.ATETopology
+	ATETop           gosnappi.Config
 }
 
 // DUTISISTelemetry gets the telemetry PathStruct for /network-instance[default]/protocol[ISIS]/isis on the DUT
@@ -137,18 +153,27 @@ func (s *TestSession) ATEISISTelemetry(t testing.TB) *networkinstance.NetworkIns
 	return s.ATE.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName).Isis()
 }
 
-// ATEInterface returns an ondatra.Interface for the port with the given name, or nil if our ATE is
+// Interfaces returns a map of port names to devices
+func (s *TestSession) ATEDevices() map[string]gosnappi.Device {
+	devs := make(map[string]gosnappi.Device)
+	for _, dev := range s.ATETop.Devices().Items() {
+		devs[dev.Ethernets().Items()[0].PortName()] = dev
+	}
+	return devs
+}
+
+// ATEDevice returns an gosnappi.Device for the port with the given name, or nil if our ATE is
 // actually an ondatra.DUTDevice.
-func (s *TestSession) ATEInterface(t testing.TB, portID string) *ondatra.Interface {
-	iface, ok := s.ATETop.Interfaces()[portID]
+func (s *TestSession) ATEDevice(t testing.TB, portID string) gosnappi.Device {
+	dev, ok := s.ATEDevices()[portID]
 	if !ok {
-		t.Logf("Available ATE Interfaces:")
-		for name := range s.ATETop.Interfaces() {
+		t.Logf("Available ATE Devices:")
+		for name := range s.ATEDevices() {
 			t.Logf("  %v", name)
 		}
-		t.Fatalf("No ATE interface with ID %v", portID)
+		t.Fatalf("No ATE Device with ID %v", portID)
 	}
-	return iface
+	return dev
 }
 
 // New creates a new TestSession using the default global config, and configures
@@ -162,7 +187,8 @@ func New(t testing.TB) *TestSession {
 	s.confDUTInterface(t, "port2", DUTTrafficAttrs)
 
 	s.ATE = ondatra.ATE(t, "ate")
-	s.ATETop = s.ATE.Topology().New()
+	otg := s.ATE.OTG()
+	s.ATETop = otg.NewConfig(t)
 	s.confATEInterface(t, "port1", ATEISISAttrs, DUTISISAttrs)
 	s.confATEInterface(t, "port2", ATETrafficAttrs, DUTTrafficAttrs)
 	return s
@@ -189,27 +215,37 @@ func (s *TestSession) confDUTInterface(t testing.TB, portID string, attrs *attrs
 // If the ate is a DUTDevice, this calls Replace(); if it's an ATEDevice, it just updates s.top.
 func (s *TestSession) confATEInterface(t testing.TB, portID string, attrs, peerAttrs *attrs.Attributes) {
 	t.Helper()
-	attrs.AddToATE(s.ATETop, s.ATE.Port(t, portID), peerAttrs)
+	attrs.AddToOTG(s.ATETop, s.ATE.Port(t, portID), peerAttrs)
 }
 
 // WithISIS adds ISIS to a test session.
 func (s *TestSession) WithISIS(t testing.TB) *TestSession {
 	t.Helper()
 	addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUT.Port(t, "port1").Name())
-	if s.ATEInterface(t, "port1") == nil {
-		t.Fatalf("Nil interface:\n***\nATE: %v\n***\n***\nIfaces:\n%v\n***\nPortName: %v\n***\n", s.ATE, s.ATETop.Interfaces(), s.ATE.Port(t, "port1").Name())
+	if s.ATEDevice(t, "port1") == nil {
+		t.Fatalf("Nil interface:\n***\nATE: %v\n***\n***\nDevices:\n%v\n***\nPortName: %v\n***\n", s.ATE, s.ATEDevices(), s.ATE.Port(t, "port1").Name())
 	}
-	addISISTopo(s.ATEInterface(t, "port1"), ATEAreaAddress, "*")
+
+	addISISTopo(s.ATEDevice(t, "port1"), ATEAreaAddress, ATESysID)
+
 	return s
+}
+
+func (s *TestSession) EnableHelloPadding(t testing.TB, flag bool) {
+	for _, d := range s.ATETop.Devices().Items() {
+		if d.Name() == s.ATEDevice(t, "port1").Name() {
+			d.Isis().Advanced().SetEnableHelloPadding(flag)
+		}
+	}
 }
 
 // ConfigISIS takes two functions, one that operates on an OC IS-IS block and one that operates on
 // an ondatra ATE IS-IS block. The first will be applied to the IS-IS block of ts.DUTConfig; if the
 // ATE is an ATEDevice, the second will be applied to s.ATETop, otherwise the first will be called
 // again on s.ATEConf
-func (s *TestSession) ConfigISIS(t testing.TB, ocFn func(*telemetry.NetworkInstance_Protocol_Isis), ateFn func(*ixnet.ISIS)) {
+func (s *TestSession) ConfigISIS(t testing.TB, ocFn func(*telemetry.NetworkInstance_Protocol_Isis)) {
 	ocFn(s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName).GetOrCreateIsis())
-	ateFn(s.ATEInterface(t, "port1").ISIS())
+	// ateFn(s.ATEInterface(t, "port1").ISIS())
 }
 
 // PushAndStart calss PushDUT and PushAndStartATE to send config to both devices.
@@ -227,6 +263,23 @@ func (s *TestSession) PushDUT(t testing.TB) {
 		node := s.DUT.Config().Interface(name)
 		node.Replace(t, conf)
 	}
+	//configure Network Instance
+	dutConfNIPath := s.DUT.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
+	// Push the ISIS protocol
+	dutNode := s.DUT.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
+	dutConf := s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
+	dutNode.Replace(t, dutConf)
+}
+
+// PushDUT replaces DUT config with s.dutConf. Only interfaces and the ISIS protocol are written.
+func (s *TestSession) PushISISDUTConfig(t testing.TB) {
+	t.Helper()
+	//configure Network Instance
+	dutConfNIPath := s.DUT.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
 	// Push the ISIS protocol
 	dutNode := s.DUT.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
 	dutConf := s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
@@ -237,7 +290,9 @@ func (s *TestSession) PushDUT(t testing.TB) {
 // is an ATEDevice. If it is an ATEDevice, this will also call StartProtocols() on it.
 func (s *TestSession) PushAndStartATE(t testing.TB) {
 	t.Helper()
-	s.ATETop.Push(t).StartProtocols(t)
+	otg := s.ATE.OTG()
+	otg.PushConfig(t, s.ATETop)
+	otg.StartProtocols(t)
 }
 
 // AwaitAdjacency waits up to a minute for the dut to report that the ISISIntf link has formed an

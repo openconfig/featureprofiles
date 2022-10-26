@@ -143,7 +143,7 @@ func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attri
 		ip.SetAddress(a.IPv4).SetGateway(peer.IPv4).SetPrefix(int32(a.IPv4Len))
 	}
 	if a.IPv6 != "" {
-		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv6")
+		ip := eth.Ipv6Addresses().Add().SetName(dev.Name() + ".IPv6")
 		ip.SetAddress(a.IPv6).SetGateway(peer.IPv6).SetPrefix(int32(a.IPv6Len))
 	}
 }
