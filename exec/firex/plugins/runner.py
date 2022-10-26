@@ -218,6 +218,8 @@ def b4_fp_chain_provider(ws,
             for k, v in pt.items():
                 chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path)
 
+    chain |= GoReporting.s(fp_ws=fp_repo_dir)
+
     return chain
 
 # noinspection PyPep8Naming
@@ -272,9 +274,7 @@ def RunB4FPTest(self,
     go_args = go_args or ''
 
     test_args = f'{test_args} ' \
-        f'-log_dir {test_logs_dir_in_ws} ' \
-        f'-v 5 ' \
-        f'-alsologtostderr'
+        f'-log_dir {test_logs_dir_in_ws}'
 
     test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path}'
 
@@ -344,3 +344,13 @@ def GenerateB4FPTestbedFile(self,
         testbed_connection_info=testbed_connection_info,
         configure_unicon=configure_unicon)
     return self.enqueue_child_and_get_results(c, return_keys=('testbed', 'tb_data', 'testbed_path'))
+
+@app.task(bind=True)
+def GoReporting(self, fp_ws, script_name, test_log_directory_path):
+    json_log_file = os.path.join(test_log_directory_path, f'{script_name}.json')
+    html_report = os.path.join(test_log_directory_path, f'{script_name}.html')
+
+    try:
+        check_output(f'{PYTHON_BIN} {fp_ws}/exec/utils/reporting/gotest2html.py "{json_log_file}"', 
+            file=html_report) 
+    except: pass
