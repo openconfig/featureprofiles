@@ -566,11 +566,10 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	})
 
 	t.Run("validateAFTWeights", func(t *testing.T) {
-		testCases := map[uint64][]uint64{
+		for nhg, weights := range map[uint64][]uint64{
 			2: {2, 3},
 			3: {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-		}
-		for nhg, weights := range testCases {
+		} {
 			got := aftNextHopWeights(t, dut, nhg, defaultVRF)
 			ok := cmp.Equal(weights, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
 			if !ok {
