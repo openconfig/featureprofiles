@@ -117,7 +117,8 @@ Suite | Total | Passed | Failed | Regressed | Skipped | Logs | Result
             elif s['total'] > 0: result = ':white_check_mark:'
 
             suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]}'
-            suite_summary_md += f'| {s["failed"]} | {s["regressed"]} | {s["skipped"]} | [HTML]({s["test"].get_logs_url().replace(".json", ".html")}) [RAW]({s["test"].get_logs_url()}) | {result}\n'
+            suite_summary_md += f'| {s["failed"]} | {s["regressed"]} | {s["skipped"]}'
+            suite_summary_md += f'| [HTML]({s["test"].get_logs_url().replace(".json", ".html")}) [RAW]({s["test"].get_logs_url()}) | {result}\n'
 
         return f"""
 ## Summary
@@ -283,7 +284,7 @@ class GoTest:
         if not recursive and level == 0: 
             name = _to_md_anchor(self.get_name())
         md = ('&nbsp;&nbsp;&nbsp;&nbsp;' * level) + ('*' * level) + em + name + em 
-        md +=  f' | [Logs](#{self.get_logs_url()}) | ' + self._pass_text() + '\n'
+        md +=  f' | [Logs]({self.get_logs_url()}) | ' + self._pass_text() + '\n'
         if recursive:
             for c in self._children:
                 md += c.to_md_string(recursive, level+1)
