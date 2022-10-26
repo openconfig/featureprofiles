@@ -223,11 +223,6 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/subtlvs/subtlv/flags/state/flags"
 }
 
-# System Level
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/part-changes"
-}
-
 # Interface counters
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/state/retransmit"
