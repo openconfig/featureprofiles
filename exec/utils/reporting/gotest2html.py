@@ -1,5 +1,6 @@
 import argparse
 import pathlib
+import urllib
 import json
 import os
 import re
@@ -116,7 +117,7 @@ Suite | Total | Passed | Failed | Regressed | Skipped | Logs | Result
             elif s['total'] > 0: result = ':white_check_mark:'
 
             suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]}'
-            suite_summary_md += f'| {s["failed"]} | {s["regressed"]} | {s["skipped"]} | [Logs]({s["test"].get_logs_url()}) | {result}\n'
+            suite_summary_md += f'| {s["failed"]} | {s["regressed"]} | {s["skipped"]} | [HTML]({s["test"].get_logs_url().replace(".json", ".html")}) [RAW]({s["test"].get_logs_url()}) | {result}\n'
 
         return f"""
 ## Summary
@@ -127,7 +128,7 @@ Total | Passed | Failed | Regressed | Skipped
 
 
 class GoTest:
-    def __init__(self, name, pkg = None, parent = None, logs_url = '', must_pass = False):
+    def __init__(self, name, pkg = None, parent = None, logs_url = ''):
         self._qname = name
         self._name = name
         self._pkg = pkg
@@ -136,14 +137,15 @@ class GoTest:
         self._output = ''
         self._status = ''
         self._logs_url = logs_url
-        self._must_pass = must_pass
         
-        if parent and parent.get_parent():
-            self._name = self._qname[len(parent.get_qualified_name()):]
+        if parent:
+            self._logs_url = f'{logs_url.replace(".json", ".html")}?output={urllib.parse.quote(self._qname)}'
+            if parent.get_parent():
+                self._name = self._qname[len(parent.get_qualified_name()):]
 
     @staticmethod
     def from_json_obj(obj, parent = None):
-        gt = GoTest(obj['name'], obj['pkg'], parent, logs_url = obj['logs_url'], must_pass=obj['must_pass'])
+        gt = GoTest(obj['name'], obj['pkg'], parent, logs_url = obj['logs_url'])
         gt._qname = obj['qname']
         gt._status = obj['status']
         gt._children = [GoTest.from_json_obj(c, parent) for c in obj['children']]
@@ -153,7 +155,7 @@ class GoTest:
         self._output += str
 
     def create_child(self, name, pkg):
-        self._children.append(GoTest(name, pkg, self, must_pass=self._must_pass))
+        self._children.append(GoTest(name, pkg, self, logs_url=self._logs_url))
         return self._children[-1]
 
     def get_name(self):
@@ -209,9 +211,6 @@ class GoTest:
 
     def mark_skipped(self):
         self._status = 'Skip'
-
-    def must_pass(self):
-        return self._must_pass
         
     def did_pass(self):
         return self._status == 'Pass' or self._status == 'Skip'
@@ -342,6 +341,97 @@ function findTestByName(data, target) {
     return null;
 }
 
+function initTables(data, summary_data) {
+    new Tabulator("#summary", {
+        layout: "fitColumns",
+        data: summary_data,
+        columns: [
+            {
+            title: "Summary",
+            headerHozAlign: "center",
+            columns: [
+                {
+                    title: "Total",
+                    field: "total",
+                },
+                {
+                    title: "Passed",
+                    field: "passed",
+                },
+                {
+                    title: "Failed",
+                    field: "failed",
+                    formatter: function (cell, formatterParams, onRendered) {
+                        cell.getElement().style.color = "#990000";
+                        return cell.getValue();
+                    }
+                },
+                {
+                    title: "Skipped",
+                    field: "skipped",
+                }
+            ]
+            }
+        ]
+    })
+
+    new Tabulator("#table", {
+        height: "100%",
+        layout: "fitColumns",
+        data: data,
+        dataTree: true,
+        dataTreeStartExpanded:function(row, level){
+            return row.getData().status == "Fail";
+        },
+        dataTreeSelectPropagate: true,
+        columns: [
+            {
+                title: "Test",
+                field: "name",
+                formatter: function (cell, formatterParams, onRendered) {
+                    v = cell.getValue();
+                    if (!cell.getRow().getTreeParent())
+                        return "<b>" + v + "</b>"
+                    return v;
+                }
+            },
+            {
+                title: "Logs",
+                formatter: function(cell, formatterParams, onRendered) {
+                    output = cell.getRow().getData().output;
+                    if(output && output.length > 0)
+                        return "<i class='fa-solid fa-file-lines'></i>";
+                    return "";
+                },
+                cellClick: function(e, cell) {
+                    output = cell.getRow().getData().output;
+                    var popup = window.open('', "", "width=800, height=1024, scrollbars=yes");
+                    $(popup.document.body).html("<pre>" + output + "</pre>");
+                },
+                hozAlign: "center",
+                width: 100
+            },
+            {
+                title: "Pass",
+                field: "pass",
+                formatter: function (cell, formatterParams, onRendered) {
+                    v = cell.getValue();
+                    row = cell.getRow();
+                    status = row.getData()["status"];
+                    if(status == "Fail" && row.getTreeChildren().length == 0) {
+                        row.getElement().style.color = "#990000";
+                        row.getElement().style.fontWeight = "900";
+                    } 
+                    cell.getElement().style.fontWeight = "900";
+                    return v;
+                },
+                hozAlign: "center",
+                width: 100
+            }
+        ]
+    });
+}
+
 $(function () {
     var data = String.raw`"""+table_data.replace("`", "'")+"""`
     var summary_data = String.raw`"""+summary_data+"""`
@@ -354,96 +444,12 @@ $(function () {
     if('output' in queryDict) {
         testName = queryDict['output'];
         test = findTestByName(JSON.parse(data), testName)
-        $("#summary").html("<pre>" + test.output + "</pre>");
+        if(test && test.output && test.output.length > 0)
+            $("#summary").html("<pre>" + test.output + "</pre>");
+        else
+            initTables(data, summary_data);
     } else {
-        new Tabulator("#summary", {
-            layout: "fitColumns",
-            data: summary_data,
-            columns: [
-                {
-                title: "Summary",
-                headerHozAlign: "center",
-                columns: [
-                    {
-                        title: "Total",
-                        field: "total",
-                    },
-                    {
-                        title: "Passed",
-                        field: "passed",
-                    },
-                    {
-                        title: "Failed",
-                        field: "failed",
-                        formatter: function (cell, formatterParams, onRendered) {
-                            cell.getElement().style.color = "#990000";
-                            return cell.getValue();
-                        }
-                    },
-                    {
-                        title: "Skipped",
-                        field: "skipped",
-                    }
-                ]
-                }
-            ]
-        })
-
-        new Tabulator("#table", {
-            height: "100%",
-            layout: "fitColumns",
-            data: data,
-            dataTree: true,
-            dataTreeStartExpanded:function(row, level){
-                return row.getData().status == "Fail";
-            },
-            dataTreeSelectPropagate: true,
-            columns: [
-                {
-                    title: "Test",
-                    field: "name",
-                    formatter: function (cell, formatterParams, onRendered) {
-                        v = cell.getValue();
-                        if (!cell.getRow().getTreeParent())
-                            return "<b>" + v + "</b>"
-                        return v;
-                    }
-                },
-                {
-                    title: "Logs",
-                    formatter: function(cell, formatterParams, onRendered) {
-                        output = cell.getRow().getData().output;
-                        if(output && output.length > 0)
-                            return "<i class='fa-solid fa-file-lines'></i>";
-                        return "";
-                    },
-                    cellClick: function(e, cell) {
-                        output = cell.getRow().getData().output;
-                        var popup = window.open('', "", "width=800, height=1024, scrollbars=yes");
-                        $(popup.document.body).html("<pre>" + output + "</pre>");
-                    },
-                    hozAlign: "center",
-                    width: 100
-                },
-                {
-                    title: "Pass",
-                    field: "pass",
-                    formatter: function (cell, formatterParams, onRendered) {
-                        v = cell.getValue();
-                        row = cell.getRow();
-                        status = row.getData()["status"];
-                        if(status == "Fail" && row.getTreeChildren().length == 0) {
-                            row.getElement().style.color = "#990000";
-                            row.getElement().style.fontWeight = "900";
-                        } 
-                        cell.getElement().style.fontWeight = "900";
-                        return v;
-                    },
-                    hozAlign: "center",
-                    width: 100
-                }
-            ]
-        });
+        initTables(data, summary_data);
     }
 });
 </script>
@@ -459,7 +465,7 @@ def _get_parent(test_map, entry, default):
             return c
     return default
 
-def _parse(file, json_data, suite_name=None, must_pass=False):
+def _parse(file, json_data, suite_name=None):
     test_map = {}
     if not suite_name: suite_name = pathlib.Path(file).stem
     top_test = GoTest(suite_name, file, logs_url=file.replace(base_logs_dir, base_logs_url))
@@ -531,8 +537,8 @@ def to_markdown(files):
         except: continue
     return test_suite.to_md_string()
 
-def parse_json(file, suite_name=None, must_pass=False):
-    return _parse(file, json.loads(_read_log_file(file)), suite_name=suite_name, must_pass=must_pass)
+def parse_json(file, suite_name=None):
+    return _parse(file, json.loads(_read_log_file(file)), suite_name=suite_name)
 
 def _is_valid_file(parser, arg):
     if not os.path.exists(arg):
