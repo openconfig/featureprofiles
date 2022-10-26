@@ -117,7 +117,7 @@ Suite | Total | Passed | Failed | Regressed | Skipped | Logs | Result
             elif s['total'] > 0: result = ':white_check_mark:'
 
             suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]}'
-            suite_summary_md += f'| {s["failed"]} | {s["regressed"]} | {s["skipped"]} | [Logs]({s["test"].get_logs_url()}) | {result}\n'
+            suite_summary_md += f'| {s["failed"]} | {s["regressed"]} | {s["skipped"]} | [HTML]({s["test"].get_logs_url().replace(".json", ".html")}) [RAW]({s["test"].get_logs_url()}) | {result}\n'
 
         return f"""
 ## Summary
