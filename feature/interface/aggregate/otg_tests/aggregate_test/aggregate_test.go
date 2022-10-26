@@ -218,7 +218,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	fptest.LogYgot(t, "LACP", lacpPath, lacp)
 	lacpPath.Replace(t, lacp)
 
-	tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Await(t, 20*time.Second, opUp)
+	time.Sleep(5 * time.Second)
 
 	agg := &telemetry.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg, &dutDst)
@@ -263,10 +263,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
 	// Adding the rest of the ports to the configuration and to the LAG
-	totalPorts := len(tc.dutPorts)
-	numLagPorts := totalPorts - 1
-	minLinks := uint16(numLagPorts - 1)
-	agg := tc.top.Lags().Add().SetName(ateDst.Name).SetMinLinks(int32(minLinks))
+	agg := tc.top.Lags().Add().SetName(ateDst.Name)
 	if tc.lagType == lagTypeSTATIC {
 		lagId, _ := strconv.Atoi(tc.aggID)
 		agg.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
@@ -378,7 +375,7 @@ func (tc *testCase) verifyATE(t *testing.T) {
 // setDutInterfaceWithState sets the admin state to a member of the lag
 func (tc *testCase) setDutInterfaceWithState(t testing.TB, p *ondatra.Port, state bool) {
 	dc := tc.dut.Config()
-	i := &telemetry.Interface{Name: ygot.String(p.Name())}
+	i := &telemetry.Interface{}
 	i.Enabled = ygot.Bool(state)
 	dc.Interface(p.Name()).Update(t, i)
 }
