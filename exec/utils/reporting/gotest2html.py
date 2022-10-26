@@ -85,16 +85,16 @@ class GoTestSuite:
             })
 
             details_md += "### " + test.get_qualified_name()+ "\n"
-            details_md +=  "Test | Logs | Pass\n"
-            details_md += "------|------|------\n"
+            details_md +=  "Test | Package | Logs | Pass\n"
+            details_md += "------|---------|------|------\n"
 
             for t in test._children:
                 details_md += t.to_md_string()
 
             for t in test._children:
                 details_md += "#### " + t.get_qualified_name()+ "\n"
-                details_md +=  "Test | Logs | Pass\n"
-                details_md += "------|------|------\n"
+                details_md +=  "Test | Package | Logs | Pass\n"
+                details_md += "------|---------|------|-----\n"
                 details_md += t.to_md_string(recursive=True)
         
         suite_summary_md = "## Test Suites\n"
@@ -292,7 +292,7 @@ class GoTest:
         if not recursive and level == 0: 
             name = _to_md_anchor(self.get_name())
         md = ('&nbsp;&nbsp;&nbsp;&nbsp;' * level) + ('*' * level) + em + name + em 
-        md +=  f' | [Logs]({self.get_logs_url()}) | ' + self._pass_text() + '\n'
+        md +=  f'| {self._pkg} | [Logs]({self.get_logs_url()}) | ' + self._pass_text() + '\n'
         if recursive:
             for c in self._children:
                 md += c.to_md_string(recursive, level+1)
