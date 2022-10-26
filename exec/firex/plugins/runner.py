@@ -15,7 +15,6 @@ from test_framework import register_test_framework_provider
 from html_helper import get_link 
 from collections import namedtuple
 from pathlib import Path
-from gotest2html import GoTest2HTML
 import os
 import git 
 
@@ -219,11 +218,6 @@ def b4_fp_chain_provider(ws,
             for k, v in pt.items():
                 chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path)
 
-    chain |= GoTest2HTML.s(Path(test_log_directory_path) / f'{script_name}.json', Path(test_log_directory_path) / 'results.html')
-    
-    if cflow:
-        chain |= CollectCoverageData.s(pyats_testbed='@testbed')
-
     return chain
 
 # noinspection PyPep8Naming
@@ -300,7 +294,7 @@ def RunB4FPTest(self,
           f'--junitfile {xunit_results_filepath} ' \
           f'--junitfile-testsuite-name short ' \
           f'--junitfile-testcase-classname short ' \
-          f'--jsonfile {json_results_file} ' \
+          f'--jsonfile "{json_results_file}" ' \
           f'--format testname ' \
           f'--debug ' \
           f'--raw-command ' \
