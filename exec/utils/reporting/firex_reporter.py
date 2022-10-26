@@ -80,12 +80,10 @@ for ts in  _get_testsuites():
             test_id = test_id_map[t['name']]
             log_files = [str(p) for p in Path(logs_dir).glob(f"{test_id}/*.json")]
             try:
-                gt = parse_json(log_files[0], suite_name=t['name'], must_pass=t['must_pass'])
-                # if gt.must_pass() and gt.did_fail():
-                #     gt.mark_regressed()
+                gt = parse_json(log_files[0], suite_name=t['name'])
                 go_tests.append(gt)
             except: continue
-
+    
     if len(go_tests) > 0:
         go_test_suite.update(firex_id, go_tests, last_updated=now)
         with open(os.path.join(out_dir, f"{ts['name']}.md"), 'w') as fp:
