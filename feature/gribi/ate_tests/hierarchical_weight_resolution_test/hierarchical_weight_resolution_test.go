@@ -45,7 +45,6 @@ type attributes struct {
 }
 
 type nhInfo struct {
-	nhg    uint64
 	index  uint64
 	weight uint64
 }
