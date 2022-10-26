@@ -49,6 +49,7 @@ func TestResetGRIBIServerFP(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 }
+
 // this test perfroms get after emsd to mask the first get issue until it gets resolved
 func TestFirstGet(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
