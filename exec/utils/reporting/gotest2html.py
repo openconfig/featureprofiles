@@ -26,21 +26,7 @@ class GoTestSuite:
     def update(self, run_id, go_tests, last_updated = datetime.now().timestamp()):
         self._last_run_id = run_id
         self._last_updated = last_updated
-
-        prev_passed = []
-        prev_regressed = []
-        for t in self.get_tests(recursive=True):
-            if t.did_pass() and not t.did_skip():
-                prev_passed.append(t.get_qualified_name())
-            if t.did_regress():
-                prev_regressed.append(t.get_qualified_name())
-
         self._tests = go_tests
-        for t in self.get_tests(recursive=True):
-            if (len(t.get_children()) == 0 and t.did_fail() 
-                and (t.get_qualified_name() in prev_passed 
-                    or t.get_qualified_name() in prev_regressed)):
-                t.mark_regressed()
 
     def add_test(self, go_test):
         self._tests.append(go_test)
@@ -58,7 +44,7 @@ class GoTestSuite:
 
     def get_last_run_id(self):
         return self._last_run_id
-        
+
     def get_stats(self):
         stats = {
             'total': 0,
@@ -98,16 +84,16 @@ class GoTestSuite:
             })
 
             details_md += "### " + test.get_qualified_name()+ "\n"
-            details_md +=  "Test | Pass\n"
-            details_md += "-----|------\n"
+            details_md +=  "Test | Logs | Pass\n"
+            details_md += "------|------|------\n"
 
             for t in test._children:
                 details_md += t.to_md_string()
 
             for t in test._children:
                 details_md += "#### " + t.get_qualified_name()+ "\n"
-                details_md +=  "Test | Pass\n"
-                details_md += "-----|------\n"
+                details_md +=  "Test | Logs | Pass\n"
+                details_md += "------|------|------\n"
                 details_md += t.to_md_string(recursive=True)
         
         suite_summary_md = "## Test Suites\n"
@@ -141,7 +127,7 @@ Total | Passed | Failed | Regressed | Skipped
 
 
 class GoTest:
-    def __init__(self, name, pkg = None, parent = None, logs_url = ''):
+    def __init__(self, name, pkg = None, parent = None, logs_url = '', must_pass = False):
         self._qname = name
         self._name = name
         self._pkg = pkg
@@ -150,13 +136,14 @@ class GoTest:
         self._output = ''
         self._status = ''
         self._logs_url = logs_url
-
+        self._must_pass = must_pass
+        
         if parent and parent.get_parent():
             self._name = self._qname[len(parent.get_qualified_name()):]
 
     @staticmethod
     def from_json_obj(obj, parent = None):
-        gt = GoTest(obj['name'], obj['pkg'], parent, logs_url = obj['logs_url'])
+        gt = GoTest(obj['name'], obj['pkg'], parent, logs_url = obj['logs_url'], must_pass=obj['must_pass'])
         gt._qname = obj['qname']
         gt._status = obj['status']
         gt._children = [GoTest.from_json_obj(c, parent) for c in obj['children']]
@@ -166,7 +153,7 @@ class GoTest:
         self._output += str
 
     def create_child(self, name, pkg):
-        self._children.append(GoTest(name, pkg, self))
+        self._children.append(GoTest(name, pkg, self, must_pass=self._must_pass))
         return self._children[-1]
 
     def get_name(self):
@@ -223,20 +210,20 @@ class GoTest:
     def mark_skipped(self):
         self._status = 'Skip'
 
-    def mark_regressed(self):
-        self._status = 'Regression'
-
+    def must_pass(self):
+        return self._must_pass
+        
     def did_pass(self):
         return self._status == 'Pass' or self._status == 'Skip'
 
     def did_skip(self):
         return self._status == 'Skip'
 
+    def did_fail(self):
+        return  self._status == 'Fail'
+
     def did_regress(self):
         return self._status == 'Regression'
-
-    def did_fail(self):
-        return self._status == 'Fail'
 
     def get_status(self):
         return self._status
@@ -296,7 +283,8 @@ class GoTest:
         name = self.get_name()
         if not recursive and level == 0: 
             name = _to_md_anchor(self.get_name())
-        md = ('&nbsp;&nbsp;&nbsp;&nbsp;' * level) + ('*' * level) + em + name + em + ' | ' + self._pass_text() + '\n'
+        md = ('&nbsp;&nbsp;&nbsp;&nbsp;' * level) + ('*' * level) + em + name + em 
+        md +=  f' | [Logs](#{self.get_logs_url()}) | ' + self._pass_text() + '\n'
         if recursive:
             for c in self._children:
                 md += c.to_md_string(recursive, level+1)
@@ -333,98 +321,130 @@ def _generate_html(table_data, summary_data):
 <div id="summary"></div>
 <div id="table"></div>
 <script>
+
+function findTestByName(data, target) {
+    if(data == null) {
+        return null;
+    }
+    if(Array.isArray(data)) {
+        for(var i=0; i<data.length; i++) {
+            test = findTestByName(data[i], target);
+            if(test) return test;
+        }
+    }
+    else {
+        if(data.name == target) {
+            return data
+        } else if(data._children) {
+            return findTestByName(data._children, target)
+        }
+    }
+    return null;
+}
+
 $(function () {
     var data = String.raw`"""+table_data.replace("`", "'")+"""`
     var summary_data = String.raw`"""+summary_data+"""`
 
-    new Tabulator("#summary", {
-        layout: "fitColumns",
-        data: summary_data,
-        columns: [
-            {
-            title: "Summary",
-            headerHozAlign: "center",
+    var queryDict = {}
+    location.search.substr(1).split("&").forEach(function(item) {
+        queryDict[item.split("=")[0]] = item.split("=")[1]
+    })
+
+    if('output' in queryDict) {
+        testName = queryDict['output'];
+        test = findTestByName(JSON.parse(data), testName)
+        $("#summary").html("<pre>" + test.output + "</pre>");
+    } else {
+        new Tabulator("#summary", {
+            layout: "fitColumns",
+            data: summary_data,
             columns: [
                 {
-                    title: "Total",
-                    field: "total",
-                },
+                title: "Summary",
+                headerHozAlign: "center",
+                columns: [
+                    {
+                        title: "Total",
+                        field: "total",
+                    },
+                    {
+                        title: "Passed",
+                        field: "passed",
+                    },
+                    {
+                        title: "Failed",
+                        field: "failed",
+                        formatter: function (cell, formatterParams, onRendered) {
+                            cell.getElement().style.color = "#990000";
+                            return cell.getValue();
+                        }
+                    },
+                    {
+                        title: "Skipped",
+                        field: "skipped",
+                    }
+                ]
+                }
+            ]
+        })
+
+        new Tabulator("#table", {
+            height: "100%",
+            layout: "fitColumns",
+            data: data,
+            dataTree: true,
+            dataTreeStartExpanded:function(row, level){
+                return row.getData().status == "Fail";
+            },
+            dataTreeSelectPropagate: true,
+            columns: [
                 {
-                    title: "Passed",
-                    field: "passed",
-                },
-                {
-                    title: "Failed",
-                    field: "failed",
+                    title: "Test",
+                    field: "name",
                     formatter: function (cell, formatterParams, onRendered) {
-                        cell.getElement().style.color = "#990000";
-                        return cell.getValue();
+                        v = cell.getValue();
+                        if (!cell.getRow().getTreeParent())
+                            return "<b>" + v + "</b>"
+                        return v;
                     }
                 },
                 {
-                    title: "Skipped",
-                    field: "skipped",
+                    title: "Logs",
+                    formatter: function(cell, formatterParams, onRendered) {
+                        output = cell.getRow().getData().output;
+                        if(output && output.length > 0)
+                            return "<i class='fa-solid fa-file-lines'></i>";
+                        return "";
+                    },
+                    cellClick: function(e, cell) {
+                        output = cell.getRow().getData().output;
+                        var popup = window.open('', "", "width=800, height=1024, scrollbars=yes");
+                        $(popup.document.body).html("<pre>" + output + "</pre>");
+                    },
+                    hozAlign: "center",
+                    width: 100
+                },
+                {
+                    title: "Pass",
+                    field: "pass",
+                    formatter: function (cell, formatterParams, onRendered) {
+                        v = cell.getValue();
+                        row = cell.getRow();
+                        status = row.getData()["status"];
+                        if(status == "Fail" && row.getTreeChildren().length == 0) {
+                            row.getElement().style.color = "#990000";
+                            row.getElement().style.fontWeight = "900";
+                        } 
+                        cell.getElement().style.fontWeight = "900";
+                        return v;
+                    },
+                    hozAlign: "center",
+                    width: 100
                 }
             ]
-            }
-        ]
-    })
-
-    new Tabulator("#table", {
-        height: "100%",
-        layout: "fitColumns",
-        data: data,
-        dataTree: true,
-        dataTreeStartExpanded:function(row, level){
-            return row.getData().status == "Fail";
-        },
-        dataTreeSelectPropagate: true,
-        columns: [
-            {
-                title: "Test",
-                field: "name",
-                formatter: function (cell, formatterParams, onRendered) {
-                    v = cell.getValue();
-                    if (!cell.getRow().getTreeParent())
-                        return "<b>" + v + "</b>"
-                    return v;
-                }
-            },
-            {
-                title: "Logs",
-                formatter: function(cell, formatterParams, onRendered) {
-                    output = cell.getRow().getData().output;
-                    if(output && output.length > 0)
-                        return "<i class='fa-solid fa-file-lines'></i>";
-                    return "";
-                },
-                cellClick: function(e, cell) {
-                    output = cell.getRow().getData().output;
-                    var popup = window.open('', "", "width=800, height=1024, scrollbars=yes");
-                    $(popup.document.body).html("<pre>" + output + "</pre>");
-                },
-                hozAlign: "center",
-                width: 100
-            },
-            {
-                title: "Pass",
-                field: "pass",
-                formatter: function (cell, formatterParams, onRendered) {
-                    v = cell.getValue();
-                    row = cell.getRow();
-                    status = row.getData()["status"];
-                    if(status == "Fail" && row.getTreeChildren().length == 0) {
-                        row.getElement().style.color = "#990000";
-                        row.getElement().style.fontWeight = "900";
-                    } 
-                    cell.getElement().style.fontWeight = "900";
-                    return v;
-                },
-                hozAlign: "center",
-                width: 100
-            }
-        ]
-    });
+        });
+    }
 });
 </script>
 </body>
@@ -439,7 +459,7 @@ def _get_parent(test_map, entry, default):
             return c
     return default
 
-def _parse(file, json_data, suite_name=None):
+def _parse(file, json_data, suite_name=None, must_pass=False):
     test_map = {}
     if not suite_name: suite_name = pathlib.Path(file).stem
     top_test = GoTest(suite_name, file, logs_url=file.replace(base_logs_dir, base_logs_url))
@@ -511,8 +531,8 @@ def to_markdown(files):
         except: continue
     return test_suite.to_md_string()
 
-def parse_json(file, suite_name=None):
-    return _parse(file, json.loads(_read_log_file(file)), suite_name=suite_name)
+def parse_json(file, suite_name=None, must_pass=False):
+    return _parse(file, json.loads(_read_log_file(file)), suite_name=suite_name, must_pass=must_pass)
 
 def _is_valid_file(parser, arg):
     if not os.path.exists(arg):

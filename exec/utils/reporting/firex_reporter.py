@@ -80,7 +80,9 @@ for ts in  _get_testsuites():
             test_id = test_id_map[t['name']]
             log_files = [str(p) for p in Path(logs_dir).glob(f"{test_id}/*.json")]
             try:
-                gt = parse_json(log_files[0], suite_name=t['name'])
+                gt = parse_json(log_files[0], suite_name=t['name'], must_pass=t['must_pass'])
+                # if gt.must_pass() and gt.did_fail():
+                #     gt.mark_regressed()
                 go_tests.append(gt)
             except: continue
 
@@ -91,7 +93,7 @@ for ts in  _get_testsuites():
 
         with open(ts_data_file, 'w') as fp:
             fp.write(json.dumps(go_test_suite.to_json_obj()))
-        
+
     suite_stats = go_test_suite.get_stats()
     if suite_stats['total'] == 0:
         continue
@@ -109,7 +111,8 @@ for ts in  _get_testsuites():
     elif suite_stats['total'] > 0: suite_results = ':white_check_mark:'
 
     details_md += f"[{ts['name']}]({ts['name']}.md)|{suite_stats['total']}|{suite_stats['passed']}|{suite_stats['failed']}"
-    details_md += f"|{suite_stats['regressed']}|{suite_stats['skipped']}|[{suite_time}]({base_tracker_url}{go_test_suite.get_last_run_id()})|[Logs]({base_logs_url}{go_test_suite.get_last_run_id()}/tests_logs/)|{suite_results}\n"
+    details_md += f"|{suite_stats['regressed']}|{suite_stats['skipped']}|[{suite_time}]({base_tracker_url}{go_test_suite.get_last_run_id()})"
+    details_md += f"|[Logs]({base_logs_url}{go_test_suite.get_last_run_id()}/tests_logs/)|{suite_results}\n"
 
 summary_md += f"{total}|{passed}|{failed}|{regressed}|{skipped}\n"
 
