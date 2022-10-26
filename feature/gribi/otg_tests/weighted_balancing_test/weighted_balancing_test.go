@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
@@ -112,7 +113,7 @@ func testNextHop(
 	scale uint64, // multiplies the weights in nexthops by this.
 	gribic spb.GRIBIClient,
 	ate *ondatra.ATEDevice,
-	top *ondatra.ATETopology,
+	top gosnappi.Config,
 ) {
 	// Configure the gRIBI client.
 	c := fluent.NewClient()
@@ -195,7 +196,7 @@ func TestWeightedBalancing(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().StartProtocols(t)
 
 	// Run through the test cases.
 	for _, s := range scales {

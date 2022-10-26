@@ -15,20 +15,28 @@
 package weighted_balancing_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"flag"
 	"fmt"
+	"math/rand"
+	"net"
+	"regexp"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -80,15 +88,20 @@ func TestMain(m *testing.M) {
 const (
 	plen = 30
 
-	ateSrcPort    = "ate:port1"
-	ateSrcNetName = "srcnet"
-	ateSrcNet     = "198.51.100.0"
-	ateSrcNetCIDR = "198.51.100.0/24"
+	ateSrcPort       = "ate:port1"
+	ateSrcPortMac    = "02:00:01:01:01:01"
+	ateSrcNetName    = "srcnet"
+	ateSrcNet        = "198.51.100.0"
+	ateSrcNetCIDR    = "198.51.100.0/24"
+	ateSrcNetFirstIP = "198.51.100.1"
+	ateSrcNetCount   = 250
 
-	ateDstFirstPort = "ate:port2"
-	ateDstNetName   = "dstnet"
-	ateDstNet       = "203.0.113.0"
-	ateDstNetCIDR   = "203.0.113.0/24"
+	ateDstFirstPort  = "ate:port2"
+	ateDstNetName    = "dstnet"
+	ateDstNet        = "203.0.113.0"
+	ateDstNetCIDR    = "203.0.113.0/24"
+	ateDstNetFirstIP = "203.0.113.1"
+	ateDstNetCount   = 250
 
 	discardCIDR = "192.0.2.0/24"
 	nhgIndex    = 42
@@ -180,7 +193,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	static.GetOrCreateNextHop("AUTO_drop_2").
 		NextHop = telemetry.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
 	staticp := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").
+		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
 		Static(discardCIDR)
 	fptest.LogYgot(t, "discard route", staticp, static)
 	staticp.Replace(t, static)
@@ -194,28 +207,36 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	}
 }
 
+// setDUTInterfaceState sets the admin state on the dut interface
+func setDUTInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port, state bool) {
+	t.Helper()
+	dc := dut.Config()
+	i := &telemetry.Interface{Name: ygot.String(p.Name())}
+	i.Enabled = ygot.Bool(state)
+	dc.Interface(p.Name()).Update(t, i)
+}
+
 // configureATE configures the topology of the ATE.
-func configureATE(t testing.TB, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
-	for _, ap := range ate.Ports() {
+func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
+	t.Helper()
+	otg := ate.OTG()
+	config := otg.NewConfig(t)
+	for i, ap := range ate.Ports() {
 		// DUT and ATE ports are connected by the same names.
 		dutid := fmt.Sprintf("dut:%s", ap.ID())
 		ateid := fmt.Sprintf("ate:%s", ap.ID())
 
-		i := top.AddInterface(ateid).WithPort(ap)
-		i.IPv4().
-			WithAddress(fmt.Sprintf("%s/%d", portsIPv4[ateid], plen)).
-			WithDefaultGateway(portsIPv4[dutid])
-
-		if ateid == ateSrcPort {
-			n := i.AddNetwork(ateSrcNetName)
-			n.IPv4().WithAddress(ateSrcNetCIDR)
-		} else {
-			n := i.AddNetwork(ateDstNetName)
-			n.IPv4().WithAddress(ateDstNetCIDR)
-		}
+		config.Ports().Add().SetName(ap.ID())
+		dev := config.Devices().Add().SetName(ateid)
+		macAddress, _ := incrementMAC(ateSrcPortMac, i)
+		eth := dev.Ethernets().Add().SetName(ateid + ".Eth").
+			SetPortName(ap.ID()).SetMac(macAddress)
+		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4").
+			SetAddress(portsIPv4[ateid]).SetGateway(portsIPv4[dutid]).
+			SetPrefix(plen)
 	}
-	return top
+	otg.PushConfig(t, config)
+	return config
 }
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
@@ -287,42 +308,46 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 // generateTraffic generates traffic from ateSrcNetCIDR to
 // ateDstNetCIDR, then returns the atePorts as well as the number of
 // packets received (inPkts) and sent (outPkts) across the atePorts.
-func generateTraffic(t testing.TB, ate *ondatra.ATEDevice, top *ondatra.ATETopology) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
-	src := top.Interfaces()[ateSrcPort].Networks()[ateSrcNetName]
-	dst := top.Interfaces()[ateDstFirstPort].Networks()[ateDstNetName]
+func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
 
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header()
-	tcpHeader := ondatra.NewTCPHeader()
+	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
+	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
+	gwIp := portsIPv4[dutString]
+	waitOTGARPEntry(t, time.Minute)
+	dstMac := ate.OTG().Telemetry().Interface(ateSrcPort + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
+	config.Flows().Clear().Items()
+	flow := config.Flows().Add().SetName("flow")
+	flow.Metrics().SetEnable(true)
+	flow.TxRx().Port().
+		SetTxName(re.FindStringSubmatch(ateSrcPort)[1])
+	eth := flow.Packet().Add().Ethernet()
+	eth.Src().SetValue(ateSrcPortMac)
+	eth.Dst().SetValue(dstMac)
+	ipv4 := flow.Packet().Add().Ipv4()
 	if *randomSrcIP {
-		ipv4Header.SrcAddressRange().
-			WithMin(ateSrcNet).
-			WithCount(src.IPv4().Count()).
-			WithRandom()
+		t.Errorf("Random source IP not yet supported")
+	} else {
+		ipv4.Src().SetChoice("increment").Increment().SetStart(ateSrcNetFirstIP).SetCount(int32(ateSrcNetCount))
 	}
 	if *randomDstIP {
-		ipv4Header.DstAddressRange().
-			WithMin(ateDstNet).
-			WithCount(dst.IPv4().Count()).
-			WithRandom()
+		t.Errorf("Random destination IP not yet supported")
+	} else {
+		ipv4.Dst().SetChoice("increment").Increment().SetStart(ateDstNetFirstIP).SetCount(int32(ateDstNetCount))
 	}
+	tcp := flow.Packet().Add().Tcp()
 	if *randomSrcPort {
-		tcpHeader.SrcPortRange().
-			WithMin(1).
-			WithCount(65534).
-			WithRandom()
+		tcp.SrcPort().SetValues(generateRandomPortList(65534))
+	} else {
+		tcp.SrcPort().SetChoice("increment").Increment().SetStart(1).SetCount(65534)
 	}
 	if *randomDstPort {
-		tcpHeader.DstPortRange().
-			WithMin(1).
-			WithCount(65534).
-			WithRandom()
+		tcp.DstPort().SetValues(generateRandomPortList(65534))
+	} else {
+		tcp.DstPort().SetChoice("increment").Increment().SetStart(1).SetCount(65534)
 	}
 
-	flow := ate.Traffic().NewFlow("flow").
-		WithSrcEndpoints(src).
-		WithDstEndpoints(dst).
-		WithHeaders(ethHeader, ipv4Header, tcpHeader)
+	flow.Size().SetFixed(200)
+	ate.OTG().PushConfig(t, config)
 
 	if *trafficPause != 0 {
 		t.Logf("Pausing before traffic at %v for %v", time.Now(), *trafficPause)
@@ -330,20 +355,26 @@ func generateTraffic(t testing.TB, ate *ondatra.ATEDevice, top *ondatra.ATETopol
 		t.Logf("Pausing ended at %v", time.Now())
 	}
 
-	ate.Traffic().Start(t, flow)
+	ate.OTG().StartTraffic(t)
 	t.Logf("Traffic starting at %v for %v", time.Now(), *trafficDuration)
 	time.Sleep(*trafficDuration)
 	t.Logf("Traffic stopping at %v", time.Now())
-	ate.Traffic().Stop(t)
+	ate.OTG().StopTraffic(t)
 
 	atePorts = sortPorts(ate.Ports())
 	inPkts = make([]uint64, len(atePorts))
 	outPkts = make([]uint64, len(atePorts))
 
+	otgutils.LogPortMetrics(t, ate.OTG(), config)
 	for i, ap := range atePorts {
-		aicp := ate.Telemetry().Interface(ap.Name()).Counters()
-		inPkts[i] = aicp.InPkts().Get(t)
-		outPkts[i] = aicp.OutPkts().Get(t)
+		for _, p := range config.Ports().Items() {
+			portMetrics := ate.OTG().Telemetry().Port(p.Name()).Get(t)
+			if ap.ID() == p.Name() {
+				inPkts[i] = portMetrics.GetCounters().GetInFrames()
+				outPkts[i] = portMetrics.GetCounters().GetOutFrames()
+				continue
+			}
+		}
 	}
 
 	return atePorts, inPkts, outPkts
@@ -361,6 +392,15 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 		ys[i] = float64(x) / float64(sum)
 	}
 	return ys, sum
+}
+
+// generates a list of random tcp ports values
+func generateRandomPortList(count int) []int32 {
+	a := make([]int32, count)
+	for index := range a {
+		a[index] = int32(rand.Intn(65536-1) + 1)
+	}
+	return a
 }
 
 // portWants converts the nextHop wanted weights to per-port wanted
@@ -389,4 +429,31 @@ func debugGRIBI(t testing.TB, dut *ondatra.DUTDevice) {
 	} else {
 		t.Log("afts value not present")
 	}
+}
+
+// incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
+func incrementMAC(mac string, i int) (string, error) {
+	macAddr, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", err
+	}
+	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
+	convMac = convMac + uint64(i)
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, convMac)
+	if err != nil {
+		return "", err
+	}
+	newMac := net.HardwareAddr(buf.Bytes()[2:8])
+	return newMac.String(), nil
+}
+
+// waitOTGArpEntry ensures that ARP entries are present on the tx otg interface and traffic could be started
+func waitOTGARPEntry(t *testing.T, timeout time.Duration) {
+	t.Helper()
+	ate := ondatra.ATE(t, "ate")
+	ate.OTG().Telemetry().Interface(ateSrcPort+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
+		t, timeout, func(val *otgtelemetry.QualifiedString) bool {
+			return val.IsPresent()
+		}).Await(t)
 }
