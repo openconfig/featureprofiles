@@ -117,7 +117,7 @@ Suite | Total | Passed | Failed | Regressed | Skipped | Logs | Result
             elif s['total'] > 0: result = ':white_check_mark:'
 
             html_logs_url = s["test"].get_logs_url().replace(".json", ".html")
-            raw_logs_url = s["test"].get_logs_url().split("/")[-1].join("/") + 'output_from_json.log'
+            raw_logs_url = s["test"].get_logs_url().split("/")[0:-1].join("/") + 'output_from_json.log'
 
             suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]}'
             suite_summary_md += f'| {s["failed"]} | {s["regressed"]} | {s["skipped"]}'
@@ -143,11 +143,12 @@ class GoTest:
         self._logs_url = logs_url
         
         if parent:
-            self._logs_url = self._logs_url.replace(".json", ".html")
             param_idx = self._logs_url.find("?output=")
             if param_idx != -1:
-                self._logs_url = self._logs_url[0: param_idx] + f'?output={urllib.parse.quote(self._qname, safe="")}'
-
+                self._logs_url = self._logs_url[0: param_idx]
+            self._logs_url += f'?output={urllib.parse.quote(self._qname, safe="")}'
+            self._logs_url = self._logs_url.replace(".json", ".html")
+            
             if parent.get_parent():
                 self._name = self._qname[len(parent.get_qualified_name()):]
 
