@@ -1,7 +1,12 @@
-from firexapp.engine.celery import app
-
+import argparse
+import pathlib
 import json
 import os
+import re
+
+def _to_md_anchor(s):
+    sanitized = re.sub('[^0-9a-zA-Z_\-\s]+', '', s).strip().replace(' ', '-').lower()
+    return f'[{s}](#{sanitized})'
 
 class GoTest:
     def __init__(self, name, pkg = None, parent = None):
@@ -47,6 +52,12 @@ class GoTest:
             desc.extend(c.get_passed_descendants())
         return desc
 
+    def get_skipped_descendants(self):
+        desc = [c for c in self._children if c.did_skip()]
+        for c in self._children:
+            desc.extend(c.get_skipped_descendants())
+        return desc
+
     def get_parent(self):
         return self._parent
 
@@ -62,8 +73,23 @@ class GoTest:
     def did_pass(self):
         return self._status == 'Pass' or self._status == 'Skip'
 
+    def did_skip(self):
+        return self._status == 'Skip'
+
     def get_status(self):
         return self._status
+
+    def get_total(self):
+        return len(self.get_descendants())
+    
+    def get_total_skipped(self):
+        return len(self.get_skipped_descendants())
+
+    def get_total_passed(self):
+        return len(self.get_passed_descendants()) - self.get_total_skipped()
+    
+    def get_total_failed(self):
+        return self.get_total() - self.get_total_passed() - self.get_total_skipped()
 
     def _pass_text(self):
         if len(self.get_descendants()) == 0:
@@ -88,6 +114,18 @@ class GoTest:
             "pass": self._pass_text(),
             "_children": [c.to_table_data() for c in self._children]
         }
+        
+    def to_md_string(self, recursive = False, level = 0):
+        em = ''
+        if level == 0: em = '**'
+        name = self.get_name()
+        if not recursive and level == 0: 
+            name = _to_md_anchor(self.get_name())
+        md = ('&nbsp;&nbsp;&nbsp;&nbsp;' * level) + ('*' * level) + em + name + em + ' | ' + self._pass_text() + '\n'
+        if recursive:
+            for c in self._children:
+                md += c.to_md_string(recursive, level+1)
+        return md
 
 def _generate_html(table_data, summary_data):
     return """
@@ -121,8 +159,8 @@ def _generate_html(table_data, summary_data):
 <div id="table"></div>
 <script>
 $(function () {
-    var data = String.raw`"""+table_data+"""`
-    var summary_data = String.raw`""" + summary_data + """`
+    var data = String.raw`"""+table_data.replace("`", "'")+"""`
+    var summary_data = String.raw`"""+summary_data+"""`
 
     new Tabulator("#summary", {
         layout: "fitColumns",
@@ -147,6 +185,10 @@ $(function () {
                         cell.getElement().style.color = "#990000";
                         return cell.getValue();
                     }
+                },
+                {
+                    title: "Skipped",
+                    field: "skipped",
                 }
             ]
             }
@@ -224,7 +266,7 @@ def _get_parent(test_map, entry, default):
 
 def _parse(file, json_data):
     test_map = {}
-    top_test = GoTest(os.path.basename(file), file)
+    top_test = GoTest(pathlib.Path(file).stem, file)
 
     for entry in json_data:
         if 'Test' not in entry:
@@ -268,20 +310,90 @@ def _read_log_file(file):
 
 def to_html(files):
     data = [ ]
-    summary = {"total": 0, "passed": 0, "failed": 0}
-
+    summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
     for f in files:
         content = _read_log_file(f)
         test = _parse(f, json.loads(content))
-        summary["total"] += len(test.get_descendants())
-        summary["passed"] += len(test.get_passed_descendants())
+        summary["total"] += test.get_total()
+        summary["skipped"] += test.get_total_skipped()
+        summary["passed"] += test.get_total_passed()
+        summary["failed"] += test.get_total_failed()
         data.append(test.to_table_data())
-    summary["failed"] = summary["total"] - summary["passed"]
     return _generate_html(json.dumps(data), json.dumps([summary]))
 
 
-# noinspection PyPep8Naming
-@app.task(bind=True)
-def GoTest2HTML(self, json_log_file, html_output_file):
-    with open(html_output_file, 'w') as fp:
-        fp.write(to_html([json_log_file]))
+def to_markdown(files):
+    details_md = "## Tests\n"
+    suite_summary = []
+
+    files.sort()
+    for f in files:
+        content = _read_log_file(f)
+        test = _parse(f, json.loads(content))
+
+        suite_summary.append({
+            "suite": test.get_qualified_name(),
+            "total": test.get_total(), 
+            "passed": test.get_total_passed(), 
+            "failed": test.get_total_failed(),
+            "skipped": test.get_total_skipped()
+        })
+
+        details_md += "### " + test.get_qualified_name()+ "\n"
+        details_md +=  "Test | Pass\n"
+        details_md += "-----|------\n"
+
+        for t in test._children:
+            details_md += t.to_md_string()
+
+        for t in test._children:
+            details_md += "#### " + t.get_qualified_name()+ "\n"
+            details_md +=  "Test | Pass\n"
+            details_md += "-----|------\n"
+            details_md += t.to_md_string(recursive=True)
+    
+    suite_summary_md = "## Test Suites\n"
+    suite_summary_md += f"""
+Suite | Total | Passed | Failed | Skipped | Result
+------|-------|--------|--------|---------|--------
+"""
+
+    total, passed, failed, skipped = [0] * 4
+    for s in suite_summary:
+        total += s["total"]
+        passed += s["passed"]
+        failed += s["failed"]
+        skipped += s["skipped"]
+
+        result = ':white_check_mark:'
+        if s["failed"] > 0: result = ':x:'
+        suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]} | {s["failed"]} | {s["skipped"]} | {result}\n'
+
+    return f"""
+## Summary
+Total | Passed | Failed | Skipped
+------|--------|--------|---------
+{total}|{passed}|{failed}|{skipped}
+""" + suite_summary_md + details_md
+
+def parse_json(file):
+    return _parse(file, json.loads(_read_log_file(file)))
+
+def _is_valid_file(parser, arg):
+    if not os.path.exists(arg):
+        parser.error("File %s does not exist" % arg)
+    else:
+        return arg
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Generate HTML report from go test logs')
+    parser.add_argument('files', metavar='FILE', nargs='+',
+                        type=lambda x: _is_valid_file(parser, x),
+                        help='go test log files in json format')
+    parser.add_argument('--md', default=False, action='store_true', help="generate md report")
+    args = parser.parse_args()
+
+    if args.md:
+        print(to_markdown(args.files))
+    else:
+        print(to_html(args.files))
