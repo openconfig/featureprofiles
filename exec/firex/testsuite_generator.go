@@ -21,6 +21,7 @@ type GoTest struct {
 	Priority int
 	Path     string
 	Patch    string
+	Baseconf string
 	Args     []string
 	Timeout  int
 	Skip     bool
@@ -82,8 +83,8 @@ var (
     {{- else }}
     ondatra_binding_path: ""
     {{- end }}
-    {{- if $ft.Baseconf }}
-    base_conf_path: {{ $ft.Baseconf }}
+    {{- if $gt.Baseconf }}
+    base_conf_path: {{ $gt.Baseconf }}
     {{- else }}
     base_conf_path: ""
     {{- end }}
@@ -205,6 +206,10 @@ func main() {
 
 			if len(suite[i].Owner) > 0 && len(suite[i].Tests[j].Owner) == 0 {
 				suite[i].Tests[j].Owner = suite[i].Owner
+			}
+
+			if len(suite[i].Baseconf) > 0 && len(suite[i].Tests[j].Baseconf) == 0 {
+				suite[i].Tests[j].Baseconf = suite[i].Baseconf
 			}
 		}
 	}
