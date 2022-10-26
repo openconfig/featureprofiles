@@ -16,15 +16,16 @@
 package lsp_updates_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/feature/experimental/isis/otg_tests/internal/assert"
 	"github.com/openconfig/featureprofiles/feature/experimental/isis/otg_tests/internal/session"
+	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -34,16 +35,28 @@ func TestMain(m *testing.M) {
 }
 
 func TestOverloadBit(t *testing.T) {
-	ts := session.NewWithISIS(t)
+	ts := session.MustNew(t).WithISIS()
 	ts.ATE = ondatra.ATE(t, "ate")
 	otg := ts.ATE.OTG()
 	ts.PushAndStart(t)
-	telemPth := ts.DUTISISTelemetry(t)
-	ts.AwaitAdjacency(t)
-	setBit := telemPth.Global().LspBit().OverloadBit().SetBit()
-	overloads := telemPth.Level(2).SystemLevelCounters().DatabaseOverloads()
-	assert.ValueOrNil(t, setBit, false)
-	assert.ValueOrNil(t, overloads, uint32(0))
+	ts.MustAdjacency(t)
+	isisPath := session.ISISPath()
+	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
+	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
+	deadline := time.Now().Add(time.Second)
+	checkSetBit := check.Equal(setBit.State(), false)
+	if *deviations.MissingValueForDefaults {
+		checkSetBit = check.EqualOrNil(setBit.State(), false)
+	}
+
+	for _, vd := range []check.Validator{
+		checkSetBit,
+		check.Equal(overloads.State(), uint32(0)),
+	} {
+		if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
+			t.Error(err)
+		}
+	}
 	ts.DUTConf.
 		GetNetworkInstance(*deviations.DefaultNetworkInstance).
 		GetProtocol(session.PTISIS, session.ISISName).
@@ -51,12 +64,14 @@ func TestOverloadBit(t *testing.T) {
 		GetGlobal().
 		GetOrCreateLspBit().
 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
+	ts.PushDUT(context.Background())
 
-	//TOD: Replace this with ts.PushDUT
-	ts.PushDUTOverLoadBit(t)
-
-	overloads.Await(t, time.Second*10, 1)
-	assert.Value(t, setBit, true)
+	if err := check.Equal[uint32](overloads.State(), 1).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
+		t.Error(err)
+	}
+	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second, ts.DUTClient); err != nil {
+		t.Error(err)
+	}
 
 	_, ok := otg.Telemetry().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Flags().Watch(
 		t, time.Minute, func(val *otgtelemetry.QualifiedE_Lsps_FlagsSlice) bool {
@@ -75,23 +90,23 @@ func TestOverloadBit(t *testing.T) {
 
 func TestMetric(t *testing.T) {
 	t.Logf("Starting...")
-	ts := session.NewWithISIS(t)
+	ts := session.MustNew(t).WithISIS()
 	ts.ATE = ondatra.ATE(t, "ate")
 	configuredMetric := uint32(100)
 	otg := ts.ATE.OTG()
 	ts.DUTConf.GetNetworkInstance(*deviations.DefaultNetworkInstance).GetProtocol(session.PTISIS, session.ISISName).GetIsis().
 		GetInterface(ts.DUT.Port(t, "port1").Name()).
 		GetOrCreateLevel(2).
-		GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).
+		GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).
 		Metric = ygot.Uint32(configuredMetric)
 	ts.PushAndStart(t)
-	ts.AwaitAdjacency(t)
+	ts.MustAdjacency(t)
 
-	telemPth := ts.DUTISISTelemetry(t)
-	metric := telemPth.Interface(ts.DUT.Port(t, "port1").Name()).Level(2).
-		Af(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Metric()
-	assert.Value(t, metric, uint32(100))
-
+	metric := session.ISISPath().Interface(ts.DUTPort1.Name()).Level(2).
+		Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric()
+	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second, ts.DUTClient); err != nil {
+		t.Error(err)
+	}
 	_, ok := otg.Telemetry().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().Watch(
 		t, time.Minute, func(val *otgtelemetry.QualifiedUint32) bool {
 			return val.Val(t) == configuredMetric
