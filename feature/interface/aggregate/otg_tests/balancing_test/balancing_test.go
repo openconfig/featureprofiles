@@ -300,7 +300,8 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		lacpPath.Replace(t, lacp)
 	}
 
-	tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Await(t, 20*time.Second, opUp)
+	// TODO - to remove this sleep later
+	time.Sleep(5 * time.Second)
 
 	agg := &telemetry.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg, &dutDst)
@@ -466,27 +467,30 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	tc.top.Flows().Clear().Items()
 	flow := tc.top.Flows().Add().SetName(l3header)
 	flow.Metrics().SetEnable(true)
-	flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
 	flow.Size().SetFixed(128)
 	flow.Packet().Add().Ethernet().Src().SetValue(ateSrc.MAC)
 
 	if l3header == "ipv4" {
+		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
 	}
 	if l3header == "ipv4inipv4" {
+		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
 		flow.Packet().Add().Ipv4()
 	}
 	if l3header == "ipv6" {
+		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv6"}).SetRxNames([]string{i2 + ".IPv6"})
 		v6 := flow.Packet().Add().Ipv6()
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
 	}
 	if l3header == "ipv6inipv4" {
+		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
