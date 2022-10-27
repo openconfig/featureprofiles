@@ -260,6 +260,7 @@ tests:
   priority: 41
 - name: gNOI-3.4 (Chassis Reboot Status and Reboot Cancellation) 
   path: feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
+  patch: exec/firex/plugins/fp_patch/chassis_reboot_status_and_cancel_test.patch
   owner: arvbaska@cisco.com
   mustpass: false
   priority: 42
