@@ -56,15 +56,15 @@ duts {
   }
   ports {
     id: "port6"
-    name: "TenGigE0/0/0/2/0"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/2/1"  # Change this to the actual port name.
   }
   ports {
     id: "port7"
-    name: "TenGigE0/0/0/2/0"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/2/2"  # Change this to the actual port name.
   }
   ports {
     id: "port8"
-    name: "TenGigE0/0/0/2/0"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/2/3"  # Change this to the actual port name.
   }
 }
 
