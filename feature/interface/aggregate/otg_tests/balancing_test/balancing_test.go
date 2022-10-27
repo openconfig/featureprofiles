@@ -300,6 +300,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		lacpPath.Replace(t, lacp)
 	}
 
+	// TODO - to remove this sleep later
 	time.Sleep(5 * time.Second)
 
 	agg := &telemetry.Interface{Name: ygot.String(tc.aggID)}
