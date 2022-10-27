@@ -287,6 +287,8 @@ github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/pkg/sftp v1.13.1/go.mod h1:3HaPG6Dq1ILlpPZRO0HVMrsydcdLt6HRDccSgb87qRg=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+github.com/povsister/scp v0.0.0-20210427074412-33febfd9f13e h1:VtsDti2SgX7M7jy0QAyGgb162PeHLrOaNxmcYOtaGsY=
+github.com/povsister/scp v0.0.0-20210427074412-33febfd9f13e/go.mod h1:i1Au86ZXK0ZalQNyBp2njCcyhSCR/QP/AMfILip+zNI=
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
 github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a h1:AKJY61V2SQtJ2a2PdeswKk0NM1qF77X+julRNYRxPOk=
 github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a/go.mod h1:KjY0wibdYKc4DYkerHSbguaf3JeIPGhNJBp2BNiFH78=
