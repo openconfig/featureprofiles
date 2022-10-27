@@ -392,6 +392,9 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 				dip.OperStatus().Await(t, time.Minute, opDown)
 				t.Log("Port is down.")
 			}
+			if *deviations.InterfaceOperStatus && tf.want == telemetry.Interface_OperStatus_LOWER_LAYER_DOWN {
+				tf.want = opDown
+			}
 			tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Await(t, 1*time.Minute, tf.want)
 		})
 	}
