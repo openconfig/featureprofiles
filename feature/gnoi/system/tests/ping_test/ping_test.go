@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	minimumPingRequestSize        = 64
+	minimumPingRequestSize        = 56
 	maximumDefaultPingRequestSize = 1512
 	maximumPingRequestSize        = 9202
 	minimumPingReplySize          = 56
