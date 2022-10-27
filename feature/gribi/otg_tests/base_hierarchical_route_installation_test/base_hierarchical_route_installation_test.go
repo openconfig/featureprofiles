@@ -177,6 +177,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	v4.Src().SetValue(srcIpv4)
 	v4.Dst().Increment().SetStart("198.51.100.0").SetCount(250)
 	otg.PushConfig(t, top)
+	otg.StartProtocols(t)
 
 	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)

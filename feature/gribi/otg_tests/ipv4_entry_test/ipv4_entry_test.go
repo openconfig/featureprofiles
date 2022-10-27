@@ -385,6 +385,7 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
 	otg.PushConfig(t, ateTop)
+	otg.StartProtocols(t)
 	return modName
 }
 
