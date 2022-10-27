@@ -319,7 +319,7 @@ func TestSupFailure(t *testing.T) {
 	secondaryBeforeSwitch, primaryBeforeSwitch := findSecondaryController(t, dut, controllers)
 
 	if ok := switchoverReady(t, dut, primaryBeforeSwitch); !ok {
-		t.Fatalf("Controller %s did not become switchover-ready before test.", primaryBeforeSwitch)
+		t.Fatalf("Controller %q did not become switchover-ready before test.", primaryBeforeSwitch)
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
