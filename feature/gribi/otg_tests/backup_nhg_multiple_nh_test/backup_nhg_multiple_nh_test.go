@@ -269,18 +269,19 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 // createFlow returns a flow from atePort1 to the dstPfx
 func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name string) string {
 
-	flowipv4 := top.Flows().Add().SetName(name)
-	flowipv4.Metrics().SetEnable(true)
-	e1 := flowipv4.Packet().Add().Ethernet()
+	flow := top.Flows().Add().SetName(name)
+	flow.Metrics().SetEnable(true)
+	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	flowipv4.TxRx().Port().SetTxName(atePort1.Name)
+	flow.TxRx().Port().SetTxName(atePort1.Name)
 	waitOTGARPEntry(t)
 	dstMac := ate.OTG().Telemetry().Interface(atePort1.Name + ".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().Get(t)
 	e1.Dst().SetChoice("value").SetValue(dstMac)
-	v4 := flowipv4.Packet().Add().Ipv4()
+	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(1)
 	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 	return name
 
 }
@@ -288,7 +289,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 // validateTrafficFlows verifies that the flow on ATE and check interface counters on DUT
 func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, ateTop gosnappi.Config, flow string, drop bool) {
 	ate.OTG().StartTraffic(t)
-	time.Sleep(10 * time.Second)
+	time.Sleep(60 * time.Second)
 	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), ateTop)
 	otgutils.LogPortMetrics(t, ate.OTG(), ateTop)
@@ -310,7 +311,7 @@ func flapinterface(t *testing.T, dut *ondatra.DUTDevice, port string, action boo
 	// When running on kne the corresponding DUT port will be taken down
 	dutP := dut.Port(t, port)
 	dc := dut.Config()
-	i := &telemetry.Interface{Name: ygot.String(dutP.Name())}
+	i := &telemetry.Interface{}
 	i.Enabled = ygot.Bool(action)
 	dc.Interface(dutP.Name()).Update(t, i)
 }
