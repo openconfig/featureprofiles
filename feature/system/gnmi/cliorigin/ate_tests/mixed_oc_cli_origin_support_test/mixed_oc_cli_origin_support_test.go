@@ -49,7 +49,7 @@ func buildOCUpdate(path *gpb.Path, value string) *gpb.Update {
 	jsonVal, _ := ygot.Marshal7951(ygot.String(value))
 	update := &gpb.Update{
 		Path: path,
-		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: []byte(jsonVal)}},
+		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: jsonVal}},
 	}
 	return update
 }
