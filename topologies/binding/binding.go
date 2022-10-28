@@ -16,14 +16,17 @@ package binding
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -163,6 +166,30 @@ func (d *staticDUT) DialCLI(ctx context.Context, opts ...grpc.DialOption) (bindi
 		return nil, err
 	}
 	return newCLI(sc)
+}
+
+func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
+	if a.dev.Gnmi == nil {
+		return nil, fmt.Errorf("gnmi must be configured in ate binding")
+	}
+	addr := a.dev.Gnmi.Target
+	opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))) // NOLINT
+	conn, err := grpc.DialContext(ctx, addr, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("DialContext(ctx, %s, %v): %w", addr, opts, err)
+	}
+	return gpb.NewGNMIClient(conn), nil
+}
+
+func (a *staticATE) DialOTG(context.Context) (gosnappi.GosnappiApi, error) {
+	if a.dev.Otg == nil {
+		return nil, fmt.Errorf("otg must be configured in ate binding")
+	}
+	api := gosnappi.NewApi()
+	api.NewGrpcTransport().
+		SetLocation(a.dev.Otg.Target).
+		SetRequestTimeout(30 * time.Second)
+	return api, nil
 }
 
 func (a *staticATE) DialIxNetwork(ctx context.Context) (*binding.IxNetwork, error) {
@@ -336,6 +363,15 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 func (b *staticBind) reserveIxSessions(ctx context.Context) error {
 	ates := b.resv.ATEs
 	for _, ate := range ates {
+
+		bate := b.r.ateByName(ate.Name())
+		if bate == nil {
+			return fmt.Errorf("missing binding for ATE %q", bate.Id)
+		}
+		if bate.Ixnetwork == nil {
+			continue
+		}
+
 		dialer, err := b.r.ixnetwork(ate.Name())
 		if err != nil {
 			return err
