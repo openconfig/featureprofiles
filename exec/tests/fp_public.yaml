@@ -81,6 +81,10 @@ tests:
   priority: 11
 - name: TE-3.5 (Ordering ACK Received) 
   path: feature/gribi/ate_tests/ordering_ack_test
+  patch: exec/firex/plugins/fp_patch/ordering_ack_test.patch
+  args:
+        - '-deviation_gribi_preserve_only="true"'
+
   owner: mananpat@cisco.com
   mustpass: true
   priority: 12
