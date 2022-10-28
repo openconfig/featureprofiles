@@ -42,12 +42,11 @@ interface %s
 		const tmpl = `
 interfaces {
     %s {
-        description %s
+        description "%s"
     }
 }
 `
 		return fmt.Sprintf(tmpl, dp.Name(), desc)
-	}
 	}
 	return ""
 }
