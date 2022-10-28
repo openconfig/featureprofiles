@@ -81,6 +81,9 @@ message Device {
 
   // Dial options for IxNetwork (ATE only).
   Options ixnetwork = 17;
+
+  // Dial options for OTG Ixia-C (HW Only).
+  Options otg = 18;
 }
 
 // Dial options.
