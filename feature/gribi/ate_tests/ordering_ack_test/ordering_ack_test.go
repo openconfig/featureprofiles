@@ -244,7 +244,7 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 		got := aftNextHopWeights(t, args.dut, nhgIndex, *deviations.DefaultNetworkInstance)
 		want := []uint64{nhWeight}
 		// when a next hop group (nhg) has only one next hop, most FIB implemenation map the nhg to a single path and ignore the weight.
-		// In this case, AFT may returns no value or zero as weight, so validate weights only for nhg with more than on nh.
+		// In this case, AFT may returns no value or zero as weight, so validate weights only for nhg with more than one nh.
 		if len(want) > 1 {
 			ok := cmp.Equal(want, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
 			if !ok {
@@ -336,7 +336,7 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 		got := aftNextHopWeights(t, args.dut, nhgIndex, *deviations.DefaultNetworkInstance)
 		want := []uint64{nhWeight}
 		// if a next hop group (nhg) has only one next hop, most FIB implemenation map the nhg to a single path and ignore the weight.
-		// In this case, AFT may returns no value or zero as weight, so validate weights only for nhg with more than on nh.
+		// In this case, AFT may returns no value or zero as weight, so validate weights only for nhg with more than one nh.
 		if len(want) > 1 {
 			ok := cmp.Equal(want, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
 			if !ok {
