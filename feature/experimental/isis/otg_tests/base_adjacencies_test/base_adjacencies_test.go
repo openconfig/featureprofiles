@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/ondatra/otg"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 type OtgFlowMetric struct {
@@ -403,56 +404,57 @@ func TestHelloPadding(t *testing.T) {
 	}
 }
 
-// // TestAuthentication verifies that with authentication enabled or disabled we can still establish
-// // an IS-IS session with the ATE.
-// func TestAuthentication(t *testing.T) {
-// 	const password = "google"
-// 	for _, tc := range []struct {
-// 		name    string
-// 		mode    oc.E_IsisTypes_AUTH_MODE
-// 		enabled bool
-// 	}{
-// 		{name: "enabled:md5", mode: oc.IsisTypes_AUTH_MODE_MD5, enabled: true},
-// 		{name: "enabled:text", mode: oc.IsisTypes_AUTH_MODE_TEXT, enabled: true},
-// 		{name: "disabled", mode: oc.IsisTypes_AUTH_MODE_TEXT, enabled: false},
-// 	} {
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			ts := session.MustNew(t).WithISIS()
-// 			ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
-// 				level := isis.GetOrCreateLevel(2)
-// 				level.Enabled = ygot.Bool(true)
-// 				auth := level.GetOrCreateAuthentication()
-// 				auth.Enabled = ygot.Bool(true)
-// 				auth.AuthMode = tc.mode
-// 				auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-// 				auth.AuthPassword = ygot.String(password)
-// 				for _, intf := range isis.Interface {
-// 					intf.GetOrCreateLevel(2).GetOrCreateHelloAuthentication().Enabled = ygot.Bool(tc.enabled)
-// 					if tc.enabled {
-// 						intf.GetLevel(2).GetHelloAuthentication().AuthPassword = ygot.String("google")
-// 						intf.GetLevel(2).GetHelloAuthentication().AuthMode = tc.mode
-// 						intf.GetLevel(2).GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-// 					}
-// 				}
-// 			}, func(isis *ixnet.ISIS) {
-// 				if tc.enabled {
-// 					switch tc.mode {
-// 					case oc.IsisTypes_AUTH_MODE_TEXT:
-// 						isis.WithAuthPassword(password)
-// 					case oc.IsisTypes_AUTH_MODE_MD5:
-// 						isis.WithAuthMD5(password)
-// 					default:
-// 						t.Fatalf("test case has bad mode: %v", tc.mode)
-// 					}
-// 				} else {
-// 					isis.WithAuthDisabled()
-// 				}
-// 			})
-// 			ts.PushAndStart(t)
-// 			ts.MustAdjacency(t)
-// 		})
-// 	}
-// }
+// TestAuthentication verifies that with authentication enabled or disabled we can still establish
+// an IS-IS session with the ATE.
+func TestAuthentication(t *testing.T) {
+	const password = "google"
+	for _, tc := range []struct {
+		name    string
+		mode    oc.E_IsisTypes_AUTH_MODE
+		enabled bool
+	}{
+		{name: "enabled:md5", mode: oc.IsisTypes_AUTH_MODE_MD5, enabled: true},
+		{name: "enabled:text", mode: oc.IsisTypes_AUTH_MODE_TEXT, enabled: true},
+		{name: "disabled", mode: oc.IsisTypes_AUTH_MODE_TEXT, enabled: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ts := session.MustNew(t).WithISIS()
+			ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
+				level := isis.GetOrCreateLevel(2)
+				level.Enabled = ygot.Bool(true)
+				auth := level.GetOrCreateAuthentication()
+				auth.Enabled = ygot.Bool(true)
+				auth.AuthMode = tc.mode
+				auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+				auth.AuthPassword = ygot.String(password)
+				for _, intf := range isis.Interface {
+					intf.GetOrCreateLevel(2).GetOrCreateHelloAuthentication().Enabled = ygot.Bool(tc.enabled)
+					if tc.enabled {
+						intf.GetLevel(2).GetHelloAuthentication().AuthPassword = ygot.String("google")
+						intf.GetLevel(2).GetHelloAuthentication().AuthMode = tc.mode
+						intf.GetLevel(2).GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+					}
+				}
+			})
+			if tc.enabled {
+				switch tc.mode {
+				case oc.IsisTypes_AUTH_MODE_TEXT:
+					ts.ATEIntf1.Isis().Interfaces().Items()[0].Authentication().SetAuthType("password")
+					ts.ATEIntf1.Isis().Interfaces().Items()[0].Authentication().SetPassword(password)
+				case oc.IsisTypes_AUTH_MODE_MD5:
+					ts.ATEIntf1.Isis().Interfaces().Items()[0].Authentication().SetAuthType("md5")
+					ts.ATEIntf1.Isis().Interfaces().Items()[0].Authentication().SetMd5(password)
+				default:
+					t.Fatalf("test case has bad mode: %v", tc.mode)
+				}
+			} else {
+				ts.ATEIntf1.Isis().RouterAuth().SetIgnoreReceiveMd5(true)
+			}
+			ts.PushAndStart(t)
+			ts.MustAdjacency(t)
+		})
+	}
+}
 
 // TestTraffic has the ATE advertise some routes and verifies that traffic sent to the DUT is routed
 // appropriately.

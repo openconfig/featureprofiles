@@ -48,9 +48,10 @@ const (
 	ATEAreaAddress = "49.0002"
 	DUTSysID       = "1920.0000.2001"
 	ATESysID       = "640000000001"
-	ISISName       = "DEFAULT"
-	pLen4          = 30
-	pLen6          = 126
+	// TODO: Change the name to DEFAULT
+	ISISName = "osisis"
+	pLen4    = 30
+	pLen6    = 126
 )
 
 var (
@@ -296,4 +297,19 @@ func (s *TestSession) MustAdjacency(t testing.TB) string {
 		t.Fatalf("Waiting for adjacency to form: %v", err)
 	}
 	return adjID
+}
+
+// MustATEInterface returns the ATE interface for the portID, or calls t.Fatal
+// if this fails.
+func (s *TestSession) MustATEInterface(t testing.TB, portID string) gosnappi.Device {
+	if s.ATE == nil {
+		t.Fatal("Cannot run test without ATE")
+	}
+	for _, d := range s.ATETop.Devices().Items() {
+		Eth := d.Ethernets().Items()[0]
+		if Eth.PortName() == portID {
+			return d
+		}
+	}
+	return nil
 }
