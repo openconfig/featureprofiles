@@ -336,10 +336,12 @@ func TestBGP(t *testing.T) {
 				"192.0.2.2": {
 					PeerAs:          ygot.Uint32(ateAS1),
 					NeighborAddress: ygot.String("192.0.2.2"),
+					PeerGroup:       ygot.String("BGP-PEER-GROUP1"),
 				},
 				"192.0.2.6": {
 					PeerAs:          ygot.Uint32(ateAS2),
 					NeighborAddress: ygot.String("192.0.2.6"),
+					PeerGroup:       ygot.String("BGP-PEER-GROUP2"),
 				},
 			},
 		}},
@@ -367,6 +369,7 @@ func TestBGP(t *testing.T) {
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				"2001:db8::2": {
 					PeerAs:          ygot.Uint32(ateAS1),
+					PeerGroup:       ygot.String("BGP-PEER-GROUP1"),
 					NeighborAddress: ygot.String("2001:db8::2"),
 					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
 						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
@@ -377,6 +380,7 @@ func TestBGP(t *testing.T) {
 				},
 				"2001:db8::6": {
 					PeerAs:          ygot.Uint32(ateAS2),
+					PeerGroup:       ygot.String("BGP-PEER-GROUP2"),
 					NeighborAddress: ygot.String("2001:db8::6"),
 					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
 						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
@@ -412,6 +416,7 @@ func TestBGP(t *testing.T) {
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				"2001:db8::2": {
 					PeerAs:          ygot.Uint32(ateAS1),
+					PeerGroup:       ygot.String("BGP-PEER-GROUP1"),
 					NeighborAddress: ygot.String("2001:db8::2"),
 					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
 						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
@@ -426,6 +431,7 @@ func TestBGP(t *testing.T) {
 				},
 				"192.0.2.6": {
 					PeerAs:          ygot.Uint32(ateAS2),
+					PeerGroup:       ygot.String("BGP-PEER-GROUP2"),
 					NeighborAddress: ygot.String("192.0.2.6"),
 					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
 						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
@@ -460,6 +466,11 @@ func TestBGP(t *testing.T) {
 			}
 
 			dut := ondatra.DUT(t, "dut")
+			t.Log("Configure Network Instance")
+			dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+			dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			dutConfNIPath.RouterId().Replace(t, dutPort2.IPv4)
+
 			tc.dut.Configure(t, dut)
 
 			ate := ondatra.ATE(t, "ate")
