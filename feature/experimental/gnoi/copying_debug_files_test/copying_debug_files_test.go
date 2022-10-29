@@ -76,7 +76,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 	time.Sleep(60 * time.Second)
 
 	// construct struct with values for GetRequest for healthz call
-	req = &hpb.GetRequest{
+	req := &hpb.GetRequest{
 		Path: &tpb.Path{
 			Elem: []*tpb.PathElem{
 				&tpb.PathElem{
