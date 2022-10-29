@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 //   DUT
 //
 // Test notes:
-// Note: Initiating checkin to experimental
+//. Note: Initiating checkin to experimental
 //  - KillProcess system call is used to kill bgp process.
 //  - The healthz call needs to be modified to reflect the right component and its path.
 //
@@ -76,20 +76,11 @@ func TestCopyingDebugFiles(t *testing.T) {
 	time.Sleep(60 * time.Second)
 
 	// construct struct with values for GetRequest for healthz call
-	req := &hpb.GetRequest{
+	req = &hpb.GetRequest{
 		Path: &tpb.Path{
 			Elem: []*tpb.PathElem{
 				&tpb.PathElem{
 					Name: "openconfig-platform",
-				},
-				&tpb.PathElem{
-					Name: "components",
-				},
-				&tpb.PathElem{
-					Name: "component",
-				},
-				&tpb.PathElem{
-					Name: "chassis",
 				},
 			},
 		},
