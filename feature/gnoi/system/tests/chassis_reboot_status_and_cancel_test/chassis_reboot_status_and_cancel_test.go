@@ -18,10 +18,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/telemetry"
 )
 
 const (
@@ -84,6 +87,16 @@ func TestRebootStatus(t *testing.T) {
 		},
 	}
 
+	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
+	if !*deviations.GNOIStatusWithEmptySubcomponent {
+		supervisors := components.FindComponentsByType(t, dut, telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+		// the test reboots the chasis, so any subcomponent should be ok to check the status
+		statusReq = &spb.RebootStatusRequest{
+			Subcomponents: []*tpb.Path{
+				components.GetSubcomponentPath(supervisors[0]),
+			},
+		}
+	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.rebootRequest != nil {
@@ -94,15 +107,6 @@ func TestRebootStatus(t *testing.T) {
 					t.Fatalf("Failed to request reboot with unexpected err: %v", err)
 				}
 			}
-			statusReq := &spb.RebootStatusRequest{
-				Subcomponents: []*tpb.Path{
-					{
-						Origin: "openconfig",
-						Elem:   []*tpb.PathElem{{Name: "components"}, {Name: "component", Key: map[string]string{"name": "0/RP0/CPU0"}}},
-					},
-				},
-			}
-
 			resp, err := gnoiClient.System().RebootStatus(context.Background(), statusReq)
 			t.Logf("DUT rebootStatus: %v, err: %v", resp, err)
 			if err != nil {
@@ -159,13 +163,15 @@ func TestCancelReboot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to request reboot with unexpected err: %v", err)
 	}
-	statusReq := &spb.RebootStatusRequest{
-		Subcomponents: []*tpb.Path{
-			{
-				Origin: "openconfig",
-				Elem:   []*tpb.PathElem{{Name: "components"}, {Name: "component", Key: map[string]string{"name": "0/RP0/CPU0"}}},
+	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
+	if !*deviations.GNOIStatusWithEmptySubcomponent {
+		supervisors := components.FindComponentsByType(t, dut, telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+		// the test reboots the chasis, so any subcomponent should be ok to check the status
+		statusReq = &spb.RebootStatusRequest{
+			Subcomponents: []*tpb.Path{
+				components.GetSubcomponentPath(supervisors[0]),
 			},
-		},
+		}
 	}
 	rebootStatus, err := gnoiClient.System().RebootStatus(context.Background(), statusReq)
 	t.Logf("DUT rebootStatus: %v, err: %v", rebootStatus, err)
