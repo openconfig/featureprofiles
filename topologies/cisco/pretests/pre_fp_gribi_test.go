@@ -27,7 +27,6 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
-
 )
 
 func TestMain(m *testing.M) {
@@ -79,7 +78,6 @@ var (
 	}
 )
 
-
 func TestResetGRIBIServerFP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &system.KillProcessRequest{Name: "emsd", Restart: true, Signal: system.KillProcessRequest_SIGNAL_TERM})
@@ -106,7 +104,6 @@ func TestResetGRIBIServerFP(t *testing.T) {
 	ipv4Path.Watch(t, 10*time.Second, func(val *telemetry.QualifiedNetworkInstance_Afts_Ipv4Entry) bool {
 		// Do nothing in this matching function, as we already filter on the prefix.
 		return true
-	})	
+	})
 	clientA.Flush(t)
 }
-
