@@ -76,14 +76,15 @@ func TestCopyingDebugFiles(t *testing.T) {
 	time.Sleep(60 * time.Second)
 
 	// construct struct with values for GetRequest for healthz call
+	pathElems := []*tpb.PathElem{
+		&tpb.PathElem{Name: "openconfig-platform"},
+	}
+	path := &tpb.Path{
+		Origin: "openconfig",
+		Elem:   pathElems,
+	}
 	req := &hpb.GetRequest{
-		Path: &tpb.Path{
-			Elem: []*tpb.PathElem{
-				&tpb.PathElem{
-					Name: "openconfig-platform",
-				},
-			},
-		},
+		Path: path,
 	}
 	validResponse, err := gnoiClient.Healthz().Get(context.Background(), req)
 	fmt.Println(err)
