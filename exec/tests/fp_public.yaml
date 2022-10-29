@@ -62,7 +62,7 @@ tests:
   priority: 8
 - name: TE-4.1 (Base Leader Election) 
   path: feature/gribi/ate_tests/base_leader_election_test
-  patch: exec/firex/plugins/fp_patch/base_leader_election_test.patch
+  #patch: exec/firex/plugins/fp_patch/base_leader_election_test.patch
   owner: mananpat@cisco.com
   mustpass: true
   priority: 9
@@ -84,13 +84,15 @@ tests:
   patch: exec/firex/plugins/fp_patch/ordering_ack_test.patch
   args:
         - '-deviation_gribi_preserve_only="true"'
-
   owner: mananpat@cisco.com
   mustpass: true
   priority: 12
 - name: TE-3.7 (Base Hierarchical NHG Update) 
   path: feature/gribi/ate_tests/base_hierarchical_nhg_update
-  patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
+  args:
+      - '-deviation_interface_enabled="true"'
+      - '-deviation_ipv4_missing_enabled="true"'
+  #patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
   owner: mananpat@cisco.com
   mustpass: false
   priority: 13
@@ -148,13 +150,13 @@ tests:
   priority: 22
 - name: TE-11.1 (Backup NHG Single NH) 
   path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
-  patch: exec/firex/plugins/fp_patch/backup_nhg_test.patch
+  #patch: exec/firex/plugins/fp_patch/backup_nhg_test.patch
   owner: mananpat@cisco.com
   mustpass: true
   priority: 23
 - name: TE-14.1 (gRIBI Scaling)
   path: feature/gribi/ate_tests/gribi_scaling
-  patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
+  #patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
   timeout: 7200
   owner: mananpat@cisco.com
   mustpass: true
@@ -166,7 +168,7 @@ tests:
   priority: 25
 - name: gNMI-1.12 (Mixed OpenConfig/CLI Origin) 
   path: feature/system/gnmi/cliorigin/ate_tests/mixed_oc_cli_origin_support_test
-  patch: exec/firex/plugins/fp_patch/mixed_oc_cli_origin_support_test.patch
+  #patch: exec/firex/plugins/fp_patch/mixed_oc_cli_origin_support_test.patch
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 26
@@ -224,6 +226,7 @@ tests:
   path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
   args:
       - '-deviation_interface_counters_from_container="true"'
+      - '-deviation_interface_enabled="true"'
       - '-deviation_ipv4_missing_enabled="true"'
       - '-deviation_subinterface_packet_counters_missing="true"'
   owner: agvarghe@cisco.com
