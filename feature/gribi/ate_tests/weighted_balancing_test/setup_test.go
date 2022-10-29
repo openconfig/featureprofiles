@@ -175,16 +175,18 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	// down, the device does not attempt to route packets through the
 	// default gateway 0.0.0.0/0.  Packets destined to the more specific
 	// next hop CIDRs will be routed.
-	static := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(discardCIDR),
+	if *deviations.AddDiscardRoute {
+		static := &oc.NetworkInstance_Protocol_Static{
+			Prefix: ygot.String(discardCIDR),
+		}
+		static.GetOrCreateNextHop("2").
+			NextHop = oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
+		staticp := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
+			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
+			Static(discardCIDR)
+		fptest.LogQuery(t, "discard route", staticp.Config(), static)
+		gnmi.Replace(t, dut, staticp.Config(), static)
 	}
-	static.GetOrCreateNextHop("AUTO_drop_2").
-		NextHop = oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
-	staticp := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
-		Static(discardCIDR)
-	fptest.LogQuery(t, "discard route", staticp.Config(), static)
-	gnmi.Replace(t, dut, staticp.Config(), static)
 
 	for _, dp := range dut.Ports() {
 		if i := dutInterface(dp); i != nil {
