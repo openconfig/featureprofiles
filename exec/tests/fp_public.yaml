@@ -92,7 +92,7 @@ tests:
   args:
       - '-deviation_interface_enabled="true"'
       - '-deviation_ipv4_missing_enabled="true"'
-  #patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
+  patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
   owner: mananpat@cisco.com
   mustpass: false
   priority: 13
