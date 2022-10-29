@@ -16,11 +16,12 @@ package ordering_ack_test
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -30,13 +31,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
-)
-
-var (
-	// TE-3.5 specific deviation flags that are currently set to reduced compliance checking
-	// in order to establish a baseline to highlight the non-compliant behavior.  They
-	// should be set to the more strict setting.
-	checkTelemetry = flag.Bool("telemetry", false /* TODO: set to true */, "Check AFT telemetry.")
 )
 
 func TestMain(m *testing.M) {
@@ -236,15 +230,11 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 	)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		if !*checkTelemetry {
-			t.Skip()
-		}
-		nhgNhPath := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhgIndex).NextHop(nhIndex)
-		if got, want := nhgNhPath.Index().Get(t), uint64(nhIndex); got != want {
-			t.Errorf("next-hop-group/next-hop/state/index got %d, want %d", got, want)
-		}
-		if got, want := nhgNhPath.Weight().Get(t), uint64(nhWeight); got != want {
-			t.Errorf("next-hop-group/next-hop/state/weight got %d, want %d", got, want)
+		got := aftNextHopWeights(t, args.dut, nhgIndex, *deviations.DefaultNetworkInstance)
+		want := []uint64{nhWeight}
+		ok := cmp.Equal(want, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
+		if !ok {
+			t.Errorf("next-hop-group/next-hop/state/weight got %v, want %v", got, want)
 		}
 	})
 }
@@ -328,21 +318,14 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 	)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		if !*checkTelemetry {
-			t.Skip()
-		}
-		nhgNhPath := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhgIndex).NextHop(nhIndex)
-		if got, want := nhgNhPath.Index().Get(t), uint64(nhIndex); got != want {
-			t.Errorf("next-hop-group/next-hop/state/index got %d, want %d", got, want)
-		}
-		if got, want := nhgNhPath.Weight().Get(t), uint64(nhWeight); got != want {
-			t.Errorf("next-hop-group/next-hop/state/weight got %d, want %d", got, want)
+		got := aftNextHopWeights(t, args.dut, nhgIndex, *deviations.DefaultNetworkInstance)
+		want := []uint64{nhWeight}
+		ok := cmp.Equal(want, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
+		if !ok {
+			t.Errorf("next-hop-group/next-hop/state/weight got %v, want %v", got, want)
 		}
 
 		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-		if got, want := ipv4Path.NextHopGroup().Get(t), uint64(nhgIndex); got != want {
-			t.Errorf("ipv4-entry/state/next-hop-group got %d, want %d", got, want)
-		}
 		if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
@@ -351,6 +334,29 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 	t.Run("Traffic", func(t *testing.T) {
 		testTraffic(t, args.ate, args.top)
 	})
+}
+
+// aftNextHopWeights queries AFT telemetry using Get() and returns
+// the weights. If not-found, an empty list is returned.
+func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, networkInstance string) []uint64 {
+	aft := dut.Telemetry().NetworkInstance(networkInstance).Afts().Get(t)
+	var nhgD *telemetry.NetworkInstance_Afts_NextHopGroup
+	for _, nhgData := range aft.NextHopGroup {
+		if nhgData.GetProgrammedId() == nhg {
+			nhgD = nhgData
+			break
+		}
+	}
+	if nhgD == nil {
+		return []uint64{}
+	}
+
+	got := []uint64{}
+	for _, nhD := range nhgD.NextHop {
+		got = append(got, nhD.GetWeight())
+	}
+
+	return got
 }
 
 // testModifyIPv4AddDelAdd configures a ModifyRequest with AFT operations to add, delete,
@@ -398,13 +404,7 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 	)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		if !*checkTelemetry {
-			t.Skip()
-		}
 		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-		if got, want := ipv4Path.NextHopGroup().Get(t), uint64(nhgIndex); got != want {
-			t.Errorf("ipv4-entry/state/next-hop-group got %d, want %d", got, want)
-		}
 		if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
