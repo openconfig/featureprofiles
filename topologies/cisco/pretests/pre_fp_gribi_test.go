@@ -98,22 +98,21 @@ func TestResetGRIBIServerFP(t *testing.T) {
 	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
 
+	nhg := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR).NextHopGroup()
+	nhg.Watch(t, 33*time.Second, func(*telemetry.QualifiedUint64) bool {
+		// Do nothing in this matching function, as we already filter on the prefix.
+		return true
+	})
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
 	ipv4Path := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	ipv4Path.Prefix().Lookup(t)
 	ipv4Path.Lookup(t)
 
 	ipv4Path.Watch(t, 33*time.Second, func(val *telemetry.QualifiedNetworkInstance_Afts_Ipv4Entry) bool {
 		// Do nothing in this matching function, as we already filter on the prefix.
 		return true
 	})
+	ipv4Path.Prefix().Lookup(t)
 	ipv4Path.Prefix().Watch(t, 33*time.Second, func(val *telemetry.QualifiedString) bool {
-		// Do nothing in this matching function, as we already filter on the prefix.
-		return true
-	})
-
-	nhg := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR).NextHopGroup()
-	nhg.Watch(t, 33*time.Second, func(*telemetry.QualifiedUint64) bool {
 		// Do nothing in this matching function, as we already filter on the prefix.
 		return true
 	})
