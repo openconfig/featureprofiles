@@ -81,7 +81,7 @@ var (
 func TestResetGRIBIServerFP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &system.KillProcessRequest{Name: "emsd", Restart: true, Signal: system.KillProcessRequest_SIGNAL_TERM})
-	time.Sleep(time.Minute)
+	time.Sleep(20 * time.Second)
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
 		DUT:                  dut,
@@ -101,9 +101,22 @@ func TestResetGRIBIServerFP(t *testing.T) {
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
 	ipv4Path := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
 	ipv4Path.Prefix().Lookup(t)
-	ipv4Path.Watch(t, 10*time.Second, func(val *telemetry.QualifiedNetworkInstance_Afts_Ipv4Entry) bool {
+	ipv4Path.Lookup(t)
+
+	ipv4Path.Watch(t, 33*time.Second, func(val *telemetry.QualifiedNetworkInstance_Afts_Ipv4Entry) bool {
 		// Do nothing in this matching function, as we already filter on the prefix.
 		return true
 	})
+	ipv4Path.Prefix().Watch(t, 33*time.Second, func(val *telemetry.QualifiedString) bool {
+		// Do nothing in this matching function, as we already filter on the prefix.
+		return true
+	})
+
+	nhg := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR).NextHopGroup()
+	nhg.Watch(t, 33*time.Second, func(*telemetry.QualifiedUint64) bool {
+		// Do nothing in this matching function, as we already filter on the prefix.
+		return true
+	})
+
 	clientA.Flush(t)
 }
