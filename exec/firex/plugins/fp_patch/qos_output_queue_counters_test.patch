@@ -1,8 +1,8 @@
 diff --git a/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go b/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
-index 372f0342..bbb610ed 100644
+index be1c9935..e2da9312 100644
 --- a/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
 +++ b/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
-@@ -15,6 +15,7 @@
+@@ -15,9 +15,11 @@
  package qos_output_queue_counters_test
  
  import (
@@ -10,7 +10,11 @@ index 372f0342..bbb610ed 100644
  	"testing"
  	"time"
  
-@@ -65,7 +66,9 @@ func TestQoSCounters(t *testing.T) {
++	"github.com/openconfig/featureprofiles/internal/deviations"
+ 	"github.com/openconfig/featureprofiles/internal/fptest"
+ 	"github.com/openconfig/ondatra"
+ 	"github.com/openconfig/ondatra/telemetry"
+@@ -64,7 +66,9 @@ func TestQoSCounters(t *testing.T) {
  	dp2 := dut.Port(t, "port2")
  
  	// Configure DUT interfaces.
@@ -20,7 +24,7 @@ index 372f0342..bbb610ed 100644
  
  	// Configure ATE interfaces.
  	ate := ondatra.ATE(t, "ate")
-@@ -105,12 +108,13 @@ func TestQoSCounters(t *testing.T) {
+@@ -104,12 +108,13 @@ func TestQoSCounters(t *testing.T) {
  		}
  	case ondatra.CISCO:
  		trafficFlows = map[string]*trafficData{
@@ -40,7 +44,16 @@ index 372f0342..bbb610ed 100644
  		}
  	default:
  		t.Fatalf("Output queue mapping is missing for %v", dut.Vendor().String())
-@@ -219,3 +223,66 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
+@@ -210,9 +215,75 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
+ 		}
+ 		i.GetOrCreateEthernet()
+ 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+-		s.Enabled = ygot.Bool(true)
++		if *deviations.InterfaceEnabled {
++			s.Enabled = ygot.Bool(true)
++		}
+ 		a := s.GetOrCreateAddress(intf.ipAddr)
+ 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
  		dut.Config().Interface(intf.intfName).Replace(t, i)
  	}
  }
@@ -58,6 +71,7 @@ index 372f0342..bbb610ed 100644
 +	}
 +	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 +	schedule := schedulerpol.GetOrCreateScheduler(1)
++	schedule.Priority = telemetry.Scheduler_Priority_STRICT
 +	var ind uint64
 +	ind = 0
 +
@@ -66,9 +80,9 @@ index 372f0342..bbb610ed 100644
 +		input.Id = ygot.String(schedqueue)
 +		input.Weight = ygot.Uint64(7 - ind)
 +		input.Queue = ygot.String(schedqueue)
-+		dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input(*input.Id).Update(t, input)
 +		ind += 1
 +	}
++	dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Update(t, schedule)
 +	schedinterface := qos.GetOrCreateInterface(dp2.Name())
 +	schedinterface.InterfaceId = ygot.String(dp2.Name())
 +	dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name().Update(t, "eg_policy1111")
