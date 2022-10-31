@@ -133,3 +133,9 @@ tests:
   owner: mananpat@cisco.com
   mustpass: true
   priority: 24
+- name: TE-1.1 (Static ARP) 
+  path: feature/interface/staticarp/ate_tests/static_arp_test
+  owner: mbagherz@cisco.com
+  mustpass: false
+  priority: 50
+  skip: true
