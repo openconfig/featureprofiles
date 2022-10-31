@@ -46,9 +46,10 @@ func buildOCUpdate(path *gpb.Path, value string) *gpb.Update {
 	if len(path.GetElem()) == 0 || path.GetElem()[0].GetName() != "meta" {
 		path.Origin = "openconfig"
 	}
+	jsonVal, _ := ygot.Marshal7951(ygot.String(value))
 	update := &gpb.Update{
 		Path: path,
-		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_StringVal{StringVal: value}},
+		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: jsonVal}},
 	}
 	return update
 }

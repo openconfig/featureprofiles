@@ -1,5 +1,5 @@
 diff --git a/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go b/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
-index 372f0342..bbb610ed 100644
+index 372f0342..0b2b4555 100644
 --- a/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
 +++ b/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
 @@ -15,6 +15,7 @@
@@ -10,17 +10,15 @@ index 372f0342..bbb610ed 100644
  	"testing"
  	"time"
  
-@@ -65,7 +66,9 @@ func TestQoSCounters(t *testing.T) {
- 	dp2 := dut.Port(t, "port2")
+@@ -66,6 +67,7 @@ func TestQoSCounters(t *testing.T) {
  
  	// Configure DUT interfaces.
-+
  	ConfigureDUTIntf(t, dut)
 +	ConfigureDutQos(t, dut)
  
  	// Configure ATE interfaces.
  	ate := ondatra.ATE(t, "ate")
-@@ -105,12 +108,13 @@ func TestQoSCounters(t *testing.T) {
+@@ -105,12 +107,13 @@ func TestQoSCounters(t *testing.T) {
  		}
  	case ondatra.CISCO:
  		trafficFlows = map[string]*trafficData{
@@ -40,11 +38,10 @@ index 372f0342..bbb610ed 100644
  		}
  	default:
  		t.Fatalf("Output queue mapping is missing for %v", dut.Vendor().String())
-@@ -219,3 +223,66 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
+@@ -219,3 +222,66 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
  		dut.Config().Interface(intf.intfName).Replace(t, i)
  	}
  }
-+
 +func ConfigureDutQos(t *testing.T, dut *ondatra.DUTDevice) {
 +	dp1 := dut.Port(t, "port1")
 +	dp2 := dut.Port(t, "port2")
@@ -58,6 +55,7 @@ index 372f0342..bbb610ed 100644
 +	}
 +	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 +	schedule := schedulerpol.GetOrCreateScheduler(1)
++	schedule.Priority = telemetry.Scheduler_Priority_STRICT
 +	var ind uint64
 +	ind = 0
 +
@@ -66,9 +64,9 @@ index 372f0342..bbb610ed 100644
 +		input.Id = ygot.String(schedqueue)
 +		input.Weight = ygot.Uint64(7 - ind)
 +		input.Queue = ygot.String(schedqueue)
-+		dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input(*input.Id).Update(t, input)
 +		ind += 1
 +	}
++	dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Update(t, schedule)
 +	schedinterface := qos.GetOrCreateInterface(dp2.Name())
 +	schedinterface.InterfaceId = ygot.String(dp2.Name())
 +	dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name().Update(t, "eg_policy1111")
