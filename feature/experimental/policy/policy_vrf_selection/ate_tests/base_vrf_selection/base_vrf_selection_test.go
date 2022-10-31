@@ -1,3 +1,17 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package base_vrf_selection_test
 
 import (
@@ -118,7 +132,7 @@ func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, subi
 	}
 	// Add IPv4 stack
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a := s4.GetOrCreateAddress(me.IPv4)
@@ -182,9 +196,6 @@ func configForwardingPolicy() *telemetry.NetworkInstance_PolicyForwarding {
 	fwdPolicy3.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
 	fwdPolicy3.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
 	fwdPolicy3.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("20")
-	fwdPolicy3.GetOrCreateRule(3).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
-	fwdPolicy3.GetOrCreateRule(3).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
-	fwdPolicy3.GetOrCreateRule(3).GetOrCreateAction().Discard = ygot.Bool(true)
 
 	fwdPolicy4 := policyFwding.GetOrCreatePolicy("match-ipip-dscp46")
 	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(ipipProtocol)
@@ -200,7 +211,7 @@ func configForwardingPolicy() *telemetry.NetworkInstance_PolicyForwarding {
 	fwdPolicy5.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
 	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(ipipProtocol)
 	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
-	fwdPolicy5.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("20")
+	fwdPolicy5.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("10")
 	fwdPolicy5.GetOrCreateRule(3).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
 	fwdPolicy5.GetOrCreateRule(3).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
 	fwdPolicy3.GetOrCreateRule(3).GetOrCreateAction().Discard = ygot.Bool(true)
@@ -326,13 +337,13 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, 
 		lossPct := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t)
 		if contains(flow.Name(), passFlows) {
 			if lossPct > 0 {
-				t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", flow.Name(), lossPct)
+				t.Errorf("Traffic Loss Pct for Flow: %s got %v, want 0", flow.Name(), lossPct)
 			} else {
 				t.Logf("Traffic Test Passed!")
 			}
 		} else {
 			if lossPct < 100 {
-				t.Errorf("Traffic is expected to fail %s\n got %v, want 100%% failure", flow.Name(), lossPct)
+				t.Errorf("Traffic is expected to fail %s got %v, want 100%% failure", flow.Name(), lossPct)
 			} else {
 				t.Logf("Traffic Test Passed!")
 			}
