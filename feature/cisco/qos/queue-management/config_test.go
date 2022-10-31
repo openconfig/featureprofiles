@@ -17,18 +17,7 @@ func TestMain(m *testing.M) {
 }
 func TestQmWredQosSet(t *testing.T) {
 	// testing creation of QM profiler at openconfig/qos
-	type qmprofiles struct {
-		redprofileName  []string
-		wredprfileName  []string
-		MinThreshold    []uint64
-		MaxThreshold    []uint64
-		DropProbability []uint8
-		EnableEcn       bool
-	}
-	redprofilelist := []string{}
-	for i := 1; i < 8; i++ {
-		redprofilelist = append(redprofilelist, fmt.Sprintf("redprofile%d", i))
-	}
+
 	wredprofilelist := []string{}
 	for i := 1; i < 8; i++ {
 		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
@@ -76,10 +65,7 @@ func TestQmRedQosSet(t *testing.T) {
 	for i := 1; i < 8; i++ {
 		redprofilelist = append(redprofilelist, fmt.Sprintf("redprofile%d", i))
 	}
-	wredprofilelist := []string{}
-	for i := 1; i < 8; i++ {
-		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
-	}
+
 	minthresholdlist := []uint64{}
 	for i := 1; i < 8; i++ {
 		minthresholdlist = append(minthresholdlist, 100000+uint64(i*6144))
@@ -88,10 +74,7 @@ func TestQmRedQosSet(t *testing.T) {
 	for i := 1; i < 8; i++ {
 		maxthresholdlist = append(maxthresholdlist, 130000+uint64(i*6144))
 	}
-	dropprobablity := []uint8{}
-	for i := 1; i < 8; i++ {
-		dropprobablity = append(dropprobablity, 10+uint8(i+2))
-	}
+
 	dut := ondatra.DUT(t, "dut")
 	d := &telemetry.Device{}
 	defer teardownQos(t, dut)
@@ -138,10 +121,7 @@ func TestQueueManagementQosReplace(t *testing.T) {
 }
 func TestQMQmwredSet(t *testing.T) {
 	//Replace/Get and  at /openconfig/qos/queue-management-profile
-	redprofilelist := []string{}
-	for i := 1; i < 8; i++ {
-		redprofilelist = append(redprofilelist, fmt.Sprintf("redprofile%d", i))
-	}
+
 	wredprofilelist := []string{}
 	for i := 1; i < 8; i++ {
 		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
@@ -205,10 +185,7 @@ func TestQMQmredSet(t *testing.T) {
 	for i := 1; i < 8; i++ {
 		redprofilelist = append(redprofilelist, fmt.Sprintf("redprofile%d", i))
 	}
-	wredprofilelist := []string{}
-	for i := 1; i < 8; i++ {
-		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
-	}
+
 	minthresholdlist := []uint64{}
 	for i := 1; i < 8; i++ {
 		minthresholdlist = append(minthresholdlist, 100000+uint64(i*6144))
@@ -217,10 +194,7 @@ func TestQMQmredSet(t *testing.T) {
 	for i := 1; i < 8; i++ {
 		maxthresholdlist = append(maxthresholdlist, 130000+uint64(i*6144))
 	}
-	dropprobablity := []uint8{}
-	for i := 1; i < 8; i++ {
-		dropprobablity = append(dropprobablity, 10+uint8(i+2))
-	}
+
 	dut := ondatra.DUT(t, "dut")
 	d := &telemetry.Device{}
 	defer teardownQos(t, dut)
@@ -272,10 +246,7 @@ func TestQMQmredSet(t *testing.T) {
 // }
 
 func TestQMWredSetReplace(t *testing.T) {
-	redprofilelist := []string{}
-	for i := 1; i < 8; i++ {
-		redprofilelist = append(redprofilelist, fmt.Sprintf("redprofile%d", i))
-	}
+
 	wredprofilelist := []string{}
 	for i := 1; i < 8; i++ {
 		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
@@ -317,10 +288,6 @@ func TestQMWredSetReplace(t *testing.T) {
 
 func TestQMWredUniReplace(t *testing.T) {
 
-	redprofilelist := []string{}
-	for i := 1; i < 8; i++ {
-		redprofilelist = append(redprofilelist, fmt.Sprintf("redprofile%d", i))
-	}
 	wredprofilelist := []string{}
 	for i := 1; i < 8; i++ {
 		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
@@ -361,10 +328,7 @@ func TestQMWredUniReplace(t *testing.T) {
 }
 
 func TestQMWredSetUpdate(t *testing.T) {
-	redprofilelist := []string{}
-	for i := 1; i < 8; i++ {
-		redprofilelist = append(redprofilelist, fmt.Sprintf("redprofile%d", i))
-	}
+
 	wredprofilelist := []string{}
 	for i := 1; i < 8; i++ {
 		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
@@ -404,10 +368,7 @@ func TestQMWredSetUpdate(t *testing.T) {
 }
 
 func TestQMWredUniUpdate(t *testing.T) {
-	redprofilelist := []string{}
-	for i := 1; i < 8; i++ {
-		redprofilelist = append(redprofilelist, fmt.Sprintf("redprofile%d", i))
-	}
+
 	wredprofilelist := []string{}
 	for i := 1; i < 8; i++ {
 		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
@@ -452,10 +413,7 @@ func TestQMRedReplace(t *testing.T) {
 	for i := 1; i < 8; i++ {
 		redprofilelist = append(redprofilelist, fmt.Sprintf("redprofile%d", i))
 	}
-	wredprofilelist := []string{}
-	for i := 1; i < 8; i++ {
-		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
-	}
+
 	minthresholdlist := []uint64{}
 	for i := 1; i < 8; i++ {
 		minthresholdlist = append(minthresholdlist, 100000+uint64(i*6144))
@@ -464,10 +422,7 @@ func TestQMRedReplace(t *testing.T) {
 	for i := 1; i < 8; i++ {
 		maxthresholdlist = append(maxthresholdlist, 130000+uint64(i*6144))
 	}
-	dropprobablity := []uint8{}
-	for i := 1; i < 8; i++ {
-		dropprobablity = append(dropprobablity, 10+uint8(i+2))
-	}
+
 	dut := ondatra.DUT(t, "dut")
 	d := &telemetry.Device{}
 	defer teardownQos(t, dut)
@@ -493,10 +448,7 @@ func TestQMRedSetUpdate(t *testing.T) {
 	for i := 1; i < 8; i++ {
 		redprofilelist = append(redprofilelist, fmt.Sprintf("redprofile%d", i))
 	}
-	wredprofilelist := []string{}
-	for i := 1; i < 8; i++ {
-		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
-	}
+
 	minthresholdlist := []uint64{}
 	for i := 1; i < 8; i++ {
 		minthresholdlist = append(minthresholdlist, 100000+uint64(i*6144))
@@ -505,10 +457,7 @@ func TestQMRedSetUpdate(t *testing.T) {
 	for i := 1; i < 8; i++ {
 		maxthresholdlist = append(maxthresholdlist, 130000+uint64(i*6144))
 	}
-	dropprobablity := []uint8{}
-	for i := 1; i < 8; i++ {
-		dropprobablity = append(dropprobablity, 10+uint8(i+2))
-	}
+
 	dut := ondatra.DUT(t, "dut")
 	d := &telemetry.Device{}
 	defer teardownQos(t, dut)
