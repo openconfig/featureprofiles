@@ -487,6 +487,7 @@ func testUpdateBackUpToDropID(ctx context.Context, t *testing.T, args *testArgs)
 	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 220.220.220.220/32 Null0")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 220.220.220.220/32 Null0")
 	//Modify Backup pointing to Different ID which is pointing to a different static rooute pointitng to DROP
+	//util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "27", "24", true)
 	args.client.AddNH(t, 999, "220.220.220.220", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.ReplaceNHG(t, 101, 0, map[uint64]uint64{999: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
@@ -2380,7 +2381,7 @@ func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs
 	// Elect client as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.client.BecomeLeader(t)
-	args.client.FlushServer(t)
+	//args.client.FlushServer(t)
 	//args.client.AddNH(t, 999, "220.220.220.220", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	//util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "28", "24", true)
 	//args.client.ReplaceNHG(t, 101, 0, map[uint64]uint64{999: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -2397,15 +2398,23 @@ func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 
+	//util.FaultInjectionMechanism(t, args.dut, []string{"0", "3", "6", "4"}, "ofa_la_srv", "5", "-1", false)
 	args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", true)
-	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", true)
-	args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks)
+
+	//util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "22", true)
+	//util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", false)
+	//args.client.DeleteNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	//args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks)
+	//defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", false)
+	//defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "22", false)
+	//util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", true)
+	//args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks)
+
 	//defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", false)
 
 	/*
