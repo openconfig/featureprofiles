@@ -77,7 +77,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 
 	// construct struct with values for GetRequest for healthz call
 	pathElems := []*tpb.PathElem{
-		&tpb.PathElem{Name: "openconfig-platform"},
+                {Name: "openconfig-platform"},
 	}
 	path := &tpb.Path{
 		Origin: "openconfig",
