@@ -12,20 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package attrs bundles some common interface attributes and provides
-// helpers to generate the appropriate OpenConfig and ATETopology.
-//
-// The use of this package in new tests is discouraged.  Legacy tests using this package
-// will be migrated to use testbed topology helpers.
-package attrs
+package session
 
+// This is identical to the internal/attrs library except it points to ygnmi
 import (
 	"fmt"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -76,7 +71,7 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
 	s := intf.GetOrCreateSubinterface(0)
 	if a.IPv4 != "" {
 		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+		if *deviations.InterfaceEnabled {
 			s4.Enabled = ygot.Bool(true)
 		}
 		if a.MTU > 0 {
@@ -126,24 +121,4 @@ func (a *Attributes) AddToATE(top *ondatra.ATETopology, ap *ondatra.Port, peer *
 			WithDefaultGateway(peer.IPv6)
 	}
 	return i
-}
-
-// AddToOTG adds basic elements to a gosnappi configuration
-func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attributes) {
-	top.Ports().Add().SetName(ap.ID())
-	dev := top.Devices().Add().SetName(a.Name)
-	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth")
-	eth.SetPortName(ap.ID()).SetMac(a.MAC)
-
-	if a.MTU > 0 {
-		eth.SetMtu(int32(a.MTU))
-	}
-	if a.IPv4 != "" {
-		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
-		ip.SetAddress(a.IPv4).SetGateway(peer.IPv4).SetPrefix(int32(a.IPv4Len))
-	}
-	if a.IPv6 != "" {
-		ip := eth.Ipv6Addresses().Add().SetName(dev.Name() + ".IPv6")
-		ip.SetAddress(a.IPv6).SetGateway(peer.IPv6).SetPrefix(int32(a.IPv6Len))
-	}
 }
