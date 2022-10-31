@@ -72,6 +72,7 @@ tests:
 - name: TE-3.3 (Hierarchical weight resolution)
   path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
   owner: mananpat@cisco.com
+  skip: true
   mustpass: false
   priority: 15
 - name: TE-6.1 (Route Removal via Flush) 
@@ -88,6 +89,7 @@ tests:
 - name: TE-3.6 (ACK in the Presence of Other Routes) 
   path: feature/gribi/ate_tests/ack_in_presence_other_routes
   patch: feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.patch
+  skip: true
   owner: mananpat@cisco.com
   priority: 18
   mustpass: true
@@ -95,12 +97,14 @@ tests:
   path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
   patch: exec/firex/plugins/fp_patch/base_hierarchical_route_installation_test.patch
   timeout: 7200
+  skip: true
   owner: mananpat@cisco.com
   mustpass: false
   priority: 19
 - name: TE-8.2 (Supervisor Failure)
   path: feature/experimental/gribi/ate_tests/supervisor_failure
   owner: mananpat@cisco.com
+  skip: true
   mustpass: true
   priority: 20
 - name: TE-11.2 (Backup NHG Multiple NH)
