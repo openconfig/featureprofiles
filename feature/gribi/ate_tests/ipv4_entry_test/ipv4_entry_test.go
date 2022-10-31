@@ -220,17 +220,17 @@ func TestIPv4Entry(t *testing.T) {
 			wantOperationResults: []*client.OpResult{
 				fluent.OperationResult().
 					WithNextHopOperation(nh1ID).
-					WithProgrammingResult(fluent.InstalledInFIB).
+					WithProgrammingResult(fluent.ProgrammingFailed).
 					WithOperationType(constants.Add).
 					AsResult(),
 				fluent.OperationResult().
 					WithNextHopGroupOperation(nhgID).
-					WithProgrammingResult(fluent.InstalledInFIB).
+					WithProgrammingResult(fluent.ProgrammingFailed).
 					WithOperationType(constants.Add).
 					AsResult(),
 				fluent.OperationResult().
 					WithIPv4Operation(dstPfx).
-					WithProgrammingResult(fluent.InstalledInFIB).
+					WithProgrammingResult(fluent.ProgrammingFailed).
 					WithOperationType(constants.Add).
 					AsResult(),
 			},
