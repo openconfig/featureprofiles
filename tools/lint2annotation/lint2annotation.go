@@ -17,6 +17,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -31,7 +32,12 @@ type diag struct {
 
 type jsonOutput map[string]map[string][]diag
 
+var (
+	severity = flag.String("severity", "notice", "Sets the severity of the Github annotations")
+)
+
 func main() {
+	flag.Parse()
 	dec := json.NewDecoder(os.Stdin)
 	for {
 		out := jsonOutput{}
@@ -44,7 +50,7 @@ func main() {
 			for _, diags := range pkg {
 				for _, diag := range diags {
 					pos := strings.Split(diag.Posn, ":")
-					fmt.Printf("::error file=%s,line=%s,col=%s::%s\n", pos[0], pos[1], pos[2], diag.Message)
+					fmt.Printf("::%s file=%s,line=%s,col=%s::%s\n", *severity, pos[0], pos[1], pos[2], diag.Message)
 				}
 			}
 		}
