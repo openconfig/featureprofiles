@@ -199,6 +199,7 @@ func configureNetworkInstance(t *testing.T) {
 // configStaticRoute configures a static route.
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
 	ni1 := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Get(t)
+	time.Sleep(10 * time.Second)
 	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	static.Enabled = ygot.Bool(true)
 	sr := static.GetOrCreateStatic(prefix)

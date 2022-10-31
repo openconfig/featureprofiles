@@ -59,7 +59,7 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 		t.Fatalf("Number of responses for programing results is not as expected, want: %d , got: %d ", expectResultCount, newResultsCount)
 	}
 	if check.FIBACK || check.RIBACK {
-		c.checkIPV4ResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
+		c.checkResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
 	}
 	if check.AFTCheck {
 		for _, prefix := range prefixes {
@@ -68,7 +68,58 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 	}
 }
 
-func (c *Client) checkIPV4ResultWithScale(t testing.TB, startIndex, endIndex int, expectFailure bool) {
+// AddNHBatch adds a list of NH
+func (c *Client) AddNHBatch(t testing.TB, nhIndex uint64, prefixes []string, instance, nhInstance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
+	resultLenBefore := len(c.fluentC.Results(t))
+	NHEntries := []fluent.GRIBIEntry{}
+
+	start := nhIndex
+	for _, prefix := range prefixes {
+		nhEntry := fluent.NextHopEntry().
+			WithNetworkInstance(instance).
+			WithIndex(start)
+		start = start + 1
+		if prefix == DECAP {
+			nhEntry = nhEntry.WithDecapsulateHeader(fluent.IPinIP)
+		} else if prefix != "" {
+			nhEntry = nhEntry.WithIPAddress(prefix)
+		}
+		if nhInstance != "" {
+			nhEntry = nhEntry.WithNextHopNetworkInstance(nhInstance)
+		}
+		if interfaceRef != "" {
+			nhEntry = nhEntry.WithInterfaceRef(interfaceRef)
+		}
+		NHEntries = append(NHEntries, nhEntry)
+	}
+	c.fluentC.Modify().AddEntry(t, NHEntries...)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add IPv4 entries: %v", err)
+	}
+	resultLenAfter := len(c.fluentC.Results(t))
+	newResultsCount := resultLenAfter - resultLenBefore
+	expectResultCount := len(prefixes)
+	if check.FIBACK {
+		expectResultCount = len(prefixes) * 2
+	}
+	if newResultsCount != expectResultCount {
+		t.Fatalf("Number of responses for programing results is not as expected, want: %d , got: %d ", expectResultCount, newResultsCount)
+	}
+	if check.FIBACK || check.RIBACK {
+		c.checkResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
+	}
+	if check.AFTCheck {
+		for _, prefix := range prefixes {
+			if prefix == DECAP {
+				c.checkNH(t, nhIndex, "0.0.0.0", instance, "", "Null0")
+			} else {
+				c.checkNH(t, nhIndex, prefix, instance, nhInstance, interfaceRef)
+			}
+		}
+	}
+}
+
+func (c *Client) checkResultWithScale(t testing.TB, startIndex, endIndex int, expectFailure bool) {
 	results := c.fluentC.Results(t)
 	for i := startIndex; i < endIndex; i = i + 1 {
 		if results[i] == nil {
@@ -125,7 +176,7 @@ func (c *Client) ReplaceIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint
 		t.Fatalf("Number of responses for programing results is not as expected, want: %d , got: %d ", expectResultCount, newResultsCount)
 	}
 	if check.FIBACK || check.RIBACK {
-		c.checkIPV4ResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
+		c.checkResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
 	}
 
 	if check.AFTCheck {
@@ -166,6 +217,6 @@ func (c *Client) DeleteIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint6
 		t.Fatalf("Number of responses for programing results is not as expected, want: %d , got: %d ", expectResultCount, newResultsCount)
 	}
 	if check.FIBACK || check.RIBACK {
-		c.checkIPV4ResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
+		c.checkResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
 	}
 }
