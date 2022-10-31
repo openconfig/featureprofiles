@@ -333,6 +333,7 @@ func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Inter
 	return s
 }
 
+// FaultInjectionMechanism injects faults on a line card for a given component name and fault-point number
 func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []string, componentName string, faultPointNumber string, returnValue string, activate bool) {
 
 	for _, lineCard := range lcNumber {
