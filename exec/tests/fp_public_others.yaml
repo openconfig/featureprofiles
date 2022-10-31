@@ -198,12 +198,6 @@ tests:
   mustpass: false
   priority: 49
   skip: true
-- name: TE-1.1 (Static ARP) 
-  path: feature/interface/staticarp/ate_tests/static_arp_test
-  owner: mbagherz@cisco.com
-  mustpass: false
-  priority: 50
-  skip: true
 - name: RT-6.1 (Core LLDP TLV Population) 
   path: feature/lldp/tests/core_lldp_tlv_population_test
   patch: exec/firex/plugins/fp_patch/chassis_reboot_status_and_cancel_test.patch
