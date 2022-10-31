@@ -244,9 +244,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p1VRF.Subinterface = ygot.Uint32(0)
 	dut.Config().NetworkInstance(vrfName).Replace(t, vrf)
 
-	d.Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
-	d.Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
-	d.Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
+	d.Interface(p1.Name()).Update(t, dutPort1.NewInterface(p1.Name()))
+	d.Interface(p2.Name()).Update(t, dutPort2.NewInterface(p2.Name()))
+	d.Interface(p3.Name()).Update(t, dutPort3.NewInterface(p3.Name()))
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
