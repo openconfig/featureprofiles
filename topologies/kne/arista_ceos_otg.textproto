@@ -1,7 +1,7 @@
 name: "ixia-c"
 nodes: {
     name: "ate"
-    type: IXIA_TG
+    vendor: KEYSIGHT
     version: "0.0.1-9999"
     services: {
         key: 40051
@@ -20,7 +20,9 @@ nodes: {
 }
 nodes: {
     name: "dut"
-    type: ARISTA_CEOS
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
     config: {
         image: "ceos:latest"
         init_image: "us-west1-docker.pkg.dev/gep-kne/kne/networkop/init-wait:ga"
