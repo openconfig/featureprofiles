@@ -30,29 +30,18 @@ nodes: {
         }
     }
     services:{
-        key: 23
+        key: 1000
         value: {
-            inside: 23
-        }
-    }
-
-    services:{
-        key: 21
-        value: {
-            name: "ftp"
-            inside: 21
+            name: "gribi"
+            outside: 1000
+            inside: 50051
         }
     }
     services:{
-        key: 20
-        value: {
-            inside: 20
-        }
-    }
-    services:{
-        key: 50051
+        key: 1001
         value: {
             name: "gnmi"
+            outside: 1001
             inside: 50051
         }
     }
