@@ -12,7 +12,6 @@ tests:
   #    - '-deviation_osactiavte_requires_reboot="true"'
   #    - '-deviation_no_osinstall_for_standby_rp="true"'
   owner: agvarghe@cisco.com
-  skip: true
   priority: 100
   mustpass: true
 - name: gNOI-5.1 (Ping Test) 
@@ -57,7 +56,6 @@ tests:
   path: feature/experimental/qos/ate_tests/qos_output_queue_counters_test
   patch: exec/firex/plugins/fp_patch/qos_output_queue_counters_test.patch
   owner: arvbaska@cisco.com
-  skip: true
   mustpass: true
   priority: 27
 - name: RT-5.3 (Aggregate Balancing) 
@@ -119,12 +117,14 @@ tests:
   patch: exec/firex/plugins/fp_patch/telemetry_inventory_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
+  skip: true
   priority: 36
 - name: gNMI-1.13 (Telemetry Optics Power and Bias Current) 
   path: feature/platform/tests/optics_power_and_bias_current_test
   owner: agvarghe@cisco.com
   mustpass: false
   priority: 37
+  skip: true
 - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace) 
   path: feature/system/gnmi/metadata/tests/annotation_test
   owner: kjahed@cisco.com
