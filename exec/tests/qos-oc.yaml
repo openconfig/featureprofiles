@@ -1,0 +1,8 @@
+name: oc-qos
+owner: saarvind@cisco.com
+testbed: topologies/cisco/pyvxr/testbed
+pyvxr:
+  topology: topologies/cisco/pyvxr/topo.yaml
+tests:
+- name: QOS OC leaf level coverage 
+  path: feature/cisco/qos/...

@@ -15,7 +15,6 @@ from test_framework import register_test_framework_provider
 from html_helper import get_link 
 from collections import namedtuple
 from pathlib import Path
-from gotest2html import GoTest2HTML
 import os
 import git 
 
@@ -106,6 +105,7 @@ def BringupTestbed(self, ws, images = None,
     fp_repo.git.commit('-m', 'patched go.mod and binding file')
 
     ondatra_repo = git.Repo(ondatra_repo_dir)
+    ondatra_repo.git.checkout("3338c3259dd8419b059443cadd238841a2472015")
     ondatra_repo.config_writer().set_value("name", "email", "gob4").release()
     ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
 
@@ -185,16 +185,16 @@ def b4_fp_chain_provider(ws,
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
 
-    ondatra_repo_dir = os.path.join(pkgs_parent_path,
-                        ONDATRA_REPO_CLONE_INFO.path)
+    # ondatra_repo_dir = os.path.join(pkgs_parent_path,
+    #                     ONDATRA_REPO_CLONE_INFO.path)
     fp_repo_dir = os.path.join(pkgs_parent_path, 
                         FP_REPO_CLONE_INFO.path)
 
-    ondatra_repo = git.Repo(ondatra_repo_dir)
-    ondatra_repo.git.reset('--hard')
-    ondatra_repo.git.checkout(ondatra_repo_branch)
-    ondatra_repo.git.reset('--hard')
-    ondatra_repo.git.clean('-xdf')
+    # ondatra_repo = git.Repo(ondatra_repo_dir)
+    # ondatra_repo.git.reset('--hard')
+    # ondatra_repo.git.checkout(ondatra_repo_branch)
+    # ondatra_repo.git.reset('--hard')
+    # ondatra_repo.git.clean('-xdf')
     
     fp_repo = git.Repo(fp_repo_dir)
     fp_repo.git.reset('--hard')
@@ -219,10 +219,7 @@ def b4_fp_chain_provider(ws,
             for k, v in pt.items():
                 chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path)
 
-    chain |= GoTest2HTML.s(Path(test_log_directory_path) / f'{script_name}.json', Path(test_log_directory_path) / 'results.html')
-    
-    if cflow:
-        chain |= CollectCoverageData.s(pyats_testbed='@testbed')
+    chain |= GoReporting.s(fp_ws=fp_repo_dir)
 
     return chain
 
@@ -278,9 +275,7 @@ def RunB4FPTest(self,
     go_args = go_args or ''
 
     test_args = f'{test_args} ' \
-        f'-log_dir {test_logs_dir_in_ws} ' \
-        f'-v 5 ' \
-        f'-alsologtostderr'
+        f'-log_dir {test_logs_dir_in_ws}'
 
     test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path}'
 
@@ -300,7 +295,7 @@ def RunB4FPTest(self,
           f'--junitfile {xunit_results_filepath} ' \
           f'--junitfile-testsuite-name short ' \
           f'--junitfile-testcase-classname short ' \
-          f'--jsonfile {json_results_file} ' \
+          f'--jsonfile "{json_results_file}" ' \
           f'--format testname ' \
           f'--debug ' \
           f'--raw-command ' \
@@ -350,3 +345,13 @@ def GenerateB4FPTestbedFile(self,
         testbed_connection_info=testbed_connection_info,
         configure_unicon=configure_unicon)
     return self.enqueue_child_and_get_results(c, return_keys=('testbed', 'tb_data', 'testbed_path'))
+
+@app.task(bind=True)
+def GoReporting(self, fp_ws, script_name, test_log_directory_path):
+    json_log_file = os.path.join(test_log_directory_path, f'{script_name}.json')
+    html_report = os.path.join(test_log_directory_path, f'{script_name}.html')
+
+    try:
+        check_output(f'{PYTHON_BIN} {fp_ws}/exec/utils/reporting/gotest2html.py "{json_log_file}"', 
+            file=html_report) 
+    except: pass

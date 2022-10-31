@@ -49,7 +49,6 @@ func TestMain(m *testing.M) {
 
 const (
 	ipv4PrefixLen       = 30
-	instance            = "DEFAULT"
 	ateDstNetCIDR       = "203.0.113.0/24"
 	staticNH            = "192.0.2.6"
 	nhIndex             = 1
@@ -57,7 +56,7 @@ const (
 	controlcardType     = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	primaryController   = telemetry.PlatformTypes_ComponentRedundantRole_PRIMARY
 	secondaryController = telemetry.PlatformTypes_ComponentRedundantRole_SECONDARY
-	switchTrigger       = telemetry.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED
+	switchTrigger       = telemetry.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_SYSTEM_INITIATED
 	maxSwitchoverTime   = 900
 )
 
@@ -196,17 +195,10 @@ func routeInstall(ctx context.Context, t *testing.T, args *testArgs) {
 	// Add an IPv4Entry for 203.0.113.0/24 pointing to ATE port-2 via gRIBI-A,
 	// ensure that the entry is active through AFT telemetry
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via gRIBI-A", ateDstNetCIDR)
-	args.clientA.AddNH(t, nhIndex, atePort2.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.InstalledInRIB)
-
-	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
-	} else {
-		t.Logf("ipv4-entry entry found for %s before controller switchover..", got)
-	}
+	vrf := *deviations.DefaultNetworkInstance
+	args.clientA.AddNH(t, nhIndex, atePort2.IPv4, vrf, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, vrf, fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, vrf, "", fluent.InstalledInRIB)
 }
 
 // findSecondaryController finds out primary and secondary controllers
@@ -249,7 +241,7 @@ func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch 
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
 	if primary.LastSwitchoverReason().Get(t).GetTrigger() != switchTrigger {
-		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want USER_INITIATED.",
+		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want SYSTEM_INITIATED.",
 			primary.LastSwitchoverReason().Get(t).GetTrigger().String())
 	}
 
@@ -265,6 +257,14 @@ func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch 
 		lastrebootReason := primary.LastRebootReason().Get(t)
 		t.Logf("Found lastRebootReason.GetDetails(): %v", lastrebootReason)
 	}
+}
+
+func switchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string) bool {
+	switchoverReady := dut.Telemetry().Component(controller).SwitchoverReady()
+	_, ok := switchoverReady.Watch(t, 30*time.Minute, func(val *telemetry.QualifiedBool) bool {
+		return val != nil && val.Val(t) == true
+	}).Await(t)
+	return ok
 }
 
 func TestSupFailure(t *testing.T) {
@@ -290,6 +290,8 @@ func TestSupFailure(t *testing.T) {
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
+	clientA.BecomeLeader(t)
+	clientA.Flush(t)
 
 	args := &testArgs{
 		ctx:     ctx,
@@ -315,13 +317,9 @@ func TestSupFailure(t *testing.T) {
 	}
 
 	secondaryBeforeSwitch, primaryBeforeSwitch := findSecondaryController(t, dut, controllers)
-	t.Logf("Detected Secondary: %v, Primary: %v", secondaryBeforeSwitch, primaryBeforeSwitch)
 
-	switchoverReady := dut.Telemetry().Component(primaryBeforeSwitch).SwitchoverReady()
-	switchoverReady.Await(t, 30*time.Minute, true)
-	t.Logf("SwitchoverReady().Get(t): %v", switchoverReady.Get(t))
-	if got, want := switchoverReady.Get(t), true; got != want {
-		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+	if ok := switchoverReady(t, dut, primaryBeforeSwitch); !ok {
+		t.Fatalf("Controller %q did not become switchover-ready before test.", primaryBeforeSwitch)
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
@@ -336,9 +334,6 @@ func TestSupFailure(t *testing.T) {
 		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
 	}
 	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
-
-	secondaryAfterSwitch, primaryAfterSwitch := findSecondaryController(t, dut, controllers)
-	t.Logf("Found Secondary Controller after switchover: %v, Primary: %v", secondaryAfterSwitch, primaryAfterSwitch)
 
 	startSwitchover := time.Now()
 	t.Logf("Wait for new Primary controller to boot up by polling the telemetry output.")
@@ -360,15 +355,22 @@ func TestSupFailure(t *testing.T) {
 	}
 	t.Logf("Controller switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
+	// Old secondary controller becomes primary after switchover.
+	primaryAfterSwitch := secondaryBeforeSwitch
+
 	validateTelemetry(t, dut, primaryAfterSwitch)
 	// Assume Controller Switchover happened, ensure traffic flows without loss.
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	defer clientA.Close(t)
+	// Try starting the gribi client twice as switchover may reset the connection.
 	if err := clientA.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection can not be established")
+		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		if err = clientA.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection could not be established: %v", err)
+		}
 	}
 
-	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
+	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
+	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
 	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 	} else {
@@ -378,5 +380,5 @@ func TestSupFailure(t *testing.T) {
 	verifyTraffic(t, args.ate, flow)
 	stopTraffic(t, args.ate)
 	top.StopProtocols(t)
-	clientA.Close(t)
+	clientA.Flush(t)
 }

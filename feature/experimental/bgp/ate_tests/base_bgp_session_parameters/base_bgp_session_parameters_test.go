@@ -49,15 +49,16 @@ var (
 
 // Constants.
 const (
-	dutAS         = 65540
-	ateAS         = 65550
-	dutAS2        = 65536
-	ateAS2        = 65536
-	peerGrpName   = "BGP-PEER-GROUP"
-	authPassword  = "AUTHPASSWORD"
-	dutHoldTime   = 100
-	connRetryTime = 100
-	ateHoldTime   = 135
+	dutAS            = 65540
+	ateAS            = 65550
+	dutAS2           = 65536
+	ateAS2           = 65536
+	peerGrpName      = "BGP-PEER-GROUP"
+	authPassword     = "AUTHPASSWORD"
+	dutHoldTime      = 90
+	connRetryTime    = 100
+	ateHoldTime      = 135
+	dutKeepaliveTime = 30
 )
 
 type connType string
@@ -119,6 +120,7 @@ func bgpCreateNbr(bgpParams *bgpTestParams) *telemetry.NetworkInstance_Protocol_
 
 	nv4t := nv4.GetOrCreateTimers()
 	nv4t.HoldTime = ygot.Uint16(dutHoldTime)
+	nv4t.KeepaliveInterval = ygot.Uint16(dutKeepaliveTime)
 	nv4t.ConnectRetry = ygot.Uint16(connRetryTime)
 
 	nv4.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
@@ -249,6 +251,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	dutConfPath.Replace(t, nil)
 	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS})
 	dutConfPath.Replace(t, dutConf)
+	fptest.LogYgot(t, "DUT BGP Config", dutConfPath, dutConfPath.Get(t))
 
 	// ATE Configuration.
 	t.Log("configure port and BGP configs on ATE")
@@ -348,6 +351,7 @@ func TestParameters(t *testing.T) {
 			dutConfPath.Replace(t, nil)
 			t.Log("Configure BGP Configs on DUT")
 			dutConfPath.Replace(t, tc.dutConf)
+			fptest.LogYgot(t, "DUT BGP Config ", dutConfPath, dutConfPath.Get(t))
 			t.Log("Configure BGP on ATE")
 			tc.ateConf.Push(t)
 			tc.ateConf.StartProtocols(t)
