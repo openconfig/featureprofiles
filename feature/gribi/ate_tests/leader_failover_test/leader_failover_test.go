@@ -238,7 +238,7 @@ func TestLeaderFailover(t *testing.T) {
 	t.Logf("Configure ATE")
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	// top.Push(t).StartProtocols(t)
+	top.Push(t).StartProtocols(t)
 
 	t.Logf("Time check: %s", time.Since(start))
 
@@ -252,10 +252,6 @@ func TestLeaderFailover(t *testing.T) {
 	t.Run("SINGLE_PRIMARY/PERSISTENCE=DELETE", func(t *testing.T) {
 		// This is an indicator test for gRIBI persistence DELETE, so we
 		// do not skip based on *deviations.GRIBIPreserveOnly.
-
-		if *deviations.GRIBIPreserveOnly {
-			t.Skip()
-		}
 
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to false.
@@ -281,9 +277,9 @@ func TestLeaderFailover(t *testing.T) {
 				verifyAFT(ctx, t, args)
 			})
 
-			// t.Run("VerifyTraffic", func(t *testing.T) {
-			// 	verifyTraffic(ctx, t, args)
-			// })
+			t.Run("VerifyTraffic", func(t *testing.T) {
+				verifyTraffic(ctx, t, args)
+			})
 		})
 
 		t.Logf("Time check: %s", time.Since(start))
@@ -296,19 +292,15 @@ func TestLeaderFailover(t *testing.T) {
 		// This is an indicator test for gRIBI persistence DELETE, so we
 		// do not skip based on *deviations.GRIBIPreserveOnly.
 
-		if *deviations.GRIBIPreserveOnly {
-			t.Skip()
-		}
-
 		t.Logf("Verify through Telemetry and Traffic that the route to %s has been deleted after gRIBI client disconnected", ateDstNetCIDR)
 
 		t.Run("VerifyNoAFT", func(t *testing.T) {
 			verifyNoAFT(ctx, t, args)
 		})
 
-		// t.Run("VerifyNoTraffic", func(t *testing.T) {
-		// 	verifyNoTraffic(ctx, t, args)
-		// })
+		t.Run("VerifyNoTraffic", func(t *testing.T) {
+			verifyNoTraffic(ctx, t, args)
+		})
 
 		t.Logf("Time check: %s", time.Since(start))
 
@@ -340,9 +332,9 @@ func TestLeaderFailover(t *testing.T) {
 				verifyAFT(ctx, t, args)
 			})
 
-			// t.Run("VerifyTraffic", func(t *testing.T) {
-			// 	verifyTraffic(ctx, t, args)
-			// })
+			t.Run("VerifyTraffic", func(t *testing.T) {
+				verifyTraffic(ctx, t, args)
+			})
 		})
 
 		t.Logf("Time check: %s", time.Since(start))
@@ -358,9 +350,9 @@ func TestLeaderFailover(t *testing.T) {
 			verifyAFT(ctx, t, args)
 		})
 
-		// t.Run("VerifyTraffic", func(t *testing.T) {
-		// 	verifyTraffic(ctx, t, args)
-		// })
+		t.Run("VerifyTraffic", func(t *testing.T) {
+			verifyTraffic(ctx, t, args)
+		})
 	})
 
 	t.Run("ReconnectAndDelete", func(t *testing.T) {
@@ -388,9 +380,9 @@ func TestLeaderFailover(t *testing.T) {
 				verifyNoAFT(ctx, t, args)
 			})
 
-			// t.Run("VerifyNoTraffic", func(t *testing.T) {
-			// 	verifyNoTraffic(ctx, t, args)
-			// })
+			t.Run("VerifyNoTraffic", func(t *testing.T) {
+				verifyNoTraffic(ctx, t, args)
+			})
 		})
 	})
 
