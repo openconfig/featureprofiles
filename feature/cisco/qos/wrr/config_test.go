@@ -18,21 +18,6 @@ func TestMain(m *testing.M) {
 	ondatra.RunTests(m, binding.New)
 }
 
-func TestSchedQueue(t *testing.T) {
-
-	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
-	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	defer teardownQos(t, dut)
-	qos := d.GetOrCreateQos()
-	for _, queue := range queues {
-		q1 := qos.GetOrCreateQueue(queue)
-		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Replace(t, q1)
-	}
-
-}
-
 func TestSchedReplaceSched(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &telemetry.Device{}
@@ -110,10 +95,6 @@ func TestSchedReplaceSched(t *testing.T) {
 		}
 	})
 
-}
-func TestDeleteQos(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	dut.Config().Qos().Delete(t)
 }
 
 func TestSchedSchedReplaceSchedPolDelQueue(t *testing.T) {
