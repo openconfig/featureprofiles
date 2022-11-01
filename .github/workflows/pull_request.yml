@@ -164,3 +164,7 @@ jobs:
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
       run: GOGC=30 staticcheck ./...
+    - name: Get Ondatra linter
+      run: go install github.com/openconfig/ondatra/gnmi/migrator@latest
+    - name: Run Ondatra linter
+      run: migrator -json ./feature/... | go run ./tools/lint2annotation

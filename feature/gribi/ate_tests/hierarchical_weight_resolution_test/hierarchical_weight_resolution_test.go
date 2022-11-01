@@ -236,7 +236,11 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *telemetry.Interfa
 		if *deviations.InterfaceEnabled {
 			s.Enabled = ygot.Bool(true)
 		}
-		s.GetOrCreateVlan().VlanId = telemetry.UnionUint16(i)
+		if *deviations.DeprecatedVlanID {
+			s.GetOrCreateVlan().VlanId = telemetry.UnionUint16(i)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(i))
+		}
 		s4 := s.GetOrCreateIpv4()
 		if *deviations.InterfaceEnabled {
 			s4.Enabled = ygot.Bool(true)
