@@ -348,6 +348,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 
 	flow.Size().SetFixed(200)
 	ate.OTG().PushConfig(t, config)
+	ate.OTG().StartProtocols(t)
 
 	if *trafficPause != 0 {
 		t.Logf("Pausing before traffic at %v for %v", time.Now(), *trafficPause)
