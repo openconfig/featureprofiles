@@ -374,6 +374,26 @@ var (
 			fn:   testSrcIpWithDscp,
 		},
 		{
+			name: "Test Src-Ip with protocol 41-negative",
+			desc: "Verify Src-ip with prtotvol 41-negative",
+			fn:   testProtocolV6Negative,
+		},
+		{
+			name: "Test Src-Ip with protocol 41",
+			desc: "Verify Src-ip with prtotvol 41",
+			fn:   testProtocolV6,
+		},
+		{
+			name: "Test Src-Ip with 41-update",
+			desc: "Verify Src-ip with prtotvol 41 and then update with protocl 4",
+			fn:   testProtocolV6updateV4,
+		},
+		{
+			name: "Test Src-Ip with 41-replace",
+			desc: "Verify Src-ip with prtotvol 41 and then replace with protocl 4",
+			fn:   testProtocolV6replaceV4,
+		},
+		{
 			name: "Test Replace Policies",
 			desc: "Test Replace Policies, it is skipped for now",
 			fn:   testPolicesReplace,
