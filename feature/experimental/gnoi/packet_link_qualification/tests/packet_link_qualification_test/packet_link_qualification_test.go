@@ -22,7 +22,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
 	"github.com/openconfig/ondatra"
-	"google.golang.org/genproto/googleapis/rpc/status"
+	statuspb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -213,7 +213,7 @@ func TestNonexistingID(t *testing.T) {
 	fakeGetResp := &plqpb.GetResponse{
 		Results: map[string]*plqpb.QualificationResult{
 			id: {
-				Status: &status.Status{
+				Status: &statuspb.Status{
 					Code:    int32(5),
 					Message: "ID not found for result",
 				},
@@ -238,7 +238,7 @@ func TestNonexistingID(t *testing.T) {
 	t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
 
 	fakeDeleteResp := &plqpb.DeleteResponse{
-		Results: map[string]*status.Status{
+		Results: map[string]*statuspb.Status{
 			id: {
 				Code:    int32(5),
 				Message: "ID not found for deletion",
@@ -371,7 +371,7 @@ func TestLinkQuality(t *testing.T) {
 	t.Logf("LinkQualification().Create(): %v, err: %v", reflectorCreateResp, err)
 
 	fakeCreateResp := &plqpb.CreateResponse{
-		Status: map[string]*status.Status{
+		Status: map[string]*statuspb.Status{
 			plqID: {
 				Code:    int32(0), //OK = 0 and HTTP Mapping: 200 OK.
 				Message: "request id " + plqID,
@@ -413,7 +413,7 @@ func TestLinkQuality(t *testing.T) {
 				EndTime:                         &timestamppb.Timestamp{Seconds: int64(1666376341)},
 				ExpectedRateBytesPerSecond:      uint64(1249745125),
 				QualificationRateBytesPerSecond: uint64(1249745125),
-				Status: &status.Status{
+				Status: &statuspb.Status{
 					Code:    int32(0), //OK = 0 and HTTP Mapping: 200 OK.
 					Message: "request id " + plqID,
 				},
