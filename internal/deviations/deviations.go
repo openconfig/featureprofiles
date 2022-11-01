@@ -104,7 +104,7 @@ var (
 	MissingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
 		"Device returns no value for some OpenConfig paths if the operational value equals the default. A fully compliant device should pass regardless of this deviation.")
 
-	StaticProtocolName = flag.String("deviation_static_protocol_name", "static", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
+	StaticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
 
 	AddSubIntfToNetInst = flag.Bool("deviation_adding_subintf_to_netowork_instance", true,
 		"Vendor requiring explicitly attaching sub-interface to network-instance, this deviation should be marked true. Default expectation is sub-interface is part of default network-instance implicitly.")
