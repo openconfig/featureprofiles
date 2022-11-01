@@ -211,7 +211,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 func setDUTInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port, state bool) {
 	t.Helper()
 	dc := dut.Config()
-	i := &telemetry.Interface{Name: ygot.String(p.Name())}
+	i := &telemetry.Interface{}
 	i.Enabled = ygot.Bool(state)
 	dc.Interface(p.Name()).Update(t, i)
 }
