@@ -21,9 +21,9 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
-	"google.golang.org/grpc"
 
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"

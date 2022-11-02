@@ -20,8 +20,8 @@ package intf
 import (
 	"time"
 
-	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 )
 
 // Interface struct to store OC attributes.

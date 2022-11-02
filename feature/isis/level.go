@@ -17,8 +17,8 @@
 package isis
 
 import (
-	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 )
 
 // Level struct to hold ISIS level OC attributes.

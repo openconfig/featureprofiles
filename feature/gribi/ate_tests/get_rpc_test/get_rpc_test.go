@@ -21,16 +21,17 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -206,31 +207,28 @@ func configureIPv4ViaClientB(t *testing.T, args *testArgs) {
 // configureIPv4ViaClientAInstalled configures a IPv4 Entry via ClientA with an
 // Election ID of 12. Ensure that the entry via ClientA is installed.
 func configureIPv4ViaClientAInstalled(t *testing.T, args *testArgs) {
-	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via clientA with election ID of 12.", ateDstNetCIDR)
-
+	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via clientA as leader.", ateDstNetCIDR)
+	gribi.BecomeLeader(t, args.clientA)
 	// TODO (deepgajjar): Remove WithElectionID and reuse helperAddEntry
 	// once gribi/gribigo in google3 is updated.
 	args.clientA.Modify().AddEntry(t,
 		fluent.NextHopEntry().
 			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithIndex(nhIndex).
-			WithIPAddress(atePort2.IPv4).
-			WithElectionID(12, 0))
+			WithIPAddress(atePort2.IPv4))
 
 	args.clientA.Modify().AddEntry(t,
 		fluent.NextHopGroupEntry().
 			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithID(nhgIndex).
-			AddNextHop(nhIndex, 1).
-			WithElectionID(12, 0))
+			AddNextHop(nhIndex, 1))
 
 	for ip := range ateDstNetCIDR {
 		args.clientA.Modify().AddEntry(t,
 			fluent.IPv4Entry().
 				WithPrefix(ateDstNetCIDR[ip]).
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
-				WithNextHopGroup(nhgIndex).
-				WithElectionID(12, 0))
+				WithNextHopGroup(nhgIndex))
 	}
 
 	if err := awaitTimeout(args.ctx, args.clientA, t, time.Minute); err != nil {
@@ -373,8 +371,7 @@ func TestElectionID(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	// Connect gRIBI client to DUT referred to as gRIBI-A - using PRESERVE persistence and
-	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI-A as the leader via a
-	// higher election_id of 12.
+	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI-A as the leader.
 	clientA := fluent.NewClient()
 	clientA.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(12, 0).
 		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
@@ -410,4 +407,8 @@ func TestElectionID(t *testing.T) {
 	}
 	testIPv4LeaderActive(ctx, t, args)
 
+	// Flush all entries after test.
+	if err := gribi.FlushAll(clientA); err != nil {
+		t.Error(err)
+	}
 }

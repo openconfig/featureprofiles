@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {

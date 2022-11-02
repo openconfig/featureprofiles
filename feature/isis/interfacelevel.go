@@ -19,8 +19,8 @@ package isis
 import (
 	"time"
 
-	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 )
 
 // InterfaceLevel struct to hold ISIS interface level OC attributes.

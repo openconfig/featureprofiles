@@ -51,8 +51,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/testt"
 )
 
 // qualified is an interface that all *QualifiedFoo types satisfy.

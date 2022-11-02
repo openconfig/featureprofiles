@@ -23,11 +23,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 )
 
@@ -47,11 +48,7 @@ func TestMain(m *testing.M) {
 //   * Destination network: 198.51.100.0/24
 
 const (
-	ateDstNetCIDR            = "198.51.100.0/24"
-	clientAOriginElectionID  = 10
-	clientBOriginElectionID  = 9
-	clientAUpdatedElectionID = 12
-	clientBUpdatedElectionID = 11
+	ateDstNetCIDR = "198.51.100.0/24"
 )
 
 var (
@@ -82,6 +79,15 @@ var (
 	}
 )
 
+type testArgs struct {
+	dut        *ondatra.DUTDevice
+	ate        *ondatra.ATEDevice
+	ateTop     gosnappi.Config
+	clientA    *fluent.GRIBIClient
+	clientB    *fluent.GRIBIClient
+	electionID gribi.Uint128
+}
+
 // TestRouteRemovelViaFlush test flush with the following operations
 // 1. Flush request from clientA (the primary client) should succeed.
 // 2. Flush request from clientB (not a primary client) should fail.
@@ -105,12 +111,12 @@ func TestRouteRemovelViaFlush(t *testing.T) {
 	clientA.Connection().WithStub(gribic).
 		WithPersistence().
 		WithRedundancyMode(fluent.ElectedPrimaryClient).
-		WithInitialElectionID(clientAOriginElectionID /* low */, 0 /* hi */) // ID must be > 0.
+		WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
 
 	clientB := fluent.NewClient()
 	clientB.Connection().WithStub(gribic).
 		WithPersistence().
-		WithInitialElectionID(clientBOriginElectionID, 0).
+		WithInitialElectionID(1, 0).
 		WithRedundancyMode(fluent.ElectedPrimaryClient)
 
 	clientA.Start(ctx, t)
@@ -127,62 +133,78 @@ func TestRouteRemovelViaFlush(t *testing.T) {
 		t.Fatalf("Await got error during session negotiation: %v", err)
 	}
 
-	testFlushWithDefaultNetworkInstance(ctx, t, clientA, clientB, ate, ateTop)
+	// Make clientA the leader
+	eID := gribi.BecomeLeader(t, dut, clientA)
 
+	// gRIBI-B electionID = leaderElectionID-1
+	gribi.UpdateElectionID(t, clientB, eID.Decrement())
+
+	args := &testArgs{
+		dut:        dut,
+		ate:        ate,
+		ateTop:     ateTop,
+		clientA:    clientA,
+		clientB:    clientB,
+		electionID: eID,
+	}
+
+	testFlushWithDefaultNetworkInstance(ctx, t, args)
+
+	// Flush all entries after test.
+	if err := gribi.FlushAll(clientB); err != nil {
+		t.Error(err)
+	}
 }
 
 // testFlushWithDefaultNetWorkInstance tests flush with default network instance
-func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, clientA, clientB *fluent.GRIBIClient, ate *ondatra.ATEDevice, ateTop gosnappi.Config) {
+func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, args *testArgs) {
 	// Inject an entry into the default network instance pointing to ATE port-2.
 	// clientA is primary client
-	injectEntry(ctx, t, clientA, *deviations.DefaultNetworkInstance)
+	injectEntry(ctx, t, args.clientA, *deviations.DefaultNetworkInstance)
 	// Test traffic between ATE port-1 and ATE port-2.
-	lossPct := testTraffic(t, ate, ateTop)
+	lossPct := testTraffic(t, args.ate, args.ateTop)
 	if got := lossPct; got > 0 {
 		t.Errorf("LossPct for flow got %v, want 0", got)
 	} else {
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
 	}
 
-	_, err := flush(ctx, t, clientA, clientAOriginElectionID, *deviations.DefaultNetworkInstance)
-	if err != nil {
+	// Flush should delete the entries
+	if _, err := gribi.Flush(args.clientA, args.electionID, *deviations.DefaultNetworkInstance); err != nil {
 		t.Errorf("Unexpected error from flush, got: %v", err)
 	}
 	// After flush, left entry should be 0, and packets can no longer be forwarded.
-	lossPct = testTraffic(t, ate, ateTop)
+	lossPct = testTraffic(t, args.ate, args.ateTop)
 	if got := lossPct; got == 0 {
 		t.Error("Traffic can still be forwarded between ATE port-1 and ATE port-2")
 	} else {
 		t.Log("Traffic can not be forwarded between ATE port-1 and ATE port-2")
 	}
-	leftEntries := checkNIHasNEntries(ctx, clientA, *deviations.DefaultNetworkInstance, t)
-	if leftEntries != 0 {
+	if got, want := checkNIHasNEntries(ctx, args.clientA, *deviations.DefaultNetworkInstance, t), 0; got != want {
 		t.Errorf("Network instance has %d entry/entries, wanted: %d", leftEntries, 0)
 	}
 
 	// clientA is primary client
-	injectEntry(ctx, t, clientA, *deviations.DefaultNetworkInstance)
+	injectEntry(ctx, t, args.clientA, *deviations.DefaultNetworkInstance)
 
-	// flush should be failed, and remains 3 entries.
-	flushRes, err := flush(ctx, t, clientB, clientBOriginElectionID, *deviations.DefaultNetworkInstance)
-	if err == nil {
-		t.Errorf("Flush should return an error, got response: %v", flushRes)
+	// flush should fail, and preserve 3 entries.
+	if res, err := gribi.Flush(args.clientB, args.electionID.Decrement(), *deviations.DefaultNetworkInstance); err == nil {
+		t.Errorf("Flush should return an error, got response: %v", res)
 	}
-	leftEntries = checkNIHasNEntries(ctx, clientB, *deviations.DefaultNetworkInstance, t)
-	if leftEntries != 3 {
+
+	if got, want := checkNIHasNEntries(ctx, args.clientB, *deviations.DefaultNetworkInstance, t), 3; got != want {
 		t.Errorf("Network instance has %d entry/entries, wanted: %d", leftEntries, 3)
 	}
 
 	// Increases clientB's election ID to makes it be the primary client.
-	clientB.Modify().UpdateElectionID(t, clientBUpdatedElectionID, 0)
+	eID := gribi.BecomeLeader(t, args.dut, args.clientB)
 
 	// Flush should be succeed and 0 entry left.
-	_, err = flush(ctx, t, clientB, clientBUpdatedElectionID, *deviations.DefaultNetworkInstance)
-	if err != nil {
+	if _, err = gribi.Flush(args.clientB, eID, *deviations.DefaultNetworkInstance); err != nil {
 		t.Fatalf("Unexpected error from flush, got: %v", err)
 	}
-	leftEntries = checkNIHasNEntries(ctx, clientB, *deviations.DefaultNetworkInstance, t)
-	if leftEntries != 0 {
+
+	if got, want := checkNIHasNEntries(ctx, args.clientB, *deviations.DefaultNetworkInstance, t), 0; got != want {
 		t.Errorf("Network instance has %d entry/entries, wanted: %d", leftEntries, 0)
 	}
 }
@@ -322,16 +344,6 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) int 
 	rxPkts := int(otg.Telemetry().Flow("Flow").Counters().InPkts().Get(t))
 	lossPct := (txPkts - rxPkts) * 100 / txPkts
 	return lossPct
-}
-
-// flush flushes all the state on the server, but does not validate it specifically.
-func flush(ctx context.Context, t *testing.T, client *fluent.GRIBIClient, electionID uint64, networkInstanceName string) (*gpb.FlushResponse, error) {
-	t.Helper()
-	res, err := client.Flush().
-		WithElectionID(electionID, 0).
-		WithNetworkInstance(networkInstanceName).
-		Send()
-	return res, err
 }
 
 // checkNIHasNEntries uses the Get RPC to validate that the network instance named ni

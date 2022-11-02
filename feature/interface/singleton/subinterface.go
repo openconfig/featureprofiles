@@ -17,8 +17,8 @@
 package intf
 
 import (
-	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 )
 
 // SubInterface struct to hold sub-interface OC attributes.

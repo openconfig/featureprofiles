@@ -21,18 +21,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
-	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ondatra/telemetry"
 )
 
 var (
@@ -532,14 +533,11 @@ func TestOrderingACK(t *testing.T) {
 					if err := awaitTimeout(ctx, c, t); err != nil {
 						t.Fatalf("Await got error during session negotiation: %v", err)
 					}
+					gribi.BecomeLeader(t, c)
 
 					if persist == usePreserve {
 						defer func() {
-							_, err := c.Flush().
-								WithElectionOverride().
-								WithAllNetworkInstances().
-								Send()
-							if err != nil {
+							if err := gribi.FlushAll(c); err != nil {
 								t.Errorf("Cannot flush: %v", err)
 							}
 						}()

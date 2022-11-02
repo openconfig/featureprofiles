@@ -17,8 +17,8 @@
 package sflow
 
 import (
-	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 )
 
 // Interface struct to hold Sflow interface OC attributes.

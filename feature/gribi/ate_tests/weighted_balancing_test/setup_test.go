@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gribigo/client"
@@ -29,7 +30,6 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygot/ygot"
 )
 
 var (

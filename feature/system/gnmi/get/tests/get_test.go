@@ -21,16 +21,16 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/yang/fpoc"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ygot/ygot"
-	"github.com/openconfig/ygot/ytypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygot/ytypes"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
+	"github.com/openconfig/ondatra"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )

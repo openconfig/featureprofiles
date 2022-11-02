@@ -21,17 +21,17 @@ import (
 	"fmt"
 	"testing"
 
+	anypb "google3/google/protobuf/any_go_proto"
+	timestamppb "google3/google/protobuf/timestamp_go_proto"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ygot/util"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+	"github.com/openconfig/ygot/util"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
 )
 
 func TestMain(m *testing.M) {

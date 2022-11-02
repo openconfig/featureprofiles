@@ -24,11 +24,11 @@ import (
 	"os"
 	"time"
 
-	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
-	"google.golang.org/grpc"
+	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"

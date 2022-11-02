@@ -21,10 +21,10 @@ import (
 	"os"
 	"plugin"
 
+	"google.golang.org/protobuf/encoding/prototext"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/knebind"
-	"google.golang.org/protobuf/encoding/prototext"
 )
 
 var (

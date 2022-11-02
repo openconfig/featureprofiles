@@ -24,16 +24,17 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/tcheck"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygot/ygot"
 )
 
 type attributes struct {
@@ -389,18 +390,6 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	return results
 }
 
-// flushGRIBI deletes installed gRIBI routes for all Network Instances.
-func flushGRIBI(t *testing.T, gRIBI *fluent.GRIBIClient) {
-	t.Helper()
-	_, err := gRIBI.Flush().
-		WithElectionOverride().
-		WithAllNetworkInstances().
-		Send()
-	if err != nil {
-		t.Errorf("Cannot flush: %v", err)
-	}
-}
-
 // aftNextHopWeights queries AFT telemetry using Get() and returns
 // the weights. If not-found, an empty list is returned.
 func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, networkInstance string) []uint64 {
@@ -497,7 +486,9 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	})
 
 	// Flush gRIBI routes after test.
-	flushGRIBI(t, gRIBI)
+	if err := gribi.FlushAll(gRIBI); err != nil {
+		t.Error(err)
+	}
 }
 
 // testHierarchicalWeightBoundaryScenario tests and validates traffic through all 18 Vlans.
@@ -582,7 +573,9 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	})
 
 	// Flush gRIBI routes after test.
-	flushGRIBI(t, gRIBI)
+	if err := gribi.FlushAll(gRIBI); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestHierarchicalWeightResolution(t *testing.T) {
@@ -611,9 +604,13 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	if err := awaitTimeout(ctx, gRIBI, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation for gRIBI: %v", err)
 	}
+	gribi.BecomeLeader(t, gRIBI)
 
 	// Flush existing gRIBI routes before test.
-	flushGRIBI(t, gRIBI)
+	err := gribi.FlushAll(gRIBI)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("TestBasicHierarchicalWeight", func(t *testing.T) {
 		testBasicHierarchicalWeight(ctx, t, dut, ate, top, gRIBI)
@@ -624,4 +621,10 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	})
 
 	top.StopProtocols(t)
+
+	// Flush all gRIBI routes after test.
+	err = gribi.FlushAll(gRIBI)
+	if err != nil {
+		t.Error(err)
+	}
 }

@@ -18,8 +18,8 @@
 package ntp
 
 import (
-	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 )
 
 // NTP struct stores the OC attributes for System NTP feature profile.

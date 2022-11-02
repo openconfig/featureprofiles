@@ -22,6 +22,7 @@ package wbb
 
 import (
 	"github.com/golang/glog"
+
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 

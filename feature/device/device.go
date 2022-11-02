@@ -18,8 +18,8 @@
 package device
 
 import (
-	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )

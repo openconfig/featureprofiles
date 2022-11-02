@@ -20,15 +20,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -451,11 +452,11 @@ func TestRecursiveIPv4Entries(t *testing.T) {
 						t.Skip("Test case not implemented.")
 					}
 
-					// Configure the gRIBI client c with election ID of 10.
+					// Configure the gRIBI client c with election ID of 1 and make it leader.
 					c := fluent.NewClient()
 					conn := c.Connection().
 						WithStub(gribic).
-						WithInitialElectionID(10, 0).
+						WithInitialElectionID(1, 0).
 						WithRedundancyMode(fluent.ElectedPrimaryClient)
 					if persist == usePreserve {
 						conn.WithPersistence()
@@ -467,14 +468,11 @@ func TestRecursiveIPv4Entries(t *testing.T) {
 					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 						t.Fatalf("Await got error during session negotiation for c: %v", err)
 					}
+					gribi.BecomeLeader(t, c)
 
 					if persist == usePreserve {
 						defer func() {
-							_, err := c.Flush().
-								WithElectionOverride().
-								WithAllNetworkInstances().
-								Send()
-							if err != nil {
+							if err := gribi.FlushAll(c); err != nil {
 								t.Errorf("Cannot flush: %v", err)
 							}
 						}()

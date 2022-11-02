@@ -30,8 +30,8 @@ Configure ATE and DUT:
 
 Test case for basic hierarchical weight:
 
-*   Establish gRIBI client connection with DUT with PERSISTENCE and install the
-    following Entries:
+*   Establish gRIBI client connection with DUT with PERSISTENCE, make it become
+    leader and install the following Entries:
 
     *   IPv4Entry 203.0.113.0/24 in VRF-1, pointing to NextHopGroup(NHG#1) in
         default VRF, with two NextHops(NH#1, NH#2) in default VRF:

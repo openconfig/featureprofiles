@@ -9,7 +9,7 @@ Validate NHG update in hierarchical resolution scenario
 *   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2, ATE port-3 to
     DUT port-3.
 *   Create a non-default VRF (VRF-1) that includes DUT port-1.
-*   Establish gRIBI client connection with DUT.
+*   Establish gRIBI client connection with DUT and make it become leader.
 *   Use Modify RPC to install entries per the following order, and ensure FIB
     ACK is received for each of the AFTOperation:
     *   Add 203.0.113.1/32 (default VRF) to NextHopGroup (default VRF)

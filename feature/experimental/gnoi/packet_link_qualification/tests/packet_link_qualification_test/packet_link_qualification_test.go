@@ -19,10 +19,10 @@ import (
 	"testing"
 	"time"
 
+	durationpb "google3/google/protobuf/duration_go_proto"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
 	"github.com/openconfig/ondatra"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 func TestMain(m *testing.M) {

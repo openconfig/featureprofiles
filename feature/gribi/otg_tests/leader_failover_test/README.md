@@ -9,7 +9,7 @@ Validate gRIBI route persistence.
 *   Connect ATE port-1 to DUT port-1, and ATE port-2 to DUT port-2.
 
 *   Establish gRIBI connection to device (referred to as gRIBI-A), setting
-    SINGLE_PRIMARY, and persistence to DELETE.
+    SINGLE_PRIMARY, and persistence to DELETE. Make it become leader.
 
     *   Inject an IPv4Entry for 203.0.113.0/24 pointed to a NHG containing a NH
         of ATE port-2. Ensure that traffic with a destination in 203.0.113.0/24
@@ -21,7 +21,7 @@ Validate gRIBI route persistence.
         port-2. Validate AFT entry is no longer installed through telemetry.
 
 *   Establish gRIBI connection to device (referred to as gRIBI-A), setting
-    SINGLE_PRIMARY and persistence to PRESERVE).
+    SINGLE_PRIMARY and persistence to PRESERVE. Make it become leader.
 
     *   Inject an IPv4Entry for 203.0.113.0/24 pointed to a NHG containing a NH
         of ATE port-2. Ensure that traffic with a destination in 203.0.113.0/24

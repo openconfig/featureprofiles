@@ -19,10 +19,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	otg "github.com/openconfig/ondatra/otg"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
-	"github.com/openconfig/ygot/ygot"
 )
 
 // LogFlowMetrics displays the otg flow statistics.

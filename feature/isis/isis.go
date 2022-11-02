@@ -20,8 +20,8 @@ package isis
 import (
 	"time"
 
-	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 )
 
 // Name of the ISIS protocol.

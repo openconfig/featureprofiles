@@ -19,19 +19,19 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
+	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ondatra/telemetry/ateflow"
-	"github.com/openconfig/ygot/ygot"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/protobuf/proto"
+	"github.com/openconfig/ondatra/telemetry"
 
 	gpb "github.com/openconfig/gribi/v1/proto/service"
 )
@@ -55,8 +55,6 @@ const (
 	ateDstNetEntryNonDefault = "198.51.100.0/24" // IP Entry to be injected in non-default network instance
 	ateDstNetEntryDefault    = "203.0.113.0/24"  // IP Entry to be injected in default network instance
 	nonDefaultVRF            = "VRF-1"           // Name of non-default network instance
-	clientAOriginElectionID  = 10
-	clientBOriginElectionID  = 9
 	nhIndex                  = 1
 	nhgIndex                 = 42
 )
@@ -105,11 +103,10 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 	ateTop.Push(t).StartProtocols(t)
 	configureNetworkInstance(t, dut)
 
-	// Configure the gRIBI client clientA with election ID of 10.
+	// Configure the gRIBI client clientA and make it leader.
 	clientA := &gribi.Client{
-		DUT:                  dut,
-		Persistence:          true,
-		InitialElectionIDLow: clientAOriginElectionID,
+		DUT:         dut,
+		Persistence: true,
 	}
 
 	defer clientA.Close(t)
@@ -118,12 +115,13 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection for clientA could not be established")
 	}
+	// Make clientA leader and get the leader electionID
+	clientAElectionID := clientA.BecomeLeader(t)
 
-	// Configure the gRIBI client clientB with election ID of 9.
+	// Configure the gRIBI client clientB with election ID of (leader_election_id - 1)
 	clientB := &gribi.Client{
-		DUT:                  dut,
-		Persistence:          true,
-		InitialElectionIDLow: clientBOriginElectionID,
+		DUT:         dut,
+		Persistence: true,
 	}
 
 	defer clientB.Close(t)
@@ -133,13 +131,17 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 		t.Fatalf("gRIBI Connection for clientB could not be established")
 	}
 
+	// clientB electionID is one less than clientA electionID
+	clientBElectionID := clientAElectionID.Decrement()
+	clientB.UpdateElectionID(t, clientBElectionID)
+
 	t.Log("Inject an IPv4Entry for 198.51.100.0/24 into VRF-1, with its referenced NHG and NH in the default routing-instance pointing to ATE port-2")
 	// clientA is primary client.
 	injectEntries(ctx, t, dut, clientA, nonDefaultVRF, ateDstNetEntryNonDefault)
 
 	t.Run("flushNonDefaultVrfclientA", func(t *testing.T) {
 		t.Log("Flush request from clientA (the primary client) non default VRF should succeed.")
-		flushNonDefaultVrfPrimary(ctx, t, dut, clientA, clientB, ate, ateTop)
+		flushNonDefaultVrfPrimary(ctx, t, dut, clientA, ate, ateTop)
 	})
 
 	t.Log("Re-inject entry for 198.51.100.0/24 in VRF-1 from gRIBI-A")
@@ -147,13 +149,16 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 
 	t.Run("flushNonDefaultVrfclientB", func(t *testing.T) {
 		t.Log("Flush request from clientB (not a primary client) non default VRF should fail.")
-		flushNonDefaultVrfSecondary(ctx, t, dut, clientA, clientB, ate, ateTop)
+		flushNonDefaultVrfSecondary(ctx, t, dut, clientB, ate, ateTop)
 	})
+
+	// Make clientB the leader
+	clientB.BecomeLeader(t)
 
 	// clientB is now primary client.
 	t.Run("flushNonDefaultVrfFailover", func(t *testing.T) {
 		t.Log("Flush request from clientB (primary client) non default VRF should succeed.")
-		flushNonDefaultVrfFailover(ctx, t, dut, clientA, clientB, ate, ateTop)
+		flushNonDefaultVrfFailover(ctx, t, dut, clientB, ate, ateTop)
 	})
 
 	t.Log("Inject entry for 198.51.100.0/24 in VRF-1 from gRIBI-B. This function also verifies entry via telemetry.")
@@ -164,12 +169,15 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 
 	t.Run("flushNonZeroReference", func(t *testing.T) {
 		t.Log("After re-injecting entries, flush RPC from gRIBI-B for default VRF expected to return NON_ZERO_REFERENCE_REMAIN result.")
-		flushNonZeroReference(ctx, t, dut, clientA, clientB, ate, ateTop)
+		flushNonZeroReference(ctx, t, dut, clientB, ate, ateTop)
 	})
+
+	// Flush all entries after test. clientA or clientB doesn't matter since we use Election Override in FlushAll.
+	clientB.FlushAll(t)
 }
 
 // flushNonDefaultVrfPrimary issues flush request from clientA (the primary client) non default VRF should succeed.
-func flushNonDefaultVrfPrimary(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, clientA, clientB *gribi.Client, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology) {
+func flushNonDefaultVrfPrimary(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology) {
 
 	t.Log("Test traffic between ATE port-1 and ATE port-2 for destinations within 198.51.100.0/24")
 	srcEndPoint := ateTop.Interfaces()[atePort1.Name]
@@ -181,12 +189,11 @@ func flushNonDefaultVrfPrimary(ctx context.Context, t *testing.T, dut *ondatra.D
 	} else {
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
 	}
-	leftEntries := checkNIHasNEntries(ctx, t, clientA.Fluent(t), nonDefaultVRF)
+	leftEntries := checkNIHasNEntries(ctx, t, client.Fluent(t), nonDefaultVRF)
 	t.Logf("Network instance has %d entry/entries, wanted: %d", leftEntries, 3)
 
 	t.Log("Issue flush RPC from gRIBI-A")
-	_, err := flush(ctx, t, clientA.Fluent(t), clientAOriginElectionID, nonDefaultVRF)
-	if err != nil {
+	if _, err := gribi.Flush(client.Fluent(t), client.ElectionID(), nonDefaultVRF); err != nil {
 		t.Errorf("Unexpected error from flush, got: %v", err)
 	}
 
@@ -197,17 +204,16 @@ func flushNonDefaultVrfPrimary(ctx context.Context, t *testing.T, dut *ondatra.D
 	} else {
 		t.Log("Traffic can not be forwarded between ATE port-1 and ATE port-2")
 	}
-	leftEntries = checkNIHasNEntries(ctx, t, clientA.Fluent(t), nonDefaultVRF)
-	if leftEntries != 0 {
+	if got, want := checkNIHasNEntries(ctx, t, client.Fluent(t), nonDefaultVRF), 0; got != want {
 		t.Errorf("Network instance has %d entry/entries, wanted: %d", leftEntries, 0)
 	}
 }
 
 // flushNonDefaultVrfSecondary issues flush request from clientB (not a primary client) non default VRF should fail with NOT_PRIMARY error.
-func flushNonDefaultVrfSecondary(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, clientA, clientB *gribi.Client, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology) {
+func flushNonDefaultVrfSecondary(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology) {
 
 	t.Log("Issue Flush from gRIBI-B expected to fail with NOT_PRIMARY error")
-	flushRes, flushErr := flush(ctx, t, clientB.Fluent(t), clientBOriginElectionID, nonDefaultVRF)
+	flushRes, flushErr := gribi.Flush(client.Fluent(t), client.ElectionID(), nonDefaultVRF)
 	if flushErr == nil {
 		t.Errorf("Flush should return an error, got response: %v", flushRes)
 	}
@@ -215,24 +221,18 @@ func flushNonDefaultVrfSecondary(ctx context.Context, t *testing.T, dut *ondatra
 }
 
 // flushNonDefaultVrfFailover updates clientB to become primary. Flush request from clientB (the primary client) non default VRF should succeed.
-func flushNonDefaultVrfFailover(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, clientA, clientB *gribi.Client, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology) {
+func flushNonDefaultVrfFailover(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, clientB *gribi.Client, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology) {
 
 	t.Log("Test traffic between ATE port-1 and ATE port-2 for destinations within 198.51.100.0/24")
 	srcEndPoint := ateTop.Interfaces()[atePort1.Name]
 	dstEndPoint := ateTop.Interfaces()[atePort2.Name]
 
-	t.Log("Increases clientB's election ID to makes it be the primary client")
-	clientBUpdatedElectionID := uint64(clientBOriginElectionID + 2)
-	clientB.Fluent(t).Modify().UpdateElectionID(t, clientBUpdatedElectionID, 0)
-
 	t.Log("Flush should be successful and 0 entry left")
-	_, err := flush(ctx, t, clientB.Fluent(t), clientBUpdatedElectionID, nonDefaultVRF)
-	if err != nil {
+	if _, err := gribi.Flush(clientB.Fluent(t), clientB.ElectionID(), nonDefaultVRF); err != nil {
 		t.Errorf("Unexpected error from flush, got: %v", err)
 	}
-	leftEntries := checkNIHasNEntries(ctx, t, clientB.Fluent(t), nonDefaultVRF)
-	if leftEntries != 0 {
-		t.Errorf("Network instance has %d entry/entries, wanted: %d", leftEntries, 0)
+	if got, want := checkNIHasNEntries(ctx, t, clientB.Fluent(t), nonDefaultVRF), 0; got != want {
+		t.Errorf("Network instance has %d entry/entries, wanted: %d", got, want)
 	}
 
 	t.Log("After flush, left entry should be 0, and packets can no longer be forwarded")
@@ -245,7 +245,7 @@ func flushNonDefaultVrfFailover(ctx context.Context, t *testing.T, dut *ondatra.
 }
 
 // flushNonZeroReference verified behaviour after flush operation issue for default VRF. It is expected to NOT delete all the gRIBI objects like NH and NHG.
-func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, clientA, clientB *gribi.Client, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology) {
+func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, clientB *gribi.Client, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology) {
 
 	t.Log("Test traffic between ATE port-1 and ATE port-2 for destinations within 198.51.100.0/24")
 	srcEndPoint := ateTop.Interfaces()[atePort1.Name]
@@ -259,8 +259,7 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 	}
 
 	t.Log("Issue Flush RPC from gRIBI-B for default VRF. It expected to return NON_ZERO_REFERENCE_REMAIN result.")
-	clientBUpdatedElectionID := uint64(clientBOriginElectionID + 2)
-	flushRes, _ := flush(ctx, t, clientB.Fluent(t), clientBUpdatedElectionID, *deviations.DefaultNetworkInstance)
+	flushRes, _ := gribi.Flush(clientB.Fluent(t), clientB.ElectionID(), *deviations.DefaultNetworkInstance)
 
 	wantRes := &gpb.FlushResponse{
 		Result: gpb.FlushResponse_NON_ZERO_REFERENCE_REMAIN,
@@ -426,16 +425,6 @@ func validateNotPrimaryError(t *testing.T, dut *ondatra.DUTDevice, flushErr erro
 	if !proto.Equal(gotD, wantD) {
 		t.Fatalf("did not get the exact error details, got: %s, want: %s", prototext.Format(gotD), prototext.Format(wantD))
 	}
-}
-
-// flush function flushes all the state on the server, but does not validate it specifically.
-func flush(ctx context.Context, t *testing.T, client *fluent.GRIBIClient, electionID uint64, networkInstanceName string) (*gpb.FlushResponse, error) {
-	t.Helper()
-	res, err := client.Flush().
-		WithElectionID(electionID, 0).
-		WithNetworkInstance(networkInstanceName).
-		Send()
-	return res, err
 }
 
 // checkNIHasNEntries uses the Get RPC to validate that the network instance named ni.

@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
@@ -26,10 +27,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ygot/ygot"
 
-	telemetry "github.com/openconfig/ondatra/telemetry"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+	telemetry "github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {

@@ -17,10 +17,10 @@ package fptest
 import (
 	"testing"
 
-	"github.com/openconfig/ondatra"
-	ci "github.com/openconfig/ondatra/config/interfaces"
-	ti "github.com/openconfig/ondatra/telemetry/interfaces"
 	"github.com/openconfig/ygot/ygot"
+	ci "github.com/openconfig/ondatra/config/interfaces"
+	"github.com/openconfig/ondatra"
+	ti "github.com/openconfig/ondatra/telemetry/interfaces"
 )
 
 func TestSanitizeFilename(t *testing.T) {

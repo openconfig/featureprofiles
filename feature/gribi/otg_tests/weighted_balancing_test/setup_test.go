@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -35,9 +36,8 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
-	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ondatra/telemetry"
 )
 
 var (

@@ -15,8 +15,8 @@
 package binding
 
 import (
-	"github.com/openconfig/ondatra/binding"
 	"google.golang.org/grpc"
+	"github.com/openconfig/ondatra/binding"
 
 	bpb "github.com/openconfig/gnoi/bgp"
 	cpb "github.com/openconfig/gnoi/cert"

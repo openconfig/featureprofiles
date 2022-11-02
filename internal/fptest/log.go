@@ -25,9 +25,9 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 var (

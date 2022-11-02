@@ -20,14 +20,14 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc"
 	"github.com/openconfig/featureprofiles/internal/check"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmi/testing/fake/gnmi"
 	fpb "github.com/openconfig/gnmi/testing/fake/proto"
 	"github.com/openconfig/ygnmi/exampleoc/exampleocpath"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (

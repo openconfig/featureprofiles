@@ -22,11 +22,11 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 	"github.com/openconfig/featureprofiles/feature/bgp"
 	"github.com/openconfig/featureprofiles/feature/lldp"
 	"github.com/openconfig/featureprofiles/feature/networkinstance"
 	"github.com/openconfig/featureprofiles/yang/fpoc"
-	"google.golang.org/protobuf/testing/protocmp"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )

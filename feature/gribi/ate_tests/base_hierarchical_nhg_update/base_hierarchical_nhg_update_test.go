@@ -19,16 +19,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -114,6 +115,7 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got error during gribi client setup: %v", err)
 	}
+	gribi.BecomeLeader(t, gribic)
 
 	addInterfaceRoute(ctx, t, gribic, p2ID, dut.Port(t, "port2").Name(), atePort2.IPv4)
 	addDestinationRoute(ctx, t, gribic)
@@ -123,6 +125,11 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	addInterfaceRoute(ctx, t, gribic, p3ID, dut.Port(t, "port3").Name(), atePort3.IPv4)
 
 	validateTrafficFlows(t, ate, []*ondatra.Flow{p3flow}, []*ondatra.Flow{p2flow})
+
+	// Flush all entries after test.
+	if err = gribi.FlushAll(gribic); err != nil {
+		t.Error(err)
+	}
 }
 
 // addDestinationRoute creates a GRIBI route to dstPfx via interfaceNH.

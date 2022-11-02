@@ -20,11 +20,11 @@ import (
 	"reflect"
 	"testing"
 
-	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/goyang/pkg/yang"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ygot/ytypes"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/ondatra/telemetry"
 )
 
 // getSchema looks up a struct's schema by reflected name

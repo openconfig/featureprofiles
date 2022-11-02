@@ -23,13 +23,13 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	closer "github.com/openconfig/gocloser"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	ospb "github.com/openconfig/gnoi/os"
 	spb "github.com/openconfig/gnoi/system"

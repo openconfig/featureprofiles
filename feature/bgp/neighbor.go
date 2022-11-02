@@ -19,8 +19,8 @@ package bgp
 import (
 	"time"
 
-	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/yang/fpoc"
 )
 
 // Neighbor struct to hold BGP neighbor OC attributes.
