@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/feature/experimental/isis/otg_tests/internal/session"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/check"
@@ -29,8 +28,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/otg"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -53,29 +50,6 @@ func EqualToDefault[T any](query ygnmi.SingletonQuery[T], val T) check.Validator
 		return check.EqualOrNil(query, val)
 	}
 	return check.Equal(query, val)
-}
-
-func FlowMetricAsExpected(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOtgFlowMetrics map[string]OtgFlowMetric) {
-	for flow, expOtgFlowMetric := range expectedOtgFlowMetrics {
-		flowPath := otg.Telemetry().Flow(flow)
-		_, ok := flowPath.Counters().OutPkts().Watch(t, time.Minute,
-			func(val *otgtelemetry.QualifiedUint64) bool {
-				return val.IsPresent() && val.Val(t) == expOtgFlowMetric.TxPackets
-			}).Await(t)
-		if !ok {
-			otgutils.LogPortMetrics(t, otg, config)
-			t.Fatal(t, "for flow ", flow, " Tx Packets: ", flowPath.Counters().OutPkts().Get(t), "but expected: ", expOtgFlowMetric.TxPackets)
-		}
-
-		_, ok = flowPath.Counters().InPkts().Watch(t, time.Minute,
-			func(val *otgtelemetry.QualifiedUint64) bool {
-				return val.IsPresent() && val.Val(t) == expOtgFlowMetric.RxPackets
-			}).Await(t)
-		if !ok {
-			otgutils.LogPortMetrics(t, otg, config)
-			t.Fatal(t, "for flow ", flow, " Rx Packets: ", flowPath.Counters().InPkts().Get(t), "but expected: ", expOtgFlowMetric.RxPackets)
-		}
-	}
 }
 
 // TestBasic configures IS-IS on the DUT and confirms that the various values and defaults propagate
@@ -509,7 +483,7 @@ func TestTraffic(t *testing.T) {
 	v4FlowIp.Src().SetValue(session.ATETrafficAttrs.IPv4)
 	v4FlowIp.Dst().SetValue(targetNetwork.IPv4)
 
-	v4Flow.Duration().FixedPackets().SetPackets(100)
+	// v4Flow.Duration().FixedPackets().SetPackets(100)
 	v4Flow.Rate().SetPps(50)
 	v4Flow.Size().SetFixed(128)
 	v4Flow.Metrics().SetEnable(true)
@@ -526,7 +500,7 @@ func TestTraffic(t *testing.T) {
 	v6FlowIp.Src().SetValue(session.ATETrafficAttrs.IPv6)
 	v6FlowIp.Dst().SetValue(targetNetwork.IPv6)
 
-	v6Flow.Duration().FixedPackets().SetPackets(100)
+	// v6Flow.Duration().FixedPackets().SetPackets(100)
 	v6Flow.Rate().SetPps(50)
 	v6Flow.Size().SetFixed(128)
 	v6Flow.Metrics().SetEnable(true)
@@ -542,7 +516,7 @@ func TestTraffic(t *testing.T) {
 	deadFlowIp.Src().SetValue(session.ATETrafficAttrs.IPv4)
 	deadFlowIp.Dst().SetValue(deadNetwork.IPv4)
 
-	deadFlow.Duration().FixedPackets().SetPackets(100)
+	// deadFlow.Duration().FixedPackets().SetPackets(100)
 	deadFlow.Rate().SetPps(50)
 	deadFlow.Size().SetFixed(128)
 	deadFlow.Metrics().SetEnable(true)
@@ -557,21 +531,26 @@ func TestTraffic(t *testing.T) {
 	time.Sleep(time.Second * 30)
 	otg.StopTraffic(t)
 
-	t.Logf("Checking telemetry...")
-	expectedFlowMetrics := map[string]OtgFlowMetric{
-		"v4Flow": {
-			TxPackets: 100,
-			RxPackets: 100,
-		},
-		"v6Flow": {
-			TxPackets: 100,
-			RxPackets: 100,
-		},
-		"deadFlow": {
-			TxPackets: 100,
-			RxPackets: 0,
-		},
-	}
 	t.Logf("Verify Flow metrics...")
-	FlowMetricAsExpected(t, otg, ts.ATETop, expectedFlowMetrics)
+	otgutils.LogFlowMetrics(t, otg, ts.ATETop)
+
+	for _, flow := range ts.ATETop.Flows().Items() {
+		flowMetric := ts.ATE.OTG().Telemetry().Flow(flow.Name()).Get(t)
+		txPackets := flowMetric.GetCounters().GetOutPkts()
+		rxPackets := flowMetric.GetCounters().GetInPkts()
+		if txPackets == 0 {
+			t.Errorf("Tx packets for flow %s is 0", flow.Name())
+			continue
+		}
+		if flow.Name() != "deadFlow" {
+			if got := (txPackets - rxPackets) * 100 / txPackets; got > 0 {
+				t.Errorf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
+			}
+		} else {
+			if got := (txPackets - rxPackets) * 100 / txPackets; got < 100 {
+				t.Errorf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
+			}
+		}
+	}
+
 }
