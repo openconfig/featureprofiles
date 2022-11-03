@@ -496,10 +496,6 @@ func TestTraffic(t *testing.T) {
 	netv6 := dstIntf.Isis().V6Routes().Add().SetName("netv6").SetLinkMetric(10)
 	netv6.Addresses().Add().SetAddress(targetNetwork.IPv6)
 
-	t.Logf("Starting protocols on ATE...")
-	// ts.PushAndStart(t)
-	// defer otg.StopProtocols(t)
-
 	t.Logf("Configuring traffic from ATE through DUT...")
 
 	v4Flow := ts.ATETop.Flows().Add()
@@ -551,7 +547,7 @@ func TestTraffic(t *testing.T) {
 	deadFlow.Size().SetFixed(128)
 	deadFlow.Metrics().SetEnable(true)
 
-	// ts.PushAndStartATE(t)
+	t.Logf("Starting protocols on ATE...")
 	ts.PushAndStart(t)
 	ts.MustAdjacency(t)
 
