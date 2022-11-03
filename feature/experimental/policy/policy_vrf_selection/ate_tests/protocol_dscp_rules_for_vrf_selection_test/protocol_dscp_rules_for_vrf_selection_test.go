@@ -214,10 +214,12 @@ func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc
 	s6 := s.GetOrCreateIpv6()
 	a6 := s6.GetOrCreateAddress(dutPort.IPv6)
 	a6.PrefixLength = ygot.Uint8(dutPort.IPv6Len)
-	v := s.GetOrCreateVlan()
-	m := v.GetOrCreateMatch()
 	if index != 0 {
-		m.GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+		if *deviations.DeprecatedVlanID {
+			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+		}
 	}
 	return s
 }
