@@ -105,6 +105,7 @@ def BringupTestbed(self, ws, images = None,
     fp_repo.git.commit('-m', 'patched go.mod and binding file')
 
     ondatra_repo = git.Repo(ondatra_repo_dir)
+    ondatra_repo.git.checkout("3338c3259dd8419b059443cadd238841a2472015")
     ondatra_repo.config_writer().set_value("name", "email", "gob4").release()
     ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
 
@@ -184,16 +185,16 @@ def b4_fp_chain_provider(ws,
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
 
-    ondatra_repo_dir = os.path.join(pkgs_parent_path,
-                        ONDATRA_REPO_CLONE_INFO.path)
+    # ondatra_repo_dir = os.path.join(pkgs_parent_path,
+    #                     ONDATRA_REPO_CLONE_INFO.path)
     fp_repo_dir = os.path.join(pkgs_parent_path, 
                         FP_REPO_CLONE_INFO.path)
 
-    ondatra_repo = git.Repo(ondatra_repo_dir)
-    ondatra_repo.git.reset('--hard')
-    ondatra_repo.git.checkout(ondatra_repo_branch)
-    ondatra_repo.git.reset('--hard')
-    ondatra_repo.git.clean('-xdf')
+    # ondatra_repo = git.Repo(ondatra_repo_dir)
+    # ondatra_repo.git.reset('--hard')
+    # ondatra_repo.git.checkout(ondatra_repo_branch)
+    # ondatra_repo.git.reset('--hard')
+    # ondatra_repo.git.clean('-xdf')
     
     fp_repo = git.Repo(fp_repo_dir)
     fp_repo.git.reset('--hard')

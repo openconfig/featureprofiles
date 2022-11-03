@@ -78,8 +78,8 @@ func TestEstablish(t *testing.T) {
 	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 	// Remove any existing BGP config
-	dutConfPath.Replace(t, nil)
-	ateConfPath.Replace(t, nil)
+	dutConfPath.Delete(t)
+	ateConfPath.Delete(t)
 	startTime := uint64(time.Now().Unix())
 	// Start a new session
 	dutConf := bgpWithNbr(dutAS, "", &telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -134,8 +134,8 @@ func TestDisconnect(t *testing.T) {
 	nbrPath := statePath.Neighbor(ateIP)
 
 	// Clear any existing config
-	dutConfPath.Replace(t, nil)
-	ateConfPath.Replace(t, nil)
+	dutConfPath.Delete(t)
+	ateConfPath.Delete(t)
 
 	// Apply simple config
 	dutConf := bgpWithNbr(dutAS, "", &telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -149,7 +149,7 @@ func TestDisconnect(t *testing.T) {
 	dutConfPath.Replace(t, dutConf)
 	ateConfPath.Replace(t, ateConf)
 	nbrPath.SessionState().Await(t, time.Second*15, telemetry.Bgp_Neighbor_SessionState_ESTABLISHED)
-	// ateConfPath.Replace(t, nil)
+	// ateConfPath.Delete(t)
 	ateConfPath.Neighbor(dutIP).Enabled().Replace(t, false)
 	nbrPath.SessionState().Await(t, time.Second*15, telemetry.Bgp_Neighbor_SessionState_ACTIVE)
 	code := nbrPath.Messages().Received().LastNotificationErrorCode().Get(t)
@@ -298,8 +298,8 @@ func TestParameters(t *testing.T) {
 				t.Skip(tc.skipMsg)
 			}
 			// Disable BGP
-			dutConfPath.Replace(t, nil)
-			ateConfPath.Replace(t, nil)
+			dutConfPath.Delete(t)
+			ateConfPath.Delete(t)
 			// Renable and wait to establish
 			dutConfPath.Replace(t, tc.dutConf)
 			ateConfPath.Replace(t, tc.ateConf)
