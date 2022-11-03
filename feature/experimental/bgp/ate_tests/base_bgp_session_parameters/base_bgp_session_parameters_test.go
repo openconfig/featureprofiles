@@ -246,8 +246,8 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
-
-	dutConfPath.Replace(t, nil)
+        // Delete bgp config on DUT before configuring test config. 
+	dutConfPath.Delete(t)
 	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS})
 	dutConfPath.Replace(t, dutConf)
 	fptest.LogYgot(t, "DUT BGP Config", dutConfPath, dutConfPath.Get(t))
