@@ -385,6 +385,7 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
 	otg.PushConfig(t, ateTop)
+	otg.StartProtocols(t)
 	return modName
 }
 
@@ -488,7 +489,7 @@ func waitOTGARPEntry(t *testing.T) {
 // setDUTInterfaceState sets the admin state on the dut interface
 func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *attrs.Attributes, p *ondatra.Port, state bool) {
 	dc := dut.Config()
-	i := &oc.Interface{Name: ygot.String(p.Name())}
+	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(state)
 	dc.Interface(p.Name()).Update(t, i)
 }
