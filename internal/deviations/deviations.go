@@ -93,10 +93,10 @@ var (
 
 	GRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
 
-	NextHopAFTNotSupported = flag.Bool("deviation_nexthop_aft_not_supported", false, "Device currently doesnot support AFT Next Hop Telemetry. A fully compliant device should support all types of AFT telemetry without this deviation.")
-
 	MissingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
 		"Device returns no value for some OpenConfig paths if the operational value equals the default. A fully compliant device should pass regardless of this deviation.")
 
 	StaticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
+
+	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 )

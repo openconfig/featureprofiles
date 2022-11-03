@@ -246,7 +246,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
-        // Delete bgp config on DUT before configuring test config. 
+  // Delete bgp config on DUT before configuring test config. 
 	dutConfPath.Delete(t)
 	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS})
 	dutConfPath.Replace(t, dutConf)
@@ -296,7 +296,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 
 	// Clear config on DUT and ATE
 	topo.StopProtocols(t)
-	dutConfPath.Replace(t, nil)
+	dutConfPath.Delete(t)
 }
 
 // TestParameters is to verify normal session establishment and termination
@@ -346,7 +346,7 @@ func TestParameters(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Log("Clear BGP Configs on DUT")
-			dutConfPath.Replace(t, nil)
+			dutConfPath.Delete(t)
 			t.Log("Configure BGP Configs on DUT")
 			dutConfPath.Replace(t, tc.dutConf)
 			fptest.LogYgot(t, "DUT BGP Config ", dutConfPath, dutConfPath.Get(t))

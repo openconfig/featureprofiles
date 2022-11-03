@@ -149,7 +149,6 @@ func createIPv4Entries(startIP string) []string {
 	for i := firstIP; i <= lastIP; i++ {
 		ip := make(net.IP, 4)
 		binary.BigEndian.PutUint32(ip, i)
-
 		entries = append(entries, fmt.Sprint(ip))
 	}
 	return entries
@@ -192,6 +191,13 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 			nextCount = 0
 		}
 	}
+	nhgCount := localIndex - index.nhgIndex
+	if nextCount == 0 { // last nhg without no nh needs to be ignored
+		nhgCount -= 1
+	}
+	// maxIPCount should be set based on the number of added nhg,
+	// otherwise ipv4entry may be added with invalid nhg id (Note. forward refrencing is not allowed)
+	index.maxIPCount = (len(ips) / nhgCount) + 1
 	nextCount = 0
 	localIndex = index.nhgIndex
 	for ip := range ips {
@@ -286,17 +292,19 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *telemetry.Device, vrfs [
 	for _, vrf := range vrfs {
 		// For non-default VRF, we want to replace the
 		// entire VRF tree so the instance is created.
-		i := d.GetOrCreateNetworkInstance(vrf)
-		i.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		i.Enabled = ygot.Bool(true)
-		i.EnabledAddressFamilies = []telemetry.E_Types_ADDRESS_FAMILY{
-			telemetry.Types_ADDRESS_FAMILY_IPV4,
-			telemetry.Types_ADDRESS_FAMILY_IPV6,
+		if vrf != *deviations.DefaultNetworkInstance {
+			i := d.GetOrCreateNetworkInstance(vrf)
+			i.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+			i.Enabled = ygot.Bool(true)
+			i.EnabledAddressFamilies = []telemetry.E_Types_ADDRESS_FAMILY{
+				telemetry.Types_ADDRESS_FAMILY_IPV4,
+				telemetry.Types_ADDRESS_FAMILY_IPV6,
+			}
+			i.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+			dut.Config().NetworkInstance(vrf).Replace(t, i)
+			nip := dut.Config().NetworkInstance(vrf)
+			fptest.LogYgot(t, "nonDefaultNI", nip, nip.Get(t))
 		}
-		i.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
-		dut.Config().NetworkInstance(vrf).Replace(t, i)
-		nip := dut.Config().NetworkInstance(vrf)
-		fptest.LogYgot(t, "nonDefaultNI", nip, nip.Get(t))
 	}
 }
 
@@ -356,7 +364,11 @@ func configureSubinterfaceDUT(t *testing.T, d *telemetry.Device, dutPort *ondatr
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
 	if vlanID != 0 {
-		s.GetOrCreateVlan().VlanId = telemetry.UnionUint16(vlanID)
+		if *deviations.DeprecatedVlanID {
+			s.GetOrCreateVlan().VlanId = telemetry.UnionUint16(vlanID)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+		}
 	}
 
 	sipv4 := s.GetOrCreateIpv4()
