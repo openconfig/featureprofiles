@@ -188,6 +188,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	// srcEndPoint is atePort1
 	otg := ate.OTG()
 	gwIp := gatewayMap[srcEndPoint].IPv4
+	otg.StartProtocols(t)
 	waitOTGARPEntry(t)
 	dstMac := otg.Telemetry().Interface(srcEndPoint.Name + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
 	config.Flows().Clear().Items()
@@ -201,6 +202,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	v4.Src().SetValue(srcEndPoint.IPv4)
 	v4.Dst().Increment().SetStart(ateDstNetStart).SetCount(250)
 	otg.PushConfig(t, config)
+	otg.StartProtocols(t)
 
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
