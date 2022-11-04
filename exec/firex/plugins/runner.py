@@ -169,7 +169,7 @@ def b4_fp_chain_provider(ws,
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
-                    script_name=script_name,
+                    script_name=script_path,
                     script_path=script_path,
                     test_log_directory_path=test_log_directory_path,
                     xunit_results_filepath=xunit_results_filepath,
