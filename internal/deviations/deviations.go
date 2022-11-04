@@ -63,7 +63,16 @@
 //     go test my_test.go --deviation_interface_enabled=true
 package deviations
 
-import "flag"
+import (
+	"flag"
+	"fmt"
+	"testing"
+
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygot/ygot"
+)
+
 
 // Vendor deviation flags.
 var (
@@ -99,4 +108,22 @@ var (
 	StaticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
 
 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
+
+	AddSubIntfToNetInst = flag.Bool("deviation_adding_subintf_to_netowork_instance", true,
+	"Vendor requiring explicitly attaching sub-interface to network-instance, this deviation should be marked true. Default expectation is sub-interface is part of default network-instance implicitly.")
 )
+)
+
+func SubIntfToNetworkInstance(t *testing.T, dconf *ondatra.Config, i *telemetry.Interface, si uint32, inst string) {
+	netInst := &telemetry.NetworkInstance{Name: ygot.String(inst)}
+	netInstIntf, err := netInst.NewInterface(i.GetName())
+	if err != nil {
+		t.Errorf("Error fetching NewInterface for %s", i.GetName())
+	}
+	netInstIntf.Interface = ygot.String(i.GetName())
+	netInstIntf.Subinterface = ygot.Uint32(si)
+	netInstIntf.Id = ygot.String(i.GetName() + "." + fmt.Sprint(si))
+	if i.GetSubinterface(si) != nil {
+		dconf.NetworkInstance(inst).Update(t, netInst)
+	}
+}
