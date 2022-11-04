@@ -112,7 +112,6 @@ var (
 	AddSubIntfToNetInst = flag.Bool("deviation_adding_subintf_to_netowork_instance", true,
 	"Vendor requiring explicitly attaching sub-interface to network-instance, this deviation should be marked true. Default expectation is sub-interface is part of default network-instance implicitly.")
 )
-)
 
 func SubIntfToNetworkInstance(t *testing.T, dconf *ondatra.Config, i *telemetry.Interface, si uint32, inst string) {
 	netInst := &telemetry.NetworkInstance{Name: ygot.String(inst)}
