@@ -107,6 +107,9 @@ message Options {
 
   // The session_id for ATE REST API session id
   int32 session_id = 6;
+
+  // gRPC request timeout (second)
+  int32 request_timeout = 7;
 }
 
 // Port binding.

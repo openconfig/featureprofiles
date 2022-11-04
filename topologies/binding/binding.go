@@ -16,7 +16,6 @@ package binding
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"strings"
@@ -26,7 +25,6 @@ import (
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -169,26 +167,35 @@ func (d *staticDUT) DialCLI(ctx context.Context, opts ...grpc.DialOption) (bindi
 }
 
 func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
-	if a.dev.Gnmi == nil {
-		return nil, fmt.Errorf("gnmi must be configured in ate binding")
-	}
-	addr := a.dev.Gnmi.Target
-	opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))) // NOLINT
-	conn, err := grpc.DialContext(ctx, addr, opts...)
+	dialer, err := a.r.ateGnmi(a.Name())
 	if err != nil {
-		return nil, fmt.Errorf("DialContext(ctx, %s, %v): %w", addr, opts, err)
+		return nil, err
+	}
+	conn, err := dialer.dialGRPC(ctx, opts...)
+	if err != nil {
+		return nil, err
 	}
 	return gpb.NewGNMIClient(conn), nil
 }
 
-func (a *staticATE) DialOTG(context.Context) (gosnappi.GosnappiApi, error) {
+func (a *staticATE) DialOTG(ctx context.Context) (gosnappi.GosnappiApi, error) {
 	if a.dev.Otg == nil {
-		return nil, fmt.Errorf("otg must be configured in ate binding")
+		return nil, fmt.Errorf("otg must be configured in ATE binding to run OTG test")
 	}
+	dialer, err := a.r.ateOtg(a.Name())
+	if err != nil {
+		return nil, err
+	}
+	conn, err := dialer.dialGRPC(ctx, grpc.WithBlock())
+	if err != nil {
+		return nil, err
+	}
+
 	api := gosnappi.NewApi()
-	api.NewGrpcTransport().
-		SetLocation(a.dev.Otg.Target).
-		SetRequestTimeout(30 * time.Second)
+	grpcTransport := api.NewGrpcTransport().SetClientConnection(conn)
+	if dialer.RequestTimeout != 0 {
+		grpcTransport.SetRequestTimeout(time.Duration(dialer.RequestTimeout) * time.Second)
+	}
 	return api, nil
 }
 

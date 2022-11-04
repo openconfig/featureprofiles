@@ -38,11 +38,13 @@ import (
 // IANA assigns 9339 for gNxI, and 9559 for P4RT.  There hasn't been a
 // port assignment for gRIBI, so using Arista's default which is 6040.
 var (
-	gnmiPort  = flag.Int("gnmi_port", 9339, "default gNMI port")
-	gnoiPort  = flag.Int("gnoi_port", 9339, "default gNOI port")
-	gnsiPort  = flag.Int("gnsi_port", 9339, "default gNSI port")
-	gribiPort = flag.Int("gribi_port", 6040, "default gRIBI port")
-	p4rtPort  = flag.Int("p4rt_port", 9559, "default P4RT part")
+	gnmiPort    = flag.Int("gnmi_port", 9339, "default gNMI port")
+	gnoiPort    = flag.Int("gnoi_port", 9339, "default gNOI port")
+	gnsiPort    = flag.Int("gnsi_port", 9339, "default gNSI port")
+	gribiPort   = flag.Int("gribi_port", 6040, "default gRIBI port")
+	p4rtPort    = flag.Int("p4rt_port", 9559, "default P4RT part")
+	ateGnmiPort = flag.Int("ate_gnmi_port", 50051, "default ATE gNMI port")
+	ateOtgPort  = flag.Int("ate_grpc_port", 40051, "default ATE gRPC port for running OTG test")
 )
 
 // creds implements the grpc.PerRPCCredentials interface, to be used
@@ -229,6 +231,17 @@ func (r *resolver) dutDialer(dutName string, port int, optionsFn func(*bindpb.De
 	return merge(targetOptions, r.Options, dut.Options, optionsFn(dut)), nil
 }
 
+func (r *resolver) ateDialer(ateName string, port int, optionsFn func(*bindpb.Device) *bindpb.Options) (dialer, error) {
+	ate := r.ateByName(ateName)
+	if ate == nil {
+		return dialer{nil}, fmt.Errorf("ATE name %q is missing from the binding", ateName)
+	}
+	targetOptions := &bindpb.Options{
+		Target: fmt.Sprintf("%s:%d", ate.Name, port),
+	}
+	return merge(targetOptions, r.Options, ate.Options, optionsFn(ate)), nil
+}
+
 func (r *resolver) gnmi(dutName string) (dialer, error) {
 	return r.dutDialer(dutName, *gnmiPort,
 		func(dut *bindpb.Device) *bindpb.Options { return dut.Gnmi })
@@ -261,6 +274,16 @@ func (r *resolver) ssh(dutName string) (dialer, error) {
 	}
 	targetOptions := &bindpb.Options{Target: dut.Name}
 	return merge(targetOptions, r.Options, dut.Options, dut.Ssh), nil
+}
+
+func (r *resolver) ateGnmi(ateName string) (dialer, error) {
+	return r.ateDialer(ateName, *ateGnmiPort,
+		func(ate *bindpb.Device) *bindpb.Options { return ate.Gnmi })
+}
+
+func (r *resolver) ateOtg(ateName string) (dialer, error) {
+	return r.ateDialer(ateName, *ateOtgPort,
+		func(ate *bindpb.Device) *bindpb.Options { return ate.Otg })
 }
 
 func (r *resolver) ixnetwork(ateName string) (dialer, error) {
