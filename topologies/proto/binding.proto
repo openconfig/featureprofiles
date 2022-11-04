@@ -109,7 +109,7 @@ message Options {
   int32 session_id = 6;
 
   // gRPC request timeout (second)
-  int32 request_timeout = 7;
+  int32 timeout = 7;
 }
 
 // Port binding.

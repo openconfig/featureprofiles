@@ -193,8 +193,8 @@ func (a *staticATE) DialOTG(ctx context.Context) (gosnappi.GosnappiApi, error) {
 
 	api := gosnappi.NewApi()
 	grpcTransport := api.NewGrpcTransport().SetClientConnection(conn)
-	if dialer.RequestTimeout != 0 {
-		grpcTransport.SetRequestTimeout(time.Duration(dialer.RequestTimeout) * time.Second)
+	if dialer.Timeout != 0 {
+		grpcTransport.SetRequestTimeout(time.Duration(dialer.Timeout) * time.Second)
 	}
 	return api, nil
 }
