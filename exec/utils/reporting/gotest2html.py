@@ -1,12 +1,12 @@
 import argparse
 import pathlib
-import urllib
+import hashlib
 import json
 import os
 import re
 
 from datetime import datetime
-from constants import base_logs_url, base_logs_dir
+from constants import base_gh_logs_dir
 
 def _to_md_anchor(s):
     sanitized = re.sub('[^0-9a-zA-Z_\-\s]+', '', s).strip().replace(' ', '-').lower()
@@ -116,8 +116,8 @@ Suite | Total | Passed | Failed | Regressed | Skipped | Logs | Result
             elif s['failed'] > 0: result = ':x:'
             elif s['total'] > 0: result = ':white_check_mark:'
 
-            html_logs_url = s["test"].get_logs_url().replace(".json", ".html")
-            raw_logs_url = "/".join(s["test"].get_logs_url().split("/")[0:-1] + ['output_from_json.log'])
+            html_logs_url = ''#s["test"].get_logs_url().replace(".json", ".html")
+            raw_logs_url = ''#"/".join(s["test"].get_logs_url().split("/")[0:-1] + ['output_from_json.log'])
 
             suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]}'
             suite_summary_md += f'| {s["failed"]} | {s["regressed"]} | {s["skipped"]}'
@@ -132,7 +132,7 @@ Total | Passed | Failed | Regressed | Skipped
 
 
 class GoTest:
-    def __init__(self, name, pkg = None, parent = None, logs_url = ''):
+    def __init__(self, name, pkg = None, parent = None, base_logs_url = ''):
         self._qname = name
         self._name = name
         self._pkg = pkg
@@ -140,22 +140,15 @@ class GoTest:
         self._children = []
         self._output = ''
         self._status = ''
-        self._logs_url = logs_url
-        self._logs_url = urllib.parse.quote(self._logs_url, safe="/:?=")
-        
-        if parent:
-            param_idx = self._logs_url.find("?output=")
-            if param_idx != -1:
-                self._logs_url = self._logs_url[0: param_idx]
-            self._logs_url += f'?output={self._qname}'
-            self._logs_url = self._logs_url.replace(".json", ".html")
+        self._log_file_name = hashlib.md5(name.encode("utf")).hexdigest() + '.txt'
+        self._logs_url = os.path.join(base_gh_logs_dir, self._log_file_name)
 
-            if parent.get_parent():
-                self._name = self._qname[len(parent.get_qualified_name()):]
+        if parent and parent.get_parent():
+            self._name = self._qname[len(parent.get_qualified_name()):]
 
     @staticmethod
     def from_json_obj(obj, parent = None):
-        gt = GoTest(obj['name'], obj['pkg'], parent, logs_url = obj['logs_url'])
+        gt = GoTest(obj['name'], obj['pkg'], parent)
         gt._qname = obj['qname']
         gt._status = obj['status']
         gt._children = [GoTest.from_json_obj(c, parent) for c in obj['children']]
@@ -165,7 +158,7 @@ class GoTest:
         self._output += str
 
     def create_child(self, name, pkg):
-        self._children.append(GoTest(name, pkg, self, logs_url=self._logs_url))
+        self._children.append(GoTest(name, pkg, self))
         return self._children[-1]
 
     def get_name(self):
@@ -212,6 +205,9 @@ class GoTest:
 
     def get_logs_url(self):
         return self._logs_url
+
+    def get_log_file_name(self):
+        return self._log_file_name
 
     def mark_passed(self):
         self._status = 'Pass'
@@ -273,7 +269,6 @@ class GoTest:
             'name': self._name,
             'pkg': self._pkg,
             'status': self._status,
-            'logs_url': self._logs_url,
             'children': [c.to_json_obj() for c in self._children],
         }
         
@@ -478,7 +473,7 @@ def _get_parent(test_map, entry, default):
 def _parse(file, json_data, suite_name=None):
     test_map = {}
     if not suite_name: suite_name = pathlib.Path(file).stem
-    top_test = GoTest(suite_name, file, logs_url=file.replace(base_logs_dir, base_logs_url))
+    top_test = GoTest(suite_name, file)
 
     for entry in json_data:
         if 'Test' not in entry:
