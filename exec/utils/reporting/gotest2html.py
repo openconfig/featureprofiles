@@ -6,7 +6,7 @@ import os
 import re
 
 from datetime import datetime
-from constants import base_gh_logs_dir
+from constants import gh_logs_dir
 
 def _to_md_anchor(s):
     sanitized = re.sub('[^0-9a-zA-Z_\-\s]+', '', s).strip().replace(' ', '-').lower()
@@ -141,7 +141,7 @@ class GoTest:
         self._output = ''
         self._status = ''
         self._log_file_name = hashlib.md5(name.encode("utf")).hexdigest() + '.txt'
-        self._logs_url = os.path.join(base_gh_logs_dir, self._log_file_name)
+        self._logs_url = os.path.join(gh_logs_dir, self._log_file_name)
 
         if parent and parent.get_parent():
             self._name = self._qname[len(parent.get_qualified_name()):]

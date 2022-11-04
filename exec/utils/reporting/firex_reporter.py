@@ -3,18 +3,18 @@ import json
 import hashlib
 from pathlib import Path
 from gotest2html import GoTestSuite, parse_json
-from constants import tests_dir, base_tracker_url, base_logs_url, base_logs_dir, base_gh_logs_dir
 
 import os
 import re
 import yaml
+import constants
 import argparse
 
 def _get_testsuites():
     test_suites = []
     test_suite_map = {}
 
-    for f in list(Path(tests_dir).rglob("*.yaml")):
+    for f in list(Path(constants.tests_dir).rglob("*.yaml")):
         with open(f) as stream:
             try:
                 ts = yaml.safe_load(stream)
@@ -44,14 +44,17 @@ args = parser.parse_args()
 
 firex_id = args.firex_id
 out_dir = args.out_dir
-data_dir = os.path.join(out_dir, 'data')
+data_dir = os.path.join(out_dir, constants.gh_data_dir)
+gh_logs_dir = os.path.join(out_dir, constants.gh_logs_dir)
 
 now = datetime.now().timestamp()
 
 if not os.path.exists(data_dir):
     os.makedirs(data_dir)
+if not os.path.exists(gh_logs_dir):
+    os.makedirs(gh_logs_dir)
 
-logs_dir = os.path.join(base_logs_dir, firex_id, 'tests_logs')
+logs_dir = os.path.join(constants.base_logs_dir, firex_id, 'tests_logs')
 
 summary_md = """
 ## Summary
@@ -96,7 +99,7 @@ for ts in  _get_testsuites():
 
         for t in go_tests:
             for c in t.get_descendants() + [t]:
-                with open(os.path.join(base_gh_logs_dir, c.get_log_file_name()), 'w') as fp:
+                with open(os.path.join(gh_logs_dir, c.get_log_file_name()), 'w') as fp:
                     fp.write(c.get_output())
 
     suite_stats = go_test_suite.get_stats()
@@ -116,8 +119,8 @@ for ts in  _get_testsuites():
     elif suite_stats['total'] > 0: suite_results = ':white_check_mark:'
 
     details_md += f"[{ts['name']}]({ts['name']}.md)|{suite_stats['total']}|{suite_stats['passed']}|{suite_stats['failed']}"
-    details_md += f"|{suite_stats['regressed']}|{suite_stats['skipped']}|[{suite_time}]({base_tracker_url}{go_test_suite.get_last_run_id()})"
-    details_md += f"|[Logs]({base_logs_url}{go_test_suite.get_last_run_id()}/tests_logs/)|{suite_results}\n"
+    details_md += f"|{suite_stats['regressed']}|{suite_stats['skipped']}|[{suite_time}]({constants.base_tracker_url}{go_test_suite.get_last_run_id()})"
+    details_md += f"|[Logs]({constants.base_logs_url}{go_test_suite.get_last_run_id()}/tests_logs/)|{suite_results}\n"
 
 summary_md += f"{total}|{passed}|{failed}|{regressed}|{skipped}\n"
 
