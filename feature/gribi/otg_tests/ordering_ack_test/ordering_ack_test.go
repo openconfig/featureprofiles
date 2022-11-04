@@ -199,6 +199,7 @@ func testTraffic(
 	v4.Src().SetValue(ateSrc.IPv4)
 	v4.Dst().Increment().SetStart(ateDstNetStartIp).SetCount(ateDstNetAddressCount)
 	otg.PushConfig(t, top)
+	otg.StartProtocols(t)
 
 	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
