@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	closer "github.com/openconfig/gocloser"
 	"github.com/openconfig/ondatra"
@@ -85,20 +86,33 @@ func TestOSInstall(t *testing.T) {
 	}
 	tc.fetchStandbySupervisorStatus(ctx, t)
 	tc.transferOS(ctx, t, false)
-	tc.activateOS(ctx, t, false)
-	if tc.dualSup {
-		tc.transferOS(ctx, t, true)
-		tc.activateOS(ctx, t, true)
+
+	if *deviations.OSActiavteRequiresReboot {
+		tc.activateOS(ctx, t, false /*standby*/, false /*noreboot*/)
+	} else {
+		tc.activateOS(ctx, t, false /*standby*/, true /*noreboot*/)
 	}
+
+	if !*deviations.NoOSInstallForStandbyRP && tc.dualSup {
+		tc.transferOS(ctx, t, true)
+		if *deviations.OSActiavteRequiresReboot {
+			tc.activateOS(ctx, t, true, false)
+		} else {
+			tc.activateOS(ctx, t, true, true)
+		}
+	}
+
 	tc.rebootDUT(ctx, t)
+	// reconnect GNOI client after reboot
+	tc.osc = tc.dut.RawAPIs().GNOI().New(t).OS()
 	tc.verifyInstall(ctx, t)
 }
 
-func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) {
+func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby, noreboot bool) {
 	act, err := tc.osc.Activate(ctx, &ospb.ActivateRequest{
 		StandbySupervisor: standby,
 		Version:           *osVersion,
-		NoReboot:          true,
+		NoReboot:          noreboot,
 	})
 	if err != nil {
 		t.Fatalf("OS.Activate request failed: %s", err)

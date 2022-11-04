@@ -111,6 +111,10 @@ var (
 	GNOISubcomponentPath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
 
 	GNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
+	
+	OSActiavteRequiresReboot = flag.Bool("deviation_osactiavte_requires_reboot", false, "Device does not support OS activation without reboot, so we pass noreboot=false when calling GNOI activate commend.")
+
+	NoOSInstallForStandbyRP = flag.Bool("deviation_no_osinstall_for_standby_rp", false, "Device does not require OS installation on standby RP since the standby RP always kept in sync with the master RP, so suppress installing OS on standby RP.")
 
 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
