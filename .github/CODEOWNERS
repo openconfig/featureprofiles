@@ -8,5 +8,8 @@
 # review when someone opens a pull request.
 *       @openconfig/featureprofiles-maintainers
 
+# Changes to deviations must be reviewed by these owners.
+/internal/deviations/ @liulk @dplore
+
 # Order is important; the last matching pattern takes the most
 # precedence.
