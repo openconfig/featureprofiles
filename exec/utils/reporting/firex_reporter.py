@@ -1,8 +1,9 @@
 from datetime import datetime
 import json
+import hashlib
 from pathlib import Path
 from gotest2html import GoTestSuite, parse_json
-from constants import tests_dir, base_tracker_url, base_logs_url, base_logs_dir
+from constants import tests_dir, base_tracker_url, base_logs_url, base_logs_dir, base_gh_logs_dir
 
 import os
 import re
@@ -68,6 +69,7 @@ test_id_map = _get_test_id_name_map(logs_dir)
 
 for ts in  _get_testsuites():
     ts_data_file = os.path.join(data_dir, f"{ts['name']}.json")
+
     if os.path.exists(ts_data_file):
         with open(ts_data_file, 'r') as fp:
             go_test_suite = GoTestSuite.from_json_obj(json.loads(fp.read()))
@@ -91,6 +93,11 @@ for ts in  _get_testsuites():
 
         with open(ts_data_file, 'w') as fp:
             fp.write(json.dumps(go_test_suite.to_json_obj()))
+
+        for t in go_tests:
+            for c in t.get_descendants() + [t]:
+                with open(os.path.join(base_gh_logs_dir, c.get_log_file_name()), 'w') as fp:
+                    fp.write(c.get_output())
 
     suite_stats = go_test_suite.get_stats()
     if suite_stats['total'] == 0:
