@@ -80,11 +80,11 @@ var (
 			desc: "Packet I/O-LLDP-PacketIn:013 LLDP disabled:Programm match EtherType 0x88cc, send traffic with EtherType 0x88cc on port which is not part of P4RT, verify the packets are not sent to the controller, packets should be dropped on the ingress port",
 			fn:   testEntryProgrammingPacketInWithouthPortID,
 		},
-		{
-			name: "(LLDP_Disable)Program LLDP Match Entry and Send scale LLDP traffic",
-			desc: "Packet I/O-LLDP-PacketIn:014 LLDP disabled:Programm match EtherType 0x88cc, send traffic with EtherType 0x88cc on port which is not part of P4RT, verify the packets are not sent to the controller, packets should be dropped on the ingress port",
-			fn:   testEntryProgrammingPacketInScaleRate,
-		},
+		// {
+		// 	name: "(LLDP_Disable)Program LLDP Match Entry and Send scale LLDP traffic",
+		// 	desc: "Packet I/O-LLDP-PacketIn:014 LLDP disabled:Programm match EtherType 0x88cc, send traffic with EtherType 0x88cc on port which is not part of P4RT, verify the packets are not sent to the controller, packets should be dropped on the ingress port",
+		// 	fn:   testEntryProgrammingPacketInScaleRate,
+		// },
 		{
 			name: "(LLDP_Disable)Program LLDP Match Entry and Check PacketOut",
 			desc: "Packet I/O-LLDP-PacketOut:001 LLDP disabled: Ingress: Inject EtherType 0x88cc packets and verify traffic behavior in case of EtherType 0x88cc entry programmed",
@@ -105,11 +105,11 @@ var (
 			desc: "Packet I/O-LLDP-PacketOut:004 LLDP disabled: Egress: Inject EtherType 0x88cc packets and verify traffic behavior in case of EtherType 0x88cc entry NOT programmed",
 			fn:   testPacketOutEgressWithoutMatchEntry,
 		},
-		{
-			name: "(LLDP_Disable)Check PacketOut Scale(submit_to_egress)",
-			desc: "Packet I/O-LLDP-PacketOut:005 LLDP disabled: Verify scale rate of LLDP packets injecting to the device",
-			fn:   testPacketOutEgressScale,
-		},
+		// {
+		// 	name: "(LLDP_Disable)Check PacketOut Scale(submit_to_egress)",
+		// 	desc: "Packet I/O-LLDP-PacketOut:005 LLDP disabled: Verify scale rate of LLDP packets injecting to the device",
+		// 	fn:   testPacketOutEgressScale,
+		// },
 		{
 			name: "(LLDP_Disable)Flap Interface and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-LLDP-PacketOut:011 LLDP disabled: Egress: Verify behavior when port flap",
@@ -167,11 +167,11 @@ var (
 			desc: "Packet I/O-LLDP-PacketIn:025 LLDP enabled:Programm match EtherType 0x88cc, send traffic with EtherType 0x88cc on port which is not part of P4RT, verify the packets are not sent to the controller, packets should be dropped on the ingress port",
 			fn:   testEntryProgrammingPacketInWithouthPortID,
 		},
-		{
-			name: "(LLDP_Enable)Program LLDP Match Entry and Send scale LLDP traffic",
-			desc: "Packet I/O-LLDP-PacketIn:027 LLDP enabled:Verify scale rate of LLDP packets",
-			fn:   testEntryProgrammingPacketInScaleRate,
-		},
+		// {
+		// 	name: "(LLDP_Enable)Program LLDP Match Entry and Send scale LLDP traffic",
+		// 	desc: "Packet I/O-LLDP-PacketIn:027 LLDP enabled:Verify scale rate of LLDP packets",
+		// 	fn:   testEntryProgrammingPacketInScaleRate,
+		// },
 		{
 			name: "(LLDP_Enable)Program LLDP Match Entry and Check PacketOut",
 			desc: "Packet I/O-LLDP-PacketOut:006 LLDP enabled: Ingress: Inject EtherType 0x88cc packets and verify traffic behavior in case of EtherType 0x88cc entry programmed",
@@ -192,11 +192,11 @@ var (
 			desc: "Packet I/O-LLDP-PacketOut:009 LLDP enabled: Egress: Inject EtherType 0x88cc packets and verify traffic behavior in case of EtherType 0x88cc entry NOT programmed",
 			fn:   testPacketOutEgressWithoutMatchEntry,
 		},
-		{
-			name: "(LLDP_Enable)Check PacketOut Scale(submit_to_egress)",
-			desc: "Packet I/O-LLDP-PacketOut:010 LLDP enabled: Verify scale rate of LLDP packets injecting to the device",
-			fn:   testPacketOutEgressScale,
-		},
+		// {
+		// 	name: "(LLDP_Enable)Check PacketOut Scale(submit_to_egress)",
+		// 	desc: "Packet I/O-LLDP-PacketOut:010 LLDP enabled: Verify scale rate of LLDP packets injecting to the device",
+		// 	fn:   testPacketOutEgressScale,
+		// },
 		{
 			name: "(LLDP_Enable)Flap Interface and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-LLDP-PacketOut:011 LLDP enabled: Egress: Verify behavior when port flap",
