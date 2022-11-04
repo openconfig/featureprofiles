@@ -213,6 +213,7 @@ tests:
   skip: true
 - name: RT-1.5 (BGP Prefix Limit) 
   path: feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test
+  patch: exec/firex/plugins/fp_patch/bgp_prefix_limit_test.patch
   owner: sprem@cisco.com
   mustpass: false
   priority: 53

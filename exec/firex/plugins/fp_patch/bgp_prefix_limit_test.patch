@@ -1,0 +1,83 @@
+diff --git a/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/bgp_prefix_limit_test.go b/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/bgp_prefix_limit_t
+index 99b650e..5c9c817 100644
+--- a/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/bgp_prefix_limit_test.go
++++ b/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/bgp_prefix_limit_test.go
+@@ -66,6 +66,9 @@ const (
+        plenIPv6               = 126
+        tolerance              = 50
+        lossTolerance          = 2
++       routerID               = "192.0.2.9"
++       rplType                = telemetry.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
++       rplName                = "ALLOW"
+ )
+ 
+ var (
+@@ -112,13 +115,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+        i2 := dutDst.NewInterface(p2)
+        dc.Interface(p2).Replace(t, i2)
+ 
++       configureRoutePolicy(t, dut, rplName, rplType)
+        dutConfPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+        dutConf := createBGPNeighbor(dutAS, ateAS, prefixLimit, grRestartTime)
+        dutConfPath.Replace(t, dutConf)
+ }
+ 
+ func (tc *testCase) verifyPortsUp(t *testing.T, dev *ondatra.Device) {
+-       for _, p := range dev.Ports() {
++       // for _, p := range dev.Ports() {
++       for _, p := range []*ondatra.Port{dev.Port(t, "port1"), dev.Port(t, "port2")} {
+                portStatus := dev.Telemetry().Interface(p.Name()).OperStatus().Get(t)
+                if want := telemetry.Interface_OperStatus_UP; portStatus != want {
+                        t.Errorf("%s Status: got %v, want %v", p, portStatus, want)
+@@ -217,31 +222,49 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *tele
+        bgp := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+        global := bgp.GetOrCreateGlobal()
+        global.As = ygot.Uint32(localAs)
++       global.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
++       global.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
++       global.RouterId = ygot.String(routerID)
+ 
+        for _, nbr := range nbrs {
+                if nbr.isV4 {
+                        nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
+                        nv4.PeerAs = ygot.Uint32(nbr.as)
+                        nv4.Enabled = ygot.Bool(true)
+-                       nv4.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
++                       // nv4.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
+                        afisafi := nv4.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+                        afisafi.Enabled = ygot.Bool(true)
+                        prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
+                        prefixLimit.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
++                       rpl := afisafi.GetOrCreateApplyPolicy()
++                       rpl.ImportPolicy = []string{rplName}
++                       rpl.ExportPolicy = []string{rplName}
+                } else {
+                        nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
+                        nv6.PeerAs = ygot.Uint32(nbr.as)
+                        nv6.Enabled = ygot.Bool(true)
+-                       nv6.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
++                       // nv6.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
+                        afisafi6 := nv6.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+                        afisafi6.Enabled = ygot.Bool(true)
+                        prefixLimit6 := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
+                        prefixLimit6.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
++                       rpl := afisafi6.GetOrCreateApplyPolicy()
++                       rpl.ImportPolicy = []string{rplName}
++                       rpl.ExportPolicy = []string{rplName}
+                }
+        }
+        return bgp
+ }
+ 
++func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr telemetry.E_RoutingPolicy_PolicyResultType) {
++       d := &telemetry.Device{}
++       rp := d.GetOrCreateRoutingPolicy()
++       pd := rp.GetOrCreatePolicyDefinition(name)
++       st := pd.GetOrCreateStatement("id-1")
++       st.GetOrCreateActions().PolicyResult = pr //telemetry.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
++       dut.Config().RoutingPolicy().Replace(t, rp)
++}
++
+ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished bool) {
+        statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+        nbrPath := statePath.Neighbor(ateDst.IPv4)
