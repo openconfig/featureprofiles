@@ -146,9 +146,10 @@ class GoTest:
             param_idx = self._logs_url.find("?output=")
             if param_idx != -1:
                 self._logs_url = self._logs_url[0: param_idx]
-            self._logs_url += f'?output={urllib.parse.quote(self._qname, safe="")}'
+            self._logs_url += f'?output={self._qname}'
             self._logs_url = self._logs_url.replace(".json", ".html")
-
+            self._logs_url = urllib.parse.quote(self._logs_url, safe="")
+            
             if parent.get_parent():
                 self._name = self._qname[len(parent.get_qualified_name()):]
 
