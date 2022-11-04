@@ -150,6 +150,7 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 	baselineFlow := tcArgs.createFlow("Baseline Path Flow", ateTop, &atePort2)
 	backupFlow := tcArgs.createFlow("Backup Path Flow", ateTop, &atePort3)
 	tcArgs.ate.OTG().PushConfig(t, ateTop)
+	tcArgs.ate.OTG().StartProtocols(t)
 
 	cases := []struct {
 		desc               string
@@ -259,6 +260,7 @@ func TestIndirectBackupNexthopGroup(t *testing.T) {
 	baselineFlow := tcArgs.createFlow("Baseline Path Flow", ateTop, &atePort2)
 	backupFlow := tcArgs.createFlow("Backup Path Flow", ateTop, &atePort3)
 	tcArgs.ate.OTG().PushConfig(t, ateTop)
+	tcArgs.ate.OTG().StartProtocols(t)
 
 	t.Run("Validate Baseline Traffic Delivery", func(t *testing.T) {
 		tcArgs.validateTrafficFlows(t, ate, ateTop, baselineFlow, backupFlow)
