@@ -331,6 +331,7 @@ func TestBGP(t *testing.T) {
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
 				As: ygot.Uint32(dutAS),
+				RouterId: ygot.String(dutPort2.IPv4),
 			},
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				"192.0.2.2": {
@@ -365,6 +366,7 @@ func TestBGP(t *testing.T) {
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
 				As: ygot.Uint32(dutAS),
+				RouterId: ygot.String(dutPort2.IPv4),
 			},
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				"2001:db8::2": {
@@ -469,7 +471,6 @@ func TestBGP(t *testing.T) {
 			t.Log("Configure Network Instance")
 			dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
 			dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-			dutConfNIPath.RouterId().Replace(t, dutPort2.IPv4)
 
 			tc.dut.Configure(t, dut)
 
