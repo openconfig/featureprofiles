@@ -12,16 +12,14 @@ import argparse
 
 def _get_testsuites():
     test_suites = []
-    test_suite_map = {}
 
     for f in list(Path(constants.tests_dir).rglob("*.yaml")):
         with open(f) as stream:
             try:
                 ts = yaml.safe_load(stream)
                 test_suites.append(ts)
-                for t in ts['tests']:
-                    test_suite_map[t['name']] = ts['name']
             except yaml.YAMLError as exc:
+                print(exc)
                 continue
     return test_suites
 
