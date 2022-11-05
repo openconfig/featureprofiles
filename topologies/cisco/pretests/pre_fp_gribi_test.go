@@ -81,7 +81,7 @@ var (
 func TestResetGRIBIServerFP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &system.KillProcessRequest{Name: "emsd", Restart: true, Signal: system.KillProcessRequest_SIGNAL_TERM})
-	time.Sleep(90 * time.Second)
+	time.Sleep(10 * time.Second)
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
 		DUT:                  dut,
