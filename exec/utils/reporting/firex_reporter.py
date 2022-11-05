@@ -121,7 +121,7 @@ for ts in  _get_testsuites():
 
     details_md += f"[{ts['name']}]({ts['name']}.md)|{suite_stats['total']}|{suite_stats['passed']}|{suite_stats['failed']}"
     details_md += f"|{suite_stats['regressed']}|{suite_stats['skipped']}|[{suite_time}]({constants.base_tracker_url}{go_test_suite.get_last_run_id()})"
-    details_md += f"|[HTML]({constants.gh_reports_dir}/{ts['name']}.html) [RAW]({constants.base_logs_url}{go_test_suite.get_last_run_id()}/tests_logs/)|{suite_results}\n"
+    details_md += f"|[HTML](https://wwwin-github.cisco.com/raw/B4Test/fp-reports/master/{constants.gh_reports_dir}/{ts['name']}.html) [RAW]({constants.base_logs_url}{go_test_suite.get_last_run_id()}/tests_logs/)|{suite_results}\n"
 
     with open(ts_html_file, 'w') as fp:
         fp.write(go_test_suite.to_html())
