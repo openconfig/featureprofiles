@@ -70,6 +70,17 @@ class GoTestSuite:
             'tests': [t.to_json_obj() for t in self._tests]
         }
 
+    def to_html(self):
+        data = [ ]
+        summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
+        for test in self.get_tests():
+            summary["total"] += test.get_total()
+            summary["skipped"] += test.get_total_skipped()
+            summary["passed"] += test.get_total_passed()
+            summary["failed"] += test.get_total_failed()
+            data.append(test.to_table_data())
+        return _generate_html(json.dumps(data), json.dumps([summary]))
+
     def to_md_string(self):
         details_md = "## Tests\n"
         suite_summary = []
