@@ -1,6 +1,7 @@
 import argparse
 import pathlib
 import hashlib
+import urllib
 import constants
 import json
 import os
@@ -116,8 +117,9 @@ Suite | Total | Passed | Failed | Regressed | Skipped | Logs | Result
             elif s['failed'] > 0: result = ':x:'
             elif s['total'] > 0: result = ':white_check_mark:'
 
-            html_logs_url = s["test"].get_logs_url().replace(".json", ".html")
-            raw_logs_url = "/".join(s["test"].get_logs_url().split("/")[0:-1] + ['output_from_json.log'])
+            log_url_parts = s["test"].get_logs_url().split("/")
+            html_logs_url = "/".join(log_url_parts[0:-1] + [urllib.parse.quote(log_url_parts[-1].replace(".json", ".html"), safe="")])
+            raw_logs_url = "/".join(log_url_parts[0:-1] + ['output_from_json.log'])
 
             suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]}'
             suite_summary_md += f'| {s["failed"]} | {s["regressed"]} | {s["skipped"]}'
