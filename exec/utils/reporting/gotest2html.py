@@ -1,12 +1,12 @@
 import argparse
 import pathlib
 import hashlib
+import constants
 import json
 import os
 import re
 
 from datetime import datetime
-from constants import gh_logs_dir
 
 def _to_md_anchor(s):
     sanitized = re.sub('[^0-9a-zA-Z_\-\s]+', '', s).strip().replace(' ', '-').lower()
@@ -116,8 +116,8 @@ Suite | Total | Passed | Failed | Regressed | Skipped | Logs | Result
             elif s['failed'] > 0: result = ':x:'
             elif s['total'] > 0: result = ':white_check_mark:'
 
-            html_logs_url = ''#s["test"].get_logs_url().replace(".json", ".html")
-            raw_logs_url = ''#"/".join(s["test"].get_logs_url().split("/")[0:-1] + ['output_from_json.log'])
+            html_logs_url = s["test"].get_logs_url().replace(".json", ".html")
+            raw_logs_url = "/".join(s["test"].get_logs_url().split("/")[0:-1] + ['output_from_json.log'])
 
             suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]}'
             suite_summary_md += f'| {s["failed"]} | {s["regressed"]} | {s["skipped"]}'
@@ -132,7 +132,7 @@ Total | Passed | Failed | Regressed | Skipped
 
 
 class GoTest:
-    def __init__(self, name, pkg = None, parent = None, base_logs_url = ''):
+    def __init__(self, name, pkg = None, parent = None):
         self._qname = name
         self._name = name
         self._pkg = pkg
@@ -141,10 +141,14 @@ class GoTest:
         self._output = ''
         self._status = ''
         self._log_file_name = hashlib.md5(name.encode("utf")).hexdigest() + '.txt'
-        self._logs_url = os.path.join(gh_logs_dir, self._log_file_name)
 
-        if parent and parent.get_parent():
-            self._name = self._qname[len(parent.get_qualified_name()):]
+        if parent:
+            self._logs_url = os.path.join(constants.gh_logs_dir, self._log_file_name)
+            if parent.get_parent():
+                self._name = self._qname[len(parent.get_qualified_name()):]
+        else:
+            self._logs_url = pkg.replace(constants.base_logs_dir, constants.base_logs_url)
+
 
     @staticmethod
     def from_json_obj(obj, parent = None):
