@@ -44,14 +44,16 @@ firex_id = args.firex_id
 out_dir = args.out_dir
 data_dir = os.path.join(out_dir, constants.gh_data_dir)
 gh_logs_dir = os.path.join(out_dir, constants.gh_logs_dir)
-
-now = datetime.now().timestamp()
+gh_reports_dir = os.path.join(out_dir, constants.gh_reports_dir)
 
 if not os.path.exists(data_dir):
     os.makedirs(data_dir)
 if not os.path.exists(gh_logs_dir):
     os.makedirs(gh_logs_dir)
+if not os.path.exists(gh_reports_dir):
+    os.makedirs(gh_reports_dir)
 
+now = datetime.now().timestamp()
 logs_dir = os.path.join(constants.base_logs_dir, firex_id, 'tests_logs')
 
 summary_md = """
@@ -70,6 +72,7 @@ test_id_map = _get_test_id_name_map(logs_dir)
 
 for ts in  _get_testsuites():
     ts_data_file = os.path.join(data_dir, f"{ts['name']}.json")
+    ts_html_file = os.path.join(gh_reports_dir, f"{ts['name']}.html")
 
     if os.path.exists(ts_data_file):
         with open(ts_data_file, 'r') as fp:
@@ -118,7 +121,10 @@ for ts in  _get_testsuites():
 
     details_md += f"[{ts['name']}]({ts['name']}.md)|{suite_stats['total']}|{suite_stats['passed']}|{suite_stats['failed']}"
     details_md += f"|{suite_stats['regressed']}|{suite_stats['skipped']}|[{suite_time}]({constants.base_tracker_url}{go_test_suite.get_last_run_id()})"
-    details_md += f"|[Logs]({constants.base_logs_url}{go_test_suite.get_last_run_id()}/tests_logs/)|{suite_results}\n"
+    details_md += f"|[HTML]({constants.gh_reports_dir}/{ts['name']}.html) [RAW]({constants.base_logs_url}{go_test_suite.get_last_run_id()}/tests_logs/)|{suite_results}\n"
+
+    with open(ts_html_file, 'w') as fp:
+        fp.write(go_test_suite.to_html())
 
 summary_md += f"{total}|{passed}|{failed}|{regressed}|{skipped}\n"
 
