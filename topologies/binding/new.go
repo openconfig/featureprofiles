@@ -105,7 +105,7 @@ func staticBinding(bindingFile string) (binding.Binding, error) {
 	}
 	for _, ate := range b.Ates {
 		if ate.Otg != nil && ate.Ixnetwork != nil {
-			return nil, fmt.Errorf("otg and ixnetwork are not mutually exclusive. Please configure one of them in ate %s binding.", ate.Name)
+			return nil, fmt.Errorf("otg and ixnetwork are mutually exclusive, please configure one of them in ate %s binding", ate.Name)
 		}
 	}
 	return &staticBind{
