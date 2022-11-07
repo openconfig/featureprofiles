@@ -1,8 +1,8 @@
 diff --git a/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go b/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
-index be1c9935..e2da9312 100644
+index 372f0342..0b2b4555 100644
 --- a/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
 +++ b/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
-@@ -15,9 +15,11 @@
+@@ -15,6 +15,7 @@
  package qos_output_queue_counters_test
  
  import (
@@ -10,21 +10,15 @@ index be1c9935..e2da9312 100644
  	"testing"
  	"time"
  
-+	"github.com/openconfig/featureprofiles/internal/deviations"
- 	"github.com/openconfig/featureprofiles/internal/fptest"
- 	"github.com/openconfig/ondatra"
- 	"github.com/openconfig/ondatra/telemetry"
-@@ -64,7 +66,9 @@ func TestQoSCounters(t *testing.T) {
- 	dp2 := dut.Port(t, "port2")
+@@ -66,6 +67,7 @@ func TestQoSCounters(t *testing.T) {
  
  	// Configure DUT interfaces.
-+
  	ConfigureDUTIntf(t, dut)
 +	ConfigureDutQos(t, dut)
  
  	// Configure ATE interfaces.
  	ate := ondatra.ATE(t, "ate")
-@@ -104,12 +108,13 @@ func TestQoSCounters(t *testing.T) {
+@@ -105,12 +107,13 @@ func TestQoSCounters(t *testing.T) {
  		}
  	case ondatra.CISCO:
  		trafficFlows = map[string]*trafficData{
@@ -44,20 +38,10 @@ index be1c9935..e2da9312 100644
  		}
  	default:
  		t.Fatalf("Output queue mapping is missing for %v", dut.Vendor().String())
-@@ -210,9 +215,75 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
- 		}
- 		i.GetOrCreateEthernet()
- 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
--		s.Enabled = ygot.Bool(true)
-+		if *deviations.InterfaceEnabled {
-+			s.Enabled = ygot.Bool(true)
-+		}
- 		a := s.GetOrCreateAddress(intf.ipAddr)
- 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
+@@ -219,3 +222,66 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
  		dut.Config().Interface(intf.intfName).Replace(t, i)
  	}
  }
-+
 +func ConfigureDutQos(t *testing.T, dut *ondatra.DUTDevice) {
 +	dp1 := dut.Port(t, "port1")
 +	dp2 := dut.Port(t, "port2")

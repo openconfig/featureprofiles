@@ -322,7 +322,7 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	static := &telemetry.NetworkInstance_Protocol_Static{
 		Prefix: ygot.String(staticCIDR),
 	}
-	static.GetOrCreateNextHop("AUTO_0").NextHop = telemetry.UnionString(atePort2.IPv4)
+	static.GetOrCreateNextHop("0").NextHop = telemetry.UnionString(atePort2.IPv4)
 	ni.Static(staticCIDR).Replace(t, static)
 	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {

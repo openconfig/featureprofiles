@@ -1,0 +1,53 @@
+name: fp_tworps
+owner: mbagherz@cisco.com
+priority: 2
+#testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
+#binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
+#baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
+binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
+testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
+baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+tests:
+- name: gNMI-1.10 (Telemetry Basic Check) 
+  path: feature/gnmi/ate_tests/telemetry_basic_check_test
+  args:
+      - '-deviation_interface_counters_from_container="true"'
+      - '-deviation_ipv4_missing_enabled="true"'
+      - '-deviation_subinterface_packet_counters_missing="true"'
+  patch: exec/firex/plugins/fp_patch/telemetry_basic_check_test.patch
+  owner: agvarghe@cisco.com
+  mustpass: false
+  priority: 34
+- name: gNMI-1.4 (Telemetry Inventory) 
+  path: feature/platform/ate_tests/telemetry_inventory_test
+  patch: exec/firex/plugins/fp_patch/telemetry_inventory_test.patch
+  owner: agvarghe@cisco.com
+  mustpass: false
+  skip: false
+  priority: 36
+- name: gNOI-3.3 (Supervisor Switchover) 
+  path: feature/gnoi/system/tests/supervisor_switchover_test
+  # patch: exec/firex/plugins/fp_patch/supervisor_switchover_test.patch
+  owner: arvbaska@cisco.com
+  mustpass: false
+  skip: false
+  priority: 39
+- name: gNOI-3.2 (Per-Component Reboot) 
+  path: feature/gnoi/system/tests/per_component_reboot_test
+  # patch: exec/firex/plugins/fp_patch/per_component_reboot_test.patch
+  owner: arvbaska@cisco.com
+  mustpass: false
+  skip: false
+  priority: 40
+- name: TE-8.2 (Supervisor Failure)
+  path: feature/experimental/gribi/ate_tests/supervisor_failure
+  owner: mananpat@cisco.com
+  skip: false
+  mustpass: true
+  priority: 20
+- name: TE-1.1 (Static ARP) 
+  path: feature/interface/staticarp/ate_tests/static_arp_test
+  owner: mbagherz@cisco.com
+  mustpass: false
+  priority: 50
+

@@ -159,6 +159,7 @@ func waitOTGARPEntry(t *testing.T) {
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcEndPoint, dstEndPoint attrs.Attributes) float32 {
 	otg := ate.OTG()
 	gwIp := gatewayMap[srcEndPoint].IPv4
+	otg.StartProtocols(t)
 	waitOTGARPEntry(t)
 	dstMac := otg.Telemetry().Interface(srcEndPoint.Name + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
 	top.Flows().Clear().Items()
@@ -176,6 +177,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	v4.Src().SetValue(srcIpv4)
 	v4.Dst().Increment().SetStart("198.51.100.0").SetCount(250)
 	otg.PushConfig(t, top)
+	otg.StartProtocols(t)
 
 	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)

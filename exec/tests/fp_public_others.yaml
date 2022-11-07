@@ -12,7 +12,6 @@ tests:
   #    - '-deviation_osactiavte_requires_reboot="true"'
   #    - '-deviation_no_osinstall_for_standby_rp="true"'
   owner: agvarghe@cisco.com
-  skip: true
   priority: 100
   mustpass: true
 - name: gNOI-5.1 (Ping Test) 
@@ -57,7 +56,6 @@ tests:
   path: feature/experimental/qos/ate_tests/qos_output_queue_counters_test
   patch: exec/firex/plugins/fp_patch/qos_output_queue_counters_test.patch
   owner: arvbaska@cisco.com
-  skip: true
   mustpass: true
   priority: 27
 - name: RT-5.3 (Aggregate Balancing) 
@@ -74,6 +72,11 @@ tests:
   priority: 29
 - name: RT-3.2 (Multiple <Protocol, DSCP> Rules for VRF Selection) 
   path: feature/experimental/policy/policy_vrf_selection/ate_tests/protocol_dscp_rules_for_vrf_selection_test
+  owner: sprem@cisco.com
+  mustpass: true
+  priority: 30
+- name: RT-3.1 Policy based VRF selection
+  path: feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection
   owner: sprem@cisco.com
   mustpass: true
   priority: 30
@@ -102,7 +105,7 @@ tests:
       - '-deviation_subinterface_packet_counters_missing="true"'
   patch: exec/firex/plugins/fp_patch/telemetry_basic_check_test.patch
   owner: agvarghe@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 34
 - name: gNMI-1.11 (Telemetry Interface Packet Counters) 
   path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
@@ -114,43 +117,30 @@ tests:
   owner: agvarghe@cisco.com
   priority: 35
   mustpass: true
-- name: gNMI-1.4 (Telemetry Inventory) 
-  path: feature/platform/ate_tests/telemetry_inventory_test
-  patch: exec/firex/plugins/fp_patch/telemetry_inventory_test.patch
-  owner: agvarghe@cisco.com
-  mustpass: false
-  priority: 36
 - name: gNMI-1.13 (Telemetry Optics Power and Bias Current) 
   path: feature/platform/tests/optics_power_and_bias_current_test
   owner: agvarghe@cisco.com
   mustpass: false
   priority: 37
+  skip: false
 - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace) 
   path: feature/system/gnmi/metadata/tests/annotation_test
   owner: kjahed@cisco.com
   mustpass: false
-  skip: true
+  skip: false
   priority: 38
-- name: gNOI-3.3 (Supervisor Switchover) 
-  path: feature/gnoi/system/tests/supervisor_switchover_test
-  patch: exec/firex/plugins/fp_patch/supervisor_switchover_test.patch
-  owner: arvbaska@cisco.com
+- name: gNOI-3.3 Copying Debug Files
+  path: feature/experimental/gnoi/copying_debug_files_test/
+  owner: agvarghe@cisco.com
   mustpass: false
-  skip: true
-  priority: 39
-- name: gNOI-3.2 (Per-Component Reboot) 
-  path: feature/gnoi/system/tests/per_component_reboot_test
-  patch: exec/firex/plugins/fp_patch/per_component_reboot_test.patch
-  owner: arvbaska@cisco.com
-  mustpass: false
-  skip: true
-  priority: 40
+  priority: 41
+  skip: false
 - name: gNOI-5.2 (Traceroute Test) 
   path: feature/gnoi/system/tests/traceroute_test
   owner: agvarghe@cisco.com
   mustpass: false
   priority: 41
-  skip: true
+  skip: false
 - name: gNOI-3.4 (Chassis Reboot Status and Reboot Cancellation) 
   path: feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
   patch: exec/firex/plugins/fp_patch/chassis_reboot_status_and_cancel_test.patch
@@ -161,7 +151,7 @@ tests:
   path: feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test
   owner: agvarghe@cisco.com
   mustpass: false
-  skip: true
+  skip: false
   priority: 43
 - name: FP_GNMI_GET
   path: feature/system/gnmi/get/tests
@@ -185,25 +175,19 @@ tests:
   owner: sprem@cisco.com
   mustpass: false
   priority: 47
-  skip: true
+  skip: false
 - name: RT-2.2 (IS-IS LSP Updates) 
   path: feature/experimental/isis/ate_tests/lsp_updates_test
   owner: sprem@cisco.com
   mustpass: false
   priority: 48
-  skip: true
+  skip: false
 - name: RT-2.1 (Base IS-IS Process and Adjacencies) 
   path: feature/experimental/isis/ate_tests/base_adjacencies_test
   owner: sprem@cisco.com
   mustpass: false
   priority: 49
-  skip: true
-- name: TE-1.1 (Static ARP) 
-  path: feature/interface/staticarp/ate_tests/static_arp_test
-  owner: mbagherz@cisco.com
-  mustpass: false
-  priority: 50
-  skip: true
+  skip: false
 - name: RT-6.1 (Core LLDP TLV Population) 
   path: feature/lldp/tests/core_lldp_tlv_population_test
   patch: exec/firex/plugins/fp_patch/chassis_reboot_status_and_cancel_test.patch
@@ -216,30 +200,36 @@ tests:
   owner: sprem@cisco.com
   mustpass: false
   priority: 52
-  skip: true
+  skip: false
 - name: RT-1.5 (BGP Prefix Limit) 
   path: feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test
   owner: sprem@cisco.com
   mustpass: false
   priority: 53
-  skip: true
+  skip: false
 - name: RT-1.4 (BGP Graceful Restart) 
   path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
   owner: sprem@cisco.com
   mustpass: false
   priority: 54
-  skip: true
+  skip: false
 - name: RT-1.7 (Local BGP Test) 
   path: feature/bgp/tests/local_bgp_test
   owner: sprem@cisco.com
   mustpass: false
   priority: 55
-  skip: true
+  skip: false
 - name: RT-1.2 (BGP Policy & Route Installation) 
   path: feature/bgp/policybase/ate_tests/route_installation_test
   owner: sprem@cisco.com
   mustpass: false
-  skip: true
+  skip: false
+  priority: 56
+- name: RT-1.2 (BGP Policy & Route Installation) 
+  path: feature/bgp/policybase/ate_tests/route_installation_test
+  owner: sprem@cisco.com
+  mustpass: false
+  skip: false
   priority: 56
 
 
