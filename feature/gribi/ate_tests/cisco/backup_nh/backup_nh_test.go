@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gribi/v1/proto/service"
+	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -487,7 +488,6 @@ func testUpdateBackUpToDropID(ctx context.Context, t *testing.T, args *testArgs)
 	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 220.220.220.220/32 Null0")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 220.220.220.220/32 Null0")
 	//Modify Backup pointing to Different ID which is pointing to a different static rooute pointitng to DROP
-	//util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "27", "24", true)
 	args.client.AddNH(t, 999, "220.220.220.220", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.ReplaceNHG(t, 101, 0, map[uint64]uint64{999: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
@@ -2331,6 +2331,7 @@ func testFaultInjectNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
 	//injecting fault to fail NHG
+
 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", true)
 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", true)
 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", false)
@@ -2349,6 +2350,7 @@ func testFaultInjectAddIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 	// adding drop route to NULL
+
 	t.Log("Adding a drop route to Null")
 	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
@@ -2359,16 +2361,16 @@ func testFaultInjectAddIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+
 	args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-
 	//Activating faults to test failure for AddIPv4
 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", true)
-	defer args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", false)
+
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 		args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks) //catch the error as it is expected and aborb the panic
 	}); strings.Contains(*errMsg, "IPv4: 192.0.2.40/32>, Status: FIB_FAILED") {
@@ -2376,16 +2378,52 @@ func testFaultInjectAddIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 	} else {
 		t.Fatalf("FIB FAILED not caused by the injected fault")
 	}
+
 }
 func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
 	args.client.BecomeLeader(t)
-	//args.client.FlushServer(t)
-	//args.client.AddNH(t, 999, "220.220.220.220", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	//util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "28", "24", true)
-	//args.client.ReplaceNHG(t, 101, 0, map[uint64]uint64{999: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.FlushServer(t)
+	// adding drop route to NULL
 
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
+	// adding default route pointing to Valid Path
+	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+
+	args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+
+	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	//Activating faults to test failure for AddIPv4
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", true)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", false)
+
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks) //catch the error as it is expected and aborb the panic
+	}); strings.Contains(*errMsg, "IPv4: 192.0.2.40/32>, Status: FIB_FAILED") {
+		t.Logf("Got the expected error on injecting fault, testt.CaptureFatal errMsg: %s", *errMsg)
+	} else {
+		t.Fatalf("FIB FAILED not caused by the injected fault")
+	}
+
+}
+
+func testFaultInjectUpdateNHG(ctx context.Context, t *testing.T, args *testArgs) {
+	// Elect client as leader and flush all the past entries
+	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
+	args.client.BecomeLeader(t)
+	args.client.FlushServer(t)
 	// adding drop route to NULL
 	t.Log("Adding a drop route to Null")
 	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
@@ -2398,42 +2436,127 @@ func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 
-	//util.FaultInjectionMechanism(t, args.dut, []string{"0", "3", "6", "4"}, "ofa_la_srv", "5", "-1", false)
-	args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 31, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 32, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 33, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, 40, 0, map[uint64]uint64{31: 10, 32: 20, 33: 30}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	//util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "22", true)
-	//util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", false)
-	//args.client.DeleteNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	//args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks)
-	//defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", false)
-	//defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "22", false)
-	//util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", true)
-	//args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks)
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "27", "24", true)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "27", "24", false)
+	//New NHG id pointing to the old NH
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		args.client.AddNHG(t, 60, 0, map[uint64]uint64{31: 10, 32: 20, 33: 30}, *ciscoFlags.DefaultNetworkInstance, true, ciscoFlags.GRIBIChecks)
+	}); strings.Contains(*errMsg, "Add NHG ID: 60>, Status: FIB_FAILED") {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This update should have failed ")
+	}
 
-	//defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", false)
+}
 
-	/*
-		args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", true)
-		args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks)
-		defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", false)
+func testFaultInjectTimingAddNHG(ctx context.Context, t *testing.T, args *testArgs) {
+	// Elect client as leader and flush all the past entries
+	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
+	args.client.BecomeLeader(t)
+	args.client.FlushServer(t)
+	// adding drop route to NULL
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
 
-			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks) //catch the error as it is expected and aborb the panic
-			}); strings.Contains(*errMsg, "Delete IPv4: 192.0.2.40/32>, Status: FIB_FAILED") {
+	// adding default route pointing to Valid Path
+	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 
-				t.Logf("Got the expected error on injecting fault, testt.CaptureFatal errMsg: %s", *errMsg)
-			} else {
+	nh1 := fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		WithIndex(31).WithIPAddress(atePort2.IPv4).WithInterfaceRef("Bundle-Ether121").WithNextHopNetworkInstance("")
+	nh2 := fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		WithIndex(32).WithIPAddress(atePort3.IPv4).WithInterfaceRef("Bundle-Ether122").WithNextHopNetworkInstance("")
+	nh3 := fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		WithIndex(33).WithIPAddress(atePort4.IPv4).WithInterfaceRef("Bundle-Ether123").WithNextHopNetworkInstance("")
 
-				t.Fatalf("FIB FAILED not caused by the injected fault")
+	nhg1 := fluent.NextHopGroupEntry().AddNextHop(31, 10).WithID(40).WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+
+	nhg2 := fluent.NextHopGroupEntry().AddNextHop(32, 30).WithID(40).WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+
+	nhg3 := fluent.NextHopGroupEntry().AddNextHop(33, 20).WithID(40).WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", true)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", false)
+	elecLow, _ := args.client.LearnElectionID(t)
+
+	ops := []func(){
+		func() {
+			args.client.Fluent(t).Modify().AddEntry(t, nh1, nhg1, nh2, nhg2, nh3, nhg3)
+			if err := args.client.AwaitTimeout(args.ctx, t, time.Minute); err != nil {
+				t.Fatalf("Await got error for entries: %v", err)
 			}
-	*/
+		},
+	}
+	res := util.DoModifyOps(args.client.Fluent(t), t, ops, fluent.InstalledInRIB, false, elecLow+1)
+	for i := uint64(1); i < 6; i++ {
+		chk.HasResult(t, res, fluent.OperationResult().
+			WithOperationID(i).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			AsResult(),
+		)
+	}
+
+}
+func testFaultInjectTimingAddIpv4(ctx context.Context, t *testing.T, args *testArgs) {
+	// Elect client as leader and flush all the past entries
+	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
+	args.client.BecomeLeader(t)
+	args.client.FlushServer(t)
+	// adding drop route to NULL
+	t.Log("Adding a drop route to Null")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 192.0.2.29/32 Null0")
+
+	// adding default route pointing to Valid Path
+	t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+
+	nh1 := fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		WithIndex(31).WithIPAddress(atePort2.IPv4).WithInterfaceRef("Bundle-Ether121").WithNextHopNetworkInstance("")
+	nh2 := fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		WithIndex(32).WithIPAddress(atePort3.IPv4).WithInterfaceRef("Bundle-Ether122").WithNextHopNetworkInstance("")
+	nh3 := fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		WithIndex(33).WithIPAddress(atePort4.IPv4).WithInterfaceRef("Bundle-Ether123").WithNextHopNetworkInstance("")
+
+	nhg1 := fluent.NextHopGroupEntry().AddNextHop(31, 10).WithID(40).WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+
+	nhg2 := fluent.NextHopGroupEntry().AddNextHop(32, 30).WithID(40).WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+
+	nhg3 := fluent.NextHopGroupEntry().AddNextHop(33, 20).WithID(40).WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	addipv4 := fluent.IPv4Entry().WithNextHopGroup(40).WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithPrefix("192.0.2.40/32")
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", true)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", false)
+	elecLow, _ := args.client.LearnElectionID(t)
+
+	ops := []func(){
+		func() {
+			//args.client.Fluent(t).Modify().AddEntry(t, nh1, nh2, nh3, nhg1, nhg2, nhg3)
+			args.client.Fluent(t).Modify().AddEntry(t, nh1, nhg1, nh2, nhg2, nh3, nhg3, addipv4)
+			if err := args.client.AwaitTimeout(args.ctx, t, time.Minute); err != nil {
+				t.Fatalf("Await got error for entries: %v", err)
+			}
+		},
+	}
+	res := util.DoModifyOps(args.client.Fluent(t), t, ops, fluent.InstalledInRIB, false, elecLow+1)
+	for i := uint64(1); i < 6; i++ {
+		chk.HasResult(t, res, fluent.OperationResult().
+			WithOperationID(i).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			AsResult(),
+		)
+	}
 
 }
 
@@ -2595,19 +2718,34 @@ func TestBackUp(t *testing.T) {
 			fn:   testNonrecursiveToRecursive,
 		},
 		{
-			name: "FaultInjectionNHG",
-			desc: "Inject relevent faults NHG - Fault Injection Test for NHG",
+			name: "FaultInjectNHG",
+			desc: "Inject relevent faults NHG ",
 			fn:   testFaultInjectNHG,
 		},
 		{
-			name: "FaultInjectionAddIPv4",
-			desc: "Inject relevent faults for Add IPV4 - Fault Injection Test for AddIPv4 for NHG",
+			name: "FaultInjectAddIPv4",
+			desc: "Inject relevent faults for Add IPV4 ",
 			fn:   testFaultInjectAddIPv4,
 		},
 		{
-			name: "FaultInjectionDeleteIPv4",
-			desc: "Inject relevent faults for Delete IPV4 - Fault Injection Test for DeleteIPv4 for NHG",
+			name: "FaultInjectDeleteIPv4",
+			desc: "Inject relevent faults for Delete IPv4",
 			fn:   testFaultInjectDeleteIPv4,
+		},
+		{
+			name: "FaultInjectUpdateNHG",
+			desc: "Inject relevent faults for Update NHG pointing to the old NH ",
+			fn:   testFaultInjectUpdateNHG,
+		},
+		{
+			name: "FaultInjectTimingAddNHG",
+			desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD fails in FIB ",
+			fn:   testFaultInjectTimingAddNHG,
+		},
+		{
+			name: "FaultInjectTimingAddIpv4",
+			desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD suceeds  in FIB but IP entry ADD fails",
+			fn:   testFaultInjectTimingAddIpv4,
 		},
 	}
 	for _, tt := range test {
