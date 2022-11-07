@@ -191,7 +191,7 @@ tests:
   skip: false
 - name: RT-6.1 (Core LLDP TLV Population) 
   path: feature/lldp/tests/core_lldp_tlv_population_test
-  patch: exec/firex/plugins/fp_patch/chassis_reboot_status_and_cancel_test.patch
+  patch: exec/firex/plugins/fp_patch/core_lldp_tlv_population_test.patch
   owner: agvarghe@cisco.com
   skip: true
   mustpass: false 
