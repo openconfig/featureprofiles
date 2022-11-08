@@ -154,9 +154,43 @@ func TestBGP(t *testing.T) {
 		desc:     "propagate IPv4 over IPv4",
 		fullDesc: "Advertise prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*telemetry.NetworkInstance_Protocol_Bgp_PeerGroup{
+				"BGP-PEER-GROUP1": {
+					PeerGroupName: ygot.String("BGP-PEER-GROUP1"),
+					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+							AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+							Enabled:     ygot.Bool(true),
+						},
+					},
+					ApplyPolicy: &telemetry.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
+						ExportPolicy: []string{"PERMIT-ALL"},
+						ImportPolicy: []string{"PERMIT-ALL"},
+					},
+				},
+				"BGP-PEER-GROUP2": {
+					PeerGroupName: ygot.String("BGP-PEER-GROUP2"),
+					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+							AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+							Enabled:     ygot.Bool(true),
+						},
+					},
+					ApplyPolicy: &telemetry.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
+						ExportPolicy: []string{"PERMIT-ALL"},
+						ImportPolicy: []string{"PERMIT-ALL"},
+					},
+				},
+			},
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
 				RouterId: ygot.String(dutPort2.IPv4),
+				AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+					telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+						AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+						Enabled:     ygot.Bool(true),
+					},
+				},
 			},
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				"192.0.2.2": {
@@ -189,9 +223,43 @@ func TestBGP(t *testing.T) {
 		desc:     "propagate IPv6 over IPv6",
 		fullDesc: "Advertise IPv6 prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*telemetry.NetworkInstance_Protocol_Bgp_PeerGroup{
+				"BGP-PEER-GROUP1": {
+					PeerGroupName: ygot.String("BGP-PEER-GROUP1"),
+					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
+							AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+							Enabled:     ygot.Bool(true),
+						},
+					},
+					ApplyPolicy: &telemetry.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
+						ExportPolicy: []string{"PERMIT-ALL"},
+						ImportPolicy: []string{"PERMIT-ALL"},
+					},
+				},
+				"BGP-PEER-GROUP2": {
+					PeerGroupName: ygot.String("BGP-PEER-GROUP2"),
+					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
+							AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+							Enabled:     ygot.Bool(true),
+						},
+					},
+					ApplyPolicy: &telemetry.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
+						ExportPolicy: []string{"PERMIT-ALL"},
+						ImportPolicy: []string{"PERMIT-ALL"},
+					},
+				},
+			},
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
 				RouterId: ygot.String(dutPort2.IPv4),
+				AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+					telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
+						AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+						Enabled:     ygot.Bool(true),
+					},
+				},
 			},
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				"2001:db8::2": {
@@ -237,9 +305,47 @@ func TestBGP(t *testing.T) {
 		skipReason: "TODO: RFC5549 needs to be enabled explicitly and OpenConfig does not currently provide a signal.",
 		fullDesc:   "IPv4 routes with an IPv6 next-hop when negotiating RFC5549 - validating that routes are accepted and advertised with the specified values.",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*telemetry.NetworkInstance_Protocol_Bgp_PeerGroup{
+				"BGP-PEER-GROUP1": {
+					PeerGroupName: ygot.String("BGP-PEER-GROUP1"),
+					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
+							AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+							Enabled:     ygot.Bool(true),
+						},
+					},
+					ApplyPolicy: &telemetry.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
+						ExportPolicy: []string{"PERMIT-ALL"},
+						ImportPolicy: []string{"PERMIT-ALL"},
+					},
+				},
+				"BGP-PEER-GROUP2": {
+					PeerGroupName: ygot.String("BGP-PEER-GROUP2"),
+					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi{
+						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+							AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+							Enabled:     ygot.Bool(true),
+						},
+					},
+					ApplyPolicy: &telemetry.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
+						ExportPolicy: []string{"PERMIT-ALL"},
+						ImportPolicy: []string{"PERMIT-ALL"},
+					},
+				},
+			},
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
 				RouterId: ygot.String(dutPort2.IPv4),
+				AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+					telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+						AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+						Enabled:     ygot.Bool(true),
+					},
+					telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
+						AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+						Enabled:     ygot.Bool(true),
+					},
+				},
 			},
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 				"2001:db8::2": {
