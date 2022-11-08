@@ -18,9 +18,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -43,6 +45,7 @@ const (
 var (
 	ateSrc = attrs.Attributes{
 		Name:    "ATE to Ingress Source",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
 		IPv4Len: plen4,
@@ -57,6 +60,7 @@ var (
 	}
 	ateDst = attrs.Attributes{
 		Name:    "ATE to Egress VLAN 10",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: plen4,
@@ -71,6 +75,7 @@ var (
 	}
 	ateDst2 = attrs.Attributes{
 		Name:    "ATE to Egress VLAN 20",
+		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv6:    "2001:db8::a",
 		IPv4Len: plen4,
@@ -242,73 +247,102 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort str
 	time.Sleep(sleepOnChange)
 }
 
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
-	t.Logf("*** Configuring ATE interfaces ...")
-	topo := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) []gosnappi.Flow {
+	t.Logf("*** Configuring OTG interfaces ...")
+	topo := ate.OTG().NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
 
-	i1 := topo.AddInterface(ateSrc.Name).WithPort(p1)
-	i1.IPv4().WithAddress(ateSrc.IPv4CIDR()).WithDefaultGateway(dutSrc.IPv4)
-	i1.IPv6().WithAddress(ateSrc.IPv6CIDR()).WithDefaultGateway(dutSrc.IPv6)
+	topo.Ports().Add().SetName(p1.ID())
+	srcDev := topo.Devices().Add().SetName(ateSrc.Name)
+	ethSrc := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth")
+	ethSrc.SetPortName(p2.ID()).SetMac(ateSrc.MAC)
+	ethSrc.Ipv4Addresses().Add().SetName(srcDev.Name() + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
+	ethSrc.Ipv6Addresses().Add().SetName(srcDev.Name() + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
-	i2 := topo.AddInterface(ateDst.Name).WithPort(p2)
-	i2.Ethernet().WithVLANID(vlan10)
-	i2.IPv4().WithAddress(ateDst.IPv4CIDR()).WithDefaultGateway(dutDst.IPv4)
-	i2.IPv6().WithAddress(ateDst.IPv6CIDR()).WithDefaultGateway(dutDst.IPv6)
+	topo.Ports().Add().SetName(p2.ID())
+	dstDev := topo.Devices().Add().SetName(ateDst.Name + "-vlan10")
+	eth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth")
+	eth.SetPortName(p2.ID()).SetMac(ateDst.MAC)
+	eth.Vlans().Add().SetName(dstDev.Name() + "VLAN").SetId(int32(vlan10))
+	eth.Ipv4Addresses().Add().SetName(dstDev.Name() + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
+	eth.Ipv6Addresses().Add().SetName(dstDev.Name() + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
 
-	i3 := topo.AddInterface(ateDst2.Name).WithPort(p2)
-	i3.Ethernet().WithVLANID(vlan20)
-	i3.IPv4().WithAddress(ateDst2.IPv4CIDR()).WithDefaultGateway(dutDst2.IPv4)
-	i3.IPv6().WithAddress(ateDst2.IPv6CIDR()).WithDefaultGateway(dutDst2.IPv6)
-
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header()
-	ipipHeader := ondatra.NewIPv4Header()
-	ipv6Header := ondatra.NewIPv6Header()
-	ipipDscp46Header := ondatra.NewIPv4Header().WithDSCP(46)
-	ipipDscp42Header := ondatra.NewIPv4Header().WithDSCP(42)
+	dstDev2 := topo.Devices().Add().SetName(ateDst2.Name + "-vlan20")
+	eth2 := dstDev2.Ethernets().Add().SetName(ateDst2.Name + ".Eth")
+	eth2.SetPortName(p2.ID()).SetMac(ateDst.MAC)
+	eth2.Vlans().Add().SetName(dstDev2.Name() + "VLAN").SetId(int32(vlan20))
+	eth2.Ipv4Addresses().Add().SetName(dstDev2.Name() + ".IPv4").SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(int32(ateDst2.IPv4Len))
+	eth2.Ipv6Addresses().Add().SetName(dstDev2.Name() + ".IPv6").SetAddress(ateDst2.IPv6).SetGateway(dutDst2.IPv6).SetPrefix(int32(ateDst2.IPv6Len))
 
 	// Create traffic flows
-	t.Logf("*** Configuring ATE flows ...")
-	ipv4FlowVlan10 := ate.Traffic().NewFlow("Ipv4Vlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipv6FlowVlan10 := ate.Traffic().NewFlow("Ipv6Vlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipv6Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipipFlowVlan10 := ate.Traffic().NewFlow("IpipVlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipipHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipipDscp46FlowVlan10 := ate.Traffic().NewFlow("IpipDscp46Vlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipipDscp46Header, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipipDscp42FlowVlan10 := ate.Traffic().NewFlow("IpipDscp42Vlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipipDscp42Header, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipv4FlowVlan20 := ate.Traffic().NewFlow("Ipv4Vlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipv6FlowVlan20 := ate.Traffic().NewFlow("Ipv6Vlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipv6Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipipFlowVlan20 := ate.Traffic().NewFlow("IpipVlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipipHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipipDscp46FlowVlan20 := ate.Traffic().NewFlow("IpipDscp46Vlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipipDscp46Header, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipipDscp42FlowVlan20 := ate.Traffic().NewFlow("IpipDscp42Vlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipipDscp42Header, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
+	t.Logf("*** Configuring OTG flows ...")
+	topo.Flows().Clear().Items()
+	ipv4FlowVlan10 := createFlow("Ipv4Vlan10", topo, "IPv4", false, 10, 0, ateDst)
+	ipv6FlowVlan10 := createFlow("Ipv6Vlan10", topo, "IPv6", false, 10, 0, ateDst)
+	ipipFlowVlan10 := createFlow("IpipVlan10", topo, "IPv4", true, 10, 0, ateDst)
+	ipipDscp46FlowVlan10 := createFlow("IpipDscp46Vlan10", topo, "IPv4", true, 10, 46, ateDst)
+	ipipDscp42FlowVlan10 := createFlow("IpipDscp42Vlan10", topo, "IPv4", true, 10, 42, ateDst)
+	ipv4FlowVlan20 := createFlow("Ipv4Vlan20", topo, "IPv4", false, 20, 0, ateDst2)
+	ipv6FlowVlan20 := createFlow("Ipv6Vlan20", topo, "IPv6", false, 20, 0, ateDst2)
+	ipipFlowVlan20 := createFlow("IpipVlan20", topo, "IPv4", true, 20, 0, ateDst2)
+	ipipDscp46FlowVlan20 := createFlow("IpipDscp46Vlan20", topo, "IPv4", true, 20, 46, ateDst2)
+	ipipDscp42FlowVlan20 := createFlow("IpipDscp42Vlan20", topo, "IPv4", true, 20, 42, ateDst2)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
-	topo.Push(t)
-	topo.StartProtocols(t)
-	return []*ondatra.Flow{ipv4FlowVlan10, ipv6FlowVlan10, ipipFlowVlan10, ipipDscp46FlowVlan10, ipipDscp42FlowVlan10,
+	ate.OTG().PushConfig(t, topo)
+	ate.OTG().StartProtocols(t)
+	return []gosnappi.Flow{ipv4FlowVlan10, ipv6FlowVlan10, ipipFlowVlan10, ipipDscp46FlowVlan10, ipipDscp42FlowVlan10,
 		ipv4FlowVlan20, ipv6FlowVlan20, ipipFlowVlan20, ipipDscp46FlowVlan20, ipipDscp42FlowVlan20}
 }
 
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
-	t.Logf("*** Sending traffic from ATE ...")
+func createFlow(name string, top gosnappi.Config, ipType string, IPinIP bool, vlanID, dscp int32, dst attrs.Attributes) gosnappi.Flow {
+
+	flow := top.Flows().Add().SetName(name)
+	flow.Metrics().SetEnable(true)
+	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ipType}).SetRxNames([]string{dst.Name + ipType})
+	e1 := flow.Packet().Add().Ethernet()
+	e1.Src().SetValue(ateSrc.MAC)
+	flow.Packet().Add().Vlan().Id().SetValue(vlanID)
+	if ipType == "IPv4" {
+		v4 := flow.Packet().Add().Ipv4()
+		v4.Src().SetValue(ateSrc.IPv4)
+		v4.Dst().SetValue(dst.IPv4)
+		if dscp != 0 {
+			v4.Priority().Dscp().Phb().SetValue(dscp)
+		}
+	}
+	if ipType == "IPv6" {
+		v6 := flow.Packet().Add().Ipv6()
+		v6.Src().SetValue(ateSrc.IPv6)
+		v6.Dst().SetValue(dst.IPv6)
+	}
+	if IPinIP {
+		flow.Packet().Add().Ipv4()
+	}
+
+	return flow
+}
+
+func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Logf("*** Starting traffic ...")
-	ate.Traffic().Start(t, allFlows...)
+	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
 	t.Logf("*** Stop traffic ...")
-	ate.Traffic().Stop(t)
+	ate.OTG().StopTraffic(t)
 }
 
 func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice, flowName string, wantLoss bool) {
-	afc := ate.Telemetry().Flow(flowName).Counters()
-	outPkts := afc.OutPkts().Get(t)
-	t.Logf("ate:Flow out counters %v %v", flowName, outPkts)
-	fptest.LogYgot(t, "ate:Flow counters", afc, afc.Get(t))
+	afc := ate.OTG().Telemetry().Flow(flowName).Counters()
+	outPkts := ate.OTG().Telemetry().Flow(flowName).Counters().OutPkts().Get(t)
+	t.Logf("otg:Flow out counters %v %v", flowName, outPkts)
+	fptest.LogYgot(t, "otg:Flow counters", afc, afc.Get(t))
 
 	inPkts := afc.InPkts().Get(t)
-	t.Logf("ate:Flow in counters %v %v", flowName, inPkts)
+	t.Logf("otg:Flow in counters %v %v", flowName, inPkts)
 
-	lostPkts := inPkts - outPkts
+	lostPkts := outPkts - inPkts
 	t.Logf("Sent Packets: %d, received Packets: %d", outPkts, inPkts)
 	if !wantLoss {
 		if lostPkts > 0 {
@@ -329,12 +363,16 @@ func contains(item string, items []string) bool {
 	return flag
 }
 
-// verifyTraffic confirms that every traffic flow has the expected amount of loss (0% or 100%
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, passFlows []string) {
+// verifyTraffic confirms that every traffic flow has the expected amount of loss (0% or 100%)
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Flow, passFlows []string) {
+	topo := ate.OTG().FetchConfig(t)
+	otgutils.LogFlowMetrics(t, ate.OTG(), topo)
 	for _, flow := range flows {
-		t.Logf("*** Verifying %v traffic on ATE ... ", flow.Name())
+		t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
 		captureTrafficStats(t, ate, flow.Name(), false)
-		lossPct := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t)
+		outPkts := ate.OTG().Telemetry().Flow(flow.Name()).Counters().OutPkts().Get(t)
+		inPkts := ate.OTG().Telemetry().Flow(flow.Name()).Counters().InPkts().Get(t)
+		lossPct := (outPkts - inPkts) / outPkts * 100
 		if contains(flow.Name(), passFlows) {
 			if lossPct > 0 {
 				t.Errorf("Traffic Loss Pct for Flow: %s got %v, want 0", flow.Name(), lossPct)
@@ -397,7 +435,7 @@ func TestVrfPolicy(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.desc, func(t *testing.T) {
 			applyForwardingPolicy(t, ate, p1.Name(), tc.policy)
-			sendTraffic(t, ate, allFlows)
+			sendTraffic(t, ate)
 			verifyTraffic(t, ate, allFlows, tc.passFlows)
 		})
 	}
