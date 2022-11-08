@@ -170,6 +170,7 @@ func TestBackup(t *testing.T) {
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	waitOTGARPEntry(t)
 
 	t.Run("IPv4BackUpSwitch", func(t *testing.T) {
 		t.Logf("Name: IPv4BackUpSwitch")
@@ -242,7 +243,8 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, dstPfx, NHGID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 
 	// create flow
-	BaseFlow := createFlow(t, args.ate, args.top, "BaseFlow")
+	dstMac := args.ate.OTG().Telemetry().Interface(atePort1.Name + ".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().Get(t)
+	BaseFlow := createFlow(t, args.ate, args.top, "BaseFlow", dstMac)
 
 	// validate programming using AFT
 	aftCheck(t, args.dut, dstPfx, []string{"192.0.2.6", "192.0.2.10"})
@@ -267,19 +269,17 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx
-func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name string) string {
+func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name, dstMac string) string {
 
 	flow := top.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	flow.TxRx().Port().SetTxName(atePort1.Name)
-	waitOTGARPEntry(t)
-	dstMac := ate.OTG().Telemetry().Interface(atePort1.Name + ".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().Get(t)
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(1)
+	v4.Dst().SetValue(dstPfxMin)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	return name
@@ -308,7 +308,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, ateTop gosnappi.
 
 // flapinterface shut/unshut interface, action true bringsup the interface and false brings it down
 func flapinterface(t *testing.T, dut *ondatra.DUTDevice, port string, action bool) {
-	// When running on kne the corresponding DUT port will be taken down
+	// Currently, setting the OTG port down has no effect on kne and thus the corresponding dut port will be used
 	dutP := dut.Port(t, port)
 	dc := dut.Config()
 	i := &telemetry.Interface{}
@@ -351,6 +351,7 @@ func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, expectedNH []
 
 // Waits for at least one ARP entry on the tx OTG interface
 func waitOTGARPEntry(t *testing.T) {
+	t.Helper()
 	ate := ondatra.ATE(t, "ate")
 	ate.OTG().Telemetry().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
 		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
