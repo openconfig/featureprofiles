@@ -136,6 +136,16 @@ def BringupTestbed(self, ws, images = None,
 
         logger.print(f'Executing osinstall command:\n {install_cmd}')
         logger.print(check_output(install_cmd, cwd=fp_repo_dir))
+
+    showver_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/showver ' \
+            f'-timeout 0 ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} ' \
+            f'-outFile {os.path.join(ws, f"show_version.txt")}'
+    check_output(showver_cmd, cwd=fp_repo_dir)
+
     return ondatra_binding_path
 
 @app.task(base=FireX, bind=True)
@@ -326,6 +336,11 @@ def RunB4FPTest(self,
     write_output_from_results_json(json_results_file, log_filepath)
 
     log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
+
+    version_info_file = os.path.join(ws, f"show_version.txt")
+    if os.path.exists(version_info_file):
+        shutil.copyfile(version_info_file, 
+            os.path.join(test_log_directory_path, f"show_version.txt"))
     return None, xunit_results_filepath, log_file, start_time, stop_time
 
 @register_testbed_file_generator('b4_fp')
