@@ -12,7 +12,7 @@ Validate static routing for a DUT.
     *   Add a static route for an IPv4 prefix 10.0.0.0/24 that routes packets from ATE port 1 to the next-hop address on each ATE port 2-4
     *   Validate that packets are received at each ATE port 2-4 when sourced from ATE port 1.
 
-## Config Paramter Coverage 
+## Config Parameter Coverage 
 
 *   /interfaces/interface/config/name
 *   /interfaces/interface/config/description
