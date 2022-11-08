@@ -11,6 +11,7 @@ custom:
       ports:  
         ssh:
           port: 22
+          opts:  ["skip_verify"]
         telnet:
           port: 23
         gnmi:
