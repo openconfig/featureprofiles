@@ -16,6 +16,7 @@ package ipv4_entry_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -106,6 +107,8 @@ func TestIPv4Entry(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
+
+	gribic := dut.RawAPIs().GRIBI().Default(t)
 
 	ate := ondatra.ATE(t, "ate")
 	configureATE(t, ate)
@@ -240,44 +243,87 @@ func TestIPv4Entry(t *testing.T) {
 		},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			gribic := dut.RawAPIs().GRIBI().Default(t)
-			c := fluent.NewClient()
-			c.Connection().WithStub(gribic).
-				WithRedundancyMode(fluent.ElectedPrimaryClient).
-				WithFIBACK().
-				WithInitialElectionID(1, 0)
-			c.Start(ctx, t)
-			defer c.Stop(t)
-			c.StartSending(ctx, t)
-			if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-				t.Fatalf("Await got error during session negotiation: %v", err)
+	const (
+		usePreserve = "PRESERVE"
+		useDelete   = "DELETE"
+	)
+
+	// Each case will run with its own gRIBI fluent client.
+	for _, persist := range []string{usePreserve, useDelete} {
+		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
+			if *deviations.GRIBIPreserveOnly && persist == useDelete {
+				t.Skip("Skipping due to --deviation_gribi_preserve_only")
 			}
 
-			if tc.downPort != nil {
-				// Setting admin state down on the DUT interface.
-				// Setting the otg interface down has no effect on kne and is not yet supported in otg
-				setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, false)
-				defer setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, true)
-			}
+			for _, tc := range cases {
+				t.Run(tc.desc, func(t *testing.T) {
+					// Configure the gRIBI client.
+					c := fluent.NewClient()
+					conn := c.Connection().
+						WithStub(gribic).
+						WithRedundancyMode(fluent.ElectedPrimaryClient).
+						WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
+					if persist == usePreserve {
+						conn.WithPersistence()
+					}
 
-			c.Modify().AddEntry(t, tc.entries...)
-			if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-				t.Fatalf("Await got error for entries: %v", err)
-			}
-			defer func() {
-				c.Modify().DeleteEntry(t, tc.entries...)
-				if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-					t.Fatalf("Await got error for entries: %v", err)
-				}
-			}()
+					if !*deviations.GRIBIRIBAckOnly {
+						// The main difference WithFIBACK() made was that we are now expecting
+						// fluent.InstalledInFIB in []*client.OpResult, as opposed to
+						// fluent.InstalledInRIB.
+						conn.WithFIBACK()
+					}
 
-			for _, wantResult := range tc.wantOperationResults {
-				chk.HasResult(t, c.Results(t), wantResult, chk.IgnoreOperationID())
-			}
+					c.Start(ctx, t)
+					defer c.Stop(t)
+					c.StartSending(ctx, t)
+					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+						t.Fatalf("Await got error during session negotiation: %v", err)
+					}
 
-			validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
+					if persist == usePreserve {
+						defer func() {
+							_, err := c.Flush().
+								WithElectionOverride().
+								WithAllNetworkInstances().
+								Send()
+							if err != nil {
+								t.Errorf("Cannot flush: %v", err)
+							}
+						}()
+					}
+
+					if tc.downPort != nil {
+						// Setting admin state down on the DUT interface.
+						// Setting the otg interface down has no effect on kne and is not yet supported in otg
+						setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, false)
+						defer setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, true)
+					}
+
+					c.Modify().AddEntry(t, tc.entries...)
+					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+						t.Fatalf("Await got error for entries: %v", err)
+					}
+					defer func() {
+						// Delete should reverse the order of entries, i.e. IPv4Entry must be removed
+						// before NextHopGroupEntry, which must be removed before NextHopEntry.
+						var revEntries []fluent.GRIBIEntry
+						for i := len(tc.entries) - 1; i >= 0; i-- {
+							revEntries = append(revEntries, tc.entries[i])
+						}
+						c.Modify().DeleteEntry(t, revEntries...)
+						if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+							t.Fatalf("Await got error for entries: %v", err)
+						}
+					}()
+
+					for _, wantResult := range tc.wantOperationResults {
+						chk.HasResult(t, c.Results(t), wantResult, chk.IgnoreOperationID())
+					}
+
+					validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
+				})
+			}
 		})
 	}
 }
@@ -303,9 +349,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	p2 := ate.Port(t, "port2")
 	p3 := ate.Port(t, "port3")
 
-	addToOTG(top, p1, &atePort1, &dutPort1)
-	addToOTG(top, p2, &atePort2, &dutPort2)
-	addToOTG(top, p3, &atePort3, &dutPort3)
+	atePort1.AddToOTG(top, p1, &dutPort1)
+	atePort2.AddToOTG(top, p2, &dutPort2)
+	atePort3.AddToOTG(top, p3, &dutPort3)
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
@@ -339,6 +385,7 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
 	otg.PushConfig(t, ateTop)
+	otg.StartProtocols(t)
 	return modName
 }
 
@@ -430,25 +477,6 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 	return c.Await(subctx, t)
 }
 
-func addToOTG(top gosnappi.Config, ap *ondatra.Port, port, peer *attrs.Attributes) {
-	top.Ports().Add().SetName(port.Name)
-	dev := top.Devices().Add().SetName(port.Name)
-	eth := dev.Ethernets().Add().SetName(port.Name + ".Eth")
-	eth.SetPortName(dev.Name()).SetMac(port.MAC)
-
-	if port.MTU > 0 {
-		eth.SetMtu(int32(port.MTU))
-	}
-	if port.IPv4 != "" {
-		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
-		ip.SetAddress(port.IPv4).SetGateway(peer.IPv4).SetPrefix(int32(port.IPv4Len))
-	}
-	if port.IPv6 != "" {
-		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv6")
-		ip.SetAddress(port.IPv6).SetGateway(peer.IPv6).SetPrefix(int32(port.IPv6Len))
-	}
-}
-
 // Waits for at least one ARP entry on the tx OTG interface
 func waitOTGARPEntry(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
@@ -461,7 +489,7 @@ func waitOTGARPEntry(t *testing.T) {
 // setDUTInterfaceState sets the admin state on the dut interface
 func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *attrs.Attributes, p *ondatra.Port, state bool) {
 	dc := dut.Config()
-	i := &oc.Interface{Name: ygot.String(p.Name())}
+	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(state)
 	dc.Interface(p.Name()).Update(t, i)
 }

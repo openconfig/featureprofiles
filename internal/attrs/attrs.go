@@ -76,7 +76,7 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
 	s := intf.GetOrCreateSubinterface(0)
 	if a.IPv4 != "" {
 		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled {
+		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 			s4.Enabled = ygot.Bool(true)
 		}
 		if a.MTU > 0 {
@@ -143,7 +143,7 @@ func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attri
 		ip.SetAddress(a.IPv4).SetGateway(peer.IPv4).SetPrefix(int32(a.IPv4Len))
 	}
 	if a.IPv6 != "" {
-		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv6")
+		ip := eth.Ipv6Addresses().Add().SetName(dev.Name() + ".IPv6")
 		ip.SetAddress(a.IPv6).SetGateway(peer.IPv6).SetPrefix(int32(a.IPv6Len))
 	}
 }

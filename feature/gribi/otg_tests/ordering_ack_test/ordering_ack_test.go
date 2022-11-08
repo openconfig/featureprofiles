@@ -199,6 +199,7 @@ func testTraffic(
 	v4.Src().SetValue(ateSrc.IPv4)
 	v4.Dst().Increment().SetStart(ateDstNetStartIp).SetCount(ateDstNetAddressCount)
 	otg.PushConfig(t, top)
+	otg.StartProtocols(t)
 
 	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
@@ -500,7 +501,7 @@ func TestOrderingACK(t *testing.T) {
 	for _, persist := range []string{usePreserve, useDelete} {
 		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
 			if *deviations.GRIBIPreserveOnly && persist == useDelete {
-				t.Skip("Skipping due to --deviations_gribi_preserve_only")
+				t.Skip("Skipping due to --deviation_gribi_preserve_only")
 			}
 
 			for _, tc := range cases {

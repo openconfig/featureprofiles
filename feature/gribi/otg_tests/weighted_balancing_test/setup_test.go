@@ -193,7 +193,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	static.GetOrCreateNextHop("AUTO_drop_2").
 		NextHop = telemetry.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
 	staticp := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").
+		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
 		Static(discardCIDR)
 	fptest.LogYgot(t, "discard route", staticp, static)
 	staticp.Replace(t, static)
@@ -211,7 +211,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 func setDUTInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port, state bool) {
 	t.Helper()
 	dc := dut.Config()
-	i := &telemetry.Interface{Name: ygot.String(p.Name())}
+	i := &telemetry.Interface{}
 	i.Enabled = ygot.Bool(state)
 	dc.Interface(p.Name()).Update(t, i)
 }
@@ -348,6 +348,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 
 	flow.Size().SetFixed(200)
 	ate.OTG().PushConfig(t, config)
+	ate.OTG().StartProtocols(t)
 
 	if *trafficPause != 0 {
 		t.Logf("Pausing before traffic at %v for %v", time.Now(), *trafficPause)
