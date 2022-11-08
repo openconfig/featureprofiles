@@ -109,7 +109,7 @@ var (
 
 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
-	AddSubIntfToNetInst = flag.Bool("deviation_adding_subintf_to_netowork_instance", true,
+	AddSubIntfToNetInst = flag.Bool("deviation_adding_subintf_to_network_instance", true,
 	"Vendor requiring explicitly attaching sub-interface to network-instance, this deviation should be marked true. Default expectation is sub-interface is part of default network-instance implicitly.")
 )
 
