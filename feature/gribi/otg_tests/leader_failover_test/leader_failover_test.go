@@ -155,6 +155,7 @@ func waitOTGARPEntry(t *testing.T) {
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcEndPoint, dstEndPoint attrs.Attributes, wantLoss bool) {
 
 	otg := ate.OTG()
+	otg.StartProtocols(t)
 	waitOTGARPEntry(t)
 	dstMac := otg.Telemetry().Interface(atePort1.Name + ".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().Get(t)
 	top.Flows().Clear().Items()
@@ -171,6 +172,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart("203.0.113.1").SetCount(250)
 	otg.PushConfig(t, top)
+	otg.StartProtocols(t)
 
 	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
