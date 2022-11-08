@@ -74,7 +74,7 @@ const (
 	prefixSubnetRange      = "29..32"
 	allowConnected         = "ALLOW-CONNECTED"
 	prefixSet              = "PREFIX-SET"
-	defaultPolicy          = ""
+	defaultPolicy          = "PERMIT-ALL"
 	denyPolicy             = "DENY-ALL"
 	acceptPolicy           = "PERMIT-ALL"
 	setLocalPrefPolicy     = "SET-LOCAL-PREF"
@@ -141,7 +141,7 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 
 // bgpCreateNbr creates a BGP object with neighbors pointing to ateSrc and ateDst, optionally with
 // a peer group policy.
-func bgpCreateNbr(localAs, peerAs uint32, policy string) *telemetry.NetworkInstance_Protocol_Bgp {
+func bgpCreateNbr(localAs, peerAs uint32, policy string) *telemetry.NetworkInstance_Protocol {
 	nbr1v4 := &bgpNeighbor{as: peerAs, neighborip: ateSrc.IPv4, isV4: true}
 	nbr1v6 := &bgpNeighbor{as: peerAs, neighborip: ateSrc.IPv6, isV4: false}
 	nbr2v4 := &bgpNeighbor{as: peerAs, neighborip: ateDst.IPv4, isV4: true}
@@ -150,15 +150,23 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string) *telemetry.NetworkInsta
 
 	d := &telemetry.Device{}
 	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
-	bgp := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	ni_proto := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := ni_proto.GetOrCreateBgp()
+	ni_proto.Name = ygot.String("BGP")
+	ni_proto.Identifier = telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	ni_proto.Enabled = ygot.Bool(true)
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(dutDst.IPv4)
 	global.As = ygot.Uint32(localAs)
+	global.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	global.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
 	pg.PeerAs = ygot.Uint32(ateAS)
 	pg.PeerGroupName = ygot.String(peerGrpName)
+	pg.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	pg.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	if policy != "" {
 		pg.GetOrCreateApplyPolicy().ImportPolicy = []string{policy}
 	}
@@ -178,7 +186,7 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string) *telemetry.NetworkInsta
 		}
 
 	}
-	return bgp
+	return ni_proto
 }
 
 // configureBGPPolicy configures a BGP routing policy to accept or reject routes based on prefix match conditions
@@ -464,7 +472,7 @@ func TestEstablish(t *testing.T) {
 
 	// Configure BGP+Neighbors on the DUT
 	t.Logf("Start DUT BGP Config")
-	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConfPath.Delete(t)
 	dutConf := bgpCreateNbr(dutAS, ateAS, defaultPolicy)
 	dutConfPath.Replace(t, dutConf)
@@ -561,7 +569,7 @@ func TestBGPPolicy(t *testing.T) {
 			bgp := bgpCreateNbr(dutAS, ateAS, tc.policy)
 			// Configure ATE to setup traffic.
 			allFlows := configureATE(t, ate)
-			dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Replace(t, bgp)
+			dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Replace(t, bgp)
 			// Send and verify traffic.
 			sendTraffic(t, ate, allFlows)
 			verifyTraffic(t, ate, allFlows, tc.wantLoss)
