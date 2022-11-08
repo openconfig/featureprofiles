@@ -151,8 +151,11 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 			},
 		},
 	}
+<<<<<<< HEAD
 	rpl := configureRoutingPolicy(&oc.Root{})
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
+=======
+>>>>>>> 4f2d099 (Proposal for Issue on Issue-719)
 	gnmi.Replace(t, dut, dutProto.Config(), niOC.Protocol[key])
 }
 
