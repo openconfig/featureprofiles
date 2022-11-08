@@ -46,7 +46,7 @@ tests:
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 25
-- name: gNMI-1.12 (Mixed OpenConfig/CLI Origin) 
+- name: gNMI-1.12 (Mixed OpenConfig or CLI Origin) 
   path: feature/system/gnmi/cliorigin/ate_tests/mixed_oc_cli_origin_support_test
   #patch: exec/firex/plugins/fp_patch/mixed_oc_cli_origin_support_test.patch
   owner: agvarghe@cisco.com
@@ -70,7 +70,7 @@ tests:
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 29
-- name: RT-3.2 (Multiple <Protocol, DSCP> Rules for VRF Selection) 
+- name: RT-3.2 (Multiple Protocol-DSCP Rules for VRF Selection) 
   path: feature/experimental/policy/policy_vrf_selection/ate_tests/protocol_dscp_rules_for_vrf_selection_test
   owner: sprem@cisco.com
   mustpass: true
@@ -220,13 +220,13 @@ tests:
   mustpass: false
   priority: 55
   skip: false
-- name: RT-1.2 (BGP Policy & Route Installation) 
+- name: RT-1.2 (BGP Policy and Route Installation) 
   path: feature/bgp/policybase/ate_tests/route_installation_test
   owner: sprem@cisco.com
   mustpass: false
   skip: false
   priority: 56
-- name: RT-1.2 (BGP Policy & Route Installation) 
+- name: RT-1.2 (BGP Policy and Route Installation) 
   path: feature/bgp/policybase/ate_tests/route_installation_test
   owner: sprem@cisco.com
   mustpass: false
