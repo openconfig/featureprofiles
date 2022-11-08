@@ -29,7 +29,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/networkinstance"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
-	"github.com/openconfig/ondatra/ixnet"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -135,15 +134,12 @@ func addISISTopo(dev gosnappi.Device, areaAddress, sysID string) {
 	devIsis.Advanced().
 		SetAreaAddresses([]string{strings.Replace(areaAddress, ".", "", -1)})
 
-	devIsisInt := devIsis.Interfaces().
+	devIsis.Interfaces().
 		Add().
 		SetEthName(dev.Ethernets().Items()[0].Name()).
 		SetName("devIsisInt").
 		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2)
-
-	devIsisInt.Advanced().
-		SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
 
 }
 
@@ -218,7 +214,7 @@ func (s *TestSession) WithISIS() *TestSession {
 // one that operates on an ondatra ATE IS-IS block. The first will be applied
 // to the IS-IS block of ts.DUTConfig, and the second will be applied to the
 // IS-IS configuration of ts.ATETop
-func (s *TestSession) ConfigISIS(ocFn func(*oc.NetworkInstance_Protocol_Isis), ateFn func(*ixnet.ISIS)) {
+func (s *TestSession) ConfigISIS(ocFn func(*oc.NetworkInstance_Protocol_Isis)) {
 	ocFn(s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName).GetOrCreateIsis())
 }
 
