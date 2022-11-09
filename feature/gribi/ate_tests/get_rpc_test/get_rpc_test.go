@@ -317,13 +317,12 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	// and ensure that only entries for 198.51.100.0/26, 198.51.100.64/26, 198.51.100.128/26
 	// are returned, with no entry returned for 198.51.100.192/64.
 	dc := args.dut.Config()
-	ni := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
-	static := &telemetry.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(staticCIDR),
-	}
-	static.GetOrCreateNextHop("0").NextHop = telemetry.UnionString(atePort2.IPv4)
-	ni.Static(staticCIDR).Replace(t, static)
+	ni := dc.NetworkInstance(*deviations.DefaultNetworkInstance).Get(t)
+	static := ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	staticRoute := static.GetOrCreateStatic(staticCIDR)
+	nextHop := staticRoute.GetOrCreateNextHop("0")
+	nextHop.NextHop = telemetry.UnionString(atePort2.IPv4)
+	dc.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Replace(t, static)
 	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {
 		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
