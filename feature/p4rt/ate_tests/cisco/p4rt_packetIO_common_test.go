@@ -9,6 +9,7 @@ import (
 	"time"
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
+	"github.com/golang/glog"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
@@ -72,6 +73,10 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
 	})
 	if err != nil {
+		countOK, countNotOK, errDetails := p4rt_client.P4RTWriteErrParse(err)
+		//if glog.V(2) {
+		glog.Infof("Write Partial Errors %d/%d: %s", countOK, countNotOK, errDetails)
+		//}
 		return err
 	}
 	return nil
