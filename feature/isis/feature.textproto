@@ -20,6 +20,26 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/global/state/level-capability"
 }
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/config/hello-padding"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/state/hello-padding"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/config/instance"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/state/instance"
+}
+
+# Global lsp-bit
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/config/set-bit"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/state/set-bit"
+}
 
 # AFI-SAFI
 config_path {
