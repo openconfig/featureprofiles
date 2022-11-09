@@ -330,7 +330,7 @@ func TestBGP(t *testing.T) {
 		fullDesc: "Advertise prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
-				As: ygot.Uint32(dutAS),
+				As:       ygot.Uint32(dutAS),
 				RouterId: ygot.String(dutPort2.IPv4),
 			},
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -365,7 +365,7 @@ func TestBGP(t *testing.T) {
 		fullDesc: "Advertise IPv6 prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
 			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
-				As: ygot.Uint32(dutAS),
+				As:       ygot.Uint32(dutAS),
 				RouterId: ygot.String(dutPort2.IPv4),
 			},
 			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
