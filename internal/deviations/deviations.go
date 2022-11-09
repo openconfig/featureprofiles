@@ -75,9 +75,6 @@ import (
 
 // Vendor deviation flags.
 var (
-	NtpAssociationType = flag.Bool("ntp_association_type_enabled", false,
-		"Device requires AssociationType as Server to be explicitly set to true.")
-
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
