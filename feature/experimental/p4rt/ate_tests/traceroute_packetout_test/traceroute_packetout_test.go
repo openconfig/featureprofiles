@@ -107,7 +107,6 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := dut.Config()
@@ -204,6 +203,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	}
 	return nil
 }
+
 // getTracerouteParameter returns Traceroute related parameters for testPacketOut testcase.
 func getTracerouteParameter(t *testing.T) PacketIO {
 	return &TraceroutePacketIO{
@@ -232,9 +232,9 @@ func TestPacketOut(t *testing.T) {
 	args := &testArgs{
 		ctx:    ctx,
 		leader: &leader,
-		dut: dut,
-		ate: ate,
-		top: top,
+		dut:    dut,
+		ate:    ate,
+		top:    top,
 	}
 
 	if err := setupP4RTClient(ctx, args); err != nil {
@@ -311,6 +311,7 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 		return buf.Bytes()
 	}
 }
+
 // GetPacketOut generates PacketOut message with payload as Traceroute IPv6 and IPv6 packets.
 // isIPv4==true refers to the ipv4 packets and if false we are sending ipv6 packet
 func (traceroute *TraceroutePacketIO) GetPacketOut(portID uint32, isIPv4 bool, ttl uint8) []*p4_v1.PacketOut {

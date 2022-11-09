@@ -59,8 +59,7 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4_v1.
 // follower client, then verify DUT interface statistics
 func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.leader
-	expectPass := true
-	desc :=  "PacketOut from Primary Controller"
+	desc := "PacketOut from Primary Controller"
 	ttls := []int{0, 1}
 	//for ipv4
 	t.Run(desc, func(t *testing.T) {
@@ -88,14 +87,8 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			// Verify InPkts stats to check P4RT stream
 			t.Logf("Received %v packets on ATE port %s", counter_1-counter_0, port)
 
-			if expectPass {
-				if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
-					t.Fatalf("Not all the packets are received.")
-				}
-			} else {
-				if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
-					t.Fatalf("Unexpected packets are received.")
-				}
+			if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+				t.Fatalf("Not all the packets are received.")
 			}
 			time.Sleep(20 * time.Second)
 		}
@@ -127,15 +120,10 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			// Verify InPkts stats to check P4RT stream
 			t.Logf("Received %v packets on ATE port %s", counter_1-counter_0, port)
 
-			if expectPass {
-				if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
-					t.Fatalf("Not all the packets are received.")
-				}
-			} else {
-				if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
-					t.Fatalf("Unexpected packets are received.")
-				}
+			if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+				t.Fatalf("Not all the packets are received.")
 			}
+
 			time.Sleep(20 * time.Second)
 		}
 
