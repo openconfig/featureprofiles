@@ -62,7 +62,6 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	expectPass := true
 	desc :=  "PacketOut from Primary Controller"
 	ttls := []int{0, 1}
-
 	//for ipv4
 	t.Run(desc, func(t *testing.T) {
 		// Check initial packet counters
@@ -102,8 +101,6 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 
 	})
-
-
 	//for ipv6
 	t.Run(desc, func(t *testing.T) {
 		// Check initial packet counters
@@ -143,6 +140,5 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 
 	})
-
 
 }

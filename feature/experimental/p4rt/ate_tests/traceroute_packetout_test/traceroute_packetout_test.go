@@ -29,7 +29,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/featureprofiles/internal/attrs"
-//	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -131,7 +130,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 
 	p2 := ate.Port(t, "port2")
 	atePort2.AddToATE(top, p2, &dutPort2)
-	
 	return top
 }
 
@@ -185,14 +183,11 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 			return errors.New("Errors seen in ClientArbitration response.")
 		}
 	}
-
-
 	// Load p4info file.
 	p4Info, err := utils.P4InfoLoad(p4InfoFile)
 	if err != nil {
 		return errors.New("Errors seen when loading p4info file.")
 	}
-
 	// Send SetForwardingPipelineConfig for p4rt leader client.
 	if err := args.leader.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
 		DeviceId:   deviceId,
@@ -209,21 +204,17 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	}
 	return nil
 }
-
 // getTracerouteParameter returns Traceroute related parameters for testPacketOut testcase.
 func getTracerouteParameter(t *testing.T) PacketIO {
 	return &TraceroutePacketIO{
 		IngressPort: fmt.Sprint(portId),
 	}
 }
-
 func TestPacketOut(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
-
 	// Configure the DUT
 	configureDUT(t, dut)
-
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
@@ -307,7 +298,6 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 
 	for i := 0; i < payLoadLen; i++ {
 		payload = append(payload, byte(i))
-
 	}
 	if isIPv4 {
 		gopacket.SerializeLayers(buf, opts,
@@ -320,9 +310,7 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 		)
 		return buf.Bytes()
 	}
-
 }
-
 // GetPacketOut generates PacketOut message with payload as Traceroute IPv6 and IPv6 packets.
 // isIPv4==true refers to the ipv4 packets and if false we are sending ipv6 packet
 func (traceroute *TraceroutePacketIO) GetPacketOut(portID uint32, isIPv4 bool, ttl uint8) []*p4_v1.PacketOut {
