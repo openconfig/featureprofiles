@@ -29,13 +29,12 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
+//	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
-	// ip6 "golang.org/x/net/ipv6"
 )
 
 const (
@@ -109,43 +108,18 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-// configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
-	i.Description = ygot.String(a.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
-		i.Enabled = ygot.Bool(true)
-	}
-
-	s := i.GetOrCreateSubinterface(0)
-	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
-		s4.Enabled = ygot.Bool(true)
-	}
-	s4a := s4.GetOrCreateAddress(a.IPv4)
-	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
-
-	s6 := s.GetOrCreateIpv6()
-	if *deviations.InterfaceEnabled {
-		s6.Enabled = ygot.Bool(true)
-	}
-	s6a := s6.GetOrCreateAddress(a.IPv6)
-	s6a.PrefixLength = ygot.Uint8(ipv6PrefixLen)
-
-	return i
-}
 
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := dut.Config()
 
-	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutPort1))
+	p1 := dut.Port(t, "port1").Name()
+	i1 := dutPort1.NewInterface(p1)
+	d.Interface(p1).Replace(t, i1)
 
-	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutPort2))
+	p2 := dut.Port(t, "port2").Name()
+	i2 := dutPort2.NewInterface(p2)
+	d.Interface(p2).Replace(t, i2)
 }
 
 // configureATE configures port1 and port2 on the ATE.
@@ -153,23 +127,11 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	top := ate.Topology().New()
 
 	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
-	i1.IPv6().
-		WithAddress(atePort1.IPv6CIDR()).
-		WithDefaultGateway(dutPort1.IPv6)
+	atePort1.AddToATE(top, p1, &dutPort1)
 
 	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
-	i2.IPv6().
-		WithAddress(atePort2.IPv6CIDR()).
-		WithDefaultGateway(dutPort2.IPv6)
-
+	atePort2.AddToATE(top, p2, &dutPort2)
+	
 	return top
 }
 
@@ -201,29 +163,29 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 		ElectionIdL: electionId,
 	}
 
-	// Send ClientArbitration message on both p4rt leader and follower clients.
-	clients := []*p4rt_client.P4RTClient{args.leader}
-	for index, client := range clients {
-		if client != nil {
-			client.StreamChannelCreate(&streamParameter)
-			if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Arbitration{
-					Arbitration: &p4_v1.MasterArbitrationUpdate{
-						DeviceId: streamParameter.DeviceId,
-						ElectionId: &p4_v1.Uint128{
-							High: streamParameter.ElectionIdH,
-							Low:  streamParameter.ElectionIdL - uint64(index),
-						},
+	// Send ClientArbitration message on both p4rt leader and backup clients.
+	client := args.leader
+
+	if client != nil {
+		client.StreamChannelCreate(&streamParameter)
+		if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
+			Update: &p4_v1.StreamMessageRequest_Arbitration{
+				Arbitration: &p4_v1.MasterArbitrationUpdate{
+					DeviceId: streamParameter.DeviceId,
+					ElectionId: &p4_v1.Uint128{
+						High: streamParameter.ElectionIdH,
+						Low:  streamParameter.ElectionIdL - uint64(0),
 					},
 				},
-			}); err != nil {
-				return errors.New("Errors seen when sending ClientArbitration message.")
-			}
-			if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
-				return errors.New("Errors seen in ClientArbitration response.")
-			}
+			},
+		}); err != nil {
+			return errors.New("Errors seen when sending ClientArbitration message.")
+		}
+		if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
+			return errors.New("Errors seen in ClientArbitration response.")
 		}
 	}
+
 
 	// Load p4info file.
 	p4Info, err := utils.P4InfoLoad(p4InfoFile)
@@ -243,7 +205,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 			},
 		},
 	}); err != nil {
-		return errors.New("Errors seen when sending SetForwardingPipelineConfig.")
+		return errors.New("errors seen when sending SetForwardingPipelineConfig.")
 	}
 	return nil
 }
@@ -279,7 +241,6 @@ func TestPacketOut(t *testing.T) {
 	args := &testArgs{
 		ctx:    ctx,
 		leader: &leader,
-		//follower: &follower,
 		dut: dut,
 		ate: ate,
 		top: top,
@@ -334,7 +295,7 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 		SrcMAC:       net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
 		// traceroute MAC is 68:F3:8E:64:F3:FC (HW)
 		//traceroute MAC is 02:f6:65:64:00:08 (Virtual)
-		DstMAC: net.HardwareAddr{0x02, 0xF6, 0x65, 0x64, 0x00, 0x08},
+		DstMAC: net.HardwareAddr{0x68, 0xF3, 0x8E, 0x64, 0xF3, 0xFC},
 	}
 	pktIpv6 := &layers.IPv6{
 		Version:    6,

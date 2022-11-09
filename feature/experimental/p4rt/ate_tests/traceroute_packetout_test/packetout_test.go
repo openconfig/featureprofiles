@@ -59,100 +59,90 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4_v1.
 // follower client, then verify DUT interface statistics
 func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.leader
+	expectPass := true
+	desc :=  "PacketOut from Primary Controller"
 	ttls := []int{0, 1}
 
-	packetOutTests := []struct {
-		desc       string
-		client     *p4rt_client.P4RTClient
-		expectPass bool
-	}{{
-		desc:       "PacketOut from Primary Controller",
-		client:     leader,
-		expectPass: true,
-	}}
-
 	//for ipv4
-	for _, test := range packetOutTests {
-		t.Run(test.desc, func(t *testing.T) {
-			// Check initial packet counters
-			port := sortPorts(args.ate.Ports())[0].Name()
+	t.Run(desc, func(t *testing.T) {
+		// Check initial packet counters
+		port := sortPorts(args.ate.Ports())[0].Name()
 
-			for _, ttl := range ttls {
-				t.Logf("Sending ipv4 packets with ttl = %d", ttl)
-				counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-				t.Logf("Initial number of packets: %d", counter_0)
+		for _, ttl := range ttls {
+			t.Logf("Sending ipv4 packets with ttl = %d", ttl)
+			counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			t.Logf("Initial number of packets: %d", counter_0)
 
-				packets := args.packetIO.GetPacketOut(portId, true, uint8(ttl))
-				packet_count := 100
-				t.Logf("Sending packets now")
+			packets := args.packetIO.GetPacketOut(portId, true, uint8(ttl))
+			packet_count := 100
+			t.Logf("Sending packets now")
 
-				sendPackets(t, test.client, packets, packet_count)
+			sendPackets(t, leader, packets, packet_count)
 
-				// Wait for ate stats to be populated
-				time.Sleep(60 * time.Second)
+			// Wait for ate stats to be populated
+			time.Sleep(60 * time.Second)
 
-				// Check packet counters after packet out
-				counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-				t.Logf("Final number of packets: %d", counter_1)
+			// Check packet counters after packet out
+			counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			t.Logf("Final number of packets: %d", counter_1)
 
-				// Verify InPkts stats to check P4RT stream
-				t.Logf("Received %v packets on ATE port %s", counter_1-counter_0, port)
+			// Verify InPkts stats to check P4RT stream
+			t.Logf("Received %v packets on ATE port %s", counter_1-counter_0, port)
 
-				if test.expectPass {
-					if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
-						t.Fatalf("Not all the packets are received.")
-					}
-				} else {
-					if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
-						t.Fatalf("Unexpected packets are received.")
-					}
+			if expectPass {
+				if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+					t.Fatalf("Not all the packets are received.")
 				}
-				time.Sleep(20 * time.Second)
+			} else {
+				if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
+					t.Fatalf("Unexpected packets are received.")
+				}
 			}
+			time.Sleep(20 * time.Second)
+		}
 
-		})
-	}
+	})
+
 
 	//for ipv6
-	for _, test := range packetOutTests {
-		t.Run(test.desc, func(t *testing.T) {
-			// Check initial packet counters
-			port := sortPorts(args.ate.Ports())[0].Name()
+	t.Run(desc, func(t *testing.T) {
+		// Check initial packet counters
+		port := sortPorts(args.ate.Ports())[0].Name()
 
-			for _, ttl := range ttls {
-				t.Logf("Sending ipv6 packets with ttl = %d", ttl)
-				counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-				t.Logf("Initial number of packets: %d", counter_0)
+		for _, ttl := range ttls {
+			t.Logf("Sending ipv6 packets with ttl = %d", ttl)
+			counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			t.Logf("Initial number of packets: %d", counter_0)
 
-				packets := args.packetIO.GetPacketOut(portId, false, uint8(ttl))
-				packet_count := 100
-				t.Logf("Sending packets now")
+			packets := args.packetIO.GetPacketOut(portId, false, uint8(ttl))
+			packet_count := 100
+			t.Logf("Sending packets now")
 
-				sendPackets(t, test.client, packets, packet_count)
+			sendPackets(t, leader, packets, packet_count)
 
-				// Wait for ate stats to be populated
-				time.Sleep(60 * time.Second)
+			// Wait for ate stats to be populated
+			time.Sleep(60 * time.Second)
 
-				// Check packet counters after packet out
-				counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-				t.Logf("Final number of packets: %d", counter_1)
+			// Check packet counters after packet out
+			counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			t.Logf("Final number of packets: %d", counter_1)
 
-				// Verify InPkts stats to check P4RT stream
-				t.Logf("Received %v packets on ATE port %s", counter_1-counter_0, port)
+			// Verify InPkts stats to check P4RT stream
+			t.Logf("Received %v packets on ATE port %s", counter_1-counter_0, port)
 
-				if test.expectPass {
-					if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
-						t.Fatalf("Not all the packets are received.")
-					}
-				} else {
-					if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
-						t.Fatalf("Unexpected packets are received.")
-					}
+			if expectPass {
+				if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+					t.Fatalf("Not all the packets are received.")
 				}
-				time.Sleep(20 * time.Second)
+			} else {
+				if counter_1-counter_0 > uint64(float64(packet_count)*0.10) {
+					t.Fatalf("Unexpected packets are received.")
+				}
 			}
+			time.Sleep(20 * time.Second)
+		}
 
-		})
-	}
+	})
+
 
 }
