@@ -238,7 +238,7 @@ func (tc *testCase) verifyInterfaceDUT(
 			}
 		}
 	}
-	if *deviations.MissingSubinterfaceOriginLeaf {
+	if !*deviations.SubinterfaceOriginLeaf {
 		disp := dip.Subinterface(0)
 		// IPv4 neighbor discovered by ARP.
 		dis4np := disp.Ipv4().Neighbor(atea.IPv4)
