@@ -73,9 +73,11 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-
 // Vendor deviation flags.
 var (
+	NtpAssociationType = flag.Bool("ntp_association_type_enabled", false,
+		"Device requires AssociationType as Server to be explicitly set to true.")
+
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
@@ -110,7 +112,7 @@ var (
 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
 	AddSubIntfToNetInst = flag.Bool("deviation_adding_subintf_to_network_instance", true,
-	"If a device requires explicit attachment of a sub-interface to a network-instance, this deviation should be marked true. The default expectation is that a sub-interface is part of default network-instance implicitly.")
+		"If a device requires explicit attachment of a sub-interface to a network-instance, this deviation should be marked true. The default expectation is that a sub-interface is part of default network-instance implicitly.")
 )
 
 func SubIntfToNetworkInstance(t *testing.T, dconf *ondatra.Config, i *telemetry.Interface, si uint32, inst string) {
