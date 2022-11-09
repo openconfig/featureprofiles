@@ -33,7 +33,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
-	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 const (
@@ -165,11 +165,11 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 
 	if client != nil {
 		client.StreamChannelCreate(&streamParameter)
-		if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
-			Update: &p4_v1.StreamMessageRequest_Arbitration{
-				Arbitration: &p4_v1.MasterArbitrationUpdate{
+		if err := client.StreamChannelSendMsg(&streamName, &p4v1.StreamMessageRequest{
+			Update: &p4v1.StreamMessageRequest_Arbitration{
+				Arbitration: &p4v1.MasterArbitrationUpdate{
 					DeviceId: streamParameter.DeviceId,
-					ElectionId: &p4_v1.Uint128{
+					ElectionId: &p4v1.Uint128{
 						High: streamParameter.ElectionIdH,
 						Low:  streamParameter.ElectionIdL - uint64(0),
 					},
@@ -188,13 +188,13 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 		return errors.New("Errors seen when loading p4info file.")
 	}
 	// Send SetForwardingPipelineConfig for p4rt leader client.
-	if err := args.leader.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
+	if err := args.leader.SetForwardingPipelineConfig(&p4v1.SetForwardingPipelineConfigRequest{
 		DeviceId:   deviceId,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
-		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
-		Config: &p4_v1.ForwardingPipelineConfig{
+		ElectionId: &p4v1.Uint128{High: uint64(0), Low: electionId},
+		Action:     p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
+		Config: &p4v1.ForwardingPipelineConfig{
 			P4Info: &p4Info,
-			Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
+			Cookie: &p4v1.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
 		},
@@ -314,11 +314,11 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 
 // GetPacketOut generates PacketOut message with payload as Traceroute IPv6 and IPv6 packets.
 // isIPv4==true refers to the ipv4 packets and if false we are sending ipv6 packet
-func (traceroute *TraceroutePacketIO) GetPacketOut(portID uint32, isIPv4 bool, ttl uint8) []*p4_v1.PacketOut {
-	packets := []*p4_v1.PacketOut{}
-	packet := &p4_v1.PacketOut{
+func (traceroute *TraceroutePacketIO) GetPacketOut(portID uint32, isIPv4 bool, ttl uint8) []*p4v1.PacketOut {
+	packets := []*p4v1.PacketOut{}
+	packet := &p4v1.PacketOut{
 		Payload: packetTracerouteRequestGet(isIPv4, ttl),
-		Metadata: []*p4_v1.PacketMetadata{
+		Metadata: []*p4v1.PacketMetadata{
 			{
 				MetadataId: uint32(2), // "egress_port"
 				Value:      []byte{1},

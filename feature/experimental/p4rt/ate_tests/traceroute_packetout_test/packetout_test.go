@@ -21,11 +21,11 @@ import (
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/openconfig/ondatra"
-	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 type PacketIO interface {
-	GetPacketOut(portID uint32, isIPv4 bool, ttl uint8) []*p4_v1.PacketOut
+	GetPacketOut(portID uint32, isIPv4 bool, ttl uint8) []*p4v1.PacketOut
 }
 
 type testArgs struct {
@@ -38,13 +38,13 @@ type testArgs struct {
 }
 
 // sendPackets sends out packets via PacketOut message in StreamChannel.
-func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4_v1.PacketOut, packetCount int) {
+func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1.PacketOut, packetCount int) {
 	count := packetCount / len(packets)
 	for _, packet := range packets {
 		for i := 0; i < count; i++ {
 			if err := client.StreamChannelSendMsg(
-				&streamName, &p4_v1.StreamMessageRequest{
-					Update: &p4_v1.StreamMessageRequest_Packet{
+				&streamName, &p4v1.StreamMessageRequest{
+					Update: &p4v1.StreamMessageRequest_Packet{
 						Packet: packet,
 					},
 				}); err != nil {
@@ -68,26 +68,26 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 		for _, ttl := range ttls {
 			t.Logf("Sending ipv4 packets with ttl = %d", ttl)
-			counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-			t.Logf("Initial number of packets: %d", counter_0)
+			counter0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			t.Logf("Initial number of packets: %d", counter0)
 
 			packets := args.packetIO.GetPacketOut(portId, true, uint8(ttl))
-			packet_count := 100
+			packetCounter := 100
 			t.Logf("Sending packets now")
 
-			sendPackets(t, leader, packets, packet_count)
+			sendPackets(t, leader, packets, packetCounter)
 
 			// Wait for ate stats to be populated
 			time.Sleep(60 * time.Second)
 
 			// Check packet counters after packet out
-			counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-			t.Logf("Final number of packets: %d", counter_1)
+			counter1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			t.Logf("Final number of packets: %d", counter1)
 
 			// Verify InPkts stats to check P4RT stream
-			t.Logf("Received %v packets on ATE port %s", counter_1-counter_0, port)
+			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
 
-			if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+			if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
 				t.Fatalf("Not all the packets are received.")
 			}
 			time.Sleep(20 * time.Second)
@@ -101,26 +101,26 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 		for _, ttl := range ttls {
 			t.Logf("Sending ipv6 packets with ttl = %d", ttl)
-			counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-			t.Logf("Initial number of packets: %d", counter_0)
+			counter0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			t.Logf("Initial number of packets: %d", counter0)
 
 			packets := args.packetIO.GetPacketOut(portId, false, uint8(ttl))
-			packet_count := 100
+			packetCounter := 100
 			t.Logf("Sending packets now")
 
-			sendPackets(t, leader, packets, packet_count)
+			sendPackets(t, leader, packets, packetCounter)
 
 			// Wait for ate stats to be populated
 			time.Sleep(60 * time.Second)
 
 			// Check packet counters after packet out
-			counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-			t.Logf("Final number of packets: %d", counter_1)
+			counter1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			t.Logf("Final number of packets: %d", counter1)
 
 			// Verify InPkts stats to check P4RT stream
-			t.Logf("Received %v packets on ATE port %s", counter_1-counter_0, port)
+			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
 
-			if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+			if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
 				t.Fatalf("Not all the packets are received.")
 			}
 
