@@ -144,7 +144,9 @@ def BringupTestbed(self, ws, images = None,
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
             f'-outFile {os.path.join(ws, f"show_version.txt")}'
-    check_output(showver_cmd, cwd=fp_repo_dir)
+    try:
+        check_output(showver_cmd, cwd=fp_repo_dir)
+    except: pass
 
     return ondatra_binding_path
 
