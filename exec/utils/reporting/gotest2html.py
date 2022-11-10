@@ -156,8 +156,8 @@ Suite | T | P | F | R | S | Logs | DDTS | Attr | Result
 
         return f"""
 ## Summary
-Total | Passed | Failed | Regressed | Skipped
-------|--------|--------|-----------|--------
+Total (T) | Passed (P) | Failed (F) | Regressed (R) | Skipped (S)
+----------|------------|------------|---------------|------------
 {total}|{passed}|{failed}|{regressed}|{skipped}
 """ + suite_summary_md + details_md
 
