@@ -1,11 +1,9 @@
 package cisco_p4rt_test
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"testing"
 	"time"
 
@@ -71,9 +69,6 @@ func testPublicPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	// Program the entry
 	if err := programmTableEntry(ctx, t, leader, args.packetIO, false); err != nil {
 		t.Errorf("There is error when inserting the GDP entry")
-		fmt.Print("********* Press 'Enter' to continue...")
-		fmt.Print("ERROR from server:", err)
-		bufio.NewReader(os.Stdin).ReadBytes('$')
 	}
 	defer programmTableEntry(ctx, t, leader, args.packetIO, true)
 
