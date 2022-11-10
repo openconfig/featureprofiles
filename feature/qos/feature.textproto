@@ -75,16 +75,40 @@ telemetry_path {
 
 # Interfaces
 config_path {
+  path: "/qos/interfaces/interface/config/interface-id"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/state/interface-id"
+}
+config_path {
   path: "/qos/interfaces/interface/input/classifiers/classifier/config/name"
 }
 telemetry_path {
   path: "/qos/interfaces/interface/input/classifiers/classifier/state/name"
 }
 config_path {
+  path: "/qos/interfaces/interface/input/classifiers/classifier/config/type"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/classifiers/classifier/state/type"
+}
+config_path {
   path: "/qos/interfaces/interface/output/queues/queue/config/name"
 }
 telemetry_path {
   path: "/qos/interfaces/interface/output/queues/queue/state/name"
+}
+config_path {
+  path: "/qos/interfaces/interface/output/queues/queue/config/name"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/name"
+}
+config_path {
+  path: "/qos/interfaces/interface/output/queues/queue/config/queue-management-profile"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/queue-management-profile"
 }
 config_path {
   path: "/qos/interfaces/interface/output/scheduler-policy/config/name"
@@ -99,6 +123,18 @@ config_path {
 }
 telemetry_path {
   path: "/qos/queues/queue/state/name"
+}
+config_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/config/name"
+}
+telemetry_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/state/name"
+}
+telemetry_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/red/uniform/state/enable-ecn"
+}
+telemetry_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/red/uniform/state/min-threshold"
 }
 
 # Scheduler policy
