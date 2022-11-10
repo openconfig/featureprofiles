@@ -8,6 +8,7 @@ import os
 import re
 
 from datetime import datetime
+from ddts_utils import get_ddts_info
 
 def _to_md_anchor(s):
     sanitized = re.sub('[^0-9a-zA-Z_\-\s]+', '', s).strip().replace(' ', '-').lower()
@@ -111,8 +112,8 @@ class GoTestSuite:
         
         suite_summary_md = "## Test Suites\n"
         suite_summary_md += f"""
-Suite | Total | Passed | Failed | Regressed | Skipped | Logs | Result
-------|-------|--------|--------|-----------|---------|------|-------
+Suite | T | P | F | R | S | Logs | DDTS | Attr | Result
+------|---|---|---|---|---|------|------|------|-------
 """
 
         total, passed, failed, skipped, regressed = [0] * 5
@@ -132,14 +133,31 @@ Suite | Total | Passed | Failed | Regressed | Skipped | Logs | Result
             html_logs_url = "/".join(log_url_parts[0:-1] + [urllib.parse.quote(log_url_parts[-1].replace(".json", ".html"), safe="")])
             raw_logs_url = "/".join(log_url_parts[0:-1] + ['output_from_json.log'])
 
-            suite_summary_md += f'{_to_md_anchor(s["suite"])} | {s["total"]} | {s["passed"]}'
-            suite_summary_md += f'| {s["failed"]} | {s["regressed"]} | {s["skipped"]}'
-            suite_summary_md += f'| [HTML]({html_logs_url}) [RAW]({raw_logs_url}) | {result}\n'
+            gh_issue = s["test"].get_gh_issue()
+            title = _to_md_anchor(s["suite"])
+
+            ddts = ''
+            if gh_issue: 
+                title += f' [(#{gh_issue["number"]})]({gh_issue["link"]})'
+                for bug in gh_issue["bugs"]:
+                    bug_data = get_ddts_info(bug["label"])
+                    ddts += f'[{bug_data["custom_label"]}]({bug["link"]})<br />'
+
+            result_attr = []
+            if s["test"].is_patched(): result_attr.append('P')
+            if s["test"].is_deviated(): result_attr.append('D')
+            if len(result_attr) > 0:
+                result_attr = f'{",".join(result_attr)}'
+            else: result_attr = ''
+
+            suite_summary_md += f'{title} | {s["total"]} | {s["passed"]} | {s["failed"]} | {s["regressed"]} | {s["skipped"]}'
+            suite_summary_md += f'| [HTML]({html_logs_url}) [RAW]({raw_logs_url})'
+            suite_summary_md += f'| {ddts} | {result_attr} | {result}\n'
 
         return f"""
 ## Summary
-Total | Passed | Failed | Regressed | Skipped
-------|--------|--------|-----------|--------
+Total (T) | Passed (P) | Failed (F) | Regressed (R) | Skipped (S)
+----------|------------|------------|---------------|------------
 {total}|{passed}|{failed}|{regressed}|{skipped}
 """ + suite_summary_md + details_md
 
@@ -153,6 +171,9 @@ class GoTest:
         self._children = []
         self._output = ''
         self._status = ''
+        self._gh_issue = None
+        self._deviated = False
+        self._patched = False
         self._log_file_name = hashlib.md5(name.encode("utf")).hexdigest() + '.txt'
 
         if parent:
@@ -226,6 +247,12 @@ class GoTest:
     def get_log_file_name(self):
         return self._log_file_name
 
+    def get_gh_issue(self):
+        return self._gh_issue
+
+    def set_gh_issue(self, gh_issue):
+        self._gh_issue = gh_issue
+
     def mark_passed(self):
         self._status = 'Pass'
 
@@ -234,6 +261,12 @@ class GoTest:
 
     def mark_skipped(self):
         self._status = 'Skip'
+        
+    def mark_patched(self):
+        self._patched = True
+
+    def mark_deviated(self):
+        self._deviated = True
         
     def did_pass(self):
         return self._status == 'Pass' or self._status == 'Skip'
@@ -249,6 +282,12 @@ class GoTest:
 
     def get_status(self):
         return self._status
+
+    def is_patched(self):
+        return self._patched
+    
+    def is_deviated(self):
+        return self._deviated
 
     def get_total(self):
         return len(self.get_descendants())

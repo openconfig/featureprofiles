@@ -3,6 +3,7 @@ import json
 import hashlib
 from pathlib import Path
 from gotest2html import GoTestSuite, parse_json
+from gh_utils import FPGHRepo
 
 import os
 import re
@@ -53,6 +54,7 @@ if not os.path.exists(gh_logs_dir):
 if not os.path.exists(gh_reports_dir):
     os.makedirs(gh_reports_dir)
 
+fp_gh_repo = FPGHRepo()
 now = datetime.now().timestamp()
 logs_dir = os.path.join(constants.base_logs_dir, firex_id, 'tests_logs')
 
@@ -87,6 +89,19 @@ for ts in  _get_testsuites():
             log_files = [str(p) for p in Path(logs_dir).glob(f"{test_id}/*.json")]
             try:
                 gt = parse_json(log_files[0], suite_name=t['name'])
+
+                if 'patch' in t:
+                    gt.mark_patched()
+                    
+                if 'args' in t:
+                    for arg in t['args']:
+                        if arg.startswith('-deviation'):
+                            gt.mark_deviated()
+                            break
+
+                gh_issue = fp_gh_repo.get_issue(t['name'])
+                if gh_issue:
+                    gt.set_gh_issue(gh_issue)
                 go_tests.append(gt)
             except: continue
     
