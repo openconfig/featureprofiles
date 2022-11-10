@@ -132,6 +132,7 @@ Suite | T | P | F | R | S | Logs | DDTS | Attr | Result
             log_url_parts = s["test"].get_logs_url().split("/")
             html_logs_url = "/".join(log_url_parts[0:-1] + [urllib.parse.quote(log_url_parts[-1].replace(".json", ".html"), safe="")])
             raw_logs_url = "/".join(log_url_parts[0:-1] + ['output_from_json.log'])
+            testbed_logs_url = "/".join(log_url_parts[0:-1] + ['show_version.txt'])
 
             gh_issue = s["test"].get_gh_issue()
             title = _to_md_anchor(s["suite"])
@@ -147,11 +148,11 @@ Suite | T | P | F | R | S | Logs | DDTS | Attr | Result
             if s["test"].is_patched(): result_attr.append('P')
             if s["test"].is_deviated(): result_attr.append('D')
             if len(result_attr) > 0:
-                result_attr = f'{",".join(result_attr)}'
+                result_attr = f'{", ".join(result_attr)}'
             else: result_attr = ''
 
             suite_summary_md += f'{title} | {s["total"]} | {s["passed"]} | {s["failed"]} | {s["regressed"]} | {s["skipped"]}'
-            suite_summary_md += f'| [HTML]({html_logs_url}) [RAW]({raw_logs_url})'
+            suite_summary_md += f'| [HTML]({html_logs_url}) [RAW]({raw_logs_url}) [Testbed]({testbed_logs_url})'
             suite_summary_md += f'| {ddts} | {result_attr} | {result}\n'
 
         return f"""
