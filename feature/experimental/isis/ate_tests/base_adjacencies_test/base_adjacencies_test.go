@@ -345,9 +345,11 @@ func TestHelloPadding(t *testing.T) {
 		}, {
 			name: "strict",
 			mode: oc.Isis_HelloPaddingType_STRICT,
-			// }, {
-			// 	name: "adaptive",
-			// 	mode: oc.Isis_HelloPaddingType_ADAPTIVE,
+		}, {
+			name: "adaptive",
+			mode: oc.Isis_HelloPaddingType_ADAPTIVE,
+			// CSCwd56142 OC: Adaptive hello-padding mode is not supported for ISIS
+			skip: "Unsupported",
 		}, {
 			name: "loose",
 			mode: oc.Isis_HelloPaddingType_LOOSE,
