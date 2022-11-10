@@ -73,10 +73,10 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
 	})
 	if err != nil {
-		countOK, countNotOK, errDetails := p4rt_client.P4RTWriteErrParse(err)
-		//if glog.V(2) {
-		glog.Infof("Write Partial Errors %d/%d: %s", countOK, countNotOK, errDetails)
-		//}
+		if glog.V(2) {
+			countOK, countNotOK, errDetails := p4rt_client.P4RTWriteErrParse(err)
+			glog.Infof("Write Partial Errors %d/%d: %s", countOK, countNotOK, errDetails)
+		}
 		return err
 	}
 	return nil

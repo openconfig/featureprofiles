@@ -121,11 +121,11 @@ var (
 			desc: "Packet I/O-Traceroute-PacketIn:037 Programm match TTL=[1,2], configured IPv4 ACL to match TTL=1 and set action to drop, verify packets dropped and not sent to controller",
 			fn:   testEntryProgrammingPacketInWithAcl,
 		},
-		// {
-		// 	name: "Program TTL Match Entry and Send scale TTL traffic",
-		// 	desc: "Packet I/O-Traceroute-PacketIn:038 Verify scale rate of TTL=[1,2] packets (198 pps)",
-		// 	fn:   testEntryProgrammingPacketInScaleRate,
-		// },
+		{
+			name: "Program TTL Match Entry and Send scale TTL traffic",
+			desc: "Packet I/O-Traceroute-PacketIn:038 Verify scale rate of TTL=[1,2] packets (198 pps)",
+			fn:   testEntryProgrammingPacketInScaleRate,
+		},
 		{
 			name: "Check PacketOut Without Programming TTL Match Entry(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:001-002 Ingress: Inject EtherType 0x6007 packets and verify traffic sends to related port in case of EtherType 0x6007 entry NOT programmed",
@@ -206,11 +206,11 @@ var (
 			desc: "Packet I/O-Traceroute-PacketOut:023 Flap egress ports and verify the packets sent/dropped as port up/down",
 			fn:   testPacketOutIngressWithInterfaceFlap,
 		},
-		// {
-		// 	name: "Check PacketOut Scale(submit_to_egress)",
-		// 	desc: "Packet I/O-Traceroute-PacketOut:025 Verify scale rate of TTL=[1,2] packets",
-		// 	fn:   testPacketOutEgressScale,
-		// },
+		{
+			name: "Check PacketOut Scale(submit_to_egress)",
+			desc: "Packet I/O-Traceroute-PacketOut:025 Verify scale rate of TTL=[1,2] packets",
+			fn:   testPacketOutEgressScale,
+		},
 	}
 )
 
