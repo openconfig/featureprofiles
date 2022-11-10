@@ -233,29 +233,33 @@ func (ttl *TTLPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbbIn
 	entries := []*wbb.ACLWbbIngressTableEntryInfo{}
 	if ttl.IPv4 {
 		entries = append(entries, &wbb.ACLWbbIngressTableEntryInfo{
-			Type:   actionType,
-			IsIpv4: uint8(1),
-			TTL:    uint8(1),
+			Type:     actionType,
+			IsIpv4:   uint8(1),
+			TTL:      uint8(1),
+			Priority: 1,
 		})
 		if ttl.TtlTwo {
 			entries = append(entries, &wbb.ACLWbbIngressTableEntryInfo{
-				Type:   actionType,
-				IsIpv4: uint8(1),
-				TTL:    uint8(2),
+				Type:     actionType,
+				IsIpv4:   uint8(1),
+				TTL:      uint8(2),
+				Priority: 1,
 			})
 		}
 	}
 	if ttl.IPv6 {
 		entries = append(entries, &wbb.ACLWbbIngressTableEntryInfo{
-			Type:   actionType,
-			IsIpv6: uint8(1),
-			TTL:    uint8(1),
+			Type:     actionType,
+			IsIpv6:   uint8(1),
+			TTL:      uint8(1),
+			Priority: 1,
 		})
 		if ttl.TtlTwo {
 			entries = append(entries, &wbb.ACLWbbIngressTableEntryInfo{
-				Type:   actionType,
-				IsIpv4: uint8(1),
-				TTL:    uint8(2),
+				Type:     actionType,
+				IsIpv4:   uint8(1),
+				TTL:      uint8(2),
+				Priority: 1,
 			})
 		}
 	}

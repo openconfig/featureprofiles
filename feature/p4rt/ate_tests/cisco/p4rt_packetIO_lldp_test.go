@@ -244,6 +244,7 @@ func (lldp *LLDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbb
 		Type:          actionType,
 		EtherType:     0x88cc,
 		EtherTypeMask: 0xFFFF,
+		Priority:      1,
 	}}
 }
 

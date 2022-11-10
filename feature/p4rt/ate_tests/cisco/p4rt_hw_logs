@@ -1,0 +1,27 @@
+
+*** Reserving the testbed...
+
+
+********************************************************************************
+
+  Testbed Reservation Complete
+  ID: STATIC
+
+    dut:              DUT
+    port1:            HundredGigE0/1/0/20
+    port2:            HundredGigE0/1/0/24
+    ate:              10.194.88.185
+    port1:            6/3
+    port2:            6/4
+
+********************************************************************************
+
+=== RUN   TestP4RTPacketIO
+    p4rt_packetIO_base_test.go:164: 
+        *** Pushing topology to 10.194.88.185...
+        
+        
+    p4rt_packetIO_base_test.go:164: 
+        *** Starting protocols on 10.194.88.185...
+        
+        

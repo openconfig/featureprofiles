@@ -186,6 +186,7 @@ func (gdp *GDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbbIn
 		Type:          actionType,
 		EtherType:     0x6007,
 		EtherTypeMask: 0xFFFF,
+		Priority:      1,
 	}}
 }
 
