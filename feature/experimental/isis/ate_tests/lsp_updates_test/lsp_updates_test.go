@@ -17,6 +17,7 @@ package lsp_updates_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -74,26 +76,26 @@ func TestOverloadBit(t *testing.T) {
 	// }
 }
 
-// func TestMetric(t *testing.T) {
-// 	t.Logf("Starting...")
-// 	ts := session.MustNew(t).WithISIS()
-// 	ts.DUTConf.GetNetworkInstance(*deviations.DefaultNetworkInstance).GetProtocol(session.PTISIS, session.ISISName).GetIsis().
-// 		GetInterface(ts.DUT.Port(t, "port1").Name()).
-// 		GetOrCreateLevel(2).
-// 		GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).
-// 		Metric = ygot.Uint32(100)
-// 	ts.PushAndStart(t)
-// 	ts.MustAdjacency(t)
+func TestMetric(t *testing.T) {
+	t.Logf("Starting...")
+	ts := session.MustNew(t).WithISIS()
+	ts.DUTConf.GetNetworkInstance(*deviations.DefaultNetworkInstance).GetProtocol(session.PTISIS, session.ISISName).GetIsis().
+		GetInterface(ts.DUT.Port(t, "port1").Name()).
+		GetOrCreateLevel(2).
+		GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).
+		Metric = ygot.Uint32(100)
+	ts.PushAndStart(t)
+	ts.MustAdjacency(t)
 
-// 	metric := session.ISISPath().Interface(ts.DUTPort1.Name()).Level(2).
-// 		Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric()
-// 	time.Sleep(40 * time.Second)
-// 	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second, ts.DUTClient); err != nil {
-// 		t.Error(err)
-// 	}
-// 	// TODO: Verify the link state database on the ATE once the ATE reports this properly
-// 	// ateTelemPth := ts.ATEISISTelemetry(t)
-// 	// ateDB := ateTelemPth.Level(2).LspAny()
-// 	// for _, nbr := range ateDB.Tlv(telemetry.IsisLsdbTypes_ISIS_TLV_TYPE_IS_NEIGHBOR_ATTRIBUTE).IsisNeighborAttribute().NeighborAny().Get(t) {
-// 	// }
-// }
+	metric := session.ISISPath().Interface(ts.DUTPort1.Name()).Level(2).
+		Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric()
+	time.Sleep(40 * time.Second)
+	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second, ts.DUTClient); err != nil {
+		t.Error(err)
+	}
+	// TODO: Verify the link state database on the ATE once the ATE reports this properly
+	// ateTelemPth := ts.ATEISISTelemetry(t)
+	// ateDB := ateTelemPth.Level(2).LspAny()
+	// for _, nbr := range ateDB.Tlv(telemetry.IsisLsdbTypes_ISIS_TLV_TYPE_IS_NEIGHBOR_ATTRIBUTE).IsisNeighborAttribute().NeighborAny().Get(t) {
+	}
+}
