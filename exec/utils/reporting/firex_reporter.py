@@ -32,6 +32,7 @@ def _get_test_id_name_map(logs_dir):
             if len(matches.groups()) == 2:
                 id, name = [x.strip() for x in matches.groups()]
                 name = name.replace('(Patched)', '').strip()
+                name = name.replace('(Deviation)', '').strip()
                 name = ' '.join(name.split()[1:])
                 test_id_map[name] = id
     return test_id_map
