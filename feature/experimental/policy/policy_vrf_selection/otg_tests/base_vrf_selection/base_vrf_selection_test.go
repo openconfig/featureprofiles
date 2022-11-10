@@ -116,8 +116,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	t.Logf("*** Configuring default instance forwarding policy on DUT ...")
 	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
 	dutConfPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-	policyDutConf := configForwardingPolicy()
-	dutConfPath.PolicyForwarding().Replace(t, policyDutConf)
+	// policyDutConf := configForwardingPolicy()
+	// dutConfPath.PolicyForwarding().Replace(t, policyDutConf)
 }
 
 func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, subintfindex uint32, vlan uint16) *telemetry.Interface {
@@ -159,10 +159,10 @@ func configNetworkInstance(name string, peer *attrs.Attributes) *telemetry.Netwo
 	ni := d.GetOrCreateNetworkInstance(name)
 
 	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	static := ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC")
-	ipv4Nh := static.GetOrCreateStatic("0.0.0.0/0").GetOrCreateNextHop(peer.IPv4)
+	static := ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	ipv4Nh := static.GetOrCreateStatic("0.0.0.0/0").GetOrCreateNextHop("0")
 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(peer.IPv4)
-	ipv6Nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop(peer.IPv6)
+	ipv6Nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop("1")
 	ipv6Nh.NextHop, _ = ipv6Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(peer.IPv6)
 	// ipv4Nh.Recurse = ygot.Bool(true)
 	// ipv6Nh.Recurse = ygot.Bool(true)
@@ -241,9 +241,9 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort str
 	intfConfPath.Replace(t, intf)
 
 	// Restart Protocols after policy change
-	ate.Topology().New().StopProtocols(t)
+	ate.OTG().StopProtocols(t)
 	time.Sleep(sleepOnChange)
-	ate.Topology().New().StartProtocols(t)
+	ate.OTG().StartProtocols(t)
 	time.Sleep(sleepOnChange)
 }
 
@@ -262,16 +262,16 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []gosnappi.Flow {
 	ethSrc.Ipv6Addresses().Add().SetName(srcDev.Name() + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
 	topo.Ports().Add().SetName(p2.ID())
-	dstDev := topo.Devices().Add().SetName(ateDst.Name + "-vlan10")
+	dstDev := topo.Devices().Add().SetName(ateDst.Name)
 	eth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth")
 	eth.SetPortName(p2.ID()).SetMac(ateDst.MAC)
 	eth.Vlans().Add().SetName(dstDev.Name() + "VLAN").SetId(int32(vlan10))
 	eth.Ipv4Addresses().Add().SetName(dstDev.Name() + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
 	eth.Ipv6Addresses().Add().SetName(dstDev.Name() + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
 
-	dstDev2 := topo.Devices().Add().SetName(ateDst2.Name + "-vlan20")
+	dstDev2 := topo.Devices().Add().SetName(ateDst2.Name)
 	eth2 := dstDev2.Ethernets().Add().SetName(ateDst2.Name + ".Eth")
-	eth2.SetPortName(p2.ID()).SetMac(ateDst.MAC)
+	eth2.SetPortName(p2.ID()).SetMac(ateDst2.MAC)
 	eth2.Vlans().Add().SetName(dstDev2.Name() + "VLAN").SetId(int32(vlan20))
 	eth2.Ipv4Addresses().Add().SetName(dstDev2.Name() + ".IPv4").SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(int32(ateDst2.IPv4Len))
 	eth2.Ipv6Addresses().Add().SetName(dstDev2.Name() + ".IPv6").SetAddress(ateDst2.IPv6).SetGateway(dutDst2.IPv6).SetPrefix(int32(ateDst2.IPv6Len))
@@ -324,7 +324,8 @@ func createFlow(name string, top gosnappi.Config, ipType string, IPinIP bool, vl
 	if IPinIP {
 		flow.Packet().Add().Ipv4()
 	}
-
+	flow.Size().SetFixed(512)
+	flow.Rate().SetChoice("percentage").SetPercentage(5)
 	return flow
 }
 
