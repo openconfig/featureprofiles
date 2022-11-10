@@ -1,5 +1,5 @@
-diff --git a/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/bgp_prefix_limit_test.go b/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/bgp_prefix_limit_t
-index 99b650e..5c9c817 100644
+diff --git a/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/bgp_prefix_limit_test.go b/feature/bgp/prefixlimit/ate_tests/bgp_prefix_
+index 99b650e..7ad74a7 100644
 --- a/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/bgp_prefix_limit_test.go
 +++ b/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/bgp_prefix_limit_test.go
 @@ -66,6 +66,9 @@ const (
@@ -17,7 +17,7 @@ index 99b650e..5c9c817 100644
         dc.Interface(p2).Replace(t, i2)
  
 +       configureRoutePolicy(t, dut, rplName, rplType)
-        dutConfPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+        dutConfPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"
         dutConf := createBGPNeighbor(dutAS, ateAS, prefixLimit, grRestartTime)
         dutConfPath.Replace(t, dutConf)
  }
@@ -79,5 +79,95 @@ index 99b650e..5c9c817 100644
 +}
 +
  func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished bool) {
-        statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+        statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE
         nbrPath := statePath.Neighbor(ateDst.IPv4)
+@@ -279,26 +302,30 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
+ func verifyPrefixLimitTelemetry(t *testing.T, n *telemetry.NetworkInstance_Protocol_Bgp_Neighbor, wantEstablished bool) {
+        t.Run("verifyPrefixLimitTelemetry", func(t *testing.T) {
+                // TODO: Remove skip when Telemetry Parameters are supported
+-               t.Skip("Skipped since Telemetry parameters are not supported")
+-               plv4 := n.GetAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimit()
+-               plv6 := n.GetAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimit()
+-
+-               maxPrefix := plv4.GetMaxPrefixes()
+-               limitExceeded := plv4.GetPrefixLimitExceeded()
+-               if maxPrefix != prefixLimit {
+-                       t.Errorf("PrefixLimit max-prefixes v4 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+-               }
+-               if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
+-                       t.Errorf("PrefixLimitExceeded v4 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
+-               }
++               //t.Skip("Skipped since Telemetry parameters are not supported")
+ 
+-               maxPrefix = plv6.GetMaxPrefixes()
+-               limitExceeded = plv6.GetPrefixLimitExceeded()
+-               if maxPrefix != prefixLimit {
+-                       t.Errorf("PrefixLimit max-prefixes v6 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+-               }
+-               if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
+-                       t.Errorf("PrefixLimitExceeded v6 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
++               if n.NeighborAddress == &ateDst.IPv4 {
++                       plv4 := n.GetAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimit()
++
++                       maxPrefix := plv4.GetMaxPrefixes()
++                       limitExceeded := plv4.GetPrefixLimitExceeded()
++                       if maxPrefix != prefixLimit {
++                               t.Errorf("PrefixLimit max-prefixes v4 mismatch: got %d, want %d", maxPrefix, prefixLimit)
++                       }
++                       if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
++                               t.Errorf("PrefixLimitExceeded v4 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
++                       }
++               } else if n.NeighborAddress == &ateDst.IPv6 {
++                       plv6 := n.GetAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimit()
++
++                       maxPrefix := plv6.GetMaxPrefixes()
++                       limitExceeded := plv6.GetPrefixLimitExceeded()
++                       if maxPrefix != prefixLimit {
++                               t.Errorf("PrefixLimit max-prefixes v6 mismatch: got %d, want %d", maxPrefix, prefixLimit)
++                       }
++                       if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
++                               t.Errorf("PrefixLimitExceeded v6 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
++                       }
+                }
+        })
+ }
+@@ -412,6 +439,18 @@ func configureBGPRoutes(t *testing.T, topo *ondatra.ATETopology, allNets []*ixne
+        topo.UpdateNetworks(t)
+ }
+ 
++func workaroundBgpFlap(t *testing.T, dut *ondatra.DUTDevice) {
++       config := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, 
++       config.Neighbor(ateDst.IPv4).Delete(t)
++       config.Neighbor(ateDst.IPv6).Delete(t)
++       config.Neighbor(ateSrc.IPv4).Delete(t)
++       config.Neighbor(ateSrc.IPv6).Delete(t)
++
++       dutConf := createBGPNeighbor(dutAS, ateAS, prefixLimit, grRestartTime)
++       config.Replace(t, dutConf)
++
++}
++
+ type testCase struct {
+        desc             string
+        name             string
+@@ -423,6 +462,12 @@ type testCase struct {
+ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+        t.Log(tc.desc)
+        configureBGPRoutes(t, conf.topo, conf.allNets, tc.numRoutes)
++
++       // Remove when RestartTime is fixed
++       if tc.name == "ReestablishedAtLimit" {
++               workaroundBgpFlap(t, dut)
++       }
++
+        // Verify Port Status
+        t.Log(" Verifying port status")
+        t.Run("verifyPortsUp", func(t *testing.T) {
+@@ -447,6 +492,7 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate
+                        tc.verifyPacketLoss(t, ate, conf.allFlows)
+                })
+        }
++
+ }
+ 
+ func TestTrafficBGPPrefixLimit(t *testing.T) {
