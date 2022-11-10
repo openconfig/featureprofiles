@@ -130,11 +130,11 @@ var (
 			desc: "Packet I/O-GDP-PacketOut:010 Egress: Inject EtherType 0x6007 packets on existing port-id and then change related port-id and verify device behavior",
 			fn:   testPacketOutEgressWithChangeMetadata,
 		},
-		// {
-		// 	name: "Flap Interface and Check PacketOut(submit_to_ingress)",
-		// 	desc: "Packet I/O-GDP-PacketOut:011 Ingress: Verify bring down port in GDP PacketOut case and verify server behavior",
-		// 	fn:   testPacketOutIngressWithInterfaceFlap,
-		// },
+		{
+			name: "Flap Interface and Check PacketOut(submit_to_ingress)",
+			desc: "Packet I/O-GDP-PacketOut:011 Ingress: Verify bring down port in GDP PacketOut case and verify server behavior",
+			fn:   testPacketOutIngressWithInterfaceFlap,
+		},
 		{
 			name: "Flap Interface and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-GDP-PacketOut:011 Egress: Verify bring down port in GDP PacketOut case and verify server behavior",
@@ -186,6 +186,7 @@ func (gdp *GDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbbIn
 		Type:          actionType,
 		EtherType:     0x6007,
 		EtherTypeMask: 0xFFFF,
+		Priority:      1,
 	}}
 }
 
