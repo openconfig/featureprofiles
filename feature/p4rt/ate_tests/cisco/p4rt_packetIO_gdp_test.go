@@ -90,11 +90,11 @@ var (
 			desc: "Packet I/O-GDP-PacketIn:018 Programm match EtherType 0x6007,  send traffic with EtherType 0x6007 on port which is not part of P4RT, verify the packets are not sent to the controller",
 			fn:   testEntryProgrammingPacketInWithouthPortID,
 		},
-		// {
-		// 	name: "Program GDP Match Entry and Send scale GDP traffic",
-		// 	desc: "Packet I/O-GDP-PacketIn:019 Verify scale rate of GDP packets(200kbps)",
-		// 	fn:   testEntryProgrammingPacketInScaleRate,
-		// },
+		{
+			name: "Program GDP Match Entry and Send scale GDP traffic",
+			desc: "Packet I/O-GDP-PacketIn:019 Verify scale rate of GDP packets(200kbps)",
+			fn:   testEntryProgrammingPacketInScaleRate,
+		},
 		{
 			name: "Program GDP Match Entry and Check PacketOut(submit_to_ingress)",
 			desc: "Packet I/O-GDP-PacketOut:001 Ingress: Inject EtherType 0x6007 packets and verify traffic behavior in case of EtherType 0x6007 entry programmed",
@@ -130,21 +130,21 @@ var (
 			desc: "Packet I/O-GDP-PacketOut:010 Egress: Inject EtherType 0x6007 packets on existing port-id and then change related port-id and verify device behavior",
 			fn:   testPacketOutEgressWithChangeMetadata,
 		},
-		// {
-		// 	name: "Flap Interface and Check PacketOut(submit_to_ingress)",
-		// 	desc: "Packet I/O-GDP-PacketOut:011 Ingress: Verify bring down port in GDP PacketOut case and verify server behavior",
-		// 	fn:   testPacketOutIngressWithInterfaceFlap,
-		// },
+		{
+			name: "Flap Interface and Check PacketOut(submit_to_ingress)",
+			desc: "Packet I/O-GDP-PacketOut:011 Ingress: Verify bring down port in GDP PacketOut case and verify server behavior",
+			fn:   testPacketOutIngressWithInterfaceFlap,
+		},
 		{
 			name: "Flap Interface and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-GDP-PacketOut:011 Egress: Verify bring down port in GDP PacketOut case and verify server behavior",
 			fn:   testPacketOutEgressWithInterfaceFlap,
 		},
-		// {
-		// 	name: "Check PacketOut Scale(submit_to_egress)",
-		// 	desc: "Packet I/O-GDP-PacketOut:013 Verify scale rate of GDP packets injecting to the device(200kbps)",
-		// 	fn:   testPacketOutEgressScale,
-		// },
+		{
+			name: "Check PacketOut Scale(submit_to_egress)",
+			desc: "Packet I/O-GDP-PacketOut:013 Verify scale rate of GDP packets injecting to the device(200kbps)",
+			fn:   testPacketOutEgressScale,
+		},
 	}
 )
 
