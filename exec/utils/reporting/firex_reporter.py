@@ -60,7 +60,6 @@ if not os.path.exists(gh_logs_dir):
 if not os.path.exists(gh_reports_dir):
     os.makedirs(gh_reports_dir)
 
-fp_gh_repo = FPGHRepo()
 now = datetime.now().timestamp()
 logs_dir = os.path.join(constants.base_logs_dir, firex_id, 'tests_logs')
 
@@ -105,7 +104,7 @@ for ts in  _get_testsuites(testsuite_files.split(',')):
                             gt.mark_deviated()
                             break
 
-                gh_issue = fp_gh_repo.get_issue(t['name'])
+                gh_issue = FPGHRepo.instance().get_issue(t['name'])
                 if gh_issue:
                     gt.set_gh_issue(gh_issue)
                 go_tests.append(gt)
@@ -123,6 +122,7 @@ for ts in  _get_testsuites(testsuite_files.split(',')):
             for c in t.get_descendants() + [t]:
                 with open(os.path.join(gh_logs_dir, c.get_log_file_name()), 'w') as fp:
                     fp.write(c.get_output())
+            t.update_gh_issue()
 
     suite_stats = go_test_suite.get_stats()
     if suite_stats['total'] == 0:
