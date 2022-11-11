@@ -116,8 +116,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	t.Logf("*** Configuring default instance forwarding policy on DUT ...")
 	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
 	dutConfPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-	// policyDutConf := configForwardingPolicy()
-	// dutConfPath.PolicyForwarding().Replace(t, policyDutConf)
+	policyDutConf := configForwardingPolicy()
+	dutConfPath.PolicyForwarding().Replace(t, policyDutConf)
 }
 
 func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, subintfindex uint32, vlan uint16) *telemetry.Interface {
@@ -257,7 +257,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []gosnappi.Flow {
 	topo.Ports().Add().SetName(p1.ID())
 	srcDev := topo.Devices().Add().SetName(ateSrc.Name)
 	ethSrc := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth")
-	ethSrc.SetPortName(p2.ID()).SetMac(ateSrc.MAC)
+	ethSrc.SetPortName(p1.ID()).SetMac(ateSrc.MAC)
 	ethSrc.Ipv4Addresses().Add().SetName(srcDev.Name() + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
 	ethSrc.Ipv6Addresses().Add().SetName(srcDev.Name() + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
@@ -265,19 +265,16 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []gosnappi.Flow {
 	dstDev := topo.Devices().Add().SetName(ateDst.Name)
 	eth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth")
 	eth.SetPortName(p2.ID()).SetMac(ateDst.MAC)
-	eth.Vlans().Add().SetName(dstDev.Name() + "VLAN").SetId(int32(vlan10))
+	eth.Vlans().Add().SetName(dstDev.Name() + "-VLAN").SetId(int32(vlan10))
 	eth.Ipv4Addresses().Add().SetName(dstDev.Name() + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
 	eth.Ipv6Addresses().Add().SetName(dstDev.Name() + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
 
 	dstDev2 := topo.Devices().Add().SetName(ateDst2.Name)
 	eth2 := dstDev2.Ethernets().Add().SetName(ateDst2.Name + ".Eth")
 	eth2.SetPortName(p2.ID()).SetMac(ateDst2.MAC)
-	eth2.Vlans().Add().SetName(dstDev2.Name() + "VLAN").SetId(int32(vlan20))
+	eth2.Vlans().Add().SetName(dstDev2.Name() + "-VLAN").SetId(int32(vlan20))
 	eth2.Ipv4Addresses().Add().SetName(dstDev2.Name() + ".IPv4").SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(int32(ateDst2.IPv4Len))
 	eth2.Ipv6Addresses().Add().SetName(dstDev2.Name() + ".IPv6").SetAddress(ateDst2.IPv6).SetGateway(dutDst2.IPv6).SetPrefix(int32(ateDst2.IPv6Len))
-
-	ate.OTG().PushConfig(t, topo)
-	ate.OTG().StartProtocols(t)
 
 	// Create traffic flows
 	t.Logf("*** Configuring OTG flows ...")
@@ -438,7 +435,7 @@ func TestVrfPolicy(t *testing.T) {
 	}
 	for _, tc := range tcs {
 		t.Run(tc.desc, func(t *testing.T) {
-			// applyForwardingPolicy(t, ate, p1.Name(), tc.policy)
+			applyForwardingPolicy(t, ate, p1.Name(), tc.policy)
 			sendTraffic(t, ate)
 			verifyTraffic(t, ate, allFlows, tc.passFlows)
 		})
