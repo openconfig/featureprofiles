@@ -43,7 +43,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 			ntpServer := telemetry.System_Ntp_Server{
 				Address: &testCase.address,
 			}
-			if *deviations.NtpAssociationType {
+			if *deviations.NTPAssociationType {
 				ntpServer.AssociationType = telemetry.Server_AssociationType_SERVER
 			}
 			config.Server(testCase.address).Replace(t, &ntpServer)
