@@ -105,7 +105,7 @@ func (a *Attributes) ConfigInterface(intf *telemetry.Interface) *telemetry.Inter
 	return intf
 }
 
-// ConfigInterface configures an OpenConfig interface with these attributes.
+// ConfigOCInterface configures an OpenConfig interface with these attributes.
 func (a *Attributes) ConfigOCInterface(intf *oc.Interface) *oc.Interface {
 	if a.Desc != "" {
 		intf.Description = ygot.String(a.Desc)
@@ -158,7 +158,7 @@ func (a *Attributes) NewInterface(name string) *telemetry.Interface {
 	return a.ConfigInterface(&telemetry.Interface{Name: ygot.String(name)})
 }
 
-// NewInterface returns a new *oc.Interface configured with these attributes
+// NewOCInterface returns a new *oc.Interface configured with these attributes.
 func (a *Attributes) NewOCInterface(name string) *oc.Interface {
 	return a.ConfigOCInterface(&oc.Interface{Name: ygot.String(name)})
 }
