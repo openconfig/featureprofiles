@@ -157,13 +157,14 @@ tests:
   path: feature/system/gnmi/get/tests
   patch: exec/firex/plugins/fp_patch/get_test.patch
   owner: agvarghe@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 44
 - name: FP_GNMI_NTP
   path: feature/system/ntp/tests
-  patch: exec/firex/plugins/fp_patch/system_ntp_test.patch
   owner: agvarghe@cisco.com
-  mustpass: false
+  args:
+       - '-ntp_association_type_enabled="true"'
+  mustpass: true
   priority: 45
 - name: FP_GNMI_System
   path: feature/system/tests

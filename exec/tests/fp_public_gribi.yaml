@@ -86,7 +86,6 @@ tests:
   priority: 16
 - name: TE-6.2 (Route Removal In Non Default VRF) 
   path: feature/gribi/ate_tests/route_removal_non_default_vrf_test
-  patch: exec/firex/plugins/fp_patch/route_removal_non_default_vrf_test.patch
   owner: mananpat@cisco.com
   mustpass: true
   priority: 17
