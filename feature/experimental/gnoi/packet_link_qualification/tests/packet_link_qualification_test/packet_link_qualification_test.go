@@ -49,7 +49,12 @@ func TestMain(m *testing.M) {
 //       - MinTeardownDuration > 0,
 //  2) Validate the error code is returned for Get and Delete requests with non-existing ID.
 //       - Error code is 5 NOT_FOUND (HTTP Mapping: 404 Not Found).
-//  3) Set a device as the NEAR_END (generator) device for Packet Based Link Qual.
+//  3) Validate the link qualification List and Delete.
+//     - Issue List qualifications request.
+//     - Delete the qualification if qualification is found.
+//     - Issue List qualifications request again.
+//     - Verify that the qualification has been deleted successfully by checking List response.
+//  4) Set a device as the NEAR_END (generator) device for Packet Based Link Qual.
 //     - Issue gnoi.PacketLinkQual StartPacketQualification RPC to the device.
 //       Provide following parameters:
 //       - Id: A unique identifier for this run of the test
@@ -70,7 +75,7 @@ func TestMain(m *testing.M) {
 //       - SetupDuration: The requested setup time for the endpoint.
 //       - Duration:The length of the qualification.
 //       - PostSyncDuration: The amount time a side should wait before starting its teardown.
-//  4) Set another device as the FAR_END (reflector) device for Packet Based Link Qual.
+//  5) Set another device as the FAR_END (reflector) device for Packet Based Link Qual.
 //     - Issue gnoi.PacketLinkQual StartPacketQualification RPC to the device.
 //       Provide following parameters:
 //     - Id: A unique identifier for this run of the test
@@ -78,7 +83,7 @@ func TestMain(m *testing.M) {
 //     - EndpointType: Qualification_end set as FAR_END.
 //     - RPCSyncedTiming:
 //       - Reflector timers should be same as the ones on the generator.
-//  5) Get the result by issuing gnoi.PacketLinkQual GetPacketQualificationResult RPC to gather
+//  6) Get the result by issuing gnoi.PacketLinkQual GetPacketQualificationResult RPC to gather
 //     the result of link qualification.Provide the following parameter.
 //      - Id: The identifier used above on the NEAR_END side.
 //      - Compare that the test_duration_in_secs, packet_size, bandwidth_utilization match the request.
@@ -108,36 +113,10 @@ func TestCapabilitiesResponse(t *testing.T) {
 	gnoiClient1 := dut1.RawAPIs().GNOI().New(t)
 	plqResp, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
 
-	// TODO: Remove fakePlqResp and uncomment err checking if PlqResp is received from DUT.
-	// if err != nil {
-	// 	t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
-	// }
 	t.Logf("LinkQualification().Capabilities(): %v, err: %v", plqResp, err)
-
-	fakePlqResp := &plqpb.CapabilitiesResponse{
-		MaxHistoricalResultsPerInterface: uint64(2),
-		Time:                             &timestamppb.Timestamp{Seconds: int64(1666312526)},
-		NtpSynced:                        true,
-		Generator: &plqpb.GeneratorCapabilities{
-			PacketGenerator: &plqpb.PacketGeneratorCapabilities{
-				MinMtu:              uint32(64),
-				MaxMtu:              uint32(9000),
-				MaxBps:              uint64(4e11),
-				MaxPps:              uint64(5e8),
-				MinSetupDuration:    &durationpb.Duration{Seconds: int64(30)},
-				MinTeardownDuration: &durationpb.Duration{Seconds: int64(30)},
-				MinSampleInterval:   &durationpb.Duration{Seconds: int64(10)},
-			},
-		},
-		Reflector: &plqpb.ReflectorCapabilities{
-			PmdLoopback: &plqpb.PmdLoopbackCapabilities{
-				MinSetupDuration:    &durationpb.Duration{Seconds: int64(30)},
-				MinTeardownDuration: &durationpb.Duration{Seconds: int64(30)},
-			},
-		},
+	if err != nil {
+		t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
 	}
-	t.Logf("LinkQualification().Capabilities() fakePlqResp: %v", fakePlqResp)
-	plqResp = fakePlqResp
 
 	cases := []struct {
 		desc string
@@ -204,24 +183,10 @@ func TestNonexistingID(t *testing.T) {
 	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
 	getResp, err := gnoiClient1.LinkQualification().Get(context.Background(), &plqpb.GetRequest{Ids: []string{id}})
 
-	// TODO: Remove fakeResp and uncomment err checking if getResp is received from DUT.
-	// if err != nil {
-	// 	t.Fatalf("Failed to handle gnoi LinkQualification().Get(): %v", err)
-	// }
 	t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
-
-	fakeGetResp := &plqpb.GetResponse{
-		Results: map[string]*plqpb.QualificationResult{
-			id: {
-				Status: &statuspb.Status{
-					Code:    int32(5),
-					Message: "ID not found for result",
-				},
-			},
-		},
+	if err != nil {
+		t.Fatalf("Failed to handle gnoi LinkQualification().Get(): %v", err)
 	}
-	t.Logf("LinkQualification().Get() fakePlqResp: %v", fakeGetResp)
-	getResp = fakeGetResp
 
 	t.Run("GetResponse", func(t *testing.T) {
 		if got, want := getResp.GetResults()[id].GetStatus().GetCode(), int32(5); got != want {
@@ -231,28 +196,58 @@ func TestNonexistingID(t *testing.T) {
 
 	deleteResp, err := gnoiClient1.LinkQualification().Delete(context.Background(), &plqpb.DeleteRequest{Ids: []string{id}})
 
-	// TODO: Remove fakeResp and uncomment err checking if deleteResp is received from DUT.
-	// if err != nil {
-	// 	t.Fatalf("Failed to handle gnoi LinkQualification().Get(): %v", err)
-	// }
 	t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
-
-	fakeDeleteResp := &plqpb.DeleteResponse{
-		Results: map[string]*statuspb.Status{
-			id: {
-				Code:    int32(5),
-				Message: "ID not found for deletion",
-			},
-		},
+	if err != nil {
+		t.Fatalf("Failed to handle gnoi LinkQualification().Delete(): %v", err)
 	}
-	t.Logf("LinkQualification().Get() fakePlqResp: %v", fakeDeleteResp)
-	deleteResp = fakeDeleteResp
 
 	t.Run("DeleteResp", func(t *testing.T) {
 		if got, want := deleteResp.GetResults()[id].GetCode(), int32(5); got != want {
 			t.Errorf("DeleteResp: got %v, want %v", got, want)
 		}
 	})
+}
+
+func TestListDelete(t *testing.T) {
+	dut1 := ondatra.DUT(t, "dut1")
+	dut2 := ondatra.DUT(t, "dut2")
+	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
+	gnoiClient2 := dut2.RawAPIs().GNOI().Default(t)
+
+	clients := []ondatra.GNOI{gnoiClient1, gnoiClient2}
+	for i, client := range clients {
+		t.Logf("Check client: %d", i+1)
+		listResp, err := client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
+		t.Logf("LinkQualification().List(): %v, err: %v", listResp, err)
+		if err != nil {
+			t.Fatalf("Failed to handle gnoi LinkQualification().List(): %v", err)
+		}
+		if len(listResp.GetResults()) != 0 {
+			for j, result := range listResp.GetResults() {
+				t.Logf("Delete result %d: Result: %v", j, result)
+				id := result.GetId()
+				deleteResp, err := client.LinkQualification().Delete(context.Background(), &plqpb.DeleteRequest{Ids: []string{id}})
+
+				t.Logf("LinkQualification().Delete(): %v, err: %v", deleteResp, err)
+				if err != nil {
+					t.Fatalf("Failed to handle gnoi LinkQualification().Delete(): %v", err)
+				}
+			}
+		} else {
+			t.Logf("The qualification request was not found on client %d", i+1)
+			continue
+		}
+
+		t.Logf("Verify that the qualification has been deleted on client %d", i+1)
+		listResp, err = client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
+		t.Logf("LinkQualification().List(): %v, err: %v", listResp, err)
+		if err != nil {
+			t.Fatalf("Failed to handle gnoi LinkQualification().List(): %v", err)
+		}
+		if got, want := len(listResp.GetResults()), 0; got != want {
+			t.Errorf("ListResp: got %v, want %v", got, want)
+		}
+	}
 }
 
 func TestLinkQuality(t *testing.T) {
@@ -353,38 +348,24 @@ func TestLinkQuality(t *testing.T) {
 	t.Logf("ReflectorCreateRequest: %v", reflectorCreateRequest)
 
 	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
-	gnoiClient2 := dut1.RawAPIs().GNOI().Default(t)
+	gnoiClient2 := dut2.RawAPIs().GNOI().Default(t)
 
 	generatorCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), generatorCreateRequest)
-	// TODO: Remove fakeResp and uncomment err checking if generatorCreateResp is received from DUT.
-	// if err != nil {
-	// 	t.Fatalf("Failed to handle generator LinkQualification().Create(): %v", err)
-	// }
-	t.Logf("LinkQualification().Create(): %v, err: %v", generatorCreateResp, err)
+	t.Logf("LinkQualification().Create() generatorCreateResp: %v, err: %v", generatorCreateResp, err)
+	if err != nil {
+		t.Fatalf("Failed to handle generator LinkQualification().Create(): %v", err)
+	}
 
 	reflectorCreateResp, err := gnoiClient2.LinkQualification().Create(context.Background(), reflectorCreateRequest)
-	// TODO: Remove fakeResp and uncomment err checking if reflectorCreateResp is received from DUT.
-	// if err != nil {
-	// 	t.Fatalf("Failed to handle reflector LinkQualification().Create(): %v", err)
-	// }
-	// time.Sleep(1200 * time.Second)
-	t.Logf("LinkQualification().Create(): %v, err: %v", reflectorCreateResp, err)
-
-	fakeCreateResp := &plqpb.CreateResponse{
-		Status: map[string]*statuspb.Status{
-			plqID: {
-				Code:    int32(0), //OK = 0 and HTTP Mapping: 200 OK.
-				Message: "request id " + plqID,
-			},
-		},
+	t.Logf("LinkQualification().Create() reflectorCreateResp: %v, err: %v", reflectorCreateResp, err)
+	if err != nil {
+		t.Fatalf("Failed to handle reflector LinkQualification().Create(): %v", err)
 	}
-	t.Logf("fakeCreateResp: %v", fakeCreateResp)
+	// time.Sleep(1200 * time.Second)
 
-	generatorCreateResp = fakeCreateResp
 	if got, want := generatorCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
 		t.Errorf("generatorCreateResp: got %v, want %v", got, want)
 	}
-	reflectorCreateResp = fakeCreateResp
 	if got, want := reflectorCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
 		t.Errorf("reflectorCreateResp: got %v, want %v", got, want)
 	}
