@@ -50,11 +50,15 @@ custom:
       session: 1
       ports:  
         ixnetwork:
+          # windoes ixia config
           port: 11009
           session_id: 1
-          username: admin
-          password: admin
           opts:  ["skip_verify"]
+          # linux ixia config
+          #port: 443
+          #username: admin
+          #password: admin
+          #opts:  ["skip_verify"]
 devices:
   dut:
     platform: spitfire_d
