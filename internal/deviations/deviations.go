@@ -108,8 +108,8 @@ var (
 
 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
-	AddSubIntfToNetInst = flag.Bool("deviation_adding_subintf_to_network_instance", true,
-		"If a device requires explicit attachment of a sub-interface to a network-instance, this deviation should be marked true. The default expectation is that a sub-interface is part of default network-instance implicitly.")
+	ExplicitInterfaceInVRF = flag.Bool("deviation_explicit_interface_in_vrf", true,
+		"Device requires explicit attachment of an interface or subinterface to a network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
 )
 
 func SubIntfToNetworkInstance(t *testing.T, dconf *ondatra.Config, i *telemetry.Interface, si uint32, inst string) {
