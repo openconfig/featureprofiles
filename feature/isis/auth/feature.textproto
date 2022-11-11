@@ -55,6 +55,24 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/keychain"
 }
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/auth-mode"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/auth-mode"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/auth-password"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/auth-password"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/auth-type"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/auth-type"
+}
 
 # Interfaces authentication hello authentication
 config_path {
@@ -62,6 +80,24 @@ config_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/state/enabled"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-mode"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/state/auth-mode"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-password"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/state/auth-password"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/enabled"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/state/enabled"
 }
 
 # Interfaces authentication key authentication password

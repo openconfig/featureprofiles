@@ -38,6 +38,15 @@ interface %s
   description %s
 `
 		return fmt.Sprintf(tmpl, dp.Name(), desc)
+	case ondatra.JUNIPER:
+		const tmpl = `
+interfaces {
+    %s {
+        description "%s"
+    }
+}
+`
+		return fmt.Sprintf(tmpl, dp.Name(), desc)
 	}
 	return ""
 }

@@ -231,7 +231,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	// Disable FEC for 100G-FR ports because Novus does not support it.
 	is100gfr := false
 	for _, p := range tc.atePorts {
-		if p.PMD() == ondatra.PMD100GFR {
+		if p.PMD() == ondatra.PMD100GBASEFR {
 			is100gfr = true
 		}
 	}
