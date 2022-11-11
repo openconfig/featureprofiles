@@ -102,8 +102,7 @@ index ce8c3c5f..4a66e451 100644
  			name: "loose",
  			mode: oc.Isis_HelloPaddingType_LOOSE,
 @@ -447,8 +457,10 @@ func TestTraffic(t *testing.T) {
- 
- 	ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
+  	ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
  		// disable global hello padding on the DUT
 -		global := isis.GetOrCreateGlobal()
 -		global.HelloPadding = oc.Isis_HelloPaddingType_DISABLE
