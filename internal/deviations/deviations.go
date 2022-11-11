@@ -108,7 +108,7 @@ var (
 
 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
-	ExplicitInterfaceInVRF = flag.Bool("deviation_explicit_interface_in_vrf", true,
+	ExplicitInterfaceInVRF = flag.Bool("deviation_explicit_interface_in_vrf", false,
 		"Device requires explicit attachment of an interface or subinterface to a network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
 )
 
