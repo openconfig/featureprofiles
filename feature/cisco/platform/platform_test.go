@@ -748,7 +748,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		groupDetails := state.Get(t)
 		index := *groupDetails.Index
 		numBreakouts := *groupDetails.NumBreakouts
-		breakoutSpeed := &groupDetails.BreakoutSpeed
+		breakoutSpeed := groupDetails.BreakoutSpeed
 		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
 	})
 
@@ -825,15 +825,17 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		defer observer.RecordYgot(t, "UPDATE", path)
 		path.Update(t, breakoutContainer)
 	})
+
 	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port", func(t *testing.T) {
 		state := dut.Config().Component(PlatformSF.Transceiver).Port()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		portDetails := state.Get(t)
 		index := *portDetails.BreakoutMode.Group[1].Index
 		numBreakouts := *portDetails.BreakoutMode.Group[1].NumBreakouts
-		breakoutSpeed := *&portDetails.BreakoutMode.Group[1].BreakoutSpeed
+		breakoutSpeed := portDetails.BreakoutMode.Group[1].BreakoutSpeed
 		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
 	})
+
 	t.Run("Delete//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/", func(t *testing.T) {
 		path := dut.Config().Component(PlatformSF.Transceiver).Port()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -855,7 +857,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		componentDetails := state.Get(t)
 		index := *componentDetails.Port.BreakoutMode.Group[1].Index
 		numBreakouts := *componentDetails.Port.BreakoutMode.Group[1].NumBreakouts
-		breakoutSpeed := *&componentDetails.Port.BreakoutMode.Group[1].BreakoutSpeed
+		breakoutSpeed := componentDetails.Port.BreakoutMode.Group[1].BreakoutSpeed
 		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
 	})
 	t.Run("Delete//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/", func(t *testing.T) {
@@ -880,7 +882,7 @@ func TestPlatformBreakoutState(t *testing.T) {
 		val := state.Get(t)
 		index := *val.Port.BreakoutMode.Group[1].Index
 		numBreakouts := *val.Port.BreakoutMode.Group[1].NumBreakouts
-		breakoutSpeed := *&val.Port.BreakoutMode.Group[1].BreakoutSpeed
+		breakoutSpeed := val.Port.BreakoutMode.Group[1].BreakoutSpeed
 		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
 
 	})
@@ -890,7 +892,7 @@ func TestPlatformBreakoutState(t *testing.T) {
 		portDetails := state.Get(t)
 		index := *portDetails.BreakoutMode.Group[1].Index
 		numBreakouts := *portDetails.BreakoutMode.Group[1].NumBreakouts
-		breakoutSpeed := *&portDetails.BreakoutMode.Group[1].BreakoutSpeed
+		breakoutSpeed := portDetails.BreakoutMode.Group[1].BreakoutSpeed
 		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
 	})
 	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/state/port/breakout-mode", func(t *testing.T) {
@@ -908,7 +910,7 @@ func TestPlatformBreakoutState(t *testing.T) {
 		groupDetails := state.Get(t)
 		index := *groupDetails[0].Index
 		numBreakouts := *groupDetails[0].NumBreakouts
-		breakoutSpeed := &groupDetails[0].BreakoutSpeed
+		breakoutSpeed := groupDetails[0].BreakoutSpeed
 		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
 	})
 	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/state/port/breakout-mode/group[1]", func(t *testing.T) {
@@ -917,7 +919,7 @@ func TestPlatformBreakoutState(t *testing.T) {
 		groupDetails := state.Get(t)
 		index := *groupDetails.Index
 		numBreakouts := *groupDetails.NumBreakouts
-		breakoutSpeed := &groupDetails.BreakoutSpeed
+		breakoutSpeed := groupDetails.BreakoutSpeed
 		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
 	})
 
