@@ -877,7 +877,7 @@ func TestPlatformBreakoutState(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("controller optics %v \n breakout %v \n ", *ControllerOptics, *ControllerOpticsSpeed))
-	defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("controller optics %v \n", *ControllerOptics))
+	defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("no controller optics %v \n", *ControllerOptics))
 
 	t.Run("Subscribe//components/component[0/0/CPU0-QSFP_DD Optics Port 20]/state", func(t *testing.T) {
 		state := dut.Telemetry().Component(PlatformSF.Transceiver)
