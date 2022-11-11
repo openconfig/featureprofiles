@@ -11,13 +11,15 @@ import yaml
 import constants
 import argparse
 
-def _get_testsuites():
+def _get_testsuites(files):
     test_suites = []
-
     for f in list(Path(constants.tests_dir).rglob("*.yaml")):
         with open(f) as stream:
             try:
                 ts = yaml.safe_load(stream)
+                ts['updated'] = False
+                if str(f) in files: 
+                    ts['updated'] = True
                 test_suites.append(ts)
             except yaml.YAMLError as exc:
                 print(exc)
@@ -33,15 +35,18 @@ def _get_test_id_name_map(logs_dir):
                 id, name = [x.strip() for x in matches.groups()]
                 name = name.replace('(Patched)', '').strip()
                 name = name.replace('(Deviation)', '').strip()
+                name = name.strip()
                 name = ' '.join(name.split()[1:])
                 test_id_map[name] = id
     return test_id_map
 
 parser = argparse.ArgumentParser(description='Generate MD FireX report')
+parser.add_argument('test_suites', help='Testsuite files')
 parser.add_argument('firex_id', help='FireX run ID')
 parser.add_argument('out_dir', help='Output directory')
 args = parser.parse_args()
 
+testsuite_files = args.test_suites
 firex_id = args.firex_id
 out_dir = args.out_dir
 data_dir = os.path.join(out_dir, constants.gh_data_dir)
@@ -73,7 +78,7 @@ Suite | Total | Passed | Failed | Regressed | Skipped | Last Run | Logs | Result
 total, passed, failed, skipped, regressed = [0] * 5
 test_id_map = _get_test_id_name_map(logs_dir)
 
-for ts in  _get_testsuites():
+for ts in  _get_testsuites(testsuite_files.split(',')):
     ts_data_file = os.path.join(data_dir, f"{ts['name']}.json")
     ts_html_file = os.path.join(gh_reports_dir, f"{ts['name']}.html")
 
@@ -106,7 +111,7 @@ for ts in  _get_testsuites():
                 go_tests.append(gt)
             except: continue
     
-    if len(go_tests) > 0:
+    if ts['updated'] and len(go_tests) > 0:
         go_test_suite.update(firex_id, go_tests, last_updated=now)
         with open(os.path.join(out_dir, f"{ts['name']}.md"), 'w') as fp:
             fp.write(go_test_suite.to_md_string())
