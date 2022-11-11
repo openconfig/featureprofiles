@@ -37,7 +37,7 @@ index fe461a9a..1b0a756d 100644
  	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
  	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 diff --git a/feature/experimental/isis/ate_tests/lsp_updates_test/lsp_updates_test.go b/feature/experimental/isis/ate_tests/lsp_updates_test/lsp_updates_test.go
-index 5b54e374..3cf8cb4c 100644
+index 5b54e374..e6722b80 100644
 --- a/feature/experimental/isis/ate_tests/lsp_updates_test/lsp_updates_test.go
 +++ b/feature/experimental/isis/ate_tests/lsp_updates_test/lsp_updates_test.go
 @@ -39,7 +39,8 @@ func TestOverloadBit(t *testing.T) {
@@ -66,12 +66,12 @@ index 5b54e374..3cf8cb4c 100644
  	// TODO: Verify the link state database once device support is added.
 -	if err := check.Equal[uint32](overloads.State(), 1).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
 +	// since overload bit starts with 5 (af v4,v6, multicast v4, multicast v6 and isis instance) and increments by 1 after configuring overload bit
-+	if err := check.Equal[uint32](overloads.State(), 6).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
++	if err := check.Equal[uint32](overloads.State(), 6).AwaitFor(time.Second*30, ts.DUTClient); err != nil {
  		t.Error(err)
  	}
 -	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second, ts.DUTClient); err != nil {
 +	// longer time for fetching the value
-+	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
++	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second*30, ts.DUTClient); err != nil {
  		t.Error(err)
  	}
  	// TODO: Verify the link state database on the ATE once the ATE reports this properly
@@ -81,7 +81,7 @@ index 5b54e374..3cf8cb4c 100644
  		Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric()
 -	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second, ts.DUTClient); err != nil {
 +	// longer time for fetching the value
-+	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
++	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second*30, ts.DUTClient); err != nil {
  		t.Error(err)
  	}
  	// TODO: Verify the link state database on the ATE once the ATE reports this properly

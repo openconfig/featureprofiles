@@ -1,5 +1,5 @@
 diff --git a/feature/experimental/isis/ate_tests/base_adjacencies_test/base_adjacencies_test.go b/feature/experimental/isis/ate_tests/base_adjacencies_test/base_adjacencies_test.go
-index ce8c3c5f..4a66e451 100644
+index ce8c3c5f..8596e56b 100644
 --- a/feature/experimental/isis/ate_tests/base_adjacencies_test/base_adjacencies_test.go
 +++ b/feature/experimental/isis/ate_tests/base_adjacencies_test/base_adjacencies_test.go
 @@ -59,20 +59,22 @@ func TestBasic(t *testing.T) {
@@ -16,7 +16,7 @@ index ce8c3c5f..4a66e451 100644
  	// There might be lag between when the instance name is set and when the
  	// other parameters are set; we expect the total lag to be under 5s
 -	deadline := time.Now().Add(time.Second * 5)
-+	deadline := time.Now().Add(time.Second * 10)
++	deadline := time.Now().Add(time.Second * 20)
  
  	t.Run("read_config", func(t *testing.T) {
  		for _, vd := range []check.Validator{
