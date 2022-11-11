@@ -178,13 +178,15 @@ tests:
   skip: false
 - name: RT-2.2 (IS-IS LSP Updates) 
   path: feature/experimental/isis/ate_tests/lsp_updates_test
-  owner: sprem@cisco.com
+  patch: exec/firex/plugins/fp_patch/lsp_updates_test.patch
+  owner: mananpat@cisco.com
   mustpass: false
   priority: 48
   skip: false
 - name: RT-2.1 (Base IS-IS Process and Adjacencies) 
   path: feature/experimental/isis/ate_tests/base_adjacencies_test
-  owner: sprem@cisco.com
+  patch: exec/firex/plugins/fp_patch/base_adjacencies_test.patch
+  owner: mananpat@cisco.com
   mustpass: false
   priority: 49
   skip: false
@@ -203,6 +205,7 @@ tests:
   skip: false
 - name: RT-1.5 (BGP Prefix Limit) 
   path: feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test
+  patch: exec/firex/plugins/fp_patch/bgp_prefix_limit_test.patch
   owner: sprem@cisco.com
   mustpass: false
   priority: 53
@@ -215,6 +218,7 @@ tests:
   skip: false
 - name: RT-1.7 (Local BGP Test) 
   path: feature/bgp/tests/local_bgp_test
+  patch: exec/firex/plugins/fp_patch/local_bgp_test.patch
   owner: sprem@cisco.com
   mustpass: false
   priority: 55
