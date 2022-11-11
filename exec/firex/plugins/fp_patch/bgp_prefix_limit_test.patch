@@ -136,7 +136,7 @@ index 99b650e..7ad74a7 100644
  }
  
 +func workaroundBgpFlap(t *testing.T, dut *ondatra.DUTDevice) {
-+       config := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, 
++       config := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 +       config.Neighbor(ateDst.IPv4).Delete(t)
 +       config.Neighbor(ateDst.IPv6).Delete(t)
 +       config.Neighbor(ateSrc.IPv4).Delete(t)
