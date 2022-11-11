@@ -1,6 +1,7 @@
 package basetest
 
 import (
+	"flag"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -29,6 +30,10 @@ var (
 		SwPackage:          "IOSXR-PKG/2 xr-8000-qos-ea-7.8.1.14Iv1.0.0-1",
 	}
 	Platform = PlatformSF
+)
+var (
+	ControllerOptics      = flag.String("controller_optics", "0/0/0/20", "ControllerOptics")
+	ControllerOpticsSpeed = flag.String("controller_optics_speed", "4x10", "ControllerOpticsSpeed")
 )
 
 // to hold platform info

@@ -2,6 +2,7 @@ package basetest
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -874,8 +875,10 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 func TestPlatformBreakoutState(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	config.TextWithGNMI(context.Background(), t, dut, "controller optics 0/0/0/20\n breakout 4x10\n")
-	defer config.TextWithGNMI(context.Background(), t, dut, "no controller optics 0/0/0/20\n breakout 4x10\n")
+
+	config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("controller optics %v \n breakout %v \n ", *ControllerOptics, *ControllerOpticsSpeed))
+	defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("controller optics %v \n", *ControllerOptics))
+
 	t.Run("Subscribe//components/component[0/0/CPU0-QSFP_DD Optics Port 20]/state", func(t *testing.T) {
 		state := dut.Telemetry().Component(PlatformSF.Transceiver)
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -956,4 +959,5 @@ func TestPlatformBreakoutState(t *testing.T) {
 			t.Errorf("Number physical channels does not match configured value : got %v, want 1", numPhysicalChannels)
 		}
 	})
+
 }
