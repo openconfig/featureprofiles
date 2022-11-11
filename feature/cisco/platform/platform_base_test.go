@@ -48,6 +48,19 @@ type PlatformInfo struct {
 	SwPackage          string
 }
 
+func verifyBreakout(index uint8, numBreakouts uint8, breakoutSpeed string, t *testing.T) {
+
+	if index != uint8(1) {
+		t.Errorf("Index: got %v, want 1", index)
+	}
+	if numBreakouts != uint8(4) {
+		t.Errorf("Number of breakouts configured : got %v, want 4", numBreakouts)
+	}
+	if breakoutSpeed != "SPEED_10GB" {
+		t.Errorf("Breakout speed configured : got %v, want 10GB", breakoutSpeed)
+	}
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }

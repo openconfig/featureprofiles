@@ -7,8 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestPlatformCPUState(t *testing.T) {
@@ -720,4 +722,236 @@ func TestPlatformLC(t *testing.T) {
 		}
 	})
 
+}
+
+func TestPlatformBreakoutConfig(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	configContainer := &oc.Component_Port_BreakoutMode_Group{
+		Index:         ygot.Uint8(1),
+		NumBreakouts:  ygot.Uint8(4),
+		BreakoutSpeed: oc.E_IfEthernet_ETHERNET_SPEED(oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB),
+	}
+	groupContainer := &oc.Component_Port_BreakoutMode{Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{1: configContainer}}
+	breakoutContainer := &oc.Component_Port{BreakoutMode: groupContainer}
+	portContainer := &oc.Component{Port: breakoutContainer}
+
+	t.Run("Update//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/config", func(t *testing.T) {
+		path := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1)
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Update(t, configContainer)
+	})
+
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]", func(t *testing.T) {
+		state := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1)
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		groupDetails := state.Get(t)
+		index := *groupDetails.Index
+		numBreakouts := *groupDetails.NumBreakouts
+		breakoutSpeed := &groupDetails.BreakoutSpeed
+		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
+	})
+
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/config/index", func(t *testing.T) {
+		state := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).Index()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		index := state.Get(t)
+		if index != uint8(1) {
+			t.Errorf("Number of Index does not match configured value : got %v, want 1", index)
+		}
+	})
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/config/num-breakouts", func(t *testing.T) {
+		state := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).NumBreakouts()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		numBreakouts := state.Get(t)
+		if numBreakouts != uint8(4) {
+			t.Errorf("Number of breakouts does not match configured value : got %v, want 4", numBreakouts)
+		}
+	})
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/config/breakout-speed", func(t *testing.T) {
+		state := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).BreakoutSpeed()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		breakoutSpeed := state.Get(t).String()
+		if breakoutSpeed != "SPEED_10GB" {
+			t.Errorf("Breakout-Speed does not match configured value : got %v, want 10GB", breakoutSpeed)
+		}
+	})
+
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/config/num-physical-channels", func(t *testing.T) {
+		state := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).NumPhysicalChannels()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		numPhysicalChannels := state.Get(t)
+		if numPhysicalChannels != uint8(1) {
+			t.Errorf("Number physical channels does not match configured value : got %v, want 1", numPhysicalChannels)
+		}
+	})
+
+	t.Run("Delete//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/config", func(t *testing.T) {
+		path := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1)
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Delete(t)
+		got := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).Index().Get(t)
+		if got == *ygot.Uint8(1) {
+			t.Error("Delete has not been successfull on config container level")
+		}
+	})
+
+	t.Run("Update//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]", func(t *testing.T) {
+		path := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode()
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Update(t, groupContainer)
+	})
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode", func(t *testing.T) {
+		state := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		breakoutDetails := state.Get(t)
+		index := *breakoutDetails.Group[1].Index
+		numBreakouts := *breakoutDetails.Group[1].NumBreakouts
+		breakoutSpeed := breakoutDetails.Group[1].BreakoutSpeed
+		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
+	})
+	t.Run("Delete//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]", func(t *testing.T) {
+		path := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode()
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Delete(t)
+		got := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).Index().Get(t)
+		if got == *ygot.Uint8(1) {
+			t.Error("Delete has not been successfull on group container level")
+		}
+	})
+
+	t.Run("Update//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/", func(t *testing.T) {
+		path := dut.Config().Component(PlatformSF.Transceiver).Port()
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Update(t, breakoutContainer)
+	})
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port", func(t *testing.T) {
+		state := dut.Config().Component(PlatformSF.Transceiver).Port()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		portDetails := state.Get(t)
+		index := *portDetails.BreakoutMode.Group[1].Index
+		numBreakouts := *portDetails.BreakoutMode.Group[1].NumBreakouts
+		breakoutSpeed := *&portDetails.BreakoutMode.Group[1].BreakoutSpeed
+		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
+	})
+	t.Run("Delete//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/", func(t *testing.T) {
+		path := dut.Config().Component(PlatformSF.Transceiver).Port()
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Delete(t)
+		got := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).Index().Get(t)
+		if got == *ygot.Uint8(1) {
+			t.Error("Delete has not been successfull on breakout-mode container level")
+		}
+	})
+
+	t.Run("Update//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/", func(t *testing.T) {
+		path := dut.Config().Component(PlatformSF.Transceiver)
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Update(t, portContainer)
+	})
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config", func(t *testing.T) {
+		state := dut.Config().Component(PlatformSF.Transceiver)
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		componentDetails := state.Get(t)
+		index := *componentDetails.Port.BreakoutMode.Group[1].Index
+		numBreakouts := *componentDetails.Port.BreakoutMode.Group[1].NumBreakouts
+		breakoutSpeed := *&componentDetails.Port.BreakoutMode.Group[1].BreakoutSpeed
+		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
+	})
+	t.Run("Delete//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/", func(t *testing.T) {
+		path := dut.Config().Component(PlatformSF.Transceiver)
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Delete(t)
+		got := dut.Config().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).Index().Get(t)
+		if got == *ygot.Uint8(1) {
+			t.Error("Delete has not been successfull on port container level")
+		}
+	})
+
+}
+
+func TestPlatformBreakoutState(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	config.TextWithGNMI(context.Background(), t, dut, "controller optics 0/0/0/20\n breakout 4x10\n")
+	defer config.TextWithGNMI(context.Background(), t, dut, "no controller optics 0/0/0/20\n breakout 4x10\n")
+	t.Run("Subscribe//components/component[0/0/CPU0-QSFP_DD Optics Port 20]/state", func(t *testing.T) {
+		state := dut.Telemetry().Component(PlatformSF.Transceiver)
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		val := state.Get(t)
+		index := *val.Port.BreakoutMode.Group[1].Index
+		numBreakouts := *val.Port.BreakoutMode.Group[1].NumBreakouts
+		breakoutSpeed := *&val.Port.BreakoutMode.Group[1].BreakoutSpeed
+		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
+
+	})
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/state/port", func(t *testing.T) {
+		state := dut.Telemetry().Component(PlatformSF.Transceiver).Port()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		portDetails := state.Get(t)
+		index := *portDetails.BreakoutMode.Group[1].Index
+		numBreakouts := *portDetails.BreakoutMode.Group[1].NumBreakouts
+		breakoutSpeed := *&portDetails.BreakoutMode.Group[1].BreakoutSpeed
+		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
+	})
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/state/port/breakout-mode", func(t *testing.T) {
+		state := dut.Telemetry().Component(PlatformSF.Transceiver).Port().BreakoutMode()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		breakoutDetails := state.Get(t)
+		index := *breakoutDetails.Group[1].Index
+		numBreakouts := *breakoutDetails.Group[1].NumBreakouts
+		breakoutSpeed := breakoutDetails.Group[1].BreakoutSpeed
+		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
+	})
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/state/port/breakout-mode/groups", func(t *testing.T) {
+		state := dut.Telemetry().Component(PlatformSF.Transceiver).Port().BreakoutMode().GroupAny()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		groupDetails := state.Get(t)
+		index := *groupDetails[0].Index
+		numBreakouts := *groupDetails[0].NumBreakouts
+		breakoutSpeed := &groupDetails[0].BreakoutSpeed
+		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
+	})
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/state/port/breakout-mode/group[1]", func(t *testing.T) {
+		state := dut.Telemetry().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1)
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		groupDetails := state.Get(t)
+		index := *groupDetails.Index
+		numBreakouts := *groupDetails.NumBreakouts
+		breakoutSpeed := &groupDetails.BreakoutSpeed
+		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
+	})
+
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/index", func(t *testing.T) {
+		state := dut.Telemetry().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).Index()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		index := state.Get(t)
+		if index != uint8(1) {
+			t.Errorf("Number of Index does not match configured value : got %v, want 1", index)
+		}
+	})
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/num-breakouts", func(t *testing.T) {
+		state := dut.Telemetry().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).NumBreakouts()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		numBreakouts := state.Get(t)
+		if numBreakouts != uint8(4) {
+			t.Errorf("Number of breakouts does not match configured value : got %v, want 4", numBreakouts)
+		}
+	})
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/breakout-speed", func(t *testing.T) {
+		state := dut.Telemetry().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).BreakoutSpeed()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		breakoutSpeed := state.Get(t).String()
+		if breakoutSpeed != "SPEED_10GB" {
+			t.Errorf("Breakout-Speed does not match configured value : got %v, want 10GB", breakoutSpeed)
+		}
+	})
+
+	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/num-physical-channels", func(t *testing.T) {
+		state := dut.Telemetry().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).NumPhysicalChannels()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		numPhysicalChannels := state.Get(t)
+		if numPhysicalChannels != uint8(1) {
+			t.Errorf("Number physical channels does not match configured value : got %v, want 1", numPhysicalChannels)
+		}
+	})
 }
