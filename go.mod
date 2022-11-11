@@ -21,6 +21,7 @@ require (
 	github.com/openconfig/ygot v0.25.2
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/pkg/errors v0.9.1
+	github.com/povsister/scp v0.0.0-20210427074412-33febfd9f13e
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	github.com/yuin/goldmark v1.4.13
 	golang.org/x/crypto v0.0.0-20220518034528-6f7dac969898
@@ -60,7 +61,6 @@ require (
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.5 // indirect
-	github.com/povsister/scp v0.0.0-20210427074412-33febfd9f13e // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/spf13/afero v1.9.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
