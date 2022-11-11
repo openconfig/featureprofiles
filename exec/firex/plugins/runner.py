@@ -27,7 +27,10 @@ CloneInfo = namedtuple('CloneInfo', ['url', 'path'])
 ONDATRA_REPO_CLONE_INFO = CloneInfo('https://github.com/openconfig/ondatra.git', 'openconfig/ondatra')
 FP_REPO_CLONE_INFO = CloneInfo('git@wwwin-github.cisco.com:B4Test/featureprofiles.git', 'openconfig/featureprofiles')
 
-ONDATRA_PATCHES = ['exec/firex/plugins/ondatra/0001-windows-ixia-path.patch']
+ONDATRA_PATCHES = [
+    'exec/firex/plugins/ondatra/0001-windows-ixia-path.patch', 
+    'exec/firex/plugins/ondatra/0002-disable-log.patch'
+]
 
 whitelist_arguments([
     'ondatra_repo_branch', 
@@ -110,7 +113,7 @@ def BringupTestbed(self, ws, images = None,
     ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
 
     for patch in ONDATRA_PATCHES:
-        ondatra_repo.git.apply([os.path.join(fp_repo_dir, patch)])
+        ondatra_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo_dir, patch)])
 
     ondatra_repo.git.add(update=True)
     ondatra_repo.git.commit('-m', 'patched for testing')
