@@ -1,8 +1,8 @@
 name: "arista-ixia-lag"
 nodes: {
     name: "otg"
-    type: IXIA_TG
-    version: "0.0.1-3383"
+    vendor: KEYSIGHT
+    version: "0.0.1-3423"
     services: {
         key: 443
         value: {
@@ -75,7 +75,9 @@ nodes: {
 }
 nodes: {
     name: "arista"
-    type: ARISTA_CEOS
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
     config: {
         cert: {
             self_signed: {
@@ -87,7 +89,7 @@ nodes: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
         file: "arista_ceos.config"
-    	image: "ceos:latest"
+        image: "ceos:latest"
     }
     services:{
         key: 22
@@ -97,7 +99,7 @@ nodes: {
         }
     }
     services:{
-        key: 6030 
+        key: 6030
         value: {
             name: "gnmi"
             inside: 6030

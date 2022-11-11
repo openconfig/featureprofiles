@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -14,20 +15,26 @@ import (
 
 // GoTest represents a single go test
 type GoTest struct {
-	Name       string
-	Path       string
-	Patch      string
-	Args       []string
-	Timeout    int
-	ShouldFail bool
+	ID       string
+	Name     string
+	Owner    string
+	Priority int
+	Path     string
+	Patch    string
+	Baseconf string
+	Args     []string
+	Timeout  int
+	Skip     bool
+	MustPass bool
 }
 
 // FirexTest represents a single firex test suite
 type FirexTest struct {
 	Name     string
 	Owner    string
-	Priority string
+	Priority int
 	Timeout  int
+	Skip     bool
 	Pyvxr    struct {
 		Topology string
 	}
@@ -48,48 +55,46 @@ var (
 		"test_names", "", "comma separated list of tests to include",
 	)
 
-	workspaceFlag = flag.String(
-		"workspace", "", "workspace used for firex launch.",
-	)
-
 	testDescFiles []string
 
 	testNames []string
-
-	workspace string
 )
 
 var (
 	firexSuiteTemplate = template.Must(template.New("firexTestSuite").Funcs(template.FuncMap{
 		"join": strings.Join,
+		"hasDeviation": func(gt GoTest) bool {
+			for _, arg := range gt.Args {
+				if strings.HasPrefix(arg, "-deviation") {
+					return true
+				}
+			}
+			return false
+		},
 	}).Parse(`
 {{- range $i, $ft := $.TestSuite }}
-{{- if gt (len $ft.Tests) 0 }}
-{{- .Name }}:
+{{- range $j, $gt := $ft.Tests}}
+{{ $gt.Name }}:
     framework: b4_fp
     owners:
-        - {{ $ft.Owner }}
-    {{- if eq $ft.Priority "low" }}
-    priority: BCT
-    {{- else if eq $ft.Priority "high" }}
-    priority: UT
-    {{- end }}
+        - {{ $gt.Owner }}
     {{- if $ft.Pyvxr.Topology }}
     plugins:
         - vxsim.py
-    topo_file: {{ $.Workspace }}/{{ $ft.Pyvxr.Topology }}
-    {{- end }}
-    {{- if gt $ft.Timeout 0 }}
-    plugins:
-        - change_inactivity_timeout.py
-    changed_inactivity_timeout: {{ $ft.Timeout }}
+    topo_file: {{ $ft.Pyvxr.Topology }}
+    {{- else }}
+    topo_file: ""
     {{- end }}
     ondatra_testbed_path: {{ $ft.Testbed }}
     {{- if $ft.Binding }}
     ondatra_binding_path: {{ $ft.Binding }}
+    {{- else }}
+    ondatra_binding_path: ""
     {{- end }}
-    {{- if $ft.Baseconf }}
-    base_conf_path: {{ $ft.Baseconf }}
+    {{- if $gt.Baseconf }}
+    base_conf_path: {{ $gt.Baseconf }}
+    {{- else }}
+    base_conf_path: ""
     {{- end }}
     supported_platforms:
         - "8000"
@@ -102,8 +107,7 @@ var (
             {{- end }}
         {{- end }}
     script_paths:
-        {{- range $j, $gt := $ft.Tests}}
-        - {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}:
+        - ({{ $gt.ID }}) {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}{{ if hasDeviation $gt }} (Deviation){{ end }}:
             test_path: {{ $gt.Path }}
             {{- if $gt.Args }}
             test_args: {{ join $gt.Args " " }}
@@ -112,7 +116,6 @@ var (
             test_patch: {{ $gt.Patch }}
             {{- end }}
             test_timeout: {{ $gt.Timeout }}
-        {{- end }}
     fp_post_tests:
         {{- range $j, $gt := $ft.Posttests}}
         - {{ $gt.Name }}:
@@ -133,7 +136,6 @@ func init() {
 		log.Fatal("test_desc_files must be set.")
 	}
 	testDescFiles = strings.Split(*testDescFilesFlag, ",")
-	workspace = *workspaceFlag
 
 	if len(*testNamesFlag) > 0 {
 		testNames = strings.Split(*testNamesFlag, ",")
@@ -157,7 +159,7 @@ func main() {
 		suite = append(suite, t)
 	}
 
-	// remove untargeted tests
+	// Targeted mode: remove untargeted tests
 	if len(testNames) > 0 {
 		targetedTests := map[string]bool{}
 		for _, t := range testNames {
@@ -174,27 +176,76 @@ func main() {
 			}
 			suite[i].Tests = keptTests
 		}
-	}
-
-	// adjust timeouts
-	for i := range suite {
-		if suite[i].Timeout > 0 {
+	} else {
+		// Normal mode: remove skipped tests
+		for i := range suite {
+			keptTests := []GoTest{}
 			for j := range suite[i].Tests {
-				if suite[i].Tests[j].Timeout == 0 {
-					suite[i].Tests[j].Timeout = suite[i].Timeout
+				if !suite[i].Tests[j].Skip {
+					keptTests = append(keptTests, suite[i].Tests[j])
 				}
 			}
+			suite[i].Tests = keptTests
+		}
+
+		kepSuite := []FirexTest{}
+		for i := range suite {
+			if !suite[i].Skip && len(suite[i].Tests) > 0 {
+				kepSuite = append(kepSuite, suite[i])
+			}
+		}
+		suite = kepSuite
+	}
+
+	// adjust timeouts, priorities, & owners
+	for i := range suite {
+		if suite[i].Priority == 0 {
+			suite[i].Priority = 100000000
+		}
+
+		for j := range suite[i].Tests {
+			if suite[i].Tests[j].Priority == 0 {
+				suite[i].Tests[j].Priority = 100000000
+			}
+
+			if suite[i].Timeout > 0 && suite[i].Tests[j].Timeout == 0 {
+				suite[i].Tests[j].Timeout = suite[i].Timeout
+			}
+
+			if len(suite[i].Owner) > 0 && len(suite[i].Tests[j].Owner) == 0 {
+				suite[i].Tests[j].Owner = suite[i].Owner
+			}
+
+			if len(suite[i].Baseconf) > 0 && len(suite[i].Tests[j].Baseconf) == 0 {
+				suite[i].Tests[j].Baseconf = suite[i].Baseconf
+			}
 		}
 	}
 
+	// sort by priority
+	for _, suite := range suite {
+		sort.Slice(suite.Tests, func(i, j int) bool {
+			return suite.Tests[i].Priority < suite.Tests[j].Priority
+		})
+	}
+
+	sort.Slice(suite, func(i, j int) bool {
+		return suite[i].Priority < suite[j].Priority
+	})
+
+	// Assign ids to tests
+	numTestCases := 1
 	for i := range suite {
-		maxTestTimeout := 0
+		numTestCases += len(suite[i].Tests)
+	}
+
+	id := 1
+	widthNeeded := len(fmt.Sprint(numTestCases))
+	for i := range suite {
 		for j := range suite[i].Tests {
-			if maxTestTimeout < suite[i].Tests[j].Timeout {
-				maxTestTimeout = suite[i].Tests[j].Timeout
-			}
+			suite[i].Tests[j].ID = fmt.Sprintf("%0"+fmt.Sprint(widthNeeded)+"d", id)
+			id = id + 1
 		}
-		suite[i].Timeout = 2 * maxTestTimeout
 	}
 
 	var testSuiteCode strings.Builder
@@ -203,7 +254,6 @@ func main() {
 		Workspace string
 	}{
 		TestSuite: suite,
-		Workspace: workspace,
 	})
 
 	fmt.Printf("%v", testSuiteCode.String())

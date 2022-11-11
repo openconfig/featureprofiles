@@ -15,17 +15,24 @@
 package rt_5_2_aggregate_test
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
+	"net"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/telemetry"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -70,6 +77,7 @@ var (
 
 	ateSrc = attrs.Attributes{
 		Name:    "atesrc",
+		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
 		IPv4Len: plen4,
@@ -86,6 +94,7 @@ var (
 
 	ateDst = attrs.Attributes{
 		Name:    "atedst",
+		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: plen4,
@@ -103,12 +112,11 @@ type testCase struct {
 
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
-	top *ondatra.ATETopology
+	top gosnappi.Config
 
 	dutPorts []*ondatra.Port
 	atePorts []*ondatra.Port
 	aggID    string
-	l3header []ondatra.Header
 }
 
 func (*testCase) configSrcDUT(i *telemetry.Interface, a *attrs.Attributes) {
@@ -210,6 +218,9 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	fptest.LogYgot(t, "LACP", lacpPath, lacp)
 	lacpPath.Replace(t, lacp)
 
+	// TODO - to remove this sleep later
+	time.Sleep(5 * time.Second)
+
 	agg := &telemetry.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg, &dutDst)
 	aggPath := d.Interface(tc.aggID)
@@ -244,42 +255,50 @@ func (tc *testCase) configureATE(t *testing.T) {
 	}
 
 	p0 := tc.atePorts[0]
-	i0 := tc.top.AddInterface(ateSrc.Name).WithPort(p0)
-	i0.IPv4().
-		WithAddress(ateSrc.IPv4CIDR()).
-		WithDefaultGateway(dutSrc.IPv4)
-	i0.IPv6().
-		WithAddress(ateSrc.IPv6CIDR()).
-		WithDefaultGateway(dutSrc.IPv6)
+	tc.top.Ports().Add().SetName(p0.ID())
+	srcDev := tc.top.Devices().Add().SetName(ateSrc.Name)
+	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth")
+	srcEth.Connection().SetChoice("port_name").SetPortName(p0.ID())
+	srcEth.SetPortName(p0.ID()).SetMac(ateSrc.MAC)
+	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
+	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
-	// Don't use WithLACPEnabled which is for emulated Ixia LACP.
-	agg := tc.top.AddInterface(ateDst.Name)
-	lag := tc.top.AddLAG("lag").WithPorts(tc.atePorts[1:]...)
-	lag.LACP().WithEnabled(tc.lagType == lagTypeLACP)
-	agg.WithLAG(lag)
-
-	// Disable FEC for 100G-FR ports because Novus does not support it.
-	if p0.PMD() == ondatra.PMD100GFR {
-		i0.Ethernet().FEC().WithEnabled(false)
-	}
-	is100gfr := false
-	for _, p := range tc.atePorts[1:] {
-		if p.PMD() == ondatra.PMD100GFR {
-			is100gfr = true
+	// Adding the rest of the ports to the configuration and to the LAG
+	agg := tc.top.Lags().Add().SetName(ateDst.Name)
+	if tc.lagType == lagTypeSTATIC {
+		lagId, _ := strconv.Atoi(tc.aggID)
+		agg.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
+		for i, p := range tc.atePorts[1:] {
+			port := tc.top.Ports().Add().SetName(p.ID())
+			newMac, err := incrementMAC(ateDst.MAC, i+1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			agg.Ports().Add().SetPortName(port.Name()).Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
+		}
+	} else {
+		agg.Protocol().SetChoice("lacp")
+		for i, p := range tc.atePorts[1:] {
+			port := tc.top.Ports().Add().SetName(p.ID())
+			newMac, err := incrementMAC(ateDst.MAC, i+1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			lagPort := agg.Ports().Add().SetPortName(port.Name())
+			lagPort.Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
+			lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(int32(i) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
 		}
 	}
-	if is100gfr {
-		agg.Ethernet().FEC().WithEnabled(false)
-	}
 
-	agg.IPv4().
-		WithAddress(ateDst.IPv4CIDR()).
-		WithDefaultGateway(dutDst.IPv4)
-	agg.IPv6().
-		WithAddress(ateDst.IPv6CIDR()).
-		WithDefaultGateway(dutDst.IPv6)
+	dstDev := tc.top.Devices().Add().SetName(agg.Name())
+	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetPortName(agg.Name()).SetMac(ateDst.MAC)
+	dstEth.Connection().SetChoice("lag_name").SetLagName(agg.Name())
+	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
+	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
 
-	tc.top.Push(t).StartProtocols(t)
+	// Fail early if the topology is bad.
+	tc.ate.OTG().PushConfig(t, tc.top)
+	tc.ate.OTG().StartProtocols(t)
 }
 
 const (
@@ -336,13 +355,30 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 // configureDUT().
 func (tc *testCase) verifyATE(t *testing.T) {
 	ap := tc.atePorts[0]
-	aip := tc.ate.Telemetry().Interface(ap.Name())
-	fptest.LogYgot(t, ap.String(), aip, aip.Get(t))
-
 	// State for the interface.
-	if got := aip.OperStatus().Get(t); got != opUp {
-		t.Errorf("%s oper-status got %v, want %v", ap, got, opUp)
+	time.Sleep(3 * time.Second)
+	otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
+
+	if tc.lagType == telemetry.IfAggregate_AggregationType_LACP {
+		otgutils.LogLACPMetrics(t, tc.ate.OTG(), tc.top)
 	}
+	portMetrics := tc.ate.OTG().Telemetry().Port(ap.ID()).Get(t)
+	if portMetrics.GetLink() != otgtelemetry.Port_Link_UP {
+		t.Errorf("%s oper-status got %v, want %v", ap.ID(), portMetrics.GetLink(), otgtelemetry.Port_Link_UP)
+	}
+	t.Logf("Checking if LAG is up on OTG")
+	tc.ate.OTG().Telemetry().Lag(ateDst.Name).OperStatus().Watch(t, time.Minute, func(val *otgtelemetry.QualifiedE_Lag_OperStatus) bool {
+		return val.Val(t).String() == "UP"
+	}).Await(t)
+
+}
+
+// setDutInterfaceWithState sets the admin state to a member of the lag
+func (tc *testCase) setDutInterfaceWithState(t testing.TB, p *ondatra.Port, state bool) {
+	dc := tc.dut.Config()
+	i := &telemetry.Interface{}
+	i.Enabled = ygot.Bool(state)
+	dc.Interface(p.Name()).Update(t, i)
 }
 
 // sortPorts sorts the ports by the testbed port ID.
@@ -351,6 +387,23 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 		return ports[i].ID() < ports[j].ID()
 	})
 	return ports
+}
+
+// incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
+func incrementMAC(mac string, i int) (string, error) {
+	macAddr, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", err
+	}
+	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
+	convMac = convMac + uint64(i)
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, convMac)
+	if err != nil {
+		return "", err
+	}
+	newMac := net.HardwareAddr(buf.Bytes()[2:8])
+	return newMac.String(), nil
 }
 
 func (tc *testCase) verifyMinLinks(t *testing.T) {
@@ -384,21 +437,36 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 	for _, tf := range tests {
 		t.Run(tf.desc, func(t *testing.T) {
 			for _, port := range tc.atePorts[1 : 1+tf.downCount] {
-				tc.ate.Actions().NewSetPortState().WithPort(port).WithEnabled(false).Send(t)
-				// Linked DUT and ATE ports have the same ID.
-				dp := tc.dut.Port(t, port.ID())
-				dip := tc.dut.Telemetry().Interface(dp.Name())
-				t.Logf("Awaiting DUT port down: %v", dp)
-				dip.OperStatus().Await(t, time.Minute, opDown)
-				t.Log("Port is down.")
+				if tc.lagType == telemetry.IfAggregate_AggregationType_LACP {
+
+					// Linked DUT and ATE ports have the same ID.
+					dp := tc.dut.Port(t, port.ID())
+					t.Logf("Taking otg port %s down in the LAG", port.ID())
+					tc.ate.OTG().DisableLACPMembers(t, []string{port.ID()})
+					time.Sleep(3 * time.Second)
+					otgutils.LogLACPMetrics(t, tc.ate.OTG(), tc.top)
+					otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
+
+					t.Logf("Awaiting LAG DUT port: %v to stop collecting", dp)
+					tc.dut.Telemetry().Lacp().InterfaceAny().Member(dp.Name()).Collecting().Watch(
+						t, time.Minute, func(val *telemetry.QualifiedBool) bool {
+							return !val.Val(t)
+						}).Await(t)
+					t.Logf("Awaiting LAG DUT port: %v to stop distributing", dp)
+					tc.dut.Telemetry().Lacp().InterfaceAny().Member(dp.Name()).Distributing().Watch(
+						t, time.Minute, func(val *telemetry.QualifiedBool) bool {
+							return !val.Val(t)
+						}).Await(t)
+
+				}
+				if tc.lagType == telemetry.IfAggregate_AggregationType_STATIC {
+					// Setting admin state down on the DUT interface. Setting the otg interface down has no effect in kne
+					dp := tc.dut.Port(t, port.ID())
+					tc.setDutInterfaceWithState(t, dp, false)
+				}
 			}
 			tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Await(t, 1*time.Minute, tf.want)
 		})
-	}
-
-	// Bring the ATE ports back up.
-	for _, port := range tc.atePorts {
-		tc.ate.Actions().NewSetPortState().WithPort(port).WithEnabled(true).Send(t)
 	}
 }
 
@@ -410,7 +478,8 @@ func TestNegotiation(t *testing.T) {
 	lagTypes := []telemetry.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
 
 	for _, lagType := range lagTypes {
-		top := ate.Topology().New()
+		top := ate.OTG().NewConfig(t)
+
 		tc := &testCase{
 			dut:     dut,
 			ate:     ate,
@@ -420,7 +489,6 @@ func TestNegotiation(t *testing.T) {
 			dutPorts: sortPorts(dut.Ports()),
 			atePorts: sortPorts(ate.Ports()),
 			aggID:    aggID,
-			l3header: []ondatra.Header{ondatra.NewIPv4Header()},
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
 			tc.configureDUT(t)
@@ -430,6 +498,7 @@ func TestNegotiation(t *testing.T) {
 			t.Run("VerifyATE", tc.verifyATE)
 
 			t.Run("MinLinks", tc.verifyMinLinks)
+
 		})
 	}
 }

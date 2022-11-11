@@ -1,8 +1,8 @@
-name: "nokia_ixia"
+name: "nokia-ixia"
 nodes: {
     name: "otg"
-    type: IXIA_TG
-    version: "0.0.1-3383"
+    vendor: KEYSIGHT
+    version: "0.0.1-3423"
     services: {
         key: 443
         value: {
@@ -29,7 +29,6 @@ nodes: {
 nodes: {
     name: "nokia"
     vendor: NOKIA
-    type: NOKIA_SRL
     model: "ixr10"
     config: {
         file: "nokia_srl.json"

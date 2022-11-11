@@ -17,21 +17,72 @@ package pre_test
 import (
 	"context"
 	"testing"
+	"time"
 
-	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gnoi/system"
+	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func TestResetGRIBIServerFP(t *testing.T) {
-	ctx := context.Background()
-	dut := ondatra.DUT(t, "dut")
+const (
+	ipv4PrefixLen = 30
+	ateDstNetCIDR = "198.51.100.0/24"
+	nhIndex       = 1
+	nhgIndex      = 42
+)
 
+var (
+	dutPort1 = attrs.Attributes{
+		Desc:    "dutPort1",
+		IPv4:    "192.0.2.1",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	atePort1 = attrs.Attributes{
+		Name:    "atePort1",
+		IPv4:    "192.0.2.2",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	dutPort2 = attrs.Attributes{
+		Desc:    "dutPort2",
+		IPv4:    "192.0.2.5",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	atePort2 = attrs.Attributes{
+		Name:    "atePort2",
+		IPv4:    "192.0.2.6",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	dutPort3 = attrs.Attributes{
+		Desc:    "dutPort3",
+		IPv4:    "192.0.2.9",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	atePort3 = attrs.Attributes{
+		Name:    "atePort3",
+		IPv4:    "192.0.2.10",
+		IPv4Len: ipv4PrefixLen,
+	}
+)
+
+func TestResetGRIBIServerFP(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &system.KillProcessRequest{Name: "emsd", Restart: true, Signal: system.KillProcessRequest_SIGNAL_TERM})
+	time.Sleep(10 * time.Second)
+	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
 		DUT:                  dut,
 		FibACK:               false,
@@ -42,10 +93,38 @@ func TestResetGRIBIServerFP(t *testing.T) {
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	clientA.BecomeLeader(t)
-	clientA.FlushServer(t)
-	_, err := dut.RawAPIs().GNOI().Default(t).System().KillProcess(ctx, &system.KillProcessRequest{Name: "emsd", Restart: true, Signal: system.KillProcessRequest_SIGNAL_TERM})
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
+	t.Logf("an IPv4Entry for %s pointing to ATE port-3 via gRIBI-B", ateDstNetCIDR)
+	clientA.AddNH(t, nhIndex, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
+
+	/*nhg := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR).NextHopGroup()
+
+	nhg.Watch(t, 33*time.Second, func(*telemetry.QualifiedUint64) bool {
+		// Do nothing in this matching function, as we already filter on the prefix.
+		return true
+	}).Await(t)
+
+	nhg.Watch(t, 33*time.Second, func(*telemetry.QualifiedUint64) bool {
+		// Do nothing in this matching function, as we already filter on the prefix.
+		return true
+	}).Await(t)
+	nhg.Lookup(t)*/
+
+	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
+	ipv4Path := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	ipv4Path.Lookup(t)
+
+	ipv4Path.Watch(t, 33*time.Second, func(val *telemetry.QualifiedNetworkInstance_Afts_Ipv4Entry) bool {
+		// Do nothing in this matching function, as we already filter on the prefix.
+		return true
+	}).Await(t)
+	/*
+		ipv4Path.Prefix().Lookup(t)
+		ipv4Path.Prefix().Watch(t, 33*time.Second, func(val *telemetry.QualifiedString) bool {
+			// Do nothing in this matching function, as we already filter on the prefix.
+			return true
+		}).Await(t)*/
+
+	clientA.Flush(t)
 }

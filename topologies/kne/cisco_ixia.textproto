@@ -1,8 +1,8 @@
 name: "cisco-ixia"
 nodes: {
     name: "otg"
-    type: IXIA_TG
-    version: "0.0.1-3383"
+    vendor: KEYSIGHT
+    version: "0.0.1-3423"
     services: {
         key: 443
         value: {
@@ -27,7 +27,6 @@ nodes: {
 }
 nodes: {
     name: "vxr"
-    type: CISCO_E8000
     vendor: CISCO
     model:"8201"
     os: "ios-xr"
@@ -48,7 +47,7 @@ nodes: {
         }
     }
     services:{
-        key: 57400 
+        key: 57400
         value: {
             name: "gnmi"
             inside: 57400

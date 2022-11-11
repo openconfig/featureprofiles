@@ -1,0 +1,10 @@
+name: p4rt 
+owner: sprem@cisco.com
+priority: 4
+testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
+binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
+baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfpcisco-pbr-ottawa-lab2-r3.proto
+tests:
+- name: P4RT
+  path: feature/p4rt/ate_tests/cisco
+  timeout: 19000

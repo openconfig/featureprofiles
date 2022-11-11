@@ -60,7 +60,92 @@ func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDev
 	// 	t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
 	// }
 }
+func testTrafficSrc(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, tgensrc_ip string, weights ...float64) {
+	ethHeader := ondatra.NewEthernetHeader()
+	ethHeader.WithSrcAddress("00:11:01:00:00:01")
+	ethHeader.WithDstAddress("00:01:00:02:00:00")
 
+	ipv4Header := ondatra.NewIPv4Header()
+	ipv4Header.SrcAddressRange().
+		WithMin(tgensrc_ip).
+		WithCount(1)
+	ipv4Header.WithDSCP(dscp)
+	ipv4Header.DstAddressRange().WithMin(hostIP).WithCount(uint32(scale)).WithStep("0.0.0.1")
+
+	innerIpv4Header := ondatra.NewIPv4Header()
+	innerIpv4Header.WithSrcAddress("200.1.0.2")
+	innerIpv4Header.DstAddressRange().WithMin("201.1.0.2").WithCount(10000).WithStep("0.0.0.1")
+	dstEndPoint := []ondatra.Endpoint{}
+
+	for _, v := range allPorts {
+		if *v != *srcEndPoint {
+			dstEndPoint = append(dstEndPoint, v)
+		}
+	}
+
+	flow := ate.Traffic().NewFlow("Flow").
+		WithSrcEndpoints(srcEndPoint).
+		WithDstEndpoints(dstEndPoint...)
+
+	flow.WithFrameSize(300).WithFrameRateFPS(1000).WithHeaders(ethHeader, ipv4Header, innerIpv4Header)
+
+	time.Sleep(15 * time.Second)
+	ate.Traffic().Start(t, flow)
+	time.Sleep(15 * time.Second)
+
+	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	time.Sleep(15 * time.Second)
+
+	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
+		t.Fatalf("Flow %s is not working as expected", flow.Name())
+	}
+
+	ate.Traffic().Stop(t)
+
+}
+func testTrafficSrcV6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, tgensrc_ip string, weights ...float64) {
+	ethHeader := ondatra.NewEthernetHeader()
+	ethHeader.WithSrcAddress("00:11:01:00:00:01")
+	ethHeader.WithDstAddress("00:01:00:02:00:00")
+
+	ipv4Header := ondatra.NewIPv4Header()
+	ipv4Header.SrcAddressRange().
+		WithMin(tgensrc_ip).
+		WithCount(1)
+	ipv4Header.WithDSCP(dscp)
+	ipv4Header.DstAddressRange().WithMin(hostIP).WithCount(uint32(scale)).WithStep("0.0.0.1")
+
+	innerIpv6Header := ondatra.NewIPv6Header()
+	innerIpv6Header.WithSrcAddress("1::1")
+	innerIpv6Header.DstAddressRange().WithMin("2::2").WithCount(10000).WithStep("::1")
+	dstEndPoint := []ondatra.Endpoint{}
+
+	for _, v := range allPorts {
+		if *v != *srcEndPoint {
+			dstEndPoint = append(dstEndPoint, v)
+		}
+	}
+
+	flow := ate.Traffic().NewFlow("Flow").
+		WithSrcEndpoints(srcEndPoint).
+		WithDstEndpoints(dstEndPoint...)
+
+	flow.WithFrameSize(300).WithFrameRateFPS(1000).WithHeaders(ethHeader, ipv4Header, innerIpv6Header)
+
+	time.Sleep(15 * time.Second)
+	ate.Traffic().Start(t, flow)
+	time.Sleep(15 * time.Second)
+
+	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	time.Sleep(15 * time.Second)
+
+	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
+		t.Fatalf("Flow %s is not working as expected", flow.Name())
+	}
+
+	ate.Traffic().Stop(t)
+
+}
 func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress("00:11:01:00:00:01")

@@ -15,8 +15,23 @@ import (
 )
 
 const (
-	pbrName = "PBR"
+	pbrName        = "PBR"
+	PbrNameSrc     = "Pbr-SrcIp"
+	PbrNameSrc2    = "Pbr-SrcIp-two"
+	PbrNameDscp    = "Pbr-SrcIp-Dscp"
+	SeqID          = 1
+	SeqID2         = 2
+	SeqID3         = 3
+	IxiaSrcip      = "198.51.100.0"
+	IxiaSrcip2     = "198.61.100.0"
+	Dscpval        = 10
+	SourceAddress  = "198.51.100.0/32"
+	SourceAddress2 = "198.61.100.0/32"
+	protocolNum    = 4
+	protocolNumv6  = 41
 )
+
+var weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
@@ -82,6 +97,144 @@ func configNewPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string, ds
 	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 
 	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Update(t, &p)
+}
+
+func configSrcIp(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
+	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	seq_id := uint32(SeqID)
+	r1.SequenceId = &seq_id
+	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		SourceAddress: &srcAddr,
+	}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
+
+	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
+	p.PolicyId = ygot.String(policyName)
+	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
+	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
+	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Update(t, &p)
+}
+func configProtocolV6(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string, dscp uint8, protocol uint8) {
+	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	seq_id := uint32(SeqID)
+	r1.SequenceId = &seq_id
+	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		SourceAddress: &srcAddr,
+		DscpSet: []uint8{
+			*ygot.Uint8(dscp),
+		},
+	}
+	if protocol == protocolNumv6 {
+		r1.Ipv4.Protocol = telemetry.UnionUint8(protocolNumv6)
+	} else {
+		r1.Ipv4.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP
+	}
+
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
+
+	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
+	p.PolicyId = ygot.String(policyName)
+	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
+	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
+	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Update(t, &p)
+}
+func configSrcIpDscp(t *testing.T, dut *ondatra.DUTDevice, policyName string, dscp uint8, srcAddr string) {
+	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	seq_id := uint32(SeqID)
+	r1.SequenceId = &seq_id
+	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+		DscpSet: []uint8{
+			*ygot.Uint8(dscp),
+		},
+		SourceAddress: &srcAddr,
+	}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
+
+	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
+	p.PolicyId = ygot.String(policyName)
+	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
+	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
+
+	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Update(t, &p)
+}
+
+func updateOnlySrcIp(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
+	seq_id := uint32(SeqID)
+	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Rule(seq_id).Ipv4().SourceAddress().Update(t, srcAddr)
+}
+func replaceOnlySrcIp(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
+	t.Helper()
+	seq_id := uint32(SeqID)
+	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Rule(seq_id).Ipv4().SourceAddress().Replace(t, srcAddr)
+}
+func replaceOnlyProtocol(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
+	t.Helper()
+	seq_id := uint32(SeqID)
+	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Rule(seq_id).Ipv4().Protocol().Replace(t, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
+}
+func replaceSrcIpRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string, SeqID uint32) {
+
+	t.Helper()
+	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	seq_id := uint32(SeqID)
+	r1.SequenceId = &seq_id
+	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		SourceAddress: &srcAddr,
+	}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
+
+	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Rule(seq_id).Replace(t, &r1)
+}
+func replaceSrcpmap(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string, SeqID uint32) {
+
+	t.Helper()
+	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	seq_id := uint32(SeqID)
+	r1.SequenceId = &seq_id
+	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		SourceAddress: &srcAddr,
+	}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
+
+	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
+	p.PolicyId = ygot.String(policyName)
+	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
+	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
+
+	policy := telemetry.NetworkInstance_PolicyForwarding{}
+	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+
+	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Replace(t, &policy)
+}
+func configUpdateRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, dscp uint8) {
+	r2 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	seq_id := uint32(SeqID2)
+	r2.SequenceId = &seq_id
+	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		DscpSet: []uint8{
+			*ygot.Uint8(dscp),
+		},
+	}
+	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
+
+	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	seq_id2 := uint32(SeqID3)
+	r3.SequenceId = &seq_id2
+	r3.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+	}
+	r3.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
+
+	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
+	p.PolicyId = ygot.String(policyName)
+	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
+	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{2: &r2, 3: &r3}
+
+	policy := telemetry.NetworkInstance_PolicyForwarding{}
+	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{policyName: &p}
+
+	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Update(t, &policy)
 }
 
 func configNewRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, ruleID uint32, protocol uint8, dscp ...uint8) {
@@ -1033,4 +1186,566 @@ func testPolicyReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Replace(t, &p)
 
 	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+}
+func testSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy-map that matches the SourceAddress
+	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	// Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	//Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+}
+
+func testSrcIpNegative(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy that matches the SourceAddress
+	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	// configure policy under interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	// Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	//traffic fail expected
+	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+}
+
+func testPBRSrcIpWithDscp(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy-map that matches the SrcIp, Dscp value
+	configSrcIpDscp(t, args.dut, PbrNameDscp, dscpVal, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameDscp)
+
+	// Configure policy on the bunlde interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameDscp)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	// Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+}
+
+func testDettachAndAttachWrongSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy-map that matches the SourceAddress
+	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+	configSrcIp(t, args.dut, PbrNameSrc2, SourceAddress2)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc2)
+
+	// Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Traffic verification
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc2)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	// Traffic failure expected
+	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+}
+
+func testDettachAndAttachDifferentSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy-map that matches the SourceAddress
+	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	configSrcIp(t, args.dut, PbrNameSrc2, SourceAddress2)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc2)
+
+	// Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Traffic verification
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc2)
+
+	// Traffic pass expected
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+}
+func testUpdateSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy-map that matches the SourceAddress
+	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	// Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Traffic check
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc2)
+
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	// Traffic verification - traffic pass expected
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+}
+func testUpdateWrongSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy-map that matches the SourceAddress
+	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	// Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	//Create Traffic and check traffic
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	//Traffic failure expected
+	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+}
+func testReplaceAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy-map that matches the SrcIp, Dscp value
+	configSrcIpDscp(t, args.dut, PbrNameDscp, dscpVal, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameDscp)
+
+	//Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameDscp)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	//Create Traffic and check traffic
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	//Configure policy under bundle-interface
+	replaceOnlySrcIp(t, args.dut, PbrNameDscp, SourceAddress2)
+
+	// Create Traffic and check traffic
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+
+}
+
+func testUpdateAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy-map that matches the SourceAddress
+	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	//Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	//Create Traffic and check traffic
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	//Configure policy under bundle-interface
+	updateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
+
+	//Create Traffic and check traffic
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+
+}
+func testUpdateAtSrcIpLeafNegative(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy-map that matches the SourceAddress
+	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	//Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	//Create Traffic and check traffic
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	//Configure policy under bundle-interface
+	updateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
+
+	//Create Traffic and traffic expected to fail
+	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	updateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress)
+
+	//Create Traffic and traffic expected to pass
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+}
+func testReplaceSrcIpRule(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Configure policy-map that matches the SrcIp, Dscp value
+	configSrcIpDscp(t, args.dut, PbrNameDscp, dscpVal, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameDscp)
+
+	//Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameDscp)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	//Create Traffic and check traffic
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	//Replace the rule with different src adddress
+	replaceSrcIpRule(t, args.dut, PbrNameDscp, SourceAddress2, SeqID)
+
+	// Create Traffic and check traffic expected to fail
+	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	replaceSrcIpRule(t, args.dut, PbrNameDscp, SourceAddress, SeqID)
+
+	//Create Traffic and check traffic expected to pass
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+}
+func testReplaceSrcIpEntirePolicy(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Configure policy-map that matches the SrcIp, Dscp value
+	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
+	configNewRule(t, args.dut, PbrNameSrc, SeqID2, protocolNum, dscpVal)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	//Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+
+	// Create Traffic and check traffic
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	//Replace the pmap with different rule and match
+	replaceSrcpmap(t, args.dut, PbrNameSrc2, SourceAddress2, SeqID2)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc2)
+
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc2)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	// Create Traffic and check traffic expected to fail
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+
+}
+func testSrcIpMoreRules(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
+	configUpdateRule(t, args.dut, PbrNameSrc, dscpVal)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	// Create Traffic and check traffic
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
+
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+
+}
+func testSrcIpWithDscp(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy that matches the SourceAddress
+	configSrcIpDscp(t, args.dut, PbrNameDscp, dscpVal, SourceAddress)
+	defer deletePBRPolicy(t, args.dut, PbrNameDscp)
+
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameDscp)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	// Create Traffic and check traffic
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	//Update Wrong Src ip value
+	configSrcIpDscp(t, args.dut, PbrNameDscp, dscpVal, SourceAddress2)
+
+	//traffic fails as expected
+	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	//Update Correct Src ip value
+	configSrcIpDscp(t, args.dut, PbrNameDscp, dscpVal, SourceAddress)
+
+	//traffic should pass
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+}
+func testProtocolV6Negative(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy-map that matches the SourceAddress
+	configProtocolV6(t, args.dut, PbrNameSrc, SourceAddress, dscpVal, protocolNumv6)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	// Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+
+	//Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	configSrcIpDscp(t, args.dut, PbrNameSrc2, dscpVal, SourceAddress2)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc2)
+
+	// Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc2)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	testTrafficSrcV6(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+
+}
+func testProtocolV6(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy-map that matches the SourceAddress
+	configProtocolV6(t, args.dut, PbrNameSrc, SourceAddress, dscpVal, protocolNumv6)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	// Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	//Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	testTrafficSrcV6(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+}
+
+func testProtocolV6updateV4(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy-map that matches the SourceAddress
+	configProtocolV6(t, args.dut, PbrNameSrc, SourceAddress, dscpVal, protocolNumv6)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	// Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	//Create Traffic and check traffic
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	//Create Traffic and check traffic
+	testTrafficSrcV6(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	//Update protocol to 4
+	configSrcIpDscp(t, args.dut, PbrNameSrc, dscpVal, SourceAddress)
+
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+}
+func testProtocolV6replaceV4(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Program GRIBI entry on the router
+
+	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
+	dscpVal := uint8(Dscpval)
+
+	// Configure policy-map that matches the SourceAddress
+	configProtocolV6(t, args.dut, PbrNameSrc, SourceAddress, dscpVal, protocolNumv6)
+	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
+
+	// Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
+
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	//Create Traffic and check traffic
+	testTrafficSrcV6(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+
+	//Replace  protocol to 4
+	replaceOnlyProtocol(t, args.dut, PbrNameSrc, SourceAddress)
+	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+
+	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
 }
