@@ -216,6 +216,7 @@ tests:
   skip: false
 - name: RT-1.7 (Local BGP Test) 
   path: feature/bgp/tests/local_bgp_test
+  patch: exec/firex/plugins/fp_patch/local_bgp_test.patch
   owner: sprem@cisco.com
   mustpass: false
   priority: 55
