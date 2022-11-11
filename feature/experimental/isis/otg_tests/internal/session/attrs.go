@@ -126,7 +126,6 @@ func (a *Attributes) AddToATE(top *ondatra.ATETopology, ap *ondatra.Port, peer *
 
 // AddToOTG adds basic elements to a gosnappi configuration
 func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attributes) gosnappi.Device {
-	top.Ports().Add().SetName(ap.ID())
 	dev := top.Devices().Add().SetName(a.Name)
 	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth")
 	eth.SetPortName(ap.ID()).SetMac(a.MAC)

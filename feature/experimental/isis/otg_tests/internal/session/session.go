@@ -48,7 +48,7 @@ const (
 	ATEAreaAddress = "49.0002"
 	DUTSysID       = "1920.0000.2001"
 	ATESysID       = "640000000001"
-	ISISName       = "DEFAULT"
+	ISISName       = "osis"
 	pLen4          = 30
 	pLen6          = 126
 )
@@ -185,6 +185,8 @@ func New(t testing.TB) (*TestSession, error) {
 		s.ATETop = otg.NewConfig(t)
 		s.ATEPort1 = s.ATE.Port(t, "port1")
 		s.ATEPort2 = s.ATE.Port(t, "port2")
+		s.ATETop.Ports().Add().SetName(s.ATEPort1.ID())
+		s.ATETop.Ports().Add().SetName(s.ATEPort2.ID())
 		s.ATEIntf1 = ATEISISAttrs.AddToOTG(s.ATETop, s.ATEPort1, DUTISISAttrs)
 		s.ATEIntf2 = ATETrafficAttrs.AddToOTG(s.ATETop, s.ATEPort2, DUTTrafficAttrs)
 	}
