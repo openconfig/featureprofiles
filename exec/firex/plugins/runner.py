@@ -32,6 +32,10 @@ ONDATRA_PATCHES = [
     'exec/firex/plugins/ondatra/0002-disable-log.patch'
 ]
 
+ONDATRA_SIM_PATCHES = [
+    'exec/firex/plugins/ondatra/0003-traffic_fps_vxr.patch'
+]
+
 whitelist_arguments([
     'ondatra_repo_branch', 
     'fp_repo_branch', 
@@ -112,6 +116,9 @@ def BringupTestbed(self, ws, images = None,
     ondatra_repo.config_writer().set_value("name", "email", "gob4").release()
     ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
 
+    if topo_file and len(topo_file) > 0:
+        ONDATRA_PATCHES.extend(ONDATRA_SIM_PATCHES)
+        
     for patch in ONDATRA_PATCHES:
         ondatra_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo_dir, patch)])
 
