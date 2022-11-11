@@ -48,7 +48,7 @@ const (
 	ATEAreaAddress = "49.0002"
 	DUTSysID       = "1920.0000.2001"
 	ATESysID       = "640000000001"
-	ISISName       = "osis"
+	ISISName       = "isis"
 	pLen4          = 30
 	pLen6          = 126
 )
