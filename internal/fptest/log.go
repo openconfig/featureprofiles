@@ -25,6 +25,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -138,6 +139,25 @@ func LogYgot(t testing.TB, what string, path ygot.PathStruct, obj ygot.Validated
 	logYgot(t, what, path, obj, true)
 }
 
+type untypedQuery interface {
+	PathStruct() ygnmi.PathStruct
+	IsState() bool
+}
+
+// LogQuery logs a ygot GoStruct at path as either config or telemetry,
+// depending on the path.  It also writes a copy to a *.json file in
+// the directory specified by the -outputs_dir flag.
+//
+// Ondatra has separate paths for config (dut.Config()) and telemetry
+// (dut.Telemetry()), but both share the same GoStruct defined in
+// telemetry.  This is why we use the path to decide whether to format
+// the object as config or telemetry.  The object alone looks the
+// same.
+func LogQuery(t testing.TB, what string, query untypedQuery, obj ygot.ValidatedGoStruct) {
+	t.Helper()
+	logQuery(t, what, query, obj, true)
+}
+
 // WriteYgot is like LogYgot but only writes to test outputs dir so it
 // does not pollute the test log.
 func WriteYgot(t testing.TB, what string, path ygot.PathStruct, obj ygot.ValidatedGoStruct) {
@@ -168,4 +188,42 @@ func logYgot(t testing.TB, what string, path ygot.PathStruct, obj ygot.Validated
 	if err := WriteOutput(t.Name()+" "+header, ".json", text); err != nil {
 		t.Logf("Could not write test output: %v", err)
 	}
+}
+
+func logQuery(t testing.TB, what string, query untypedQuery, obj ygot.ValidatedGoStruct, shouldLog bool) {
+	t.Helper()
+	pathText := ygnmiPathToText(query.PathStruct())
+	config := !query.IsState()
+
+	var title string
+	if config {
+		title = "Config"
+	} else {
+		title = "Telemetry"
+	}
+
+	header := fmt.Sprintf("%s for %s at %s", title, what, pathText)
+	text, err := ygotToText(obj, config)
+	if err != nil {
+		t.Errorf("%s render error: %v", header, err)
+	}
+	if shouldLog {
+		t.Logf("%s:\n%s", header, text)
+	}
+	if err := WriteOutput(t.Name()+" "+header, ".json", text); err != nil {
+		t.Logf("Could not write test output: %v", err)
+	}
+}
+
+// ygnmiPathToText converts a ygot path to a string.
+func ygnmiPathToText(n ygnmi.PathStruct) string {
+	path, _, err := ygnmi.ResolvePath(n)
+	if err != nil {
+		return fmt.Sprintf("<ygot.ResolvePath errs: %v>", err)
+	}
+	text, err := ygot.PathToString(path)
+	if err != nil {
+		return fmt.Sprintf("<ygot.PathToString err: %v>", err)
+	}
+	return text
 }

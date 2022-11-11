@@ -191,7 +191,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 		return ok && currState == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}).Await(t)
 	if !ok {
-		fptest.LogYgot(t, "BGP reported state", nbrPath, gnmi.Get(t, dut, nbrPath.State()))
+		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
 		t.Fatal("No BGP neighbor formed...")
 	}
 
@@ -202,7 +202,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 		return ok && currState == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}).Await(t)
 	if !ok {
-		fptest.LogYgot(t, "BGPv6 reported state", nbrPathv6, gnmi.Get(t, dut, nbrPathv6.State()))
+		fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, dut, nbrPathv6.State()))
 		t.Fatal("No BGPv6 neighbor formed...")
 	}
 
@@ -308,12 +308,12 @@ func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice) {
 	ap := ate.Port(t, "port1")
 	aic1 := gnmi.OC().Interface(ap.Name()).Counters()
 	sentPkts := gnmi.Get(t, ate, aic1.OutPkts().State())
-	fptest.LogYgot(t, "ate:port1 counters", aic1, gnmi.Get(t, ate, aic1.State()))
+	fptest.LogQuery(t, "ate:port1 counters", aic1.State(), gnmi.Get(t, ate, aic1.State()))
 
 	op := ate.Port(t, "port2")
 	aic2 := gnmi.OC().Interface(op.Name()).Counters()
 	rxPkts := gnmi.Get(t, ate, aic2.InPkts().State())
-	fptest.LogYgot(t, "ate:port2 counters", aic2, gnmi.Get(t, ate, aic2.State()))
+	fptest.LogQuery(t, "ate:port2 counters", aic2.State(), gnmi.Get(t, ate, aic2.State()))
 	var lostPkts uint64
 	// Account for control plane packets in rxPkts
 	if rxPkts > sentPkts {
@@ -395,7 +395,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		nbrList := buildNbrList(ateAS)
 		dutConf := bgpWithNbr(dutAS, nbrList)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogYgot(t, "DUT BGP Config", dutConfPath, gnmi.GetConfig(t, dut, dutConfPath.Config()))
+		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 	})
 	// ATE Configuration.
 	var allFlows []*ondatra.Flow
@@ -448,7 +448,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 			return ok && currState == oc.Bgp_Neighbor_SessionState_CONNECT
 		}).Await(t)
 		if !ok {
-			fptest.LogYgot(t, "BGP reported state", nbrPath, gnmi.Get(t, dut, nbrPath.State()))
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
 			t.Errorf("BGP session did not go Down as expected")
 		}
 	})
@@ -473,7 +473,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 			return ok && currState == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
 		if !ok {
-			fptest.LogYgot(t, "BGP reported state", nbrPath, gnmi.Get(t, dut, nbrPath.State()))
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
 			t.Errorf("BGP session not Established as expected")
 		}
 	})

@@ -221,7 +221,7 @@ func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state 
 					return ok && currState.String() == state
 				}).Await(t)
 				if !ok {
-					fptest.LogYgot(t, "BGP reported state", nbrPath, gnmi.Get(t, otg, nbrPath.State()))
+					fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, otg, nbrPath.State()))
 					t.Errorf("No BGP neighbor formed for peer %s", configPeer.Name())
 				}
 			}
@@ -234,7 +234,7 @@ func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state 
 					return ok && currState.String() == state
 				}).Await(t)
 				if !ok {
-					fptest.LogYgot(t, "BGP reported state", nbrPath, gnmi.Get(t, otg, nbrPath.State()))
+					fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, otg, nbrPath.State()))
 					t.Errorf("No BGP neighbor formed for peer %s", configPeer.Name())
 				}
 			}
