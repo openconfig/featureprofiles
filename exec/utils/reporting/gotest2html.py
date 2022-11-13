@@ -288,13 +288,17 @@ class GoTest:
         if not self._gh_issue:
             return
 
+        did_pass = True
+        for c in self.get_children():
+            if not c.did_pass():
+                did_pass = False
+
         tags = []
-        if not self.did_skip():
-            if self.did_fail(): tags.append('auto: fail')
-            else: tags.append('auto: pass')
+        if did_pass: tags.append('auto: pass')
+        else: tags.append('auto: fail')
         if self.is_deviated(): tags.append('auto: deviation')
         if self.is_patched(): tags.append('auto: patched')
-        if self.did_regress(): tags.append('auto: regression')
+        if not did_pass and 'Pass' in self._gh_issue['tags']: tags.append('auto: regression')
         FPGHRepo.instance().update_labels(self._gh_issue['number'], tags)
         
     def get_status(self):
