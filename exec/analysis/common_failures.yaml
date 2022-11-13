@@ -1,0 +1,19 @@
+# - name: identifier also used as description for reporting (could be ddts)
+#   ddts: bug id
+#   match: # failure is detected if any of the below match
+#     - string: 'match exactly this string'
+#       message: optional 'custom message to show' can use ${name} and ${ddts} variables
+#     - pattern: 'match this regex, python syntax'
+#       message: same as 'string' but can also refer to regex match groups, e.g., ${match[1]}
+
+- name: ixia failed to start protocols
+  match:
+    - string: 'failed to start protocols'
+- name: gnmi subscribe EOF
+  ddts: CSCwc88672
+  match:
+    - string: 'gNMI: subscribe: stream receive: EOF'
+- name: bad model element
+  match:
+    - pattern: '"error-info":\s{[\S\s]*?"bad-element":\s"(.*)"[\S\s]*?}'
+      message: 'bad-element: ${match[0]}'

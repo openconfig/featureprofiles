@@ -11,6 +11,17 @@ import yaml
 import constants
 import argparse
 
+def _get_global_failures():
+    failures = []
+    for f in list(Path(constants.failures_dir).rglob("*.yaml")):
+        with open(f) as stream:
+            try:
+                failures.extend(yaml.safe_load(stream))
+            except yaml.YAMLError as exc:
+                print(exc)
+                continue
+    return failures
+
 def _get_testsuites(files):
     test_suites = []
     for f in list(Path(constants.tests_dir).rglob("*.yaml")):
@@ -63,6 +74,7 @@ if not os.path.exists(gh_reports_dir):
 now = datetime.now().timestamp()
 logs_dir = os.path.join(constants.base_logs_dir, firex_id, 'tests_logs')
 
+global_failures = _get_global_failures()
 summary_md = """
 ## Summary
 Total | Passed | Failed | Regressed | Skipped
@@ -92,23 +104,27 @@ for ts in  _get_testsuites(testsuite_files.split(',')):
         if t['name'] in test_id_map:
             test_id = test_id_map[t['name']]
             log_files = [str(p) for p in Path(logs_dir).glob(f"{test_id}/*.json")]
-            try:
-                gt = parse_json(log_files[0], suite_name=t['name'])
+            if len(log_files) == 0: 
+                continue
 
-                if 'patch' in t:
-                    gt.mark_patched()
-                    
-                if 'args' in t:
-                    for arg in t['args']:
-                        if arg.startswith('-deviation'):
-                            gt.mark_deviated()
-                            break
+            known_failues = []
+            if 'failures' in t: known_failues = t['failures']
+            known_failues.extend(global_failures)
 
-                gh_issue = FPGHRepo.instance().get_issue(t['name'])
-                if gh_issue:
-                    gt.set_gh_issue(gh_issue)
-                go_tests.append(gt)
-            except: continue
+            gt = parse_json(log_files[0], suite_name=t['name'], known_failures=known_failues)
+            if 'patch' in t:
+                gt.mark_patched()
+                
+            if 'args' in t:
+                for arg in t['args']:
+                    if arg.startswith('-deviation'):
+                        gt.mark_deviated()
+                        break
+
+            gh_issue = FPGHRepo.instance().get_issue(t['name'])
+            if gh_issue:
+                gt.set_gh_issue(gh_issue)
+            go_tests.append(gt)
     
     if ts['updated'] and len(go_tests) > 0:
         go_test_suite.update(firex_id, go_tests, last_updated=now)

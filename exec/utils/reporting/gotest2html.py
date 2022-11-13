@@ -99,16 +99,16 @@ class GoTestSuite:
             })
 
             details_md += "### " + test.get_qualified_name()+ "\n"
-            details_md +=  "Test | Logs | Pass\n"
-            details_md += "------|------|------\n"
+            details_md +=  "Test | Failures | Logs | Pass \n"
+            details_md += "------|----------|------|------\n"
 
             for t in test._children:
                 details_md += t.to_md_string()
 
             for t in test._children:
                 details_md += "#### " + t.get_qualified_name()+ "\n"
-                details_md +=  "Test | Logs | Pass\n"
-                details_md += "------|------|------\n"
+                details_md +=  "Test | Failures | Logs | Pass \n"
+                details_md += "------|----------|------|------\n"
                 details_md += t.to_md_string(recursive=True)
         
         suite_summary_md = "## Test Suites\n"
@@ -163,7 +163,6 @@ Total (T) | Passed (P) | Failed (F) | Regressed (R) | Skipped (S)
 {total}|{passed}|{failed}|{regressed}|{skipped}
 """ + suite_summary_md + details_md
 
-
 class GoTest:
     def __init__(self, name, pkg = None, parent = None):
         self._qname = name
@@ -173,6 +172,7 @@ class GoTest:
         self._children = []
         self._output = ''
         self._status = ''
+        self._failures = []
         self._gh_issue = None
         self._deviated = False
         self._patched = False
@@ -270,6 +270,37 @@ class GoTest:
     def mark_deviated(self):
         self._deviated = True
         
+    def add_failure(self, failure):
+        self._failures.append(failure)
+
+    def find_failures(self, known_failures):
+        for wf in known_failures:
+            # default desc
+            msg = '${name}'
+            if "ddts" in wf: msg += ' ${ddts}'
+
+            for m in wf["match"]:
+                if 'message' in m:
+                    msg = m['message']
+                
+                msg = msg.replace('${name}', wf["name"])
+                if "ddts" in wf:
+                    msg = msg.replace('${ddts}', f'[({wf["ddts"]})]({constants.base_bug_tracker_url}{wf["ddts"]})')
+                
+                if "string" in m and m["string"] in self._output:
+                    self.add_failure(msg)
+
+                elif "pattern" in m:
+                    match = re.findall(m["pattern"], self._output)
+                    for m in match:
+                        msg_cpy = msg
+                        for idx in re.findall('\${match\[(\d*)\]}', msg_cpy):
+                            element = m
+                            if type(m) is tuple:
+                                element = m[int(idx)]
+                            msg_cpy = msg_cpy.replace('${match['+idx+']}', element)
+                        self.add_failure(msg_cpy)
+
     def did_pass(self):
         return self._status == 'Pass' or self._status == 'Skip'
 
@@ -365,7 +396,7 @@ class GoTest:
         if not recursive and level == 0: 
             name = _to_md_anchor(self.get_name())
         md = ('&nbsp;&nbsp;&nbsp;&nbsp;' * level) + ('*' * level) + em + name + em 
-        md +=  f' | [Logs]({self.get_logs_url()}) | ' + self._pass_text() + '\n'
+        md +=  f' | ' + '<br />'.join(self._failures) + ' | [Logs]({self.get_logs_url()}) | ' + self._pass_text() + '\n'
         if recursive:
             for c in self._children:
                 md += c.to_md_string(recursive, level+1)
@@ -547,7 +578,7 @@ def _get_parent(test_map, entry, default):
             return c
     return default
 
-def _parse(file, json_data, suite_name=None):
+def _parse(file, json_data, suite_name=None, known_failures=[]):
     test_map = {}
     if not suite_name: suite_name = pathlib.Path(file).stem
     top_test = GoTest(suite_name, file)
@@ -560,7 +591,6 @@ def _parse(file, json_data, suite_name=None):
                     if not t.get_status():
                         t.mark_failed()
             continue
-
 
         test_name = entry['Test']
         test_pkg = entry['Package']
@@ -580,6 +610,10 @@ def _parse(file, json_data, suite_name=None):
         
         elif entry["Action"] == 'skip':
             test_map[(test_name, test_pkg)].mark_skipped()
+
+    for t in test_map.values():
+        t.find_failures(known_failures)
+
     return top_test
 
 def _read_log_file(file):
@@ -619,8 +653,8 @@ def to_markdown(files):
         except: continue
     return test_suite.to_md_string()
 
-def parse_json(file, suite_name=None):
-    return _parse(file, json.loads(_read_log_file(file)), suite_name=suite_name)
+def parse_json(file, suite_name=None, known_failures=[]):
+    return _parse(file, json.loads(_read_log_file(file)), suite_name=suite_name, known_failures=known_failures)
 
 def _is_valid_file(parser, arg):
     if not os.path.exists(arg):
