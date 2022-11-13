@@ -77,13 +77,13 @@ logs_dir = os.path.join(constants.base_logs_dir, firex_id, 'tests_logs')
 global_failures = _get_global_failures()
 summary_md = """
 ## Summary
-Total | Passed | Failed | Regressed | Skipped
-------|--------|--------|-----------|--------
+Total | Passed | Failed | Skipped
+------|--------|--------|--------
 """
 details_md = """
 ## Test Suites
-Suite | Total | Passed | Failed | Regressed | Skipped | Last Run | Logs | Result
-------|-------|--------|--------|-----------|---------|----------|------|-------
+Suite | Total | Passed | Failed | Skipped | Last Run | Logs | Result
+------|-------|--------|--------|---------|----------|------|-------
 """
 
 total, passed, failed, skipped, regressed = [0] * 5
@@ -157,13 +157,13 @@ for ts in  _get_testsuites(testsuite_files.split(',')):
     elif suite_stats['total'] > 0: suite_results = ':white_check_mark:'
 
     details_md += f"[{ts['name']}]({ts['name']}.md)|{suite_stats['total']}|{suite_stats['passed']}|{suite_stats['failed']}"
-    details_md += f"|{suite_stats['regressed']}|{suite_stats['skipped']}|[{suite_time}]({constants.base_tracker_url}{go_test_suite.get_last_run_id()})"
+    details_md += f"|{suite_stats['skipped']}|[{suite_time}]({constants.base_tracker_url}{go_test_suite.get_last_run_id()})"
     details_md += f"|[HTML]({constants.gh_repo_raw_url}/{constants.gh_reports_dir}/{ts['name']}.html) [RAW]({constants.base_logs_url}{go_test_suite.get_last_run_id()}/tests_logs/)|{suite_results}\n"
 
     with open(ts_html_file, 'w') as fp:
         fp.write(go_test_suite.to_html())
 
-summary_md += f"{total}|{passed}|{failed}|{regressed}|{skipped}\n"
+summary_md += f"{total}|{passed}|{failed}|{skipped}\n"
 
 with open(os.path.join(out_dir, f"README.md"), 'w') as fp:
     fp.write(summary_md + details_md)

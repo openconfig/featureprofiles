@@ -152,14 +152,14 @@ Suite | T | P | F | R | S | Logs | DDTS | Attr | Result
                 result_attr = f'{", ".join(result_attr)}'
             else: result_attr = ''
 
-            suite_summary_md += f'{title} | {s["total"]} | {s["passed"]} | {s["failed"]} | {s["regressed"]} | {s["skipped"]}'
+            suite_summary_md += f'{title} | {s["total"]} | {s["passed"]} | {s["failed"]} | {s["skipped"]}'
             suite_summary_md += f'| [HTML]({html_logs_url}) [RAW]({raw_logs_url}) [Testbed]({testbed_logs_url})'
             suite_summary_md += f'| {ddts} | {result_attr} | {result}\n'
 
         return f"""
 ## Summary
-Total (T) | Passed (P) | Failed (F) | Regressed (R) | Skipped (S)
-----------|------------|------------|---------------|------------
+Total (T) | Passed (P) | Failed (F) | Skipped (S)
+----------|------------|------------|------------
 {total}|{passed}|{failed}|{regressed}|{skipped}
 """ + suite_summary_md + details_md
 
