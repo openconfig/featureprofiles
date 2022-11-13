@@ -396,7 +396,7 @@ class GoTest:
         if not recursive and level == 0: 
             name = _to_md_anchor(self.get_name())
         md = ('&nbsp;&nbsp;&nbsp;&nbsp;' * level) + ('*' * level) + em + name + em 
-        md +=  f' | ' + '<br />'.join(self._failures) + ' | [Logs]({self.get_logs_url()}) | ' + self._pass_text() + '\n'
+        md +=  f'| ' + '<br />'.join(self._failures) + f' | [Logs]({self.get_logs_url()}) | ' + self._pass_text() + '\n'
         if recursive:
             for c in self._children:
                 md += c.to_md_string(recursive, level+1)
