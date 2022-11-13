@@ -139,7 +139,8 @@ func TestAuthentication(t *testing.T) {
 					Elem: []*gpb.PathElem{
 						{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
 				},
-				Type: gpb.GetRequest_CONFIG,
+				Type:     gpb.GetRequest_CONFIG,
+				Encoding: gpb.Encoding_JSON_IETF,
 			})
 			if tc.wantErr != (err != nil) {
 				if tc.wantErr {
