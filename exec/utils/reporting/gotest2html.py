@@ -99,16 +99,16 @@ class GoTestSuite:
             })
 
             details_md += "### " + test.get_qualified_name()+ "\n"
-            details_md +=  "Test | Failures | Logs | Pass \n"
-            details_md += "------|----------|------|------\n"
+            details_md +=  "Test | Logs | Result \n"
+            details_md += "------|------|------\n"
 
             for t in test._children:
                 details_md += t.to_md_string()
 
             for t in test._children:
                 details_md += "#### " + t.get_qualified_name()+ "\n"
-                details_md +=  "Test | Failures | Logs | Pass \n"
-                details_md += "------|----------|------|------\n"
+                details_md +=  "Test | Logs | Result \n"
+                details_md += "------|------|------\n"
                 details_md += t.to_md_string(recursive=True)
         
         suite_summary_md = "## Test Suites\n"
@@ -358,6 +358,8 @@ class GoTest:
 
     def _pass_text(self):
         if len(self.get_descendants()) == 0:
+            if len(self._failures) > 0:
+                return '<br />'.join(self._failures)
             return self._status
         elif len(self.get_passed_descendants()) != len(self.get_descendants()):
             return str(len(self.get_passed_descendants())) + "/" + str(len(self.get_descendants()))
@@ -396,7 +398,7 @@ class GoTest:
         if not recursive and level == 0: 
             name = _to_md_anchor(self.get_name())
         md = ('&nbsp;&nbsp;&nbsp;&nbsp;' * level) + ('*' * level) + em + name + em 
-        md +=  f'| ' + '<br />'.join(self._failures) + f' | [Logs]({self.get_logs_url()}) | ' + self._pass_text() + '\n'
+        md += f' | [Logs]({self.get_logs_url()}) | ' + self._pass_text() + '\n'
         if recursive:
             for c in self._children:
                 md += c.to_md_string(recursive, level+1)
@@ -525,7 +527,7 @@ function initTables(data, summary_data) {
                 width: 100
             },
             {
-                title: "Pass",
+                title: "Result",
                 field: "pass",
                 formatter: function (cell, formatterParams, onRendered) {
                     v = cell.getValue();
