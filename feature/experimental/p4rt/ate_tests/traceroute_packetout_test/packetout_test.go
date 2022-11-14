@@ -47,7 +47,8 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1.P
 					Update: &p4v1.StreamMessageRequest_Packet{
 						Packet: packet,
 					},
-				}); err != nil {
+				},
+			); err != nil {
 				t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
 
 			}
@@ -67,7 +68,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		port := sortPorts(args.ate.Ports())[0].Name()
 
 		for _, ttl := range ttls {
-			t.Logf("Sending ipv4 packets with ttl = %d", ttl)
+			t.Logf("Sending ipv4 pakcets with ttl %d", ttl)
 			counter0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 			t.Logf("Initial number of packets: %d", counter0)
 
@@ -93,7 +94,8 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			time.Sleep(20 * time.Second)
 		}
 
-	})
+	},
+	)
 	//for ipv6
 	t.Run(desc, func(t *testing.T) {
 		// Check initial packet counters
@@ -127,6 +129,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			time.Sleep(20 * time.Second)
 		}
 
-	})
+	},
+	)
 
 }

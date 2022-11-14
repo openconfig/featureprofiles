@@ -134,10 +134,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 
 // configureDeviceId configures p4rt device-id on the DUT.
 func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	component := telemetry.Component{}
-	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
-	component.Name = ygot.String(*p4rtNodeName)
-	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceId)
+	component := telemetry.Component{
+		IntegratedCircuit: &telemetry.Component_IntegratedCircuit{
+			NodeId: ygot.Uint64(deviceId),
+		},
+		Name: ygot.String(*p4rtNodeName),
+	}
 	dut.Config().Component(*p4rtNodeName).Replace(t, &component)
 }
 
