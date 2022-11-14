@@ -1,5 +1,6 @@
-# - name: identifier also used as description for reporting (could be ddts)
+# - name: identifier also used as description for reporting (could be ddts) - must be unique
 #   ddts: bug id
+#   global: set to true if this failure must be checked for all tests
 #   match: # failure is detected if any of the below match
 #     - string: 'match exactly this string'
 #       message: optional 'custom message to show' can use ${name} and ${ddts} variables
@@ -7,13 +8,16 @@
 #       message: same as 'string' but can also refer to regex match groups, e.g., ${match[1]}
 
 - name: ixia failed to start protocols
+  global: true
   match:
     - string: 'failed to start protocols'
 - name: gnmi subscribe EOF
   ddts: CSCwc88672
+  global: true
   match:
     - string: 'gNMI: subscribe: stream receive: EOF'
 - name: bad model element
+  global: true
   match:
     - pattern: '"error-info":\s{[\S\s]*?"bad-element":\s"(.*)"[\S\s]*?}'
       message: 'bad-element: ${match[0]}'

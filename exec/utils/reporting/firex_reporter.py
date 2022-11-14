@@ -11,7 +11,7 @@ import yaml
 import constants
 import argparse
 
-def _get_global_failures():
+def _get_failures():
     failures = []
     for f in list(Path(constants.failures_dir).rglob("*.yaml")):
         with open(f) as stream:
@@ -74,7 +74,7 @@ if not os.path.exists(gh_reports_dir):
 now = datetime.now().timestamp()
 logs_dir = os.path.join(constants.base_logs_dir, firex_id, 'tests_logs')
 
-global_failures = _get_global_failures()
+all_failures = _get_failures()
 summary_md = """
 ## Summary
 Total | Passed | Failed | Skipped
@@ -107,19 +107,17 @@ for ts in  _get_testsuites(testsuite_files.split(',')):
             if len(log_files) == 0: 
                 continue
 
-            known_failues = []
-            if 'failures' in t: known_failues = t['failures']
-            known_failues.extend(global_failures)
+            known_failures = [f for f in all_failures if f['name'] in t.get('failures', [])]
+            known_failures.extend([f for f in all_failures if f.get('global', False)])
 
-            gt = parse_json(log_files[0], suite_name=t['name'], known_failures=known_failues)
+            gt = parse_json(log_files[0], suite_name=t['name'], known_failures=known_failures)
             if 'patch' in t:
                 gt.mark_patched()
                 
-            if 'args' in t:
-                for arg in t['args']:
-                    if arg.startswith('-deviation'):
-                        gt.mark_deviated()
-                        break
+            for arg in t.get('args', []):
+                if arg.startswith('-deviation'):
+                    gt.mark_deviated()
+                    break
 
             gh_issue = FPGHRepo.instance().get_issue(t['name'])
             if gh_issue:
