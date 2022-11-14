@@ -136,7 +136,7 @@ for ts in  _get_testsuites(testsuite_files.split(',')):
             for c in t.get_descendants() + [t]:
                 with open(os.path.join(gh_logs_dir, c.get_log_file_name()), 'w') as fp:
                     fp.write(c.get_output())
-            # t.update_gh_issue()
+            t.update_gh_issue()
 
     suite_stats = go_test_suite.get_stats()
     if suite_stats['total'] == 0:
