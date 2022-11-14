@@ -133,7 +133,7 @@ Suite | T | P | F | S | Logs | DDTS | Attr | Result
             log_url_parts = s["test"].get_logs_url().split("/")
             html_logs_url = "/".join(log_url_parts[0:-1] + [urllib.parse.quote(log_url_parts[-1].replace(".json", ".html"), safe="")])
             raw_logs_url = "/".join(log_url_parts[0:-1] + ['output_from_json.log'])
-            testbed_logs_url = "/".join(log_url_parts[0:-1] + ['show_version.txt'])
+            testbed_logs_url = "/".join(log_url_parts[0:-1] + ['testbed_info.txt'])
 
             gh_issue = s["test"].get_gh_issue()
             title = _to_md_anchor(s["suite"])

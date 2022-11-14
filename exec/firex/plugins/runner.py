@@ -147,15 +147,15 @@ def BringupTestbed(self, ws, images = None,
         logger.print(f'Executing osinstall command:\n {install_cmd}')
         logger.print(check_output(install_cmd, cwd=fp_repo_dir))
 
-    showver_cmd = f'{GO_BIN} test -v ' \
-            f'./exec/utils/showver ' \
+    testbed_info_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/testbed ' \
             f'-timeout 0 ' \
             f'-args ' \
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
-            f'-outFile {os.path.join(ws, f"show_version.txt")}'
+            f'-outFile {os.path.join(ws, f"testbed_info.txt")}'
     try:
-        check_output(showver_cmd, cwd=fp_repo_dir)
+        check_output(testbed_info_cmd, cwd=fp_repo_dir)
     except: pass
 
     return ondatra_binding_path

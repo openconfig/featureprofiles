@@ -1,4 +1,4 @@
-package showver_test
+package testbed_test
 
 import (
 	"context"
@@ -23,10 +23,24 @@ func TestShowVersion(t *testing.T) {
 		t.Fatal("Missing outFile arg")
 	}
 
+	commands := []string{
+		"show version",
+		"show platform",
+		"show install fixes active",
+		"show running-config",
+	}
+
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
 
-	if result, err := dut.RawAPIs().CLI(t).SendCommand(ctx, "show version"); err == nil {
-		os.WriteFile(*outFile, []byte(result), 0644)
+	content := ""
+	for _, cmd := range commands {
+		if result, err := dut.RawAPIs().CLI(t).SendCommand(ctx, cmd); err == nil {
+			content += ">" + cmd + "\n"
+			content += result
+			content += "\n"
+		}
 	}
+
+	os.WriteFile(*outFile, []byte(content), 0644)
 }
