@@ -17,6 +17,7 @@ package system_ntp_test
 import (
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 )
@@ -41,6 +42,9 @@ func TestNtpServerConfigurability(t *testing.T) {
 
 			ntpServer := telemetry.System_Ntp_Server{
 				Address: &testCase.address,
+			}
+			if *deviations.NtpAssociationType {
+				ntpServer.AssociationType = telemetry.Server_AssociationType_SERVER
 			}
 			config.Server(testCase.address).Replace(t, &ntpServer)
 

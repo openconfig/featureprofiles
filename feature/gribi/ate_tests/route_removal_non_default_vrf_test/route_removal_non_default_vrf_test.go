@@ -104,7 +104,6 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 
 	ateTop.Push(t).StartProtocols(t)
 	configureNetworkInstance(t, dut)
-	configureDUT(t, dut)
 
 	// Configure the gRIBI client clientA with election ID of 10.
 	clientA := &gribi.Client{
