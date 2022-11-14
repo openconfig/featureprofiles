@@ -155,6 +155,7 @@ func waitOTGARPEntry(t *testing.T) {
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcEndPoint, dstEndPoint attrs.Attributes, wantLoss bool) {
 
 	otg := ate.OTG()
+	otg.StartProtocols(t)
 	waitOTGARPEntry(t)
 	dstMac := otg.Telemetry().Interface(atePort1.Name + ".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().Get(t)
 	top.Flows().Clear().Items()
@@ -171,6 +172,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart("203.0.113.1").SetCount(250)
 	otg.PushConfig(t, top)
+	otg.StartProtocols(t)
 
 	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
@@ -275,6 +277,8 @@ func TestLeaderFailover(t *testing.T) {
 	}
 
 	t.Run("SINGLE_PRIMARY/PERSISTENCE=DELETE", func(t *testing.T) {
+		// This is an indicator test for gRIBI persistence DELETE, so we
+		// do not skip based on *deviations.GRIBIPreserveOnly.
 
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to false.
@@ -303,17 +307,17 @@ func TestLeaderFailover(t *testing.T) {
 			t.Run("VerifyTraffic", func(t *testing.T) {
 				verifyTraffic(ctx, t, args)
 			})
-
 		})
 
 		t.Logf("Time check: %s", time.Since(start))
 
 		// Close below is done through defer.
 		t.Log("Close gRIBI client connection")
-
 	})
 
 	t.Run("ShouldDelete", func(t *testing.T) {
+		// This is an indicator test for gRIBI persistence DELETE, so we
+		// do not skip based on *deviations.GRIBIPreserveOnly.
 
 		t.Logf("Verify through Telemetry and Traffic that the route to %s has been deleted after gRIBI client disconnected", ateDstNetCIDR)
 
@@ -330,7 +334,6 @@ func TestLeaderFailover(t *testing.T) {
 	})
 
 	t.Run("SINGLE_PRIMARY/PERSISTENCE=PRESERVE", func(t *testing.T) {
-
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to true.
 		clientA := &gribi.Client{
@@ -359,18 +362,15 @@ func TestLeaderFailover(t *testing.T) {
 			t.Run("VerifyTraffic", func(t *testing.T) {
 				verifyTraffic(ctx, t, args)
 			})
-
 		})
 
 		t.Logf("Time check: %s", time.Since(start))
 
 		// Close below is done through defer.
 		t.Log("Close gRIBI client connection again")
-
 	})
 
 	t.Run("ShouldPreserve", func(t *testing.T) {
-
 		t.Logf("Verify through Telemetry and Traffic that the route to %s is preserved", ateDstNetCIDR)
 
 		t.Run("VerifyAFT", func(t *testing.T) {
@@ -380,11 +380,9 @@ func TestLeaderFailover(t *testing.T) {
 		t.Run("VerifyTraffic", func(t *testing.T) {
 			verifyTraffic(ctx, t, args)
 		})
-
 	})
 
 	t.Run("ReconnectAndDelete", func(t *testing.T) {
-
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to true.
 		clientA := &gribi.Client{
@@ -402,7 +400,6 @@ func TestLeaderFailover(t *testing.T) {
 		defer clientA.Close(t)
 
 		t.Run("DeleteRoute", func(t *testing.T) {
-
 			t.Logf("Delete route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
 			clientA.DeleteIPv4(t, ateDstNetCIDR, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 
@@ -413,9 +410,7 @@ func TestLeaderFailover(t *testing.T) {
 			t.Run("VerifyNoTraffic", func(t *testing.T) {
 				verifyNoTraffic(ctx, t, args)
 			})
-
 		})
-
 	})
 
 	t.Logf("Test run time: %s", time.Since(start))

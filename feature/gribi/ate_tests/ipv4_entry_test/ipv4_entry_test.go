@@ -16,6 +16,7 @@ package ipv4_entry_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -97,6 +98,8 @@ func TestIPv4Entry(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
+
+	gribic := dut.RawAPIs().GRIBI().Default(t)
 
 	ate := ondatra.ATE(t, "ate")
 	ateTop := configureATE(t, ate)
@@ -234,42 +237,85 @@ func TestIPv4Entry(t *testing.T) {
 		},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			gribic := dut.RawAPIs().GRIBI().Default(t)
-			c := fluent.NewClient()
-			c.Connection().WithStub(gribic).
-				WithRedundancyMode(fluent.ElectedPrimaryClient).
-				WithFIBACK().
-				WithInitialElectionID(1, 0)
-			c.Start(ctx, t)
-			defer c.Stop(t)
-			c.StartSending(ctx, t)
-			if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-				t.Fatalf("Await got error during session negotiation: %v", err)
+	const (
+		usePreserve = "PRESERVE"
+		useDelete   = "DELETE"
+	)
+
+	// Each case will run with its own gRIBI fluent client.
+	for _, persist := range []string{usePreserve, useDelete} {
+		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
+			if *deviations.GRIBIPreserveOnly && persist == useDelete {
+				t.Skip("Skipping due to --deviation_gribi_preserve_only")
 			}
 
-			if tc.downPort != nil {
-				ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(false).Send(t)
-				defer ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(true).Send(t)
-			}
+			for _, tc := range cases {
+				t.Run(tc.desc, func(t *testing.T) {
+					// Configure the gRIBI client.
+					c := fluent.NewClient()
+					conn := c.Connection().
+						WithStub(gribic).
+						WithRedundancyMode(fluent.ElectedPrimaryClient).
+						WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
+					if persist == usePreserve {
+						conn.WithPersistence()
+					}
 
-			c.Modify().AddEntry(t, tc.entries...)
-			if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-				t.Fatalf("Await got error for entries: %v", err)
-			}
-			defer func() {
-				c.Modify().DeleteEntry(t, tc.entries...)
-				if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-					t.Fatalf("Await got error for entries: %v", err)
-				}
-			}()
+					if !*deviations.GRIBIRIBAckOnly {
+						// The main difference WithFIBACK() made was that we are now expecting
+						// fluent.InstalledInFIB in []*client.OpResult, as opposed to
+						// fluent.InstalledInRIB.
+						conn.WithFIBACK()
+					}
 
-			for _, wantResult := range tc.wantOperationResults {
-				chk.HasResult(t, c.Results(t), wantResult, chk.IgnoreOperationID())
-			}
+					c.Start(ctx, t)
+					defer c.Stop(t)
+					c.StartSending(ctx, t)
+					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+						t.Fatalf("Await got error during session negotiation: %v", err)
+					}
 
-			validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
+					if persist == usePreserve {
+						defer func() {
+							_, err := c.Flush().
+								WithElectionOverride().
+								WithAllNetworkInstances().
+								Send()
+							if err != nil {
+								t.Errorf("Cannot flush: %v", err)
+							}
+						}()
+					}
+
+					if tc.downPort != nil {
+						ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(false).Send(t)
+						defer ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(true).Send(t)
+					}
+
+					c.Modify().AddEntry(t, tc.entries...)
+					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+						t.Fatalf("Await got error for entries: %v", err)
+					}
+					defer func() {
+						// Delete should reverse the order of entries, i.e. IPv4Entry must be removed
+						// before NextHopGroupEntry, which must be removed before NextHopEntry.
+						var revEntries []fluent.GRIBIEntry
+						for i := len(tc.entries) - 1; i >= 0; i-- {
+							revEntries = append(revEntries, tc.entries[i])
+						}
+						c.Modify().DeleteEntry(t, revEntries...)
+						if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+							t.Fatalf("Await got error for entries: %v", err)
+						}
+					}()
+
+					for _, wantResult := range tc.wantOperationResults {
+						chk.HasResult(t, c.Results(t), wantResult, chk.IgnoreOperationID())
+					}
+
+					validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
+				})
+			}
 		})
 	}
 }

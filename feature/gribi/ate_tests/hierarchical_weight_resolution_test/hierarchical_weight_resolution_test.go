@@ -45,7 +45,6 @@ type attributes struct {
 }
 
 type nhInfo struct {
-	nhg    uint64
 	index  uint64
 	weight uint64
 }
@@ -107,6 +106,13 @@ var (
 		numSubIntf: 18,
 		ip:         atePort2IPv4,
 		gateway:    dutPort2IPv4,
+	}
+
+	// nhgIPv4EntryMap maps NextHopGroups to the ipv4 entries pointing to that NextHopGroup.
+	nhgIPv4EntryMap = map[uint64]string{
+		1: ipv4EntryPrefix,
+		2: cidr(nhEntryIP1, 32),
+		3: cidr(nhEntryIP2, 32),
 	}
 )
 
@@ -230,7 +236,11 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *telemetry.Interfa
 		if *deviations.InterfaceEnabled {
 			s.Enabled = ygot.Bool(true)
 		}
-		s.GetOrCreateVlan().VlanId = telemetry.UnionUint16(i)
+		if *deviations.DeprecatedVlanID {
+			s.GetOrCreateVlan().VlanId = telemetry.UnionUint16(i)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(i))
+		}
 		s4 := s.GetOrCreateIpv4()
 		if *deviations.InterfaceEnabled {
 			s4.Enabled = ygot.Bool(true)
@@ -391,16 +401,27 @@ func flushGRIBI(t *testing.T, gRIBI *fluent.GRIBIClient) {
 	}
 }
 
-// aftNextHopWeight queries AFT telemetry using Lookup() and returns
-// the value and a boolean suggesting whether the value was found. If not-found,
-// the value is 0.
-func aftNextHopWeight(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, nh uint64,
-	weight uint64, networkInstance string) (uint64, bool) {
-	w := dut.Telemetry().NetworkInstance(networkInstance).Afts().NextHopGroup(nhg).NextHop(nh).Weight().Lookup(t)
-	if w == nil {
-		return 0, false
+// aftNextHopWeights queries AFT telemetry using Get() and returns
+// the weights. If not-found, an empty list is returned.
+func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, networkInstance string) []uint64 {
+	aft := dut.Telemetry().NetworkInstance(networkInstance).Afts().Get(t)
+	var nhgD *telemetry.NetworkInstance_Afts_NextHopGroup
+	for _, nhgData := range aft.NextHopGroup {
+		if nhgData.GetProgrammedId() == nhg {
+			nhgD = nhgData
+			break
+		}
 	}
-	return w.Val(t), true
+	if nhgD == nil {
+		return []uint64{}
+	}
+
+	got := []uint64{}
+	for _, nhD := range nhgD.NextHop {
+		got = append(got, nhD.GetWeight())
+	}
+
+	return got
 }
 
 // testBasicHierarchicalWeight tests and validates traffic through 4 Vlans.
@@ -412,7 +433,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	nh10 := nextHopEntry(10, defaultVRF, atePort2.ip(1))
 	nh11 := nextHopEntry(11, defaultVRF, atePort2.ip(2))
 	nhg2 := nextHopGroupEntry(2, defaultVRF, []nhInfo{{index: 10, weight: 1}, {index: 11, weight: 3}})
-	ipEntry2 := ipv4Entry(cidr(nhEntryIP1, 32), defaultVRF, 2, defaultVRF)
+	ipEntry2 := ipv4Entry(nhgIPv4EntryMap[2], defaultVRF, 2, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh10, nh11, nhg2, ipEntry2)
 
@@ -420,7 +441,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	nh100 := nextHopEntry(100, defaultVRF, atePort2.ip(3))
 	nh101 := nextHopEntry(101, defaultVRF, atePort2.ip(4))
 	nhg3 := nextHopGroupEntry(3, defaultVRF, []nhInfo{{index: 100, weight: 2}, {index: 101, weight: 3}})
-	ipEntry3 := ipv4Entry(cidr(nhEntryIP2, 32), defaultVRF, 3, defaultVRF)
+	ipEntry3 := ipv4Entry(nhgIPv4EntryMap[3], defaultVRF, 3, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh100, nh101, nhg3, ipEntry3)
 
@@ -428,7 +449,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	nh1 := nextHopEntry(1, defaultVRF, nhEntryIP1)
 	nh2 := nextHopEntry(2, defaultVRF, nhEntryIP2)
 	nhg1 := nextHopGroupEntry(1, defaultVRF, []nhInfo{{index: 1, weight: 1}, {index: 2, weight: 3}})
-	ipEntry1 := ipv4Entry(ipv4EntryPrefix, nonDefaultVRF, 1, defaultVRF)
+	ipEntry1 := ipv4Entry(nhgIPv4EntryMap[1], nonDefaultVRF, 1, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh1, nh2, nhg1, ipEntry1)
 
@@ -437,7 +458,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	}
 
 	// Validate entries were installed in FIB.
-	for _, route := range []string{cidr(nhEntryIP1, 32), cidr(nhEntryIP2, 32), ipv4EntryPrefix} {
+	for _, route := range nhgIPv4EntryMap {
 		chk.HasResult(t, gRIBI.Results(t),
 			fluent.OperationResult().
 				WithIPv4Operation(route).
@@ -463,24 +484,14 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	})
 
 	t.Run("validateAFTWeights", func(t *testing.T) {
-		if *deviations.NextHopAFTNotSupported {
-			t.Skip("TODO: AFT Telemetry not supported.")
-		}
-
-		for _, tc := range []nhInfo{
-			{nhg: 1, index: 1, weight: 1},
-			{nhg: 1, index: 2, weight: 3},
-			{nhg: 2, index: 10, weight: 1},
-			{nhg: 2, index: 11, weight: 3},
-			{nhg: 3, index: 100, weight: 2},
-			{nhg: 3, index: 101, weight: 3},
+		for nhg, weights := range map[uint64][]uint64{
+			2: {1, 3},
+			3: {2, 3},
 		} {
-			got, ok := aftNextHopWeight(t, dut, tc.nhg, tc.index, tc.weight, defaultVRF)
+			got := aftNextHopWeights(t, dut, nhg, defaultVRF)
+			ok := cmp.Equal(weights, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
 			if !ok {
-				t.Errorf("Weight not present for NI: %s, NHG: %d, NH: %d.", defaultVRF, tc.nhg, tc.index)
-			}
-			if got != tc.weight {
-				t.Errorf("Unexpected weight found for NI: %s, NHG: %d, NH: %d, got: %d, want: %d.", defaultVRF, tc.nhg, tc.index, got, tc.weight)
+				t.Errorf("Valid weights not present for NI: %s, NHG: %d, got: %v, want: %v", defaultVRF, nhg, got, weights)
 			}
 		}
 	})
@@ -498,7 +509,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	nh10 := nextHopEntry(10, defaultVRF, atePort2.ip(1))
 	nh11 := nextHopEntry(11, defaultVRF, atePort2.ip(2))
 	nhg2 := nextHopGroupEntry(2, defaultVRF, []nhInfo{{index: 10, weight: 2}, {index: 11, weight: 3}})
-	ipEntry2 := ipv4Entry(cidr(nhEntryIP1, 32), defaultVRF, 2, defaultVRF)
+	ipEntry2 := ipv4Entry(nhgIPv4EntryMap[2], defaultVRF, 2, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh10, nh11, nhg2, ipEntry2)
 
@@ -513,7 +524,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 		nhIdx++
 	}
 	nhg3 := nextHopGroupEntry(3, defaultVRF, nextHopWeights)
-	ipEntry3 := ipv4Entry(cidr(nhEntryIP2, 32), defaultVRF, 3, defaultVRF)
+	ipEntry3 := ipv4Entry(nhgIPv4EntryMap[3], defaultVRF, 3, defaultVRF)
 	gribiEntries = append(gribiEntries, nhg3, ipEntry3)
 
 	gRIBI.Modify().AddEntry(t, gribiEntries...)
@@ -522,7 +533,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	nh1 := nextHopEntry(1, defaultVRF, nhEntryIP1)
 	nh2 := nextHopEntry(2, defaultVRF, nhEntryIP2)
 	nhg1 := nextHopGroupEntry(1, defaultVRF, []nhInfo{{index: 1, weight: 1}, {index: 2, weight: 31}})
-	ipEntry1 := ipv4Entry(ipv4EntryPrefix, nonDefaultVRF, 1, defaultVRF)
+	ipEntry1 := ipv4Entry(nhgIPv4EntryMap[1], nonDefaultVRF, 1, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh1, nh2, nhg1, ipEntry1)
 
@@ -531,7 +542,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	}
 
 	// Validate entries were installed in FIB.
-	for _, route := range []string{cidr(nhEntryIP1, 32), cidr(nhEntryIP2, 32), ipv4EntryPrefix} {
+	for _, route := range nhgIPv4EntryMap {
 		chk.HasResult(t, gRIBI.Results(t),
 			fluent.OperationResult().
 				WithIPv4Operation(route).
@@ -558,25 +569,14 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	})
 
 	t.Run("validateAFTWeights", func(t *testing.T) {
-		if *deviations.NextHopAFTNotSupported {
-			t.Skip("TODO: AFT Telemetry not supported.")
-		}
-		testCases := []nhInfo{
-			{nhg: 1, index: 1, weight: 1},
-			{nhg: 1, index: 2, weight: 31},
-			{nhg: 2, index: 10, weight: 2},
-			{nhg: 2, index: 11, weight: 3},
-		}
-		for i := uint64(100); i < 116; i++ {
-			testCases = append(testCases, nhInfo{nhg: 3, index: i, weight: 1})
-		}
-		for _, tc := range testCases {
-			got, ok := aftNextHopWeight(t, dut, tc.nhg, tc.index, tc.weight, defaultVRF)
+		for nhg, weights := range map[uint64][]uint64{
+			2: {2, 3},
+			3: {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		} {
+			got := aftNextHopWeights(t, dut, nhg, defaultVRF)
+			ok := cmp.Equal(weights, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
 			if !ok {
-				t.Errorf("Weight not present for NI: %s, NHG: %d, NH: %d.", defaultVRF, tc.nhg, tc.index)
-			}
-			if got != tc.weight {
-				t.Errorf("Unexpected weight found for NI: %s, NHG: %d, NH: %d, got: %d, want: %d.", defaultVRF, tc.nhg, tc.index, got, tc.weight)
+				t.Errorf("Valid weights not present for NI: %s, NHG: %d, got: %v, want: %v", defaultVRF, nhg, got, weights)
 			}
 		}
 	})
