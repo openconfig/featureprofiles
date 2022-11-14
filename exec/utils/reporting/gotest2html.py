@@ -113,8 +113,8 @@ class GoTestSuite:
         
         suite_summary_md = "## Test Suites\n"
         suite_summary_md += f"""
-Suite | T | P | F | R | S | Logs | DDTS | Attr | Result
-------|---|---|---|---|---|------|------|------|-------
+Suite | T | P | F | S | Logs | DDTS | Attr | Result
+------|---|---|---|---|------|------|------|-------
 """
 
         total, passed, failed, skipped, regressed = [0] * 5
