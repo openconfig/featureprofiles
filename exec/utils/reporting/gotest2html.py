@@ -8,8 +8,6 @@ import os
 import re
 
 from datetime import datetime
-from ddts_utils import get_ddts_info
-from gh_utils import FPGHRepo
 
 def _to_md_anchor(s):
     sanitized = re.sub('[^0-9a-zA-Z_\-\s]+', '', s).strip().replace(' ', '-').lower()
@@ -84,6 +82,8 @@ class GoTestSuite:
         return _generate_html(json.dumps(data), json.dumps([summary]))
 
     def to_md_string(self):
+        from ddts_utils import get_ddts_info
+
         details_md = "## Tests\n"
         suite_summary = []
 
@@ -316,6 +316,8 @@ class GoTest:
         return self.did_fail() and 'Pass' in self._gh_issue.tags
 
     def update_gh_issue(self):
+        from gh_utils import FPGHRepo
+
         if not self._gh_issue:
             return
 
