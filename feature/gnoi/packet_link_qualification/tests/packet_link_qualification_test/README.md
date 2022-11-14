@@ -14,7 +14,7 @@ Validate gNOI RPC can support packet-based link qualification test for the links
         * MaxHistoricalResultsPerInterface is >= 2.
         * Time exists.
         * Generator:
-          * MinMtu > = 64,
+          * MinMtu >= 64,
           * MaxMtu >= 9000,
           * MaxBps >= 4e11,
           * MaxPps >= 5e8,
