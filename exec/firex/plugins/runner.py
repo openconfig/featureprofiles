@@ -349,10 +349,10 @@ def RunB4FPTest(self,
 
     log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
 
-    version_info_file = os.path.join(ws, f"show_version.txt")
+    version_info_file = os.path.join(ws, f"testbed_info.txt")
     if os.path.exists(version_info_file):
         shutil.copyfile(version_info_file, 
-            os.path.join(test_log_directory_path, f"show_version.txt"))
+            os.path.join(test_log_directory_path, f"testbed_info.txt"))
     return None, xunit_results_filepath, log_file, start_time, stop_time
 
 @register_testbed_file_generator('b4_fp')
