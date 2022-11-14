@@ -22,9 +22,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
 	"github.com/openconfig/ondatra"
-	statuspb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestMain(m *testing.M) {
@@ -49,7 +47,12 @@ func TestMain(m *testing.M) {
 //       - MinTeardownDuration > 0,
 //  2) Validate the error code is returned for Get and Delete requests with non-existing ID.
 //       - Error code is 5 NOT_FOUND (HTTP Mapping: 404 Not Found).
-//  3) Set a device as the NEAR_END (generator) device for Packet Based Link Qual.
+//  3) Validate the link qualification List and Delete.
+//     - Issue List qualifications request.
+//     - Delete the qualification if qualification is found.
+//     - Issue List qualifications request again.
+//     - Verify that the qualification has been deleted successfully by checking List response.
+//  4) Set a device as the NEAR_END (generator) device for Packet Based Link Qual.
 //     - Issue gnoi.PacketLinkQual StartPacketQualification RPC to the device.
 //       Provide following parameters:
 //       - Id: A unique identifier for this run of the test
@@ -70,7 +73,7 @@ func TestMain(m *testing.M) {
 //       - SetupDuration: The requested setup time for the endpoint.
 //       - Duration:The length of the qualification.
 //       - PostSyncDuration: The amount time a side should wait before starting its teardown.
-//  4) Set another device as the FAR_END (reflector) device for Packet Based Link Qual.
+//  5) Set another device as the FAR_END (reflector) device for Packet Based Link Qual.
 //     - Issue gnoi.PacketLinkQual StartPacketQualification RPC to the device.
 //       Provide following parameters:
 //     - Id: A unique identifier for this run of the test
@@ -78,15 +81,16 @@ func TestMain(m *testing.M) {
 //     - EndpointType: Qualification_end set as FAR_END.
 //     - RPCSyncedTiming:
 //       - Reflector timers should be same as the ones on the generator.
-//  5) Get the result by issuing gnoi.PacketLinkQual GetPacketQualificationResult RPC to gather
+//  6) Get the result by issuing gnoi.PacketLinkQual GetPacketQualificationResult RPC to gather
 //     the result of link qualification.Provide the following parameter.
 //      - Id: The identifier used above on the NEAR_END side.
 //      - Compare that the test_duration_in_secs, packet_size, bandwidth_utilization match the request.
 //      - Ensure that the current_state is QUALIFICATION_STATE_COMPLETED
-//      - Ensure that the num_corrupt_packets and num_packets_dropped_by_mmu are 0, and error_message
-//        is not set.
-//      - Ensure that the ports under test on the FAR_END and the NEAR_END have no test data being
-//        sent on the ports.
+//      - Ensure that the num_corrupt_packets and num_packets_dropped_by_mmu are 0, and RPC status
+//        code 0 for succuss.
+//      - Expected rate for the qualification. This is the computed or
+//        observed rate that the service expected to be maintained
+//        throughout the qualification duration.
 //
 // Topology:
 //   dut1:port1 <--> port1:dut2
@@ -203,6 +207,48 @@ func TestNonexistingID(t *testing.T) {
 	})
 }
 
+func TestListDelete(t *testing.T) {
+	dut1 := ondatra.DUT(t, "dut1")
+	dut2 := ondatra.DUT(t, "dut2")
+	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
+	gnoiClient2 := dut2.RawAPIs().GNOI().Default(t)
+
+	clients := []ondatra.GNOI{gnoiClient1, gnoiClient2}
+	for i, client := range clients {
+		t.Logf("Check client: %d", i+1)
+		listResp, err := client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
+		t.Logf("LinkQualification().List(): %v, err: %v", listResp, err)
+		if err != nil {
+			t.Fatalf("Failed to handle gnoi LinkQualification().List(): %v", err)
+		}
+		if len(listResp.GetResults()) != 0 {
+			for j, result := range listResp.GetResults() {
+				t.Logf("Delete result %d: Result: %v", j, result)
+				id := result.GetId()
+				deleteResp, err := client.LinkQualification().Delete(context.Background(), &plqpb.DeleteRequest{Ids: []string{id}})
+
+				t.Logf("LinkQualification().Delete(): %v, err: %v", deleteResp, err)
+				if err != nil {
+					t.Fatalf("Failed to handle gnoi LinkQualification().Delete(): %v", err)
+				}
+			}
+		} else {
+			t.Logf("The qualification request was not found on client %d", i+1)
+			continue
+		}
+
+		t.Logf("Verify that the qualification has been deleted on client %d", i+1)
+		listResp, err = client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
+		t.Logf("LinkQualification().List(): %v, err: %v", listResp, err)
+		if err != nil {
+			t.Fatalf("Failed to handle gnoi LinkQualification().List(): %v", err)
+		}
+		if got, want := len(listResp.GetResults()), 0; got != want {
+			t.Errorf("ListResp: got %v, want %v", got, want)
+		}
+	}
+}
+
 func TestLinkQuality(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
@@ -228,7 +274,7 @@ func TestLinkQuality(t *testing.T) {
 	plqDuration := &packetLinkQualDuration{
 		preSyncDuration:  30 * time.Second,
 		setupDuration:    30 * time.Second,
-		testDuration:     600 * time.Second,
+		testDuration:     120 * time.Second,
 		postSyncDuration: 5 * time.Second,
 		tearDownDuration: 30 * time.Second,
 	}
@@ -301,82 +347,74 @@ func TestLinkQuality(t *testing.T) {
 	t.Logf("ReflectorCreateRequest: %v", reflectorCreateRequest)
 
 	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
-	gnoiClient2 := dut1.RawAPIs().GNOI().Default(t)
+	gnoiClient2 := dut2.RawAPIs().GNOI().Default(t)
 
 	generatorCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), generatorCreateRequest)
-	// TODO: Remove fakeResp and uncomment err checking if generatorCreateResp is received from DUT.
-	// if err != nil {
-	// 	t.Fatalf("Failed to handle generator LinkQualification().Create(): %v", err)
-	// }
-	t.Logf("LinkQualification().Create(): %v, err: %v", generatorCreateResp, err)
+	t.Logf("LinkQualification().Create() generatorCreateResp: %v, err: %v", generatorCreateResp, err)
+	if err != nil {
+		t.Fatalf("Failed to handle generator LinkQualification().Create(): %v", err)
+	}
 
 	reflectorCreateResp, err := gnoiClient2.LinkQualification().Create(context.Background(), reflectorCreateRequest)
-	// TODO: Remove fakeResp and uncomment err checking if reflectorCreateResp is received from DUT.
-	// if err != nil {
-	// 	t.Fatalf("Failed to handle reflector LinkQualification().Create(): %v", err)
-	// }
-	// time.Sleep(1200 * time.Second)
-	t.Logf("LinkQualification().Create(): %v, err: %v", reflectorCreateResp, err)
-
-	fakeCreateResp := &plqpb.CreateResponse{
-		Status: map[string]*statuspb.Status{
-			plqID: {
-				Code:    int32(0), //OK = 0 and HTTP Mapping: 200 OK.
-				Message: "request id " + plqID,
-			},
-		},
+	t.Logf("LinkQualification().Create() reflectorCreateResp: %v, err: %v", reflectorCreateResp, err)
+	if err != nil {
+		t.Fatalf("Failed to handle reflector LinkQualification().Create(): %v", err)
 	}
-	t.Logf("fakeCreateResp: %v", fakeCreateResp)
-
-	generatorCreateResp = fakeCreateResp
-	if got, want := generatorCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
-		t.Errorf("generatorCreateResp: got %v, want %v", got, want)
-	}
-	reflectorCreateResp = fakeCreateResp
 	if got, want := reflectorCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
 		t.Errorf("reflectorCreateResp: got %v, want %v", got, want)
+	}
+
+	sleepTime := 30 * time.Second
+	minTestTime := plqDuration.testDuration + plqDuration.postSyncDuration + plqDuration.preSyncDuration + plqDuration.setupDuration + plqDuration.tearDownDuration
+	counter := int(minTestTime.Seconds()) / int(sleepTime.Seconds())
+	for i := 0; i <= counter; i++ {
+		t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
+		time.Sleep(sleepTime)
+		listResp, err := gnoiClient1.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
+		t.Logf("LinkQualification().List(): %v, err: %v", listResp, err)
+		if err != nil {
+			t.Fatalf("Failed to handle gnoi LinkQualification().List(): %v", err)
+		}
+
+		testDone := true
+		for j := 0; j < len(listResp.GetResults()); j++ {
+			if listResp.GetResults()[j].GetState() != plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED {
+				testDone = false
+			}
+		}
+		if testDone && len(listResp.GetResults()) != 0 {
+			t.Logf("Detected QualificationState_QUALIFICATION_STATE_COMPLETED.")
+			break
+		}
 	}
 
 	getRequest := &plqpb.GetRequest{
 		Ids: []string{plqID},
 	}
-	getResp, err := gnoiClient1.LinkQualification().Get(context.Background(), getRequest)
-	// TODO: Remove fakeResp and uncomment err checking if getResp is received from DUT.
-	// if err != nil {
-	// 	t.Fatalf("Failed to handle generator LinkQualification().Get(): %v", err)
-	// }
-	t.Logf("LinkQualification().Create(): %v, err: %v", getResp, err)
 
-	fakeGetResp := &plqpb.GetResponse{
-		Results: map[string]*plqpb.QualificationResult{
-			plqID: {
-				Id:                              plqID,
-				InterfaceName:                   dp1.Name(),
-				State:                           plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED,
-				PacketsSent:                     uint64(83316403),
-				PacketsReceived:                 uint64(83316343),
-				PacketsError:                    uint64(0),
-				PacketsDropped:                  uint64(60),
-				StartTime:                       &timestamppb.Timestamp{Seconds: int64(1666375740)},
-				EndTime:                         &timestamppb.Timestamp{Seconds: int64(1666376341)},
-				ExpectedRateBytesPerSecond:      uint64(1249745125),
-				QualificationRateBytesPerSecond: uint64(1249745125),
-				Status: &statuspb.Status{
-					Code:    int32(0), //OK = 0 and HTTP Mapping: 200 OK.
-					Message: "request id " + plqID,
-				},
-			},
-		},
-	}
-	t.Logf("fakeGetResp: %v", fakeGetResp)
+	for i, client := range []ondatra.GNOI{gnoiClient1, gnoiClient2} {
+		t.Logf("Check client: %d", i+1)
+		getResp, err := client.LinkQualification().Get(context.Background(), getRequest)
+		t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
+		if err != nil {
+			t.Fatalf("Failed to handle generator LinkQualification().Get(): %v", err)
+		}
 
-	getResp = fakeGetResp
-	result := getResp.GetResults()[plqID]
-	if got, want := result.GetStatus().GetCode(), int32(0); got != want {
-		t.Errorf("getResp: got %v, want %v", got, want)
-	}
-
-	if got, want := result.GetQualificationRateBytesPerSecond(), result.GetExpectedRateBytesPerSecond(); got != want {
-		t.Errorf("Packet rate in Bps: got %v, want %v", got, want)
+		result := getResp.GetResults()[plqID]
+		if got, want := result.GetStatus().GetCode(), int32(0); got != want {
+			t.Errorf("getResp: got %v, want %v", got, want)
+		}
+		if got, want := result.GetState(), plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED; got != want {
+			t.Errorf("getResp: got %v, want %v", got, want)
+		}
+		if got, want := result.GetQualificationRateBytesPerSecond(), result.GetExpectedRateBytesPerSecond(); got != want {
+			t.Errorf("Packet rate in Bps: got %v, want %v", got, want)
+		}
+		if got, want := result.GetPacketsError(), uint64(0); got != want {
+			t.Errorf("Packet errors: got %v, want %v", got, want)
+		}
+		if got, want := result.GetPacketsDropped(), uint64(0); got != want {
+			t.Errorf("Packet dropped: got %v, want %v", got, want)
+		}
 	}
 }
