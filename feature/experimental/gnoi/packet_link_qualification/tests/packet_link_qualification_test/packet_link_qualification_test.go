@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 //       - PacketSize: Size of packets to inject. The value is 9000 bytes.
 //     - RPCSyncedTiming:
 //       - SetupDuration: The requested setup time for the endpoint.
-//       - PreSyncDuration: Minimum_wait_before_preparation_seconds. Within this period, 
+//       - PreSyncDuration: Minimum_wait_before_preparation_seconds. Within this period,
 //         the device should:
 //         - Initialize the link qualification state machine.
 //         - Set port’s state to TESTING. This state is only relevant inside the linkQual service.
