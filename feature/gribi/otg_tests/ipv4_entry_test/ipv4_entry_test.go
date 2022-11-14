@@ -32,8 +32,9 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -328,15 +329,15 @@ func TestIPv4Entry(t *testing.T) {
 
 // configureDUT configures port1-3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 
-	d.Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
-	d.Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
-	d.Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 }
 
 // configreATE configures port1-3 on the ATE.
@@ -374,7 +375,7 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	if len(dsts) > 1 {
 		flowipv4.TxRx().Port().SetTxName(atePort1.Name)
 		waitOTGARPEntry(t)
-		dstMac := otg.Telemetry().Interface(atePort1.Name + ".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().Get(t)
+		dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
 		e1.Dst().SetChoice("value").SetValue(dstMac)
 	} else {
 		flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
@@ -435,7 +436,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 		var txPackets, rxPackets uint64
 		if flow == "ecmpFlow" {
 			for _, p := range ateTop.Ports().Items() {
-				portMetrics := ate.OTG().Telemetry().Port(p.Name()).Get(t)
+				portMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(p.Name()).State())
 				txPackets = txPackets + portMetrics.GetCounters().GetOutFrames()
 				rxPackets = rxPackets + portMetrics.GetCounters().GetInFrames()
 			}
@@ -445,7 +446,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 				t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
 			}
 		} else {
-			recvMetric := ate.OTG().Telemetry().Flow(flow).Get(t)
+			recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
 			txPackets = recvMetric.GetCounters().GetOutPkts()
 			rxPackets = recvMetric.GetCounters().GetInPkts()
 			lostPackets := txPackets - rxPackets
@@ -457,7 +458,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 	}
 
 	for _, flow := range newBadFlows {
-		recvMetric := ate.OTG().Telemetry().Flow(flow).Get(t)
+		recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
 		txPackets := recvMetric.GetCounters().GetOutPkts()
 		rxPackets := recvMetric.GetCounters().GetInPkts()
 		lostPackets := txPackets - rxPackets
@@ -478,18 +479,17 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // Waits for at least one ARP entry on the tx OTG interface
 func waitOTGARPEntry(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
-	ate.OTG().Telemetry().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-			return val.IsPresent()
-		}).Await(t)
+	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
 }
 
 // setDUTInterfaceState sets the admin state on the dut interface
 func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *attrs.Attributes, p *ondatra.Port, state bool) {
-	dc := dut.Config()
+	dc := gnmi.OC()
 	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(state)
-	dc.Interface(p.Name()).Update(t, i)
+	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
 }
 
 func elementInSlice(a string, list []string) bool {
