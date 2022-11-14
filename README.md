@@ -1,5 +1,7 @@
 # Feature Profiles
 
+This is a test of draft mode.  Do not submit.
+
 Feature profiles define groups of OpenConfig paths that can be invoked on
 network devices. A feature profile may contain configuration, telemetry,
 operational or any other paths that a device exposes. Example management plane
