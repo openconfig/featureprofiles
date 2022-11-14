@@ -143,8 +143,8 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	}
 
 	agg := d.GetOrCreateInterface(tc.aggID)
-	agg.Type = ieee8023adLag
 	agg.GetOrCreateAggregation().LagType = tc.lagType
+	agg.Type = ieee8023adLag
 
 	for _, port := range tc.dutPorts {
 		i := d.GetOrCreateInterface(port.Name())
