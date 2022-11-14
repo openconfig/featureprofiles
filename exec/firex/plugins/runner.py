@@ -27,7 +27,14 @@ CloneInfo = namedtuple('CloneInfo', ['url', 'path'])
 ONDATRA_REPO_CLONE_INFO = CloneInfo('https://github.com/openconfig/ondatra.git', 'openconfig/ondatra')
 FP_REPO_CLONE_INFO = CloneInfo('git@wwwin-github.cisco.com:B4Test/featureprofiles.git', 'openconfig/featureprofiles')
 
-ONDATRA_PATCHES = ['exec/firex/plugins/ondatra/0001-windows-ixia-path.patch']
+ONDATRA_PATCHES = [
+    'exec/firex/plugins/ondatra/0001-windows-ixia-path.patch', 
+    'exec/firex/plugins/ondatra/0002-disable-log.patch'
+]
+
+ONDATRA_SIM_PATCHES = [
+    'exec/firex/plugins/ondatra/0003-traffic_fps_vxr.patch'
+]
 
 whitelist_arguments([
     'ondatra_repo_branch', 
@@ -105,12 +112,15 @@ def BringupTestbed(self, ws, images = None,
     fp_repo.git.commit('-m', 'patched go.mod and binding file')
 
     ondatra_repo = git.Repo(ondatra_repo_dir)
-    ondatra_repo.git.checkout("3338c3259dd8419b059443cadd238841a2472015")
+    ondatra_repo.git.checkout("a05f012bb3e46fc94c28d70da50a078a1484156b")
     ondatra_repo.config_writer().set_value("name", "email", "gob4").release()
     ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
 
+    if topo_file and len(topo_file) > 0:
+        ONDATRA_PATCHES.extend(ONDATRA_SIM_PATCHES)
+        
     for patch in ONDATRA_PATCHES:
-        ondatra_repo.git.apply([os.path.join(fp_repo_dir, patch)])
+        ondatra_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo_dir, patch)])
 
     ondatra_repo.git.add(update=True)
     ondatra_repo.git.commit('-m', 'patched for testing')
@@ -239,7 +249,7 @@ def b4_fp_chain_provider(ws,
 @app.task(bind=True)
 def PatchFP(self, fp_repo, patch_path):
     repo = git.Repo(fp_repo)
-    repo.git.apply(['--whitespace=fix', os.path.join(fp_repo, patch_path)])
+    repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo, patch_path)])
 
 # noinspection PyPep8Naming
 @app.task(bind=True)

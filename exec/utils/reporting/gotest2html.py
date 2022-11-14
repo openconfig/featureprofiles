@@ -9,6 +9,7 @@ import re
 
 from datetime import datetime
 from ddts_utils import get_ddts_info
+from gh_utils import FPGHRepo
 
 def _to_md_anchor(s):
     sanitized = re.sub('[^0-9a-zA-Z_\-\s]+', '', s).strip().replace(' ', '-').lower()
@@ -279,8 +280,27 @@ class GoTest:
         return  self._status == 'Fail'
 
     def did_regress(self):
-        return self._status == 'Regression'
+        if not self._gh_issue:
+            return False
+        return self.did_fail() and 'Pass' in self._gh_issue.tags
 
+    def update_gh_issue(self):
+        if not self._gh_issue:
+            return
+
+        did_pass = True
+        for c in self.get_children():
+            if not c.did_pass():
+                did_pass = False
+
+        tags = []
+        if did_pass: tags.append('auto: pass')
+        else: tags.append('auto: fail')
+        if self.is_deviated(): tags.append('auto: deviation')
+        if self.is_patched(): tags.append('auto: patched')
+        if not did_pass and 'Pass' in self._gh_issue['tags']: tags.append('auto: regression')
+        FPGHRepo.instance().update_labels(self._gh_issue['number'], tags)
+        
     def get_status(self):
         return self._status
 
