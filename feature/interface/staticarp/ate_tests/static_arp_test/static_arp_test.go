@@ -81,6 +81,7 @@ var (
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
 		MAC:     "02:1a:c0:00:02:02", // 02:1a+192.0.2.2
+		NetInst: "mgmt",
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
@@ -90,6 +91,7 @@ var (
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
 		MAC:     "02:1a:c0:00:02:05", // 02:1a+192.0.2.5
+		NetInst: "mgmt",
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
@@ -153,19 +155,12 @@ func configureDUT(t *testing.T, peermac string) {
 	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
 	d.Interface(p1.Name()).Replace(t,
 		configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
-
-	if *deviations.AddSubIntfToNetInst {
-		deviations.SubIntfToNetworkInstance(t, d, i1, 0, *deviations.DefaultNetworkInstance)
-	}
-
+	dutSrc.AddToDut(t, d, i1, 0, *deviations.DefaultNetworkInstance)
 	p2 := dut.Port(t, "port2")
 	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
 	d.Interface(p2.Name()).Replace(t,
 		configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
-
-	if *deviations.AddSubIntfToNetInst {
-		deviations.SubIntfToNetworkInstance(t, d, i2, 0, *deviations.DefaultNetworkInstance)
-	}
+	dutDst.AddToDut(t, d, i2, 0, *deviations.DefaultNetworkInstance)
 }
 
 func configureATE(t *testing.T) (*ondatra.ATEDevice, *ondatra.ATETopology) {

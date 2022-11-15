@@ -65,12 +65,6 @@ package deviations
 
 import (
 	"flag"
-	"fmt"
-	"testing"
-
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygot/ygot"
 )
 
 // Vendor deviation flags.
@@ -111,17 +105,3 @@ var (
 	ExplicitInterfaceInVRF = flag.Bool("deviation_explicit_interface_in_vrf", false,
 		"Device requires explicit attachment of an interface or subinterface to a network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
 )
-
-func SubIntfToNetworkInstance(t *testing.T, dconf *ondatra.Config, i *telemetry.Interface, si uint32, inst string) {
-	netInst := &telemetry.NetworkInstance{Name: ygot.String(inst)}
-	netInstIntf, err := netInst.NewInterface(i.GetName())
-	if err != nil {
-		t.Errorf("Error fetching NewInterface for %s", i.GetName())
-	}
-	netInstIntf.Interface = ygot.String(i.GetName())
-	netInstIntf.Subinterface = ygot.Uint32(si)
-	netInstIntf.Id = ygot.String(i.GetName() + "." + fmt.Sprint(si))
-	if i.GetSubinterface(si) != nil {
-		dconf.NetworkInstance(inst).Update(t, netInst)
-	}
-}
