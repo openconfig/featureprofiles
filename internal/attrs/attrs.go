@@ -152,7 +152,7 @@ func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attri
 }
 
 // AddToDut attaches a subinterface to a network instance
-func (a *Attributes) AddToDut(t *testing.T, dconf *ondatra.Config, i *telemetry.Interface, si uint32, ni string) {
+func (a *Attributes) AddToDut(t *testing.T, dconf *ondatra.Config, i *telemetry.Interface, si uint32) {
 	if *deviations.ExplicitInterfaceInVRF {
 		ni := a.NetInst
 		if ni == "" {
