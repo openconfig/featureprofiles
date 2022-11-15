@@ -2,7 +2,7 @@ name: "arista-ixia-lag"
 nodes: {
     name: "otg"
     vendor: KEYSIGHT
-    version: "0.0.1-3423"
+    version: "0.0.1-9999"
     services: {
         key: 443
         value: {
@@ -106,10 +106,10 @@ nodes: {
         }
     }
     services:{
-        key: 6040
+        key: 9340
         value: {
             name: "gribi"
-            inside: 6040
+            inside: 9340
         }
     }
 }
