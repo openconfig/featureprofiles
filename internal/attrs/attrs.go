@@ -25,7 +25,8 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -57,7 +58,55 @@ func (a *Attributes) IPv6CIDR() string {
 }
 
 // ConfigInterface configures an OpenConfig interface with these attributes.
-func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
+func (a *Attributes) ConfigInterface(intf *telemetry.Interface) *telemetry.Interface {
+	if a.Desc != "" {
+		intf.Description = ygot.String(a.Desc)
+	}
+	intf.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	if *deviations.InterfaceEnabled {
+		intf.Enabled = ygot.Bool(true)
+	}
+	if a.MTU > 0 && !*deviations.OmitL2MTU {
+		intf.Mtu = ygot.Uint16(a.MTU + 14)
+	}
+	e := intf.GetOrCreateEthernet()
+	if a.MAC != "" {
+		e.MacAddress = ygot.String(a.MAC)
+	}
+
+	s := intf.GetOrCreateSubinterface(0)
+	if a.IPv4 != "" {
+		s4 := s.GetOrCreateIpv4()
+		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+			s4.Enabled = ygot.Bool(true)
+		}
+		if a.MTU > 0 {
+			s4.Mtu = ygot.Uint16(a.MTU)
+		}
+		a4 := s4.GetOrCreateAddress(a.IPv4)
+		if a.IPv4Len > 0 {
+			a4.PrefixLength = ygot.Uint8(a.IPv4Len)
+		}
+	}
+
+	if a.IPv6 != "" {
+		s6 := s.GetOrCreateIpv6()
+		if a.MTU > 0 {
+			s6.Mtu = ygot.Uint32(uint32(a.MTU))
+		}
+		if *deviations.InterfaceEnabled {
+			s6.Enabled = ygot.Bool(true)
+		}
+		a6 := s6.GetOrCreateAddress(a.IPv6)
+		if a.IPv6Len > 0 {
+			a6.PrefixLength = ygot.Uint8(a.IPv6Len)
+		}
+	}
+	return intf
+}
+
+// ConfigOCInterface configures an OpenConfig interface with these attributes.
+func (a *Attributes) ConfigOCInterface(intf *oc.Interface) *oc.Interface {
 	if a.Desc != "" {
 		intf.Description = ygot.String(a.Desc)
 	}
@@ -104,9 +153,14 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
 	return intf
 }
 
-// NewInterface returns a new *oc.Interface configured with these attributes
-func (a *Attributes) NewInterface(name string) *oc.Interface {
-	return a.ConfigInterface(&oc.Interface{Name: ygot.String(name)})
+// NewInterface returns a new *telemetry.Interface configured with these attributes
+func (a *Attributes) NewInterface(name string) *telemetry.Interface {
+	return a.ConfigInterface(&telemetry.Interface{Name: ygot.String(name)})
+}
+
+// NewOCInterface returns a new *oc.Interface configured with these attributes.
+func (a *Attributes) NewOCInterface(name string) *oc.Interface {
+	return a.ConfigOCInterface(&oc.Interface{Name: ygot.String(name)})
 }
 
 // AddToATE adds a new interface to an ATETopology with these attributes.

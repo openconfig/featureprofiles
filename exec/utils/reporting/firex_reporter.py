@@ -11,6 +11,17 @@ import yaml
 import constants
 import argparse
 
+def _get_failures():
+    failures = []
+    for f in list(Path(constants.failures_dir).rglob("*.yaml")):
+        with open(f) as stream:
+            try:
+                failures.extend(yaml.safe_load(stream))
+            except yaml.YAMLError as exc:
+                print(exc)
+                continue
+    return failures
+
 def _get_testsuites(files):
     test_suites = []
     for f in list(Path(constants.tests_dir).rglob("*.yaml")):
@@ -63,15 +74,16 @@ if not os.path.exists(gh_reports_dir):
 now = datetime.now().timestamp()
 logs_dir = os.path.join(constants.base_logs_dir, firex_id, 'tests_logs')
 
+all_failures = _get_failures()
 summary_md = """
 ## Summary
-Total | Passed | Failed | Regressed | Skipped
-------|--------|--------|-----------|--------
+Total | Passed | Failed | Skipped
+------|--------|--------|--------
 """
 details_md = """
 ## Test Suites
-Suite | Total | Passed | Failed | Regressed | Skipped | Last Run | Logs | Result
-------|-------|--------|--------|-----------|---------|----------|------|-------
+Suite | Total | Passed | Failed | Skipped | Last Run | Logs | Result
+------|-------|--------|--------|---------|----------|------|-------
 """
 
 total, passed, failed, skipped, regressed = [0] * 5
@@ -92,23 +104,25 @@ for ts in  _get_testsuites(testsuite_files.split(',')):
         if t['name'] in test_id_map:
             test_id = test_id_map[t['name']]
             log_files = [str(p) for p in Path(logs_dir).glob(f"{test_id}/*.json")]
-            try:
-                gt = parse_json(log_files[0], suite_name=t['name'])
+            if len(log_files) == 0: 
+                continue
 
-                if 'patch' in t:
-                    gt.mark_patched()
-                    
-                if 'args' in t:
-                    for arg in t['args']:
-                        if arg.startswith('-deviation'):
-                            gt.mark_deviated()
-                            break
+            known_failures = [f for f in all_failures if f['name'] in t.get('failures', [])]
+            known_failures.extend([f for f in all_failures if f.get('global', False)])
 
-                gh_issue = FPGHRepo.instance().get_issue(t['name'])
-                if gh_issue:
-                    gt.set_gh_issue(gh_issue)
-                go_tests.append(gt)
-            except: continue
+            gt = parse_json(log_files[0], suite_name=t['name'], known_failures=known_failures)
+            if 'patch' in t:
+                gt.mark_patched()
+                
+            for arg in t.get('args', []):
+                if arg.startswith('-deviation'):
+                    gt.mark_deviated()
+                    break
+
+            gh_issue = FPGHRepo.instance().get_issue(t['name'])
+            if gh_issue:
+                gt.set_gh_issue(gh_issue)
+            go_tests.append(gt)
     
     if ts['updated'] and len(go_tests) > 0:
         go_test_suite.update(firex_id, go_tests, last_updated=now)
@@ -141,13 +155,13 @@ for ts in  _get_testsuites(testsuite_files.split(',')):
     elif suite_stats['total'] > 0: suite_results = ':white_check_mark:'
 
     details_md += f"[{ts['name']}]({ts['name']}.md)|{suite_stats['total']}|{suite_stats['passed']}|{suite_stats['failed']}"
-    details_md += f"|{suite_stats['regressed']}|{suite_stats['skipped']}|[{suite_time}]({constants.base_tracker_url}{go_test_suite.get_last_run_id()})"
+    details_md += f"|{suite_stats['skipped']}|[{suite_time}]({constants.base_tracker_url}{go_test_suite.get_last_run_id()})"
     details_md += f"|[HTML]({constants.gh_repo_raw_url}/{constants.gh_reports_dir}/{ts['name']}.html) [RAW]({constants.base_logs_url}{go_test_suite.get_last_run_id()}/tests_logs/)|{suite_results}\n"
 
     with open(ts_html_file, 'w') as fp:
         fp.write(go_test_suite.to_html())
 
-summary_md += f"{total}|{passed}|{failed}|{regressed}|{skipped}\n"
+summary_md += f"{total}|{passed}|{failed}|{skipped}\n"
 
 with open(os.path.join(out_dir, f"README.md"), 'w') as fp:
     fp.write(summary_md + details_md)
