@@ -156,6 +156,7 @@ tests:
   priority: 42
 - name: SEC-3.1 (Authentication) 
   path: feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test
+  patch: exec/firex/plugins/fp_patch/tls_authentication_over_grpc_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
   skip: false
@@ -200,7 +201,7 @@ tests:
   skip: false
 - name: RT-6.1 (Core LLDP TLV Population) 
   path: feature/lldp/tests/core_lldp_tlv_population_test
-  patch: exec/firex/plugins/fp_patch/chassis_reboot_status_and_cancel_test.patch
+  patch: exec/firex/plugins/fp_patch/core_lldp_tlv_population_test.patch
   owner: agvarghe@cisco.com
   skip: true
   mustpass: false 
