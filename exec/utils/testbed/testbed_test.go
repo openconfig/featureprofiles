@@ -8,6 +8,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/testt"
 )
 
 var (
@@ -35,15 +36,13 @@ func TestShowVersion(t *testing.T) {
 
 	content := ""
 	for _, cmd := range commands {
-		if result, err := dut.RawAPIs().CLI(t).SendCommand(ctx, cmd); err == nil {
-			content += ">" + cmd + "\n"
-			content += result
-			content += "\n"
-		} else {
-			content += ">" + cmd + "\n"
-			content += err.Error()
-			content += "\n"
-		}
+		testt.CaptureFatal(t, func(t testing.TB) {
+			if result, err := dut.RawAPIs().CLI(t).SendCommand(ctx, cmd); err == nil {
+				content += ">" + cmd + "\n"
+				content += result
+				content += "\n"
+			}
+		})
 	}
 
 	os.WriteFile(*outFile, []byte(content), 0644)
