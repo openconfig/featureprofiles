@@ -24,8 +24,10 @@ duts {
     username: "cafyauto"
     password: "cisco123"
   }
-
-  # Options specific to gNMI.  Remove if not needed.
+  # telnet RP0: 172.21.178.22 2012 
+  #   # Mgmt RP0: 6.1.2.41 
+  # eec-server : sj6-pxe-05
+  # pxe-path : /nobackup/html/sj6-aa-17-21/spitfire-foundation2.iso 
   gnoi{
     target: "10.105.227.156:57780"
   }
