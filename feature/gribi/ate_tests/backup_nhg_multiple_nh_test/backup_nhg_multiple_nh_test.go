@@ -46,6 +46,7 @@ type testArgs struct {
 	client *gribi.Client
 }
 
+// Test PR code ownder
 var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
