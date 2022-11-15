@@ -85,34 +85,29 @@ func TestOSInstall(t *testing.T) {
 		sc:     dut.RawAPIs().GNOI().Default(t).System(),
 	}
 	tc.fetchStandbySupervisorStatus(ctx, t)
+	// install and activate os on master RP
 	tc.transferOS(ctx, t, false)
-
-	if *deviations.OSActiavteRequiresReboot {
-		tc.activateOS(ctx, t, false /*standby*/, false /*noreboot*/)
-	} else {
-		tc.activateOS(ctx, t, false /*standby*/, true /*noreboot*/)
-	}
+	tc.activateOS(ctx, t, false)
 
 	if !*deviations.NoOSInstallForStandbyRP && tc.dualSup {
+		// install and activate os on master RP
 		tc.transferOS(ctx, t, true)
-		if *deviations.OSActiavteRequiresReboot {
-			tc.activateOS(ctx, t, true, false)
-		} else {
-			tc.activateOS(ctx, t, true, true)
-		}
+		tc.activateOS(ctx, t, true)
 	}
 
-	tc.rebootDUT(ctx, t)
-	// reconnect GNOI client after reboot
+	if *deviations.OSActiavteRequiresReboot {
+		tc.rebootDUT(ctx, t)
+	}
+	// reconnect GNOI client 
 	tc.osc = tc.dut.RawAPIs().GNOI().New(t).OS()
 	tc.verifyInstall(ctx, t)
 }
 
-func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby, noreboot bool) {
+func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) {
 	act, err := tc.osc.Activate(ctx, &ospb.ActivateRequest{
 		StandbySupervisor: standby,
 		Version:           *osVersion,
-		NoReboot:          noreboot,
+		NoReboot:          *deviations.OSActiavteRequiresReboot,
 	})
 	if err != nil {
 		t.Fatalf("OS.Activate request failed: %s", err)
@@ -130,6 +125,27 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby, noreb
 		t.Fatalf("OS.Activate error %s: %s", actErr.Type, actErr.Detail)
 	default:
 		t.Fatalf("OS.Activate unexpected response: got %v (%T)", resp, resp)
+	}
+	// when no reboot is set to false, the device expected to do reboot if is required. 
+	// Reboot is not neccessary in all cases and the device does reboot based on the number of updated packages and impacted processes.
+	// THe below code checks and make sure the possible reboot is completed. 
+	if !*deviations.OSActiavteRequiresReboot {
+		t.Log("Check for os reboot to be completed when  noreboot flag is set to false")
+		// wait for 1 minutes to ensure the reboot is started
+		deadline := time.Now().Add(*timeout)
+		time.Sleep(1*time.Minute) 
+		for {
+			var bootTime *telemetry.QualifiedUint64	
+			testt.CaptureFatal(t, func(t testing.TB) {
+				bootTime = tc.dut.Telemetry().System().BootTime().Lookup(t)
+			})
+			if bootTime != nil {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("Past reboot deadline, the device was not up after activation with noreboot=false")
+			}
+		}
 	}
 }
 
