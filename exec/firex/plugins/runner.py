@@ -153,7 +153,8 @@ def BringupTestbed(self, ws, images = None,
             f'-args ' \
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
-            f'-outFile {os.path.join(ws, f"testbed_info.txt")}'
+            f'-outFile {os.path.join(ws, "testbed_info.txt")}'
+    logger.print(testbed_info_cmd)
     try:
         check_output(testbed_info_cmd, cwd=fp_repo_dir)
     except: pass
@@ -349,10 +350,10 @@ def RunB4FPTest(self,
 
     log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
 
-    version_info_file = os.path.join(ws, f"testbed_info.txt")
+    version_info_file = os.path.join(ws, "testbed_info.txt")
     if os.path.exists(version_info_file):
         shutil.copyfile(version_info_file, 
-            os.path.join(test_log_directory_path, f"testbed_info.txt"))
+            os.path.join(test_log_directory_path, "testbed_info.txt"))
     return None, xunit_results_filepath, log_file, start_time, stop_time
 
 @register_testbed_file_generator('b4_fp')
