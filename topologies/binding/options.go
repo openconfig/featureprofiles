@@ -89,7 +89,13 @@ func (d *dialer) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.C
 		c := &creds{d.Username, d.Password, !d.Insecure}
 		opts = append(opts, grpc.WithPerRPCCredentials(c))
 	}
-	return grpc.DialContext(ctx, d.Target, opts...)
+	if d.Timeout != 0 {
+		ctx, cancelFunc := context.WithTimeout(context.Background(), time.Duration(d.Timeout)*time.Second)
+		defer cancelFunc()
+		return grpc.DialContext(ctx, d.Target, opts...)
+	} else {
+		return grpc.DialContext(ctx, d.Target, opts...)
+	}
 }
 
 var knownHostsFiles = []string{
@@ -276,7 +282,7 @@ func (r *resolver) ssh(dutName string) (dialer, error) {
 	return merge(targetOptions, r.Options, dut.Options, dut.Ssh), nil
 }
 
-func (r *resolver) ateGnmi(ateName string) (dialer, error) {
+func (r *resolver) ateGNMI(ateName string) (dialer, error) {
 	return r.ateDialer(ateName, *ateGnmiPort,
 		func(ate *bindpb.Device) *bindpb.Options { return ate.Gnmi })
 }

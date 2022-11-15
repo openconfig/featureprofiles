@@ -167,7 +167,7 @@ func (d *staticDUT) DialCLI(ctx context.Context, opts ...grpc.DialOption) (bindi
 }
 
 func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
-	dialer, err := a.r.ateGnmi(a.Name())
+	dialer, err := a.r.ateGNMI(a.Name())
 	if err != nil {
 		return nil, err
 	}
