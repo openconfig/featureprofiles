@@ -30,7 +30,11 @@ type diag struct {
 	Message string `json:"message"`
 }
 
-type jsonOutput map[string]map[string][]diag
+type diagErr struct {
+	Err string `json:"error"`
+}
+
+type jsonOutput map[string]map[string]json.RawMessage
 
 var (
 	severity = flag.String("severity", "notice", "Sets the severity of the Github annotations")
@@ -47,11 +51,21 @@ func main() {
 			log.Fatal(err)
 		}
 		for _, pkg := range out {
-			for _, diags := range pkg {
-				for _, diag := range diags {
-					pos := strings.Split(diag.Posn, ":")
-					fmt.Printf("::%s file=%s,line=%s,col=%s::%s\n", *severity, pos[0], pos[1], pos[2], diag.Message)
+			for _, msg := range pkg {
+				var diags []diag
+				if err := json.Unmarshal(msg, &diags); err == nil {
+					for _, diag := range diags {
+						pos := strings.Split(diag.Posn, ":")
+						fmt.Printf("::%s file=%s,line=%s,col=%s::%s\n", *severity, pos[0], pos[1], pos[2], diag.Message)
+					}
+					continue
 				}
+				diagErr := &diagErr{}
+				if err := json.Unmarshal(msg, diagErr); err == nil {
+					fmt.Printf("Error reported by analyzer %v\n", diagErr)
+					continue
+				}
+				fmt.Printf("Unknown message type: %q\n", string(msg))
 			}
 		}
 	}
