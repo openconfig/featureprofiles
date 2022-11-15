@@ -8,9 +8,8 @@ tests:
 - name: gNOI-4.1 (Software Upgrade) 
   path: feature/gnoi/os/tests/osinstall
   patch: exec/firex/plugins/fp_patch/osinstall_test.patch
-  #args:
-  #    - '-deviation_osactiavte_requires_reboot="true"'
-  #    - '-deviation_no_osinstall_for_standby_rp="true"'
+  args:
+     - '-deviation_no_osinstall_for_standby_rp="true"'
   owner: agvarghe@cisco.com
   priority: 100
   mustpass: true
@@ -38,6 +37,14 @@ tests:
   args:
     - '-p4rt_node_name="0/RP0/CPU0/0"'
   skip: true
+  owner: sprem@cisco.com
+  priority: 6
+  mustpass: true
+- name: P4RT-5.2 (Traceroute Packetout)
+  path: feature/experimental/p4rt/ate_tests/traceroute_packetout_test/packetout_test.go
+  args:
+    - '-p4rt_node_name="0/RP0/CPU0/0"'
+  skip: false
   owner: sprem@cisco.com
   priority: 6
   mustpass: true
@@ -149,6 +156,7 @@ tests:
   priority: 42
 - name: SEC-3.1 (Authentication) 
   path: feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test
+  patch: exec/firex/plugins/fp_patch/tls_authentication_over_grpc_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
   skip: false
@@ -193,7 +201,7 @@ tests:
   skip: false
 - name: RT-6.1 (Core LLDP TLV Population) 
   path: feature/lldp/tests/core_lldp_tlv_population_test
-  patch: exec/firex/plugins/fp_patch/chassis_reboot_status_and_cancel_test.patch
+  patch: exec/firex/plugins/fp_patch/core_lldp_tlv_population_test.patch
   owner: agvarghe@cisco.com
   skip: true
   mustpass: false 
