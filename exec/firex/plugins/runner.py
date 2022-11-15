@@ -27,7 +27,14 @@ CloneInfo = namedtuple('CloneInfo', ['url', 'path'])
 ONDATRA_REPO_CLONE_INFO = CloneInfo('https://github.com/openconfig/ondatra.git', 'openconfig/ondatra')
 FP_REPO_CLONE_INFO = CloneInfo('git@wwwin-github.cisco.com:B4Test/featureprofiles.git', 'openconfig/featureprofiles')
 
-ONDATRA_PATCHES = ['exec/firex/plugins/ondatra/0001-windows-ixia-path.patch']
+ONDATRA_PATCHES = [
+    'exec/firex/plugins/ondatra/0001-windows-ixia-path.patch', 
+    'exec/firex/plugins/ondatra/0002-disable-log.patch'
+]
+
+ONDATRA_SIM_PATCHES = [
+    'exec/firex/plugins/ondatra/0003-traffic_fps_vxr.patch'
+]
 
 whitelist_arguments([
     'ondatra_repo_branch', 
@@ -105,12 +112,15 @@ def BringupTestbed(self, ws, images = None,
     fp_repo.git.commit('-m', 'patched go.mod and binding file')
 
     ondatra_repo = git.Repo(ondatra_repo_dir)
-    ondatra_repo.git.checkout("3338c3259dd8419b059443cadd238841a2472015")
+    ondatra_repo.git.checkout("a05f012bb3e46fc94c28d70da50a078a1484156b")
     ondatra_repo.config_writer().set_value("name", "email", "gob4").release()
     ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
 
+    if topo_file and len(topo_file) > 0:
+        ONDATRA_PATCHES.extend(ONDATRA_SIM_PATCHES)
+        
     for patch in ONDATRA_PATCHES:
-        ondatra_repo.git.apply([os.path.join(fp_repo_dir, patch)])
+        ondatra_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo_dir, patch)])
 
     ondatra_repo.git.add(update=True)
     ondatra_repo.git.commit('-m', 'patched for testing')
@@ -136,6 +146,18 @@ def BringupTestbed(self, ws, images = None,
 
         logger.print(f'Executing osinstall command:\n {install_cmd}')
         logger.print(check_output(install_cmd, cwd=fp_repo_dir))
+
+    showver_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/showver ' \
+            f'-timeout 0 ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} ' \
+            f'-outFile {os.path.join(ws, f"show_version.txt")}'
+    try:
+        check_output(showver_cmd, cwd=fp_repo_dir)
+    except: pass
+
     return ondatra_binding_path
 
 @app.task(base=FireX, bind=True)
@@ -169,7 +191,7 @@ def b4_fp_chain_provider(ws,
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
-                    script_name=script_name,
+                    script_name=script_path,
                     script_path=script_path,
                     test_log_directory_path=test_log_directory_path,
                     xunit_results_filepath=xunit_results_filepath,
@@ -227,7 +249,7 @@ def b4_fp_chain_provider(ws,
 @app.task(bind=True)
 def PatchFP(self, fp_repo, patch_path):
     repo = git.Repo(fp_repo)
-    repo.git.apply(['--whitespace=fix', os.path.join(fp_repo, patch_path)])
+    repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo, patch_path)])
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
@@ -326,6 +348,11 @@ def RunB4FPTest(self,
     write_output_from_results_json(json_results_file, log_filepath)
 
     log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
+
+    version_info_file = os.path.join(ws, f"show_version.txt")
+    if os.path.exists(version_info_file):
+        shutil.copyfile(version_info_file, 
+            os.path.join(test_log_directory_path, f"show_version.txt"))
     return None, xunit_results_filepath, log_file, start_time, stop_time
 
 @register_testbed_file_generator('b4_fp')

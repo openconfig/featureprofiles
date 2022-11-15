@@ -443,6 +443,12 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/keepalive-interval"
 }
 config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/connect-retry"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/connect-retry"
+}
+config_path {
     path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/afi-safi-name"
 }
 config_path {

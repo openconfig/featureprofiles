@@ -1,5 +1,5 @@
 diff --git a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
-index 45e54c2d..7e2e7e1c
+index 45e54c2d..7e2e7e1c 100644
 --- a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
 +++ b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
 @@ -123,16 +123,19 @@ var portSpeed = map[ondatra.Speed]telemetry.E_IfEthernet_ETHERNET_SPEED{
@@ -137,17 +137,15 @@ index 45e54c2d..7e2e7e1c
  				}
  			})
 diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
-index 7aa75769..25d5b7f5 100644
+index a17661d0..d5438b70 100644
 --- a/internal/deviations/deviations.go
 +++ b/internal/deviations/deviations.go
-@@ -67,6 +67,10 @@ import "flag"
+@@ -102,4 +102,8 @@ var (
+ 	StaticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
  
- // Vendor deviation flags.
- var (
-+	SubinterfaceOriginCheck = flag.Bool("subinterface_origin_check", false,
-+		"Skip telemetry on subinterfaces/subinterface/neighbors/neighbors/state/origin till CSCwc63655 is fixed")
-+	PortSpeedEnabled = flag.Bool("port_speed_enabled", false,
-+		"SKIP since XR does not support three of the leafs (DuplexMode and AutoNegotiate and PortSpeed)")
- 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
- 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
- 
+ 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
++
++	SubinterfaceOriginCheck = flag.Bool("subinterface_origin_check", false, "Skip telemetry on subinterfaces/subinterface/neighbors/neighbors/state/origin till CSCwc63655 is fixed")
++
++	PortSpeedEnabled = flag.Bool("port_speed_enabled", false, "SKIP since XR does not support three of the leafs (DuplexMode and AutoNegotiate and PortSpeed)")
+ )
