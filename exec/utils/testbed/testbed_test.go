@@ -41,6 +41,10 @@ func TestShowVersion(t *testing.T) {
 				content += ">" + cmd + "\n"
 				content += result
 				content += "\n"
+			} else {
+				content += ">" + cmd + "\n"
+				content += err.Error()
+				content += "\n"
 			}
 		})
 	}
