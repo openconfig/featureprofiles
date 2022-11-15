@@ -81,7 +81,6 @@ var (
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
 		MAC:     "02:1a:c0:00:02:02", // 02:1a+192.0.2.2
-		NetInst: "mgmt",
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
@@ -91,7 +90,6 @@ var (
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
 		MAC:     "02:1a:c0:00:02:05", // 02:1a+192.0.2.5
-		NetInst: "mgmt",
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
