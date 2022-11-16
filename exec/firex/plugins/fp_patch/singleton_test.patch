@@ -137,15 +137,15 @@ index 45e54c2d..7e2e7e1c 100644
  				}
  			})
 diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
-index a17661d0..d5438b70 100644
+index 07866187..d3c3047e 100644
 --- a/internal/deviations/deviations.go
 +++ b/internal/deviations/deviations.go
-@@ -102,4 +102,8 @@ var (
- 	StaticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
+@@ -106,4 +106,8 @@ var (
+ 	GNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
  
  	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 +
 +	SubinterfaceOriginCheck = flag.Bool("subinterface_origin_check", false, "Skip telemetry on subinterfaces/subinterface/neighbors/neighbors/state/origin till CSCwc63655 is fixed")
 +
-+	PortSpeedEnabled = flag.Bool("port_speed_enabled", false, "SKIP since XR does not support three of the leafs (DuplexMode and AutoNegotiate and PortSpeed)")
++    PortSpeedEnabled = flag.Bool("port_speed_enabled", false, "SKIP since XR does not support three of the leafs (DuplexMode and AutoNegotiate and PortSpeed)")
  )
