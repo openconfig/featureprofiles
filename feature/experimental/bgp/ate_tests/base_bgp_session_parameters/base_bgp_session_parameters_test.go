@@ -116,8 +116,6 @@ func bgpCreateNbr(bgpParams *bgpTestParams) *telemetry.NetworkInstance_Protocol_
 		nv4.LocalAs = ygot.Uint32(bgpParams.nbrLocalAS)
 	}
 
-	nv4.AuthPassword = ygot.String(authPassword)
-
 	nv4t := nv4.GetOrCreateTimers()
 	nv4t.HoldTime = ygot.Uint16(dutHoldTime)
 	nv4t.KeepaliveInterval = ygot.Uint16(dutKeepaliveTime)
@@ -147,6 +145,19 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 
+}
+
+// verifyAuthPassword checks that the dut applied configured auth password to bgp neighbors
+func verifyAuthPassword(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Log("Verifying BGP Authentication password")
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
+
+	// Get BGP Authentication password
+	authPwd := nbrPath.AuthPassword().Get(t)
+	if len(authPwd) == 0 {
+		t.Errorf("Authentication password is not as expected, want non zero value, got lenth %v", len(authPwd))
+	}
 }
 
 // verifyBgpTelemetry checks that the dut has an established BGP session with reasonable settings.
@@ -217,10 +228,10 @@ func configureATE(t *testing.T, ateParams *bgpTestParams, connectionType connTyp
 
 	if connectionType == connInternal {
 		bgpDut1.AddPeer().WithPeerAddress(ateParams.peerIP).WithLocalASN(ateParams.localAS).WithTypeInternal().
-			WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
+			WithHoldTime(ateHoldTime)
 	} else {
 		bgpDut1.AddPeer().WithPeerAddress(ateParams.peerIP).WithLocalASN(ateParams.localAS).WithTypeExternal().
-			WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
+			WithHoldTime(ateHoldTime)
 	}
 	return topo
 
@@ -228,6 +239,7 @@ func configureATE(t *testing.T, ateParams *bgpTestParams, connectionType connTyp
 
 // TestEstablishAndDisconnect Establishes BGP session between DUT and ATE and Verifies
 // abnormal termination of session using notification message:
+// Also configures and verifies MD5 authentication password
 func TestEstablishAndDisconnect(t *testing.T) {
 	// DUT configurations.
 	t.Log("Start DUT config load:")
@@ -247,10 +259,13 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
-	fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 	dutConfPath.Delete(t)
 	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS})
 	dutConfPath.Replace(t, dutConf)
+
+	// Configure Md5 auth password.
+	dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Replace(t, authPassword)
+
 	fptest.LogYgot(t, "DUT BGP Config", dutConfPath, dutConfPath.Get(t))
 
 	// ATE Configuration.
@@ -276,6 +291,9 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	t.Log("Check BGP parameters")
 	verifyBgpTelemetry(t, dut)
 
+	t.Log("Check Authentication password")
+	verifyAuthPassword(t, dut)
+
 	// Verify BGP capabilities
 	t.Log("Check BGP Capabilities")
 	verifyBGPCapabilities(t, dut)
@@ -297,12 +315,12 @@ func TestEstablishAndDisconnect(t *testing.T) {
 
 	// Clear config on DUT and ATE
 	topo.StopProtocols(t)
-	dutConfPath.Delete(t)
+	dutConfPath.Replace(t, nil)
 }
 
 // TestParameters is to verify normal session establishment and termination
 // in both eBGP and iBGP scenarios using session parameters like explicit
-// router id , timers and MD5 authentication.
+// router id , timers.
 func TestParameters(t *testing.T) {
 	ateIP := ateAttrs.IPv4
 	dutIP := dutAttrs.IPv4
@@ -346,7 +364,6 @@ func TestParameters(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
 			t.Log("Clear BGP Configs on DUT")
 			dutConfPath.Delete(t)
 			t.Log("Configure BGP Configs on DUT")
