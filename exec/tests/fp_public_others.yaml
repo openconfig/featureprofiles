@@ -171,7 +171,7 @@ tests:
   path: feature/system/ntp/tests
   owner: agvarghe@cisco.com
   args:
-       - '-ntp_association_type_enabled="true"'
+       - '-deviation_ntp_association_type_required="true"'
   mustpass: true
   priority: 45
 - name: FP_GNMI_System
