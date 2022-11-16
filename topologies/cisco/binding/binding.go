@@ -1,3 +1,5 @@
+// Internal binding utils
+
 package binding
 
 import (
@@ -9,6 +11,7 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
+// GetBinding returns the parsed binding struct
 func GetBinding(t *testing.T) *bindpb.Binding {
 	bindingFile := flag.Lookup("binding").Value.String()
 
