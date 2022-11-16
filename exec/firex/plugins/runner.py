@@ -36,6 +36,10 @@ ONDATRA_SIM_PATCHES = [
     'exec/firex/plugins/ondatra/0003-traffic_fps_vxr.patch'
 ]
 
+FP_PATCHES = [
+    ''
+]
+
 whitelist_arguments([
     'ondatra_repo_branch', 
     'fp_repo_branch', 
@@ -108,8 +112,12 @@ def BringupTestbed(self, ws, images = None,
     fp_repo = git.Repo(fp_repo_dir)
     fp_repo.config_writer().set_value("name", "email", "gob4").release()
     fp_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
+
+    for patch in FP_PATCHES:
+        fp_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo_dir, patch)])
+
     fp_repo.git.add(update=True)
-    fp_repo.git.commit('-m', 'patched go.mod and binding file')
+    fp_repo.git.commit('-m', 'patched for testing')
 
     ondatra_repo = git.Repo(ondatra_repo_dir)
     ondatra_repo.git.checkout("a05f012bb3e46fc94c28d70da50a078a1484156b")
@@ -160,6 +168,16 @@ def BringupTestbed(self, ws, images = None,
     except: pass
 
     return ondatra_binding_path
+
+@app.task(bind=True)
+def ParseBinding(self, binding):
+    json_log_file = os.path.join(test_log_directory_path, f'{script_name}.json')
+    html_report = os.path.join(test_log_directory_path, f'{script_name}.html')
+
+    try:
+        check_output(f'{PYTHON_BIN} {fp_ws}/exec/utils/reporting/gotest2html.py "{json_log_file}"', 
+            file=html_report) 
+    except: pass
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, uid, ws):
