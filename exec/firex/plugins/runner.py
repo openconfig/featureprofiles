@@ -169,16 +169,6 @@ def BringupTestbed(self, ws, images = None,
 
     return ondatra_binding_path
 
-@app.task(bind=True)
-def ParseBinding(self, binding):
-    json_log_file = os.path.join(test_log_directory_path, f'{script_name}.json')
-    html_report = os.path.join(test_log_directory_path, f'{script_name}.html')
-
-    try:
-        check_output(f'{PYTHON_BIN} {fp_ws}/exec/utils/reporting/gotest2html.py "{json_log_file}"', 
-            file=html_report) 
-    except: pass
-
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, uid, ws):
     # shutil.rmtree(os.path.join(ws, f'go_pkgs'))
