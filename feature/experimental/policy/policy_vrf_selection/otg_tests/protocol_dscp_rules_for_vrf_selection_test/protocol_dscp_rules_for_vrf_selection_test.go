@@ -269,7 +269,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // getIPinIPFlow returns an IPv4inIPv4 *ondatra.Flow with provided DSCP value for a given set of endpoints.
 func getIPinIPFlow(args *testArgs, src attrs.Attributes, dst attrs.Attributes, flowName string, dscp int32) gosnappi.Flow {
 
-	flow := args.top.Flows().Add().SetName(flowName)
+	flow := gosnappi.NewFlow().SetName(flowName)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames([]string{src.Name + "." + args.iptype}).SetRxNames([]string{dst.Name + "." + args.iptype})
 	ethHeader := flow.Packet().Add().Ethernet()
@@ -299,13 +299,13 @@ func getIPinIPFlow(args *testArgs, src attrs.Attributes, dst attrs.Attributes, f
 }
 
 // testTrafficFlows verifies traffic for one or more flows.
-func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, topo gosnappi.Config, flows ...gosnappi.Flow) {
+func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...gosnappi.Flow) {
 
-	topo.Flows().Clear()
+	args.top.Flows().Clear()
 	for _, flow := range flows {
-		topo.Flows().Append(flow)
+		args.top.Flows().Append(flow)
 	}
-	args.ate.OTG().PushConfig(t, topo)
+	args.ate.OTG().PushConfig(t, args.top)
 	args.ate.OTG().StartProtocols(t)
 
 	t.Logf("*** Starting traffic ...")
@@ -391,14 +391,14 @@ func TestPBR(t *testing.T) {
 
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
-	topo := configureATE(t, ate)
-	ate.OTG().PushConfig(t, topo)
+	top := configureATE(t, ate)
+	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
 	args := &testArgs{
 		dut:        dut,
 		ate:        ate,
-		top:        ate.OTG().NewConfig(t),
+		top:        top,
 		policyName: "L3",
 		iptype:     "ipv4",
 		protocol:   oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
@@ -501,11 +501,11 @@ func TestPBR(t *testing.T) {
 			defer pfpath.Interface(port1.Name()).ApplyVrfSelectionPolicy().Delete(t)
 
 			// traffic should pass
-			testTrafficFlows(t, args, true, topo, tc.passingFlows...)
+			testTrafficFlows(t, args, true, tc.passingFlows...)
 
 			if len(tc.failingFlows) > 0 {
 				// traffic should fail
-				testTrafficFlows(t, args, false, topo, tc.failingFlows...)
+				testTrafficFlows(t, args, false, tc.failingFlows...)
 			}
 		})
 	}
