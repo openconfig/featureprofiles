@@ -1,0 +1,62 @@
+diff --git a/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go b/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
+index 326e720e..9a394019 100644
+--- a/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
++++ b/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
+@@ -323,10 +323,9 @@ func TestSupFailure(t *testing.T) {
+ 	}
+ 
+ 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
++	compPath := cmp.GetSubcomponentPath(secondaryBeforeSwitch)
+ 	switchoverRequest := &spb.SwitchControlProcessorRequest{
+-		ControlProcessor: &tpb.Path{
+-			Elem: []*tpb.PathElem{{Name: secondaryBeforeSwitch}},
+-		},
++		ControlProcessor: compPath,
+ 	}
+ 	t.Logf("switchoverRequest: %v", switchoverRequest)
+ 	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+diff --git a/internal/components/components.go b/internal/components/components.go
+index 381a52ac..57938cbe 100644
+--- a/internal/components/components.go
++++ b/internal/components/components.go
+@@ -19,6 +19,8 @@ import (
+ 	"regexp"
+ 	"testing"
+ 
++	"github.com/openconfig/featureprofiles/internal/deviations"
++	tpb "github.com/openconfig/gnoi/types"
+ 	"github.com/openconfig/ondatra"
+ 	"github.com/openconfig/ondatra/telemetry"
+ )
+@@ -57,3 +59,19 @@ func FindMatchingStrings(components []string, r *regexp.Regexp) []string {
+ 	}
+ 	return s
+ }
++
++// GetSubcomponentPath creates a gNMI path based on the componnent name.
++func GetSubcomponentPath(name string) *tpb.Path {
++	if *deviations.GNOISubcomponentPath {
++		return &tpb.Path{
++			Elem: []*tpb.PathElem{{Name: name}},
++		}
++	}
++	return &tpb.Path{
++		Origin: "openconfig",
++		Elem: []*tpb.PathElem{
++			{Name: "components"},
++			{Name: "component", Key: map[string]string{"name": name}},
++		},
++	}
++}
+\ No newline at end of file
+diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
+index 4e12f89a..cfc8228b 100644
+--- a/internal/deviations/deviations.go
++++ b/internal/deviations/deviations.go
+@@ -102,4 +102,6 @@ var (
+ 	StaticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
+ 
+ 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
++
++	GNOISubcomponentPath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
+ )
