@@ -1,6 +1,6 @@
 name: "juniper-ixia"
 nodes: {
-    name: "cptx1"
+    name: "cptx"
     vendor: JUNIPER
     model: "cptx"
     os: "evo"
@@ -11,7 +11,7 @@ nodes: {
       file: "juniper.config"
       cert: {
             self_signed: {
-                cert_name: "ca-ipsec",
+                cert_name: "grpc-server-cert",
                 key_name: "N/A",
                 key_size: 4096,
             }
@@ -104,17 +104,17 @@ nodes: {
 links: {
     a_node: "otg"
     a_int: "eth1"
-    z_node: "cptx1"
+    z_node: "cptx"
     z_int: "eth12"
 }
 links: {
-    a_node: "cptx1"
+    a_node: "cptx"
     a_int: "eth20"
     z_node: "otg"
     z_int: "eth2"
 }
 links: {
-    a_node: "cptx1"
+    a_node: "cptx"
     a_int: "eth28"
     z_node: "otg"
     z_int: "eth3"
