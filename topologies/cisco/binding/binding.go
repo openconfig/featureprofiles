@@ -1,5 +1,4 @@
 // Internal binding utils
-
 package binding
 
 import (
