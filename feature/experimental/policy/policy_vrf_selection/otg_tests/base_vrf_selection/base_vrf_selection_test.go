@@ -279,16 +279,16 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []gosnappi.Flow {
 	// Create traffic flows
 	t.Logf("*** Configuring OTG flows ...")
 	topo.Flows().Clear().Items()
-	ipv4FlowVlan10 := createFlow("Ipv4Vlan10", topo, "IPv4", false, 10, 0, ateDst)
-	ipv6FlowVlan10 := createFlow("Ipv6Vlan10", topo, "IPv6", false, 10, 0, ateDst)
-	ipipFlowVlan10 := createFlow("IpipVlan10", topo, "IPv4", true, 10, 0, ateDst)
-	ipipDscp46FlowVlan10 := createFlow("IpipDscp46Vlan10", topo, "IPv4", true, 10, 46, ateDst)
-	ipipDscp42FlowVlan10 := createFlow("IpipDscp42Vlan10", topo, "IPv4", true, 10, 42, ateDst)
-	ipv4FlowVlan20 := createFlow("Ipv4Vlan20", topo, "IPv4", false, 20, 0, ateDst2)
-	ipv6FlowVlan20 := createFlow("Ipv6Vlan20", topo, "IPv6", false, 20, 0, ateDst2)
-	ipipFlowVlan20 := createFlow("IpipVlan20", topo, "IPv4", true, 20, 0, ateDst2)
-	ipipDscp46FlowVlan20 := createFlow("IpipDscp46Vlan20", topo, "IPv4", true, 20, 46, ateDst2)
-	ipipDscp42FlowVlan20 := createFlow("IpipDscp42Vlan20", topo, "IPv4", true, 20, 42, ateDst2)
+	ipv4FlowVlan10 := createFlow("Ipv4Vlan10", topo, "IPv4", false, 0, ateDst)
+	ipv6FlowVlan10 := createFlow("Ipv6Vlan10", topo, "IPv6", false, 0, ateDst)
+	ipipFlowVlan10 := createFlow("IpipVlan10", topo, "IPv4", true, 0, ateDst)
+	ipipDscp46FlowVlan10 := createFlow("IpipDscp46Vlan10", topo, "IPv4", true, 46, ateDst)
+	ipipDscp42FlowVlan10 := createFlow("IpipDscp42Vlan10", topo, "IPv4", true, 42, ateDst)
+	ipv4FlowVlan20 := createFlow("Ipv4Vlan20", topo, "IPv4", false, 0, ateDst2)
+	ipv6FlowVlan20 := createFlow("Ipv6Vlan20", topo, "IPv6", false, 0, ateDst2)
+	ipipFlowVlan20 := createFlow("IpipVlan20", topo, "IPv4", true, 0, ateDst2)
+	ipipDscp46FlowVlan20 := createFlow("IpipDscp46Vlan20", topo, "IPv4", true, 46, ateDst2)
+	ipipDscp42FlowVlan20 := createFlow("IpipDscp42Vlan20", topo, "IPv4", true, 42, ateDst2)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	ate.OTG().PushConfig(t, topo)
@@ -297,14 +297,13 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []gosnappi.Flow {
 		ipv4FlowVlan20, ipv6FlowVlan20, ipipFlowVlan20, ipipDscp46FlowVlan20, ipipDscp42FlowVlan20}
 }
 
-func createFlow(name string, top gosnappi.Config, ipType string, IPinIP bool, vlanID, dscp int32, dst attrs.Attributes) gosnappi.Flow {
+func createFlow(name string, top gosnappi.Config, ipType string, IPinIP bool, dscp int32, dst attrs.Attributes) gosnappi.Flow {
 
 	flow := top.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + "." + ipType}).SetRxNames([]string{dst.Name + "." + ipType})
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(ateSrc.MAC)
-	flow.Packet().Add().Vlan().Id().SetValue(vlanID)
 	if ipType == "IPv4" {
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)
@@ -323,6 +322,7 @@ func createFlow(name string, top gosnappi.Config, ipType string, IPinIP bool, vl
 	}
 	flow.Size().SetFixed(512)
 	flow.Rate().SetChoice("percentage").SetPercentage(5)
+	flow.Duration().FixedPackets().SetPackets(1000)
 	return flow
 }
 
