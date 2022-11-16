@@ -194,18 +194,20 @@ func TestBackup(t *testing.T) {
 
 		// Configure the gRIBI client clientA
 		client := gribi.Client{
-			DUT:                  dut,
-			FibACK:               false,
-			Persistence:          true,
-			InitialElectionIDLow: 10,
+			DUT:         dut,
+			FibACK:      false,
+			Persistence: true,
 		}
 		defer client.Close(t)
 		if err := client.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection can not be established")
 		}
 
+		// Make client leader
+		client.BecomeLeader(t)
+
 		// Flush past entries before running the tc
-		client.Flush(t)
+		client.FlushAll(t)
 
 		tcArgs := &testArgs{
 			ctx:    ctx,
@@ -215,6 +217,9 @@ func TestBackup(t *testing.T) {
 			top:    top,
 		}
 		testIPv4BackUpSwitch(ctx, t, tcArgs)
+
+		// Flush all entries after the test
+		client.FlushAll(t)
 	})
 }
 
@@ -287,9 +292,9 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, name string) *ondatra.Flow {
 	srcEndPoint := top.Interfaces()[atePort1.Name]
 	dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range top.Interfaces() {
+	for intf, intfData := range top.Interfaces() {
 		if intf != "atePort1" {
-			dstEndPoint = append(dstEndPoint, intf_data)
+			dstEndPoint = append(dstEndPoint, intfData)
 		}
 	}
 	hdr := ondatra.NewIPv4Header()
@@ -304,7 +309,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, 
 }
 
 // validateTrafficFlows verifies that the flow on ATE and check interface counters on DUT
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow, drop bool, d_port []string) {
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow, drop bool, dPort []string) {
 	ate.Traffic().Start(t, flow)
 	time.Sleep(60 * time.Second)
 	ate.Traffic().Stop(t)
@@ -346,14 +351,14 @@ func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, expectedNH []
 	if len(aftNHG.NextHop) != 0 {
 		for k := range aftNHG.NextHop {
 			aftnh := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(k).Get(t)
-			total_ips := len(expectedNH)
+			totalIPs := len(expectedNH)
 			for _, ip := range expectedNH {
 				if ip == aftnh.GetIpAddress() {
 					break
 				}
-				total_ips -= 1
+				totalIPs--
 			}
-			if total_ips == 0 {
+			if totalIPs == 0 {
 				t.Fatalf("No matching NH found")
 			}
 		}

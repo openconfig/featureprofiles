@@ -299,16 +299,16 @@ func TestDUTDaemonFailure(t *testing.T) {
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to true.
 		clientA := &gribi.Client{
-			DUT:                  dut,
-			FibACK:               false,
-			Persistence:          true,
-			InitialElectionIDLow: 10,
+			DUT:         dut,
+			FibACK:      false,
+			Persistence: true,
 		}
 
 		t.Log("Establish gRIBI client connection")
 		if err := clientA.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection for clientA could not be established")
 		}
+		clientA.BecomeLeader(t)
 
 		t.Run("AddRoute", func(t *testing.T) {
 			t.Logf("Add gRIBI route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
@@ -383,10 +383,9 @@ func TestDUTDaemonFailure(t *testing.T) {
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to true.
 		clientA := &gribi.Client{
-			DUT:                  dut,
-			FibACK:               false,
-			Persistence:          true,
-			InitialElectionIDLow: 10,
+			DUT:         dut,
+			FibACK:      false,
+			Persistence: true,
 		}
 
 		t.Log("Re-establish gRIBI client connection")
@@ -398,6 +397,8 @@ func TestDUTDaemonFailure(t *testing.T) {
 			verifyGRIBIGet(ctx, t, clientA)
 		})
 
+		// Flush all entries after test.
+		clientA.FlushAll(t)
 	})
 
 	t.Logf("Test run time: %s", time.Since(start))

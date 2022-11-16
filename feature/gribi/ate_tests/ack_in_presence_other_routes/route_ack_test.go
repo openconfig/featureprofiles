@@ -259,15 +259,15 @@ func TestRouteAck(t *testing.T) {
 
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
-		DUT:                  dut,
-		FibACK:               false,
-		Persistence:          true,
-		InitialElectionIDLow: 10,
+		DUT:         dut,
+		FibACK:      false,
+		Persistence: true,
 	}
 	defer clientA.Close(t)
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
+	clientA.BecomeLeader(t)
 
 	args := &testArgs{
 		ctx:     ctx,
@@ -279,4 +279,7 @@ func TestRouteAck(t *testing.T) {
 
 	routeAck(ctx, t, args)
 	top.StopProtocols(t)
+
+	// Flush all entries after test.
+	clientA.FlushAll(t)
 }

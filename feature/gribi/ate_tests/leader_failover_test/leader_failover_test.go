@@ -256,10 +256,9 @@ func TestLeaderFailover(t *testing.T) {
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to false.
 		clientA := &gribi.Client{
-			DUT:                  dut,
-			FibACK:               false,
-			Persistence:          false,
-			InitialElectionIDLow: 10,
+			DUT:         dut,
+			FibACK:      false,
+			Persistence: false,
 		}
 
 		defer clientA.Close(t)
@@ -268,6 +267,7 @@ func TestLeaderFailover(t *testing.T) {
 		if err := clientA.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection for clientA could not be established")
 		}
+		clientA.BecomeLeader(t)
 
 		t.Run("AddRoute", func(t *testing.T) {
 			t.Logf("Add gRIBI route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
@@ -310,16 +310,16 @@ func TestLeaderFailover(t *testing.T) {
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to true.
 		clientA := &gribi.Client{
-			DUT:                  args.dut,
-			FibACK:               false,
-			Persistence:          true,
-			InitialElectionIDLow: 10,
+			DUT:         args.dut,
+			FibACK:      false,
+			Persistence: true,
 		}
 
 		t.Log("Reconnect clientA, with PERSISTENCE set to TRUE/PRESERVE")
 		if err := clientA.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection for clientA could not be re-established")
 		}
+		clientA.BecomeLeader(t)
 
 		defer clientA.Close(t)
 
@@ -359,16 +359,16 @@ func TestLeaderFailover(t *testing.T) {
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to true.
 		clientA := &gribi.Client{
-			DUT:                  args.dut,
-			FibACK:               false,
-			Persistence:          true,
-			InitialElectionIDLow: 10,
+			DUT:         args.dut,
+			FibACK:      false,
+			Persistence: true,
 		}
 
 		t.Log("Reconnect clientA")
 		if err := clientA.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection for clientA could not be re-established")
 		}
+		clientA.BecomeLeader(t)
 
 		defer clientA.Close(t)
 
@@ -384,6 +384,8 @@ func TestLeaderFailover(t *testing.T) {
 				verifyNoTraffic(ctx, t, args)
 			})
 		})
+		// Flush all gRIBI routes.
+		clientA.FlushAll(t)
 	})
 
 	t.Logf("Test run time: %s", time.Since(start))

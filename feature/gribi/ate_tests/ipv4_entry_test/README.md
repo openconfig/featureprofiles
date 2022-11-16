@@ -9,8 +9,8 @@ Validate IPv4 support in gRIBI.
 *   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2, and ATE port-3
     to DUT port-3.
 *   Establish gRIBI client connection with DUT, negotiating `RIB_AND_FIB_ACK` as
-    the requested `ack_type` and persistence mode `PRESERVE`. Flush all entries
-    after each case.
+    the requested `ack_type` and persistence mode `PRESERVE`. make it become
+    leader. Flush all entries after each case.
 *   Using gRIBI Modify RPC install the following IPv4Entry sets, and validate
     the specified behaviours:
     *   Single IPv4Entry -> NHG -> NH.

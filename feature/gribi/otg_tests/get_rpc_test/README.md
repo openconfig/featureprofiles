@@ -10,8 +10,7 @@ Validate gRIBI Get RPC.
 
 *   Connect gRIBI client to DUT referred to as gRIBI-A, along with a second
     client referred to as gRIBI-B - using `PRESERVE` persistence and
-    `SINGLE_PRIMARY` mode, with FIB ACK requested. Specify gRIBI-A as the leader
-    via a higher election_id.
+    `SINGLE_PRIMARY` mode, with FIB ACK requested. Make gRIBI-A become leader.
 
 *   Inject IPv4Entry cases for 198.51.100.0/26, 198.51.100.64/26,
     198.51.100.128/26 to ATE port-2 via gRIBI-A. Validate entries are installed

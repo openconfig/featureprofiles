@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -168,14 +169,14 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 				WithDecapsulateHeader(fluent.IPinIP).
 				WithEncapsulateHeader(fluent.IPinIP).
 				WithNextHopNetworkInstance(vrf1).
-				WithElectionID(12, 0)
+				WithElectionID(args.electionID.Low, args.electionID.High)
 			args.client.Modify().AddEntry(t, nh)
 		} else {
 			nh := fluent.NextHopEntry().
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithIndex(ind).
 				WithIPAddress(ateAddr).
-				WithElectionID(12, 0)
+				WithElectionID(args.electionID.Low, args.electionID.High)
 			args.client.Modify().AddEntry(t, nh)
 		}
 
@@ -183,7 +184,7 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithID(uint64(localIndex)).
 			AddNextHop(ind, uint64(index.maxNhCount)).
-			WithElectionID(12, 0)
+			WithElectionID(args.electionID.Low, args.electionID.High)
 		args.client.Modify().AddEntry(t, nhg)
 		nextCount = nextCount + 1
 		if nextCount == index.maxNhCount {
@@ -193,7 +194,7 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 	}
 	nhgCount := localIndex - index.nhgIndex
 	if nextCount == 0 { // last nhg without no nh needs to be ignored
-		nhgCount -= 1
+		nhgCount--
 	}
 	// maxIPCount should be set based on the number of added nhg,
 	// otherwise ipv4entry may be added with invalid nhg id (Note. forward refrencing is not allowed)
@@ -403,11 +404,12 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx    context.Context
-	client *fluent.GRIBIClient
-	dut    *ondatra.DUTDevice
-	ate    *ondatra.ATEDevice
-	top    *ondatra.ATETopology
+	ctx        context.Context
+	client     *fluent.GRIBIClient
+	dut        *ondatra.DUTDevice
+	ate        *ondatra.ATEDevice
+	top        *ondatra.ATETopology
+	electionID gribi.Uint128
 }
 
 func TestScaling(t *testing.T) {
@@ -434,10 +436,9 @@ func TestScaling(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
-	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader via a
-	// higher election_id of 12.
+	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.
 	client := fluent.NewClient()
-	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(12, 0).
+	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
 		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
 
 	client.Start(ctx, t)
@@ -446,13 +447,15 @@ func TestScaling(t *testing.T) {
 	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation for clientA: %v", err)
 	}
+	eID := gribi.BecomeLeader(t, client)
 
 	args := &testArgs{
-		ctx:    ctx,
-		client: client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
+		ctx:        ctx,
+		client:     client,
+		dut:        dut,
+		ate:        ate,
+		top:        top,
+		electionID: eID,
 	}
 	// nextHops are ipv4 entries used for deriving nextHops for IPBlock1 and IPBlock2
 	nextHops := pushDefaultEntries(t, args, subIntfIPs)
@@ -460,4 +463,9 @@ func TestScaling(t *testing.T) {
 	indexList := buildIndexList()
 	// pushIPv4Entries builds the scaling topology.
 	pushIPv4Entries(t, nextHops, indexList, args)
+
+	// Flush all entries after test.
+	if err := gribi.FlushAll(client); err != nil {
+		t.Error(err)
+	}
 }
