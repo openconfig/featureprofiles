@@ -27,14 +27,14 @@ tests:
   priority: 36
 - name: gNOI-3.3 (Supervisor Switchover) 
   path: feature/gnoi/system/tests/supervisor_switchover_test
-  # patch: exec/firex/plugins/fp_patch/supervisor_switchover_test.patch
+  patch: exec/firex/plugins/fp_patch/supervisor_switchover_test.patch
   owner: arvbaska@cisco.com
   mustpass: false
   skip: false
   priority: 39
 - name: gNOI-3.2 (Per-Component Reboot) 
   path: feature/gnoi/system/tests/per_component_reboot_test
-  # patch: exec/firex/plugins/fp_patch/per_component_reboot_test.patch
+  patch: exec/firex/plugins/fp_patch/per_component_reboot_test.patch
   owner: arvbaska@cisco.com
   mustpass: false
   skip: false
@@ -42,6 +42,7 @@ tests:
 - name: TE-8.2 (Supervisor Failure)
   path: feature/experimental/gribi/ate_tests/supervisor_failure
   owner: mananpat@cisco.com
+  patch: exec/firex/plugins/fp_patch/supervisor_failure_test.patch
   skip: false
   mustpass: true
   priority: 20
