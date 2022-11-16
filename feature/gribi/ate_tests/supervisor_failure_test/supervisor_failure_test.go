@@ -282,7 +282,7 @@ func TestSupFailure(t *testing.T) {
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
 		DUT:         dut,
-		FibACK:      false,
+		FIBACK:      false,
 		Persistence: true,
 	}
 	defer clientA.Close(t)

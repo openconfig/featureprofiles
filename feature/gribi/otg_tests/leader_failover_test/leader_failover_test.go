@@ -284,7 +284,7 @@ func TestLeaderFailover(t *testing.T) {
 		// Set Persistence to false.
 		clientA := &gribi.Client{
 			DUT:         dut,
-			FibACK:      false,
+			FIBACK:      false,
 			Persistence: false,
 		}
 
@@ -338,7 +338,7 @@ func TestLeaderFailover(t *testing.T) {
 		// Set Persistence to true.
 		clientA := &gribi.Client{
 			DUT:         args.dut,
-			FibACK:      false,
+			FIBACK:      false,
 			Persistence: true,
 		}
 
@@ -387,7 +387,7 @@ func TestLeaderFailover(t *testing.T) {
 		// Set Persistence to true.
 		clientA := &gribi.Client{
 			DUT:         args.dut,
-			FibACK:      false,
+			FIBACK:      false,
 			Persistence: true,
 		}
 

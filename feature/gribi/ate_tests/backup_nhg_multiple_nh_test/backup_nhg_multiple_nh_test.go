@@ -195,7 +195,7 @@ func TestBackup(t *testing.T) {
 		// Configure the gRIBI client clientA
 		client := gribi.Client{
 			DUT:         dut,
-			FibACK:      false,
+			FIBACK:      false,
 			Persistence: true,
 		}
 		defer client.Close(t)

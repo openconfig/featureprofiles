@@ -300,7 +300,7 @@ func TestDUTDaemonFailure(t *testing.T) {
 		// Set Persistence to true.
 		clientA := &gribi.Client{
 			DUT:         dut,
-			FibACK:      false,
+			FIBACK:      false,
 			Persistence: true,
 		}
 
@@ -384,7 +384,7 @@ func TestDUTDaemonFailure(t *testing.T) {
 		// Set Persistence to true.
 		clientA := &gribi.Client{
 			DUT:         dut,
-			FibACK:      false,
+			FIBACK:      false,
 			Persistence: true,
 		}
 

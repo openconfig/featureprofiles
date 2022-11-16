@@ -70,7 +70,7 @@ func (i Uint128) Decrement() Uint128 {
 //
 //	c := &Client{
 //	  DUT: ondatra.DUT(t, "dut"),
-//	  FibACK: true,
+//	  FIBACK: true,
 //	  Persistence: true,
 //	}
 //	defer c.Close(t)
@@ -79,7 +79,7 @@ func (i Uint128) Decrement() Uint128 {
 //	}
 type Client struct {
 	DUT         *ondatra.DUTDevice
-	FibACK      bool
+	FIBACK      bool
 	Persistence bool
 
 	// Unexport fields below.
@@ -113,7 +113,7 @@ func (c *Client) Start(t testing.TB) error {
 	if c.Persistence {
 		conn.WithPersistence()
 	}
-	if c.FibACK {
+	if c.FIBACK {
 		conn.WithFIBACK()
 	}
 	ctx := context.Background()

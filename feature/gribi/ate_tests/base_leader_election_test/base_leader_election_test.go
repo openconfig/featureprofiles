@@ -258,7 +258,7 @@ func TestElectionIDChange(t *testing.T) {
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
 		DUT:         dut,
-		FibACK:      false,
+		FIBACK:      false,
 		Persistence: true,
 	}
 	defer clientA.Close(t)
@@ -269,7 +269,7 @@ func TestElectionIDChange(t *testing.T) {
 	// Configure the gRIBI client clientB
 	clientB := gribi.Client{
 		DUT:         dut,
-		FibACK:      false,
+		FIBACK:      false,
 		Persistence: true,
 	}
 	defer clientB.Close(t)
