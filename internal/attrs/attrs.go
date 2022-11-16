@@ -152,24 +152,23 @@ func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attri
 }
 
 // AddToDut attaches a subinterface to a network instance
-func (a *Attributes) AddToDUT(t *testing.T, dconf *ondatra.Config, i *telemetry.Interface, si uint32) {
+func (a *Attributes) SetOnDUT(t *testing.T, dconf *ondatra.Config, i *telemetry.Interface) {
 	if !*deviations.ExplicitInterfaceInVRF {
 		return
 	}
 	ni := a.NetInst
-		if ni == "" {
-			ni = *deviations.DefaultNetworkInstance
-		}
-		netInst := &telemetry.NetworkInstance{Name: ygot.String(ni)}
-		netInstIntf, err := netInst.NewInterface(i.GetName())
-		if err != nil {
-			t.Errorf("Error fetching NewInterface for %s", i.GetName())
-		}
-		netInstIntf.Interface = ygot.String(i.GetName())
-		netInstIntf.Subinterface = ygot.Uint32(si)
-		netInstIntf.Id = ygot.String(i.GetName() + "." + fmt.Sprint(si))
-		if i.GetSubinterface(si) != nil {
-			dconf.NetworkInstance(ni).Update(t, netInst)
-		}
+	if ni == "" {
+		ni = *deviations.DefaultNetworkInstance
+	}
+	netInst := &telemetry.NetworkInstance{Name: ygot.String(ni)}
+	netInstIntf, err := netInst.NewInterface(i.GetName())
+	if err != nil {
+		t.Errorf("Error fetching NewInterface for %s", i.GetName())
+	}
+	netInstIntf.Interface = ygot.String(i.GetName())
+	netInstIntf.Subinterface = ygot.Uint32(0)
+	netInstIntf.Id = ygot.String(i.GetName() + "." + fmt.Sprint(0))
+	if i.GetSubinterface(0) != nil {
+		dconf.NetworkInstance(ni).Update(t, netInst)
 	}
 }
