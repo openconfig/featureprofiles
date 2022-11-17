@@ -122,6 +122,14 @@ func TestRouteRemovelViaFlush(t *testing.T) {
 
 	clientB.Start(ctx, t)
 	defer clientB.Stop(t)
+
+	defer func() {
+		// Flush all entries after test.
+		if err := gribi.FlushAll(clientB); err != nil {
+			t.Error(err)
+		}
+	}()
+
 	clientB.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, clientB, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation: %v", err)
@@ -143,11 +151,6 @@ func TestRouteRemovelViaFlush(t *testing.T) {
 	}
 
 	testFlushWithDefaultNetworkInstance(ctx, t, args)
-
-	// Flush all entries after test.
-	if err := gribi.FlushAll(clientB); err != nil {
-		t.Error(err)
-	}
 }
 
 // testFlushWithDefaultNetWorkInstance tests flush with default network instance

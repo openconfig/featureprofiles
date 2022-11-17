@@ -378,6 +378,14 @@ func TestElectionID(t *testing.T) {
 
 	clientA.Start(ctx, t)
 	defer clientA.Stop(t)
+
+	defer func() {
+		// Flush all entries after test.
+		if err := gribi.FlushAll(clientA); err != nil {
+			t.Error(err)
+		}
+	}()
+
 	clientA.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, clientA, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation for clientA: %v", err)
@@ -406,9 +414,4 @@ func TestElectionID(t *testing.T) {
 		top:     top,
 	}
 	testIPv4LeaderActive(ctx, t, args)
-
-	// Flush all entries after test.
-	if err := gribi.FlushAll(clientA); err != nil {
-		t.Error(err)
-	}
 }

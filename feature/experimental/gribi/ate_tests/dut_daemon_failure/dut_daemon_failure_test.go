@@ -388,6 +388,9 @@ func TestDUTDaemonFailure(t *testing.T) {
 			Persistence: true,
 		}
 
+		// Flush all entries after test.
+		defer clientA.FlushAll(t)
+
 		t.Log("Re-establish gRIBI client connection")
 		if err := clientA.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection for clientA could not be re-established")
@@ -396,9 +399,6 @@ func TestDUTDaemonFailure(t *testing.T) {
 		t.Run("VerifyGRIBIGet", func(t *testing.T) {
 			verifyGRIBIGet(ctx, t, clientA)
 		})
-
-		// Flush all entries after test.
-		clientA.FlushAll(t)
 	})
 
 	t.Logf("Test run time: %s", time.Since(start))

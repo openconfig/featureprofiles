@@ -125,6 +125,14 @@ func testNextHop(
 		WithPersistence()
 	c.Start(ctx, t)
 	defer c.Stop(t)
+
+	defer func() {
+		// Flush all entries after test.
+		if err := gribi.FlushAll(c); err != nil {
+			t.Errorf("Cannot flush: %v", err)
+		}
+	}()
+
 	c.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation: %v", err)
@@ -179,11 +187,6 @@ func testNextHop(
 				outPkts[0], inSum)
 		}
 	})
-
-	// Flush all entries after test.
-	if err := gribi.FlushAll(c); err != nil {
-		t.Errorf("Cannot flush: %v", err)
-	}
 }
 
 func TestWeightedBalancing(t *testing.T) {

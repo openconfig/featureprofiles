@@ -126,6 +126,14 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got error during gribi client setup: %v", err)
 	}
+
+	defer func() {
+		// Flush all entries after test.
+		if err = gribi.FlushAll(gribic); err != nil {
+			t.Error(err)
+		}
+	}()
+
 	gribi.BecomeLeader(t, gribic)
 
 	addInterfaceRoute(ctx, t, gribic, p2ID, dut.Port(t, "port2").Name(), atePort2.IPv4)
@@ -137,11 +145,6 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	addInterfaceRoute(ctx, t, gribic, p3ID, dut.Port(t, "port3").Name(), atePort3.IPv4)
 
 	validateTrafficFlows(t, p3flow, p2flow)
-
-	// Flush all entries after test.
-	if err = gribi.FlushAll(gribic); err != nil {
-		t.Error(err)
-	}
 }
 
 // addDestinationRoute creates a GRIBI route to dstPfx via interfaceNH.

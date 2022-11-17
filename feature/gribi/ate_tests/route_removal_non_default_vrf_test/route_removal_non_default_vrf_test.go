@@ -126,6 +126,9 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 
 	defer clientB.Close(t)
 
+	// Flush all entries after test. clientA or clientB doesn't matter since we use Election Override in FlushAll.
+	defer clientB.FlushAll(t)
+
 	t.Log("Establish gRIBI clientB connection with PERSISTENCE set to TRUE")
 	if err := clientB.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection for clientB could not be established")
@@ -171,9 +174,6 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 		t.Log("After re-injecting entries, flush RPC from gRIBI-B for default VRF expected to return NON_ZERO_REFERENCE_REMAIN result.")
 		flushNonZeroReference(ctx, t, dut, clientB, ate, ateTop)
 	})
-
-	// Flush all entries after test. clientA or clientB doesn't matter since we use Election Override in FlushAll.
-	clientB.FlushAll(t)
 }
 
 // flushNonDefaultVrfPrimary issues flush request from clientA (the primary client) non default VRF should succeed.

@@ -297,6 +297,10 @@ func TestRouteAck(t *testing.T) {
 		Persistence: true,
 	}
 	defer clientA.Close(t)
+
+	// Flush all entries after test.
+	defer clientA.FlushAll(t)
+
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
@@ -312,7 +316,4 @@ func TestRouteAck(t *testing.T) {
 
 	routeAck(ctx, t, args)
 	otg.StopProtocols(t)
-
-	// Flush all entries after test.
-	clientA.FlushAll(t)
 }

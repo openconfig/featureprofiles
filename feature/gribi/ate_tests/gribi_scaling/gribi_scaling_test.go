@@ -443,6 +443,14 @@ func TestScaling(t *testing.T) {
 
 	client.Start(ctx, t)
 	defer client.Stop(t)
+
+	defer func() {
+		// Flush all entries after test.
+		if err := gribi.FlushAll(client); err != nil {
+			t.Error(err)
+		}
+	}()
+
 	client.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation for clientA: %v", err)
@@ -463,9 +471,4 @@ func TestScaling(t *testing.T) {
 	indexList := buildIndexList()
 	// pushIPv4Entries builds the scaling topology.
 	pushIPv4Entries(t, nextHops, indexList, args)
-
-	// Flush all entries after test.
-	if err := gribi.FlushAll(client); err != nil {
-		t.Error(err)
-	}
 }

@@ -600,6 +600,14 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 
 	gRIBI.Start(ctx, t)
 	defer gRIBI.Stop(t)
+
+	defer func() {
+		// Flush all gRIBI routes after test.
+		if err := gribi.FlushAll(gRIBI); err != nil {
+			t.Error(err)
+		}
+	}()
+
 	gRIBI.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, gRIBI, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation for gRIBI: %v", err)
@@ -607,8 +615,7 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	gribi.BecomeLeader(t, gRIBI)
 
 	// Flush existing gRIBI routes before test.
-	err := gribi.FlushAll(gRIBI)
-	if err != nil {
+	if err := gribi.FlushAll(gRIBI); err != nil {
 		t.Fatal(err)
 	}
 
@@ -621,10 +628,4 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	})
 
 	top.StopProtocols(t)
-
-	// Flush all gRIBI routes after test.
-	err = gribi.FlushAll(gRIBI)
-	if err != nil {
-		t.Error(err)
-	}
 }

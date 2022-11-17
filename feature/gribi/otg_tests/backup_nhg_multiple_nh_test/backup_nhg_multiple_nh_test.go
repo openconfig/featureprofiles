@@ -199,6 +199,10 @@ func TestBackup(t *testing.T) {
 			Persistence: true,
 		}
 		defer client.Close(t)
+
+		// Flush all entries after the test
+		defer client.FlushAll(t)
+
 		if err := client.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection can not be established")
 		}
@@ -216,9 +220,6 @@ func TestBackup(t *testing.T) {
 			top:    top,
 		}
 		testIPv4BackUpSwitch(ctx, t, tcArgs)
-
-		// Flush all entries after the test
-		client.FlushAll(t)
 	})
 }
 

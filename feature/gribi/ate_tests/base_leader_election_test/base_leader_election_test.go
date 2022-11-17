@@ -262,6 +262,10 @@ func TestElectionIDChange(t *testing.T) {
 		Persistence: true,
 	}
 	defer clientA.Close(t)
+
+	// Flush all entries after test. ClientA or ClientB doesn't matter since we use Election Override on FlushAll.
+	defer clientA.FlushAll(t)
+
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
@@ -287,7 +291,4 @@ func TestElectionIDChange(t *testing.T) {
 	}
 
 	testIPv4LeaderActiveChange(ctx, t, args)
-
-	// Flush all entries after test. ClientA or ClientB doesn't matter since we use Election Override on FlushAll.
-	clientA.FlushAll(t)
 }

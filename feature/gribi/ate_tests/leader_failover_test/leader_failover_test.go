@@ -372,6 +372,9 @@ func TestLeaderFailover(t *testing.T) {
 
 		defer clientA.Close(t)
 
+		// Flush all gRIBI routes.
+		defer clientA.FlushAll(t)
+
 		t.Run("DeleteRoute", func(t *testing.T) {
 			t.Logf("Delete route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
 			clientA.DeleteIPv4(t, ateDstNetCIDR, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
@@ -384,8 +387,6 @@ func TestLeaderFailover(t *testing.T) {
 				verifyNoTraffic(ctx, t, args)
 			})
 		})
-		// Flush all gRIBI routes.
-		clientA.FlushAll(t)
 	})
 
 	t.Logf("Test run time: %s", time.Since(start))

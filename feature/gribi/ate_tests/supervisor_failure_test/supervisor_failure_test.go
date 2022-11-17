@@ -286,6 +286,10 @@ func TestSupFailure(t *testing.T) {
 		Persistence: true,
 	}
 	defer clientA.Close(t)
+
+	// Flush all entries after test.
+	defer clientA.FlushAll(t)
+
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
@@ -381,7 +385,4 @@ func TestSupFailure(t *testing.T) {
 	verifyTraffic(t, args.ate, flow)
 	stopTraffic(t, args.ate)
 	top.StopProtocols(t)
-
-	// Flush all entries after test.
-	clientA.FlushAll(t)
 }
