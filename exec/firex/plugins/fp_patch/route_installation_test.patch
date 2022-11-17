@@ -1,5 +1,5 @@
 diff --git a/feature/bgp/policybase/ate_tests/route_installation_test/route_installation_test.go b/feature/bgp/policybase/ate_tests/route_installation_test/route_installation_test.go
-index 3b27d8e..ccfce2d 100644
+index 3b27d8e..7ad9e00 100644
 --- a/feature/bgp/policybase/ate_tests/route_installation_test/route_installation_test.go
 +++ b/feature/bgp/policybase/ate_tests/route_installation_test/route_installation_test.go
 @@ -15,6 +15,7 @@
@@ -148,24 +148,6 @@ index 3b27d8e..ccfce2d 100644
 +			}
  		}
  	}
- }
-@@ -377,7 +406,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
- 		WithSrcEndpoints(iDut1).
- 		WithDstEndpoints(iDut2).
- 		WithHeaders(ethHeader, ipv4Header).
--		WithFrameSize(512)
-+		WithFrameSize(512).WithFrameRateFPS(100)
- 
- 	// BGP IP V6 traffic
- 	ipv6Header := ondatra.NewIPv6Header()
-@@ -388,7 +417,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
- 		WithSrcEndpoints(iDut1).
- 		WithDstEndpoints(iDut2).
- 		WithHeaders(ethHeader, ipv6Header).
--		WithFrameSize(512)
-+		WithFrameSize(512).WithFrameRateFPS(100)
- 
- 	return []*ondatra.Flow{flowipv4, flowipv6}
  }
 @@ -462,9 +491,14 @@ func TestEstablish(t *testing.T) {
  	t.Logf("Start DUT interface Config")
