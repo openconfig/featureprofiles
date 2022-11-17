@@ -2368,7 +2368,7 @@ func fimBase(ctx context.Context, t *testing.T, args *testArgs, nhg string, ipv4
 
 func testFaultInjectNHG(ctx context.Context, t *testing.T, args *testArgs) {
 
-	//Activating faults to test failure for NHG
+	//Activating faults to test failure for NHG : FP - 33:3482356236 NHGROUP_HANDLE_PROTGRP_RDESC_OOR: Retry will occur only once Green Notification is sent
 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", true)
 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", true)
 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", false)
@@ -2378,7 +2378,7 @@ func testFaultInjectNHG(ctx context.Context, t *testing.T, args *testArgs) {
 }
 func testFaultInjectAddIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 
-	//Activating faults to test failure for AddIPv4
+	//Activating faults to test failure for AddIPv4 : FP - 3:3482356236 IPV4_ROUTE_RDESC_OOR:Route programming failure
 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", true)
 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", false)
 	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "", false, true)
@@ -2386,7 +2386,7 @@ func testFaultInjectAddIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 }
 func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 
-	//Activating faults to test failure for DeleteIPv4
+	//Activating faults to test failure for DeleteIPv4 : FP - 5:-1 IPV4_ROUTE_DELETE_FAIL:Delete fails,Default ASYNC msg sent to PI.
 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", true)
 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", false)
 	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "ipv4del", false, true)
@@ -2395,7 +2395,7 @@ func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs
 
 func testFaultInjectUpdateNHG(ctx context.Context, t *testing.T, args *testArgs) {
 
-	//Activating faults to test failure for UpdateNHG
+	//Activating faults to test failure for UpdateNHG : FP - 27:24 NHGROUP_CREATE_STAGE2_MBR_ECMP_OOR: Update on NHG fails
 	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "", false, false)
 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "27", "24", true)
 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "27", "24", false)
