@@ -1,12 +1,9 @@
 name: fp_tworps
 owner: mbagherz@cisco.com
 priority: 2
-#testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
-#binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
-#baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
-binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
-testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
-baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+binding: topologies/cisco/hw/8808_FOX2506P2QT/binding
+testbed: topologies/cisco/hw/8808_FOX2506P2QT/testbed
+baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig.proto
 tests:
 - name: gNMI-1.10 (Telemetry Basic Check) 
   path: feature/gnmi/ate_tests/telemetry_basic_check_test
