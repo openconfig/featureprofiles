@@ -242,7 +242,7 @@ func (s *TestSession) PushDUT(ctx context.Context) error {
 	// Clear ISIS Protocol
 	_, err := ygnmi.Delete(ctx, s.DUTClient, ProtocolPath().Config())
 	if err != nil {
-		return fmt.Errorf("Deleteing ISIS config before configuring test config: %w", err)
+		return fmt.Errorf("deleting ISIS config before configuring test config: %w", err)
 	}
 
 	// Configure ISIS test config on DUT
