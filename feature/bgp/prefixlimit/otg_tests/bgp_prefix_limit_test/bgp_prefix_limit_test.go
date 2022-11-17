@@ -71,6 +71,7 @@ const (
 	plenIPv6                 = 126
 	tolerance                = 50
 	lossTolerance            = 1
+        peerGrpName              = "BGP-PEER-GROUP"
 )
 
 var (
@@ -118,6 +119,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2").Name()
 	i2 := dutDst.NewInterface(p2)
 	dc.Interface(p2).Replace(t, i2)
+
+	// Configure Network instance type on DUT
+	t.Log("Configure Network Instance")
+	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	dutConfPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	dutConf := createBGPNeighbor(dutAS, ateAS, prefixLimit, grRestartTime)
@@ -250,12 +256,21 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *tele
 	bgp := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(localAs)
+	global.RouterId = ygot.String(dutSrc.IPv4)
+
+	// Note: we have to define the peer group even if we aren't setting any policy because it's
+	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
+	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
+	pg.PeerAs = ygot.Uint32(peerAs)
+	pg.PeerGroupName = ygot.String(peerGrpName)
+
 
 	for _, nbr := range nbrs {
 		if nbr.isV4 {
 			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			nv4.PeerAs = ygot.Uint32(nbr.as)
 			nv4.Enabled = ygot.Bool(true)
+			nv4.PeerGroup = ygot.String(peerGrpName)
 			nv4.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
 			afisafi := nv4.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			afisafi.Enabled = ygot.Bool(true)
@@ -265,6 +280,7 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *tele
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			nv6.PeerAs = ygot.Uint32(nbr.as)
 			nv6.Enabled = ygot.Bool(true)
+			nv6.PeerGroup = ygot.String(peerGrpName)
 			nv6.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
 			afisafi6 := nv6.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			afisafi6.Enabled = ygot.Bool(true)
