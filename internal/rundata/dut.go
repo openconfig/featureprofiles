@@ -191,7 +191,7 @@ func (di *dutInfo) shortVendor() string {
 	return strings.SplitN(fullUpper, " ", 2)[0]
 }
 
-// ciscoRE reduces model string from e.g. "CISCO xxxx n-slot Chassis" to just "xxxx".
+// ciscoRE reduces model string from e.g. "Cisco xxxx n-slot Chassis" to just "xxxx".
 var ciscoRE = regexp.MustCompile(`Cisco (.*?) .*`)
 
 // jnpRE reduces model string from e.g. "JNP10008 [PTX10008]" to just "PTX10008".
