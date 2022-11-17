@@ -234,15 +234,14 @@ tests:
   skip: false
 - name: RT-1.2 (BGP Policy and Route Installation) 
   path: feature/bgp/policybase/ate_tests/route_installation_test
+  patch: exec/firex/plugins/fp_patch/route_installation_test.patch
   owner: sprem@cisco.com
+  args:
+     - '-deviation_rpl_under_peergroup=true'
+     - '-deviation_prepolicy_received_routes=true'
   mustpass: false
   skip: false
   priority: 56
-- name: RT-1.2 (BGP Policy and Route Installation) 
-  path: feature/bgp/policybase/ate_tests/route_installation_test
-  owner: sprem@cisco.com
-  mustpass: false
-  skip: false
-  priority: 56
+  
 
 
