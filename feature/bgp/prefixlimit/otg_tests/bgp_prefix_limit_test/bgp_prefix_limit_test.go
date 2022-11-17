@@ -71,7 +71,7 @@ const (
 	plenIPv6                 = 126
 	tolerance                = 50
 	lossTolerance            = 1
-        peerGrpName              = "BGP-PEER-GROUP"
+	peerGrpName              = "BGP-PEER-GROUP"
 )
 
 var (
@@ -263,7 +263,6 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *tele
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
 	pg.PeerAs = ygot.Uint32(peerAs)
 	pg.PeerGroupName = ygot.String(peerGrpName)
-
 
 	for _, nbr := range nbrs {
 		if nbr.isV4 {
