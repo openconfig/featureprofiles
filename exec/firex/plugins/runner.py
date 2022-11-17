@@ -29,7 +29,9 @@ FP_REPO_CLONE_INFO = CloneInfo('git@wwwin-github.cisco.com:B4Test/featureprofile
 
 ONDATRA_PATCHES = [
     'exec/firex/plugins/ondatra/0001-windows-ixia-path.patch', 
-    'exec/firex/plugins/ondatra/0002-disable-log.patch'
+    'exec/firex/plugins/ondatra/0002-disable-log.patch',
+    'exec/firex/plugins/ondatra/tmp-disable-close-send.patch'
+
 ]
 
 ONDATRA_SIM_PATCHES = [
@@ -37,7 +39,7 @@ ONDATRA_SIM_PATCHES = [
 ]
 
 FP_PATCHES = [
-    ''
+
 ]
 
 whitelist_arguments([
