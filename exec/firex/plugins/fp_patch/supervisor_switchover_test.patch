@@ -1,8 +1,15 @@
 diff --git a/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go b/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
-index 96cab53a..657d4283 100644
+index 96cab53a..de351163 100644
 --- a/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
 +++ b/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
-@@ -26,7 +26,6 @@ import (
+@@ -20,13 +20,13 @@ import (
+ 	"time"
+ 
+ 	"github.com/openconfig/featureprofiles/internal/components"
++	"github.com/openconfig/featureprofiles/internal/deviations"
+ 	"github.com/openconfig/featureprofiles/internal/fptest"
+ 	"github.com/openconfig/ondatra"
+ 	"github.com/openconfig/ondatra/telemetry"
  	"github.com/openconfig/testt"
  
  	spb "github.com/openconfig/gnoi/system"
@@ -10,7 +17,23 @@ index 96cab53a..657d4283 100644
  )
  
  const (
-@@ -94,10 +93,9 @@ func TestSupervisorSwitchover(t *testing.T) {
+@@ -70,13 +70,13 @@ func TestMain(m *testing.M) {
+ func TestSupervisorSwitchover(t *testing.T) {
+ 	dut := ondatra.DUT(t, "dut")
+ 
+-	supervisors := components.FindComponentsByType(t, dut, controlcardType)
++	//supervisors := components.FindComponentsByType(t, dut, controlcardType)
++	supervisors := []string{"0/RP0/CPU0","0/RP1/CPU0"}
+ 	t.Logf("Found supervisor list: %v", supervisors)
+ 	// Only perform the switchover for the chassis with dual RPs/Supervisors.
+ 	if got, want := len(supervisors), 2; got != want {
+ 		t.Skipf("Dual RP/SUP is required on %v: got %v, want %v", dut.Model(), got, want)
+ 	}
+-
+ 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, supervisors)
+ 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
+ 
+@@ -94,10 +94,9 @@ func TestSupervisorSwitchover(t *testing.T) {
  	}
  
  	gnoiClient := dut.RawAPIs().GNOI().New(t)
@@ -23,3 +46,26 @@ index 96cab53a..657d4283 100644
  	}
  	t.Logf("switchoverRequest: %v", switchoverRequest)
  	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+@@ -107,7 +106,13 @@ func TestSupervisorSwitchover(t *testing.T) {
+ 	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+ 
+ 	want := rpStandbyBeforeSwitch
+-	if got := switchoverResponse.GetControlProcessor().GetElem()[0].GetName(); got != want {
++	got:= ""
++	if *deviations.GNOISubcomponentPath {
++		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
++	} else {
++		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
++	}
++	if got != want {
+ 		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
+ 	}
+ 	if got, want := switchoverResponse.GetVersion(), ""; got == want {
+@@ -147,6 +152,7 @@ func TestSupervisorSwitchover(t *testing.T) {
+ 		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
+ 	}
+ 
++	time.Sleep(60 * time.Second)
+ 	batch := dut.Telemetry().NewBatch()
+ 	for _, port := range intfsOperStatusUPBeforeSwitch {
+ 		dut.Telemetry().Interface(port).OperStatus().Batch(t, batch)
