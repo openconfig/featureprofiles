@@ -1,0 +1,25 @@
+diff --git a/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go b/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
+index 326e720e..b2c05e39 100644
+--- a/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
++++ b/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
+@@ -31,7 +31,6 @@ import (
+ 	"github.com/openconfig/ygot/ygot"
+ 
+ 	spb "github.com/openconfig/gnoi/system"
+-	tpb "github.com/openconfig/gnoi/types"
+ )
+ 
+ func TestMain(m *testing.M) {
+@@ -323,10 +322,9 @@ func TestSupFailure(t *testing.T) {
+ 	}
+ 
+ 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
++	compPath := cmp.GetSubcomponentPath(secondaryBeforeSwitch)
+ 	switchoverRequest := &spb.SwitchControlProcessorRequest{
+-		ControlProcessor: &tpb.Path{
+-			Elem: []*tpb.PathElem{{Name: secondaryBeforeSwitch}},
+-		},
++		ControlProcessor: compPath,
+ 	}
+ 	t.Logf("switchoverRequest: %v", switchoverRequest)
+ 	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)

@@ -11,6 +11,7 @@ custom:
       ports:  
         ssh:
           port: 22
+          opts:  ["skip_verify"]
         telnet:
           port: 23
         gnmi:
@@ -18,6 +19,13 @@ custom:
           opts:  ["insecure", "skip_verify"]
         gnoi:
           port: 57777
+          opts:  ["insecure", "skip_verify"]
+        gribi:
+          port: 57777
+          opts:  ["insecure", "skip_verify"]
+        p4rt:
+          port: 57777
+          opts:  ["insecure", "skip_verify"]
     peer:    
       model: CISCO_XRD
       ports:  
@@ -30,16 +38,27 @@ custom:
           opts:  ["insecure", "skip_verify"]
         gnoi:
           port: 57777
+          opts:  ["insecure", "skip_verify"]
+        gribi:
+          port: 57777
+          opts:  ["insecure", "skip_verify"]
+        p4rt:
+          port: 57777
+          opts:  ["insecure", "skip_verify"]
     ate:   
       model: IXIA_TG 
       session: 1
       ports:  
         ixnetwork:
+          # windoes ixia config
           port: 11009
           session_id: 1
-          username: admin
-          password: admin
           opts:  ["skip_verify"]
+          # linux ixia config
+          #port: 443
+          #username: admin
+          #password: admin
+          #opts:  ["skip_verify"]
 devices:
   dut:
     platform: spitfire_d

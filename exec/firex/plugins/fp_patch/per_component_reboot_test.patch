@@ -1,0 +1,34 @@
+diff --git a/feature/gnoi/system/tests/per_component_reboot_test/per_component_reboot_test.go b/feature/gnoi/system/tests/per_component_reboot_test/per_component_reboot_test.go
+index f5a2ad14..5d248900 100644
+--- a/feature/gnoi/system/tests/per_component_reboot_test/per_component_reboot_test.go
++++ b/feature/gnoi/system/tests/per_component_reboot_test/per_component_reboot_test.go
+@@ -90,12 +90,11 @@ func TestStandbyControllerCardReboot(t *testing.T) {
+ 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandby, rpActive)
+ 
+ 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
++	compPath := components.GetSubcomponentPath(rpStandby)
+ 	rebootSubComponentRequest := &spb.RebootRequest{
+ 		Method: spb.RebootMethod_COLD,
+ 		Subcomponents: []*tpb.Path{
+-			{
+-				Elem: []*tpb.PathElem{{Name: rpStandby}},
+-			},
++			compPath,
+ 		},
+ 	}
+ 
+@@ -147,12 +146,11 @@ func TestLinecardReboot(t *testing.T) {
+ 	}
+ 
+ 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
++	lineCardPath := components.GetSubcomponentPath(removableLinecard)
+ 	rebootSubComponentRequest := &spb.RebootRequest{
+ 		Method: spb.RebootMethod_COLD,
+ 		Subcomponents: []*tpb.Path{
+-			{
+-				Elem: []*tpb.PathElem{{Name: removableLinecard}},
+-			},
++				lineCardPath,
+ 		},
+ 	}
+ 

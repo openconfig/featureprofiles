@@ -63,6 +63,14 @@ var (
 var (
 	firexSuiteTemplate = template.Must(template.New("firexTestSuite").Funcs(template.FuncMap{
 		"join": strings.Join,
+		"hasDeviation": func(gt GoTest) bool {
+			for _, arg := range gt.Args {
+				if strings.HasPrefix(arg, "-deviation") {
+					return true
+				}
+			}
+			return false
+		},
 	}).Parse(`
 {{- range $i, $ft := $.TestSuite }}
 {{- range $j, $gt := $ft.Tests}}
@@ -99,7 +107,7 @@ var (
             {{- end }}
         {{- end }}
     script_paths:
-        - ({{ $gt.ID }}) {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}:
+        - ({{ $gt.ID }}) {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}{{ if hasDeviation $gt }} (Deviation){{ end }}:
             test_path: {{ $gt.Path }}
             {{- if $gt.Args }}
             test_args: {{ join $gt.Args " " }}

@@ -157,21 +157,17 @@ func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instan
 }
 
 // CheckAftNH checks a next-hop against the cached configuration
-func (c *Client) CheckAftNH(t testing.TB, instance string, programmedIndex, index uint64) bool {
+func (c *Client) CheckAftNH(t testing.TB, instance string, programmedIndex, index uint64) {
 	time.Sleep(time.Duration(*ciscoFlags.GRIBIAFTChainCheckWait) * time.Second)
 	want := c.getAft(instance).NextHop[programmedIndex]
 	got := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(index).Get(t)
-	if *want.IpAddress != *got.IpAddress {
-		return false
-	}
 
 	diff := cmp.Diff(want, got,
 		cmpopts.IgnoreFields(telemetry.NetworkInstance_Afts_NextHop{}, []string{
 			"Index", "ProgrammedIndex", "InterfaceRef",
 		}...))
 	if len(diff) > 0 {
-		t.Logf("AFT Check for aft/next-hop-group/next-hop: %s", diff)
-		return false
+		t.Fatalf("AFT Chain Check for aft/next-hop-group/next-hop: %s", diff)
 	}
 
 	if want.IpAddress != nil {
@@ -186,7 +182,6 @@ func (c *Client) CheckAftNH(t testing.TB, instance string, programmedIndex, inde
 			}
 		}
 	}
-	return true
 }
 
 // CheckAftNHG checks a next-hop-group against the cached configuration
@@ -200,29 +195,29 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uin
 			"Id", "ProgrammedId", "NextHop", "BackupNextHopGroup",
 		}...))
 	if len(diff) > 0 {
-		t.Errorf("AFT Check failed for aft/next-hop-group. Diff:\n%s", diff)
+		t.Fatalf("AFT Chain Check failed for aft/next-hop-group. Diff:\n%s", diff)
 	}
 
 	for wantIdx, wantNh := range want.NextHop {
 		found := false
-		//TODO: match based on programmed-index (CSCwc54597)
-		for gotIdx, gotNh := range got.NextHop {
-			if c.CheckAftNH(t, instance, wantIdx, gotIdx) {
-				found = true
-			}
 
-			if found {
+		for gotIdx, gotNh := range got.NextHop {
+			nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(gotIdx).Get(t)
+			if *nh.ProgrammedIndex == wantIdx {
+				found = true
+
 				// if there is only 1 NH we need to ignore this check as fib doesn't store weight
 				if len(got.NextHop) > 1 && *wantNh.Weight != *gotNh.Weight {
-					t.Logf("AFT Check for aft/next-hop-group/next-hop/state/weight got %d, want %d", *gotNh.Weight, *wantNh.Weight)
-					found = false
+					t.Fatalf("AFT Chain Check for aft/next-hop-group/next-hop/state/weight got %d, want %d", *gotNh.Weight, *wantNh.Weight)
 				} else {
 					break
 				}
+
+				c.CheckAftNH(t, instance, wantIdx, gotIdx)
 			}
 		}
 		if !found {
-			t.Errorf("AFT Check failed for aft/next-hop-group/next-hop got none")
+			t.Fatalf("AFT Chain Check failed for aft/next-hop-group/next-hop got none")
 		}
 	}
 
@@ -242,7 +237,7 @@ func (c *Client) CheckAftIPv4(t testing.TB, instance, prefix string) {
 			"NextHopGroup", "NextHopGroupNetworkInstance",
 		}...))
 	if len(diff) > 0 {
-		t.Errorf("AFT Check failed for aft/ipv4-entry. Diff:\n%s", diff)
+		t.Fatalf("AFT Chain Check failed for aft/ipv4-entry. Diff:\n%s", diff)
 	}
 
 	//TODO: use next-hop-group-networkinstance instead of default (*ciscoFlags.DefaultNetworkInstance) and remove it from ignore (CSCwc57921)
@@ -297,15 +292,16 @@ func (c *Client) AftRemoveIPv4(t testing.TB, instance, prefix string) {
 
 	time.Sleep(time.Duration(*ciscoFlags.GRIBIRemoveTimer) * time.Second)
 
-	// c.getAft(instance).DeleteIpv4Entry(prefix)
+	c.getAft(instance).DeleteIpv4Entry(prefix)
 	changed := true
 
 	for changed {
+		time.Sleep(time.Duration(*ciscoFlags.GRIBIRemoveTimer) * time.Second)
+
 		changed = false
 		for _, aft := range c.getCurrentAftConfig() {
 			for nhIdx, nh := range aft.NextHop {
-				//TODO: is this sufficient?
-				if strings.Compare(prefix, *nh.IpAddress) == 0 {
+				if strings.HasPrefix(prefix, *nh.IpAddress) {
 					aft.DeleteNextHop(nhIdx)
 					changed = true
 				}
@@ -332,7 +328,7 @@ func (c *Client) AftRemoveIPv4(t testing.TB, instance, prefix string) {
 				}
 
 				if _, found := c.getAft(nhgInst).NextHopGroup[*ipv4e.NextHopGroup]; !found {
-					aft.DeleteIpv4Entry(*ipv4e.Prefix)
+					c.AftRemoveIPv4(t, nhgInst, *ipv4e.Prefix)
 					changed = true
 				}
 			}

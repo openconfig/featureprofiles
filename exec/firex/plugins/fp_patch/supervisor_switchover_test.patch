@@ -1,0 +1,25 @@
+diff --git a/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go b/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
+index 96cab53a..657d4283 100644
+--- a/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
++++ b/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
+@@ -26,7 +26,6 @@ import (
+ 	"github.com/openconfig/testt"
+ 
+ 	spb "github.com/openconfig/gnoi/system"
+-	tpb "github.com/openconfig/gnoi/types"
+ )
+ 
+ const (
+@@ -94,10 +93,9 @@ func TestSupervisorSwitchover(t *testing.T) {
+ 	}
+ 
+ 	gnoiClient := dut.RawAPIs().GNOI().New(t)
++	compPath := components.GetSubcomponentPath(rpStandbyBeforeSwitch)
+ 	switchoverRequest := &spb.SwitchControlProcessorRequest{
+-		ControlProcessor: &tpb.Path{
+-			Elem: []*tpb.PathElem{{Name: rpStandbyBeforeSwitch}},
+-		},
++		ControlProcessor: compPath, 
+ 	}
+ 	t.Logf("switchoverRequest: %v", switchoverRequest)
+ 	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)

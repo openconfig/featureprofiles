@@ -8,9 +8,8 @@ tests:
 - name: gNOI-4.1 (Software Upgrade) 
   path: feature/gnoi/os/tests/osinstall
   patch: exec/firex/plugins/fp_patch/osinstall_test.patch
-  #args:
-  #    - '-deviation_osactiavte_requires_reboot="true"'
-  #    - '-deviation_no_osinstall_for_standby_rp="true"'
+  args:
+     - '-deviation_no_osinstall_for_standby_rp="true"'
   owner: agvarghe@cisco.com
   priority: 100
   mustpass: true
@@ -41,12 +40,20 @@ tests:
   owner: sprem@cisco.com
   priority: 6
   mustpass: true
+- name: P4RT-5.2 (Traceroute Packetout)
+  path: feature/experimental/p4rt/ate_tests/traceroute_packetout_test/packetout_test.go
+  args:
+    - '-p4rt_node_name="0/RP0/CPU0/0"'
+  skip: false
+  owner: sprem@cisco.com
+  priority: 6
+  mustpass: true
 - name: gNMI-1.1 (cli Origin) 
   path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 25
-- name: gNMI-1.12 (Mixed OpenConfig/CLI Origin) 
+- name: gNMI-1.12 (Mixed OpenConfig or CLI Origin) 
   path: feature/system/gnmi/cliorigin/ate_tests/mixed_oc_cli_origin_support_test
   #patch: exec/firex/plugins/fp_patch/mixed_oc_cli_origin_support_test.patch
   owner: agvarghe@cisco.com
@@ -70,7 +77,7 @@ tests:
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 29
-- name: RT-3.2 (Multiple <Protocol, DSCP> Rules for VRF Selection) 
+- name: RT-3.2 (Multiple Protocol-DSCP Rules for VRF Selection) 
   path: feature/experimental/policy/policy_vrf_selection/ate_tests/protocol_dscp_rules_for_vrf_selection_test
   owner: sprem@cisco.com
   mustpass: true
@@ -149,6 +156,7 @@ tests:
   priority: 42
 - name: SEC-3.1 (Authentication) 
   path: feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test
+  patch: exec/firex/plugins/fp_patch/tls_authentication_over_grpc_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
   skip: false
@@ -157,13 +165,14 @@ tests:
   path: feature/system/gnmi/get/tests
   patch: exec/firex/plugins/fp_patch/get_test.patch
   owner: agvarghe@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 44
 - name: FP_GNMI_NTP
   path: feature/system/ntp/tests
-  patch: exec/firex/plugins/fp_patch/system_ntp_test.patch
   owner: agvarghe@cisco.com
-  mustpass: false
+  args:
+       - '-deviation_ntp_association_type_required="true"'
+  mustpass: true
   priority: 45
 - name: FP_GNMI_System
   path: feature/system/tests
@@ -178,19 +187,21 @@ tests:
   skip: false
 - name: RT-2.2 (IS-IS LSP Updates) 
   path: feature/experimental/isis/ate_tests/lsp_updates_test
-  owner: sprem@cisco.com
+  patch: exec/firex/plugins/fp_patch/lsp_updates_test.patch
+  owner: mananpat@cisco.com
   mustpass: false
   priority: 48
   skip: false
 - name: RT-2.1 (Base IS-IS Process and Adjacencies) 
   path: feature/experimental/isis/ate_tests/base_adjacencies_test
-  owner: sprem@cisco.com
+  patch: exec/firex/plugins/fp_patch/base_adjacencies_test.patch
+  owner: mananpat@cisco.com
   mustpass: false
   priority: 49
   skip: false
 - name: RT-6.1 (Core LLDP TLV Population) 
   path: feature/lldp/tests/core_lldp_tlv_population_test
-  patch: exec/firex/plugins/fp_patch/chassis_reboot_status_and_cancel_test.patch
+  patch: exec/firex/plugins/fp_patch/core_lldp_tlv_population_test.patch
   owner: agvarghe@cisco.com
   skip: true
   mustpass: false 
@@ -203,6 +214,7 @@ tests:
   skip: false
 - name: RT-1.5 (BGP Prefix Limit) 
   path: feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test
+  patch: exec/firex/plugins/fp_patch/bgp_prefix_limit_test.patch
   owner: sprem@cisco.com
   mustpass: false
   priority: 53
@@ -215,17 +227,18 @@ tests:
   skip: false
 - name: RT-1.7 (Local BGP Test) 
   path: feature/bgp/tests/local_bgp_test
+  patch: exec/firex/plugins/fp_patch/local_bgp_test.patch
   owner: sprem@cisco.com
   mustpass: false
   priority: 55
   skip: false
-- name: RT-1.2 (BGP Policy & Route Installation) 
+- name: RT-1.2 (BGP Policy and Route Installation) 
   path: feature/bgp/policybase/ate_tests/route_installation_test
   owner: sprem@cisco.com
   mustpass: false
   skip: false
   priority: 56
-- name: RT-1.2 (BGP Policy & Route Installation) 
+- name: RT-1.2 (BGP Policy and Route Installation) 
   path: feature/bgp/policybase/ate_tests/route_installation_test
   owner: sprem@cisco.com
   mustpass: false
