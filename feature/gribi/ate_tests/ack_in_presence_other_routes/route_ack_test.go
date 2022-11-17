@@ -266,7 +266,7 @@ func TestRouteAck(t *testing.T) {
 	defer clientA.Close(t)
 
 	// Flush all entries after test.
-	clientA.FlushAll(t)
+	defer clientA.FlushAll(t)
 
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
