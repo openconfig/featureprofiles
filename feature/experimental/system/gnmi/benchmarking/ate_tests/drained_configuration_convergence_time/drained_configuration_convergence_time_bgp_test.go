@@ -134,10 +134,10 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice) {
 		PeerGroup(setup.PeerGrpName).ApplyPolicy().ExportPolicy()
 
 	// Build wantArray to compare the diff
-	var wantArray []uint32
-	for i := 0; i < setup.RouteCount; i++ {
-		wantArray = append(wantArray, bgpMed)
-	}
+	//var wantArray []uint32
+	//for i := 0; i < setup.RouteCount; i++ {
+	//	wantArray = append(wantArray, bgpMed)
+	//}
 
 	// Start the timer.
 	start := time.Now()
