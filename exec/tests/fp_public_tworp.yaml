@@ -37,7 +37,7 @@ tests:
   skip: false
   priority: 40
 - name: TE-8.2 (Supervisor Failure)
-  path: feature/experimental/gribi/ate_tests/supervisor_failure
+  path: feature/gribi/ate_tests/supervisor_failure_test
   owner: mananpat@cisco.com
   patch: exec/firex/plugins/fp_patch/supervisor_failure_test.patch
   skip: false
