@@ -234,7 +234,7 @@ func TestBasic(t *testing.T) {
 		// Note: This is not a subtest because a failure here means checking the
 		//   rest of the counters is pointless - none of them will change if we
 		//   haven't been exchanging IS-IS messages.
-                deadline = time.Now().Add(time.Minute)
+		deadline = time.Now().Add(time.Minute)
 		for _, vd := range []check.Validator{
 			check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
 			check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
