@@ -41,25 +41,24 @@ const (
 	bgpMed                 = 25
 )
 
-// configureSetMED function us used to configure routing policy to set MED on DUT
+// setMED is used to configure routing policy to set MED on DUT
 // TODO : SetMED is not supported: https://github.com/openconfig/featureprofiles/issues/759
-func configureSetMED(t *testing.T) {
+func setMED(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	// clear existing policies on dut
 	dut.Config().RoutingPolicy().Replace(t, nil)
 	d := &telemetry.Device{}
 	rp := d.GetOrCreateRoutingPolicy()
-	pdef5 := rp.GetOrCreatePolicyDefinition(setMedPolicy)
-	actions5 := pdef5.GetOrCreateStatement(aclStatement3).GetOrCreateActions()
-	// TODO : SetMED is not supported: https://github.com/openconfig/featureprofiles/issues/759
+	//pdef5 := rp.GetOrCreatePolicyDefinition(setMedPolicy)
+	//actions5 := pdef5.GetOrCreateStatement(aclStatement3).GetOrCreateActions()
 	//setMedBGP := actions5.GetOrCreateBgpActions()
+	// TODO : SetMED is not supported: https://github.com/openconfig/featureprofiles/issues/759
 	//setMedBGP.SetMed = ygot.Uint32(bgpMed)
-	actions5.PolicyResult = telemetry.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	dut.Config().RoutingPolicy().Replace(t, rp)
 }
 
-// configureSetASPath function is used to configure route policy set-as-path prepend on DUT
-func configureSetASPath(t *testing.T, dut *ondatra.DUTDevice) {
+// setASPath is used to configure route policy set-as-path prepend on DUT
+func setASPath(t *testing.T, dut *ondatra.DUTDevice) {
 	//clear existing policies on dut
 	dut.Config().RoutingPolicy().Replace(t, nil)
 	d := &telemetry.Device{}
@@ -69,7 +68,6 @@ func configureSetASPath(t *testing.T, dut *ondatra.DUTDevice) {
 	aspend := actions5.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
 	aspend.Asn = ygot.Uint32(setup.DutAS)
 	aspend.RepeatN = ygot.Uint8(asPathRepeatValue)
-	actions5.PolicyResult = telemetry.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	dut.Config().RoutingPolicy().Replace(t, rp)
 }
 
@@ -100,10 +98,21 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice) {
 
 			statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).
 				Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-			prefixesv4 := statePath.Neighbor(setup.AteIPPool[ap.ID()].String()).
-				AfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-			if gotSent := prefixesv4.Sent().Get(t); gotSent < setup.RouteCount {
-				t.Errorf("Sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.AteIPPool[ap.ID()].String(), gotSent, setup.RouteCount)
+		prefixLoop:
+			for repeat := 4; repeat > 0; repeat-- {
+				prefixesv4 := statePath.Neighbor(setup.AteIPPool[ap.ID()].String()).
+					AfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
+				gotSent := prefixesv4.Sent().Get(t)
+				switch {
+				case gotSent == setup.RouteCount:
+					t.Logf("prefixes sent from ingress port are learnt at ATE dst port : %v", setup.AteIPPool[ap.ID()].String())
+					break prefixLoop
+				case repeat > 0 && gotSent < setup.RouteCount:
+					t.Logf("all the prefixes are not learnt , wait for 5 secs before retry.. got %v, want %v", gotSent, setup.RouteCount)
+					time.Sleep(time.Second * 5)
+				case repeat == 0 && gotSent < setup.RouteCount:
+					t.Errorf("Sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.AteIPPool[ap.ID()].String(), gotSent, setup.RouteCount)
+				}
 			}
 
 			// TODO: https://github.com/openconfig/ondatra/issues/45
@@ -153,12 +162,21 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice) {
 
 			statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).
 				Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-			prefixesv4 := statePath.Neighbor(setup.AteIPPool[ap.ID()].String()).
-				AfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-			if gotSent := prefixesv4.Sent().Get(t); gotSent < setup.RouteCount {
-				t.Errorf("Sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.AteIPPool[ap.ID()].String(), gotSent, setup.RouteCount)
-			} else {
-				t.Logf("received prefixes on ATE: %v", gotSent)
+		prefixLoop:
+			for repeat := 4; repeat > 0; repeat-- {
+				prefixesv4 := statePath.Neighbor(setup.AteIPPool[ap.ID()].String()).
+					AfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
+				gotSent := prefixesv4.Sent().Get(t)
+				switch {
+				case gotSent == setup.RouteCount:
+					t.Logf("prefixes sent from ingress port are learnt at ATE dst port : %v", setup.AteIPPool[ap.ID()].String())
+					break prefixLoop
+				case repeat > 0 && gotSent < setup.RouteCount:
+					t.Logf("all the prefixes are not learnt , wait for 5 secs before retry.. got %v, want %v", gotSent, setup.RouteCount)
+					time.Sleep(time.Second * 5)
+				case repeat == 0 && gotSent < setup.RouteCount:
+					t.Errorf("Sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.AteIPPool[ap.ID()].String(), gotSent, setup.RouteCount)
+				}
 			}
 
 			/*rib := at.NetworkInstance(ap.Name()).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, fmt.Sprintf("bgp-%s", ap.Name())).Bgp().Rib()
@@ -218,18 +236,19 @@ func TestBGPBenchmarking(t *testing.T) {
 	dutPolicyConfPath.ExportPolicy().Delete(t)
 	dut.Config().RoutingPolicy().Delete(t)
 
-	t.Logf("Configure MED routing policy")
-	configureSetMED(t)
+	// TODO : SetMED is not supported: https://github.com/openconfig/featureprofiles/issues/759
+	/*t.Logf("Configure MED routing policy")
+	setMED(t)
 
 	t.Logf("Verify time taken to apply MED to all routes in bgp rib")
-	verifyBGPSetMED(t, dut)
+	verifyBGPSetMED(t, dut)*/
 
 	// Cleanup existing policy details
 	dutPolicyConfPath.ExportPolicy().Replace(t, nil)
 	dut.Config().RoutingPolicy().Replace(t, nil)
 
 	t.Logf("Configure SET-AS-PATH routing policy")
-	configureSetASPath(t, dut)
+	setASPath(t, dut)
 
 	t.Logf("Verify time taken to apply SET-AS-PATH to all routes in bgp rib")
 	verifyBGPAsPath(t, dut)
