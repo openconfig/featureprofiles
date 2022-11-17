@@ -49,11 +49,12 @@ func setMED(t *testing.T) {
 	dut.Config().RoutingPolicy().Replace(t, nil)
 	d := &telemetry.Device{}
 	rp := d.GetOrCreateRoutingPolicy()
-	//pdef5 := rp.GetOrCreatePolicyDefinition(setMedPolicy)
-	//actions5 := pdef5.GetOrCreateStatement(aclStatement3).GetOrCreateActions()
+	pdef5 := rp.GetOrCreatePolicyDefinition(setMedPolicy)
+	actions5 := pdef5.GetOrCreateStatement(aclStatement3).GetOrCreateActions()
 	//setMedBGP := actions5.GetOrCreateBgpActions()
 	// TODO : SetMED is not supported: https://github.com/openconfig/featureprofiles/issues/759
 	//setMedBGP.SetMed = ygot.Uint32(bgpMed)
+	actions5.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(100)
 	dut.Config().RoutingPolicy().Replace(t, rp)
 }
 
@@ -237,11 +238,11 @@ func TestBGPBenchmarking(t *testing.T) {
 	dut.Config().RoutingPolicy().Delete(t)
 
 	// TODO : SetMED is not supported: https://github.com/openconfig/featureprofiles/issues/759
-	/*t.Logf("Configure MED routing policy")
+	t.Logf("Configure MED routing policy")
 	setMED(t)
 
 	t.Logf("Verify time taken to apply MED to all routes in bgp rib")
-	verifyBGPSetMED(t, dut)*/
+	verifyBGPSetMED(t, dut)
 
 	// Cleanup existing policy details
 	dutPolicyConfPath.ExportPolicy().Replace(t, nil)
