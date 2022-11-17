@@ -22,6 +22,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/raw"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -150,7 +151,7 @@ func TestListDelete(t *testing.T) {
 	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
 	gnoiClient2 := dut2.RawAPIs().GNOI().Default(t)
 
-	clients := []ondatra.GNOI{gnoiClient1, gnoiClient2}
+	clients := []raw.GNOI{gnoiClient1, gnoiClient2}
 	for i, client := range clients {
 		t.Logf("Check client: %d", i+1)
 		listResp, err := client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
@@ -311,7 +312,7 @@ func TestLinkQualification(t *testing.T) {
 		t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
 		time.Sleep(sleepTime)
 		testDone := true
-		for i, client := range []ondatra.GNOI{gnoiClient1, gnoiClient2} {
+		for i, client := range []raw.GNOI{gnoiClient1, gnoiClient2} {
 			t.Logf("Check client: %d", i+1)
 
 			listResp, err := client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
@@ -339,7 +340,7 @@ func TestLinkQualification(t *testing.T) {
 		Ids: []string{plqID},
 	}
 
-	for i, client := range []ondatra.GNOI{gnoiClient1, gnoiClient2} {
+	for i, client := range []raw.GNOI{gnoiClient1, gnoiClient2} {
 		t.Logf("Check client: %d", i+1)
 		getResp, err := client.LinkQualification().Get(context.Background(), getRequest)
 		t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
