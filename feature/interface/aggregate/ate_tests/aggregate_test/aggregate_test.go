@@ -259,12 +259,12 @@ func (tc *testCase) configureATE(t *testing.T) {
 	agg.WithLAG(lag)
 
 	// Disable FEC for 100G-FR ports because Novus does not support it.
-	if p0.PMD() == ondatra.PMD100GFR {
+	if p0.PMD() == ondatra.PMD100GBASEFR {
 		i0.Ethernet().FEC().WithEnabled(false)
 	}
 	is100gfr := false
 	for _, p := range tc.atePorts[1:] {
-		if p.PMD() == ondatra.PMD100GFR {
+		if p.PMD() == ondatra.PMD100GBASEFR {
 			is100gfr = true
 		}
 	}
@@ -391,6 +391,9 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 				t.Logf("Awaiting DUT port down: %v", dp)
 				dip.OperStatus().Await(t, time.Minute, opDown)
 				t.Log("Port is down.")
+			}
+			if *deviations.InterfaceOperStatus && tf.want == telemetry.Interface_OperStatus_LOWER_LAYER_DOWN {
+				tf.want = opDown
 			}
 			tc.dut.Telemetry().Interface(tc.aggID).OperStatus().Await(t, 1*time.Minute, tf.want)
 		})

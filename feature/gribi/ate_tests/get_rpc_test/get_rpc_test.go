@@ -318,11 +318,11 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	// are returned, with no entry returned for 198.51.100.192/64.
 	dc := args.dut.Config()
 	ni := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC")
+		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	static := &telemetry.NetworkInstance_Protocol_Static{
 		Prefix: ygot.String(staticCIDR),
 	}
-	static.GetOrCreateNextHop("AUTO_0").NextHop = telemetry.UnionString(atePort2.IPv4)
+	static.GetOrCreateNextHop("0").NextHop = telemetry.UnionString(atePort2.IPv4)
 	ni.Static(staticCIDR).Replace(t, static)
 	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {
