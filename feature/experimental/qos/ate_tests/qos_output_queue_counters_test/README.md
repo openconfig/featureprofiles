@@ -12,6 +12,7 @@ Validate QoS interface output queue counters.
     *   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
     *   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
     *   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
+    *   /qos/interfaces/interface/output/queues/queue/state/dropped-octets
     
 ## Config Parameter coverage
 
@@ -24,3 +25,4 @@ Validate QoS interface output queue counters.
 *   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
 *   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
 *   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
+*   /qos/interfaces/interface/output/queues/queue/state/dropped-octets

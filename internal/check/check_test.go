@@ -118,6 +118,11 @@ func (fg *fakeGNMI) stubChildTwo(updates ...update) {
 					},
 				},
 			})
+			fg.gen.Responses = append(fg.gen.Responses, &gpb.SubscribeResponse{
+				Response: &gpb.SubscribeResponse_SyncResponse{
+					SyncResponse: true,
+				},
+			})
 		}
 	}
 }
@@ -242,7 +247,7 @@ func TestAwait(t *testing.T) {
 	}, {
 		desc:        "Too slow",
 		validator:   check.Equal(query, "correct"),
-		updates:     []update{{"wrong", 0}, {"correct", time.Hour}},
+		updates:     []update{{"wrong", 0}, {"wrong", 1}, {"wrong", 2}, {"correct", time.Hour}},
 		errIncludes: []string{childTwoStatePath, "wrong", "correct", "deadline"},
 	}, {
 		desc:        "Too slow/multiple values",
@@ -255,7 +260,7 @@ func TestAwait(t *testing.T) {
 		errIncludes: []string{childTwoStatePath, "EOF"},
 	}}
 	for _, tc := range testCases {
-		t.Run(tc.desc+": AwaitFor", func(t *testing.T) {
+		t.Run(tc.desc+"/AwaitFor", func(t *testing.T) {
 			fakeGNMI.stubChildTwo(tc.updates...)
 			gotErr := tc.validator.AwaitFor(time.Millisecond*50, c)
 			if len(tc.errIncludes) > 0 {
@@ -266,7 +271,7 @@ func TestAwait(t *testing.T) {
 				t.Errorf("Unexpected error: %v", gotErr)
 			}
 		})
-		t.Run(tc.desc+": AwaitUntil", func(t *testing.T) {
+		t.Run(tc.desc+"/AwaitUntil", func(t *testing.T) {
 			fakeGNMI.stubChildTwo(tc.updates...)
 			gotErr := tc.validator.AwaitUntil(time.Now().Add(time.Millisecond*50), c)
 			if len(tc.errIncludes) > 0 {
@@ -290,17 +295,17 @@ func TestContext(t *testing.T) {
 	t.Run("Canceled context", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(ctx)
 		cancel()
-		gotErr := vd.Await(ctx, c)
-		if err := errContainsAll(gotErr, []string{childTwoStatePath, "canceled"}); err != nil {
-			t.Error(err)
+		err := vd.Await(ctx, c)
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
 		}
 	})
 	t.Run("Past context", func(t *testing.T) {
 		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(-time.Hour))
 		defer cancel()
-		gotErr := vd.Await(ctx, c)
-		if err := errContainsAll(gotErr, []string{childTwoStatePath, "deadline"}); err != nil {
-			t.Error(err)
+		err := vd.Await(ctx, c)
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
 		}
 	})
 	t.Run("AwaitFor/past", func(t *testing.T) {
