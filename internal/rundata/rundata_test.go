@@ -15,6 +15,7 @@
 package rundata
 
 import (
+	"context"
 	"testing"
 
 	"github.com/openconfig/ondatra/binding"
@@ -117,7 +118,7 @@ func TestProperties(t *testing.T) {
 	TestPlanID = "UnitTest-1.1"
 	*knownIssueURL = "https://example.com"
 
-	got := Properties(&binding.Reservation{})
+	got := Properties(context.Background(), &binding.Reservation{})
 	t.Log(got)
 
 	if got, want := got["test.plan_id"], TestPlanID; got != want {
