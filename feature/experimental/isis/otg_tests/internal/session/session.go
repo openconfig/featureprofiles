@@ -313,3 +313,16 @@ func (s *TestSession) MustATEInterface(t testing.TB, portID string) gosnappi.Dev
 	}
 	return nil
 }
+
+// GetPacketLoss returns the packet loss for a given flow
+func (s *TestSession) GetPacketLoss(t testing.TB, flow gosnappi.Flow) int64 {
+	t.Helper()
+	flowMetric := s.ATE.OTG().Telemetry().Flow(flow.Name()).Get(t)
+	txPackets := flowMetric.GetCounters().GetOutPkts()
+	rxPackets := flowMetric.GetCounters().GetInPkts()
+	if txPackets == 0 {
+		return -1
+	}
+	lossPct := int64((txPackets - rxPackets) * 100 / txPackets)
+	return lossPct
+}

@@ -28,14 +28,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
-
-type OtgFlowMetric struct {
-	TxPackets uint64
-	RxPackets uint64
-}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -421,8 +417,6 @@ func TestAuthentication(t *testing.T) {
 				default:
 					t.Fatalf("test case has bad mode: %v", tc.mode)
 				}
-			} else {
-				ts.ATEIntf1.Isis().RouterAuth().SetIgnoreReceiveMd5(true)
 			}
 			ts.PushAndStart(t)
 			ts.MustAdjacency(t)
@@ -457,16 +451,16 @@ func TestTraffic(t *testing.T) {
 	})
 	ts.ATEIntf1.Isis().Advanced().SetEnableHelloPadding(false)
 
-	// ate := ts.ATE
 	// We generate traffic entering along port2 and destined for port1
 	srcIntf := ts.MustATEInterface(t, "port2")
 	dstIntf := ts.MustATEInterface(t, "port1")
 
 	srcIpv4 := srcIntf.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-	// net is a simulated network containing the addresses specified by targetNetwork
+	// netv4 is a simulated network containing the ipv4 addresses specified by targetNetwork
 	netv4 := dstIntf.Isis().V4Routes().Add().SetName("netv4").SetLinkMetric(10)
 	netv4.Addresses().Add().SetAddress(targetNetwork.IPv4)
 
+	// netv6 is a simulated network containing the ipv6 addresses specified by targetNetwork
 	netv6 := dstIntf.Isis().V6Routes().Add().SetName("netv6").SetLinkMetric(10)
 	netv6.Addresses().Add().SetAddress(targetNetwork.IPv6)
 
@@ -483,7 +477,6 @@ func TestTraffic(t *testing.T) {
 	v4FlowIp.Src().SetValue(session.ATETrafficAttrs.IPv4)
 	v4FlowIp.Dst().SetValue(targetNetwork.IPv4)
 
-	// v4Flow.Duration().FixedPackets().SetPackets(100)
 	v4Flow.Rate().SetPps(50)
 	v4Flow.Size().SetFixed(128)
 	v4Flow.Metrics().SetEnable(true)
@@ -525,7 +518,18 @@ func TestTraffic(t *testing.T) {
 	ts.PushAndStart(t)
 	ts.MustAdjacency(t)
 
-	time.Sleep(time.Second * 30)
+	otg.Telemetry().IsisRouter("devIsis").Counters().Level2().InLsp().Watch(
+		t, 30*time.Second, func(val *otgtelemetry.QualifiedUint64) bool {
+			time.Sleep(5 * time.Second)
+			return val.IsPresent() && val.Val(t) >= 1
+		}).Await(t)
+
+	// TODO: To match the exact IS-IS route prefix once this becomes available in otg
+	// otg.Telemetry().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(targetNetwork.IPv4).Watch(
+	// 	t, 30*time.Second, func(val *otgtelemetry.QualifiedIsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix) bool {
+	// 		return val.IsPresent()
+	// 	}).Await(t)
+
 	t.Logf("Running traffic for 30s...")
 	otg.StartTraffic(t)
 	time.Sleep(time.Second * 30)
@@ -535,20 +539,18 @@ func TestTraffic(t *testing.T) {
 	otgutils.LogFlowMetrics(t, otg, ts.ATETop)
 
 	for _, flow := range ts.ATETop.Flows().Items() {
-		flowMetric := ts.ATE.OTG().Telemetry().Flow(flow.Name()).Get(t)
-		txPackets := flowMetric.GetCounters().GetOutPkts()
-		rxPackets := flowMetric.GetCounters().GetInPkts()
-		if txPackets == 0 {
+		lossPct := ts.GetPacketLoss(t, flow)
+		if lossPct == -1 {
 			t.Errorf("Tx packets for flow %s is 0", flow.Name())
 			continue
 		}
 		if flow.Name() != "deadFlow" {
-			if got := (txPackets - rxPackets) * 100 / txPackets; got > 0 {
-				t.Errorf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
+			if lossPct > 0 {
+				t.Errorf("LossPct for flow %s: got %v, want 0", flow.Name(), lossPct)
 			}
 		} else {
-			if got := (txPackets - rxPackets) * 100 / txPackets; got < 100 {
-				t.Errorf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
+			if lossPct < 100 {
+				t.Errorf("LossPct for flow %s: got %v, want 0", flow.Name(), lossPct)
 			}
 		}
 	}
