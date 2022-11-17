@@ -1,4 +1,4 @@
-// Internal binding utils
+// Package binding contains internal utils related to the binding file
 package binding
 
 import (
