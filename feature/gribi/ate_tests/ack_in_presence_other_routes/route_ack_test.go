@@ -204,7 +204,7 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 	sr := static.GetOrCreateStatic(prefix)
 	nh := sr.GetOrCreateNextHop("0")
 	nh.NextHop = fpoc.UnionString(nexthop)
-	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Update(t, static)
+	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Replace(t, static)
 }
 
 // routeAck configures a IPv4 entry through clientA. Ensure that the entry via ClientA
