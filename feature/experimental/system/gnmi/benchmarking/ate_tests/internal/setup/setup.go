@@ -18,8 +18,6 @@
 package setup
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"strconv"
@@ -30,9 +28,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // Some of the variables defined below like DutAS, AteAS, PeerGrpName
@@ -63,9 +61,6 @@ var (
 	// AteIPPool can be exported
 	AteIPPool = make(map[string]net.IP)
 )
-
-// M is type variable and can be exported
-type M map[string]interface{}
 
 // BuildIPPool is to Build pool of ip addresses for both DUT and ATE interfaces.
 // It reads ports given in binding file to calculate ip addresses needed.
@@ -103,74 +98,110 @@ func nextIP(ip net.IP, hostIndex int, subnetIndex int) net.IP {
 	return net.ParseIP(s)
 }
 
-// CreateGNMIUpdate is to create GNMI update message . It will marshal the input
-// strings provided and return gpb update message to the calling function
-func CreateGNMIUpdate(map1 string, map2 string, configElem []M) *gpb.Update {
-
-	j := map[string]interface{}{
-		map1: map[string]interface{}{
-			map2: configElem,
-		},
-	}
-
-	v, err := json.Marshal(j)
-	if err != nil {
-		err1 := fmt.Errorf("marshal of intf config failed with unexpected error: %v", err)
-		fmt.Println(err1.Error())
-	}
-	update := &gpb.Update{
-		Path: &gpb.Path{Elem: []*gpb.PathElem{}},
-		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: v}},
-	}
-	return update
-}
-
-// BuildOCInterfaceUpdate function is to build  OC config for interfaces.
+// BuildOCUpdate function is to build  OC config for interfaces.
 // It reads ports from binding file and returns gpb update message
 // which will have configurations for all the ports.
-func BuildOCInterfaceUpdate(t *testing.T) *gpb.Update {
+func BuildOCUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	var intfConfig []M
+	d := &telemetry.Device{}
+
+	// Default Network instance and Global BGP configs
+	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+
+	bgp := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	global := bgp.GetOrCreateGlobal()
+	global.As = ygot.Uint32(DutAS)
+	global.RouterId = ygot.String(dutStartIPAddr)
+
+	afi := global.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	afi.Enabled = ygot.Bool(true)
+
+	// Note: we have to define the peer group even if we aren't setting any policy because it's
+	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
+	pg := bgp.GetOrCreatePeerGroup(PeerGrpName)
+	pg.PeerAs = ygot.Uint32(AteAS)
+	pg.PeerGroupName = ygot.String(PeerGrpName)
+
+	// ISIS Configs
+	isis := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, IsisInstance).GetOrCreateIsis()
+
+	globalISIS := isis.GetOrCreateGlobal()
+	globalISIS.AuthenticationCheck = ygot.Bool(true)
+	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
+	lspBit.SetBit = ygot.Bool(false)
+	isisTimers := globalISIS.GetOrCreateTimers()
+	isisTimers.LspLifetimeInterval = ygot.Uint16(600)
+	spfTimers := isisTimers.GetOrCreateSpf()
+	spfTimers.SpfHoldInterval = ygot.Uint64(5000)
+	spfTimers.SpfFirstInterval = ygot.Uint64(600)
+
+	isisLevel1 := isis.GetOrCreateLevel(1)
+	isisLevel1.Enabled = ygot.Bool(false)
+
+	isisLevel2 := isis.GetOrCreateLevel(2)
+	isisLevel2.Enabled = ygot.Bool(true)
+	isisLevel2.MetricStyle = telemetry.IsisTypes_MetricStyle_WIDE_METRIC
+
+	isisLevel2Auth := isisLevel2.GetOrCreateAuthentication()
+	isisLevel2Auth.Enabled = ygot.Bool(true)
+	isisLevel2Auth.AuthPassword = ygot.String(authPassword)
+	isisLevel2Auth.AuthMode = telemetry.IsisTypes_AUTH_MODE_MD5
+	isisLevel2Auth.AuthType = telemetry.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 
 	for _, dp := range dut.Ports() {
-		elem := map[string]interface{}{
-			"name": dp.Name(),
-			"config": map[string]interface{}{
-				"enabled":     true,
-				"description": "from oc",
-				"name":        dp.Name(),
-				"type":        "iana-if-type:ethernetCsmacd",
-			},
-			"subinterfaces": map[string]interface{}{
-				"subinterface": []M{
-					{
-						"config": map[string]interface{}{
-							"index": 0,
-						},
-						"index": 0,
-						"openconfig-if-ip:ipv4": map[string]interface{}{
-							"addresses": map[string]interface{}{
-								"address": []M{
-									{
-										"ip": DutIPPool[dp.ID()],
-										"config": map[string]interface{}{
-											"ip":            DutIPPool[dp.ID()],
-											"prefix-length": plenIPv4,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+		// Interface config
+		i := d.GetOrCreateInterface(dp.Name())
+		i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+		if *deviations.InterfaceEnabled {
+			i.Enabled = ygot.Bool(true)
 		}
+		i.Description = ygot.String("from oc")
+		i.Name = ygot.String(dp.Name())
 
-		intfConfig = append(intfConfig, elem)
+		s := i.GetOrCreateSubinterface(0)
+		s4 := s.GetOrCreateIpv4()
+		if *deviations.InterfaceEnabled {
+			s4.Enabled = ygot.Bool(true)
+		}
+		a4 := s4.GetOrCreateAddress(DutIPPool[dp.ID()].String())
+		a4.PrefixLength = ygot.Uint8(plenIPv4)
+
+		// BGP Neighbor related configs.
+		nv4 := bgp.GetOrCreateNeighbor(AteIPPool[dp.ID()].String())
+		nv4.PeerGroup = ygot.String(PeerGrpName)
+		if dp.ID() == "port1" {
+			nv4.PeerAs = ygot.Uint32(ateAS2)
+		} else {
+			nv4.PeerAs = ygot.Uint32(AteAS)
+		}
+		nv4.Enabled = ygot.Bool(true)
+
+		// ISIS configs
+		isisIntf := isis.GetOrCreateInterface(dp.Name())
+		isisIntf.Enabled = ygot.Bool(true)
+		isisIntf.HelloPadding = telemetry.IsisTypes_HelloPaddingType_ADAPTIVE
+		isisIntf.CircuitType = telemetry.IsisTypes_CircuitType_POINT_TO_POINT
+
+		isisIntfAuth := isisIntf.GetOrCreateAuthentication()
+		isisIntfAuth.Enabled = ygot.Bool(true)
+		isisIntfAuth.AuthPassword = ygot.String(authPassword)
+		isisIntfAuth.AuthMode = telemetry.IsisTypes_AUTH_MODE_MD5
+		isisIntfAuth.AuthType = telemetry.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+
+		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
+		isisIntfLevel.Enabled = ygot.Bool(true)
+
+		isisIntfLevelTimers := isisIntfLevel.GetOrCreateTimers()
+		isisIntfLevelTimers.HelloInterval = ygot.Uint32(1)
+		isisIntfLevelTimers.HelloMultiplier = ygot.Uint8(5)
+
+		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST)
+		isisIntfLevelAfi.Metric = ygot.Uint32(200)
+		isisIntfLevelAfi.Enabled = ygot.Bool(true)
 	}
-
-	update := CreateGNMIUpdate("interfaces", "interface", intfConfig)
-	return update
+	p := dut.Config()
+	fptest.LogYgot(t, fmt.Sprintf("%s to Update()", dut), p, d)
+	p.Update(t, d)
 }
 
 // ConfigureATE function is to configure ate ports with ipv4 , bgp
@@ -228,250 +259,10 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 	topo.StartProtocols(t)
 }
 
-// CreateGNMISetRequest function is to create GNMI setRequest message
-// and returns gnmi set request to the calling function.
-func CreateGNMISetRequest(j map[string]interface{}) *gpb.SetRequest {
-	v, err := json.Marshal(j)
-	if err != nil {
-		err1 := fmt.Errorf("marshal of intf config failed with unexpected error: %v", err)
-		fmt.Println(err1.Error())
-	}
-
-	update := &gpb.Update{
-		Path: &gpb.Path{Elem: []*gpb.PathElem{}},
-		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: v}},
-	}
-
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{
-			update,
-		},
-	}
-	return gpbSetRequest
-}
-
-// ConfigureGNMISetRequest function to used to configure GNMI setRequest on DUT.
-func ConfigureGNMISetRequest(t *testing.T, gpbSetRequest *gpb.SetRequest) {
-	dut := ondatra.DUT(t, "dut")
-
-	gnmiClient := dut.RawAPIs().GNMI().Default(t)
-	response, err := gnmiClient.Set(context.Background(), gpbSetRequest)
-	if err != nil {
-		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-	}
-	t.Log("gnmiClient Set Response for OC modelled config")
-	t.Log(response)
-}
-
-// BuildOCBGPUpdate function to used build OC config for configuring
-// bgp on DUT , one peer for one physical interface will be configured.
-func BuildOCBGPUpdate(t *testing.T) *gpb.Update {
-	dut := ondatra.DUT(t, "dut")
-	var bgpNbrConfig []M
-	for _, dp := range dut.Ports() {
-		asNum := AteAS
-		if dp.ID() == "port1" {
-			asNum = ateAS2
-		}
-		elem := map[string]interface{}{
-			"neighbor-address": AteIPPool[dp.ID()],
-			"config": map[string]interface{}{
-				"peer-group":       PeerGrpName,
-				"neighbor-address": AteIPPool[dp.ID()],
-				"enabled":          true,
-				"peer-as":          asNum,
-			},
-		}
-		bgpNbrConfig = append(bgpNbrConfig, elem)
-	}
-
-	niConfig := []M{
-		{
-			"name": *deviations.DefaultNetworkInstance,
-			"config": map[string]interface{}{
-				"type":    "DEFAULT_INSTANCE",
-				"enabled": true,
-			},
-			"protocols": map[string]interface{}{
-				"protocol": []M{
-					{
-						"identifier": "BGP",
-						"name":       "BGP",
-						"bgp": map[string]interface{}{
-							"global": map[string]interface{}{
-								"config": map[string]interface{}{
-									"as":        DutAS,
-									"router-id": dutStartIPAddr,
-								},
-								"afi-safis": map[string]interface{}{
-									"afi-safi": []M{
-										{
-											"afi-safi-name": "IPV4_UNICAST",
-											"config": map[string]interface{}{
-												"afi-safi-name": "IPV4_UNICAST",
-												"enabled":       true,
-											},
-										},
-									},
-								},
-							},
-							"peer-groups": map[string]interface{}{
-								"peer-group": []M{
-									{
-										"peer-group-name": PeerGrpName,
-										"config": map[string]interface{}{
-											"peer-group-name": PeerGrpName,
-											"peer-as":         AteAS,
-										},
-									},
-								},
-							},
-							"neighbors": map[string]interface{}{
-								"neighbor": bgpNbrConfig,
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	update := CreateGNMIUpdate("network-instances", "network-instance", niConfig)
-	return update
-}
-
-// BuildOCISISUpdate function to used build OC ISIS configs
-// on DUT , one isis peer per port is configured.
-func BuildOCISISUpdate(t *testing.T) *gpb.Update {
-	dut := ondatra.DUT(t, "dut")
-	var isisIntfConfig []M
-	for _, dp := range dut.Ports() {
-		elem1 := map[string]interface{}{
-			"interface-id": dp.Name(),
-			"config": map[string]interface{}{
-				"enabled":       true,
-				"hello-padding": "ADAPTIVE",
-				"circuit-type":  "POINT_TO_POINT",
-			},
-			"authentication": map[string]interface{}{
-				"config": map[string]interface{}{
-					"enabled":       true,
-					"auth-password": authPassword,
-					"auth-mode":     "MD5",
-					"auth-type":     "openconfig-keychain-types:SIMPLE_KEY",
-				},
-			},
-			"levels": map[string]interface{}{
-				"level": []M{
-					{
-						"level-number": 2,
-						"timers": map[string]interface{}{
-							"config": map[string]interface{}{
-								"hello-interval":   1,
-								"hello-multiplier": 5,
-							},
-						},
-						"afi-safi": map[string]interface{}{
-							"af": []M{
-								{
-									"afi-name":  "IPV4",
-									"safi-name": "UNICAST",
-									"config": map[string]interface{}{
-										"afi-name":  "IPV4",
-										"safi-name": "UNICAST",
-										"metric":    200,
-										"enabled":   true,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-		isisIntfConfig = append(isisIntfConfig, elem1)
-	}
-
-	niConfig := []M{
-		{
-			"name": *deviations.DefaultNetworkInstance,
-			"config": map[string]interface{}{
-				"type":      "DEFAULT_INSTANCE",
-				"router-id": dutStartIPAddr,
-				"enabled":   true,
-			},
-			"protocols": map[string]interface{}{
-				"protocol": []M{
-					{
-						"identifier": "ISIS",
-						"name":       IsisInstance,
-						"isis": map[string]interface{}{
-							"global": map[string]interface{}{
-								"config": map[string]interface{}{
-									"authentication-check": true,
-								},
-								"lsp-bit": map[string]interface{}{
-									"overload-bit": map[string]interface{}{
-										"config": map[string]interface{}{
-											"set-bit": false,
-										},
-									},
-								},
-								"timers": map[string]interface{}{
-									"config": map[string]interface{}{
-										"lsp-lifetime-interval": 600,
-									},
-									"spf": map[string]interface{}{
-										"config": map[string]interface{}{
-											"spf-hold-interval":  5000,
-											"spf-first-interval": 600,
-										},
-									},
-								},
-							},
-							"levels": map[string]interface{}{
-								"level": []M{
-									{
-										"level-number": 1,
-										"config": map[string]interface{}{
-											"enabled": false,
-										},
-									},
-									{
-										"level-number": 2,
-										"config": map[string]interface{}{
-											"enabled":      true,
-											"metric-style": "WIDE_METRIC",
-										},
-										"authentication": map[string]interface{}{
-											"config": map[string]interface{}{
-												"enabled":       true,
-												"auth-password": authPassword,
-												"auth-mode":     "MD5",
-												"auth-type":     "openconfig-keychain-types:SIMPLE_KEY",
-											},
-										},
-									},
-								},
-							},
-							"interfaces": map[string]interface{}{
-								"interface": isisIntfConfig,
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	update := CreateGNMIUpdate("network-instances", "network-instance", niConfig)
-	return update
-}
-
 // VerifyISISTelemetry function to used verify ISIS telemetry on DUT
 // using OC isis telemetry path.
 func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
-	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "DEFAULT").Isis()
+	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, IsisInstance).Isis()
 	for _, dp := range dut.Ports() {
 		nbrPath := statePath.Interface(dp.Name())
 		_, ok := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().Watch(t, time.Minute,

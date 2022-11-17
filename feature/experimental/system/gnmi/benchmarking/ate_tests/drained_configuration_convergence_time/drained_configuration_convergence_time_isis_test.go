@@ -21,148 +21,113 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/ate_tests/internal/setup"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/telemetry"
 )
 
-var (
+const (
 	isisMed = 100
 )
 
 // setISISOverloadBit is used to configure isis overload bit to true
-// using gnmi setrequest.
-func setISISOverloadBit(t *testing.T) *gpb.Update {
-	setBitConfig := []setup.M{
-		{
-			"name": "DEFAULT",
-			"protocols": map[string]interface{}{
-				"protocol": []setup.M{
-					{
-						"identifier": "ISIS",
-						"name":       setup.IsisInstance,
-						"isis": map[string]interface{}{
-							"global": map[string]interface{}{
-								"lsp-bit": map[string]interface{}{
-									"overload-bit": map[string]interface{}{
-										"config": map[string]interface{}{
-											"set-bit": true,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+func setISISOverloadBit(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 
-	update := setup.CreateGNMIUpdate("network-instances", "network-instance", setBitConfig)
-	return update
+	// ISIS Configs to set OVerload Bit to true
+	dutISISPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.IsisInstance).Isis()
+	lspBit := dutISISPath.Global().LspBit().OverloadBit()
+	lspBit.SetBit().Replace(t, true)
 }
 
-// setISISMetric is used to configure metric on isis interfaces using
-// gnmi set request.
-func setISISMetric(t *testing.T) *gpb.Update {
+// setISISMetric is used to configure metric on isis interfaces
+func setISISMetric(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	var isisIntfConfig []setup.M
+	dutISISPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.IsisInstance).Isis()
+
+	// Set ISIS metric to 100
 	for _, dp := range dut.Ports() {
-		elem1 := map[string]interface{}{
-			"interface-id": dp.Name(),
-			"levels": map[string]interface{}{
-				"level": []setup.M{
-					{
-						"level-number": 2,
-						"afi-safi": map[string]interface{}{
-							"af": []setup.M{
-								{
-									"afi-name":  "IPV4",
-									"safi-name": "UNICAST",
-									"config": map[string]interface{}{
-										"afi-name":  "IPV4",
-										"safi-name": "UNICAST",
-										"metric":    isisMed,
-										"enabled":   true,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-		isisIntfConfig = append(isisIntfConfig, elem1)
+		dutISISPathIntfAF := dutISISPath.Interface(dp.Name()).Level(2).Af(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST)
+		dutISISPathIntfAF.Metric().Replace(t, isisMed)
 	}
-
-	setMetricConfig := []setup.M{
-		{
-			"name": "DEFAULT",
-			"config": map[string]interface{}{
-				"type": "DEFAULT_INSTANCE",
-			},
-			"protocols": map[string]interface{}{
-				"protocol": []setup.M{
-					{
-						"identifier": "ISIS",
-						"name":       setup.IsisInstance,
-						"isis": map[string]interface{}{
-							"interfaces": map[string]interface{}{
-								"interface": isisIntfConfig,
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	update := setup.CreateGNMIUpdate("network-instances", "network-instance", setMetricConfig)
-	return update
 }
 
 // TODO: verifyISISOverloadBit is used to verify on ATE to see how much time it
 // has taken to apply overload bit on isis adjacencies.
+// https://github.com/openconfig/ondatra/issues/51
 func verifyISISOverloadBit(t *testing.T) {
-	// TODO: Verify the link state database on the ATE once API support on ATE is available.
+	ate := ondatra.ATE(t, "ate")
+
+	t.Run("ISIS Overload bit verification", func(t *testing.T) {
+		at := ate.Telemetry()
+		for _, ap := range ate.Ports() {
+			if ap.ID() == "port1" {
+				//port1 is ingress, skip verification on ingress port
+				continue
+			}
+
+			const want = telemetry.Interface_OperStatus_UP
+
+			if got := at.Interface(ap.Name()).OperStatus().Get(t); got != want {
+				t.Errorf("%s oper-status got %v, want %v", ap, got, want)
+			}
+			// https://github.com/openconfig/ondatra/issues/51
+			/*is := at.NetworkInstance(ap.Name()).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
+			seq1 := is.LevelAny().LspAny().Tlv(telemetry.IsisLsdbTypes_ISIS_TLV_TYPE_IS_NEIGHBOR_ATTRIBUTE).Get(t)
+			fmt.Println(seq1)*/
+
+		}
+	})
+
 }
 
 // TODO: verifyISISMetric is used to verify on ATE to see how much time it
 // has taken to apply changes in metric
+// https://github.com/openconfig/ondatra/issues/51
 func verifyISISMetric(t *testing.T) {
-	// TODO: Verify the Metric on the ATE once API support on ATE is available.
+	ate := ondatra.ATE(t, "ate")
+
+	t.Run("ISIS Overload bit verification", func(t *testing.T) {
+		at := ate.Telemetry()
+		for _, ap := range ate.Ports() {
+			if ap.ID() == "port1" {
+				//port1 is ingress, skip verification on ingress port
+				continue
+			}
+
+			const want = telemetry.Interface_OperStatus_UP
+
+			if got := at.Interface(ap.Name()).OperStatus().Get(t); got != want {
+				t.Errorf("%s oper-status got %v, want %v", ap, got, want)
+			}
+
+			// https://github.com/openconfig/ondatra/issues/51
+			/*is := at.NetworkInstance(ap.Name()).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
+			seq := is.LevelAny().LspAny().SequenceNumber().Get(t)
+			fmt.Println(seq)*/
+
+		}
+	})
+
 }
 
 // TestISISBenchmarking is to test ISIS overload bit and metric change
 // applied on all isis sessions.
 func TestISISBenchmarking(t *testing.T) {
 
-	// Configure Overload bit to true
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{
-			setISISOverloadBit(t),
-		},
-	}
-
 	// start timer
 	start := time.Now()
-	setup.ConfigureGNMISetRequest(t, gpbSetRequest)
+	setISISOverloadBit(t)
 	verifyISISOverloadBit(t)
 	//End the timer and calculate time
 	elapsed := time.Since(start)
-	t.Logf("Duration taken to apply routing policy is  %v", elapsed)
-
-	// ISIS Metric change.
-	gpbSetRequest = &gpb.SetRequest{
-		Update: []*gpb.Update{
-			setISISMetric(t),
-		},
-	}
+	t.Logf("Duration taken to apply overload bit  %v", elapsed)
 
 	// start timer
 	start = time.Now()
-	setup.ConfigureGNMISetRequest(t, gpbSetRequest)
+	setISISMetric(t)
 	verifyISISMetric(t)
 	//End the timer and calculate time
 	elapsed = time.Since(start)
-	t.Logf("Duration taken to apply routing policy is  %v", elapsed)
+	t.Logf("Duration taken to apply isis metric  %v", elapsed)
 }
