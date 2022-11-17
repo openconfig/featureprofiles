@@ -334,6 +334,11 @@ func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Inter
 }
 
 // FaultInjectionMechanism injects faults on a line card for a given component name and fault-point number
+// lcnumber takes linecard numbers to be given as a list []string{"0", "1"}
+// componentName specifies the component on which the fault point is injected eg : ofa_la_srv
+// faultPointNumber speicifes the fault point eg : 3 indicates IPV4_ROUTE_RDESC_OOR
+// returnValue specifies perticluar error to simulate eg : 3482356236 indicates Route programming failure
+// to activate fault point use true and to deactivate use false
 func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []string, componentName string, faultPointNumber string, returnValue string, activate bool) {
 	for _, lineCard := range lcNumber {
 		var fimActivate string
