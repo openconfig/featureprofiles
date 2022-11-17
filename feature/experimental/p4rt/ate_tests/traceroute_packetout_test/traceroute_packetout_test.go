@@ -223,7 +223,7 @@ func TestPacketOut(t *testing.T) {
 	configurePortId(ctx, t, dut)
 
 	leader := p4rt_client.P4RTClient{}
-	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
+	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
