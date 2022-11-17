@@ -13,14 +13,14 @@ tests:
       - '-deviation_subinterface_packet_counters_missing="true"'
   patch: exec/firex/plugins/fp_patch/telemetry_basic_check_test.patch
   owner: agvarghe@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 34
 - name: gNMI-1.4 (Telemetry Inventory) 
   path: feature/platform/ate_tests/telemetry_inventory_test
   patch: exec/firex/plugins/fp_patch/telemetry_inventory_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
-  skip: false
+  skip: true
   priority: 36
 - name: gNOI-3.3 (Supervisor Switchover) 
   path: feature/gnoi/system/tests/supervisor_switchover_test
@@ -46,6 +46,6 @@ tests:
 - name: TE-1.1 (Static ARP) 
   path: feature/interface/staticarp/ate_tests/static_arp_test
   owner: mbagherz@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 50
 
