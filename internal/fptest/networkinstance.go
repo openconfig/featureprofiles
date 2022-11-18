@@ -26,11 +26,11 @@ import (
 
 // AssignToNetworkInstance attaches a subinterface to a network instance.
 func AssignToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, i string, ni string, si uint32) {
+	if ni == "" {
+		ni = *deviations.DefaultNetworkInstance
+	}
 	if ni == *deviations.DefaultNetworkInstance && !*deviations.ExplicitInterfaceInDefaultVRF {
 		return
-	}
-	if ni == "" && *deviations.ExplicitInterfaceInDefaultVRF {
-		ni = *deviations.DefaultNetworkInstance
 	}
 	netInst := &telemetry.NetworkInstance{Name: ygot.String(ni)}
 	intf := &telemetry.Interface{Name: ygot.String(i)}
