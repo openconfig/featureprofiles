@@ -89,8 +89,11 @@ def BringupTestbed(self, ws, images = None,
     self.enqueue_child_and_get_results(c)
 
     if topo_file and len(topo_file) > 0:
+        if topo_file[0] != '/':
+            topo_file = os.path.join(fp_repo_dir, topo_file)
+
         c = InjectArgs(**self.abog)
-        c |= self.orig.s(plat='8000', topo_file=os.path.join(fp_repo_dir, topo_file))
+        c |= self.orig.s(plat='8000', topo_file=topo_file)
         testbed_path, *other = self.enqueue_child_and_get_results(c, return_keys=('testbed_path'))
         logger.print(f'Testbed path: {testbed_path}')
         
@@ -98,13 +101,16 @@ def BringupTestbed(self, ws, images = None,
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}', 
             file=ondatra_binding_path)
     else:
-        ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
+        if ondatra_binding_path[0] != '/':
+            ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
 
         if base_conf_path and len(base_conf_path) > 0:
-            base_conf_path = os.path.join(fp_repo_dir, base_conf_path)
+            if base_conf_path[0] != '/':
+                base_conf_path = os.path.join(fp_repo_dir, base_conf_path)
             check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
     
-    ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
+    if ondatra_testbed_path[0] != '/':
+        ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
 
     with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
         fp.write("replace github.com/openconfig/ondatra => ../ondatra")
@@ -200,6 +206,11 @@ def b4_fp_chain_provider(ws,
                          test_must_pass=False,
                          **kwargs):
 
+    if ondatra_binding_path[0] != '/':
+        ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
+    if ondatra_testbed_path[0] != '/':
+        ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
+
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
                     script_name=script_path,
@@ -218,16 +229,8 @@ def b4_fp_chain_provider(ws,
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
 
-    # ondatra_repo_dir = os.path.join(pkgs_parent_path,
-    #                     ONDATRA_REPO_CLONE_INFO.path)
     fp_repo_dir = os.path.join(pkgs_parent_path, 
                         FP_REPO_CLONE_INFO.path)
-
-    # ondatra_repo = git.Repo(ondatra_repo_dir)
-    # ondatra_repo.git.reset('--hard')
-    # ondatra_repo.git.checkout(ondatra_repo_branch)
-    # ondatra_repo.git.reset('--hard')
-    # ondatra_repo.git.clean('-xdf')
     
     fp_repo = git.Repo(fp_repo_dir)
     fp_repo.git.reset('--hard')
