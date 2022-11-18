@@ -1,5 +1,5 @@
 diff --git a/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go b/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
-index 326e720e..b2c05e39 100644
+index 326e720e..823068c8 100644
 --- a/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
 +++ b/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
 @@ -31,7 +31,6 @@ import (
@@ -10,7 +10,17 @@ index 326e720e..b2c05e39 100644
  )
  
  func TestMain(m *testing.M) {
-@@ -323,10 +322,9 @@ func TestSupFailure(t *testing.T) {
+@@ -309,7 +308,8 @@ func TestSupFailure(t *testing.T) {
+ 	sendTraffic(t, args.ate, flow)
+ 	verifyTraffic(t, args.ate, flow)
+ 
+-	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
++	//controllers := cmp.FindComponentsByType(t, dut, controlcardType)
++	controllers :=  []string{"0/RP0/CPU0","0/RP1/CPU0"}
+ 	t.Logf("Found controller list: %v", controllers)
+ 	// Only perform the switchover for the chassis with dual controllers.
+ 	if len(controllers) != 2 {
+@@ -323,10 +323,9 @@ func TestSupFailure(t *testing.T) {
  	}
  
  	gnoiClient := dut.RawAPIs().GNOI().Default(t)
@@ -23,3 +33,12 @@ index 326e720e..b2c05e39 100644
  	}
  	t.Logf("switchoverRequest: %v", switchoverRequest)
  	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+@@ -371,6 +370,8 @@ func TestSupFailure(t *testing.T) {
+ 
+ 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
+ 	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
++	// workaround for the first get issue
++	ipv4Path.Prefix().Watch(t, 1*time.Minute,func(val *telemetry.QualifiedString) bool {return true})
+ 	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
+ 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+ 	} else {
