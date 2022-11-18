@@ -281,6 +281,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name,
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().SetValue(dstPfxMin)
 	ate.OTG().PushConfig(t, top)
+	// StartProtocols required for running on hardware
 	ate.OTG().StartProtocols(t)
 	return name
 
