@@ -34,25 +34,25 @@ images can be obtained by contacting Arista.
 Setup
 
 ```
-kne_cli create topologies/kne/arista_ceos.textproto
+kne create topologies/kne/arista_ceos.textproto
 cat >topologies/kne/testbed.kne.yml << EOF
 username: admin
 password: admin
 topology: $PWD/topologies/kne/arista_ceos.textproto
-cli: $HOME/go/bin/kne_cli
+cli: $HOME/go/bin/kne
 EOF
 ```
 
 Testing
 
 ```
-go test -v feature/system/tests/*.go -kne-config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
+go test feature/system/tests/*.go -kne-config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
 ```
 
 Cleanup
 
 ```
-kne_cli delete topologies/kne/arista_ceos.textproto
+kne delete topologies/kne/arista_ceos.textproto
 ```
 
 ### Nokia SR-Linux
@@ -66,25 +66,25 @@ the KNE Kubernetes cluster.
 Setup
 
 ```
-kne_cli create topologies/kne/nokia_srl.textproto
+kne create topologies/kne/nokia_srl.textproto
 cat >topologies/kne/testbed.kne.yml << EOF
 username: admin
 password: admin
 topology: $PWD/topologies/kne/nokia_srl.textproto
-cli: $HOME/go/bin/kne_cli
+cli: $HOME/go/bin/kne
 EOF
 ```
 
 Testing
 
 ```
-go test -v feature/system/tests/*.go -kne-config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
+go test feature/system/tests/*.go -kne-config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
 ```
 
 Cleanup
 
 ```
-kne_cli delete topologies/kne/nokia_srl.textproto
+kne delete topologies/kne/nokia_srl.textproto
 ```
 
 ### Static Binding (Experimental)
@@ -107,7 +107,7 @@ Testing:
 
 ```
 cd ./topologies/ate_tests/topology_test
-go test -v . -testbed ../../atedut_12.testbed -binding ../../atedut_12.binding
+go test . -testbed ../../atedut_12.testbed -binding ../../atedut_12.binding
 ```
 
 > :exclamation: **NOTE**: when `go test` runs a test, the current working
