@@ -479,9 +479,12 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // Waits for at least one ARP entry on the tx OTG interface
 func waitOTGARPEntry(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+	got, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
 		return val.IsPresent()
 	}).Await(t)
+	if !ok {
+		t.Fatalf("Did not receive OTG Neighbor entry, last got: %v", got)
+	}
 }
 
 // setDUTInterfaceState sets the admin state on the dut interface

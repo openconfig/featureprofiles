@@ -26,11 +26,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 )
 

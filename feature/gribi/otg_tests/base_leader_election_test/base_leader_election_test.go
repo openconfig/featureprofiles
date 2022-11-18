@@ -175,9 +175,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 func waitOTGARPEntry(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+	got, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
 		return val.IsPresent()
 	}).Await(t)
+	if !ok {
+		t.Fatalf("Did not receive OTG Neighbor entry, last got: %v", got)
+	}
 }
 
 // testTraffic generates traffic flow from source network to

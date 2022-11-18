@@ -338,7 +338,7 @@ func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, expectedNH []
 	// check prefix and get NHG ID
 	aftPfxNHG := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(prefix).NextHopGroup()
 	aftPfxNHGVal, found := gnmi.Watch(t, dut, aftPfxNHG.State(), 10*time.Second, func(val *ygnmi.Value[uint64]) bool {
-		return true
+		return val.IsPresent()
 	}).Await(t)
 	if !found {
 		t.Fatalf("Could not find prefix %s in telemetry AFT", dstPfx)
