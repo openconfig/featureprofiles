@@ -24,7 +24,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// AddToDut attaches a subinterface to a network instance
+// AssignToNetworkInstance attaches a subinterface to a network instance.
 func AssignToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, i string, ni string, si uint32) {
 	if ni == *deviations.DefaultNetworkInstance && !*deviations.ExplicitInterfaceInDefaultVRF {
 		return
