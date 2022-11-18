@@ -143,7 +143,7 @@ func (di *dutInfo) setFromLLDP(ctx context.Context, y components.Y) {
 //
 // This is the new OpenConfig mechanism.
 func (di *dutInfo) setFromSystem(ctx context.Context, y components.Y) {
-	// Uncomment this once Ondatra updates the ygnmi generated package.
+	//lint:ignore U1000 Uncomment this once Ondatra updates the ygnmi generated package.
 	const notSupported = `
 	if di.model != "" {
 		modelPath := ocpath.Root().System().Model()
