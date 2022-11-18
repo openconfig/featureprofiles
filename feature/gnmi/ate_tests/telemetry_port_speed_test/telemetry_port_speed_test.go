@@ -144,6 +144,7 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 
 	agg := d.GetOrCreateInterface(tc.aggID)
 	agg.GetOrCreateAggregation().LagType = tc.lagType
+	agg.Type = ieee8023adLag
 
 	for _, port := range tc.dutPorts {
 		i := d.GetOrCreateInterface(port.Name())
@@ -231,7 +232,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	// Disable FEC for 100G-FR ports because Novus does not support it.
 	is100gfr := false
 	for _, p := range tc.atePorts {
-		if p.PMD() == ondatra.PMD100GFR {
+		if p.PMD() == ondatra.PMD100GBASEFR {
 			is100gfr = true
 		}
 	}
