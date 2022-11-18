@@ -15,14 +15,17 @@
 package full_configuration_replace_test
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/ate_tests/internal/benchmarking_setup"
+	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/ate_tests/internal/setup"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -56,65 +59,53 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 }
 
 // modIntfDesc builds OC config to modify description of a subset of interfaces.
-func modIntfDesc(t *testing.T) *gpb.Update {
-	var intfConfig []benchmarking_setup.M
-
+func modIntfDesc(t *testing.T) *telemetry.Device {
 	dut := ondatra.DUT(t, "dut")
+	d := &telemetry.Device{}
 	dutPorts := sortPorts(dut.Ports())
 
 	for i := 0; i < len(dutPorts); i++ {
 		if i%2 == 0 {
-			elem := map[string]interface{}{
-				"name": dutPorts[i].Name(),
-				"config": map[string]interface{}{
-					"description": "modified via oc",
-				},
-			}
-
-			intfConfig = append(intfConfig, elem)
+			i := d.GetOrCreateInterface(dutPorts[i].Name())
+			i.Description = ygot.String("modified via oc")
 		}
 	}
 
-	update := benchmarking_setup.CreateGNMIUpdate("interfaces", "interface", intfConfig)
-	return update
+	return d
 }
 
 func TestGnmiFullConfigReplace(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 
-	benchmarking_setup.BuildIPPool(t)
+	// Build pool of ip addresses to configure DUT interfaces
+	setup.BuildIPPool(t)
 
-	// Building gNMI Set request payload to configure interfaces, ISIS and BGP protocols
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{
-			benchmarking_setup.BuildOCInterfaceUpdate(t),
-			benchmarking_setup.BuildOCISISUpdate(t),
-			benchmarking_setup.BuildOCBGPUpdate(t),
-		},
-	}
+	// Configure Network instance type on DUT
+	t.Log("Configure Network Instance")
+	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
-	t.Logf("Sending gNMI Set request to configure interfaces, ISIS and BGP protocols")
+	// Cleanup exisitng bgp and isis configs on DUT
+	dutBGPPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutBGPPath.Delete(t)
+	dutISISPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.IsisInstance).Isis()
+	dutISISPath.Delete(t)
+
+	t.Logf("Build interfaces, ISIS and BGP protocols configuration and send gNMI Set request")
+	setup.BuildOCUpdate(t)
+
+	t.Logf("Modify description of a subset of interfaces and send gNMI Set request")
+	d2 := modIntfDesc(t)
+	conf := dut.Config()
+
+	fptest.LogYgot(t, fmt.Sprintf("%s to Update()", dut), conf, d2)
 	//Start the timer.
 	start := time.Now()
-	benchmarking_setup.ConfigureGNMISetRequest(t, gpbSetRequest)
+
+	conf.Update(t, d2)
 
 	//End the timer and calculate time.
 	elapsed := time.Since(start)
-	t.Logf("Time taken for the gNMI SetRequest %v", elapsed)
-
-	t.Logf("Modify description of a subset of interfaces and send gNMI SetRequest")
-
-	gpbSetRequest = &gpb.SetRequest{
-		Update: []*gpb.Update{
-			modIntfDesc(t),
-		},
-	}
-
-	//Start the timer.
-	start = time.Now()
-	benchmarking_setup.ConfigureGNMISetRequest(t, gpbSetRequest)
-
-	//End the timer and calculate time.
-	elapsed = time.Since(start)
-	t.Logf("Time taken for the gNMI SetRequest %v", elapsed)
+	t.Logf("Time taken for gNMI Set request is: %v", elapsed)
 
 }
