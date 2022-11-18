@@ -29,11 +29,17 @@ FP_REPO_CLONE_INFO = CloneInfo('git@wwwin-github.cisco.com:B4Test/featureprofile
 
 ONDATRA_PATCHES = [
     'exec/firex/plugins/ondatra/0001-windows-ixia-path.patch', 
-    'exec/firex/plugins/ondatra/0002-disable-log.patch'
+    'exec/firex/plugins/ondatra/0002-disable-log.patch',
+    'exec/firex/plugins/ondatra/tmp-disable-close-send.patch'
+
 ]
 
 ONDATRA_SIM_PATCHES = [
     'exec/firex/plugins/ondatra/0003-traffic_fps_vxr.patch'
+]
+
+FP_PATCHES = [
+
 ]
 
 whitelist_arguments([
@@ -108,8 +114,12 @@ def BringupTestbed(self, ws, images = None,
     fp_repo = git.Repo(fp_repo_dir)
     fp_repo.config_writer().set_value("name", "email", "gob4").release()
     fp_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
+
+    for patch in FP_PATCHES:
+        fp_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo_dir, patch)])
+
     fp_repo.git.add(update=True)
-    fp_repo.git.commit('-m', 'patched go.mod and binding file')
+    fp_repo.git.commit('-m', 'patched for testing')
 
     ondatra_repo = git.Repo(ondatra_repo_dir)
     ondatra_repo.git.checkout("a05f012bb3e46fc94c28d70da50a078a1484156b")
