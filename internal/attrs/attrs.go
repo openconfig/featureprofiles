@@ -37,7 +37,6 @@ type Attributes struct {
 	IPv4    string
 	IPv6    string
 	MAC     string
-	NetInst string
 	Name    string // Interface name, only applied to ATE ports.
 	Desc    string // Description, only applied to DUT interfaces.
 	IPv4Len uint8  // Prefix length for IPv4.
