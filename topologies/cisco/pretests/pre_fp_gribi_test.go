@@ -116,15 +116,15 @@ func TestResetGRIBIServerFP(t *testing.T) {
 	ipv4Path.Lookup(t)
 
 	ipv4Path.Watch(t, 33*time.Second, func(val *telemetry.QualifiedNetworkInstance_Afts_Ipv4Entry) bool {
-	// Do nothing in this matching function, as we already filter on the prefix.
+		// Do nothing in this matching function, as we already filter on the prefix.
 		return true
 	}).Await(t)
 
 	ipv4Path.Prefix().Lookup(t)
 	ipv4Path.Prefix().Watch(t, 33*time.Second, func(val *telemetry.QualifiedString) bool {
-			// Do nothing in this matching function, as we already filter on the prefix.
-			return true
-		}).Await(t)
+		// Do nothing in this matching function, as we already filter on the prefix.
+		return true
+	}).Await(t)
 
 	clientA.Flush(t)
 }
