@@ -59,7 +59,7 @@ whitelist_arguments([
 ])
 
 @app.task(base=FireX, bind=True)
-@returns('ondatra_binding_path')
+@returns('ondatra_binding_path', 'ondatra_testbed_path')
 def BringupTestbed(self, ws, images = None,  
                         ondatra_repo_branch='main',
                         fp_repo_branch='master',  
@@ -97,20 +97,24 @@ def BringupTestbed(self, ws, images = None,
         testbed_path, *other = self.enqueue_child_and_get_results(c, return_keys=('testbed_path'))
         logger.print(f'Testbed path: {testbed_path}')
         
-        ondatra_binding_path = os.path.join(ws, 'topology.textproto')
+        ondatra_binding_path = os.path.join(ws, 'ondatra.binding')
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}', 
             file=ondatra_binding_path)
+
+        ondatra_testbed_path = os.path.join(ws, 'ondatra.testbed')
+        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh statictestbed service {testbed_path}', 
+            file=ondatra_testbed_path)
     else:
         if ondatra_binding_path[0] != '/':
             ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
+
+        if ondatra_testbed_path[0] != '/':
+            ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
 
         if base_conf_path and len(base_conf_path) > 0:
             if base_conf_path[0] != '/':
                 base_conf_path = os.path.join(fp_repo_dir, base_conf_path)
             check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
-    
-    if ondatra_testbed_path[0] != '/':
-        ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
 
     with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
         fp.write("replace github.com/openconfig/ondatra => ../ondatra")
@@ -175,7 +179,7 @@ def BringupTestbed(self, ws, images = None,
         check_output(testbed_info_cmd, cwd=fp_repo_dir)
     except: pass
 
-    return ondatra_binding_path
+    return ondatra_binding_path, ondatra_testbed_path
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, uid, ws):
@@ -298,8 +302,6 @@ def RunB4FPTest(self,
                 ):
 
     if not fp_ws: fp_ws = ws
-    if ondatra_binding_path: ondatra_binding_path = os.path.join(fp_ws, ondatra_binding_path)
-    ondatra_testbed_path = os.path.join(fp_ws, ondatra_testbed_path)
  
     json_results_file = Path(test_log_directory_path) / f'{script_name}.json'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
