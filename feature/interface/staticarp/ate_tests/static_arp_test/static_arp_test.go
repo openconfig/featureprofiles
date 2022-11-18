@@ -153,12 +153,12 @@ func configureDUT(t *testing.T, peermac string) {
 	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
 	d.Interface(p1.Name()).Replace(t,
 		configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
-	dutSrc.SetOnDUT(t, d, i1)
+	fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
 	p2 := dut.Port(t, "port2")
 	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
 	d.Interface(p2.Name()).Replace(t,
 		configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
-	dutDst.SetOnDUT(t, d, i2)
+	fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
 }
 
 func configureATE(t *testing.T) (*ondatra.ATEDevice, *ondatra.ATETopology) {
