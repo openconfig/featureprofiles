@@ -15,6 +15,7 @@ tests:
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 34
+  timeout: 7200
 - name: gNMI-1.4 (Telemetry Inventory) 
   path: feature/platform/ate_tests/telemetry_inventory_test
   patch: exec/firex/plugins/fp_patch/telemetry_inventory_test.patch
@@ -22,6 +23,7 @@ tests:
   mustpass: false
   skip: true
   priority: 36
+  timeout: 7200
 - name: gNOI-3.3 (Supervisor Switchover) 
   path: feature/gnoi/system/tests/supervisor_switchover_test
   patch: exec/firex/plugins/fp_patch/supervisor_switchover_test.patch
@@ -29,6 +31,7 @@ tests:
   mustpass: false
   skip: false
   priority: 39
+  timeout: 7200
 - name: gNOI-3.2 (Per-Component Reboot) 
   path: feature/gnoi/system/tests/per_component_reboot_test
   patch: exec/firex/plugins/fp_patch/per_component_reboot_test.patch
@@ -36,16 +39,19 @@ tests:
   mustpass: false
   skip: false
   priority: 40
+  timeout: 7200
 - name: TE-8.2 (Supervisor Failure)
   path: feature/gribi/ate_tests/supervisor_failure_test
   owner: mananpat@cisco.com
   patch: exec/firex/plugins/fp_patch/supervisor_failure_test.patch
   skip: false
   mustpass: true
+  timeout: 7200
   priority: 20
 - name: TE-1.1 (Static ARP) 
   path: feature/interface/staticarp/ate_tests/static_arp_test
   owner: mbagherz@cisco.com
   mustpass: true
   priority: 50
+
 

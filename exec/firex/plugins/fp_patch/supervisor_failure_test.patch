@@ -1,5 +1,5 @@
 diff --git a/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go b/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
-index 326e720e..823068c8 100644
+index 326e720e..9475e3ac 100644
 --- a/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
 +++ b/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
 @@ -31,7 +31,6 @@ import (
@@ -10,13 +10,11 @@ index 326e720e..823068c8 100644
  )
  
  func TestMain(m *testing.M) {
-@@ -309,7 +308,8 @@ func TestSupFailure(t *testing.T) {
- 	sendTraffic(t, args.ate, flow)
+@@ -310,6 +309,7 @@ func TestSupFailure(t *testing.T) {
  	verifyTraffic(t, args.ate, flow)
  
--	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
-+	//controllers := cmp.FindComponentsByType(t, dut, controlcardType)
-+	controllers :=  []string{"0/RP0/CPU0","0/RP1/CPU0"}
+ 	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
++	//controllers :=  []string{"0/RP0/CPU0","0/RP1/CPU0"}
  	t.Logf("Found controller list: %v", controllers)
  	// Only perform the switchover for the chassis with dual controllers.
  	if len(controllers) != 2 {
