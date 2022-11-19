@@ -85,15 +85,11 @@ func TestSchedReplaceSched(t *testing.T) {
 		indrep += 1
 	}
 	ConfigRep := dut.Config().Qos().SchedulerPolicy(*schedulerpolrep.Name).Scheduler(1)
-	t.Run(" Replace on policy attached to interface", func(t *testing.T) {
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			ConfigRep.Replace(t, schedulerep) //catch the error  as it is expected and absorb the panic.
-		}); errMsg != nil {
-			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-		} else {
-			t.Errorf("This update should have failed ")
-		}
-	})
+	ConfigRep.Replace(t, schedulerep)
+	ConfigRepGet := ConfigRep.Get(t)
+	if diff := cmp.Diff(*ConfigRepGet, *schedulerep); diff != "" {
+		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
+	}
 
 }
 
