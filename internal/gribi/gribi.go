@@ -326,3 +326,31 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 	defer cancel()
 	return c.Await(subctx, t)
 }
+
+// StartWithNoCache function start establish a client connection with the gribi server.
+// It works same as the start function but does not use the cached API.
+// By default the client is not the leader and for that function BecomeLeader
+// needs to be called. (sepecefic to cisco)
+func (c *Client) StartWithNoCache(t testing.TB) error {
+	t.Helper()
+	t.Logf("Starting GRIBI connection for dut: %s", c.DUT.Name())
+	gribiC := c.DUT.RawAPIs().GRIBI().New(t)
+	c.fluentC = fluent.NewClient()
+	c.fluentC.Connection().WithStub(gribiC)
+	if c.Persistence {
+		c.fluentC.Connection().WithInitialElectionID(c.electionID.Low, c.electionID.High).
+			WithRedundancyMode(fluent.ElectedPrimaryClient).WithPersistence()
+	} else {
+		c.fluentC.Connection().WithInitialElectionID(c.electionID.Low, c.electionID.High).
+			WithRedundancyMode(fluent.ElectedPrimaryClient)
+	}
+	if c.FIBACK {
+		c.fluentC.Connection().WithFIBACK()
+	}
+	ctx := context.Background()
+	c.fluentC.Start(ctx, t)
+	c.fluentC.StartSending(ctx, t)
+	err := c.AwaitTimeout(ctx, t, timeout)
+	return err
+}
+

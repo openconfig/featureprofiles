@@ -446,9 +446,8 @@ func TestCD5PBR(t *testing.T) {
 
 			clientA := gribi.Client{
 				DUT:                  ondatra.DUT(t, "dut"),
-				FibACK:               false,
+				FIBACK:               false,
 				Persistence:          true,
-				InitialElectionIDLow: 10,
 			}
 			defer clientA.Close(t)
 			if err := clientA.Start(t); err != nil {
