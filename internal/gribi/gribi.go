@@ -353,4 +353,3 @@ func (c *Client) StartWithNoCache(t testing.TB) error {
 	err := c.AwaitTimeout(ctx, t, timeout)
 	return err
 }
-

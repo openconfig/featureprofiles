@@ -80,15 +80,15 @@ func TestResetGRIBIServerFP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
-		DUT:                  dut,
-		FIBACK:               false,
-		Persistence:          true,
+		DUT:         dut,
+		FIBACK:      false,
+		Persistence: true,
 	}
 	defer clientA.Close(t)
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-    clientA.BecomeLeader(t)
+	clientA.BecomeLeader(t)
 	t.Logf("an IPv4Entry for %s pointing to ATE port-3 via gRIBI-B", ateDstNetCIDR)
 	clientA.AddNH(t, nhIndex, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
