@@ -90,7 +90,7 @@ func (d *dialer) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.C
 		opts = append(opts, grpc.WithPerRPCCredentials(c))
 	}
 	if d.Timeout != 0 {
-		ctx, cancelFunc := context.WithTimeout(context.Background(), time.Duration(d.Timeout)*time.Second)
+		ctx, cancelFunc := context.WithTimeout(ctx, time.Duration(d.Timeout)*time.Second)
 		defer cancelFunc()
 		return grpc.DialContext(ctx, d.Target, opts...)
 	} else {
