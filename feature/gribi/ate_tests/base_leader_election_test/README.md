@@ -13,11 +13,11 @@ Validate Election ID is accepted from a gRIBI client.
     `gRIBI-B`).
 
 *   Connect `gRIBI-A` to DUT specifying `PRESERVE` persistent mode,
-    `SINGLE_PRIMARY` client redundancy in the SessionParameters request, and
-    `election_id` 10. Ensure that no error is reported from the gRIBI server.
+    `SINGLE_PRIMARY` client redundancy in the SessionParameters request. Ensure
+    that no error is reported from the gRIBI server.
 
 *   Connect `gRIBI-B` to DUT specifying `PRESERVE` persistent mode,
-    `SINGLE_PRIMARY` client redundancy with `election_id` 11.
+    `SINGLE_PRIMARY` client redundancy and make it become leader.
 
 *   Add an `IPv4Entry` for `198.51.100.0/24` pointing to ATE port-3 via
     `gRIBI-B`, ensure that the entry is active through AFT telemetry and
@@ -26,10 +26,9 @@ Validate Election ID is accepted from a gRIBI client.
 *   Add an `IPv4Entry` for `198.51.100.0/24` pointing to ATE port-2 via
     `gRIBI-A`, ensure that the entry is ignored by the DUT.
 
-*   Send a `ModifyRequest` from `gRIBI-A` specifying `election_id` 12, followed
-    by a `ModifyRequest` updating `198.51.100.0/24` pointing to ATE port-2,
-    ensure that routing is updated to receive packets for `198.51.100.0/24` at
-    ATE port-2.
+*   Make `gRIBI-A` become leader, followed by a `ModifyRequest` updating
+    `198.51.100.0/24` pointing to ATE port-2, ensure that routing is updated to
+    receive packets for `198.51.100.0/24` at ATE port-2.
 
 ## Protocol/RPC Parameter Coverage
 

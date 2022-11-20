@@ -281,17 +281,22 @@ func TestSupFailure(t *testing.T) {
 
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
-		DUT:                  dut,
-		FibACK:               false,
-		Persistence:          true,
-		InitialElectionIDLow: 10,
+		DUT:         dut,
+		FIBACK:      false,
+		Persistence: true,
 	}
 	defer clientA.Close(t)
+
+	// Flush all entries after test.
+	defer clientA.FlushAll(t)
+
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
 	clientA.BecomeLeader(t)
-	clientA.Flush(t)
+
+	// Flush all entries before test.
+	clientA.FlushAll(t)
 
 	args := &testArgs{
 		ctx:     ctx,
@@ -380,5 +385,4 @@ func TestSupFailure(t *testing.T) {
 	verifyTraffic(t, args.ate, flow)
 	stopTraffic(t, args.ate)
 	top.StopProtocols(t)
-	clientA.Flush(t)
 }
