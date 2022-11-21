@@ -26,10 +26,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
-	telemetry "github.com/openconfig/ondatra/telemetry"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 )
 
 func TestMain(m *testing.M) {
@@ -115,21 +117,21 @@ type testCase struct {
 	top gosnappi.Config
 
 	// Initialized by configureDUT.
-	duti1, duti2 *telemetry.Interface
+	duti1, duti2 *oc.Interface
 }
 
 type otgFlowConfigurator func(t *testing.T, packetSize uint16)
 type otgNeighborVerification func(t *testing.T)
 
-var portSpeed = map[ondatra.Speed]telemetry.E_IfEthernet_ETHERNET_SPEED{
-	ondatra.Speed10Gb:  telemetry.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
-	ondatra.Speed100Gb: telemetry.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-	ondatra.Speed400Gb: telemetry.IfEthernet_ETHERNET_SPEED_SPEED_400GB,
+var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
+	ondatra.Speed10Gb:  oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
+	ondatra.Speed100Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
+	ondatra.Speed400Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB,
 }
 
 // configInterfaceDUT configures an oc Interface with the desired MTU.
-func (tc *testCase) configInterfaceDUT(i *telemetry.Interface, dp *ondatra.Port, a *attrs.Attributes) {
-	a.ConfigInterface(i)
+func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *attrs.Attributes) {
+	a.ConfigOCInterface(i)
 
 	e := i.GetOrCreateEthernet()
 	if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
@@ -139,7 +141,7 @@ func (tc *testCase) configInterfaceDUT(i *telemetry.Interface, dp *ondatra.Port,
 	}
 	if tc.auto == forcedNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
 		if speed, ok := portSpeed[dp.Speed()]; ok {
-			e.DuplexMode = telemetry.Ethernet_DuplexMode_FULL
+			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
 			e.PortSpeed = speed
 		}
 	}
@@ -157,21 +159,21 @@ func (tc *testCase) configInterfaceDUT(i *telemetry.Interface, dp *ondatra.Port,
 }
 
 func (tc *testCase) configureDUT(t *testing.T) {
-	d := tc.dut.Config()
+	d := gnmi.OC()
 
 	p1 := tc.dut.Port(t, "port1")
-	tc.duti1 = &telemetry.Interface{Name: ygot.String(p1.Name())}
+	tc.duti1 = &oc.Interface{Name: ygot.String(p1.Name())}
 	tc.configInterfaceDUT(tc.duti1, p1, &dutSrc)
 	di1 := d.Interface(p1.Name())
-	fptest.LogYgot(t, p1.String(), di1, tc.duti1)
-	di1.Replace(t, tc.duti1)
+	fptest.LogQuery(t, p1.String(), di1.Config(), tc.duti1)
+	gnmi.Replace(t, tc.dut, di1.Config(), tc.duti1)
 
 	p2 := tc.dut.Port(t, "port2")
-	tc.duti2 = &telemetry.Interface{Name: ygot.String(p2.Name())}
+	tc.duti2 = &oc.Interface{Name: ygot.String(p2.Name())}
 	tc.configInterfaceDUT(tc.duti2, p2, &dutDst)
 	di2 := d.Interface(p2.Name())
-	fptest.LogYgot(t, p2.String(), di2, tc.duti2)
-	di2.Replace(t, tc.duti2)
+	fptest.LogQuery(t, p2.String(), di2.Config(), tc.duti2)
+	gnmi.Replace(t, tc.dut, di2.Config(), tc.duti2)
 }
 
 func (tc *testCase) configureATE(t *testing.T) {
@@ -213,22 +215,22 @@ func (tc *testCase) configureATE(t *testing.T) {
 }
 
 const (
-	ethernetCsmacd = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
-	adminUp        = telemetry.Interface_AdminStatus_UP
-	opUp           = telemetry.Interface_OperStatus_UP
-	full           = telemetry.Ethernet_DuplexMode_FULL
-	dynamic        = telemetry.IfIp_NeighborOrigin_DYNAMIC
+	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	adminUp        = oc.Interface_AdminStatus_UP
+	opUp           = oc.Interface_OperStatus_UP
+	full           = oc.Ethernet_DuplexMode_FULL
+	dynamic        = oc.IfIp_NeighborOrigin_DYNAMIC
 )
 
 func (tc *testCase) verifyInterfaceDUT(
 	t *testing.T,
 	dp *ondatra.Port,
-	wantdi *telemetry.Interface,
+	wantdi *oc.Interface,
 	atea *attrs.Attributes,
 ) {
-	dip := tc.dut.Telemetry().Interface(dp.Name())
-	di := dip.Get(t)
-	fptest.LogYgot(t, dp.String(), dip, di)
+	dip := gnmi.OC().Interface(dp.Name())
+	di := gnmi.Get(t, tc.dut, dip.State())
+	fptest.LogQuery(t, dp.String(), dip.State(), di)
 
 	di.PopulateDefaults()
 	if tc.mtu == 1500 {
@@ -252,14 +254,14 @@ func (tc *testCase) verifyInterfaceDUT(
 
 	if speed, ok := portSpeed[dp.Speed()]; ok {
 		if tc.auto == forcedNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
-			if got := dip.Ethernet().PortSpeed().Get(t); got != speed {
+			if got := gnmi.Get(t, tc.dut, dip.Ethernet().PortSpeed().State()); got != speed {
 				t.Errorf("%s port-speed got %v, want %v", dp, got, speed)
 			}
 		}
 		if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
-			if dip.Ethernet().AutoNegotiate().Get(t) {
+			if gnmi.Get(t, tc.dut, dip.Ethernet().AutoNegotiate().State()) {
 				// Auto-negotiation is really enabled.
-				if got := dip.Ethernet().NegotiatedPortSpeed().Get(t); got != speed {
+				if got := gnmi.Get(t, tc.dut, dip.Ethernet().NegotiatedPortSpeed().State()); got != speed {
 					t.Errorf("%s negotiated-port-speed got %v, want %v", dp, got, speed)
 				}
 			}
@@ -270,13 +272,13 @@ func (tc *testCase) verifyInterfaceDUT(
 
 	// IPv4 neighbor discovered by ARP.
 	dis4np := disp.Ipv4().Neighbor(atea.IPv4)
-	if got := dis4np.Origin().Get(t); got != dynamic {
+	if got := gnmi.Get(t, tc.dut, dis4np.Origin().State()); got != dynamic {
 		t.Errorf("%s IPv4 neighbor %s origin got %v, want %v", dp, atea.IPv4, got, dynamic)
 	}
 
 	// IPv6 neighbor discovered by ARP.
 	dis6np := disp.Ipv6().Neighbor(atea.IPv6)
-	if got := dis6np.Origin().Get(t); got != dynamic {
+	if got := gnmi.Get(t, tc.dut, dis6np.Origin().State()); got != dynamic {
 		t.Errorf("%s IPv6 neighbor %s origin got %v, want %v", dp, atea.IPv6, got, dynamic)
 	}
 }
@@ -293,9 +295,9 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 }
 
 func (tc *testCase) verifyInterfaceATE(t *testing.T, ap *ondatra.Port) {
-	aip := tc.ate.OTG().Telemetry().Port(ap.ID())
-	ai := aip.Get(t)
-	fptest.LogYgot(t, ap.String(), aip, ai)
+	aip := gnmi.OTG().Port(ap.ID())
+	ai := gnmi.Get(t, tc.ate.OTG(), aip.State())
+	fptest.LogQuery(t, ap.String(), aip.State(), ai)
 
 	// State for the interface.
 	if got := ai.GetLink(); got != otgtelemetry.Port_Link_UP {
@@ -344,30 +346,28 @@ func (tc *testCase) configureIPv6FlowHeader(t *testing.T, packetSize uint16) {
 }
 
 func (tc *testCase) waitOTGIPv4NeighborEntry(t *testing.T) {
-	tc.ate.OTG().Telemetry().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-			return val.IsPresent()
-		}).Await(t)
+	gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
 }
 
 func (tc *testCase) waitOTGIPv6NeighborEntry(t *testing.T) {
-	tc.ate.OTG().Telemetry().Interface(ateSrc.Name+".Eth").Ipv6NeighborAny().LinkLayerAddress().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-			return val.IsPresent()
-		}).Await(t)
+	gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv6NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
 }
 
 type counters struct {
 	unicast, multicast, broadcast uint64
 }
 
-func inCounters(tic *telemetry.Interface_Counters) *counters {
+func inCounters(tic *oc.Interface_Counters) *counters {
 	return &counters{unicast: tic.GetInUnicastPkts(),
 		multicast: tic.GetInMulticastPkts(),
 		broadcast: tic.GetInBroadcastPkts()}
 }
 
-func outCounters(tic *telemetry.Interface_Counters) *counters {
+func outCounters(tic *oc.Interface_Counters) *counters {
 	return &counters{unicast: tic.GetOutUnicastPkts(),
 		multicast: tic.GetOutMulticastPkts(), broadcast: tic.GetOutBroadcastPkts()}
 }
@@ -383,12 +383,12 @@ func diffCounters(before, after *counters) *counters {
 func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otgFlowConfigurator, waitOTGARPEntry otgNeighborVerification) bool {
 	p1 := tc.dut.Port(t, "port1")
 	p2 := tc.dut.Port(t, "port2")
-	p1Counter := tc.dut.Telemetry().Interface(p1.Name()).Counters()
-	p2Counter := tc.dut.Telemetry().Interface(p2.Name()).Counters()
+	p1Counter := gnmi.OC().Interface(p1.Name()).Counters()
+	p2Counter := gnmi.OC().Interface(p2.Name()).Counters()
 
 	// Before Traffic Unicast, Multicast, Broadcast Counter
-	p1InBefore := inCounters(p1Counter.Get(t))
-	p2OutBefore := outCounters(p2Counter.Get(t))
+	p1InBefore := inCounters(gnmi.Get(t, tc.dut, p1Counter.State()))
+	p2OutBefore := outCounters(gnmi.Get(t, tc.dut, p2Counter.State()))
 	tc.top.Flows().Clear().Items()
 	flow := tc.top.Flows().Add().SetName("Flow")
 	e1 := flow.Packet().Add().Ethernet()
@@ -407,16 +407,16 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 	// for best results.
 	{
 		ap1 := tc.ate.Port(t, "port1")
-		aicp1 := tc.ate.OTG().Telemetry().Port(ap1.ID()).Get(t)
+		aicp1 := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Port(ap1.ID()).State())
 		ap2 := tc.ate.Port(t, "port2")
-		aicp2 := tc.ate.OTG().Telemetry().Port(ap2.ID()).Get(t)
+		aicp2 := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Port(ap2.ID()).State())
 		t.Logf("ap1 out-pkts %d -> ap2 in-pkts %d", aicp1.GetCounters().GetOutFrames(), aicp2.GetCounters().GetInFrames())
 		t.Logf("ap1 out-octets %d -> ap2 in-octets %d", aicp1.GetCounters().GetOutOctets(), aicp2.GetCounters().GetInOctets())
 	}
 
 	// After Traffic Unicast, Multicast, Broadcast Counter
-	p1InAfter := inCounters(p1Counter.Get(t))
-	p2OutAfter := outCounters(p2Counter.Get(t))
+	p1InAfter := inCounters(gnmi.Get(t, tc.dut, p1Counter.State()))
+	p2OutAfter := outCounters(gnmi.Get(t, tc.dut, p2Counter.State()))
 	p1InDiff := diffCounters(p1InBefore, p1InAfter)
 	p2OutDiff := diffCounters(p2OutBefore, p2OutAfter)
 
@@ -435,7 +435,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 
 	// Flow counters
 	otgutils.LogFlowMetrics(t, tc.ate.OTG(), tc.top)
-	fp := tc.ate.OTG().Telemetry().Flow(flow.Name()).Get(t)
+	fp := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
 	fpc := fp.GetCounters()
 
 	// Pragmatic check on the average in and out packet sizes.  IPv4 may

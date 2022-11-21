@@ -24,31 +24,30 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // FindComponentsByType finds the list of components based on hardware type.
-func FindComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
-	components := dut.Telemetry().ComponentAny().Name().Get(t)
+func FindComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
+	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().Name().State())
 	var s []string
 	for _, c := range components {
-		lookupType := dut.Telemetry().Component(c).Type().Lookup(t)
-		if !lookupType.IsPresent() {
+		lookupType, present := gnmi.Lookup(t, dut, gnmi.OC().Component(c).Type().State()).Val()
+		if !present {
 			t.Logf("Component %s type is missing from telemetry", c)
 			continue
 		}
-		componentType := lookupType.Val(t)
-		t.Logf("Component %s has type: %v", c, componentType)
-		switch v := componentType.(type) {
-		case telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
+		t.Logf("Component %s has type: %v", c, lookupType)
+		switch v := lookupType.(type) {
+		case oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
 			if v == cType {
 				s = append(s, c)
 			}
 		default:
-			t.Logf("Detected non-hardware component: (%T, %v)", componentType, componentType)
+			t.Logf("Detected non-hardware component: (%T, %v)", lookupType, lookupType)
 		}
 	}
 	return s
