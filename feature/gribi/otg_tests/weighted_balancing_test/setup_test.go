@@ -191,7 +191,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	static := &oc.NetworkInstance_Protocol_Static{
 		Prefix: ygot.String(discardCIDR),
 	}
-	static.GetOrCreateNextHop("AUTO_drop_2").
+	static.GetOrCreateNextHop("0").
 		NextHop = oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
 	staticp := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
