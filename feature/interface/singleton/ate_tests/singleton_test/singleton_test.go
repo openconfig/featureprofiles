@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-        "google3/third_party/golang/cmp/cmp"
+        "github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
 	"github.com/openconfig/featureprofiles/internal/deviations"
