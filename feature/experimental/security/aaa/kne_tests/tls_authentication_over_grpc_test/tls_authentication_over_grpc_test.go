@@ -81,6 +81,7 @@ func TestAuthentication(t *testing.T) {
 		Replace(t, &telemetry.System_Aaa_Authentication_User{
 			Username: ygot.String("alice"),
 			Password: ygot.String("password"),
+			Role:     telemetry.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
 		})
 
 	tests := []struct {

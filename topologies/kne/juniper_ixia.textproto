@@ -1,7 +1,6 @@
 name: "juniper-ixia"
 nodes: {
     name: "cptx1"
-    type: JUNIPER_CEVO
     vendor: JUNIPER
     model: "cptx"
     os: "evo"
@@ -60,7 +59,7 @@ nodes: {
 }
 nodes: {
     name: "otg"
-    type: IXIA_TG
+    vendor: KEYSIGHT
     version: "0.0.1-3423"
     services: {
         key: 443

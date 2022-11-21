@@ -1,7 +1,9 @@
 name: "arista-ceos"
 nodes: {
   name: "dut"
-  type: ARISTA_CEOS
+  vendor: ARISTA
+  model: "ceos"
+  os: "eos"
   config: {
     config_path: "/mnt/flash"
     config_file: "startup-config"

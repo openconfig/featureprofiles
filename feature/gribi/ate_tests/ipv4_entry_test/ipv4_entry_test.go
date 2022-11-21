@@ -16,17 +16,20 @@ package ipv4_entry_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 const (
@@ -97,6 +100,8 @@ func TestIPv4Entry(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
+
+	gribic := dut.RawAPIs().GRIBI().Default(t)
 
 	ate := ondatra.ATE(t, "ate")
 	ateTop := configureATE(t, ate)
@@ -234,57 +239,97 @@ func TestIPv4Entry(t *testing.T) {
 		},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			gribic := dut.RawAPIs().GRIBI().Default(t)
-			c := fluent.NewClient()
-			c.Connection().WithStub(gribic).
-				WithRedundancyMode(fluent.ElectedPrimaryClient).
-				WithFIBACK().
-				WithInitialElectionID(1, 0)
-			c.Start(ctx, t)
-			defer c.Stop(t)
-			c.StartSending(ctx, t)
-			if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-				t.Fatalf("Await got error during session negotiation: %v", err)
+	const (
+		usePreserve = "PRESERVE"
+		useDelete   = "DELETE"
+	)
+
+	// Each case will run with its own gRIBI fluent client.
+	for _, persist := range []string{usePreserve, useDelete} {
+		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
+			if *deviations.GRIBIPreserveOnly && persist == useDelete {
+				t.Skip("Skipping due to --deviation_gribi_preserve_only")
 			}
 
-			if tc.downPort != nil {
-				ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(false).Send(t)
-				defer ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(true).Send(t)
-			}
+			for _, tc := range cases {
+				t.Run(tc.desc, func(t *testing.T) {
+					// Configure the gRIBI client.
+					c := fluent.NewClient()
+					conn := c.Connection().
+						WithStub(gribic).
+						WithRedundancyMode(fluent.ElectedPrimaryClient).
+						WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
+					if persist == usePreserve {
+						conn.WithPersistence()
+					}
 
-			c.Modify().AddEntry(t, tc.entries...)
-			if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-				t.Fatalf("Await got error for entries: %v", err)
-			}
-			defer func() {
-				c.Modify().DeleteEntry(t, tc.entries...)
-				if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-					t.Fatalf("Await got error for entries: %v", err)
-				}
-			}()
+					if !*deviations.GRIBIRIBAckOnly {
+						// The main difference WithFIBACK() made was that we are now expecting
+						// fluent.InstalledInFIB in []*client.OpResult, as opposed to
+						// fluent.InstalledInRIB.
+						conn.WithFIBACK()
+					}
 
-			for _, wantResult := range tc.wantOperationResults {
-				chk.HasResult(t, c.Results(t), wantResult, chk.IgnoreOperationID())
-			}
+					c.Start(ctx, t)
+					defer c.Stop(t)
+					c.StartSending(ctx, t)
+					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+						t.Fatalf("Await got error during session negotiation: %v", err)
+					}
+					gribi.BecomeLeader(t, c)
 
-			validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
+					if persist == usePreserve {
+						defer func() {
+							if err := gribi.FlushAll(c); err != nil {
+								t.Errorf("Cannot flush: %v", err)
+							}
+						}()
+					}
+
+					if tc.downPort != nil {
+						ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(false).Send(t)
+						defer ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(true).Send(t)
+					}
+
+					c.Modify().AddEntry(t, tc.entries...)
+					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+						t.Fatalf("Await got error for entries: %v", err)
+					}
+					defer func() {
+						// Delete should reverse the order of entries, i.e. IPv4Entry must be removed
+						// before NextHopGroupEntry, which must be removed before NextHopEntry.
+						var revEntries []fluent.GRIBIEntry
+						for i := len(tc.entries) - 1; i >= 0; i-- {
+							revEntries = append(revEntries, tc.entries[i])
+						}
+						c.Modify().DeleteEntry(t, revEntries...)
+						if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+							t.Fatalf("Await got error for entries: %v", err)
+						}
+					}()
+
+					for _, wantResult := range tc.wantOperationResults {
+						chk.HasResult(t, c.Results(t), wantResult, chk.IgnoreOperationID())
+					}
+
+					validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
+				})
+			}
 		})
 	}
 }
 
 // configureDUT configures port1-3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 
-	d.Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
-	d.Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
-	d.Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 }
 
 // configreATE configures port1-3 on the ATE.
@@ -334,13 +379,13 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []*ondatra.
 	ate.Traffic().Stop(t)
 
 	for _, flow := range good {
-		if got := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t); got > 0 {
+		if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got > 0 {
 			t.Fatalf("LossPct for flow %s: got %g, want 0", flow.Name(), got)
 		}
 	}
 
 	for _, flow := range bad {
-		if got := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t); got < 100 {
+		if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got < 100 {
 			t.Fatalf("LossPct for flow %s: got %g, want 100", flow.Name(), got)
 		}
 	}

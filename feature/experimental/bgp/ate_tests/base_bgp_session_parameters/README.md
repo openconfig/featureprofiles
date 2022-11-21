@@ -38,7 +38,7 @@ Test the normal session establishment and termination:
 
     *   Explicitly specified Router ID.
     *   Enable MD5 authentication on DUT and ATE.
-    *   TODO: Explicit holdtime interval and keepalive interval.
+    *   Explicit holdtime interval and keepalive interval.
     *   Explicit connect retry interval.
 
 ## Config Parameter coverage
