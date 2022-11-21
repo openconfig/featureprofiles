@@ -25,7 +25,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ondatra/telemetry/ateflow"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
@@ -34,6 +33,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	gpb "github.com/openconfig/gribi/v1/proto/service"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -297,13 +299,13 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 // configureDUT configures port1-2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
-	d.Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
-	d.Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
 
 }
 
@@ -336,17 +338,17 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	niIntf.Subinterface = ygot.Uint32(0)
 	niIntf.Interface = ygot.String(p1.Name())
 
-	dut.Config().NetworkInstance(nonDefaultVRF).Replace(t, nonDefaultNI)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), nonDefaultNI)
 }
 
 // networkInstance creates an OpenConfig network instance with the specified name
-func networkInstance(t *testing.T, name string) *telemetry.NetworkInstance {
-	d := &telemetry.Device{}
+func networkInstance(t *testing.T, name string) *oc.NetworkInstance {
+	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(name)
 	ni.Description = ygot.String("Non Default routing instance created for testing")
-	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	ni.Enabled = ygot.Bool(true)
-	ni.EnabledAddressFamilies = []telemetry.E_Types_ADDRESS_FAMILY{telemetry.Types_ADDRESS_FAMILY_IPV4, telemetry.Types_ADDRESS_FAMILY_IPV6}
+	ni.EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4, oc.Types_ADDRESS_FAMILY_IPV6}
 	return ni
 }
 
@@ -376,9 +378,10 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 
 // verifyEntry checks if the entry is active through AFT Telemetry.
 func verifyEntry(t *testing.T, dut *ondatra.DUTDevice, networkInstanceName string, ateDstNetCIDR string) bool {
-	ipv4Entry := dut.Telemetry().NetworkInstance(networkInstanceName).Afts().Ipv4Entry(ateDstNetCIDR)
-	got := ipv4Entry.Prefix().Lookup(t)
-	return got.IsPresent() && got.Val(t) == ateDstNetCIDR
+	ipv4Entry := gnmi.OC().NetworkInstance(networkInstanceName).Afts().Ipv4Entry(ateDstNetCIDR)
+	got := gnmi.Lookup(t, dut, ipv4Entry.Prefix().State())
+	prefix, present := got.Val()
+	return present && prefix == ateDstNetCIDR
 }
 
 // injectEntries adds a fully referenced IP Entry, NH and NHG.
@@ -395,11 +398,12 @@ func injectIPEntry(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cl
 	client.AddIPv4(t, ateDstNetCIDR, nhgIndex, networkInstanceName, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 
 	// After adding the entry, verify the entry is active through AFT Telemetry.
-	ipv4Path := dut.Telemetry().NetworkInstance(networkInstanceName).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := ipv4Path.Prefix().Watch(t, time.Minute, func(val *telemetry.QualifiedString) bool {
-		return val.IsPresent() && val.Val(t) == ateDstNetCIDR
+	ipv4Path := gnmi.OC().NetworkInstance(networkInstanceName).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, ok := gnmi.Watch(t, dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		prefix, present := val.Val()
+		return present && prefix == ateDstNetCIDR
 	}).Await(t); !ok {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got.Val(t), ateDstNetCIDR)
+		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 	}
 }
 
