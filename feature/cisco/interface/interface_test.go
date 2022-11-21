@@ -1,10 +1,14 @@
 package basetest
 
 import (
+	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
 	oc "github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -763,4 +767,214 @@ func TestInterfaceTelemetry(t *testing.T) {
 		}
 	})
 
+}
+func TestForwardingUnviableFP(t *testing.T) {
+	dut := ondatra.DUT(t, device1)
+	inputObj, err := testInput.GetTestInput(t)
+	if err != nil {
+		t.Error(err)
+	}
+	iut1 := inputObj.Device(dut).GetInterface("Bundle-Ether120")
+	iut2 := inputObj.Device(dut).GetInterface("Bundle-Ether121")
+	nonBundleMember := iut2.Members()[0]
+	bundleMember := iut1.Members()[0]
+	outPktsBefore := dut.Telemetry().Interface(bundleMember).Counters().OutPkts().Get(t)
+
+	t.Run("Configure forwarding-unviable on bundle member ", func(t *testing.T) {
+		verifyForwardingViable(t, dut, bundleMember)
+		t.Log("Sleep after for 10s after configuring bundle member")
+		time.Sleep(30 * time.Second)
+	})
+
+	t.Run("Counters checked after forwarding-unviable configured on bundle-member", func(t *testing.T) {
+		outPktsAfterBundleMember := dut.Telemetry().Interface(bundleMember).Counters().OutPkts().Get(t)
+		outPktsAfterBundle := dut.Telemetry().Interface(iut1.Name()).Counters().OutPkts().Get(t)
+		if (outPktsAfterBundle > outPktsBefore) && (outPktsAfterBundleMember > outPktsBefore) {
+			t.Logf("Counters before forward-unviable config: %v , Counters after forward-unviable config on Bundle interface  %v", outPktsBefore, outPktsAfterBundle)
+			t.Logf("Counters before forward-unviable config: %v , Counters after forward-unviable config on Bundle Member interface  %v", outPktsBefore, outPktsAfterBundleMember)
+			t.Errorf("Out pkts are increasing with forwarding-unviable are not as expected")
+		}
+	})
+
+	t.Run("Configure forwarding-unviable and check if bundle interface status is DOWN", func(t *testing.T) {
+		stateBundleInterface := dut.Telemetry().Interface(iut1.Name()).OperStatus().Get(t).String()
+		stateBundleMemberInterface := dut.Telemetry().Interface(bundleMember).OperStatus().Get(t).String()
+		if (stateBundleInterface != "DOWN") && (stateBundleMemberInterface != "UP") {
+			t.Logf("Bunde interface state %v, got %v , want DOWN", iut1.Name(), stateBundleInterface)
+			t.Logf("Bundle member interface state %v, got %v, want UP ", bundleMember, stateBundleMemberInterface)
+			t.Errorf("Interface state is not expected ")
+		}
+
+	})
+	t.Run("Flap interfaces and check counter values", func(t *testing.T) {
+		pktsBundleMemberBefore := dut.Telemetry().Interface(iut1.Name()).Counters().OutPkts().Get(t)
+		pktsBundleBefore := dut.Telemetry().Interface(bundleMember).Counters().OutPkts().Get(t)
+		for i := 0; i < 4; i++ {
+			util.FlapInterface(t, dut, bundleMember, 10*time.Second)
+			util.FlapInterface(t, dut, iut1.Name(), 10*time.Second)
+		}
+		time.Sleep(30 * time.Second)
+		pktsBundleMemberAfter := dut.Telemetry().Interface(iut1.Name()).Counters().OutPkts().Get(t)
+		pktsBundleAfter := dut.Telemetry().Interface(iut1.Name()).Counters().OutPkts().Get(t)
+		if (pktsBundleMemberAfter > pktsBundleMemberBefore) && (pktsBundleAfter > pktsBundleBefore) {
+			t.Logf("Counters before flap: %v , Counters after flap on Bundle interface  %v", pktsBundleBefore, pktsBundleAfter)
+			t.Logf("Counters before flap config: %v , Counters after flap on Bundle Member interface   %v", pktsBundleMemberBefore, pktsBundleMemberAfter)
+			t.Errorf("Out pkts are increasing with forwarding-unviable upon flapping")
+		}
+
+	})
+	t.Run("Testing forwarding-unviable on non-bundle interface", func(t *testing.T) {
+		member := dut.Config().Interface(nonBundleMember)
+		member.Delete(t)
+		defer member.Delete(t)
+		pktsBefore := dut.Telemetry().Interface(nonBundleMember).Counters().OutPkts().Get(t)
+		t.Log(pktsBefore)
+		verifyForwardingViable(t, dut, nonBundleMember)
+		time.Sleep(30 * time.Second)
+		pktsAfter := dut.Telemetry().Interface(nonBundleMember).Counters().OutPkts().Get(t)
+		t.Log(pktsAfter)
+		if pktsAfter < pktsBefore {
+			t.Errorf("Pkts after configuring forwarding-unviable on non bundle interface are expected to increase , Got pkts before configuring %v and after %v", pktsBefore, pktsAfter)
+		}
+		for i := 0; i < 4; i++ {
+			util.FlapInterface(t, dut, nonBundleMember, 10*time.Second)
+		}
+		time.Sleep(30 * time.Second)
+		pktsAfterFlap := dut.Telemetry().Interface(nonBundleMember).Counters().OutPkts().Get(t)
+		t.Log(pktsAfterFlap)
+		if pktsAfterFlap < pktsAfter {
+			t.Errorf("Pkts after configuring forwarding-unviable on non bundle interface are expected to increase even after interface flap, Got pkts before configuring %v and after %v", pktsBefore, pktsAfter)
+		}
+
+	})
+
+	t.Run("Configure 2 bundle members with one viable and other unviable", func(t *testing.T) {
+		member := dut.Config().Interface(nonBundleMember)
+		member.Delete(t)
+		pktsBundleBefore := dut.Telemetry().Interface(iut1.Name()).Counters().OutPkts().Get(t)
+
+		t.Log(pktsBundleBefore)
+		members := dut.Config().Interface(nonBundleMember).Ethernet().AggregateId()
+		members.Update(t, iut1.Name())
+		defer members.Update(t, iut2.Name())
+		defer member.Delete(t)
+		t.Logf("Interface %v is forwarding-viable and Interface %v is forwarding-unviable", nonBundleMember, bundleMember)
+		time.Sleep(10 * time.Second)
+		bundleStatus := dut.Telemetry().Interface(iut1.Name()).OperStatus().Get(t).String()
+		t.Log((bundleStatus))
+		if bundleStatus != "UP" {
+			t.Errorf("Expected Bundle interface %v to be UP as its member %v is forwading-viable ", bundleStatus, nonBundleMember)
+		}
+		time.Sleep(60 * time.Second)
+
+		pktsBundleAfter := dut.Telemetry().Interface(iut1.Name()).Counters().OutPkts().Get(t)
+		t.Log(pktsBundleAfter)
+		if pktsBundleAfter < pktsBundleBefore {
+			t.Errorf("Counters is not increasing as Interface is UP and bundle member is viable ")
+		}
+		verifyForwardingViable(t, dut, nonBundleMember)
+		time.Sleep(10 * time.Second)
+		bundleStatusAfter := dut.Telemetry().Interface(iut1.Name()).OperStatus().Get(t).String()
+		time.Sleep(30 * time.Second)
+		if bundleStatusAfter != "DOWN" {
+			t.Errorf("Expected Bundle interface %v to be down as both its members are forwarding-unviable ", iut1.Name())
+		}
+
+		pktsBundleAfter2 := dut.Telemetry().Interface(iut1.Name()).Counters().OutPkts().Get(t)
+		t.Log(pktsBundleAfter2)
+		if pktsBundleAfter2 == pktsBundleAfter {
+			t.Logf("Pkts before %v Pkts after %v ", pktsBundleAfter, pktsBundleAfter2)
+		} else {
+			t.Error("Outgoing pkts are increasing with forwarding unviable configured on the box ")
+		}
+
+	})
+
+	t.Run("Process restart the router and check for counters ", func(t *testing.T) {
+
+		pktsBundleMemberBefore := dut.Telemetry().Interface(iut1.Name()).Counters().OutPkts().Get(t)
+		pktsBundleBefore := dut.Telemetry().Interface(bundleMember).Counters().OutPkts().Get(t)
+		processList := [4]string{"ether_mgbl", "ifmgr", " bundlemgr_distrib", "bundlemgr_local"}
+		for _, process := range processList {
+			config.CMDViaGNMI(context.Background(), t, dut, fmt.Sprintf("process restart %v", process))
+		}
+		time.Sleep(30 * time.Second)
+		pktsBundleMemberAfter := dut.Telemetry().Interface(iut1.Name()).Counters().OutPkts().Get(t)
+		pktsBundleAfter := dut.Telemetry().Interface(iut1.Name()).Counters().OutPkts().Get(t)
+		if (pktsBundleMemberAfter > pktsBundleMemberBefore) && (pktsBundleAfter != pktsBundleBefore) {
+			t.Logf("Counters before flap: %v , Counters after flap on Bundle interface  %v", pktsBundleBefore, pktsBundleAfter)
+			t.Logf("Counters before flap config: %v , Counters after flap on Bundle Member interface   %v", pktsBundleMemberBefore, pktsBundleMemberAfter)
+			t.Errorf("Out pkts are increasing with forwarding-unviable upon flapping")
+		}
+
+	})
+
+	t.Run("Reload the router and check for counters", func(t *testing.T) {
+		util.ReloadDUT(t, dut)
+		dutR := ondatra.DUT(t, device1)
+		pktsBundleMemberAfter := dutR.Telemetry().Interface(iut1.Name()).Counters().OutPkts().Get(t)
+		pktsBundleAfter := dutR.Telemetry().Interface(bundleMember).Counters().OutPkts().Get(t)
+		if (pktsBundleMemberAfter == 0) && (pktsBundleAfter == 0) {
+			t.Logf(" Counters after flap on Bundle interface not expected: got %v, got 0 ", pktsBundleAfter)
+			t.Logf(" Counters after flap on Bundle Member interface not expected: got %v, want 0 ", pktsBundleMemberAfter)
+			t.Errorf("Out pkts are increasing with forwarding-unviable upon flapping")
+		}
+
+	})
+
+}
+func TestForwardViableSDN(t *testing.T) {
+	t.Skip(t) // Run when SDN support comes in
+	dut := ondatra.DUT(t, device1)
+	inputObj, err := testInput.GetTestInput(t)
+	if err != nil {
+		t.Error(err)
+	}
+	iut2 := inputObj.Device(dut).GetInterface("Bundle-Ether121")
+	bundleMember := iut2.Members()[0]
+	interfaceContainer := &oc.Interface{ForwardingViable: ygot.Bool(false)}
+	t.Run(fmt.Sprintf("Update//interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
+		path := dut.Config().Interface(bundleMember).ForwardingViable()
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Update(t, *ygot.Bool(false))
+	})
+	t.Run(fmt.Sprintf("Get//interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
+		configContainer := dut.Config().Interface(bundleMember).ForwardingViable()
+		defer observer.RecordYgot(t, "SUBSCRIBE", configContainer)
+		forwardUnviable := configContainer.Get(t)
+		if forwardUnviable != *ygot.Bool(false) {
+			t.Errorf("Update for forward-unviable failed got %v , want false", forwardUnviable)
+		}
+	})
+	t.Run(fmt.Sprintf("Subscribe//interface[%v]/state/forward-viable", bundleMember), func(t *testing.T) {
+		stateContainer := dut.Telemetry().Interface(bundleMember).ForwardingViable()
+		defer observer.RecordYgot(t, "SUBSCRIBE", stateContainer)
+		forwardUnviable := stateContainer.Get(t)
+		if forwardUnviable != *ygot.Bool(false) {
+			t.Errorf("Update for forward-unviable failed got %v , want false", forwardUnviable)
+		}
+	})
+	t.Run(fmt.Sprintf("Delete//interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
+		path := dut.Config().Interface(bundleMember).ForwardingViable()
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Delete(t)
+	})
+	t.Run(fmt.Sprintf("Update//interface[%v]/", bundleMember), func(t *testing.T) {
+		path := dut.Config().Interface(bundleMember)
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Update(t, interfaceContainer)
+	})
+	t.Run(fmt.Sprintf("Get//interface[%v]/", bundleMember), func(t *testing.T) {
+		configContainer := dut.Config().Interface(bundleMember)
+		defer observer.RecordYgot(t, "SUBSCRIBE", configContainer)
+		forwardUnviable := configContainer.Get(t)
+		if *forwardUnviable.ForwardingViable != *ygot.Bool(false) {
+			t.Errorf("Update for forward-unviable failed got %v , want false", forwardUnviable)
+		}
+	})
+	t.Run(fmt.Sprintf("Delete//interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
+		path := dut.Config().Interface(bundleMember)
+		defer observer.RecordYgot(t, "UPDATE", path)
+		path.Delete(t)
+	})
 }
