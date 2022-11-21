@@ -1,5 +1,5 @@
 diff --git a/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go b/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
-index 326e720e..9475e3ac 100644
+index 43ef5d3a..3761d5b0 100644
 --- a/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
 +++ b/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
 @@ -31,7 +31,6 @@ import (
@@ -10,7 +10,7 @@ index 326e720e..9475e3ac 100644
  )
  
  func TestMain(m *testing.M) {
-@@ -310,6 +309,7 @@ func TestSupFailure(t *testing.T) {
+@@ -315,6 +314,7 @@ func TestSupFailure(t *testing.T) {
  	verifyTraffic(t, args.ate, flow)
  
  	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
@@ -18,7 +18,7 @@ index 326e720e..9475e3ac 100644
  	t.Logf("Found controller list: %v", controllers)
  	// Only perform the switchover for the chassis with dual controllers.
  	if len(controllers) != 2 {
-@@ -323,10 +323,9 @@ func TestSupFailure(t *testing.T) {
+@@ -328,10 +328,9 @@ func TestSupFailure(t *testing.T) {
  	}
  
  	gnoiClient := dut.RawAPIs().GNOI().Default(t)
@@ -31,7 +31,18 @@ index 326e720e..9475e3ac 100644
  	}
  	t.Logf("switchoverRequest: %v", switchoverRequest)
  	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-@@ -371,6 +370,8 @@ func TestSupFailure(t *testing.T) {
+@@ -367,15 +366,17 @@ func TestSupFailure(t *testing.T) {
+ 	// Assume Controller Switchover happened, ensure traffic flows without loss.
+ 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
+ 	// Try starting the gribi client twice as switchover may reset the connection.
+-	if err := clientA.Start(t); err != nil {
++	if err := clientA.StartWithNoCache(t); err != nil {
+ 		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+-		if err = clientA.Start(t); err != nil {
++		if err = clientA.StartWithNoCache(t); err != nil {
+ 			t.Fatalf("gRIBI Connection could not be established: %v", err)
+ 		}
+ 	}
  
  	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
  	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
