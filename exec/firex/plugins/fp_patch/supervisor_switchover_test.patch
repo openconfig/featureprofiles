@@ -1,5 +1,5 @@
 diff --git a/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go b/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
-index 96cab53a..de351163 100644
+index 96cab53a..8b1425f7 100644
 --- a/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
 +++ b/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
 @@ -20,13 +20,13 @@ import (
@@ -17,13 +17,11 @@ index 96cab53a..de351163 100644
  )
  
  const (
-@@ -70,13 +70,13 @@ func TestMain(m *testing.M) {
- func TestSupervisorSwitchover(t *testing.T) {
+@@ -71,12 +71,12 @@ func TestSupervisorSwitchover(t *testing.T) {
  	dut := ondatra.DUT(t, "dut")
  
--	supervisors := components.FindComponentsByType(t, dut, controlcardType)
-+	//supervisors := components.FindComponentsByType(t, dut, controlcardType)
-+	supervisors := []string{"0/RP0/CPU0","0/RP1/CPU0"}
+ 	supervisors := components.FindComponentsByType(t, dut, controlcardType)
++	//supervisors := []string{"0/RP0/CPU0","0/RP1/CPU0"}
  	t.Logf("Found supervisor list: %v", supervisors)
  	// Only perform the switchover for the chassis with dual RPs/Supervisors.
  	if got, want := len(supervisors), 2; got != want {
@@ -61,11 +59,26 @@ index 96cab53a..de351163 100644
  		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
  	}
  	if got, want := switchoverResponse.GetVersion(), ""; got == want {
-@@ -147,6 +152,7 @@ func TestSupervisorSwitchover(t *testing.T) {
+@@ -122,7 +127,7 @@ func TestSupervisorSwitchover(t *testing.T) {
+ 	for {
+ 		var currentTime string
+ 		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+-		time.Sleep(30 * time.Second)
++		time.Sleep(10 * time.Second)
+ 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+ 			currentTime = dut.Telemetry().System().CurrentDatetime().Get(t)
+ 		}); errMsg != nil {
+@@ -147,6 +152,13 @@ func TestSupervisorSwitchover(t *testing.T) {
  		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
  	}
  
-+	time.Sleep(60 * time.Second)
++	switchoverReady = dut.Telemetry().Component(rpActiveAfterSwitch).SwitchoverReady()
++	switchoverReady.Await(t, 30*time.Minute, true)
++	t.Logf("SwitchoverReady().Get(t): %v", switchoverReady.Get(t))
++	if got, want := switchoverReady.Get(t), true; got != want {
++		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
++	}
++
  	batch := dut.Telemetry().NewBatch()
  	for _, port := range intfsOperStatusUPBeforeSwitch {
  		dut.Telemetry().Interface(port).OperStatus().Batch(t, batch)

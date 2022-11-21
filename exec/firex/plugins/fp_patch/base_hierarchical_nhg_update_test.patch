@@ -1,8 +1,8 @@
 diff --git a/feature/gribi/ate_tests/base_hierarchical_nhg_update/base_hierarchical_nhg_update_test.go b/feature/gribi/ate_tests/base_hierarchical_nhg_update/base_hierarchical_nhg_update_test.go
-index 441cc56a..8ccb4e22 100644
+index f9b0fa07..af595063 100644
 --- a/feature/gribi/ate_tests/base_hierarchical_nhg_update/base_hierarchical_nhg_update_test.go
 +++ b/feature/gribi/ate_tests/base_hierarchical_nhg_update/base_hierarchical_nhg_update_test.go
-@@ -244,9 +244,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+@@ -254,9 +254,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
  	p1VRF.Subinterface = ygot.Uint32(0)
  	dut.Config().NetworkInstance(vrfName).Replace(t, vrf)
  
