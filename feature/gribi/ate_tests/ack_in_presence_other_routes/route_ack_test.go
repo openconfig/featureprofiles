@@ -202,7 +202,7 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	static.Enabled = ygot.Bool(true)
 	sr := static.GetOrCreateStatic(prefix)
-	nh := sr.GetOrCreateNextHop("nhg1")
+	nh := sr.GetOrCreateNextHop("0")
 	nh.NextHop = fpoc.UnionString(nexthop)
 	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Update(t, static)
 }
@@ -259,15 +259,19 @@ func TestRouteAck(t *testing.T) {
 
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
-		DUT:                  dut,
-		FibACK:               false,
-		Persistence:          true,
-		InitialElectionIDLow: 10,
+		DUT:         dut,
+		FIBACK:      false,
+		Persistence: true,
 	}
 	defer clientA.Close(t)
+
+	// Flush all entries after test.
+	defer clientA.FlushAll(t)
+
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
+	clientA.BecomeLeader(t)
 
 	args := &testArgs{
 		ctx:     ctx,

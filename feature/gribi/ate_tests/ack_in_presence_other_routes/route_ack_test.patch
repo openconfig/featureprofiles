@@ -1,14 +1,14 @@
 diff --git a/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go b/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go
-index ef4f4952..a3fded2f 100644
+index eabddb49..ce196480 100644
 --- a/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go
 +++ b/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go
 @@ -200,7 +200,8 @@ func configureNetworkInstance(t *testing.T) {
- func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) *telemetry.NetworkInstance_Protocol {
+ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
  	ni1 := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Get(t)
  	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 -	static.Enabled = ygot.Bool(true)
-+	// we do not support leaf, need a deviation
++	// The test pass with deviation for staticroute/enable that is tracked with bug CSCwd55321.
 +	//static.Enabled = ygot.Bool(true)
- 	static.Identifier = telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
  	sr := static.GetOrCreateStatic(prefix)
  	nh := sr.GetOrCreateNextHop("nhg1")
+ 	nh.NextHop = fpoc.UnionString(nexthop)

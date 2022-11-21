@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
@@ -125,6 +126,15 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got error during gribi client setup: %v", err)
 	}
+
+	defer func() {
+		// Flush all entries after test.
+		if err = gribi.FlushAll(gribic); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	gribi.BecomeLeader(t, gribic)
 
 	addInterfaceRoute(ctx, t, gribic, p2ID, dut.Port(t, "port2").Name(), atePort2.IPv4)
 	addDestinationRoute(ctx, t, gribic)

@@ -1,0 +1,13 @@
+diff --git a/internal/gnmigen/genutil/genutil.go b/internal/gnmigen/genutil/genutil.go
+index a5fc857..5b884fa 100644
+--- a/internal/gnmigen/genutil/genutil.go
++++ b/internal/gnmigen/genutil/genutil.go
+@@ -852,7 +852,7 @@ func subscribe(ctx context.Context, n ygot.PathStruct, subPaths []*gpb.Path, mod
+ 			return nil, nil, fmt.Errorf("gNMI failed to Subscribe: %w", err)
+ 		}
+ 	}
+-	defer closer.Close(&rerr, sub.CloseSend, "error closing gNMI send stream")
++	//defer closer.Close(&rerr, sub.CloseSend, "error closing gNMI send stream")
+ 
+ 	var subs []*gpb.Subscription
+ 	for _, path := range subPaths {

@@ -2,6 +2,8 @@ from github import Github
 import os
 
 class FPGHRepo():
+    _instance = None
+
     def __init__(self):
         self._gh = Github(base_url="https://wwwin-github.cisco.com/api/v3",
                     login_or_token=os.environ['GH_TOKEN'])
@@ -9,6 +11,12 @@ class FPGHRepo():
         self._repo = self._org.get_repo("featureprofiles")
         self._issues = list(self._repo.get_issues(state='open'))
         self._test_issue_map = {}
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = FPGHRepo()
+        return cls._instance
 
     def get_issue(self, test_name):
         if test_name in self._test_issue_map:
@@ -33,3 +41,14 @@ class FPGHRepo():
                 self._test_issue_map[test_name] = info
                 return info
         return None
+
+    def update_labels(self, issue_number, tags):
+        for issue in self._issues:
+            if issue.number == issue_number:
+                for l in issue.labels:
+                    label = l.name
+                    if label.startswith('auto:') and not label in tags:
+                        issue.remove_from_labels(l)
+                for t in tags:
+                    issue.add_to_labels(t)
+                return

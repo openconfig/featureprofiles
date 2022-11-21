@@ -259,12 +259,12 @@ func (tc *testCase) configureATE(t *testing.T) {
 	agg.WithLAG(lag)
 
 	// Disable FEC for 100G-FR ports because Novus does not support it.
-	if p0.PMD() == ondatra.PMD100GFR {
+	if p0.PMD() == ondatra.PMD100GBASEFR {
 		i0.Ethernet().FEC().WithEnabled(false)
 	}
 	is100gfr := false
 	for _, p := range tc.atePorts[1:] {
-		if p.PMD() == ondatra.PMD100GFR {
+		if p.PMD() == ondatra.PMD100GBASEFR {
 			is100gfr = true
 		}
 	}

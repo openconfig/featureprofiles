@@ -4,10 +4,12 @@ package util
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"math/rand"
 	"net"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -329,4 +331,46 @@ func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Inter
 	a := s4.GetOrCreateAddress(ipv6)
 	a.PrefixLength = ygot.Uint8(prefixlen)
 	return s
+}
+
+// FaultInjectionMechanism injects faults on a line card for a given component name and fault-point number
+// lcnumber takes linecard numbers to be given as a list []string{"0", "1"}
+// componentName specifies the component on which the fault point is injected eg : ofa_la_srv
+// faultPointNumber speicifes the fault point eg : 3 indicates IPV4_ROUTE_RDESC_OOR
+// returnValue specifies perticluar error to simulate eg : 3482356236 indicates Route programming failure
+// to activate fault point use true and to deactivate use false
+func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []string, componentName string, faultPointNumber string, returnValue string, activate bool) {
+	for _, lineCard := range lcNumber {
+		var fimActivate string
+		var fimDeactivate string
+		if activate {
+			fimActivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -a %s:%s", lineCard, componentName, faultPointNumber, returnValue)
+			t.Logf("The fim activate string %v", fimActivate)
+			fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fimActivate)
+			if strings.Contains(fimRes, fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
+				t.Logf("Successfull Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
+			} else {
+				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not enabled", componentName, faultPointNumber)
+			}
+			if err != nil {
+				t.Fatalf("Error while sending enable fault point %v", err)
+			}
+			t.Logf("The fim actvate result %v", fimRes)
+		} else {
+			fimDeactivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -r %s:%s", lineCard, componentName, faultPointNumber, returnValue)
+			t.Logf("The fim deactivate string %v", fimDeactivate)
+			fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fimDeactivate)
+			if strings.Contains(fimRes, fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
+				t.Logf("Successfull Disabled Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
+			} else {
+				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not disabled", componentName, faultPointNumber)
+			}
+			if err != nil {
+				t.Fatalf("Error while sending disable fault point %v", err)
+			}
+			t.Logf("The fim deactivate result %v", fimRes)
+		}
+
+	}
+
 }

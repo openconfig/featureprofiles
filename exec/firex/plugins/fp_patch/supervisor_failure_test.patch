@@ -1,0 +1,53 @@
+diff --git a/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go b/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
+index 43ef5d3a..3761d5b0 100644
+--- a/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
++++ b/feature/gribi/ate_tests/supervisor_failure_test/supervisor_failure_test.go
+@@ -31,7 +31,6 @@ import (
+ 	"github.com/openconfig/ygot/ygot"
+ 
+ 	spb "github.com/openconfig/gnoi/system"
+-	tpb "github.com/openconfig/gnoi/types"
+ )
+ 
+ func TestMain(m *testing.M) {
+@@ -315,6 +314,7 @@ func TestSupFailure(t *testing.T) {
+ 	verifyTraffic(t, args.ate, flow)
+ 
+ 	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
++	//controllers :=  []string{"0/RP0/CPU0","0/RP1/CPU0"}
+ 	t.Logf("Found controller list: %v", controllers)
+ 	// Only perform the switchover for the chassis with dual controllers.
+ 	if len(controllers) != 2 {
+@@ -328,10 +328,9 @@ func TestSupFailure(t *testing.T) {
+ 	}
+ 
+ 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
++	compPath := cmp.GetSubcomponentPath(secondaryBeforeSwitch)
+ 	switchoverRequest := &spb.SwitchControlProcessorRequest{
+-		ControlProcessor: &tpb.Path{
+-			Elem: []*tpb.PathElem{{Name: secondaryBeforeSwitch}},
+-		},
++		ControlProcessor: compPath,
+ 	}
+ 	t.Logf("switchoverRequest: %v", switchoverRequest)
+ 	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+@@ -367,15 +366,17 @@ func TestSupFailure(t *testing.T) {
+ 	// Assume Controller Switchover happened, ensure traffic flows without loss.
+ 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
+ 	// Try starting the gribi client twice as switchover may reset the connection.
+-	if err := clientA.Start(t); err != nil {
++	if err := clientA.StartWithNoCache(t); err != nil {
+ 		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+-		if err = clientA.Start(t); err != nil {
++		if err = clientA.StartWithNoCache(t); err != nil {
+ 			t.Fatalf("gRIBI Connection could not be established: %v", err)
+ 		}
+ 	}
+ 
+ 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
+ 	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
++	// workaround for the first get issue
++	ipv4Path.Prefix().Watch(t, 1*time.Minute,func(val *telemetry.QualifiedString) bool {return true})
+ 	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
+ 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+ 	} else {

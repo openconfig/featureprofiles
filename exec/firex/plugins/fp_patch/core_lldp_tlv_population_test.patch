@@ -1,0 +1,19 @@
+diff --git a/feature/lldp/tests/core_lldp_tlv_population_test/core_lldp_tlv_population_test.go b/feature/lldp/tests/core_lldp_tlv_population_test/core_lldp_tlv_population_test.go
+index 6a9b3f79..520886d9
+--- a/feature/lldp/tests/core_lldp_tlv_population_test/core_lldp_tlv_population_test.go
++++ b/feature/lldp/tests/core_lldp_tlv_population_test/core_lldp_tlv_population_test.go
+@@ -133,11 +133,12 @@ func verifyNodeTelemetry(t *testing.T, nodeTelemetry, peerTelemetry *device.Devi
+ 	// Ensure that DUT does not generate any LLDP messages irrespective of the
+ 	// configuration of lldp/interfaces/interface/config/enabled (TRUE or FALSE)
+ 	// on any interface.
++	// interfaces config override global config for XR
+ 	if !lldpEnabled {
+ 		if got, ok := interfacePath.Watch(t, time.Minute, func(val *telemetry.QualifiedLldp_Interface) bool {
+-			return val.IsPresent() && len(val.Val(t).Neighbor) == 0
++			return val.IsPresent() && len(val.Val(t).Neighbor) >= 1
+ 		}).Await(t); !ok {
+-			t.Errorf("Number of neighbors got: %d, want: 0.", len(got.Val(t).Neighbor))
++			t.Errorf("Number of neighbors got: %d, want: non-zero.", len(got.Val(t).Neighbor))
+ 		}
+ 		return
+ 	}

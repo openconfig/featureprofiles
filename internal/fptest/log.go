@@ -25,6 +25,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/openconfig/featureprofiles/internal/check"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -138,6 +140,22 @@ func LogYgot(t testing.TB, what string, path ygot.PathStruct, obj ygot.Validated
 	logYgot(t, what, path, obj, true)
 }
 
+// LoggableQuery is a subset of the ygnmi.AnyQuery type used for logging
+type LoggableQuery interface {
+	PathStruct() ygnmi.PathStruct
+	IsState() bool
+}
+
+var _ LoggableQuery = ygnmi.AnyQuery[string](nil)
+
+// LogQuery logs a ygot GoStruct at path as either config or telemetry,
+// depending on the query.  It also writes a copy to a *.json file in
+// the directory specified by the -outputs_dir flag.
+func LogQuery(t testing.TB, what string, query LoggableQuery, obj ygot.ValidatedGoStruct) {
+	t.Helper()
+	logQuery(t, what, query, obj, true)
+}
+
 // WriteYgot is like LogYgot but only writes to test outputs dir so it
 // does not pollute the test log.
 func WriteYgot(t testing.TB, what string, path ygot.PathStruct, obj ygot.ValidatedGoStruct) {
@@ -149,6 +167,31 @@ func logYgot(t testing.TB, what string, path ygot.PathStruct, obj ygot.Validated
 	t.Helper()
 	pathText := pathToText(path)
 	config := isConfig(path)
+
+	var title string
+	if config {
+		title = "Config"
+	} else {
+		title = "Telemetry"
+	}
+
+	header := fmt.Sprintf("%s for %s at %s", title, what, pathText)
+	text, err := ygotToText(obj, config)
+	if err != nil {
+		t.Errorf("%s render error: %v", header, err)
+	}
+	if shouldLog {
+		t.Logf("%s:\n%s", header, text)
+	}
+	if err := WriteOutput(t.Name()+" "+header, ".json", text); err != nil {
+		t.Logf("Could not write test output: %v", err)
+	}
+}
+
+func logQuery(t testing.TB, what string, query LoggableQuery, obj ygot.ValidatedGoStruct, shouldLog bool) {
+	t.Helper()
+	pathText := check.FormatPath(query.PathStruct())
+	config := !query.IsState()
 
 	var title string
 	if config {

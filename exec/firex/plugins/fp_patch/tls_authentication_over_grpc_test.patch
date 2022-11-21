@@ -1,0 +1,132 @@
+diff --git a/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go b/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
+index 5f5d9fa5..d0706615
+--- a/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
++++ b/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
+@@ -17,29 +17,26 @@ package tls_authentication_over_grpc_test
+ import (
+ 	"context"
+ 	"crypto/tls"
++	"encoding/json"
+ 	"flag"
+ 	"fmt"
+ 	"testing"
+ 
+ 	"github.com/openconfig/featureprofiles/internal/fptest"
+-	"github.com/openconfig/ondatra"
+-	"github.com/openconfig/ygot/ygot"
+ 	"golang.org/x/crypto/ssh"
+ 	"google.golang.org/grpc"
+ 	"google.golang.org/grpc/credentials"
+ 	"google.golang.org/grpc/metadata"
+ 
+ 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+-	telemetry "github.com/openconfig/ondatra/telemetry"
+ )
+ 
+ var (
+-	sshIP = flag.String("ssh_ip", "", "External IP address of management interface.")
+-)
+-
+-const (
+-	sshPort  = 22
+-	gnmiPort = 6030
++	sshIP    = flag.String("ssh_ip", "", "External IP address of management interface.")
++	sshPort  = flag.String("ssh_port", "22", "SSH port")
++	gnmiPort = flag.String("gnmi_nondefault_port", "6030", "Gnmi port")
++	userName = flag.String("username", "cafyauto", "username")
++	password = flag.String("password", "cisco123", "password")
+ )
+ 
+ func TestMain(m *testing.M) {
+@@ -58,7 +55,7 @@ func keyboardInteraction(password string) ssh.KeyboardInteractiveChallenge {
+ func gnmiClient(ctx context.Context) (gpb.GNMIClient, error) {
+ 	conn, err := grpc.DialContext(
+ 		ctx,
+-		fmt.Sprintf("%s:%d", *sshIP, gnmiPort),
++		fmt.Sprintf("%s:%s", *sshIP, *gnmiPort),
+ 		grpc.WithTransportCredentials(
+ 			credentials.NewTLS(&tls.Config{
+ 				InsecureSkipVerify: true, // NOLINT
+@@ -75,14 +72,15 @@ func TestAuthentication(t *testing.T) {
+ 		t.Fatal("--ssh_ip flag must be set.")
+ 	}
+ 
+-	dut := ondatra.DUT(t, "dut")
+-	dut.Config().System().Aaa().Authentication().
+-		User("alice").
+-		Replace(t, &telemetry.System_Aaa_Authentication_User{
+-			Username: ygot.String("alice"),
+-			Password: ygot.String("password"),
+-			Role:     telemetry.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
+-		})
++	// Skip till CSCwc43980 is fixed
++	// dut := ondatra.DUT(t, "dut")
++	// dut.Config().System().Aaa().Authentication().
++	// 	User("alice").
++	// 	Replace(t, &telemetry.System_Aaa_Authentication_User{
++	// 		Username: ygot.String("alice"),
++	// 		Password: ygot.String("password"),
++	// 		Role:     telemetry.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
++	// 	})
+ 
+ 	tests := []struct {
+ 		desc       string
+@@ -90,23 +88,23 @@ func TestAuthentication(t *testing.T) {
+ 		wantErr    bool
+ 	}{{
+ 		desc: "good username and password",
+-		user: "alice",
+-		pass: "password",
++		user: *userName,
++		pass: *password,
+ 	}, {
+ 		desc:    "good username bad password",
+-		user:    "alice",
++		user:    *userName,
+ 		pass:    "badpass",
+ 		wantErr: true,
+ 	}, {
+ 		desc:    "bad username",
+ 		user:    "bob",
+-		pass:    "password",
++		pass:    *password,
+ 		wantErr: true,
+ 	}}
+ 	for _, tc := range tests {
+ 		t.Run(tc.desc, func(t *testing.T) {
+ 			t.Log("Trying SSH credentials")
+-			sshClient, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", *sshIP, sshPort), &ssh.ClientConfig{
++			sshClient, err := ssh.Dial("tcp", fmt.Sprintf("%s:%s", *sshIP, *sshPort), &ssh.ClientConfig{
+ 				User: tc.user,
+ 				Auth: []ssh.AuthMethod{
+ 					ssh.KeyboardInteractive(keyboardInteraction(tc.pass)),
+@@ -139,7 +137,8 @@ func TestAuthentication(t *testing.T) {
+ 					Elem: []*gpb.PathElem{
+ 						{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+ 				},
+-				Type: gpb.GetRequest_CONFIG,
++				Type:     gpb.GetRequest_CONFIG,
++				Encoding: gpb.Encoding_JSON_IETF,
+ 			})
+ 			if tc.wantErr != (err != nil) {
+ 				if tc.wantErr {
+@@ -148,6 +147,8 @@ func TestAuthentication(t *testing.T) {
+ 					t.Errorf("gnmi.Get unexpected error for user %q: %v", tc.user, err)
+ 				}
+ 			}
++			// Limitation due to CSCwd49452
++			json_config, _ := json.Marshal("cmessage of the dayc")
+ 			t.Log("Trying credentials with GNMI Set")
+ 			_, err = gnmi.Set(ctx, &gpb.SetRequest{
+ 				Replace: []*gpb.Update{{
+@@ -155,9 +156,7 @@ func TestAuthentication(t *testing.T) {
+ 						Elem: []*gpb.PathElem{
+ 							{Name: "system"}, {Name: "config"}, {Name: "motd-banner"}},
+ 					},
+-					Val: &gpb.TypedValue{
+-						Value: &gpb.TypedValue_StringVal{StringVal: "message of the day"},
+-					},
++					Val: &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: json_config}},
+ 				}},
+ 			})
+ 			if tc.wantErr != (err != nil) {

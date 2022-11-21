@@ -442,7 +442,7 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 					// Linked DUT and ATE ports have the same ID.
 					dp := tc.dut.Port(t, port.ID())
 					t.Logf("Taking otg port %s down in the LAG", port.ID())
-					tc.ate.OTG().DisableLACPMembers(t, []string{port.ID()})
+					tc.ate.OTG().DisableLACPMembers(t, port.ID())
 					time.Sleep(3 * time.Second)
 					otgutils.LogLACPMetrics(t, tc.ate.OTG(), tc.top)
 					otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
