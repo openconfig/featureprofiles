@@ -110,7 +110,7 @@ tests:
       - '-deviation_interface_counters_from_container="true"'
       - '-deviation_ipv4_missing_enabled="true"'
       - '-deviation_subinterface_packet_counters_missing="true"'
-  patch: exec/firex/plugins/fp_patch/telemetry_basic_check_test.patch
+  #patch: exec/firex/plugins/fp_patch/telemetry_basic_check_test.patch
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 34
