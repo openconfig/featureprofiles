@@ -23,12 +23,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	transceiverType        = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
+	transceiverType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
 	sleepDuration          = time.Minute
 	minOpticsPower         = -30.0
 	maxOpticsPower         = 10.0
