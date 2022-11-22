@@ -1,16 +1,15 @@
 # TE-8.1: DUT Daemon Failure
 
-
 ## Summary
 
 Ensure that gRIBI entries are persisted over daemon failure.
-
 
 ## Procedure
 
 *   Connect ATE port-1 to DUT port-1, and ATE port-2 to DUT port-2.
 
-*   Establish a gRIBI client connection to the DUT (SINGLE_PRIMARY and PRESERVE mode).
+*   Establish a gRIBI client connection to the DUT (SINGLE_PRIMARY and PRESERVE
+    mode) and make it become leader.
 
     *   Inject an IPv4Entry for 203.0.113.0/24 pointed to a NHG containing a NH
         of ATE port-2. Ensure that traffic with a destination in 203.0.113.0/24
@@ -25,17 +24,16 @@ Ensure that gRIBI entries are persisted over daemon failure.
 
     *   Through AFT telemetry that the route entries remain present.
 
-    *   Following daemon restart, the gRIBI client connection can be re-established.
+    *   Following daemon restart, the gRIBI client connection can be
+        re-established.
 
     *   Issuing a gRIBI Get RPC results in 203.0.113.0/24 being returned.
-
 
 ## Protocol/RPC Parameter Coverage
 
 *   gRIBI
     *   ModifyRequest
     *   GetRequest
-
 
 ## Telemetry Parameter Coverage
 
