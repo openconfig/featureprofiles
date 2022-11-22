@@ -55,11 +55,13 @@ parser = argparse.ArgumentParser(description='Generate MD FireX report')
 parser.add_argument('test_suites', help='Testsuite files')
 parser.add_argument('firex_id', help='FireX run ID')
 parser.add_argument('out_dir', help='Output directory')
+parser.add_argument('--mustpass', default=False, action='store_true', help="must pass tests only")
 args = parser.parse_args()
 
 testsuite_files = args.test_suites
 firex_id = args.firex_id
 out_dir = args.out_dir
+must_pass_only = args.mustpass
 data_dir = os.path.join(out_dir, constants.gh_data_dir)
 gh_logs_dir = os.path.join(out_dir, constants.gh_logs_dir)
 gh_reports_dir = os.path.join(out_dir, constants.gh_reports_dir)
@@ -102,6 +104,9 @@ for ts in  _get_testsuites(testsuite_files.split(',')):
     go_tests = []
     for t in ts['tests']:
         if t['name'] in test_id_map:
+            if must_pass_only and not t.get('mustpass', False):
+                continue
+            
             test_id = test_id_map[t['name']]
             log_files = [str(p) for p in Path(logs_dir).glob(f"{test_id}/*.json")]
             if len(log_files) == 0: 
