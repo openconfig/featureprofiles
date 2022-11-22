@@ -56,12 +56,14 @@ parser.add_argument('test_suites', help='Testsuite files')
 parser.add_argument('firex_id', help='FireX run ID')
 parser.add_argument('out_dir', help='Output directory')
 parser.add_argument('--mustpass', default=False, action='store_true', help="must pass tests only")
+parser.add_argument('--updategh', default=False, action='store_true', help="update gh issues")
 args = parser.parse_args()
 
 testsuite_files = args.test_suites
 firex_id = args.firex_id
 out_dir = args.out_dir
 must_pass_only = args.mustpass
+update_gh_issues = args.updategh
 data_dir = os.path.join(out_dir, constants.gh_data_dir)
 gh_logs_dir = os.path.join(out_dir, constants.gh_logs_dir)
 gh_reports_dir = os.path.join(out_dir, constants.gh_reports_dir)
@@ -106,7 +108,7 @@ for ts in  _get_testsuites(testsuite_files.split(',')):
         if t['name'] in test_id_map:
             if must_pass_only and not t.get('mustpass', False):
                 continue
-            
+
             test_id = test_id_map[t['name']]
             log_files = [str(p) for p in Path(logs_dir).glob(f"{test_id}/*.json")]
             if len(log_files) == 0: 
@@ -141,7 +143,8 @@ for ts in  _get_testsuites(testsuite_files.split(',')):
             for c in t.get_descendants() + [t]:
                 with open(os.path.join(gh_logs_dir, c.get_log_file_name()), 'w') as fp:
                     fp.write(c.get_output())
-            t.update_gh_issue()
+            if update_gh_issues:
+                t.update_gh_issue()
 
     suite_stats = go_test_suite.get_stats()
     if suite_stats['total'] == 0:
