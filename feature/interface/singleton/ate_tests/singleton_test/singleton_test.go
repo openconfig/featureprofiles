@@ -25,10 +25,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ygot/ygot"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
