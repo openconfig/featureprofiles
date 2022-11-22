@@ -24,7 +24,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -113,32 +115,31 @@ func (ad *ateData) Configure(t *testing.T, ate *ondatra.ATEDevice) {
 }
 
 type dutData struct {
-	bgpOC *telemetry.NetworkInstance_Protocol_Bgp
+	bgpOC *oc.NetworkInstance_Protocol_Bgp
 }
 
 func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 		ocName := dut.Port(t, a.Name).Name()
-		dut.Config().Interface(ocName).Replace(t, a.NewInterface(ocName))
+		gnmi.Replace(t, dut, gnmi.OC().Interface(ocName).Config(), a.NewOCInterface(ocName))
 	}
 
 	t.Log("Configure Network Instance")
-	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
-	dutBGP := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	dutBGP.Replace(t, d.bgpOC)
+	dutBGP := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	gnmi.Replace(t, dut, dutBGP.Config(), d.bgpOC)
 }
 
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 	for neighbor := range d.bgpOC.Neighbor {
-		dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).
-			Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
+		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
+			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 			Bgp().
 			Neighbor(neighbor).
-			SessionState().
-			Await(t, time.Second*15, telemetry.Bgp_Neighbor_SessionState_ESTABLISHED)
+			SessionState().State(), time.Second*15, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
 	t.Log("BGP sessions established")
 }
@@ -153,12 +154,12 @@ func TestBGP(t *testing.T) {
 	}{{
 		desc:     "propagate IPv4 over IPv4",
 		fullDesc: "Advertise prefixes from ATE port1, observe received prefixes at ATE port2",
-		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
-			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
+		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
+			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
 				RouterId: ygot.String(dutPort2.IPv4),
 			},
-			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
+			Neighbor: map[string]*oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				"192.0.2.2": {
 					PeerAs:          ygot.Uint32(ateAS1),
 					NeighborAddress: ygot.String("192.0.2.2"),
@@ -188,19 +189,19 @@ func TestBGP(t *testing.T) {
 	}, {
 		desc:     "propagate IPv6 over IPv6",
 		fullDesc: "Advertise IPv6 prefixes from ATE port1, observe received prefixes at ATE port2",
-		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
-			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
+		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
+			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
 				RouterId: ygot.String(dutPort2.IPv4),
 			},
-			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
+			Neighbor: map[string]*oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				"2001:db8::2": {
 					PeerAs:          ygot.Uint32(ateAS1),
 					PeerGroup:       ygot.String("BGP-PEER-GROUP1"),
 					NeighborAddress: ygot.String("2001:db8::2"),
-					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
-							AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+					AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+						oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
+							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
 							Enabled:     ygot.Bool(true),
 						},
 					},
@@ -209,9 +210,9 @@ func TestBGP(t *testing.T) {
 					PeerAs:          ygot.Uint32(ateAS2),
 					PeerGroup:       ygot.String("BGP-PEER-GROUP2"),
 					NeighborAddress: ygot.String("2001:db8::6"),
-					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
-							AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+					AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+						oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
+							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
 							Enabled:     ygot.Bool(true),
 						},
 					},
@@ -236,19 +237,19 @@ func TestBGP(t *testing.T) {
 		desc:       "propagate IPv4 over IPv6",
 		skipReason: "TODO: RFC5549 needs to be enabled explicitly and OpenConfig does not currently provide a signal.",
 		fullDesc:   "IPv4 routes with an IPv6 next-hop when negotiating RFC5549 - validating that routes are accepted and advertised with the specified values.",
-		dut: dutData{&telemetry.NetworkInstance_Protocol_Bgp{
-			Global: &telemetry.NetworkInstance_Protocol_Bgp_Global{
+		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
+			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
 				RouterId: ygot.String(dutPort2.IPv4),
 			},
-			Neighbor: map[string]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
+			Neighbor: map[string]*oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				"2001:db8::2": {
 					PeerAs:          ygot.Uint32(ateAS1),
 					PeerGroup:       ygot.String("BGP-PEER-GROUP1"),
 					NeighborAddress: ygot.String("2001:db8::2"),
-					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
-							AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+					AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+						oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
+							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
 							Enabled:     ygot.Bool(true),
 						},
 					},
@@ -257,9 +258,9 @@ func TestBGP(t *testing.T) {
 					PeerAs:          ygot.Uint32(ateAS2),
 					PeerGroup:       ygot.String("BGP-PEER-GROUP2"),
 					NeighborAddress: ygot.String("192.0.2.6"),
-					AfiSafi: map[telemetry.E_BgpTypes_AFI_SAFI_TYPE]*telemetry.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-						telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
-							AfiSafiName: telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+					AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+						oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
 							Enabled:     ygot.Bool(true),
 						},
 					},
@@ -298,36 +299,34 @@ func TestBGP(t *testing.T) {
 			tc.dut.AwaitBGPEstablished(t, dut)
 
 			for _, prefix := range tc.wantPrefixes {
-				rib := ate.Telemetry().NetworkInstance("port2").
+				rib := gnmi.OC().NetworkInstance("port2").
 					Protocol(
-						telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+						oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 						fmt.Sprintf("%d", ateAS2),
 					).Bgp().
 					Rib()
 				// Don't care about the value, but I can only fetch leaves from ATE telemetry. This
 				// should fail in the Get(t) method if the Route is missing.
 				if prefix.v4 != "" {
-					_, found := rib.AfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().
+					_, found := gnmi.Watch(t, ate, rib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().
 						Neighbor(tc.ate.Port2Neighbor).
 						AdjRibInPre().
 						Route(prefix.v4, 0).
-						AttrIndex().
-						Watch(t, 1*time.Minute, func(i *telemetry.QualifiedUint64) bool {
-							return i.IsPresent()
-						}).Await(t)
+						AttrIndex().State(), 1*time.Minute, func(i *ygnmi.Value[uint64]) bool {
+						return i.IsPresent()
+					}).Await(t)
 					if !found {
 						t.Fatalf("Did not find RIB for prefix %s", prefix.v4)
 					}
 				}
 				if prefix.v6 != "" {
-					_, found := rib.AfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().
+					_, found := gnmi.Watch(t, ate, rib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().
 						Neighbor(tc.ate.Port2Neighbor).
 						AdjRibInPre().
 						Route(prefix.v6, 0).
-						AttrIndex().
-						Watch(t, 1*time.Minute, func(i *telemetry.QualifiedUint64) bool {
-							return i.IsPresent()
-						}).Await(t)
+						AttrIndex().State(), 1*time.Minute, func(i *ygnmi.Value[uint64]) bool {
+						return i.IsPresent()
+					}).Await(t)
 					if !found {
 						t.Fatalf("Did not find RIB for prefix %s", prefix.v6)
 					}

@@ -22,10 +22,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func TestMain(m *testing.M) {
@@ -106,9 +107,9 @@ var (
 // configInterfaceDUT configures the interface on "me" with static ARP
 // of peer.  Note that peermac is used for static ARP, and not
 // peer.MAC.
-func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peermac string) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, peermac string) *oc.Interface {
 	i.Description = ygot.String(me.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -147,17 +148,15 @@ func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peer
 
 func configureDUT(t *testing.T, peermac string) {
 	dut := ondatra.DUT(t, "dut")
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t,
-		configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
 
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t,
-		configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
 }
 
 func configureATE(t *testing.T) (*ondatra.ATEDevice, *ondatra.ATETopology) {
@@ -214,16 +213,16 @@ func testFlow(
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
-	flowPath := ate.Telemetry().Flow(flow.Name())
+	flowPath := gnmi.OC().Flow(flow.Name())
 
-	if got := flowPath.LossPct().Get(t); got > 0 {
+	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got > 0 {
 		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
 	}
 
 	etPath := flowPath.EgressTrackingAny()
-	ets := etPath.Get(t)
+	ets := gnmi.GetAll(t, ate, etPath.State())
 	for i, et := range ets {
-		fptest.LogYgot(t, fmt.Sprintf("ATE flow EgressTracking[%d]", i), etPath, et)
+		fptest.LogQuery(t, fmt.Sprintf("ATE flow EgressTracking[%d]", i), etPath.State(), et)
 	}
 
 	if got := len(ets); got != 1 {

@@ -18,9 +18,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 const (
@@ -83,6 +87,16 @@ func TestRebootStatus(t *testing.T) {
 		},
 	}
 
+	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
+	if !*deviations.GNOIStatusWithEmptySubcomponent {
+		supervisors := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+		// the test reboots the chasis, so any subcomponent should be ok to check the status
+		statusReq = &spb.RebootStatusRequest{
+			Subcomponents: []*tpb.Path{
+				components.GetSubcomponentPath(supervisors[0]),
+			},
+		}
+	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.rebootRequest != nil {
@@ -93,8 +107,7 @@ func TestRebootStatus(t *testing.T) {
 					t.Fatalf("Failed to request reboot with unexpected err: %v", err)
 				}
 			}
-
-			resp, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
+			resp, err := gnoiClient.System().RebootStatus(context.Background(), statusReq)
 			t.Logf("DUT rebootStatus: %v, err: %v", resp, err)
 			if err != nil {
 				t.Fatalf("Failed to get reboot status with unexpected err: %v", err)
@@ -117,6 +130,7 @@ func TestRebootStatus(t *testing.T) {
 		})
 
 		t.Logf("Cancel reboot request after the test")
+
 		rebootCancel, err := gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
 		if err != nil {
 			t.Fatalf("Failed to cancel reboot with unexpected err: %v", err)
@@ -149,8 +163,17 @@ func TestCancelReboot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to request reboot with unexpected err: %v", err)
 	}
-
-	rebootStatus, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
+	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
+	if !*deviations.GNOIStatusWithEmptySubcomponent {
+		supervisors := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+		// the test reboots the chasis, so any subcomponent should be ok to check the status
+		statusReq = &spb.RebootStatusRequest{
+			Subcomponents: []*tpb.Path{
+				components.GetSubcomponentPath(supervisors[0]),
+			},
+		}
+	}
+	rebootStatus, err := gnoiClient.System().RebootStatus(context.Background(), statusReq)
 	t.Logf("DUT rebootStatus: %v, err: %v", rebootStatus, err)
 	if err != nil {
 		t.Fatalf("Failed to get reboot status with unexpected err: %v", err)
@@ -166,7 +189,7 @@ func TestCancelReboot(t *testing.T) {
 		t.Fatalf("Failed to cancel reboot with unexpected err: %v", err)
 	}
 
-	rebootStatus, err = gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
+	rebootStatus, err = gnoiClient.System().RebootStatus(context.Background(), statusReq)
 	t.Logf("DUT rebootStatus: %v, err: %v", rebootStatus, err)
 	if err != nil {
 		t.Fatalf("Failed to get reboot status with unexpected err: %v", err)

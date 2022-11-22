@@ -27,12 +27,14 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/tcheck"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -154,15 +156,15 @@ func cidr(ipv4 string, ones int) string {
 func filterPacketReceived(t *testing.T, flow string, ate *ondatra.ATEDevice) map[string]float64 {
 	t.Helper()
 
-	flowPath := ate.Telemetry().Flow(flow)
-	filters := flowPath.EgressTrackingAny().Get(t)
+	flowPath := gnmi.OC().Flow(flow)
+	filters := gnmi.GetAll(t, ate, flowPath.EgressTrackingAny().State())
 
 	inPkts := map[string]uint64{}
 	for _, f := range filters {
 		inPkts[f.GetFilter()] = f.GetCounters().GetInPkts()
 	}
 	inPct := map[string]float64{}
-	total := flowPath.Counters().OutPkts().Get(t)
+	total := gnmi.Get(t, ate, flowPath.Counters().OutPkts().State())
 	for k, v := range inPkts {
 		inPct[k] = (float64(v) / float64(total)) * 100.0
 	}
@@ -226,7 +228,7 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // starting from Sub Interface 1. Each Subinterface is configured with a
 // unique VlanID starting from 1 and an IP address. The starting IP Address
 // for Subinterface(1) = dutPort.ip(1) = dutPort.ip + 4
-func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *telemetry.Interface) {
+func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 	t.Helper()
 
 	for i := uint32(1); i <= a.numSubIntf; i++ {
@@ -237,7 +239,7 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *telemetry.Interfa
 			s.Enabled = ygot.Bool(true)
 		}
 		if *deviations.DeprecatedVlanID {
-			s.GetOrCreateVlan().VlanId = telemetry.UnionUint16(i)
+			s.GetOrCreateVlan().VlanId = oc.UnionUint16(i)
 		} else {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(i))
 		}
@@ -253,40 +255,40 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *telemetry.Interfa
 
 // configInterfaceDUT configures the DUT interface with the provided IP Address.
 // Sub Interfaces are also configured if numSubIntf > 0.
-func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.Config, p *ondatra.Port) {
+func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
 	t.Helper()
-	i := a.NewInterface(p.Name())
+	i := a.NewOCInterface(p.Name())
 
 	a.configSubinterfaceDUT(t, i)
-	intfPath := d.Interface(p.Name())
-	intfPath.Replace(t, i)
-	fptest.LogYgot(t, "DUT", intfPath, intfPath.Get(t))
+	intfPath := gnmi.OC().Interface(p.Name())
+	gnmi.Replace(t, d, intfPath.Config(), i)
+	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
 }
 
 // configureNetworkInstance creates new Network Instance and configures it, if provided,
 // else configures the Default Network Instance.
-func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.Config, p *ondatra.Port) {
+func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
 	t.Helper()
-	addressFamilies := []telemetry.E_Types_ADDRESS_FAMILY{telemetry.Types_ADDRESS_FAMILY_IPV4}
+	addressFamilies := []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4}
 	// Use default NI if not provided
 	if a.networkInstance != "" {
-		ni := &telemetry.NetworkInstance{
+		ni := &oc.NetworkInstance{
 			Name:                   ygot.String(a.networkInstance),
 			Enabled:                ygot.Bool(true),
-			Type:                   telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+			Type:                   oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 			EnabledAddressFamilies: addressFamilies,
 		}
 		i := ni.GetOrCreateInterface(p.Name())
 		i.Interface = ygot.String(p.Name())
 		i.Subinterface = ygot.Uint32(0)
 
-		dni := d.NetworkInstance(a.networkInstance)
-		dni.Replace(t, ni)
-		fptest.LogYgot(t, "NI", dni, dni.Get(t))
+		dni := gnmi.OC().NetworkInstance(a.networkInstance)
+		gnmi.Replace(t, d, dni.Config(), ni)
+		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
 	} else {
-		dni := d.NetworkInstance(*deviations.DefaultNetworkInstance)
-		dni.EnabledAddressFamilies().Replace(t, addressFamilies)
-		dni.Interface(p.Name()).Replace(t, &telemetry.NetworkInstance_Interface{
+		dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+		gnmi.Replace(t, d, dni.EnabledAddressFamilies().Config(), addressFamilies)
+		gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
 			Id:           ygot.String(p.Name()),
 			Interface:    ygot.String(p.Name()),
 			Subinterface: ygot.Uint32(0),
@@ -296,11 +298,11 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.Config, p
 
 // configureDUT configures a DUT port by configuring the NetworkInstance and the
 // Interface + Sub Interfaces.
-func (a *attributes) configureDUT(t *testing.T, d *ondatra.Config, dut *ondatra.DUTDevice) {
+func (a *attributes) configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	p := dut.Port(t, a.Name)
-	a.configureNetworkInstance(t, d, p)
-	a.configInterfaceDUT(t, d, p)
+	a.configureNetworkInstance(t, dut, p)
+	a.configInterfaceDUT(t, dut, p)
 }
 
 // ConfigureATE configures Ethernet + IPv4 on the ATE. If the number of
@@ -389,23 +391,11 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	return results
 }
 
-// flushGRIBI deletes installed gRIBI routes for all Network Instances.
-func flushGRIBI(t *testing.T, gRIBI *fluent.GRIBIClient) {
-	t.Helper()
-	_, err := gRIBI.Flush().
-		WithElectionOverride().
-		WithAllNetworkInstances().
-		Send()
-	if err != nil {
-		t.Errorf("Cannot flush: %v", err)
-	}
-}
-
 // aftNextHopWeights queries AFT telemetry using Get() and returns
 // the weights. If not-found, an empty list is returned.
 func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, networkInstance string) []uint64 {
-	aft := dut.Telemetry().NetworkInstance(networkInstance).Afts().Get(t)
-	var nhgD *telemetry.NetworkInstance_Afts_NextHopGroup
+	aft := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(networkInstance).Afts().State())
+	var nhgD *oc.NetworkInstance_Afts_NextHopGroup
 	for _, nhgData := range aft.NextHopGroup {
 		if nhgData.GetProgrammedId() == nhg {
 			nhgD = nhgData
@@ -497,7 +487,9 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	})
 
 	// Flush gRIBI routes after test.
-	flushGRIBI(t, gRIBI)
+	if err := gribi.FlushAll(gRIBI); err != nil {
+		t.Error(err)
+	}
 }
 
 // testHierarchicalWeightBoundaryScenario tests and validates traffic through all 18 Vlans.
@@ -582,7 +574,9 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	})
 
 	// Flush gRIBI routes after test.
-	flushGRIBI(t, gRIBI)
+	if err := gribi.FlushAll(gRIBI); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestHierarchicalWeightResolution(t *testing.T) {
@@ -591,9 +585,8 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	ctx := context.Background()
 
 	// Configure DUT ports.
-	dc := dut.Config()
-	dutPort1.configureDUT(t, dc, dut)
-	dutPort2.configureDUT(t, dc, dut)
+	dutPort1.configureDUT(t, dut)
+	dutPort2.configureDUT(t, dut)
 
 	// Configure ATE ports and start Ethernet+IPv4.
 	top := ate.Topology().New()
@@ -607,13 +600,24 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 
 	gRIBI.Start(ctx, t)
 	defer gRIBI.Stop(t)
+
+	defer func() {
+		// Flush all gRIBI routes after test.
+		if err := gribi.FlushAll(gRIBI); err != nil {
+			t.Error(err)
+		}
+	}()
+
 	gRIBI.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, gRIBI, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation for gRIBI: %v", err)
 	}
+	gribi.BecomeLeader(t, gRIBI)
 
 	// Flush existing gRIBI routes before test.
-	flushGRIBI(t, gRIBI)
+	if err := gribi.FlushAll(gRIBI); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("TestBasicHierarchicalWeight", func(t *testing.T) {
 		testBasicHierarchicalWeight(ctx, t, dut, ate, top, gRIBI)
