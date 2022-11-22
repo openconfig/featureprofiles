@@ -26,12 +26,14 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -53,10 +55,10 @@ const (
 	staticNH            = "192.0.2.6"
 	nhIndex             = 1
 	nhgIndex            = 42
-	controlcardType     = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	primaryController   = telemetry.PlatformTypes_ComponentRedundantRole_PRIMARY
-	secondaryController = telemetry.PlatformTypes_ComponentRedundantRole_SECONDARY
-	switchTrigger       = telemetry.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_SYSTEM_INITIATED
+	controlcardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	primaryController   = oc.Platform_ComponentRedundantRole_PRIMARY
+	secondaryController = oc.Platform_ComponentRedundantRole_SECONDARY
+	switchTrigger       = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_SYSTEM_INITIATED
 	maxSwitchoverTime   = 900
 )
 
@@ -87,9 +89,9 @@ var (
 )
 
 // configInterfaceDUT configures the interface with the Address.
-func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -107,15 +109,15 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutPort1))
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
 
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutPort2))
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
 
 }
 
@@ -166,8 +168,8 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
 
 // Function to verify traffic
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
-	flowPath := ate.Telemetry().Flow(flow.Name())
-	if got := flowPath.LossPct().Get(t); got > 0 {
+	flowPath := gnmi.OC().Flow(flow.Name())
+	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got > 0 {
 		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
 	} else {
 		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2")
@@ -205,7 +207,7 @@ func routeInstall(ctx context.Context, t *testing.T, args *testArgs) {
 func findSecondaryController(t *testing.T, dut *ondatra.DUTDevice, controllers []string) (string, string) {
 	var primary, secondary string
 	for _, controller := range controllers {
-		role := dut.Telemetry().Component(controller).RedundantRole().Get(t)
+		role := gnmi.Get(t, dut, gnmi.OC().Component(controller).RedundantRole().State())
 		t.Logf("Component(controller).RedundantRole().Get(t): %v, Role: %v", controller, role)
 		if role == secondaryController {
 			secondary = controller
@@ -226,43 +228,44 @@ func findSecondaryController(t *testing.T, dut *ondatra.DUTDevice, controllers [
 // validateTelemetry validates telemetry sensors
 func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch string) {
 	t.Log("Validate OC Switchover time/reason.")
-	primary := dut.Telemetry().Component(primaryAfterSwitch)
-	if !primary.LastSwitchoverTime().Lookup(t).IsPresent() {
+	primary := gnmi.OC().Component(primaryAfterSwitch)
+	if !gnmi.Lookup(t, dut, primary.LastSwitchoverTime().State()).IsPresent() {
 		t.Errorf("primary.LastSwitchoverTime().Lookup(t).IsPresent(): got false, want true")
 	} else {
-		t.Logf("Found primary.LastSwitchoverTime(): %v", primary.LastSwitchoverTime().Get(t))
+		t.Logf("Found primary.LastSwitchoverTime(): %v", gnmi.Get(t, dut, primary.LastSwitchoverTime().State()))
 	}
 
-	if !primary.LastSwitchoverReason().Lookup(t).IsPresent() {
+	if !gnmi.Lookup(t, dut, primary.LastSwitchoverReason().State()).IsPresent() {
 		t.Errorf("primary.LastSwitchoverReason().Lookup(t).IsPresent(): got false, want true")
 	} else {
-		lastSwitchoverReason := primary.LastSwitchoverReason().Get(t)
+		lastSwitchoverReason := gnmi.Get(t, dut, primary.LastSwitchoverReason().State())
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
-	if primary.LastSwitchoverReason().Get(t).GetTrigger() != switchTrigger {
+	if gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger() != switchTrigger {
 		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want SYSTEM_INITIATED.",
-			primary.LastSwitchoverReason().Get(t).GetTrigger().String())
+			gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger().String())
 	}
 
-	if !primary.LastRebootTime().Lookup(t).IsPresent() {
+	if !gnmi.Lookup(t, dut, primary.LastRebootTime().State()).IsPresent() {
 		t.Errorf("primary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
 	} else {
-		lastrebootTime := primary.LastRebootTime().Get(t)
+		lastrebootTime := gnmi.Get(t, dut, primary.LastRebootTime().State())
 		t.Logf("Found lastRebootTime.GetDetails(): %v", lastrebootTime)
 	}
-	if !primary.LastRebootReason().Lookup(t).IsPresent() {
+	if !gnmi.Lookup(t, dut, primary.LastRebootReason().State()).IsPresent() {
 		t.Errorf("primary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
 	} else {
-		lastrebootReason := primary.LastRebootReason().Get(t)
+		lastrebootReason := gnmi.Get(t, dut, primary.LastRebootReason().State())
 		t.Logf("Found lastRebootReason.GetDetails(): %v", lastrebootReason)
 	}
 }
 
 func switchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string) bool {
-	switchoverReady := dut.Telemetry().Component(controller).SwitchoverReady()
-	_, ok := switchoverReady.Watch(t, 30*time.Minute, func(val *telemetry.QualifiedBool) bool {
-		return val != nil && val.Val(t) == true
+	switchoverReady := gnmi.OC().Component(controller).SwitchoverReady()
+	_, ok := gnmi.Watch(t, dut, switchoverReady.State(), 30*time.Minute, func(val *ygnmi.Value[bool]) bool {
+		ready, present := val.Val()
+		return present && ready
 	}).Await(t)
 	return ok
 }
@@ -281,17 +284,22 @@ func TestSupFailure(t *testing.T) {
 
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
-		DUT:                  dut,
-		FibACK:               false,
-		Persistence:          true,
-		InitialElectionIDLow: 10,
+		DUT:         dut,
+		FIBACK:      false,
+		Persistence: true,
 	}
 	defer clientA.Close(t)
+
+	// Flush all entries after test.
+	defer clientA.FlushAll(t)
+
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
 	clientA.BecomeLeader(t)
-	clientA.Flush(t)
+
+	// Flush all entries before test.
+	clientA.FlushAll(t)
 
 	args := &testArgs{
 		ctx:     ctx,
@@ -342,7 +350,7 @@ func TestSupFailure(t *testing.T) {
 		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
 		time.Sleep(30 * time.Second)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = dut.Telemetry().System().CurrentDatetime().Get(t)
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
 			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
 		} else {
@@ -370,8 +378,8 @@ func TestSupFailure(t *testing.T) {
 	}
 
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
+	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 	} else {
 		t.Logf("ipv4-entry found for %s after controller switchover..", got)
@@ -380,5 +388,4 @@ func TestSupFailure(t *testing.T) {
 	verifyTraffic(t, args.ate, flow)
 	stopTraffic(t, args.ate)
 	top.StopProtocols(t)
-	clientA.Flush(t)
 }

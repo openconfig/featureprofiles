@@ -22,18 +22,20 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
 	maxSwitchoverTime = 900
-	controlcardType   = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	activeController  = telemetry.PlatformTypes_ComponentRedundantRole_PRIMARY
-	standbyController = telemetry.PlatformTypes_ComponentRedundantRole_SECONDARY
+	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
+	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 )
 
 func TestMain(m *testing.M) {
@@ -80,10 +82,10 @@ func TestSupervisorSwitchover(t *testing.T) {
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, supervisors)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
-	switchoverReady := dut.Telemetry().Component(rpActiveBeforeSwitch).SwitchoverReady()
-	switchoverReady.Await(t, 30*time.Minute, true)
-	t.Logf("SwitchoverReady().Get(t): %v", switchoverReady.Get(t))
-	if got, want := switchoverReady.Get(t), true; got != want {
+	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
+	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
+	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
 
@@ -124,7 +126,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
 		time.Sleep(30 * time.Second)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = dut.Telemetry().System().CurrentDatetime().Get(t)
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
 			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
 		} else {
@@ -147,13 +149,17 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
 	}
 
-	batch := dut.Telemetry().NewBatch()
+	batch := gnmi.OCBatch()
 	for _, port := range intfsOperStatusUPBeforeSwitch {
-		dut.Telemetry().Interface(port).OperStatus().Batch(t, batch)
+		batch.AddPaths(gnmi.OC().Interface(port).OperStatus())
 	}
-	watch := batch.Watch(t, 5*time.Minute, func(val *telemetry.QualifiedDevice) bool {
+	watch := gnmi.Watch(t, dut, batch.State(), 5*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
+		root, present := val.Val()
+		if !present {
+			return false
+		}
 		for _, port := range intfsOperStatusUPBeforeSwitch {
-			if val.Val(t).GetInterface(port).GetOperStatus() != telemetry.Interface_OperStatus_UP {
+			if root.GetInterface(port).GetOperStatus() != oc.Interface_OperStatus_UP {
 				return false
 			}
 		}
@@ -164,17 +170,17 @@ func TestSupervisorSwitchover(t *testing.T) {
 	}
 
 	t.Log("Validate OC Switchover time/reason.")
-	activeRP := dut.Telemetry().Component(rpActiveAfterSwitch)
-	if got, want := activeRP.LastSwitchoverTime().Lookup(t).IsPresent(), true; got != want {
+	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
+	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverTime().State()).IsPresent(), true; got != want {
 		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got %v, want %v", got, want)
 	} else {
-		t.Logf("Found activeRP.LastSwitchoverTime(): %v", activeRP.LastSwitchoverTime().Get(t))
+		t.Logf("Found activeRP.LastSwitchoverTime(): %v", gnmi.Get(t, dut, activeRP.LastSwitchoverTime().State()))
 	}
 
-	if got, want := activeRP.LastSwitchoverReason().Lookup(t).IsPresent(), true; got != want {
+	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
 		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
 	} else {
-		lastSwitchoverReason := activeRP.LastSwitchoverReason().Get(t)
+		lastSwitchoverReason := gnmi.Get(t, dut, activeRP.LastSwitchoverReason().State())
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
@@ -183,14 +189,13 @@ func TestSupervisorSwitchover(t *testing.T) {
 func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
 	var activeRP, standbyRP string
 	for _, supervisor := range supervisors {
-		watch := dut.Telemetry().Component(supervisor).RedundantRole().Watch(
-			t, 10*time.Minute, func(val *telemetry.QualifiedE_PlatformTypes_ComponentRedundantRole) bool {
-				return val.IsPresent()
-			})
+		watch := gnmi.Watch(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+			return val.IsPresent()
+		})
 		if val, ok := watch.Await(t); !ok {
 			t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
 		}
-		role := dut.Telemetry().Component(supervisor).RedundantRole().Get(t)
+		role := gnmi.Get(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State())
 		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
 		if role == standbyController {
 			standbyRP = supervisor
@@ -210,10 +215,10 @@ func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (
 
 func fetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice) []string {
 	intfsOperStatusUP := []string{}
-	intfs := dut.Telemetry().InterfaceAny().Name().Get(t)
+	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
 	for _, intf := range intfs {
-		operStatus := dut.Telemetry().Interface(intf).OperStatus().Lookup(t)
-		if operStatus.IsPresent() && operStatus.Val(t) == telemetry.Interface_OperStatus_UP {
+		operStatus, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(intf).OperStatus().State()).Val()
+		if present && operStatus == oc.Interface_OperStatus_UP {
 			intfsOperStatusUP = append(intfsOperStatusUP, intf)
 		}
 	}

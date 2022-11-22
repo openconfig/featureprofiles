@@ -11,7 +11,8 @@ Topology:
 *   Connect ATE port-1 to DUT port-1 and ATE port-2 to DUT port-2.
 *   TODO: create a non-default VRF (VRF-1) that includes DUT port-1.
 *   Establish gRIBI client connection with DUT using default parameters and
-    persistence mode `PRESERVE` and flush all entries after each case.
+    persistence mode `PRESERVE`, make it become leader and flush all entries
+    after each case.
 
 Validate hierarchical resolution across VRFs:
 
