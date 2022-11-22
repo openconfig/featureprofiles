@@ -347,7 +347,7 @@ func diffCounters(before, after *counters) *counters {
 }
 
 // testFlow returns whether the traffic flow from ATE port1 to ATE
-// port2 has been successfully detec[Oted.
+// port2 has been successfully detected.
 func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.Header) bool {
 	i1 := tc.top.Interfaces()[ateSrc.Name]
 	i2 := tc.top.Interfaces()[ateDst.Name]
@@ -504,7 +504,7 @@ var autoModeName = map[autoMode]string{
 }
 
 // TestNegotiate validates that port speed is reported correctly and that port telemetry
-// atches expected negotiated speeds for forced, auto-negotiation, and a[Outo-negotiation
+// atches expected negotiated speeds for forced, auto-negotiation, and auto-negotiation
 // while overriding port speed and duplex.
 func TestNegotiate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
