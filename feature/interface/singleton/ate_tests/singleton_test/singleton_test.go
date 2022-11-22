@@ -383,7 +383,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 	}
 
 	// After Traffic Unicast, Multicast, Broadcast Counter
-[I	p1InAfter := inCounters(p1Counter.Get(t))
+	p1InAfter := inCounters(p1Counter.Get(t))
 	p2OutAfter := outCounters(p2Counter.Get(t))
 	p1InDiff := diffCounters(p1InBefore, p1InAfter)
 	p2OutDiff := diffCounters(p2OutBefore, p2OutAfter)
