@@ -21,7 +21,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -134,7 +135,7 @@ func TestQoSCounters(t *testing.T) {
 
 	// Get QoS egress packet counters before the traffic.
 	for _, data := range trafficFlows {
-		dutQosPktsBeforeTraffic[data.queue] = dut.Telemetry().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().Get(t)
+		dutQosPktsBeforeTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
 	}
 
 	t.Logf("Running traffic on DUT interfaces: %s and %s ", dp1.Name(), dp2.Name())
@@ -144,23 +145,23 @@ func TestQoSCounters(t *testing.T) {
 	time.Sleep(30 * time.Second)
 
 	for trafficID, data := range trafficFlows {
-		ateOutPkts[data.queue] = ate.Telemetry().Flow(trafficID).Counters().OutPkts().Get(t)
+		ateOutPkts[data.queue] = gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().OutPkts().State())
 		t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
 		t.Logf("Get(out packets for queue %q): got %v", data.queue, ateOutPkts[data.queue])
 
-		lossPct := ate.Telemetry().Flow(trafficID).LossPct().Get(t)
+		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
 		if lossPct >= 1 {
 			t.Errorf("Get(traffic loss for queue %q): got %v, want < 1", data.queue, lossPct)
 		}
 	}
 
 	for trafficID, data := range trafficFlows {
-		ateOutPkts[data.queue] = ate.Telemetry().Flow(trafficID).Counters().OutPkts().Get(t)
-		dutQosPktsAfterTraffic[data.queue] = dut.Telemetry().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().Get(t)
+		ateOutPkts[data.queue] = gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().OutPkts().State())
+		dutQosPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
 		t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
 		t.Logf("Get(out packets for flow %q): got %v, want nonzero", trafficID, ateOutPkts)
 
-		lossPct := ate.Telemetry().Flow(trafficID).LossPct().Get(t)
+		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
 		if lossPct >= 1 {
 			t.Errorf("Get(traffic loss for queue %q: got %v, want < 1", data.queue, lossPct)
 		}
@@ -203,10 +204,10 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure the interfaces.
 	for _, intf := range dutIntfs {
 		t.Logf("Configure DUT interface %s with attributes %v", intf.intfName, intf)
-		i := &telemetry.Interface{
+		i := &oc.Interface{
 			Name:        ygot.String(intf.intfName),
 			Description: ygot.String(intf.desc),
-			Type:        telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 			Enabled:     ygot.Bool(true),
 		}
 		i.GetOrCreateEthernet()
@@ -216,6 +217,6 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
-		dut.Config().Interface(intf.intfName).Replace(t, i)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 	}
 }
