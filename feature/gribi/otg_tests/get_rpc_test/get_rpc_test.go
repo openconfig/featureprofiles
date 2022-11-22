@@ -25,12 +25,14 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -94,9 +96,9 @@ const (
 )
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -114,15 +116,15 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 
 // configureDUT configures port1, port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutPort1))
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
 
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutPort2))
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
 
 }
 
@@ -214,31 +216,28 @@ func configureIPv4ViaClientB(t *testing.T, args *testArgs) {
 // configureIPv4ViaClientAInstalled configures a IPv4 Entry via ClientA with an
 // Election ID of 12. Ensure that the entry via ClientA is installed.
 func configureIPv4ViaClientAInstalled(t *testing.T, args *testArgs) {
-	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via clientA with election ID of 12.", ateDstNetCIDR)
-
+	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via clientA as leader.", ateDstNetCIDR)
+	gribi.BecomeLeader(t, args.clientA)
 	// TODO (deepgajjar): Remove WithElectionID and reuse helperAddEntry
 	// once gribi/gribigo in google3 is updated.
 	args.clientA.Modify().AddEntry(t,
 		fluent.NextHopEntry().
 			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithIndex(nhIndex).
-			WithIPAddress(atePort2.IPv4).
-			WithElectionID(12, 0))
+			WithIPAddress(atePort2.IPv4))
 
 	args.clientA.Modify().AddEntry(t,
 		fluent.NextHopGroupEntry().
 			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithID(nhgIndex).
-			AddNextHop(nhIndex, 1).
-			WithElectionID(12, 0))
+			AddNextHop(nhIndex, 1))
 
 	for ip := range ateDstNetCIDR {
 		args.clientA.Modify().AddEntry(t,
 			fluent.IPv4Entry().
 				WithPrefix(ateDstNetCIDR[ip]).
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
-				WithNextHopGroup(nhgIndex).
-				WithElectionID(12, 0))
+				WithNextHopGroup(nhgIndex))
 	}
 
 	if err := awaitTimeout(args.ctx, args.clientA, t, time.Minute); err != nil {
@@ -308,8 +307,8 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Verify the above entries are active through AFT Telemetry.
 	for ip := range ateDstNetCIDR {
-		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
-		if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR[ip]; got != want {
+		ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR[ip]; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	}
@@ -324,18 +323,18 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	// Configure static route for 198.51.100.192/64, issue Get from gRIBI-A
 	// and ensure that only entries for 198.51.100.0/26, 198.51.100.64/26, 198.51.100.128/26
 	// are returned, with no entry returned for 198.51.100.192/64.
-	dc := args.dut.Config()
+	dc := gnmi.OC()
 	ni := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
-	static := &telemetry.NetworkInstance_Protocol_Static{
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	static := &oc.NetworkInstance_Protocol_Static{
 		Prefix: ygot.String(staticCIDR),
 	}
-	static.GetOrCreateNextHop("AUTO_0").NextHop = telemetry.UnionString(atePort2.IPv4)
-	ni.Static(staticCIDR).Replace(t, static)
+	static.GetOrCreateNextHop("AUTO_0").NextHop = oc.UnionString(atePort2.IPv4)
+	gnmi.Replace(t, args.dut, ni.Static(staticCIDR).Config(), static)
 	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {
-		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
-		if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR[ip]; got != want {
+		ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR[ip]; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	}
@@ -382,8 +381,7 @@ func TestElectionID(t *testing.T) {
 	ate.OTG().StartProtocols(t)
 
 	// Connect gRIBI client to DUT referred to as gRIBI-A - using PRESERVE persistence and
-	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI-A as the leader via a
-	// higher election_id of 12.
+	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI-A as the leader.
 	clientA := fluent.NewClient()
 	clientA.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(12, 0).
 		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
@@ -404,6 +402,14 @@ func TestElectionID(t *testing.T) {
 
 	clientB.Start(context.Background(), t)
 	defer clientB.Stop(t)
+
+	defer func() {
+		// Flush all entries after test.
+		if err := gribi.FlushAll(clientB); err != nil {
+			t.Error(err)
+		}
+	}()
+
 	clientB.StartSending(context.Background(), t)
 	if err := awaitTimeout(ctx, clientB, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation for clientB: %v", err)
@@ -418,5 +424,4 @@ func TestElectionID(t *testing.T) {
 		top:     top,
 	}
 	testIPv4LeaderActive(ctx, t, args)
-
 }

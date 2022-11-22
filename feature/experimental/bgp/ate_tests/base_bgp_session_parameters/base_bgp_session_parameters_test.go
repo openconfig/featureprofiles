@@ -23,7 +23,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -70,17 +72,17 @@ const (
 
 // configureDUT is used to configure interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	dc := dut.Config()
-	i1 := dutAttrs.NewInterface(dut.Port(t, "port1").Name())
-	dc.Interface(i1.GetName()).Replace(t, i1)
+	dc := gnmi.OC()
+	i1 := dutAttrs.NewOCInterface(dut.Port(t, "port1").Name())
+	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
 }
 
 // verifyPortsUp asserts that each port on the device is operating.
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
 	for _, p := range dev.Ports() {
-		status := dev.Telemetry().Interface(p.Name()).OperStatus().Get(t)
-		if want := telemetry.Interface_OperStatus_UP; status != want {
+		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
+		if want := oc.Interface_OperStatus_UP; status != want {
 			t.Errorf("%s Status: got %v, want %v", p, status, want)
 		}
 	}
@@ -93,10 +95,10 @@ type bgpTestParams struct {
 }
 
 // bgpCreateNbr creates a BGP object with neighbors pointing to ate and returns bgp object.
-func bgpCreateNbr(bgpParams *bgpTestParams) *telemetry.NetworkInstance_Protocol_Bgp {
-	d := &telemetry.Device{}
+func bgpCreateNbr(bgpParams *bgpTestParams) *oc.NetworkInstance_Protocol_Bgp {
+	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
-	bgp := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	bgp := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(bgpParams.localAS)
 
@@ -123,22 +125,22 @@ func bgpCreateNbr(bgpParams *bgpTestParams) *telemetry.NetworkInstance_Protocol_
 	nv4t.KeepaliveInterval = ygot.Uint16(dutKeepaliveTime)
 	nv4t.ConnectRetry = ygot.Uint16(connRetryTime)
 
-	nv4.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	return bgp
 }
 
 // Verify BGP capabilities like route refresh as32 and mpbgp.
 func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP capabilities")
-	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
-	capabilities := map[telemetry.E_BgpTypes_BGP_CAPABILITY]bool{
-		telemetry.BgpTypes_BGP_CAPABILITY_ROUTE_REFRESH: false,
-		telemetry.BgpTypes_BGP_CAPABILITY_ASN32:         false,
-		telemetry.BgpTypes_BGP_CAPABILITY_MPBGP:         false,
+	capabilities := map[oc.E_BgpTypes_BGP_CAPABILITY]bool{
+		oc.BgpTypes_BGP_CAPABILITY_ROUTE_REFRESH: false,
+		oc.BgpTypes_BGP_CAPABILITY_ASN32:         false,
+		oc.BgpTypes_BGP_CAPABILITY_MPBGP:         false,
 	}
-	for _, cap := range nbrPath.SupportedCapabilities().Get(t) {
+	for _, cap := range gnmi.Get(t, dut, nbrPath.SupportedCapabilities().State()) {
 		capabilities[cap] = true
 	}
 	for cap, present := range capabilities {
@@ -152,29 +154,30 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 // verifyBgpTelemetry checks that the dut has an established BGP session with reasonable settings.
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	ifName := dut.Port(t, "port1").Name()
-	lastFlapTime := dut.Telemetry().Interface(ifName).LastChange().Get(t)
+	lastFlapTime := gnmi.Get(t, dut, gnmi.OC().Interface(ifName).LastChange().State())
 	t.Log("Verifying BGP state")
-	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
-	nbr := statePath.Get(t).GetNeighbor(ateAttrs.IPv4)
+	nbr := gnmi.Get(t, dut, statePath.State()).GetNeighbor(ateAttrs.IPv4)
 
 	// Get BGP adjacency state
 	t.Log("Waiting for BGP neighbor to establish...")
-	_, ok := nbrPath.SessionState().Watch(t, time.Minute, func(val *telemetry.QualifiedE_Bgp_Neighbor_SessionState) bool {
-		return val.IsPresent() && val.Val(t) == telemetry.Bgp_Neighbor_SessionState_ESTABLISHED
+	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+		state, present := val.Val()
+		return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}).Await(t)
 	if !ok {
-		fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
+		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
 		t.Fatal("No BGP neighbor formed")
 	}
-	status := nbrPath.SessionState().Get(t)
+	status := gnmi.Get(t, dut, nbrPath.SessionState().State())
 	t.Logf("BGP adjacency for %s: %s", ateAttrs.IPv4, status)
-	if want := telemetry.Bgp_Neighbor_SessionState_ESTABLISHED; status != want {
+	if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; status != want {
 		t.Errorf("BGP peer %s status got %d, want %d", ateAttrs.IPv4, status, want)
 	}
 
 	// Check last established timestamp
-	lestTime := nbrPath.Get(t).GetLastEstablished()
+	lestTime := gnmi.Get(t, dut, nbrPath.State()).GetLastEstablished()
 	t.Logf("BGP last est time :%v, flapTime :%v", lestTime, lastFlapTime)
 	if lestTime < lastFlapTime {
 		t.Errorf("Bad last-established timestamp: got %v, want >= %v", lestTime, lastFlapTime)
@@ -188,19 +191,19 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	// Check BGP neighbor address from telemetry
-	addrv4 := nbrPath.Get(t).GetNeighborAddress()
+	addrv4 := gnmi.Get(t, dut, nbrPath.State()).GetNeighborAddress()
 	t.Logf("Got ipv4 neighbor address: %s", addrv4)
 	if addrv4 != ateAttrs.IPv4 {
 		t.Errorf("BGP v4 neighbor address: got %v, want %v", addrv4, ateAttrs.IPv4)
 	}
 	// Check BGP neighbor address from telemetry
-	peerAS := nbrPath.Get(t).GetPeerAs()
+	peerAS := gnmi.Get(t, dut, nbrPath.State()).GetPeerAs()
 	if peerAS != ateAS {
 		t.Errorf("BGP peerAs: got %v, want %v", peerAS, ateAS)
 	}
 
 	// Check BGP neighbor is enabled
-	if !nbrPath.Get(t).GetEnabled() {
+	if !gnmi.Get(t, dut, nbrPath.State()).GetEnabled() {
 		t.Errorf("Expected neighbor %v to be enabled", ateAttrs.IPv4)
 	}
 }
@@ -239,19 +242,19 @@ func TestEstablishAndDisconnect(t *testing.T) {
 
 	// Configure Network instance type on DUT
 	t.Log("Configure Network Instance")
-	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	t.Log("Configure BGP")
-	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
-	fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
-	dutConfPath.Delete(t)
+	fptest.LogQuery(t, "DUT BGP Config before", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	gnmi.Delete(t, dut, dutConfPath.Config())
 	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS})
-	dutConfPath.Replace(t, dutConf)
-	fptest.LogYgot(t, "DUT BGP Config", dutConfPath, dutConfPath.Get(t))
+	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 
 	// ATE Configuration.
 	t.Log("configure port and BGP configs on ATE")
@@ -286,18 +289,18 @@ func TestEstablishAndDisconnect(t *testing.T) {
 
 	// Verify BGP session state : ACTIVE
 	t.Log("Verify BGP session state : ACTIVE")
-	nbrPath.SessionState().Await(t, time.Second*60, telemetry.Bgp_Neighbor_SessionState_ACTIVE)
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*60, oc.Bgp_Neighbor_SessionState_ACTIVE)
 
 	// Verify if Cease notification is received on DUT.
 	t.Log("Verify Error code received on DUT: BgpTypes_BGP_ERROR_CODE_CEASE")
-	code := nbrPath.Messages().Received().LastNotificationErrorCode().Get(t)
-	if code != telemetry.BgpTypes_BGP_ERROR_CODE_CEASE {
-		t.Errorf("On disconnect: expected error code %v, got %v", telemetry.BgpTypes_BGP_ERROR_CODE_CEASE, code)
+	code := gnmi.Get(t, dut, nbrPath.Messages().Received().LastNotificationErrorCode().State())
+	if code != oc.BgpTypes_BGP_ERROR_CODE_CEASE {
+		t.Errorf("On disconnect: expected error code %v, got %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE, code)
 	}
 
 	// Clear config on DUT and ATE
 	topo.StopProtocols(t)
-	dutConfPath.Delete(t)
+	gnmi.Delete(t, dut, dutConfPath.Config())
 }
 
 // TestParameters is to verify normal session establishment and termination
@@ -310,18 +313,18 @@ func TestParameters(t *testing.T) {
 
 	// Configure Network instance type on DUT
 	t.Log("Configure Network Instance")
-	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
-	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateIP)
 
 	cases := []struct {
 		name      string
-		dutConf   *telemetry.NetworkInstance_Protocol_Bgp
+		dutConf   *oc.NetworkInstance_Protocol_Bgp
 		ateConf   *ondatra.ATETopology
-		wantState *telemetry.NetworkInstance_Protocol_Bgp
+		wantState *oc.NetworkInstance_Protocol_Bgp
 	}{
 		{
 			name:    "Test the eBGP session establishment: Global AS",
@@ -346,18 +349,18 @@ func TestParameters(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fptest.LogYgot(t, "DUT BGP Config before", dutConfPath, dutConfPath.Get(t))
+			fptest.LogQuery(t, "DUT BGP Config before", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 			t.Log("Clear BGP Configs on DUT")
-			dutConfPath.Delete(t)
+			gnmi.Delete(t, dut, dutConfPath.Config())
 			t.Log("Configure BGP Configs on DUT")
-			dutConfPath.Replace(t, tc.dutConf)
-			fptest.LogYgot(t, "DUT BGP Config ", dutConfPath, dutConfPath.Get(t))
+			gnmi.Replace(t, dut, dutConfPath.Config(), tc.dutConf)
+			fptest.LogQuery(t, "DUT BGP Config ", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 			t.Log("Configure BGP on ATE")
 			tc.ateConf.Push(t)
 			tc.ateConf.StartProtocols(t)
 			t.Log("Verify BGP session state : ESTABLISHED")
-			nbrPath.SessionState().Await(t, time.Second*100, telemetry.Bgp_Neighbor_SessionState_ESTABLISHED)
-			stateDut := statePath.Get(t)
+			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*100, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+			stateDut := gnmi.Get(t, dut, statePath.State())
 			wantState := tc.dutConf
 			confirm.State(t, wantState, stateDut)
 			t.Log("Clear BGP Configs on ATE")
