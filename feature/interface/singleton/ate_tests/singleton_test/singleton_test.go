@@ -19,15 +19,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ygot/ygot"
-
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -106,10 +107,10 @@ type testCase struct {
 	mtu  uint16 // This is the L3 MTU, i.e. the payload portion of an Ethernet frame.
 	auto autoMode
 
-	dut *ondatra.DUTDevice
-	ate *ondatra.ATEDevice
-	top *ondatra.ATETopology
-
+	dut           *ondatra.DUTDevice
+	ate           *ondatra.ATEDevice
+	top           *ondatra.ATETopology
+	breakoutPorts map[string][]string
 	// Initialized by configureDUT.
 	duti1, duti2 *oc.Interface
 }
@@ -147,6 +148,33 @@ func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *att
 
 	s6 := s.GetOrCreateIpv6()
 	s6.Mtu = ygot.Uint32(uint32(tc.mtu))
+}
+
+func (tc *testCase) configureDUTBreakout(t *testing.T) *telemetry.Component_Port_BreakoutMode_Group {
+	t.Helper()
+	d := tc.dut.Config()
+	tc.breakoutPorts = make(map[string][]string)
+
+	for _, dp := range tc.dut.Ports() {
+		// TODO(liulk): figure out a better way to detect breakout port.
+		if dp.PMD() != ondatra.PMD100GBASEFR {
+			continue
+		}
+		parent := tc.dut.Telemetry().Interface(dp.Name()).HardwarePort().Get(t)
+		tc.breakoutPorts[parent] = append(tc.breakoutPorts[parent], dp.Name())
+	}
+	var group *telemetry.Component_Port_BreakoutMode_Group
+	for physical := range tc.breakoutPorts {
+		bmode := &telemetry.Component_Port_BreakoutMode{}
+		bmp := d.Component(physical).Port().BreakoutMode()
+		group = bmode.GetOrCreateGroup(0)
+		// TODO(liulk): use one of the logical port.Speed().
+		group.BreakoutSpeed = telemetry.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+		group.NumBreakouts = ygot.Uint8(4)
+		bmp.Replace(t, bmode)
+	}
+	return group
+
 }
 
 func (tc *testCase) configureDUT(t *testing.T) {
@@ -254,12 +282,24 @@ func (tc *testCase) verifyInterfaceDUT(
 
 // verifyDUT checks the telemetry against the parameters set by
 // configureDUT().
-func (tc *testCase) verifyDUT(t *testing.T) {
+func (tc *testCase) verifyDUT(t *testing.T, breakoutGroup *telemetry.Component_Port_BreakoutMode_Group) {
 	t.Run("Port1", func(t *testing.T) {
 		tc.verifyInterfaceDUT(t, tc.dut.Port(t, "port1"), tc.duti1, &ateSrc)
 	})
 	t.Run("Port2", func(t *testing.T) {
 		tc.verifyInterfaceDUT(t, tc.dut.Port(t, "port2"), tc.duti2, &ateDst)
+	})
+	t.Run("Breakout", func(t *testing.T) {
+		for physical := range tc.breakoutPorts {
+			if physical == "" {
+				continue // Not a breakout.
+			}
+			const want = 4
+			got := breakoutGroup.GetNumBreakouts()
+			if !cmp.Equal(got, want) {
+				t.Errorf("number of brekaoutports  = %v, want = %v", got, want)
+			}
+		}
 	})
 }
 
@@ -399,8 +439,9 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 func (tc *testCase) testMTU(t *testing.T) {
 	tc.configureDUT(t)
 	tc.configureATE(t)
+	breakoutGroup := tc.configureDUTBreakout(t)
 
-	t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t) })
+	t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t, breakoutGroup) })
 	t.Run("VerifyATE", func(t *testing.T) { tc.verifyATE(t) })
 
 	for _, c := range []struct {
@@ -480,11 +521,11 @@ func TestNegotiate(t *testing.T) {
 				ate: ate,
 				top: top,
 			}
-
+			breakoutGroup := tc.configureDUTBreakout(t)
 			tc.configureDUT(t)
 			tc.configureATE(t)
 
-			t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t) })
+			t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t, breakoutGroup) })
 			t.Run("VerifyATE", func(t *testing.T) { tc.verifyATE(t) })
 			t.Run("Traffic", func(t *testing.T) {
 				if got := tc.testFlow(t, tc.mtu, ondatra.NewIPv6Header()); !got {
