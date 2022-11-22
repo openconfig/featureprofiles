@@ -1,5 +1,5 @@
 diff --git a/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go b/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go
-index eabddb49..ce196480 100644
+index 246d6dab..342c93cf 100644
 --- a/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go
 +++ b/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go
 @@ -200,7 +200,8 @@ func configureNetworkInstance(t *testing.T) {
@@ -8,7 +8,7 @@ index eabddb49..ce196480 100644
  	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 -	static.Enabled = ygot.Bool(true)
 +	// The test pass with deviation for staticroute/enable that is tracked with bug CSCwd55321.
-+	//static.Enabled = ygot.Bool(true)
++	// static.Enabled = ygot.Bool(true)	
  	sr := static.GetOrCreateStatic(prefix)
- 	nh := sr.GetOrCreateNextHop("nhg1")
+ 	nh := sr.GetOrCreateNextHop("0")
  	nh.NextHop = fpoc.UnionString(nexthop)
