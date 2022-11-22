@@ -23,6 +23,7 @@ import (
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/netutil"
 )
 
@@ -84,9 +85,9 @@ func TestGNOITraceroute(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	lbIntf := netutil.LoopbackInterface(t, dut, 0)
-	lo0 := dut.Telemetry().Interface(lbIntf).Subinterface(0)
-	ipv4Addrs := lo0.Ipv4().AddressAny().Get(t)
-	ipv6Addrs := lo0.Ipv6().AddressAny().Get(t)
+	lo0 := gnmi.OC().Interface(lbIntf).Subinterface(0)
+	ipv4Addrs := gnmi.GetAll(t, dut, lo0.Ipv4().AddressAny().State())
+	ipv6Addrs := gnmi.GetAll(t, dut, lo0.Ipv6().AddressAny().State())
 	t.Logf("Got DUT %s IPv4 loopback address: %+v", dut.Name(), ipv4Addrs)
 	t.Logf("Got DUT %s IPv6 loopback address: %+v", dut.Name(), ipv6Addrs)
 	if len(ipv4Addrs) == 0 {

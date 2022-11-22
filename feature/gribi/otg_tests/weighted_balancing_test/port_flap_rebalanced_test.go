@@ -25,7 +25,8 @@ import (
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 // nextHopsEvenly generates []nexthop that distributes weights evenly
@@ -144,7 +145,7 @@ func TestPortFlap(t *testing.T) {
 	}
 
 	// Turn down ports one by one.
-	dt := dut.Telemetry()
+	dt := gnmi.OC()
 
 	for i := len(atePorts); i >= 2; i-- {
 		numUps := i - 1
@@ -163,7 +164,7 @@ func TestPortFlap(t *testing.T) {
 				// they are mapped to different Name().
 				t.Logf("Awaiting DUT port down: %v", dp)
 				dip := dt.Interface(dp.Name())
-				dip.OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
+				gnmi.Await(t, dut, dip.OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
 				t.Log("Port is down.")
 			}
 			testNextHopRemaining(t, numUps, dut, ate, top)
