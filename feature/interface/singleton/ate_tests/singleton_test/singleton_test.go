@@ -26,8 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
-
-	telemetry "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/telemetry"
 )
 
 func TestMain(m *testing.M) {
