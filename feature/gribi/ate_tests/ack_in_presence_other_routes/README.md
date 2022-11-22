@@ -14,7 +14,8 @@ Ensure that ACKs are received in the presence of other routes.
 
 *   Connect gRIBI client to DUT specifying persistence mode `PRESERVE`,
     `SINGLE_PRIMARY` client redundancy in the SessionParameters request, and
-    `election_id` 10. Ensure that no error is reported from the gRIBI server.
+    make it become leader. Ensure that no error is reported from the gRIBI
+    server.
 
 *   Add an `IPv4Entry` for same prefix `203.0.113.0/24` pointing to ATE port-3
     via `gRIBI-A`, ensure that the entry is active through AFT telemetry and
