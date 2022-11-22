@@ -30,7 +30,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra/gnmi"
 	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -143,19 +145,19 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 // configureDUT configures port1, port2, port3 and port4 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	d.Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
 
 	p2 := dut.Port(t, "port2")
-	d.Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
 
 	p3 := dut.Port(t, "port3")
-	d.Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 
 	p4 := dut.Port(t, "port4")
-	d.Interface(p4.Name()).Replace(t, dutPort4.NewInterface(p4.Name()))
+	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name()))
 }
 
 func TestBackup(t *testing.T) {
@@ -178,18 +180,23 @@ func TestBackup(t *testing.T) {
 
 		// Configure the gRIBI client clientA
 		client := gribi.Client{
-			DUT:                  dut,
-			FibACK:               false,
-			Persistence:          true,
-			InitialElectionIDLow: 10,
+			DUT:         dut,
+			FIBACK:      false,
+			Persistence: true,
 		}
 		defer client.Close(t)
+
+		// Flush all entries after the test
+		defer client.FlushAll(t)
+
 		if err := client.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection can not be established")
 		}
+		// Client becomes leader
+		client.BecomeLeader(t)
 
 		// Flush past entries before running the tc
-		client.Flush(t)
+		client.FlushAll(t)
 
 		tcArgs := &testArgs{
 			ctx:    ctx,
@@ -320,30 +327,31 @@ func flapinterface(t *testing.T, dut *ondatra.DUTDevice, port string, action boo
 // aftCheck does ipv4, NHG and NH aft check
 func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, expectedNH []string) {
 	// check prefix and get NHG ID
-	aftPfxNHG := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(prefix).NextHopGroup()
-	aftPfxNHGVal, found := aftPfxNHG.Watch(t, 10*time.Second, func(val *telemetry.QualifiedUint64) bool {
-		return true
+	aftPfxNHG := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(prefix).NextHopGroup()
+	aftPfxNHGVal, found := gnmi.Watch(t, dut, aftPfxNHG.State(), 10*time.Second, func(val *ygnmi.Value[uint64]) bool {
+		return val.IsPresent()
 	}).Await(t)
 	if !found {
 		t.Fatalf("Could not find prefix %s in telemetry AFT", dstPfx)
 	}
+	nhg, _ := aftPfxNHGVal.Val()
 
 	// using NHG ID validate NH
-	aftNHG := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(aftPfxNHGVal.Val(t)).Get(t)
+	aftNHG := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhg).State())
 	if got := len(aftNHG.NextHop); got < 1 && aftNHG.BackupNextHopGroup == nil {
 		t.Fatalf("Prefix %s reachability didn't switch to backup path", prefix)
 	}
 	if len(aftNHG.NextHop) != 0 {
 		for k := range aftNHG.NextHop {
-			aftnh := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(k).Get(t)
-			total_ips := len(expectedNH)
+			aftnh := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(k).State())
+			totalIPs := len(expectedNH)
 			for _, ip := range expectedNH {
 				if ip == aftnh.GetIpAddress() {
 					break
 				}
-				total_ips -= 1
+				totalIPs--
 			}
-			if total_ips == 0 {
+			if totalIPs == 0 {
 				t.Fatalf("No matching NH found")
 			}
 		}

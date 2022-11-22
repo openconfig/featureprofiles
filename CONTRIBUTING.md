@@ -34,9 +34,10 @@ not to ascribe any specific rights to a single OpenConfig contributor.
 ## Code Style
 
 All code should follow
-[Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
-and [Effective Go](https://go.dev/doc/effective_go) for writing readable Go code
-with a consistent look and feel.
+[Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments),
+[Effective Go](https://go.dev/doc/effective_go), and
+[Google Go Style Guide](https://google.github.io/styleguide/go/) for writing
+readable Go code with a consistent look and feel.
 
 All code and documentation should follow
 [Google developer documentation style guide](https://developers.google.com/style/word-list)

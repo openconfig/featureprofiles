@@ -28,7 +28,8 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -139,12 +140,12 @@ type nextHop struct {
 // dutInterface builds a DUT interface ygot struct for a given port
 // according to portsIPv4.  Returns nil if the port has no IP address
 // mapping.
-func dutInterface(p *ondatra.Port) *telemetry.Interface {
+func dutInterface(p *ondatra.Port) *oc.Interface {
 	id := fmt.Sprintf("%s:%s", p.Device().ID(), p.ID())
-	i := &telemetry.Interface{
+	i := &oc.Interface{
 		Name:        ygot.String(p.Name()),
 		Description: ygot.String(p.String()),
-		Type:        telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 	}
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
@@ -168,26 +169,26 @@ func dutInterface(p *ondatra.Port) *telemetry.Interface {
 
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
-	dc := dut.Config()
+	dc := gnmi.OC()
 
 	// We add a discard route so that when the nexthop interface goes
 	// down, the device does not attempt to route packets through the
 	// default gateway 0.0.0.0/0.  Packets destined to the more specific
 	// next hop CIDRs will be routed.
-	static := &telemetry.NetworkInstance_Protocol_Static{
+	static := &oc.NetworkInstance_Protocol_Static{
 		Prefix: ygot.String(discardCIDR),
 	}
 	static.GetOrCreateNextHop("AUTO_drop_2").
-		NextHop = telemetry.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
+		NextHop = oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
 	staticp := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
 		Static(discardCIDR)
-	fptest.LogYgot(t, "discard route", staticp, static)
-	staticp.Replace(t, static)
+	fptest.LogQuery(t, "discard route", staticp.Config(), static)
+	gnmi.Replace(t, dut, staticp.Config(), static)
 
 	for _, dp := range dut.Ports() {
 		if i := dutInterface(dp); i != nil {
-			dc.Interface(dp.Name()).Replace(t, i)
+			gnmi.Replace(t, dut, dc.Interface(dp.Name()).Config(), i)
 		} else {
 			t.Fatalf("No address found for port %v", dp)
 		}
@@ -341,9 +342,9 @@ func generateTraffic(t testing.TB, ate *ondatra.ATEDevice, top *ondatra.ATETopol
 	outPkts = make([]uint64, len(atePorts))
 
 	for i, ap := range atePorts {
-		aicp := ate.Telemetry().Interface(ap.Name()).Counters()
-		inPkts[i] = aicp.InPkts().Get(t)
-		outPkts[i] = aicp.OutPkts().Get(t)
+		aicp := gnmi.OC().Interface(ap.Name()).Counters()
+		inPkts[i] = gnmi.Get(t, ate, aicp.InPkts().State())
+		outPkts[i] = gnmi.Get(t, ate, aicp.OutPkts().State())
 	}
 
 	return atePorts, inPkts, outPkts
@@ -383,9 +384,9 @@ func portWants(nexthops []nextHop, atePorts []*ondatra.Port) []float64 {
 
 func debugGRIBI(t testing.TB, dut *ondatra.DUTDevice) {
 	// Debugging through OpenConfig.
-	aftsPath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts()
-	if q := aftsPath.Lookup(t); q.IsPresent() {
-		fptest.LogYgot(t, "Afts", aftsPath, q.Val(t))
+	aftsPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts()
+	if q, present := gnmi.Lookup(t, dut, aftsPath.State()).Val(); present {
+		fptest.LogQuery(t, "Afts", aftsPath.State(), q)
 	} else {
 		t.Log("afts value not present")
 	}

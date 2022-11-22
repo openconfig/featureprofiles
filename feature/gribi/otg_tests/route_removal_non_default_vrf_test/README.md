@@ -8,9 +8,10 @@ Validate that Flush RPC in gRIBI removes routes in non-default VRF as expected.
 
 *   Connect ATE port-1 to DUT port-1, and ATE port-2 to DUT port-2.
 *   Create a non-default VRF (VRF-1) that includes DUT port-1.
-*   Connect gRIBI client (gRIBI-A) with election_id=10 to DUT, with persistence
-    set to `PRESERVE` and `SINGLE_PRIMARY` redundancy specified. Connect a
-    second client (gRIBI-B) using the same parameters, but with election_id=9 .
+*   Connect gRIBI client (gRIBI-A) to DUT, with persistence set to `PRESERVE`
+    and `SINGLE_PRIMARY` redundancy specified and make it become leader. Connect
+    a second client (gRIBI-B) using the same parameters, but with
+    `election_id=leader_election_id-1`.
 *   Inject an IPv4Entry for 198.51.100.0/24 into VRF-1, with its referenced NHG
     and NH in the default routing-instance pointing to ATE port-2.
     *   Ensure that packets can be forwarded between ATE port-1 and port-2 for
@@ -21,8 +22,7 @@ Validate that Flush RPC in gRIBI removes routes in non-default VRF as expected.
     *   Issue Flush from gRIBI-B, ensure that entries are not removed via
         validating packet forwarding and telemetry; expect a NOT_PRIMARY RPC
         response error.
-    *   Increase gRIBI-B’s election_id to 11 by sending a ModifyRequest with
-        election_id=11
+    *   Make gRIBI-B become leader.
     *   Issue Flush from gRIBI-B for VRF-1, ensure that entries are removed via
         packet forwarding and telemetry.
     *   Re-inject entry for 198.51.100.0/24 in VRF-1 from gRIBI-B. Re-inject
