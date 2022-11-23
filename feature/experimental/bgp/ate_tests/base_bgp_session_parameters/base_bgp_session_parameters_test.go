@@ -152,11 +152,11 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 // verifyAuthPassword checks that the dut applied configured auth password to bgp neighbors
 func verifyAuthPassword(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP Authentication password")
-	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
 	// Get BGP Authentication password
-	authPwd := nbrPath.AuthPassword().Get(t)
+	authPwd := gnmi.Get(t, dut, nbrPath.AuthPassword().State())
 	if len(authPwd) == 0 {
 		t.Errorf("Authentication password is not as expected, want non zero value, got lenth %v", len(authPwd))
 	}
@@ -265,6 +265,9 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS})
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+	// Configure Md5 auth password.
+	gnmi.Replace(t, dut, dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
+
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 
 	// ATE Configuration.
@@ -300,10 +303,10 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	// Send Cease Notification from ATE to DUT
 	t.Log("Send Cease Notification from ATE to DUT")
 	ate.Actions().NewBGPPeerNotification().WithCode(6).WithSubCode(6).WithPeers(bgpPeer).Send(t)
-
+	time.Sleep(time.Second * 3)
 	// Verify BGP session state : ACTIVE
 	t.Log("Verify BGP session state : ACTIVE")
-	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*60, oc.Bgp_Neighbor_SessionState_ACTIVE)
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*10, oc.Bgp_Neighbor_SessionState_ACTIVE)
 
 	// Verify if Cease notification is received on DUT.
 	t.Log("Verify Error code received on DUT: BgpTypes_BGP_ERROR_CODE_CEASE")
@@ -372,7 +375,8 @@ func TestParameters(t *testing.T) {
 			tc.ateConf.Push(t)
 			tc.ateConf.StartProtocols(t)
 			t.Log("Verify BGP session state : ESTABLISHED")
-			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*100, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+			time.Sleep(time.Second * 5)
+			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*15, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 			stateDut := gnmi.Get(t, dut, statePath.State())
 			wantState := tc.dutConf
 			confirm.State(t, wantState, stateDut)
