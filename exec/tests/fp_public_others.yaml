@@ -137,8 +137,9 @@ tests:
   skip: false
 - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace) 
   path: feature/system/gnmi/metadata/tests/annotation_test
+  patch: exec/firex/plugins/fp_patch/annotation_test.patch
   owner: kjahed@cisco.com
-  mustpass: false
+  mustpass: true
   skip: false
   priority: 38
 - name: gNOI-3.3 Copying Debug Files
