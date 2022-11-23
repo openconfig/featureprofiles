@@ -21,6 +21,7 @@ package gribi
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -28,11 +29,40 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+
+	gpb "github.com/openconfig/gribi/v1/proto/service"
 )
 
 const (
 	timeout = time.Minute
 )
+
+// Uint128 struct implements a 128 bit unsigned integer required by gRIBI
+// election process
+type Uint128 struct {
+	Low  uint64
+	High uint64
+}
+
+// Increment increases the Uint128 number by 1
+func (i Uint128) Increment() Uint128 {
+	newHigh := i.High
+	newLow := i.Low + 1
+	if newLow < i.Low {
+		newHigh++ // Carry to high.
+	}
+	return Uint128{Low: newLow, High: newHigh}
+}
+
+// Decrement decreases the Uint128 number by 1
+func (i Uint128) Decrement() Uint128 {
+	newHigh := i.High
+	newLow := i.Low - 1
+	if newLow > i.Low {
+		newHigh-- // Carry to high.
+	}
+	return Uint128{Low: newLow, High: newHigh}
+}
 
 // Client provides access to GRIBI APIs of the DUT.
 //
@@ -40,7 +70,7 @@ const (
 //
 //	c := &Client{
 //	  DUT: ondatra.DUT(t, "dut"),
-//	  FibACK: true,
+//	  FIBACK: true,
 //	  Persistence: true,
 //	}
 //	defer c.Close(t)
@@ -48,14 +78,13 @@ const (
 //	  t.Fatalf("Could not initialize gRIBI: %v", err)
 //	}
 type Client struct {
-	DUT                   *ondatra.DUTDevice
-	FibACK                bool
-	Persistence           bool
-	InitialElectionIDLow  uint64
-	InitialElectionIDHigh uint64
+	DUT         *ondatra.DUTDevice
+	FIBACK      bool
+	Persistence bool
 
 	// Unexport fields below.
-	fluentC *fluent.GRIBIClient
+	fluentC    *fluent.GRIBIClient
+	electionID Uint128
 }
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
@@ -77,16 +106,15 @@ func (c *Client) Start(t testing.TB) error {
 	t.Logf("Starting GRIBI connection for dut: %s", c.DUT.Name())
 	gribiC := c.DUT.RawAPIs().GRIBI().Default(t)
 	c.fluentC = fluent.NewClient()
-	c.fluentC.Connection().WithStub(gribiC)
+	c.electionID = Uint128{Low: 1, High: 0}
+
+	conn := c.fluentC.Connection().WithStub(gribiC).WithRedundancyMode(fluent.ElectedPrimaryClient)
+	conn.WithInitialElectionID(c.electionID.Low, c.electionID.High)
 	if c.Persistence {
-		c.fluentC.Connection().WithInitialElectionID(c.InitialElectionIDLow, c.InitialElectionIDHigh).
-			WithRedundancyMode(fluent.ElectedPrimaryClient).WithPersistence()
-	} else {
-		c.fluentC.Connection().WithInitialElectionID(c.InitialElectionIDLow, c.InitialElectionIDHigh).
-			WithRedundancyMode(fluent.ElectedPrimaryClient)
+		conn.WithPersistence()
 	}
-	if c.FibACK {
-		c.fluentC.Connection().WithFIBACK()
+	if c.FIBACK {
+		conn.WithFIBACK()
 	}
 	ctx := context.Background()
 	c.fluentC.Start(ctx, t)
@@ -107,51 +135,32 @@ func (c *Client) Close(t testing.TB) {
 
 // AwaitTimeout calls a fluent client Await by adding a timeout to the context.
 func (c *Client) AwaitTimeout(ctx context.Context, t testing.TB, timeout time.Duration) error {
-	subctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	return c.fluentC.Await(subctx, t)
+	return awaitTimeout(ctx, t, c.fluentC, timeout)
 }
 
-// learnElectionID learns the current server election id by sending
+// LearnElectionID learns the current server election id by sending
 // a dummy modify request with election id 1.
-func (c *Client) learnElectionID(t testing.TB) (low, high uint64) {
-	t.Helper()
-	t.Logf("Learn GRIBI Election ID from dut: %s", c.DUT.Name())
-	c.fluentC.Modify().UpdateElectionID(t, 1, 0)
-	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
-		t.Fatalf("Error waiting to update Election ID: %v", err)
-	}
-	results := c.fluentC.Results(t)
-	electionID := results[len(results)-1].CurrentServerElectionID
-	return electionID.Low, electionID.High
+func (c *Client) LearnElectionID(t testing.TB) (electionID Uint128) {
+	return LearnElectionID(t, c.fluentC)
 }
 
 // UpdateElectionID updates the election id of the dut.
-// The function fails if the requsted election id is less than the server election id.
-func (c *Client) UpdateElectionID(t testing.TB, lowElecID, highElecID uint64) {
-	t.Helper()
-	t.Logf("Setting GRIBI Election ID for dut: %s to low=%d, high=%d", c.DUT.Name(), lowElecID, highElecID)
-	c.fluentC.Modify().UpdateElectionID(t, lowElecID, highElecID)
-	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
-		t.Fatalf("Error waiting to update Election ID: %v", err)
-	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithCurrentServerElectionID(lowElecID, highElecID).
-			AsResult(),
-	)
+// The function fails if the requested election id is less than the server election id.
+func (c *Client) UpdateElectionID(t testing.TB, electionID Uint128) {
+	UpdateElectionID(t, c.fluentC, electionID)
+	c.electionID = electionID
 }
 
 // BecomeLeader learns the latest election id and the make the client leader by increasing the election id by one.
-func (c *Client) BecomeLeader(t testing.TB) {
-	t.Helper()
-	t.Logf("Trying to be a master with increasing the election id by one on dut: %s", c.DUT.Name())
-	low, high := c.learnElectionID(t)
-	newLow := low + 1
-	if newLow < low {
-		high++ // Carry to high.
-	}
-	c.UpdateElectionID(t, newLow, high)
+func (c *Client) BecomeLeader(t testing.TB) (electionID Uint128) {
+	eID := BecomeLeader(t, c.fluentC)
+	c.electionID = eID
+	return eID
+}
+
+// ElectionID returns the current electionID being set for the client.
+func (c *Client) ElectionID() Uint128 {
+	return c.electionID
 }
 
 // AddNHG adds a NextHopGroupEntry with a given index, and a map of next hop entry indices to the weights,
@@ -243,13 +252,77 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, instance string, expect
 	)
 }
 
-// Flush flushes all the gribi entries
-func (c *Client) Flush(t testing.TB) {
-	t.Logf("Flush Entries in All Network Instances.")
-	if _, err := c.fluentC.Flush().
+// FlushAll flushes all the gribi entries
+func (c *Client) FlushAll(t testing.TB) {
+	if err := FlushAll(c.fluentC); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Flush flushes gRIBI entries specific to the provided NetworkInstance end electionID
+func (c *Client) Flush(t testing.TB, electionID Uint128, networkInstanceName string) {
+	_, err := Flush(c.fluentC, electionID, networkInstanceName)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// LearnElectionID learns the current server election id by sending
+// a dummy modify request with election id 1.
+func LearnElectionID(t testing.TB, c *fluent.GRIBIClient) (electionID Uint128) {
+	t.Helper()
+	t.Log("Learn GRIBI Election ID from dut.")
+	c.Modify().UpdateElectionID(t, 1, 0)
+	if err := awaitTimeout(context.Background(), t, c, timeout); err != nil {
+		t.Fatalf("Error waiting to update Election ID: %v", err)
+	}
+	results := c.Results(t)
+	eID := results[len(results)-1].CurrentServerElectionID
+	return Uint128{Low: eID.Low, High: eID.High}
+}
+
+// UpdateElectionID updates the election id of the dut.
+func UpdateElectionID(t testing.TB, c *fluent.GRIBIClient, electionID Uint128) {
+	t.Helper()
+	t.Logf("Setting GRIBI Election ID for dut to low=%d, high=%d", electionID.Low, electionID.High)
+	c.Modify().UpdateElectionID(t, electionID.Low, electionID.High)
+	if err := awaitTimeout(context.Background(), t, c, timeout); err != nil {
+		t.Fatalf("Error waiting to update Election ID: %v", err)
+	}
+}
+
+// BecomeLeader learns the latest election id and the make the client leader by increasing the election id by one.
+func BecomeLeader(t testing.TB, c *fluent.GRIBIClient) (electionID Uint128) {
+	t.Helper()
+	t.Log("Trying to be a master with increasing the election id by one on dut.")
+	eID := LearnElectionID(t, c)
+
+	UpdateElectionID(t, c, eID.Increment())
+	return eID.Increment()
+}
+
+// Flush flushes gRIBI entries specific to the provided NetworkInstance end electionID.
+func Flush(client *fluent.GRIBIClient, electionID Uint128, networkInstanceName string) (*gpb.FlushResponse, error) {
+	return client.Flush().
+		WithElectionID(electionID.Low, electionID.High).
+		WithNetworkInstance(networkInstanceName).
+		Send()
+}
+
+// FlushAll flushes all the gribi entries.
+func FlushAll(c *fluent.GRIBIClient) error {
+	_, err := c.Flush().
 		WithElectionOverride().
 		WithAllNetworkInstances().
-		Send(); err != nil {
-		t.Fatalf("Could not remove all gribi entries from dut %s, got error: %v", c.DUT.Name(), err)
+		Send()
+	if err != nil {
+		return fmt.Errorf("could not remove all gribi entries, got error: %v", err)
 	}
+	return nil
+}
+
+func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, timeout time.Duration) error {
+	subctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	return c.Await(subctx, t)
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/ixnet"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -490,10 +491,10 @@ func TestTraffic(t *testing.T) {
 	time.Sleep(time.Second * 30)
 	ate.Traffic().Stop(t)
 	t.Logf("Checking telemetry...")
-	telem := ate.Telemetry()
-	v4Loss := telem.Flow(v4Flow.Name()).LossPct().Get(t)
-	v6Loss := telem.Flow(v6Flow.Name()).LossPct().Get(t)
-	deadLoss := telem.Flow(deadFlow.Name()).LossPct().Get(t)
+	telem := gnmi.OC()
+	v4Loss := gnmi.Get(t, ate, telem.Flow(v4Flow.Name()).LossPct().State())
+	v6Loss := gnmi.Get(t, ate, telem.Flow(v6Flow.Name()).LossPct().State())
+	deadLoss := gnmi.Get(t, ate, telem.Flow(deadFlow.Name()).LossPct().State())
 	if v4Loss > 1 {
 		t.Errorf("Got %v%% IPv4 packet loss; expected < 1%%", v4Loss)
 	}
