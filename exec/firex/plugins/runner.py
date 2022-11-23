@@ -132,7 +132,7 @@ def BringupTestbed(self, ws, images = None,
     fp_repo.git.commit('-m', 'patched for testing')
 
     ondatra_repo = git.Repo(ondatra_repo_dir)
-    ondatra_repo.git.checkout("a05f012bb3e46fc94c28d70da50a078a1484156b")
+    ondatra_repo.git.checkout("7558e3ba93a6f25cfdff517627b579f6cd903a25")
     ondatra_repo.config_writer().set_value("name", "email", "gob4").release()
     ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
 
