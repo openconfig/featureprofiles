@@ -201,7 +201,14 @@ func BuildOCUpdate(t *testing.T) {
 	}
 	p := dut.Config()
 	fptest.LogYgot(t, fmt.Sprintf("%s to Update()", dut), p, d)
-	p.Update(t, d)
+	t.Run("Apply benchmarking config on DUT", func(t *testing.T) {
+		//Start the timer.
+		start := time.Now()
+		p.Update(t, d)
+		//End the timer and calculate time requied to apply the config on DUT
+		elapsed := time.Since(start)
+		t.Logf("Time taken for gNMI Set request is: %v", elapsed)
+	})
 }
 
 // ConfigureATE function is to configure ate ports with ipv4 , bgp
