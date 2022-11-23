@@ -113,6 +113,8 @@ var (
 	GNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
 	
 	OSActiavteRequiresReboot = flag.Bool("deviation_osactiavte_requires_reboot", false, "Device does not support OS activation without reboot, so we pass noreboot=false when calling GNOI activate commend.")
+	
+	OSActiavteNoReboot = flag.Bool("deviation_osactiavte_noreboot", false, "Device requires seperate reboot to activate OS.")
 
 	NoOSInstallForStandbyRP = flag.Bool("deviation_no_osinstall_for_standby_rp", false, "Device does not require OS installation on standby RP since the standby RP always kept in sync with the master RP, so suppress installing OS on standby RP.")
 

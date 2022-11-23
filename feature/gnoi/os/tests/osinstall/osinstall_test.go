@@ -95,7 +95,7 @@ func TestOSInstall(t *testing.T) {
 		tc.activateOS(ctx, t, true)
 	}
 
-	if *deviations.OSActiavteRequiresReboot {
+	if *deviations.OSActiavteNoReboot {
 		tc.rebootDUT(ctx, t)
 	}
 	// reconnect GNOI client 
@@ -107,7 +107,7 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) 
 	act, err := tc.osc.Activate(ctx, &ospb.ActivateRequest{
 		StandbySupervisor: standby,
 		Version:           *osVersion,
-		NoReboot:          *deviations.OSActiavteRequiresReboot,
+		NoReboot:          *deviations.OSActiavteNoReboot,
 	})
 	if err != nil {
 		t.Fatalf("OS.Activate request failed: %s", err)
@@ -129,7 +129,7 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) 
 	// when no reboot is set to false, the device expected to do reboot if is required. 
 	// Reboot is not neccessary in all cases and the device does reboot based on the number of updated packages and impacted processes.
 	// THe below code checks and make sure the possible reboot is completed. 
-	if !*deviations.OSActiavteRequiresReboot {
+	if !*deviations.OSActiavteNoReboot {
 		t.Log("Check for os reboot to be completed when  noreboot flag is set to false")
 		// wait for 1 minutes to ensure the reboot is started
 		deadline := time.Now().Add(*timeout)
