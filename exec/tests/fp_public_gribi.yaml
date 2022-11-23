@@ -1,6 +1,6 @@
 name: fp_public_gribi
 owner: mbagherz@cisco.com
-priority: 1
+priority: 2
 testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
 binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
 baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
@@ -12,11 +12,6 @@ tests:
 - name: first_get_workaround
   path: topologies/cisco/pretests/pre_fp_gribi_test.go
   priority: 3
-- name: gNOI-3.1 (Complete Chassis Reboot) 
-  path: feature/gnoi/system/tests/complete_chassis_reboot
-  owner: arvbaska@cisco.com
-  priority: 2
-  mustpass: true
 - name: TE-15.1 (gRIBI Compliance) 
   path: feature/gribi/ate_tests/gribigo_compliance_test
   priority: 7
@@ -54,7 +49,7 @@ tests:
         - '-deviation_gribi_preserve_only="true"'
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 12
+  priority: 112
 - name: TE-3.7 (Base Hierarchical NHG Update) 
   path: feature/gribi/ate_tests/base_hierarchical_nhg_update
   args:
@@ -64,6 +59,7 @@ tests:
   owner: mananpat@cisco.com
   mustpass: false
   priority: 13
+  skip: true
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
   patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
@@ -71,7 +67,7 @@ tests:
   #    - '-traffic_duration="20s"'
   #    - '-traffic_pause="2s"'
   mustpass: false
-  priority: 79
+  priority: 12
 - name: TE-3.3 (Hierarchical weight resolution)
   path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
   patch: exec/firex/plugins/fp_patch/hierarchical_weight_resolution_test.patch
@@ -99,8 +95,8 @@ tests:
 - name: TE-3.1 (Base Hierarchical Route Installation) 
   path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
   patch: exec/firex/plugins/fp_patch/base_hierarchical_route_installation_test.patch
-  timeout: 7200
-  skip: false
+  timeout: 4200
+  skip: true
   owner: mananpat@cisco.com
   mustpass: false
   priority: 19
@@ -113,7 +109,7 @@ tests:
   path: feature/experimental/gribi/ate_tests/dut_daemon_failure
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 80
+  priority: 10
 - name: TE-11.1 (Backup NHG Single NH) 
   path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
   #patch: exec/firex/plugins/fp_patch/backup_nhg_test.patch
@@ -126,4 +122,4 @@ tests:
   timeout: 7200
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 24
+  priority: 10
