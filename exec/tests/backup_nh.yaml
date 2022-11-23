@@ -8,5 +8,6 @@ tests:
 - name: BACKUP_NH (forwarding tc with backup) 
   path: feature/gribi/ate_tests/cisco/backup_nh
   timeout: 36000
+  mustpass: true
   args: 
     - '-gribi_fib_check="true"'

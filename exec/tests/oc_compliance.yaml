@@ -1,4 +1,4 @@
-name: fp_cisco
+name: oc_compliance
 owner: agvarghe@cisco.com
 testbed: topologies/cisco/pyvxr/testbed
 pyvxr:
