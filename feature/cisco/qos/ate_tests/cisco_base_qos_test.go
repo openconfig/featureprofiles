@@ -122,6 +122,7 @@ func TestTrafficQos(t *testing.T) {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
 	}
+	cliHandle.Close()
 	//Configure IPv6 addresses and VLANS on DUT
 	configureIpv6AndVlans(t, dut)
 
@@ -207,6 +208,7 @@ func TestScheduler(t *testing.T) {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
 	}
+	cliHandle.Close()
 
 	// Dial gRIBI
 	ctx := context.Background()
