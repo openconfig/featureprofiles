@@ -118,7 +118,7 @@ tests:
   priority: 23
 - name: TE-14.1 (gRIBI Scaling)
   path: feature/gribi/ate_tests/gribi_scaling
-  #patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
+  patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
   timeout: 7200
   owner: mananpat@cisco.com
   mustpass: true
