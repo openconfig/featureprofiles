@@ -315,14 +315,14 @@ def RunB4FPTest(self,
     test_args = f'{test_args} ' \
         f'-log_dir {test_logs_dir_in_ws}'
 
-    test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path}'
+    test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path} ' \
+                f'-v 5 ' \
+                f'-alsologtostderr'
 
     go_args = f'{go_args} ' \
                 f'-json ' \
                 f'-p 1 ' \
-                f'-timeout {test_timeout}s ' \
-                f'-v 5 ' \
-                f'-alsologtostderr'
+                f'-timeout {test_timeout}s'
 
     if not test_path:
         raise ValueError('test_path must be set for non-compiled go tests')
