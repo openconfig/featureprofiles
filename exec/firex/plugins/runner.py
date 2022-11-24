@@ -322,7 +322,7 @@ def RunB4FPTest(self,
                 f'-p 1 ' \
                 f'-timeout {test_timeout}s ' \
                 f'-v 5 ' \
-                f'-alsologtostderr true'
+                f'-alsologtostderr'
 
     if not test_path:
         raise ValueError('test_path must be set for non-compiled go tests')
