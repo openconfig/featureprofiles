@@ -13,6 +13,7 @@ tests:
   owner: agvarghe@cisco.com
   priority: 200
   mustpass: true
+  skip: true
 - name: gNOI-5.1 (Ping Test) 
   path: feature/gnoi/system/tests/ping_test
   owner: arvbaska@cisco.com
@@ -61,7 +62,7 @@ tests:
   priority: 26
 - name: dp-1.4 (QoS Interface Output Queue Counters) 
   path: feature/experimental/qos/ate_tests/qos_output_queue_counters_test
-  patch: exec/firex/plugins/fp_patch/qos_output_queue_counters_test.patch
+  #patch: exec/firex/plugins/fp_patch/qos_output_queue_counters_test.patch
   owner: arvbaska@cisco.com
   mustpass: true
   priority: 27
@@ -90,7 +91,7 @@ tests:
 - name: RT-5.1 (Singleton Interface) 
   path: feature/interface/singleton/ate_tests/singleton_test
   timeout: 7200
-  patch: exec/firex/plugins/fp_patch/singleton_test.patch
+  #patch: exec/firex/plugins/fp_patch/singleton_test.patch
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 31
@@ -156,7 +157,7 @@ tests:
   priority: 42
 - name: SEC-3.1 (Authentication) 
   path: feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test
-  patch: exec/firex/plugins/fp_patch/tls_authentication_over_grpc_test.patch
+  #patch: exec/firex/plugins/fp_patch/tls_authentication_over_grpc_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
   skip: false
@@ -201,7 +202,7 @@ tests:
   skip: false
 - name: RT-6.1 (Core LLDP TLV Population) 
   path: feature/lldp/tests/core_lldp_tlv_population_test
-  patch: exec/firex/plugins/fp_patch/core_lldp_tlv_population_test.patch
+  #patch: exec/firex/plugins/fp_patch/core_lldp_tlv_population_test.patch
   owner: agvarghe@cisco.com
   skip: true
   mustpass: false 
