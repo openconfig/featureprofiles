@@ -30,7 +30,7 @@ FP_REPO_CLONE_INFO = CloneInfo('git@wwwin-github.cisco.com:B4Test/featureprofile
 ONDATRA_PATCHES = [
     'exec/firex/plugins/ondatra/0001-windows-ixia-path.patch', 
     'exec/firex/plugins/ondatra/0002-disable-log.patch',
-    'exec/firex/plugins/ondatra/tmp-disable-close-send.patch'
+#    'exec/firex/plugins/ondatra/tmp-disable-close-send.patch'
 
 ]
 
@@ -315,7 +315,9 @@ def RunB4FPTest(self,
     test_args = f'{test_args} ' \
         f'-log_dir {test_logs_dir_in_ws}'
 
-    test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path}'
+    test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path} ' \
+                f'-v 5 ' \
+                f'-alsologtostderr'
 
     go_args = f'{go_args} ' \
                 f'-json ' \
