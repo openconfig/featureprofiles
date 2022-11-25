@@ -14,9 +14,9 @@ tests:
   owner: arvbaska@cisco.com
   priority: 2
   mustpass: true
-- name: first_get_workaround
-  path: topologies/cisco/pretests/pre_fp_gribi_test.go
-  priority: 3
+#- name: first_get_workaround
+#  path: topologies/cisco/pretests/pre_fp_gribi_test.go
+#  priority: 3
 - name: TE-15.1 (gRIBI Compliance) 
   path: feature/gribi/ate_tests/gribigo_compliance_test
   priority: 7
