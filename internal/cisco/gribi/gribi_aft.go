@@ -145,8 +145,10 @@ func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instan
 		t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", aftIPv4e.GetPrefix(), prefix)
 	}
 	gotNhgInstance := aftIPv4e.GetNextHopGroupNetworkInstance()
-	if gotNhgInstance != nhgInstance {
-		t.Fatalf("AFT Check failed for ipv4-entry/state/next-hop-group-network-instance got %s, want %s", gotNhgInstance, nhgInstance)
+	if nhgInstance != "" {
+		if gotNhgInstance != nhgInstance {
+			t.Fatalf("AFT Check failed for ipv4-entry/state/next-hop-group-network-instance got %s, want %s", gotNhgInstance, nhgInstance)
+		}
 	}
 
 	gotNhgIndex := aftIPv4e.GetNextHopGroup()
