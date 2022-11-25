@@ -23,11 +23,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra/telemetry"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
 	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -110,9 +111,9 @@ var (
 // configInterfaceDUT configures the interface on "me" with static ARP
 // of peer.  Note that peermac is used for static ARP, and not
 // peer.MAC.
-func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peermac string) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, peermac string) *oc.Interface {
 	i.Description = ygot.String(me.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -151,17 +152,16 @@ func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peer
 
 func configureDUT(t *testing.T, peermac string) {
 	dut := ondatra.DUT(t, "dut")
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
 	if peermac == "" {
-		d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
+		gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
 	}
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t,
-		configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
 }
 
 func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
@@ -197,14 +197,14 @@ func checkDUTEntry(t *testing.T, ipType string, poisoned bool) {
 	}
 	switch ipType {
 	case "IPv4":
-		macAddress := dut.Telemetry().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv4().Neighbor(ateDst.IPv4).Get(t).LinkLayerAddress
+		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv4().Neighbor(ateDst.IPv4).State()).LinkLayerAddress
 		if *macAddress != expectedMac {
 			t.Errorf("ARP entry for %v is %v and expected was %v", ateDst.IPv4, *macAddress, expectedMac)
 		} else {
 			t.Logf("ARP entry for %v is %v", ateDst.IPv4, *macAddress)
 		}
 	case "IPv6":
-		macAddress := dut.Telemetry().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv6().Neighbor(ateDst.IPv6).Get(t).LinkLayerAddress
+		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv6().Neighbor(ateDst.IPv6).State()).LinkLayerAddress
 		if *macAddress != expectedMac {
 			t.Errorf("Neighbor entry for %v is %v and expected was %v", ateDst.IPv6, *macAddress, expectedMac)
 		} else {
@@ -219,15 +219,13 @@ func waitOTGARPEntry(t *testing.T, ipType string) {
 
 	switch ipType {
 	case "IPv4":
-		otg.Telemetry().Interface(ateSrc.Name+".eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
-			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-				return val.IsPresent()
-			}).Await(t)
+		gnmi.WatchAll(t, otg, gnmi.OTG().Interface(ateSrc.Name+".eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			return val.IsPresent()
+		}).Await(t)
 	case "IPv6":
-		otg.Telemetry().Interface(ateSrc.Name+".eth").Ipv6NeighborAny().LinkLayerAddress().Watch(
-			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-				return val.IsPresent()
-			}).Await(t)
+		gnmi.WatchAll(t, otg, gnmi.OTG().Interface(ateSrc.Name+".eth").Ipv6NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			return val.IsPresent()
+		}).Await(t)
 	}
 }
 
@@ -299,7 +297,7 @@ func testFlow(
 	// Get the flow statistics
 	otgutils.LogFlowMetrics(t, otg, config)
 	for _, f := range config.Flows().Items() {
-		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
+		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
 		if recvMetric.GetCounters().GetInPkts() != recvMetric.GetCounters().GetOutPkts() || recvMetric.GetCounters().GetInPkts() != 1000 {
 			t.Errorf("LossPct for flow %s detected, expected 0", f.Name())
 		}

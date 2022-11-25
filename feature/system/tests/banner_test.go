@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 // TestMotdBanner verifies that the MOTD configuration paths can be read,
@@ -44,28 +45,28 @@ func TestMotdBanner(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			config := dut.Config().System().MotdBanner()
-			state := dut.Config().System().MotdBanner()
+			config := gnmi.OC().System().MotdBanner()
+			state := gnmi.OC().System().MotdBanner()
 
-			config.Replace(t, testCase.banner)
+			gnmi.Replace(t, dut, config.Config(), testCase.banner)
 
 			t.Run("Get MOTD Config", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if configGot != testCase.banner {
 					t.Errorf("Config MOTD Banner: got %s, want %s", configGot, testCase.banner)
 				}
 			})
 
 			t.Run("Get MOTD Telemetry", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.GetConfig(t, dut, state.Config())
 				if stateGot != testCase.banner {
 					t.Errorf("Telemetry MOTD Banner: got %v, want %s", stateGot, testCase.banner)
 				}
 			})
 
 			t.Run("Delete MOTD", func(t *testing.T) {
-				config.Delete(t)
-				if qs := config.Lookup(t); qs.IsPresent() == true {
+				gnmi.Delete(t, dut, config.Config())
+				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
 					t.Errorf("Delete MOTD Banner fail: got %v", qs)
 				}
 			})
@@ -95,23 +96,23 @@ func TestLoginBanner(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			config := dut.Config().System().LoginBanner()
-			state := dut.Config().System().LoginBanner()
+			config := gnmi.OC().System().LoginBanner()
+			state := gnmi.OC().System().LoginBanner()
 
-			config.Replace(t, testCase.banner)
+			gnmi.Replace(t, dut, config.Config(), testCase.banner)
 
-			configGot := config.Get(t)
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 			if configGot != testCase.banner {
 				t.Errorf("Config Login Banner: got %s, want %s", configGot, testCase.banner)
 			}
 
-			stateGot := state.Get(t)
+			stateGot := gnmi.GetConfig(t, dut, state.Config())
 			if stateGot != testCase.banner {
 				t.Errorf("Telemetry Login Banner: got %v, want %s", stateGot, testCase.banner)
 			}
 
-			config.Delete(t)
-			if qs := config.Lookup(t); qs.IsPresent() == true {
+			gnmi.Delete(t, dut, config.Config())
+			if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
 				t.Errorf("Delete Login Banner fail: got %v", qs)
 			}
 		})

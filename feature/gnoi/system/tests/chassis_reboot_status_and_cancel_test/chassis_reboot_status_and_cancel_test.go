@@ -24,7 +24,7 @@ import (
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 const (
@@ -89,7 +89,7 @@ func TestRebootStatus(t *testing.T) {
 
 	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
 	if !*deviations.GNOIStatusWithEmptySubcomponent {
-		supervisors := components.FindComponentsByType(t, dut, telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+		supervisors := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
 		// the test reboots the chasis, so any subcomponent should be ok to check the status
 		statusReq = &spb.RebootStatusRequest{
 			Subcomponents: []*tpb.Path{
@@ -165,7 +165,7 @@ func TestCancelReboot(t *testing.T) {
 	}
 	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
 	if !*deviations.GNOIStatusWithEmptySubcomponent {
-		supervisors := components.FindComponentsByType(t, dut, telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+		supervisors := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
 		// the test reboots the chasis, so any subcomponent should be ok to check the status
 		statusReq = &spb.RebootStatusRequest{
 			Subcomponents: []*tpb.Path{

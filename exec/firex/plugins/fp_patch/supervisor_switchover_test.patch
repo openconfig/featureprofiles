@@ -1,23 +1,22 @@
 diff --git a/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go b/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
-index 96cab53a..8b1425f7 100644
+index e9b3ce16..91a6da20 100644
 --- a/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
 +++ b/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
-@@ -20,13 +20,13 @@ import (
+@@ -20,12 +20,12 @@ import (
  	"time"
  
  	"github.com/openconfig/featureprofiles/internal/components"
 +	"github.com/openconfig/featureprofiles/internal/deviations"
  	"github.com/openconfig/featureprofiles/internal/fptest"
  	"github.com/openconfig/ondatra"
- 	"github.com/openconfig/ondatra/telemetry"
  	"github.com/openconfig/testt"
  
  	spb "github.com/openconfig/gnoi/system"
 -	tpb "github.com/openconfig/gnoi/types"
- )
- 
- const (
-@@ -71,12 +71,12 @@ func TestSupervisorSwitchover(t *testing.T) {
+ 	"github.com/openconfig/ondatra/gnmi"
+ 	"github.com/openconfig/ondatra/gnmi/oc"
+ 	"github.com/openconfig/ygnmi/ygnmi"
+@@ -73,12 +73,12 @@ func TestSupervisorSwitchover(t *testing.T) {
  	dut := ondatra.DUT(t, "dut")
  
  	supervisors := components.FindComponentsByType(t, dut, controlcardType)
@@ -31,7 +30,7 @@ index 96cab53a..8b1425f7 100644
  	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, supervisors)
  	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
  
-@@ -94,10 +94,9 @@ func TestSupervisorSwitchover(t *testing.T) {
+@@ -96,10 +96,9 @@ func TestSupervisorSwitchover(t *testing.T) {
  	}
  
  	gnoiClient := dut.RawAPIs().GNOI().New(t)
@@ -44,7 +43,7 @@ index 96cab53a..8b1425f7 100644
  	}
  	t.Logf("switchoverRequest: %v", switchoverRequest)
  	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-@@ -107,7 +106,13 @@ func TestSupervisorSwitchover(t *testing.T) {
+@@ -109,7 +108,13 @@ func TestSupervisorSwitchover(t *testing.T) {
  	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
  
  	want := rpStandbyBeforeSwitch
@@ -59,26 +58,17 @@ index 96cab53a..8b1425f7 100644
  		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
  	}
  	if got, want := switchoverResponse.GetVersion(), ""; got == want {
-@@ -122,7 +127,7 @@ func TestSupervisorSwitchover(t *testing.T) {
- 	for {
- 		var currentTime string
- 		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
--		time.Sleep(30 * time.Second)
-+		time.Sleep(10 * time.Second)
- 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
- 			currentTime = dut.Telemetry().System().CurrentDatetime().Get(t)
- 		}); errMsg != nil {
-@@ -147,6 +152,13 @@ func TestSupervisorSwitchover(t *testing.T) {
+@@ -148,6 +153,13 @@ func TestSupervisorSwitchover(t *testing.T) {
+ 	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
  		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
  	}
- 
-+	switchoverReady = dut.Telemetry().Component(rpActiveAfterSwitch).SwitchoverReady()
-+	switchoverReady.Await(t, 30*time.Minute, true)
-+	t.Logf("SwitchoverReady().Get(t): %v", switchoverReady.Get(t))
-+	if got, want := switchoverReady.Get(t), true; got != want {
++    
++	switchoverReady = gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
++	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
++	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
++	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
 +		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 +	}
-+
- 	batch := dut.Telemetry().NewBatch()
+ 
+ 	batch := gnmi.OCBatch()
  	for _, port := range intfsOperStatusUPBeforeSwitch {
- 		dut.Telemetry().Interface(port).OperStatus().Batch(t, batch)
