@@ -22,7 +22,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -86,38 +87,38 @@ var (
 )
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *ondatra.Port) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	// Configure ingress interface
 	t.Logf("*** Configuring interfaces on DUT ...")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutSrc, &ateSrc, 0, 0))
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, &ateSrc, 0, 0))
 
 	// Configure egress interface
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutDst, &ateDst, 1, vlan10))
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutDst2, &ateDst2, 2, vlan20))
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, &ateDst, 1, vlan10))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst2, &ateDst2, 2, vlan20))
 
 	// Configure network instance
 	t.Logf("*** Configuring network instance on DUT ... ")
-	niConfPath := dut.Config().NetworkInstance("10")
+	niConfPath := gnmi.OC().NetworkInstance("10")
 	niConf := configNetworkInstance("10", &ateDst)
-	niConfPath.Replace(t, niConf)
-	niConfPath = dut.Config().NetworkInstance("20")
+	gnmi.Replace(t, dut, niConfPath.Config(), niConf)
+	niConfPath = gnmi.OC().NetworkInstance("20")
 	niConf = configNetworkInstance("20", &ateDst2)
-	niConfPath.Replace(t, niConf)
+	gnmi.Replace(t, dut, niConfPath.Config(), niConf)
 
 	// Configure default NI and forwarding policy
 	t.Logf("*** Configuring default instance forwarding policy on DUT ...")
-	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutConfPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	policyDutConf := configForwardingPolicy()
-	dutConfPath.PolicyForwarding().Replace(t, policyDutConf)
+	gnmi.Replace(t, dut, dutConfPath.PolicyForwarding().Config(), policyDutConf)
 }
 
-func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, subintfindex uint32, vlan uint16) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, subintfindex uint32, vlan uint16) *oc.Interface {
 	i.Description = ygot.String(me.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -149,12 +150,12 @@ func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, subi
 }
 
 // Configure Network instance on the DUT
-func configNetworkInstance(name string, peer *attrs.Attributes) *telemetry.NetworkInstance {
-	d := &telemetry.Device{}
+func configNetworkInstance(name string, peer *attrs.Attributes) *oc.NetworkInstance {
+	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(name)
 
-	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L2L3
-	static := ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC")
+	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L2L3
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC")
 	ipv4Nh := static.GetOrCreateStatic("0.0.0.0/0").GetOrCreateNextHop(peer.IPv4)
 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(peer.IPv4)
 	ipv6Nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop(peer.IPv6)
@@ -165,8 +166,8 @@ func configNetworkInstance(name string, peer *attrs.Attributes) *telemetry.Netwo
 	return ni
 }
 
-func configForwardingPolicy() *telemetry.NetworkInstance_PolicyForwarding {
-	d := &telemetry.Device{}
+func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
+	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	ipv4Address := "0.0.0.0/0"
 	ipv6Address := "::/0"
@@ -185,7 +186,7 @@ func configForwardingPolicy() *telemetry.NetworkInstance_PolicyForwarding {
 	fwdPolicy1.GetOrCreateRule(3).GetOrCreateAction().Discard = ygot.Bool(true)
 
 	fwdPolicy2 := policyFwding.GetOrCreatePolicy("match-ipip")
-	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(ipipProtocol)
+	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
 	fwdPolicy2.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
 	fwdPolicy2.GetOrCreateRule(2).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
 	fwdPolicy2.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
@@ -198,7 +199,7 @@ func configForwardingPolicy() *telemetry.NetworkInstance_PolicyForwarding {
 	fwdPolicy3.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("20")
 
 	fwdPolicy4 := policyFwding.GetOrCreatePolicy("match-ipip-dscp46")
-	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(ipipProtocol)
+	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
 	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
 	fwdPolicy4.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
 	fwdPolicy4.GetOrCreateRule(2).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
@@ -206,10 +207,10 @@ func configForwardingPolicy() *telemetry.NetworkInstance_PolicyForwarding {
 	fwdPolicy4.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(true)
 
 	fwdPolicy5 := policyFwding.GetOrCreatePolicy("match-ipip-dscp42or46")
-	fwdPolicy5.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(ipipProtocol)
+	fwdPolicy5.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
 	fwdPolicy5.GetOrCreateRule(1).GetOrCreateIpv4().Dscp = ygot.Uint8(42)
 	fwdPolicy5.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().Protocol = telemetry.UnionUint8(ipipProtocol)
+	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
 	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
 	fwdPolicy5.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("10")
 	fwdPolicy5.GetOrCreateRule(3).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
@@ -223,7 +224,7 @@ func configForwardingPolicy() *telemetry.NetworkInstance_PolicyForwarding {
 func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort string, matchType string) {
 	t.Logf("*** Applying forwarding policy %v on interface %v ... ", matchType, ingressPort)
 
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 
 	intf := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
@@ -232,8 +233,8 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort str
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
 	// Configure default NI and forwarding policy
-	intfConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
-	intfConfPath.Replace(t, intf)
+	intfConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
+	gnmi.Replace(t, dut, intfConfPath.Config(), intf)
 
 	// Restart Protocols after policy change
 	ate.Topology().New().StopProtocols(t)
@@ -300,12 +301,12 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow)
 }
 
 func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice, flowName string, wantLoss bool) {
-	afc := ate.Telemetry().Flow(flowName).Counters()
-	outPkts := afc.OutPkts().Get(t)
+	afc := gnmi.OC().Flow(flowName).Counters()
+	outPkts := gnmi.Get(t, ate, afc.OutPkts().State())
 	t.Logf("ate:Flow out counters %v %v", flowName, outPkts)
-	fptest.LogYgot(t, "ate:Flow counters", afc, afc.Get(t))
+	fptest.LogQuery(t, "ate:Flow counters", afc.State(), gnmi.Get(t, ate, afc.State()))
 
-	inPkts := afc.InPkts().Get(t)
+	inPkts := gnmi.Get(t, ate, afc.InPkts().State())
 	t.Logf("ate:Flow in counters %v %v", flowName, inPkts)
 
 	lostPkts := inPkts - outPkts
@@ -334,7 +335,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, 
 	for _, flow := range flows {
 		t.Logf("*** Verifying %v traffic on ATE ... ", flow.Name())
 		captureTrafficStats(t, ate, flow.Name(), false)
-		lossPct := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t)
+		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State())
 		if contains(flow.Name(), passFlows) {
 			if lossPct > 0 {
 				t.Errorf("Traffic Loss Pct for Flow: %s got %v, want 0", flow.Name(), lossPct)
