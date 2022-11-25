@@ -15,7 +15,6 @@
 package qos_output_queue_counters_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -158,8 +157,7 @@ func TestQoSCounters(t *testing.T) {
 
 	// Get QoS egress packet counters before the traffic.
 	for _, data := range trafficFlows {
-		// dutQosPktsBeforeTraffic[data.queue] = dut.Telemetry().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().Get(t)
-		dutQosPktsBeforeTraffic[data.queue] = 0
+		dutQosPktsBeforeTraffic[data.queue] = dut.Telemetry().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().Get(t)
 	}
 
 	ate.OTG().PushConfig(t, top)
@@ -178,23 +176,28 @@ func TestQoSCounters(t *testing.T) {
 		t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
 		t.Logf("Get(out packets for queue %q): got %v", data.queue, ateOutPkts[data.queue])
 
-		// lossPct := ate.OTG().Telemetry().Flow(trafficID).LossPct().Get(t)
-		// if lossPct >= 1 {
-		// 	t.Errorf("Get(traffic loss for queue %q): got %v, want < 1", data.queue, lossPct)
-		// }
+		ateTxPkts := ate.OTG().Telemetry().Flow(trafficID).Counters().OutPkts().Get(t)
+		ateRxPkts := ate.OTG().Telemetry().Flow(trafficID).Counters().InPkts().Get(t)
+		lossPct := ((ateTxPkts - ateRxPkts) * 100) / ateTxPkts
+
+		if lossPct >= 1 {
+			t.Errorf("Get(traffic loss for queue %q): got %v, want < 1", data.queue, lossPct)
+		}
 	}
 
 	for trafficID, data := range trafficFlows {
 		ateOutPkts[data.queue] = ate.OTG().Telemetry().Flow(trafficID).Counters().OutPkts().Get(t)
-		fmt.Println(dut.Telemetry().Qos().Interface(dp2.Name()).Output().Queue("UC7").TransmitPkts().Get(t))
 		dutQosPktsAfterTraffic[data.queue] = dut.Telemetry().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().Get(t)
 		t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
 		t.Logf("Get(out packets for flow %q): got %v, want nonzero", trafficID, ateOutPkts)
 
-		// lossPct := ate.OTG().Telemetry().Flow(trafficID).LossPct().Get(t)
-		// if lossPct >= 1 {
-		// 	t.Errorf("Get(traffic loss for queue %q: got %v, want < 1", data.queue, lossPct)
-		// }
+		ateTxPkts := ate.OTG().Telemetry().Flow(trafficID).Counters().OutPkts().Get(t)
+		ateRxPkts := ate.OTG().Telemetry().Flow(trafficID).Counters().InPkts().Get(t)
+		lossPct := ((ateTxPkts - ateRxPkts) * 100) / ateTxPkts
+
+		if lossPct >= 1 {
+			t.Errorf("Get(traffic loss for queue %q: got %v, want < 1", data.queue, lossPct)
+		}
 	}
 
 	// Check QoS egress packet counters are updated correctly.
