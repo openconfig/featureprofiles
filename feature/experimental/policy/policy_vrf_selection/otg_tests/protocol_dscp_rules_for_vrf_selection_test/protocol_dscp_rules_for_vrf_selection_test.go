@@ -326,7 +326,7 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 		t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
 		outPkts := args.ate.OTG().Telemetry().Flow(flow.Name()).Counters().OutPkts().Get(t)
 		inPkts := args.ate.OTG().Telemetry().Flow(flow.Name()).Counters().InPkts().Get(t)
-		lossPct := (outPkts - inPkts) / outPkts * 100
+		lossPct := ((outPkts - inPkts) * 100) / outPkts
 
 		// log stats
 		t.Log("All flow LossPct: ", lossPct)
