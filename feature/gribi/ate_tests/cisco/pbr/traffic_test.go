@@ -40,6 +40,7 @@ func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDev
 
 	ate.Traffic().Start(t, flow)
 	time.Sleep(15 * time.Second)
+	ate.Traffic().Stop(t)
 
 	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
 	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
@@ -51,10 +52,6 @@ func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDev
 	// if len(weights) > 0 {
 	// 	CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out[:len(weights)], weights, interval, tolerance)
 	// }
-	ate.Traffic().Stop(t)
-
-	time.Sleep(time.Minute)
-
 	// flowPath := ate.Telemetry().Flow(flow.Name())
 	// if got := flowPath.LossPct().Get(t); got > 0 {
 	// 	t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
@@ -93,8 +90,6 @@ func testTrafficSrc(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
-	time.Sleep(5 * time.Second)
-
 	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
 
 	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
@@ -131,18 +126,15 @@ func testTrafficSrcV6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top
 
 	flow.WithFrameSize(300).WithFrameRateFPS(1000).WithHeaders(ethHeader, ipv4Header, innerIpv6Header)
 
-	time.Sleep(15 * time.Second)
 	ate.Traffic().Start(t, flow)
 	time.Sleep(15 * time.Second)
+	ate.Traffic().Stop(t)
 
 	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	time.Sleep(15 * time.Second)
 
 	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
 		t.Fatalf("Flow %s is not working as expected", flow.Name())
 	}
-
-	ate.Traffic().Stop(t)
 
 }
 func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
@@ -178,8 +170,6 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 	ate.Traffic().Start(t, flow)
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
-
-	time.Sleep(5 * time.Second)
 
 	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
 	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
