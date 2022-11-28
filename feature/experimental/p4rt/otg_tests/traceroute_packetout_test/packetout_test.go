@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
@@ -34,7 +35,7 @@ type testArgs struct {
 	leader   *p4rt_client.P4RTClient
 	dut      *ondatra.DUTDevice
 	ate      *ondatra.ATEDevice
-	top      *ondatra.ATETopology
+	top      gosnappi.Config
 	packetIO PacketIO
 }
 

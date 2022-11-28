@@ -28,6 +28,7 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -64,6 +65,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::192:0:2:2",
 		IPv4Len: ipv4PrefixLen,
@@ -80,6 +82,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::192:0:2:6",
 		IPv4Len: ipv4PrefixLen,
@@ -118,14 +121,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureATE configures port1 and port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	otg := ate.OTG()
+	top := otg.NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
-	atePort1.AddToATE(top, p1, &dutPort1)
+	atePort1.AddToOTG(top, p1, &dutPort1)
 
 	p2 := ate.Port(t, "port2")
-	atePort2.AddToATE(top, p2, &dutPort2)
+	atePort2.AddToOTG(top, p2, &dutPort2)
 	return top
 }
 
@@ -217,7 +221,10 @@ func TestPacketOut(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+
+	otg := ate.OTG()
+	otg.PushConfig(t, top)
+	otg.StartProtocols(t)
 
 	// Configure P4RT device-id and port-id on the DUT
 	configureDeviceId(ctx, t, dut)
