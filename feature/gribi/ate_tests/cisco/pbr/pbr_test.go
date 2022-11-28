@@ -559,7 +559,7 @@ func deletePBRPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 }
 
 func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *testArgs) {
-	// defer configBasePBR(t, args.dut)
+	defer configBasePBR(t, args.dut)
 	t.Log("RT-3.1 :Protocol, DSCP-based VRF Selection - ensure that protocol and DSCP based VRF selection is configured correctly")
 
 	srcEndPoint := args.top.Interfaces()["atePort1"]
