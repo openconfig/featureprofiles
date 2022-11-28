@@ -19,7 +19,8 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func TestMain(m *testing.M) {
@@ -53,111 +54,111 @@ func TestMain(m *testing.M) {
 
 func TestQoSPolicyConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 
 	cases := []struct {
 		desc         string
 		name         string
-		classType    telemetry.E_Qos_Classifier_Type
+		classType    oc.E_Qos_Classifier_Type
 		termID       string
 		targetGrpoup string
 		dscpSet      []uint8
 	}{{
 		desc:         "classifier_ipv4_be1",
 		name:         "dscp_based_classifier_ipv4",
-		classType:    telemetry.Qos_Classifier_Type_IPV4,
+		classType:    oc.Qos_Classifier_Type_IPV4,
 		termID:       "0",
 		targetGrpoup: "target-group-BE1",
 		dscpSet:      []uint8{0, 1, 2, 3},
 	}, {
 		desc:         "classifier_ipv4_be0",
 		name:         "dscp_based_classifier_ipv4",
-		classType:    telemetry.Qos_Classifier_Type_IPV4,
+		classType:    oc.Qos_Classifier_Type_IPV4,
 		termID:       "1",
 		targetGrpoup: "target-group-BE0",
 		dscpSet:      []uint8{4, 5, 6, 7},
 	}, {
 		desc:         "classifier_ipv4_af1",
 		name:         "dscp_based_classifier_ipv4",
-		classType:    telemetry.Qos_Classifier_Type_IPV4,
+		classType:    oc.Qos_Classifier_Type_IPV4,
 		termID:       "2",
 		targetGrpoup: "target-group-AF1",
 		dscpSet:      []uint8{8, 9, 10, 11},
 	}, {
 		desc:         "classifier_ipv4_af2",
 		name:         "dscp_based_classifier_ipv4",
-		classType:    telemetry.Qos_Classifier_Type_IPV4,
+		classType:    oc.Qos_Classifier_Type_IPV4,
 		termID:       "3",
 		targetGrpoup: "target-group-AF2",
 		dscpSet:      []uint8{16, 17, 18, 19},
 	}, {
 		desc:         "classifier_ipv4_af3",
 		name:         "dscp_based_classifier_ipv4",
-		classType:    telemetry.Qos_Classifier_Type_IPV4,
+		classType:    oc.Qos_Classifier_Type_IPV4,
 		termID:       "4",
 		targetGrpoup: "target-group-AF3",
 		dscpSet:      []uint8{24, 25, 26, 27},
 	}, {
 		desc:         "classifier_ipv4_af4",
 		name:         "dscp_based_classifier_ipv4",
-		classType:    telemetry.Qos_Classifier_Type_IPV4,
+		classType:    oc.Qos_Classifier_Type_IPV4,
 		termID:       "5",
 		targetGrpoup: "target-group-AF4",
 		dscpSet:      []uint8{32, 33, 34, 35},
 	}, {
 		desc:         "classifier_ipv4_nc1",
 		name:         "dscp_based_classifier_ipv4",
-		classType:    telemetry.Qos_Classifier_Type_IPV4,
+		classType:    oc.Qos_Classifier_Type_IPV4,
 		termID:       "6",
 		targetGrpoup: "target-group-NC1",
 		dscpSet:      []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
 	}, {
 		desc:         "classifier_ipv6_be1",
 		name:         "dscp_based_classifier_ipv6",
-		classType:    telemetry.Qos_Classifier_Type_IPV6,
+		classType:    oc.Qos_Classifier_Type_IPV6,
 		termID:       "0",
 		targetGrpoup: "target-group-BE1",
 		dscpSet:      []uint8{0, 1, 2, 3},
 	}, {
 		desc:         "classifier_ipv6_be0",
 		name:         "dscp_based_classifier_ipv6",
-		classType:    telemetry.Qos_Classifier_Type_IPV6,
+		classType:    oc.Qos_Classifier_Type_IPV6,
 		termID:       "1",
 		targetGrpoup: "target-group-BE0",
 		dscpSet:      []uint8{4, 5, 6, 7},
 	}, {
 		desc:         "classifier_ipv6_af1",
 		name:         "dscp_based_classifier_ipv6",
-		classType:    telemetry.Qos_Classifier_Type_IPV6,
+		classType:    oc.Qos_Classifier_Type_IPV6,
 		termID:       "2",
 		targetGrpoup: "target-group-AF1",
 		dscpSet:      []uint8{8, 9, 10, 11},
 	}, {
 		desc:         "classifier_ipv6_af2",
 		name:         "dscp_based_classifier_ipv6",
-		classType:    telemetry.Qos_Classifier_Type_IPV6,
+		classType:    oc.Qos_Classifier_Type_IPV6,
 		termID:       "3",
 		targetGrpoup: "target-group-AF2",
 		dscpSet:      []uint8{16, 17, 18, 19},
 	}, {
 		desc:         "classifier_ipv6_af3",
 		name:         "dscp_based_classifier_ipv6",
-		classType:    telemetry.Qos_Classifier_Type_IPV6,
+		classType:    oc.Qos_Classifier_Type_IPV6,
 		termID:       "4",
 		targetGrpoup: "target-group-AF3",
 		dscpSet:      []uint8{24, 25, 26, 27},
 	}, {
 		desc:         "classifier_ipv6_af4",
 		name:         "dscp_based_classifier_ipv6",
-		classType:    telemetry.Qos_Classifier_Type_IPV6,
+		classType:    oc.Qos_Classifier_Type_IPV6,
 		termID:       "5",
 		targetGrpoup: "target-group-AF4",
 		dscpSet:      []uint8{32, 33, 34, 35},
 	}, {
 		desc:         "classifier_ipv6_nc1",
 		name:         "dscp_based_classifier_ipv6",
-		classType:    telemetry.Qos_Classifier_Type_IPV6,
+		classType:    oc.Qos_Classifier_Type_IPV6,
 		termID:       "6",
 		targetGrpoup: "target-group-NC1",
 		dscpSet:      []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
@@ -183,14 +184,14 @@ func TestQoSPolicyConfig(t *testing.T) {
 		})
 	}
 
-	dut.Config().Qos().Replace(t, q)
-	qosClassifiers := dut.Telemetry().Qos().ClassifierAny().Name().Get(t)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	qosClassifiers := gnmi.GetAll(t, dut, gnmi.OC().Qos().ClassifierAny().Name().State())
 	t.Logf("qosClassifiers from telmetry: %v", qosClassifiers)
 }
 
 func TestQoSForwadingGroupsConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 
 	cases := []struct {
@@ -238,7 +239,7 @@ func TestQoSForwadingGroupsConfig(t *testing.T) {
 		})
 	}
 
-	dut.Config().Qos().Replace(t, q)
-	qosfwdGroups := dut.Telemetry().Qos().ForwardingGroupAny().Get(t)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	qosfwdGroups := gnmi.GetAll(t, dut, gnmi.OC().Qos().ForwardingGroupAny().State())
 	t.Logf("qosfwdGroups from telmetry: %v", qosfwdGroups)
 }
