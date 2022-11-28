@@ -39,14 +39,14 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 	}
-	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	r2 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r2.SequenceId = ygot.Uint32(2)
 	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(16)},
 	}
-	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r3.SequenceId = ygot.Uint32(3)
@@ -60,7 +60,7 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(48)},
 	}
-	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
@@ -89,7 +89,7 @@ func configNewPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string, ds
 			*ygot.Uint8(dscp),
 		},
 	}
-	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(policyName)
@@ -246,7 +246,7 @@ func configNewRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, rule
 	if protocol == 4 {
 		r.Ipv4.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP
 	}
-	r.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Rule(ruleID).Replace(t, &r)
 }
 
@@ -876,7 +876,7 @@ func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 		r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 			Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 		}
-		r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+		r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 		args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(2).Update(t, r1)
 
 		// Remove existing match field
@@ -908,7 +908,7 @@ func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 				Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 				DscpSet:  []uint8{10},
 			}
-			r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+			r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 			args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(1).Replace(t, r1)
 		})
 		if !success {
@@ -1127,7 +1127,7 @@ func testPolicesReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(16)},
 	}
-	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r3.SequenceId = ygot.Uint32(3)
@@ -1141,7 +1141,7 @@ func testPolicesReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(48)},
 	}
-	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
@@ -1175,7 +1175,7 @@ func testPolicyReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(16)},
 	}
-	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r3.SequenceId = ygot.Uint32(3)
@@ -1189,7 +1189,7 @@ func testPolicyReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(48)},
 	}
-	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
