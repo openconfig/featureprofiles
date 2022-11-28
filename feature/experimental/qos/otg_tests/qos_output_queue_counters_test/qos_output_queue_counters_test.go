@@ -149,6 +149,7 @@ func TestQoSCounters(t *testing.T) {
 
 		flow.Size().SetFixed(int32(data.frameSize))
 		flow.Rate().SetPercentage(float32(data.trafficRate))
+		flow.Duration().FixedPackets().SetPackets(10000)
 	}
 
 	ateOutPkts := make(map[string]uint64)
