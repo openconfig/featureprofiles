@@ -51,6 +51,8 @@ var (
 	PbrInstance = flag.String("pbr_instance", "DEFAULT", "pbr network instance")
 
 	P4RTOcNPU = flag.String("p4rt_oc_npu", "0/RP0/CPU0-NPU0", "P4RT device npu")
+
+	PbrFlowFps = flag.Uint64("pbr_flow_fps", 100, "The traffic flow frame rate in Frames Per Second")
 )
 
 // GRIBICheck struct
