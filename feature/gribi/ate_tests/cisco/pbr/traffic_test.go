@@ -87,20 +87,19 @@ func testTrafficSrc(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...)
 
-	flow.WithFrameSize(300).WithFrameRateFPS(1000).WithHeaders(ethHeader, ipv4Header, innerIpv4Header)
+	flow.WithFrameSize(300).WithFrameRateFPS(100).WithHeaders(ethHeader, ipv4Header, innerIpv4Header)
 
-	time.Sleep(15 * time.Second)
 	ate.Traffic().Start(t, flow)
 	time.Sleep(15 * time.Second)
+	ate.Traffic().Stop(t)
+
+	time.Sleep(5 * time.Second)
 
 	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	time.Sleep(15 * time.Second)
 
 	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
 		t.Fatalf("Flow %s is not working as expected", flow.Name())
 	}
-
-	ate.Traffic().Stop(t)
 
 }
 func testTrafficSrcV6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, tgensrc_ip string, weights ...float64) {
@@ -178,27 +177,14 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 
 	ate.Traffic().Start(t, flow)
 	time.Sleep(15 * time.Second)
+	ate.Traffic().Stop(t)
+
+	time.Sleep(5 * time.Second)
 
 	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
 	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
 		t.Fatalf("Flow %s is not working as expected", flow.Name())
 	}
-
-	// if expectPass {
-	// 	tolerance := float64(0.03)
-	// 	interval := 45 * time.Second
-	// 	if len(weights) > 0 {
-	// 		CheckDUTTrafficViaInterfaceTelemetry(t, args.dut, args.interfaces.in, args.interfaces.out[:len(weights)], weights, interval, tolerance)
-	// 	}
-	// }
-	ate.Traffic().Stop(t)
-
-	time.Sleep(time.Minute)
-
-	// flowPath := ate.Telemetry().Flow(flow.Name())
-	// if got := flowPath.LossPct().Get(t); got > 0 {
-	// 	t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
-	// }
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -293,9 +279,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 func testTrafficForFlows(t *testing.T, ate *ondatra.ATEDevice, topology *ondatra.ATETopology, expectPass bool, threshold float64, flow ...*ondatra.Flow) {
 
 	ate.Traffic().Start(t, flow...)
-	defer ate.Traffic().Stop(t)
-
 	time.Sleep(60 * time.Second)
+	ate.Traffic().Stop(t)
 
 	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
 	t.Log("Packets transmitted by ports: ", ate.Telemetry().InterfaceAny().Counters().OutPkts().Get(t))
