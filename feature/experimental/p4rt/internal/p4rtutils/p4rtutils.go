@@ -17,8 +17,8 @@
  *
  */
 
-// Package wbb implements helper function for acl_wbb_ingress_table in p4info file.
-package wbb
+// Package p4rtutils implements helper functions for acl_wbb_ingress_table in p4info file.
+package p4rtutils
 
 import (
 	"github.com/golang/glog"
