@@ -1,7 +1,11 @@
 // Package flags defince flags the are required by tests.
 package flags
 
-import "flag"
+import (
+	"flag"
+
+	"github.com/ogier/pflag"
+)
 
 // cisco tests flags.
 var (
@@ -52,7 +56,8 @@ var (
 
 	P4RTOcNPU = flag.String("p4rt_oc_npu", "0/RP0/CPU0-NPU0", "P4RT device npu")
 
-	PbrFlowFps = flag.Uint64("pbr_flow_fps", 100, "The traffic flow frame rate in Frames Per Second")
+	FlowFps   = flag.Uint64("flow_fps", 100, "The traffic flow frame rate in Frames Per Second")
+	FrameSize = pflag.Uint32("frame_size", 1024, "The traffic flow frame size")
 )
 
 // GRIBICheck struct

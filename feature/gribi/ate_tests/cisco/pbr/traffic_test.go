@@ -37,7 +37,7 @@ func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDev
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...)
 
-	flow.WithFrameSize(300).WithFrameRateFPS(*ciscoFlags.PbrFlowFps).WithHeaders(ethHeader, ipv4Header, innerIpv6Header)
+	flow.WithFrameSize(*ciscoFlags.FrameSize).WithFrameRateFPS(*ciscoFlags.FlowFps).WithHeaders(ethHeader, ipv4Header, innerIpv6Header)
 
 	ate.Traffic().Start(t, flow)
 	time.Sleep(15 * time.Second)
@@ -85,7 +85,7 @@ func testTrafficSrc(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...)
 
-	flow.WithFrameSize(300).WithFrameRateFPS(*ciscoFlags.PbrFlowFps).WithHeaders(ethHeader, ipv4Header, innerIpv4Header)
+	flow.WithFrameSize(*ciscoFlags.FrameSize).WithFrameRateFPS(*ciscoFlags.FlowFps).WithHeaders(ethHeader, ipv4Header, innerIpv4Header)
 
 	ate.Traffic().Start(t, flow)
 	time.Sleep(15 * time.Second)
@@ -125,7 +125,7 @@ func testTrafficSrcV6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...)
 
-	flow.WithFrameSize(300).WithFrameRateFPS(*ciscoFlags.PbrFlowFps).WithHeaders(ethHeader, ipv4Header, innerIpv6Header)
+	flow.WithFrameSize(*ciscoFlags.FrameSize).WithFrameRateFPS(*ciscoFlags.FlowFps).WithHeaders(ethHeader, ipv4Header, innerIpv6Header)
 
 	ate.Traffic().Start(t, flow)
 	time.Sleep(15 * time.Second)
@@ -166,7 +166,7 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...)
 
-	flow.WithFrameSize(300).WithFrameRateFPS(*ciscoFlags.PbrFlowFps).WithHeaders(ethHeader, ipv4Header, innerIpv4Header)
+	flow.WithFrameSize(*ciscoFlags.FrameSize).WithFrameRateFPS(*ciscoFlags.FlowFps).WithHeaders(ethHeader, ipv4Header, innerIpv4Header)
 
 	ate.Traffic().Start(t, flow)
 	time.Sleep(15 * time.Second)

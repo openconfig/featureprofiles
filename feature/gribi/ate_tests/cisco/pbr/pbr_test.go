@@ -496,8 +496,8 @@ func getBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoi
 	flow.WithHeaders(ethheader, ipheader1)
 	flow.WithSrcEndpoints(srcEndpoint)
 	flow.WithDstEndpoints(dstEndPoint)
-	flow.WithFrameRateFPS(100)
-	flow.WithFrameSize(1024)
+	flow.WithFrameRateFPS(*ciscoFlags.FlowFps)
+	flow.WithFrameSize(*ciscoFlags.FrameSize)
 	return flow
 }
 
@@ -510,8 +510,8 @@ func getBoundedFlowIpv6(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEn
 	flow.WithHeaders(ethheader, ipheader1)
 	flow.WithSrcEndpoints(srcEndpoint)
 	flow.WithDstEndpoints(dstEndPoint)
-	flow.WithFrameRateFPS(100)
-	flow.WithFrameSize(1024)
+	flow.WithFrameRateFPS(*ciscoFlags.FlowFps)
+	flow.WithFrameSize(*ciscoFlags.FrameSize)
 	return flow
 }
 
@@ -531,8 +531,8 @@ func getBoundedFlowIPinIP(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dst
 	flow.WithHeaders(ethheader, outerIPHeader, innerIPHeader)
 	flow.WithSrcEndpoints(srcEndpoint)
 	flow.WithDstEndpoints(dstEndPoint)
-	flow.WithFrameRateFPS(100)
-	flow.WithFrameSize(1024)
+	flow.WithFrameRateFPS(*ciscoFlags.FlowFps)
+	flow.WithFrameSize(*ciscoFlags.FrameSize)
 	return flow
 }
 
