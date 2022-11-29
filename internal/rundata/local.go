@@ -125,24 +125,20 @@ func gitInfo(m map[string]string) string {
 	return gitInfoWithRepo(m, repo)
 }
 
-// packagePath returns the package path portion of a path-qualified
-// function name, as found in runtime.Frame.Function.
-func packagePath(function string) string {
-	i := strings.LastIndexByte(function, '.')
-	if i < 0 {
-		return function
-	}
-	return function[:i]
-}
-
-// fpPath returns the package path under the featureprofiles module.
-func fpPath(pkg string) string {
+// fpPath returns the package path of a test file path under the
+// featureprofiles repo.
+func fpPath(testpath string) string {
 	const part = "/featureprofiles/"
-	i := strings.LastIndex(pkg, part)
+	i := strings.LastIndex(testpath, part)
 	if i < 0 {
 		return ""
 	}
-	return pkg[i+len(part):]
+	i += len(part)
+	j := strings.LastIndexByte(testpath, '/')
+	if j < 0 || j < i {
+		return ""
+	}
+	return testpath[i:j]
 }
 
 // testPath detects the relative path of the test to the base of the
@@ -172,7 +168,7 @@ func testPath(wd string) string {
 	}
 
 	if wd == "" {
-		return fpPath(packagePath(frame.Function))
+		return fpPath(frame.File)
 	}
 
 	dir := filepath.Dir(frame.File)
