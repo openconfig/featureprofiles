@@ -1,0 +1,2 @@
+The otg version must be set according to the available release found [here](https://github.com/open-traffic-generator/ixia-c/releases)
+Each otg release has its own config map which must be applied to the cluster prior to deploying the kne topology
