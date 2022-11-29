@@ -110,7 +110,7 @@ func TestQoSPolicyConfig(t *testing.T) {
 		classType:    telemetry.Qos_Classifier_Type_IPV4,
 		termID:       "6",
 		targetGrpoup: "target-group-NC1",
-		dscpSet:      []uint8{4, 5, 6, 7},
+		dscpSet:      []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
 	}, {
 		desc:         "classifier_ipv6_be1",
 		name:         "dscp_based_classifier_ipv6",
@@ -159,7 +159,7 @@ func TestQoSPolicyConfig(t *testing.T) {
 		classType:    telemetry.Qos_Classifier_Type_IPV6,
 		termID:       "6",
 		targetGrpoup: "target-group-NC1",
-		dscpSet:      []uint8{4, 5, 6, 7},
+		dscpSet:      []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
 	}}
 
 	t.Logf("qos Classifiers config cases: %v", cases)
