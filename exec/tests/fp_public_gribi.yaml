@@ -117,7 +117,7 @@ tests:
   priority: 10
 - name: TE-11.1 (Backup NHG Single NH) 
   path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
-  #patch: exec/firex/plugins/fp_patch/backup_nhg_test.patch
+  patch: exec/firex/plugins/fp_patch/backup_nhg_test.patch
   owner: mananpat@cisco.com
   mustpass: true
   priority: 23
