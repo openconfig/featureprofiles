@@ -129,11 +129,6 @@ func TestProperties(t *testing.T) {
 	}
 
 	wantKeys := []string{
-		"build.go_version",
-		"build.path",
-		"build.main.path",
-		"build.main.version",
-		"build.main.sum",
 		"test.path",
 		"test.plan_id",
 		"topology",
