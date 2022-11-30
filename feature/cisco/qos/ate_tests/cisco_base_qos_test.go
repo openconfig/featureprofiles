@@ -97,19 +97,19 @@ var (
 
 var (
 	QosSchedulerTestcases = []Testcase{
-		// {
-		// 	name: "testing scheduling functionality",
-		// 	desc: "create congestion on egress interface and test scheduling for queue7",
-		// 	fn:   testScheduler,
-		// },
-		// {
-		// 	name: "testing scheduling functionality for queue6",
-		// 	desc: "create congestion on egress interface and test scheduling",
-		// 	fn:   testScheduler2,
-		// },
+		{
+			name: "testing scheduling functionality",
+			desc: "create congestion on egress interface and test scheduling for queue7",
+			fn:   testScheduler,
+		},
 		{
 			name: "testing scheduling functionality for queue6",
 			desc: "create congestion on egress interface and test scheduling",
+			fn:   testScheduler2,
+		},
+		{
+			name: "testing scheduling functionality with wrr and ecn",
+			desc: "create congestion on egress interface and test scheduling interfaces",
 			fn:   testSchedulerwrr,
 		},
 	}
@@ -121,6 +121,11 @@ var (
 			name: "Test QOS counters with Traffic with wrr configs",
 			desc: "Program gribi with wucmp and verify qos counters",
 			fn:   testQoswrrCounter,
+		},
+		{
+			name: "Test QOS counters streaming with Traffic with wrr configs",
+			desc: "Program gribi with wucmp and verify qos streaming",
+			fn:   testQoswrrStreaming,
 		},
 	}
 )
@@ -387,15 +392,16 @@ func TestWrrTrafficQos(t *testing.T) {
 	}
 }
 
-func TestWrr(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	ConfigureWrr(t, dut)
+// func TestWrr(t *testing.T) {
+// 	dut := ondatra.DUT(t, "dut")
+// 	ConfigureWrr(t, dut)
 
-}
-func TestConfWrrDelSeq(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	dut.Config().Qos().SchedulerPolicy("eg_policy1111").Scheduler(2).Delete(t)
-}
+// }
+//
+//	func TestConfWrrDelSeq(t *testing.T) {
+//		dut := ondatra.DUT(t, "dut")
+//		dut.Config().Qos().SchedulerPolicy("eg_policy1111").Scheduler(2).Delete(t)
+//	}
 func TestDelQos(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dut.Config().Qos().Delete(t)

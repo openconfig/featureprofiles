@@ -12,7 +12,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ygot/ygot"
+
+	//"github.com/openconfig/ondatra/gnmi/oc"
 
 	oc "github.com/openconfig/ondatra/telemetry"
 )
@@ -492,7 +495,7 @@ func testScheduler(ctx context.Context, t *testing.T, args *testArgs) {
 	time.Sleep(2 * time.Minute)
 
 	defer args.clientA.FlushServer(t)
-	defer teardownQos(t, args.dut)
+	//defer teardownQos(t, args.dut)
 	//configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	//configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	//configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
@@ -711,14 +714,55 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 }
+func testQoswrrStreaming(ctx context.Context, t *testing.T, args *testArgs) {
+	defer args.clientA.FlushServer(t)
+	defer teardownQos(t, args.dut)
+	dutQosPktsBeforeTraffic := make(map[string]uint64)
+	dutQosPktsAfterTraffic := make(map[string]uint64)
+	queueNames := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
+	interfaceList := []string{}
+	for i := 121; i < 128; i++ {
+		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
+	}
+	for _, EgressInterface := range interfaceList {
+		for _, queueName := range queueNames {
+			dutQosPktsBeforeTraffic[queueName] += gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(EgressInterface).Output().Queue(queueName).TransmitPkts().State())
+		}
+	}
+	// for _, queueName := range queueNames {
+	// 	dutQosPktsBeforeTraffic[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
+	// }
+
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	testTrafficsreaming(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+
+	QueueCounter := args.dut.Telemetry().Qos().Interface("Bundle-Ether121")
+	QueueCounter.Await(t, 3*time.Minute, QueueCounter.Get(t))
+	args.ate.Traffic().Stop(t)
+	for _, EgressInterface := range interfaceList {
+		for _, queueName := range queueNames {
+			dutQosPktsAfterTraffic[queueName] += gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(EgressInterface).Output().Queue(queueName).TransmitPkts().State())
+		}
+	}
+	t.Logf("QoS egress packet counters before traffic: %v", dutQosPktsBeforeTraffic)
+	t.Logf("QoS egress packet counters after traffic: %v", dutQosPktsAfterTraffic)
+	for _, queue := range queueNames {
+		if dutQosPktsAfterTraffic[queue] <= dutQosPktsBeforeTraffic[queue] {
+
+			t.Errorf("packets not increased for queue %v", queue)
+		}
+	}
+
+}
 func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureDelSeq(t, args.dut)
 
 }
 func testSchedulerwrr(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrSche(t, args.dut)
-	//defer args.clientA.FlushServer(t)
-	//defer teardownQos(t, args.dut)
+	defer args.clientA.FlushServer(t)
+	defer teardownQos(t, args.dut)
 	args.clientA.BecomeLeader(t)
 	args.clientA.FlushServer(t)
 	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
