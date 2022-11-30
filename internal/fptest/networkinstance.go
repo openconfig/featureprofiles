@@ -27,7 +27,7 @@ import (
 // AssignToNetworkInstance attaches a subinterface to a network instance.
 func AssignToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, i string, ni string, si uint32) {
 	if ni == "" {
-		ni = *deviations.DefaultNetworkInstance
+		t.Fatalf("Network instance not provided for interface assignment")
 	}
 	if ni == *deviations.DefaultNetworkInstance && !*deviations.ExplicitInterfaceInDefaultVRF {
 		return
