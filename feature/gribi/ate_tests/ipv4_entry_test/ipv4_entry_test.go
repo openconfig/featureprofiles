@@ -23,11 +23,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 const (
@@ -274,14 +276,11 @@ func TestIPv4Entry(t *testing.T) {
 					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 						t.Fatalf("Await got error during session negotiation: %v", err)
 					}
+					gribi.BecomeLeader(t, c)
 
 					if persist == usePreserve {
 						defer func() {
-							_, err := c.Flush().
-								WithElectionOverride().
-								WithAllNetworkInstances().
-								Send()
-							if err != nil {
+							if err := gribi.FlushAll(c); err != nil {
 								t.Errorf("Cannot flush: %v", err)
 							}
 						}()
@@ -322,15 +321,15 @@ func TestIPv4Entry(t *testing.T) {
 
 // configureDUT configures port1-3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 
-	d.Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
-	d.Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
-	d.Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 }
 
 // configreATE configures port1-3 on the ATE.
@@ -380,13 +379,13 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []*ondatra.
 	ate.Traffic().Stop(t)
 
 	for _, flow := range good {
-		if got := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t); got > 0 {
+		if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got > 0 {
 			t.Fatalf("LossPct for flow %s: got %g, want 0", flow.Name(), got)
 		}
 	}
 
 	for _, flow := range bad {
-		if got := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t); got < 100 {
+		if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got < 100 {
 			t.Fatalf("LossPct for flow %s: got %g, want 100", flow.Name(), got)
 		}
 	}
