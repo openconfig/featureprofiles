@@ -116,6 +116,13 @@ func LogQuery(t testing.TB, what string, query LoggableQuery, obj ygot.Validated
 	logQuery(t, what, query, obj, true)
 }
 
+// WriteQuery is like LogQuery but only writes to test outputs dir so it
+// does not pollute the test log.
+func WriteQuery(t testing.TB, what string, query LoggableQuery, obj ygot.ValidatedGoStruct) {
+	t.Helper()
+	logQuery(t, what, query, obj, false)
+}
+
 func logQuery(t testing.TB, what string, query LoggableQuery, obj ygot.ValidatedGoStruct, shouldLog bool) {
 	t.Helper()
 	pathText := check.FormatPath(query.PathStruct())
