@@ -125,16 +125,16 @@ def BringupTestbed(self, ws, images = None,
     fp_repo.config_writer().set_value("name", "email", "gob4").release()
     fp_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
 
+    ondatra_repo = git.Repo(ondatra_repo_dir)
+    ondatra_repo.git.checkout("7558e3ba93a6f25cfdff517627b579f6cd903a25")
+    ondatra_repo.config_writer().set_value("name", "email", "gob4").release()
+    ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
+
     for patch in FP_PATCHES:
         fp_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo_dir, patch)])
 
     fp_repo.git.add(update=True)
     fp_repo.git.commit('-m', 'patched for testing')
-
-    ondatra_repo = git.Repo(ondatra_repo_dir)
-    ondatra_repo.git.checkout("7558e3ba93a6f25cfdff517627b579f6cd903a25")
-    ondatra_repo.config_writer().set_value("name", "email", "gob4").release()
-    ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
 
     if topo_file and len(topo_file) > 0:
         ONDATRA_PATCHES.extend(ONDATRA_SIM_PATCHES)
