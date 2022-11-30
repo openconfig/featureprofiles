@@ -7,8 +7,8 @@ Ensure that traffic splits within a `NextHopGroup` are correctly honoured.
 # Procedure
 
 *   Configure ATE port-1 connected to DUT port-1, and ATE port 2-9 connected to
-    DUT port 2-9. Connect to gRIBI with persistence `PRESERVE` and flush all
-    entries before each case.
+    DUT port 2-9. Connect to gRIBI with persistence `PRESERVE`, make it become
+    leader and flush all entries before each case.
 
 *   Via gRIBI, install an `IPv4Entry` for 203.0.113.0/24 pointing to a
     `NextHopGroup` id 10.

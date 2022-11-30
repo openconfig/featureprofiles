@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -38,6 +39,15 @@ interface %s
   description %s
 `
 		return fmt.Sprintf(tmpl, dp.Name(), desc)
+	case ondatra.JUNIPER:
+		const tmpl = `
+interfaces {
+    %s {
+        description "%s"
+    }
+}
+`
+		return fmt.Sprintf(tmpl, dp.Name(), desc)
 	}
 	return ""
 }
@@ -46,9 +56,10 @@ func buildOCUpdate(path *gpb.Path, value string) *gpb.Update {
 	if len(path.GetElem()) == 0 || path.GetElem()[0].GetName() != "meta" {
 		path.Origin = "openconfig"
 	}
+	jsonVal, _ := ygot.Marshal7951(ygot.String(value))
 	update := &gpb.Update{
 		Path: path,
-		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_StringVal{StringVal: value}},
+		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: jsonVal}},
 	}
 	return update
 }
@@ -106,7 +117,7 @@ func TestCLIBeforeOpenConfig(t *testing.T) {
 	t.Log(response)
 
 	// Validate that DUT port-1 description is `"from oc"`
-	got := dut.Telemetry().Interface(dp.Name()).Description().Get(t)
+	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Description().State())
 	want := "from oc"
 	if got != want {
 		t.Errorf("Get(DUT port description): got %v, want %v", got, want)
@@ -151,7 +162,7 @@ func TestOpenConfigBeforeCLI(t *testing.T) {
 	t.Log(response)
 
 	// Validate that DUT port-1 description is `"from cli"`
-	got := dut.Telemetry().Interface(dp.Name()).Description().Get(t)
+	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Description().State())
 	want := "from cli"
 	if got != want {
 		t.Errorf("Get(DUT port description): got %v, want %v", got, want)
@@ -197,10 +208,10 @@ func TestMixedOriginOCCLIConfig(t *testing.T) {
 	t.Log(response)
 
 	// Validate that DUT port-1 and DUT port-2 description through telemetry.
-	if got := dut.Telemetry().Interface(dp1.Name()).Description().Get(t); got != "foo1" {
+	if got := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Description().State()); got != "foo1" {
 		t.Errorf("Get(DUT port description): got %v, want %v", got, "foo1")
 	}
-	if got := dut.Telemetry().Interface(dp2.Name()).Description().Get(t); got != "foo2" {
+	if got := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Description().State()); got != "foo2" {
 		t.Errorf("Get(DUT port description): got %v, want %v", got, "foo2")
 	}
 

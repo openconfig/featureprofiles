@@ -22,12 +22,14 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -114,6 +116,15 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got error during gribi client setup: %v", err)
 	}
+
+	defer func() {
+		// Flush all entries after test.
+		if err = gribi.FlushAll(gribic); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	gribi.BecomeLeader(t, gribic)
 
 	addInterfaceRoute(ctx, t, gribic, p2ID, dut.Port(t, "port2").Name(), atePort2.IPv4)
 	addDestinationRoute(ctx, t, gribic)
@@ -223,30 +234,30 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 
-	vrf := &telemetry.NetworkInstance{
+	vrf := &oc.NetworkInstance{
 		Name:    ygot.String(vrfName),
 		Enabled: ygot.Bool(true),
-		Type:    telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
-		EnabledAddressFamilies: []telemetry.E_Types_ADDRESS_FAMILY{
-			telemetry.Types_ADDRESS_FAMILY_IPV4,
-			telemetry.Types_ADDRESS_FAMILY_IPV6,
+		Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+		EnabledAddressFamilies: []oc.E_Types_ADDRESS_FAMILY{
+			oc.Types_ADDRESS_FAMILY_IPV4,
+			oc.Types_ADDRESS_FAMILY_IPV6,
 		},
 	}
 
 	p1VRF := vrf.GetOrCreateInterface(p1.Name())
 	p1VRF.Interface = ygot.String(p1.Name())
 	p1VRF.Subinterface = ygot.Uint32(0)
-	dut.Config().NetworkInstance(vrfName).Replace(t, vrf)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), vrf)
 
-	d.Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
-	d.Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
-	d.Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
@@ -301,13 +312,13 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []*ondatra.
 	ate.Traffic().Stop(t)
 
 	for _, flow := range good {
-		if got := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t); got > 0 {
+		if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got > 0 {
 			t.Fatalf("LossPct for flow %s: got %g, want 0", flow.Name(), got)
 		}
 	}
 
 	for _, flow := range bad {
-		if got := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t); got < 100 {
+		if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got < 100 {
 			t.Fatalf("LossPct for flow %s: got %g, want 100", flow.Name(), got)
 		}
 	}

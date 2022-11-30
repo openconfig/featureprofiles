@@ -20,6 +20,26 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/global/state/level-capability"
 }
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/config/hello-padding"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/state/hello-padding"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/config/instance"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/state/instance"
+}
+
+# Global lsp-bit
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/config/set-bit"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/state/set-bit"
+}
 
 # AFI-SAFI
 config_path {
@@ -221,11 +241,6 @@ telemetry_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/subtlvs/subtlv/flags/state/flags"
-}
-
-# System Level
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/part-changes"
 }
 
 # Interface counters
