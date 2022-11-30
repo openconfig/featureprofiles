@@ -27,12 +27,17 @@ func TestMain(m *testing.M) {
 }
 
 // QoS policy OC config:
-//  - /qos/classifiers/classifier/config/name
-//  - /qos/classifiers/classifier/config/type
-//  - /qos/classifiers/classifier/terms/term/actions/config/target-group
-//  - /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set
-//  - /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set
-//  - /qos/classifiers/classifier/terms/term/config/id
+//  - classifiers:
+//    - /qos/classifiers/classifier/config/name
+//    - /qos/classifiers/classifier/config/type
+//    - /qos/classifiers/classifier/terms/term/actions/config/target-group
+//    - /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set
+//    - /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set
+//    - /qos/classifiers/classifier/terms/term/config/id
+//  - forwarding-groups:
+//    - /qos/forwarding-groups/forwarding-group/config/name
+//    - /qos/forwarding-groups/forwarding-group/config/output-queue
+//    - /qos/queues/queue/config/name
 //
 // Topology:
 //   ate:port1 <--> port1:dut:port2 <--> ate:port2
@@ -48,10 +53,6 @@ func TestMain(m *testing.M) {
 
 func TestQoSPolicyConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	dp := dut.Port(t, "port1")
-	got := dut.Telemetry().Interface(dp.Name()).Ethernet().PortSpeed().Get(t)
-	t.Logf("Got %s PortSpeed from telmetry: %v", dp.Name(), got)
-
 	d := &telemetry.Device{}
 	q := d.GetOrCreateQos()
 
@@ -185,4 +186,59 @@ func TestQoSPolicyConfig(t *testing.T) {
 	dut.Config().Qos().Replace(t, q)
 	qosClassifiers := dut.Telemetry().Qos().ClassifierAny().Name().Get(t)
 	t.Logf("qosClassifiers from telmetry: %v", qosClassifiers)
+}
+
+func TestQoSForwadingGroupsConfig(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	d := &telemetry.Device{}
+	q := d.GetOrCreateQos()
+
+	cases := []struct {
+		desc         string
+		queueName    string
+		targetGrpoup string
+	}{{
+		desc:         "forwarding-group-BE1",
+		queueName:    "BE1",
+		targetGrpoup: "target-group-BE1",
+	}, {
+		desc:         "forwarding-group-BE0",
+		queueName:    "BE0",
+		targetGrpoup: "target-group-BE0",
+	}, {
+		desc:         "forwarding-group-AF1",
+		queueName:    "AF1",
+		targetGrpoup: "target-group-AF1",
+	}, {
+		desc:         "forwarding-group-AF2",
+		queueName:    "AF2",
+		targetGrpoup: "target-group-AF2",
+	}, {
+		desc:         "forwarding-group-AF3",
+		queueName:    "AF3",
+		targetGrpoup: "target-group-AF3",
+	}, {
+		desc:         "forwarding-group-AF4",
+		queueName:    "AF4",
+		targetGrpoup: "target-group-AF4",
+	}, {
+		desc:         "forwarding-group-NC1",
+		queueName:    "NC1",
+		targetGrpoup: "target-group-NC1",
+	}}
+
+	t.Logf("qos forwarding groups config cases: %v", cases)
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
+			fwdGroup.SetName(tc.targetGrpoup)
+			fwdGroup.SetOutputQueue(tc.queueName)
+			// queue := q.GetOrCreateQueue(tc.queueName)
+			// queue.SetName(tc.queueName)
+		})
+	}
+
+	dut.Config().Qos().Replace(t, q)
+	qosfwdGroups := dut.Telemetry().Qos().ForwardingGroupAny().Get(t)
+	t.Logf("qosfwdGroups from telmetry: %v", qosfwdGroups)
 }
