@@ -38,7 +38,7 @@ nodes: {
       file: "juniper_cptx_ixia.config"
       cert: {
             self_signed: {
-                cert_name: "ca-ipsec",
+                cert_name: "grpc-server-cert",
                 key_name: "N/A",
                 key_size: 4096,
             }
