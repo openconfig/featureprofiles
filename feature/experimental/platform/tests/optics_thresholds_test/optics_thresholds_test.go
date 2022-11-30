@@ -20,8 +20,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/telemetry"
 )
 
 const (
@@ -180,12 +180,12 @@ func TestOpticsThresholds(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			for _, transceiver := range transceivers {
 				t.Logf("Validate transceiver: %s", transceiver)
-				component := dut.Telemetry().Component(transceiver)
-				if !component.MfgName().Lookup(t).IsPresent() {
+				component := gnmi.OC().Component(transceiver)
+				if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
 					t.Logf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiver)
 					continue
 				}
-				mfgName := component.MfgName().Get(t)
+				mfgName := gnmi.Get(t, dut, component.MfgName().State())
 				t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
 
 				threshold := fetchOpticsThreshold(t, dut, transceiver, tc.property)
@@ -202,13 +202,13 @@ func fetchOpticsThreshold(t *testing.T, dut *ondatra.DUTDevice, opticsName strin
 	// TODO: Need to update the lookup code after optics threshold model is defined.
 	t.Skipf("Optics threshold model needs to be defined, skip it for now.")
 
-	val := dut.Telemetry().Component(opticsName).Property(property).Get(t).GetValue()
+	val := gnmi.Get(t, dut, gnmi.OC().Component(opticsName).Property(property).State()).GetValue()
 	switch v := val.(type) {
-	case telemetry.UnionUint64:
+	case oc.UnionUint64:
 		return float64(v)
-	case telemetry.UnionInt64:
+	case oc.UnionInt64:
 		return float64(v)
-	case telemetry.UnionFloat64:
+	case oc.UnionFloat64:
 		return float64(v)
 	default:
 		t.Fatalf("Error extracting optics threshold, could not type assert union. union: %v", val)

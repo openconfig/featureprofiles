@@ -20,9 +20,9 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -32,6 +32,18 @@ type trafficData struct {
 	dscp        uint8
 	queue       string
 }
+
+const (
+	ateSrcName    = "dev1"
+	ateDstName    = "dev2"
+	ateSrcMac     = "02:00:01:01:01:01"
+	ateDstMac     = "02:00:01:01:01:02"
+	ateSrcIp      = "198.51.100.1"
+	ateDstIp      = "198.51.100.3"
+	ateSrcGateway = "198.51.100.0"
+	ateDstGateway = "198.51.100.2"
+	prefixLen     = 31
+)
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -72,16 +84,20 @@ func TestQoSCounters(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
-	top := ate.Topology().New()
-	intf1 := top.AddInterface("intf1").WithPort(ap1)
-	intf1.IPv4().
-		WithAddress("198.51.100.1/31").
-		WithDefaultGateway("198.51.100.0")
-	intf2 := top.AddInterface("intf2").WithPort(ap2)
-	intf2.IPv4().
-		WithAddress("198.51.100.3/31").
-		WithDefaultGateway("198.51.100.2")
-	top.Push(t).StartProtocols(t)
+	top := ate.OTG().NewConfig(t)
+
+	top.Ports().Add().SetName(ap1.ID())
+	top.Ports().Add().SetName(ap2.ID())
+
+	dev1 := top.Devices().Add().SetName(ateSrcName)
+	eth1 := dev1.Ethernets().Add().SetName(dev1.Name() + ".eth")
+	eth1.SetPortName(ap1.ID()).SetMac(ateSrcMac)
+	eth1.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress(ateSrcIp).SetGateway(ateSrcGateway).SetPrefix(int32(prefixLen))
+
+	dev2 := top.Devices().Add().SetName(ateDstName)
+	eth2 := dev2.Ethernets().Add().SetName(dev2.Name() + ".eth")
+	eth2.SetPortName(ap2.ID()).SetMac(ateDstMac)
+	eth2.Ipv4Addresses().Add().SetName(dev2.Name() + ".ipv4").SetAddress(ateDstIp).SetGateway(ateDstGateway).SetPrefix(int32(prefixLen))
 
 	var trafficFlows map[string]*trafficData
 
@@ -117,16 +133,23 @@ func TestQoSCounters(t *testing.T) {
 		t.Fatalf("Output queue mapping is missing for %v", dut.Vendor().String())
 	}
 
-	var flows []*ondatra.Flow
 	for trafficID, data := range trafficFlows {
 		t.Logf("Configuring flow %s", trafficID)
-		flow := ate.Traffic().NewFlow(trafficID).
-			WithSrcEndpoints(intf1).
-			WithDstEndpoints(intf2).
-			WithHeaders(ondatra.NewEthernetHeader(), ondatra.NewIPv4Header().WithDSCP(data.dscp)).
-			WithFrameRatePct(data.trafficRate).
-			WithFrameSize(data.frameSize)
-		flows = append(flows, flow)
+
+		flow := top.Flows().Add().SetName(trafficID)
+		flow.Metrics().SetEnable(true)
+		flow.TxRx().Device().SetTxNames([]string{dev1.Name() + ".ipv4"}).SetRxNames([]string{dev2.Name() + ".ipv4"})
+		ethHeader := flow.Packet().Add().Ethernet()
+		ethHeader.Src().SetValue(ateSrcMac)
+
+		ipHeader := flow.Packet().Add().Ipv4()
+		ipHeader.Src().SetValue(ateSrcIp)
+		ipHeader.Dst().SetValue(ateDstIp)
+		ipHeader.Priority().Dscp().Phb().SetValue(int32(data.dscp))
+
+		flow.Size().SetFixed(int32(data.frameSize))
+		flow.Rate().SetPercentage(float32(data.trafficRate))
+		flow.Duration().FixedPackets().SetPackets(10000)
 	}
 
 	ateOutPkts := make(map[string]uint64)
@@ -135,33 +158,44 @@ func TestQoSCounters(t *testing.T) {
 
 	// Get QoS egress packet counters before the traffic.
 	for _, data := range trafficFlows {
-		dutQosPktsBeforeTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
+		dutQosPktsBeforeTraffic[data.queue] = dut.Telemetry().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().Get(t)
 	}
 
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+
+	time.Sleep(30 * time.Second)
 	t.Logf("Running traffic on DUT interfaces: %s and %s ", dp1.Name(), dp2.Name())
-	ate.Traffic().Start(t, flows...)
+	ate.OTG().StartTraffic(t)
 	time.Sleep(10 * time.Second)
-	ate.Traffic().Stop(t)
+	ate.OTG().StopTraffic(t)
 	time.Sleep(30 * time.Second)
 
+	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	for trafficID, data := range trafficFlows {
-		ateOutPkts[data.queue] = gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().OutPkts().State())
+		ateOutPkts[data.queue] = ate.OTG().Telemetry().Flow(trafficID).Counters().OutPkts().Get(t)
 		t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
 		t.Logf("Get(out packets for queue %q): got %v", data.queue, ateOutPkts[data.queue])
 
-		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
+		ateTxPkts := ate.OTG().Telemetry().Flow(trafficID).Counters().OutPkts().Get(t)
+		ateRxPkts := ate.OTG().Telemetry().Flow(trafficID).Counters().InPkts().Get(t)
+		lossPct := ((ateTxPkts - ateRxPkts) * 100) / ateTxPkts
+
 		if lossPct >= 1 {
 			t.Errorf("Get(traffic loss for queue %q): got %v, want < 1", data.queue, lossPct)
 		}
 	}
 
 	for trafficID, data := range trafficFlows {
-		ateOutPkts[data.queue] = gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().OutPkts().State())
-		dutQosPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
+		ateOutPkts[data.queue] = ate.OTG().Telemetry().Flow(trafficID).Counters().OutPkts().Get(t)
+		dutQosPktsAfterTraffic[data.queue] = dut.Telemetry().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().Get(t)
 		t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
 		t.Logf("Get(out packets for flow %q): got %v, want nonzero", trafficID, ateOutPkts)
 
-		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
+		ateTxPkts := ate.OTG().Telemetry().Flow(trafficID).Counters().OutPkts().Get(t)
+		ateRxPkts := ate.OTG().Telemetry().Flow(trafficID).Counters().InPkts().Get(t)
+		lossPct := ((ateTxPkts - ateRxPkts) * 100) / ateTxPkts
+
 		if lossPct >= 1 {
 			t.Errorf("Get(traffic loss for queue %q: got %v, want < 1", data.queue, lossPct)
 		}
@@ -204,10 +238,10 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure the interfaces.
 	for _, intf := range dutIntfs {
 		t.Logf("Configure DUT interface %s with attributes %v", intf.intfName, intf)
-		i := &oc.Interface{
+		i := &telemetry.Interface{
 			Name:        ygot.String(intf.intfName),
 			Description: ygot.String(intf.desc),
-			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Type:        telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
 			Enabled:     ygot.Bool(true),
 		}
 		i.GetOrCreateEthernet()
@@ -217,6 +251,6 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
-		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
+		dut.Config().Interface(intf.intfName).Replace(t, i)
 	}
 }

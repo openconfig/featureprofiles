@@ -52,7 +52,7 @@ const (
 )
 
 var (
-	// Network entity title for the DUT
+	// DUTNET is the Network Entity Title for the DUT
 	DUTNET = fmt.Sprintf("%v.%v.00", DUTAreaAddress, DUTSysID)
 	// DUTISISAttrs has attributes for the DUT ISIS connection on port1
 	DUTISISAttrs = &Attributes{
