@@ -53,6 +53,19 @@ const (
 	peerGrpName = "BGP-PEER-GROUP"
 )
 
+// verifyAuthPassword checks that the dut applied configured auth password to bgp neighbors
+func verifyAuthPassword(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Log("Verifying BGP Authentication password")
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
+
+	// Get BGP Authentication password
+	authPwd := gnmi.Get(t, dut, nbrPath.AuthPassword().State())
+	if len(authPwd) == 0 {
+		t.Errorf("Authentication password is not as expected, want non zero value, got lenth %v", len(authPwd))
+	}
+}
+
 func bgpWithNbr(as uint32, routerID string, nbr *telemetry.NetworkInstance_Protocol_Bgp_Neighbor) *telemetry.NetworkInstance_Protocol_Bgp {
 	bgp := &telemetry.NetworkInstance_Protocol_Bgp{}
 	bgp.GetOrCreateGlobal().As = ygot.Uint32(as)
@@ -71,12 +84,9 @@ func configureNIType(t *testing.T) {
 	dut := ondatra.DUT(t, "dut1")
 	ate := ondatra.DUT(t, "dut2")
 	// Configure Network instance type on DUT
-	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-	// Configure Network instance type on ATE
-	dutConfNIPath1 := ate.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfNIPath1.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	gnmi.Replace(t, ate, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 }
 func TestEstablish(t *testing.T) {
 	// Configure interfaces
@@ -87,7 +97,10 @@ func TestEstablish(t *testing.T) {
 	ate := ondatra.DUT(t, "dut2")
 	atePortName := ate.Port(t, "port1").Name()
 	intf2 := ateAttrs.NewInterface(atePortName)
-	ate.Config().Interface(intf2.GetName()).Replace(t, intf2)
+	gnmi.Replace(t, ate, gnmi.OC().Interface(intf2.GetName()).Config(), intf2)A
+	// Configure Network instance type, it has to be configured explicitly by user.
+	configureNIType(t)
+
 	// Get BGP paths
 	// Configure Network instance type, it has to be configured explicitly by user.
 	configureNIType(t)
@@ -96,9 +109,8 @@ func TestEstablish(t *testing.T) {
 	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 	// Remove any existing BGP config
-	dutConfPath.Delete(t)
-	ateConfPath.Delete(t)
-	startTime := uint64(time.Now().Unix())
+	gnmi.Delete(t, dut, dutConfPath.Config())
+	gnmi.Delete(t, ate, ateConfPath.Config())
 	// Start a new session
 	dutConf := bgpWithNbr(dutAS, "", &telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
 		PeerAs:          ygot.Uint32(dutAS),
@@ -110,10 +122,11 @@ func TestEstablish(t *testing.T) {
 		NeighborAddress: ygot.String(dutAttrs.IPv4),
 		PeerGroup:       ygot.String(peerGrpName),
 	})
-	dutConfPath.Replace(t, dutConf)
-	ateConfPath.Replace(t, ateConf)
-	time.Sleep(1 * time.Minute)
-	nbrPath.SessionState().Await(t, time.Second*15, telemetry.Bgp_Neighbor_SessionState_ESTABLISHED)
+	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+	gnmi.Replace(t, ate, ateConfPath.Config(), ateConf)
+	time.Sleep(time.Second * 5)
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*30, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+
 
 	dutState := statePath.Get(t)
 	confirm.State(t, dutConf, dutState)
@@ -123,8 +136,10 @@ func TestEstablish(t *testing.T) {
 	if !nbr.GetEnabled() {
 		t.Errorf("Expected neighbor %v to be enabled", ateAttrs.IPv4)
 	}
-	if got, want := nbr.GetLastEstablished(), startTime*1000000000; got < want {
-		t.Errorf("Bad last-established timestamp: got %v, want >= %v", got, want)
+	lastFlapTime := gnmi.Get(t, dut, gnmi.OC().Interface(dutPortName).LastChange().State())
+	lastEstTime := gnmi.Get(t, dut, nbrPath.State()).GetLastEstablished()
+	if lastEstTime < lastFlapTime {
+		t.Errorf("Bad last-established timestamp: got %v, want >= %v", lastEstTime, lastFlapTime)
 	}
 	if got := nbr.GetEstablishedTransitions(); got != 1 {
 		t.Errorf("Wrong established-transitions: got %v, want 1", got)
@@ -158,8 +173,8 @@ func TestDisconnect(t *testing.T) {
 	configureNIType(t)
 
 	// Clear any existing config
-	dutConfPath.Delete(t)
-	ateConfPath.Delete(t)
+	gnmi.Delete(t, dut, dutConfPath.Config())
+	gnmi.Delete(t, ate, ateConfPath.Config())
 
 	// Apply simple config
 	dutConf := bgpWithNbr(dutAS, "", &telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -172,15 +187,15 @@ func TestDisconnect(t *testing.T) {
 		NeighborAddress: ygot.String(dutIP),
 		PeerGroup:       ygot.String(peerGrpName),
 	})
-	dutConfPath.Replace(t, dutConf)
-	ateConfPath.Replace(t, ateConf)
-	time.Sleep(1 * time.Minute)
-	nbrPath.SessionState().Await(t, time.Second*15, telemetry.Bgp_Neighbor_SessionState_ESTABLISHED)
+	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+	gnmi.Replace(t, ate, ateConfPath.Config(), ateConf)
+	time.Sleep(time.Second * 15)
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*30, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	// ateConfPath.Delete(t)
-	ateConfPath.Neighbor(dutIP).Enabled().Replace(t, false)
-	time.Sleep(1 * time.Minute)
-	nbrPath.SessionState().Await(t, time.Second*15, telemetry.Bgp_Neighbor_SessionState_ACTIVE)
-	code := nbrPath.Messages().Received().LastNotificationErrorCode().Get(t)
+	gnmi.Replace(t, ate, ateConfPath.Neighbor(dutIP).Enabled().Config(), false)
+	time.Sleep(time.Second * 5)
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*15, oc.Bgp_Neighbor_SessionState_ACTIVE)
+	code := gnmi.Get(t, dut, nbrPath.Messages().Received().LastNotificationErrorCode().State())
 	if code != telemetry.BgpTypes_BGP_ERROR_CODE_CEASE {
 		t.Errorf("On disconnect: expected error code %v, got %v", telemetry.BgpTypes_BGP_ERROR_CODE_CEASE, code)
 	}
@@ -193,7 +208,7 @@ func TestParameters(t *testing.T) {
 	ate := ondatra.DUT(t, "dut2")
 	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	ateConfPath := ate.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateIP)
 
 	// Configure Network instance type, it has to be configured explicitly by user.
@@ -355,10 +370,10 @@ func TestParameters(t *testing.T) {
 			dutConfPath.Delete(t)
 			ateConfPath.Delete(t)
 			// Renable and wait to establish
-			dutConfPath.Replace(t, tc.dutConf)
-			ateConfPath.Replace(t, tc.ateConf)
-			time.Sleep(1 * time.Minute)
-			nbrPath.SessionState().Await(t, time.Second*30, telemetry.Bgp_Neighbor_SessionState_ESTABLISHED)
+			gnmi.Replace(t, dut, dutConfPath.Config(), tc.dutConf)
+			gnmi.Replace(t, ate, ateConfPath.Config(), tc.ateConf)
+			time.Sleep(time.Second * 15)
+			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*30, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 			stateDut := statePath.Get(t)
 			wantState := tc.wantState
 			if wantState == nil {
@@ -366,6 +381,10 @@ func TestParameters(t *testing.T) {
 				wantState = tc.dutConf
 			}
 			confirm.State(t, wantState, stateDut)
+			if tc.name == "password" {
+				t.Log("Check Authentication password via telemetry")
+				verifyAuthPassword(t, dut)
+			}
 		})
 	}
 }
