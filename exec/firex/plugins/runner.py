@@ -308,7 +308,7 @@ def RunB4FPTest(self,
     if not fp_ws: fp_ws = ws
  
     json_results_file = Path(test_log_directory_path) / f'{script_name}.json'
-    xml_results_file = Path(test_log_directory_path) / f'{script_name}.xml'
+    xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
 
     check_output(f'rm -rf {test_logs_dir_in_ws}')
