@@ -3,6 +3,7 @@ replace: {
     origin: "cli"
   }
   val: {
+   ascii_val:
 "hostname R4\n"
 "clock timezone EST America/New_York\n"
 "logging buffered 125000000\n"
