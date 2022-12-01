@@ -203,9 +203,9 @@ func TestBackupNHGAction(t *testing.T) {
 	}
 	// Configure the gRIBI client client
 	client := gribi.Client{
-		DUT:         dut,
-		Persistence: true,
-		FIBACK: true,
+		DUT:         	dut,
+		Persistence: 	true,
+		FIBACK: 	 	true,
 	}
 	defer client.Close(t)
 	defer client.FlushAll(t)
