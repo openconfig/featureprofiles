@@ -7,16 +7,15 @@ import (
 
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-
 )
 
 const (
@@ -156,7 +155,7 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Update(t, static)
 }
 
-//Add vrf VRF-1
+// Add vrf VRF-1
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	c := &oc.Root{}
 	ni := c.GetOrCreateNetworkInstance(vrfName)
@@ -177,7 +176,7 @@ func TestBackupNHGAction(t *testing.T) {
 
 	//configure DUT
 	configureDUT(t, dut)
-	configureNetworkInstance(t,dut)
+	configureNetworkInstance(t, dut)
 	addStaticRoute(t, dut)
 
 	// Configure ATE
@@ -203,9 +202,9 @@ func TestBackupNHGAction(t *testing.T) {
 	}
 	// Configure the gRIBI client client
 	client := gribi.Client{
-		DUT:         	dut,
-		Persistence: 	true,
-		FIBACK: 	 	true,
+		DUT:         dut,
+		FIBACK:      false,
+		Persistence: true,
 	}
 	defer client.Close(t)
 	defer client.FlushAll(t)
