@@ -150,7 +150,7 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // verifyAuthPassword checks that the dut applied configured auth password to bgp neighbors
-func verifyAuthPassword(t *testing.T, dut *ondatra.DUTDevice) {
+/*func verifyAuthPassword(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP Authentication password")
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
@@ -160,7 +160,7 @@ func verifyAuthPassword(t *testing.T, dut *ondatra.DUTDevice) {
 	if len(authPwd) == 0 {
 		t.Errorf("Authentication password is not as expected, want non zero value, got lenth %v", len(authPwd))
 	}
-}
+}*/
 
 // verifyBgpTelemetry checks that the dut has an established BGP session with reasonable settings.
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
@@ -292,9 +292,11 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	// Verify BGP status
 	t.Log("Check BGP parameters")
 	verifyBgpTelemetry(t, dut)
-
-	t.Log("Check Authentication password")
-	verifyAuthPassword(t, dut)
+         
+	// Password authentication is currently disabled as how OC handles BGP password
+	// is still under debate.
+	//t.Log("Check Authentication password")
+	//verifyAuthPassword(t, dut)
 
 	// Verify BGP capabilities
 	t.Log("Check BGP Capabilities")
