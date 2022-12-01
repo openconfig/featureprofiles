@@ -214,7 +214,7 @@ tests:
 - name: RT-5.1 (Singleton Interface) 
   path: feature/interface/singleton/ate_tests/singleton_test
   timeout: 7200
-  #patch: exec/firex/plugins/fp_patch/singleton_test.patch
+  patch: exec/firex/plugins/fp_patch/singleton_test.patch
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 31
