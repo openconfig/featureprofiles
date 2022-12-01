@@ -208,6 +208,7 @@ func TestBackupNHGAction(t *testing.T) {
 		FIBACK: true,
 	}
 	defer client.Close(t)
+	defer client.FlushAll(t)
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
@@ -228,14 +229,13 @@ func TestBackupNHGAction(t *testing.T) {
 			tt.fn(ctx, t, tcArgs)
 		})
 	}
-	client.FlushAll(t)
 }
 
 func testbackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 
-	t.Logf("Adding NH 1 with ATE port-2 via gRIBI")
+	t.Logf("Adding NH %d with ATE port-2 via gRIBI", NH1ID)
 	args.client.AddNH(t, NH1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	t.Logf("Adding NH 2 as decap and NHGs 1, 2 via gRIBI")
+	t.Logf("Adding NH %d as decap and NHGs %d, %d via gRIBI", NH2ID, NH1ID, NH2ID)
 	args.client.AddNH(t, NH2ID, "Decap", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 	args.client.AddNHG(t, NH2ID, map[uint64]uint64{NH2ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 	args.client.AddNHG(t, NH1ID, map[uint64]uint64{NH1ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: NH2ID})
@@ -244,31 +244,31 @@ func testbackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Logf("Create flow with dst %s", primaryTunnelDstIP)
 	BaseFlow := createFlow(t, args.ate, args.top, "BaseFlow", primaryTunnelDstIP)
-	t.Logf("Validate traffic passes")
+	t.Log("Validate traffic passes")
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port2"})
 
-	t.Logf("Shutdown Port2")
+	t.Log("Shutdown Port2")
 	ateP := args.ate.Port(t, "port2")
 	args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(false).Send(t)
 	defer args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(true).Send(t)
-	t.Logf("Validate traffic passes through port3")
+	t.Log("Validate traffic passes through port3")
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port3"})
 }
 
 func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 
-	t.Logf("Adding NH 3 with ATE port-2 via gRIBI")
+	t.Logf("Adding NH %d with ATE port-2 via gRIBI", NH3ID)
 	args.client.AddNH(t, NH3ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	t.Logf("Adding NHG 3 via gRIBI")
+	t.Logf("Adding NHG %d via gRIBI", NH3ID)
 	args.client.AddNHG(t, NH3ID, map[uint64]uint64{NH3ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 	t.Logf("Adding an IPv4Entry for %s pointing to atePort2 via gRIBI", secondaryTunnelDstIP)
 	args.client.AddIPv4(t, secondaryTunnelDstIP+"/"+mask, NH3ID, vrfName, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
-	t.Logf("Adding NH 2 as decap and NHG 2 via gRIBI")
+	t.Logf("Adding NH %d as decap and NHG %d via gRIBI", NH2ID, NH2ID)
 	args.client.AddNH(t, NH2ID, "Decap", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 	args.client.AddNHG(t, NH2ID, map[uint64]uint64{NH2ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
-	t.Logf("Adding NH 1 as DecapEncap and NHG 1 via gRIBI")
+	t.Logf("Adding NH %d as DecapEncap and NHG %d via gRIBI", NH1ID, NH1ID)
 	args.client.AddNH(t, NH1ID, "DecapEncap", *deviations.DefaultNetworkInstance, fluent.InstalledInRIB, &gribi.NHOptions{Src: secondaryTunnelSrcIP, Dest: secondaryTunnelDstIP, VrfName: vrfName})
 	args.client.AddNHG(t, NH1ID, map[uint64]uint64{NH1ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: NH2ID})
 	t.Logf("an IPv4Entry for %s with primary DecapEncap & backup decap via gRIBI", primaryTunnelDstIP)
@@ -279,12 +279,12 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Validate traffic passes through port2")
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port2"})
 
-	t.Logf("Shutdown Port2")
+	t.Log("Shutdown Port2")
 	ateP := args.ate.Port(t, "port2")
 	args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(false).Send(t)
 	defer args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(true).Send(t)
 
-	t.Logf("Validate traffic passes through port3")
+	t.Log("Validate traffic passes through port3")
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port3"})
 }
 
