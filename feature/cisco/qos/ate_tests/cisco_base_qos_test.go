@@ -391,19 +391,3 @@ func TestWrrTrafficQos(t *testing.T) {
 		})
 	}
 }
-
-// func TestWrr(t *testing.T) {
-// 	dut := ondatra.DUT(t, "dut")
-// 	ConfigureWrr(t, dut)
-
-// }
-//
-//	func TestConfWrrDelSeq(t *testing.T) {
-//		dut := ondatra.DUT(t, "dut")
-//		dut.Config().Qos().SchedulerPolicy("eg_policy1111").Scheduler(2).Delete(t)
-//	}
-func TestDelQos(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	dut.Config().Qos().Delete(t)
-
-}
