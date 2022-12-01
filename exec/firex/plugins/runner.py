@@ -55,7 +55,8 @@ whitelist_arguments([
     'test_args',
     'test_patch',
     'test_timeout',
-    'test_must_pass'
+    'test_must_pass',
+    'test_debug'
 ])
 
 @app.task(base=FireX, bind=True)
@@ -208,6 +209,7 @@ def b4_fp_chain_provider(ws,
                          test_patch=None,
                          test_timeout=0,
                          test_must_pass=False,
+                         test_debug=True,
                          **kwargs):
 
     if ondatra_binding_path[0] != '/':
@@ -229,6 +231,7 @@ def b4_fp_chain_provider(ws,
                     test_patch=test_patch,
                     test_timeout=test_timeout,
                     test_must_pass=test_must_pass,
+                    test_debug=test_debug,
                     **kwargs)
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
@@ -297,6 +300,7 @@ def RunB4FPTest(self,
                 test_path=None,
                 test_args=None,
                 test_timeout=0,
+                test_debug=True,
                 go_args=None,
                 fp_ws = None,
                 ):
@@ -304,6 +308,7 @@ def RunB4FPTest(self,
     if not fp_ws: fp_ws = ws
  
     json_results_file = Path(test_log_directory_path) / f'{script_name}.json'
+    xml_results_file = Path(test_log_directory_path) / f'{script_name}.xml'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
 
     check_output(f'rm -rf {test_logs_dir_in_ws}')
@@ -315,9 +320,10 @@ def RunB4FPTest(self,
     test_args = f'{test_args} ' \
         f'-log_dir {test_logs_dir_in_ws}'
 
-    test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path} ' \
-                f'-v 5 ' \
-                f'-alsologtostderr'
+    test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path} '
+    if test_debug:
+        test_args += f'-v 5 ' \
+            f'-alsologtostderr'
 
     go_args = f'{go_args} ' \
                 f'-json ' \
@@ -340,7 +346,7 @@ def RunB4FPTest(self,
           f'--debug ' \
           f'--raw-command ' \
           f'-- ' \
-          f'{GO_BIN} test -v {test_path} {go_args} -args {test_args}'
+          f'{GO_BIN} test -v {test_path} {go_args} -args {test_args} -xml {xml_results_file}'
 
     start_time = self.get_current_time()
     try:
