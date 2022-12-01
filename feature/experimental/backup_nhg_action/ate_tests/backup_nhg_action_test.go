@@ -9,11 +9,14 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+
 )
 
 const (
@@ -134,13 +137,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := dut.Config()
 
 	p1 := dut.Port(t, "port1")
-	vrf := &telemetry.NetworkInstance{
-		Name:    ygot.String(vrfName),
-		Enabled: ygot.Bool(true),
-		Type:    telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
-	}
-	vrf.GetOrCreateInterface(p1.Name())
-	d.NetworkInstance(vrfName).Replace(t, vrf)
 	d.Interface(p1.Name()).Update(t, dutPort1.NewInterface(p1.Name()))
 
 	p2 := dut.Port(t, "port2")
@@ -151,7 +147,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 }
 
-// add static route
+// Add static route
 func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	s := &telemetry.Device{}
 	static := s.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
@@ -160,12 +156,28 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Update(t, static)
 }
 
+//Add vrf VRF-1
+func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
+	c := &oc.Root{}
+	ni := c.GetOrCreateNetworkInstance(vrfName)
+	ni.Description = ygot.String("Non Default routing instance created for testing")
+	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	ni.Enabled = ygot.Bool(true)
+	ni.EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4, oc.Types_ADDRESS_FAMILY_IPV6}
+	p1 := dut.Port(t, "port1")
+	niIntf := ni.GetOrCreateInterface(p1.Name())
+	niIntf.Subinterface = ygot.Uint32(0)
+	niIntf.Interface = ygot.String(p1.Name())
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), ni)
+}
+
 func TestBackupNHGAction(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
 
 	//configure DUT
 	configureDUT(t, dut)
+	configureNetworkInstance(t,dut)
 	addStaticRoute(t, dut)
 
 	// Configure ATE
@@ -193,6 +205,7 @@ func TestBackupNHGAction(t *testing.T) {
 	client := gribi.Client{
 		DUT:         dut,
 		Persistence: true,
+		FIBACK: true,
 	}
 	defer client.Close(t)
 	if err := client.Start(t); err != nil {
@@ -263,7 +276,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Logf("Create base flow with dst %s", primaryTunnelDstIP)
 	BaseFlow := createFlow(t, args.ate, args.top, "Baseflow", primaryTunnelDstIP)
-	t.Logf("Validate traffic passes")
+	t.Logf("Validate traffic passes through port2")
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port2"})
 
 	t.Logf("Shutdown Port2")
