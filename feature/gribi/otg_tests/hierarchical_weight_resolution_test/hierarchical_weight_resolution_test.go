@@ -16,23 +16,29 @@
 package hierarchical_weight_resolution_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
+	"net"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/tcheck"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -78,6 +84,7 @@ var (
 	atePort1 = attributes{
 		Attributes: attrs.Attributes{
 			Name:    "port1",
+			MAC:     "02:00:01:01:01:01",
 			IPv4:    atePort1IPv4(0),
 			IPv4Len: ipv4PrefixLen,
 		},
@@ -100,6 +107,7 @@ var (
 	atePort2 = attributes{
 		Attributes: attrs.Attributes{
 			Name:    "port2",
+			MAC:     "02:00:02:01:01:01",
 			IPv4:    atePort2IPv4(0),
 			IPv4Len: ipv4PrefixLen,
 		},
@@ -307,26 +315,63 @@ func (a *attributes) configureDUT(t *testing.T, d *ondatra.Config, dut *ondatra.
 // Subinterfaces(numSubIntf) > 0, we then create additional sub-interfaces
 // each with a unique VlanID starting from 1. The IPv4 addresses start with
 // ATE:Port.IPv4 and then nextIP(ATE:Port.IPv4, 4) for each sub interface
-func (a *attributes) ConfigureATE(t *testing.T, top *ondatra.ATETopology, ate *ondatra.ATEDevice) {
+func (a *attributes) ConfigureATE(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice) {
 	t.Helper()
 	p := ate.Port(t, a.Name)
 
 	ip := a.ip(0)
 	gateway := a.gateway(0)
 
-	intf := top.AddInterface(ip).WithPort(p)
-	intf.IPv4().WithAddress(cidr(ip, 30))
-	intf.IPv4().WithDefaultGateway(gateway)
+	top.Ports().Add().SetName(p.ID())
+	dev := top.Devices().Add().SetName(a.Name)
+	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth")
+	eth.SetPortName(p.ID()).SetMac(a.MAC)
+	ipObj := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+	ipObj.SetAddress(ip).SetGateway(gateway).SetPrefix(int32(a.IPv4Len))
 	t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, 30), gateway)
 
 	for i := uint32(1); i <= a.numSubIntf; i++ {
+		name := fmt.Sprintf(`dst%d`, i)
 		ip = a.ip(uint8(i))
 		gateway = a.gateway(uint8(i))
-		intf := top.AddInterface(ip).WithPort(p)
-		intf.IPv4().WithAddress(cidr(ip, 30))
-		intf.IPv4().WithDefaultGateway(gateway)
-		intf.Ethernet().WithVLANID(uint16(i))
+		mac, _ := incrementMAC(a.MAC, int(i)+1)
+
+		dev := top.Devices().Add().SetName(name + ".Dev")
+		eth := dev.Ethernets().Add().SetName(name + ".Eth")
+		eth.Connection().SetChoice("port_name")
+		eth.SetPortName(p.ID()).SetMac(mac)
+		eth.Vlans().Add().SetName(name).SetId(int32(i))
+		eth.Ipv4Addresses().Add().SetName(name + ".IPv4").SetAddress(ip).SetGateway(gateway).SetPrefix(int32(a.IPv4Len))
+
 		t.Logf("Adding ATE Ipv4 address: %s with gateway: %s and VlanID: %d", cidr(ip, 30), gateway, i)
+	}
+}
+
+// incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
+func incrementMAC(mac string, i int) (string, error) {
+	macAddr, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", err
+	}
+	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
+	convMac = convMac + uint64(i)
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, convMac)
+	if err != nil {
+		return "", err
+	}
+	newMac := net.HardwareAddr(buf.Bytes()[2:8])
+	return newMac.String(), nil
+}
+
+// Waits for at least one ARP entry on the tx OTG interface
+func waitOTGARPEntry(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	got, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	if !ok {
+		t.Fatalf("Did not receive OTG Neighbor entry, last got: %v", got)
 	}
 }
 
@@ -336,51 +381,36 @@ func (a *attributes) ConfigureATE(t *testing.T, top *ondatra.ATETopology, ate *o
 // IndirectEntry as the destination. The function also takes as input a map of
 // <VlanID::TrafficDistribution> that is wanted and compares it to the actual
 // traffic test result.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology) map[string]float64 {
-	allIntf := top.Interfaces()
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[string]float64 {
 
-	// ATE source endpoint.
-	srcEndPoint := allIntf[atePort1.IPv4]
-
-	// ATE destination endpoints.
-	dstEndPoints := []ondatra.Endpoint{}
-	for i := uint32(0); i <= atePort2.numSubIntf; i++ {
-		dstIP := atePort2.ip(uint8(i))
-		dstEndPoints = append(dstEndPoints, allIntf[dstIP])
-	}
-
-	// Configure Ethernet+IPv4 headers.
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.WithSrcAddress(dutPort1.IPv4)
-	ipv4Header.DstAddressRange().
-		WithMin(ipv4FlowIPStart).
-		WithMax(ipv4FlowIPEnd).
-		WithCount(256)
-
-	// Ethernet header:
-	//   - Destination MAC (6 octets)
-	//   - Source MAC (6 octets)
-	//   - Optional 802.1q VLAN tag (4 octets)
-	//   - Frame size (2 octets)
-	flow := ate.Traffic().NewFlow("flow").
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoints...).
-		WithHeaders(ethHeader, ipv4Header)
-
-	// VlanID is the last 12 bits in the 802.1q VLAN tag.
-	// Offset for VlanID: ((6+6+4) * 8)-12 = 116.
-	flow.EgressTracking().WithOffset(116).WithWidth(12).WithCount(18)
+	waitOTGARPEntry(t)
+	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
+	top.Flows().Clear().Items()
+	flowipv4 := top.Flows().Add().SetName("Flow")
+	flowipv4.Metrics().SetEnable(true)
+	flowipv4.TxRx().Port().SetTxName(atePort1.Name).SetRxName(atePort2.Name)
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	e1.Dst().SetChoice("value").SetValue(dstMac)
+	v4 := flowipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort1.IPv4)
+	v4.Dst().Increment().SetStart(ipv4FlowIPStart).SetCount(256)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	// Run traffic for 2 minutes.
-	ate.Traffic().Start(t, flow)
+	ate.OTG().StartTraffic(t)
 	time.Sleep(2 * time.Minute)
-	ate.Traffic().Stop(t)
+	ate.OTG().StopTraffic(t)
 
-	// Verify total traffic loss is 0%.
-	vd := tcheck.Equal(ate.Telemetry().Flow("flow").LossPct(), float32(0))
-	if err := vd.Await(t, time.Minute); err != nil {
-		t.Errorf("Packet loss: %v", err)
+	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	otgutils.LogPortMetrics(t, ate.OTG(), top)
+
+	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowipv4.Name()).State())
+	lostPackets := recvMetric.GetCounters().GetOutPkts() - recvMetric.GetCounters().GetInPkts()
+	lossPct := lostPackets * 100 / recvMetric.GetCounters().GetOutPkts()
+	if lossPct > 0 && recvMetric.GetCounters().GetOutPkts() > 0 {
+		t.Errorf("Loss Pct for %s got %v, want 0", flowipv4.Name(), lossPct)
 	}
 
 	// Compare traffic distribution with the wanted results.
@@ -426,7 +456,7 @@ func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, network
 
 // testBasicHierarchicalWeight tests and validates traffic through 4 Vlans.
 func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
-	ate *ondatra.ATEDevice, top *ondatra.ATETopology, gRIBI *fluent.GRIBIClient) {
+	ate *ondatra.ATEDevice, top gosnappi.Config, gRIBI *fluent.GRIBIClient) {
 	defaultVRF := *deviations.DefaultNetworkInstance
 
 	// Set up NH#10, NH#11, NHG#2, IPv4Entry(192.0.2.111).
@@ -502,7 +532,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 
 // testHierarchicalWeightBoundaryScenario tests and validates traffic through all 18 Vlans.
 func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
-	ate *ondatra.ATEDevice, top *ondatra.ATETopology, gRIBI *fluent.GRIBIClient) {
+	ate *ondatra.ATEDevice, top gosnappi.Config, gRIBI *fluent.GRIBIClient) {
 	defaultVRF := *deviations.DefaultNetworkInstance
 
 	// Set up NH#10, NH#11, NHG#2, IPv4Entry(192.0.2.111).
@@ -596,11 +626,11 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	dutPort2.configureDUT(t, dc, dut)
 
 	// Configure ATE ports and start Ethernet+IPv4.
-	top := ate.Topology().New()
+	top := ate.OTG().NewConfig(t)
 	atePort1.ConfigureATE(t, top, ate)
 	atePort2.ConfigureATE(t, top, ate)
-	top.Push(t)
-	top.StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	// Configure gRIBI with FIB_ACK.
 	gRIBI := configureGRIBIClient(t, dut)
@@ -623,5 +653,5 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 		testHierarchicalWeightBoundaryScenario(ctx, t, dut, ate, top, gRIBI)
 	})
 
-	top.StopProtocols(t)
+	ate.OTG().StopProtocols(t)
 }
