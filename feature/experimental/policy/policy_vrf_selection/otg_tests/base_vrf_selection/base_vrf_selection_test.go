@@ -160,11 +160,11 @@ func configNetworkInstance(name string, peer *attrs.Attributes) *oc.NetworkInsta
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(name)
 
-	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	static := ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	ipv4Nh := static.GetOrCreateStatic("0.0.0.0/0").GetOrCreateNextHop("0")
 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(peer.IPv4)
-	ipv6Nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop("1")
+	ipv6Nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop("0")
 	ipv6Nh.NextHop, _ = ipv6Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(peer.IPv6)
 	// ipv4Nh.Recurse = ygot.Bool(true)
 	// ipv6Nh.Recurse = ygot.Bool(true)
@@ -340,7 +340,7 @@ func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice, flowName string, 
 	afc := ate.OTG().Telemetry().Flow(flowName).Counters()
 	outPkts := ate.OTG().Telemetry().Flow(flowName).Counters().OutPkts().Get(t)
 	t.Logf("otg:Flow out counters %v %v", flowName, outPkts)
-	fptest.LogYgot(t, "otg:Flow counters", afc, afc.Get(t))
+	t.Log("otg:Flow counters", afc, afc.Get(t))
 
 	inPkts := afc.InPkts().Get(t)
 	t.Logf("otg:Flow in counters %v %v", flowName, inPkts)

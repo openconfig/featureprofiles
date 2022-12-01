@@ -105,6 +105,7 @@ func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
 func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
+	prot.Enabled = ygot.Bool(true)
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
 	glob.Instance = ygot.String(ISISName)
