@@ -322,6 +322,10 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 		Prefix: ygot.String(staticCIDR),
 	}
 	static.GetOrCreateNextHop("0").NextHop = oc.UnionString(atePort2.IPv4)
+
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, args.dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
 	gnmi.Replace(t, args.dut, ni.Static(staticCIDR).Config(), static)
 	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {
