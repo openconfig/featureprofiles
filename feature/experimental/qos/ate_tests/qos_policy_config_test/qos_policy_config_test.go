@@ -35,6 +35,12 @@ func TestMain(m *testing.M) {
 //    - /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set
 //    - /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set
 //    - /qos/classifiers/classifier/terms/term/config/id
+//  - classifiers on input interface:
+//    - /qos/interfaces/interface/interface-id,
+//    - /qos/interfaces/interface/config/interface-id
+//    - /qos/interfaces/interface/input/classifiers/classifier/type
+//    - /qos/interfaces/interface/input/classifiers/classifier/config/type
+//    - /qos/interfaces/interface/input/classifiers/classifier/config/name
 //  - forwarding-groups:
 //    - /qos/forwarding-groups/forwarding-group/config/name
 //    - /qos/forwarding-groups/forwarding-group/config/output-queue
@@ -185,8 +191,44 @@ func TestQoSPolicyConfig(t *testing.T) {
 	}
 
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	qosClassifiers := gnmi.GetAll(t, dut, gnmi.OC().Qos().ClassifierAny().Name().State())
-	t.Logf("qosClassifiers from telmetry: %v", qosClassifiers)
+	// qosClassifiers := gnmi.GetAll(t, dut, gnmi.OC().Qos().ClassifierAny().Name().Config())
+	// t.Logf("qosClassifiers from telmetry: %v", qosClassifiers)
+}
+
+func TestQoSInputIntfClassifierConfig(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	dp := dut.Port(t, "port1")
+
+	cases := []struct {
+		desc                string
+		inputClassifierType oc.E_Input_Classifier_Type
+		classifier          string
+	}{{
+		desc:                "Input Classifier Type IPV4",
+		inputClassifierType: oc.Input_Classifier_Type_IPV4,
+		classifier:          "dscp_based_classifier_ipv4",
+	}, {
+		desc:                "Input Classifier Type IPV6",
+		inputClassifierType: oc.Input_Classifier_Type_IPV6,
+		classifier:          "dscp_based_classifier_ipv6",
+	}}
+
+	d := &oc.Root{}
+	q := d.GetOrCreateQos()
+	i := q.GetOrCreateInterface(dp.Name())
+	i.SetInterfaceId(dp.Name())
+
+	t.Logf("qos input classifier config cases: %v", cases)
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
+			c.SetType(tc.inputClassifierType)
+			c.SetName(tc.classifier)
+		})
+	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	// inputIntf := gnmi.GetAll(t, dut, gnmi.OC().Qos().Interface(dp.Name()).Input().ClassifierAny().Name().Config())
+	// t.Logf("qos input interface from telmetry: %v", inputIntf)
 }
 
 func TestQoSForwadingGroupsConfig(t *testing.T) {
@@ -240,6 +282,6 @@ func TestQoSForwadingGroupsConfig(t *testing.T) {
 	}
 
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	qosfwdGroups := gnmi.GetAll(t, dut, gnmi.OC().Qos().ForwardingGroupAny().State())
-	t.Logf("qosfwdGroups from telmetry: %v", qosfwdGroups)
+	// qosfwdGroups := gnmi.GetAll(t, dut, gnmi.OC().Qos().ForwardingGroupAny().Name().Config())
+	// t.Logf("qosfwdGroups from telmetry: %v", qosfwdGroups)
 }
