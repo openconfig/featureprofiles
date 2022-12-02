@@ -347,7 +347,7 @@ def RunB4FPTest(self,
           f'--debug ' \
           f'--raw-command ' \
           f'-- ' \
-          f'{GO_BIN} test -v {test_path} {go_args} -args {test_args} -xml "{xml_results_file}"'
+          f'{GO_BIN} test -v {test_path} {go_args} -args {test_args} '
  
     start_time = self.get_current_time()
     try:
