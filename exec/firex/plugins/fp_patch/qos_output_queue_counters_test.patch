@@ -1,16 +1,16 @@
 diff --git a/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go b/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
-index 372f0342..0b2b4555 100644
+index 37394a6..86a9bc4 100644
 --- a/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
 +++ b/feature/experimental/qos/ate_tests/qos_output_queue_counters_test/qos_output_queue_counters_test.go
-@@ -15,6 +15,7 @@
- package qos_output_queue_counters_test
+@@ -23,6 +23,7 @@ import (
+ 	"github.com/openconfig/ondatra"
+ 	"github.com/openconfig/ondatra/gnmi"
+ 	"github.com/openconfig/ondatra/gnmi/oc"
++	"github.com/openconfig/ondatra/telemetry"
+ 	"github.com/openconfig/ygot/ygot"
+ )
  
- import (
-+	"sort"
- 	"testing"
- 	"time"
- 
-@@ -66,6 +67,7 @@ func TestQoSCounters(t *testing.T) {
+@@ -67,6 +68,7 @@ func TestQoSCounters(t *testing.T) {
  
  	// Configure DUT interfaces.
  	ConfigureDUTIntf(t, dut)
@@ -18,7 +18,7 @@ index 372f0342..0b2b4555 100644
  
  	// Configure ATE interfaces.
  	ate := ondatra.ATE(t, "ate")
-@@ -105,12 +107,13 @@ func TestQoSCounters(t *testing.T) {
+@@ -106,12 +108,13 @@ func TestQoSCounters(t *testing.T) {
  		}
  	case ondatra.CISCO:
  		trafficFlows = map[string]*trafficData{
@@ -38,8 +38,8 @@ index 372f0342..0b2b4555 100644
  		}
  	default:
  		t.Fatalf("Output queue mapping is missing for %v", dut.Vendor().String())
-@@ -219,3 +222,66 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
- 		dut.Config().Interface(intf.intfName).Replace(t, i)
+@@ -220,3 +223,67 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
+ 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
  	}
  }
 +func ConfigureDutQos(t *testing.T, dut *ondatra.DUTDevice) {
@@ -56,6 +56,7 @@ index 372f0342..0b2b4555 100644
 +	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 +	schedule := schedulerpol.GetOrCreateScheduler(1)
 +	schedule.Priority = telemetry.Scheduler_Priority_STRICT
++
 +	var ind uint64
 +	ind = 0
 +
@@ -64,9 +65,10 @@ index 372f0342..0b2b4555 100644
 +		input.Id = ygot.String(schedqueue)
 +		input.Weight = ygot.Uint64(7 - ind)
 +		input.Queue = ygot.String(schedqueue)
++
 +		ind += 1
 +	}
-+	dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Update(t, schedule)
++	dut.Config().Qos().SchedulerPolicy("eg_policy1111").Update(t, schedulerpol)
 +	schedinterface := qos.GetOrCreateInterface(dp2.Name())
 +	schedinterface.InterfaceId = ygot.String(dp2.Name())
 +	dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name().Update(t, "eg_policy1111")
@@ -76,11 +78,10 @@ index 372f0342..0b2b4555 100644
 +	classifiers.Name = ygot.String("pmap9")
 +	classifiers.Type = telemetry.Qos_Classifier_Type_IPV4
 +	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
-+	sort.Sort(sort.StringSlice(classmaps))
++
 +	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
-+	sort.Sort(sort.StringSlice(tclass))
++
 +	dscps := []int{1, 9, 17, 25, 33, 41, 56}
-+	sort.Sort(sort.IntSlice(dscps))
 +
 +	for index, classmap := range classmaps {
 +		terms := classifiers.GetOrCreateTerm(classmap)
