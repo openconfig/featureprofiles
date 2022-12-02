@@ -9,20 +9,20 @@ require (
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/gopacket v1.1.19
-	github.com/open-traffic-generator/snappi/gosnappi v0.9.8
+	github.com/open-traffic-generator/snappi/gosnappi v0.10.2
 	github.com/openconfig/gnmi v0.0.0-20220920173703-480bf53a74d2
 	github.com/openconfig/gnoi v0.0.0-20221111175026-79709cdf28e1
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
-	github.com/openconfig/goyang v1.1.0
+	github.com/openconfig/goyang v1.2.0
 	github.com/openconfig/gribi v0.1.1-0.20220622162620-08d53dffce45
 	github.com/openconfig/gribigo v0.0.0-20221005212504-61bfce3da52b
-	github.com/openconfig/ondatra v0.0.0-20221201183731-89ea1ae2f328
+	github.com/openconfig/ondatra v0.0.0-20221202185001-1b90e33d211b
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.6.2
-	github.com/openconfig/ygot v0.25.3
+	github.com/openconfig/ygot v0.25.4
 	github.com/p4lang/p4runtime v1.3.0
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
-	github.com/yuin/goldmark v1.3.5
+	github.com/yuin/goldmark v1.4.13
 	golang.org/x/crypto v0.1.0
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
