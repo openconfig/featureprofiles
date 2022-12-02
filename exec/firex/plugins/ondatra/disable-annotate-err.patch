@@ -1,0 +1,43 @@
+diff --git a/internal/rawapis/intercept.go b/internal/rawapis/intercept.go
+index e908c82..2b3479a 100644
+--- a/internal/rawapis/intercept.go
++++ b/internal/rawapis/intercept.go
+@@ -15,14 +15,11 @@
+ package rawapis
+ 
+ import (
+-	"golang.org/x/net/context"
+-	"fmt"
+ 	"sync/atomic"
+ 
++	"golang.org/x/net/context"
++
+ 	"google.golang.org/grpc"
+-	"google.golang.org/grpc/status"
+-	"google.golang.org/protobuf/encoding/prototext"
+-	"google.golang.org/protobuf/proto"
+ )
+ 
+ // withUnaryAnnotateErrors annotates every gRPC error returned by an RPC with
+@@ -69,12 +66,14 @@ func maybeAnnotateErr(err error, req any) error {
+ 	// 1. err is nil: there is no error to annotate
+ 	// 2. req is nil: there is no request to annotate with
+ 	// 3. err is not a grpc error: sentinel errors like io.EOF must be preserved
+-	if err != nil && req != nil {
+-		if st, ok := status.FromError(err); ok {
+-			reqText := prototext.Format(req.(proto.Message))
+-			msg := fmt.Sprintf("error on request {\n%s}: %s", reqText, st.Message())
+-			return status.Error(st.Code(), msg)
+-		}
+-	}
++	// if err != nil && req != nil {
++	// 	if st, ok := status.FromError(err); ok {
++	// 		if pm, ok := req.(proto.Message); ok {
++	// 			reqText := prototext.Format(pm)
++	// 			msg := fmt.Sprintf("error on request {\n%s}: %s {\n%v}", reqText, st.Message(), st.Details())
++	// 			return status.Error(st.Code(), msg)
++	// 		}
++	// 	}
++	// }
+ 	return err
+ }
