@@ -30,7 +30,8 @@ FP_REPO_CLONE_INFO = CloneInfo('git@wwwin-github.cisco.com:B4Test/featureprofile
 ONDATRA_PATCHES = [
     'exec/firex/plugins/ondatra/0001-windows-ixia-path.patch', 
     'exec/firex/plugins/ondatra/0002-disable-log.patch',
-    'exec/firex/plugins/ondatra/p4rt-error-msg-workaround.patch',
+    'exec/firex/plugins/ondatra/disable-annotate-err.patch',
+#    'exec/firex/plugins/ondatra/p4rt-error-msg-workaround.patch',
 #    'exec/firex/plugins/ondatra/tmp-disable-close-send.patch'
 ]
 
@@ -346,8 +347,8 @@ def RunB4FPTest(self,
           f'--debug ' \
           f'--raw-command ' \
           f'-- ' \
-          f'{GO_BIN} test -v {test_path} {go_args} -args {test_args} -xml {xml_results_file}'
-
+          f'{GO_BIN} test -v {test_path} {go_args} -args {test_args} -xml "{xml_results_file}"'
+ 
     start_time = self.get_current_time()
     try:
         inactivity_timeout = 1800

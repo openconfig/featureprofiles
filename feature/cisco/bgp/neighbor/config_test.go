@@ -17,7 +17,7 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	telemetryTimeout time.Duration = 30 * time.Second
+	telemetryTimeout time.Duration = 60 * time.Second
 	configApplyTime  time.Duration = 5 * time.Second // FIXME: Workaround
 	configDeleteTime time.Duration = 5 * time.Second // FIXME: Workaround
 	dutName          string        = "dut"
@@ -310,8 +310,8 @@ func TestTimersHoldTime(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []uint16{
-		81,
-		321,
+		60,
+		360,
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
@@ -323,10 +323,18 @@ func TestTimersHoldTime(t *testing.T) {
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time using value %v", input), func(t *testing.T) {
-			config := bgpConfig.Neighbor(neighbor_address).Timers().HoldTime()
+			// holdTime Should be 3x keepAlive, see RFC 4271 - A Border Gateway Protocol 4, Sec. 10
+			holdTime := input
+			keepAlive := holdTime / 3
+			Timers := &oc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
+				HoldTime:          ygot.Uint16(holdTime),
+				KeepaliveInterval: ygot.Uint16(keepAlive),
+			}
+
+			config := bgpConfig.Neighbor(neighbor_address).Timers()
 			state := bgpState.Neighbor(neighbor_address).Timers().HoldTime()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { config.Update(t, Timers) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
@@ -339,7 +347,7 @@ func TestTimersHoldTime(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 90 {
+				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 180 {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time fail: got %v", qs)
 				}
 			})
@@ -353,8 +361,8 @@ func TestTimersKeepaliveInterval(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []uint16{
-		65,
-		145,
+		60,
+		360,
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
@@ -366,23 +374,31 @@ func TestTimersKeepaliveInterval(t *testing.T) {
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval using value %v", input), func(t *testing.T) {
-			config := bgpConfig.Neighbor(neighbor_address).Timers().KeepaliveInterval()
+			// holdTime Should be 3x keepAlive, see RFC 4271 - A Border Gateway Protocol 4, Sec. 10
+			holdTime := input
+			keepAlive := holdTime / 3
+			Timers := &oc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
+				HoldTime:          ygot.Uint16(holdTime),
+				KeepaliveInterval: ygot.Uint16(keepAlive),
+			}
+
+			config := bgpConfig.Neighbor(neighbor_address).Timers()
 			state := bgpState.Neighbor(neighbor_address).Timers().KeepaliveInterval()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { config.Update(t, Timers) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
 				stateGot := state.Get(t)
-				if stateGot != input {
-					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/keepalive-interval: got %v, want %v", stateGot, input)
+				if stateGot != keepAlive {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/keepalive-interval: got %v, want %v", stateGot, keepAlive)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 30 {
+				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 60 {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval fail: got %v", qs)
 				}
 			})
@@ -951,8 +967,8 @@ func TestAfiSafiMaxPrefixes(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				config.Delete(t)
 				time.Sleep(configDeleteTime)
-				if qs := state.Lookup(t); qs.IsPresent() == true {
-					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes fail: got %v", qs)
+				if qs := state.Lookup(t); qs.Val(t) != uint32(4294967295) {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes fail: got %v,want %v", qs, uint32(4294967295))
 				}
 			})
 		})
