@@ -1,6 +1,6 @@
 name: "juniper-ixia"
 nodes: {
-    name: "cptx1"
+    name: "cptx"
     vendor: JUNIPER
     model: "cptx"
     os: "evo"
@@ -9,6 +9,13 @@ nodes: {
       config_path: "/home/evo/configdisk"
       config_file: "juniper.conf"
       file: "juniper.config"
+      cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert",
+                key_name: "N/A",
+                key_size: 4096,
+            }
+        }
     }
     interfaces: {
         key: "eth12"
@@ -22,7 +29,19 @@ nodes: {
           name: "et-0/0/2:0"
         }
     }
-    services:{
+    interfaces: {
+        key: "eth28"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+    interfaces: {
+        key: "eth36"
+        value: {
+          name: "et-0/0/4:0"
+        }
+    }
+   services:{
         key: 22
         value: {
             name: "ssh"
@@ -30,42 +49,47 @@ nodes: {
         }
     }
     services:{
-        key: 23
+        key: 9337
         value: {
-            inside: 23
-        }
-    }
-
-    services:{
-        key: 21
-        value: {
-            name: "ftp"
-            inside: 21
+            name: "gnoi"
+            outside: 9337
+            inside: 32767
         }
     }
     services:{
-        key: 20
-        value: {
-            inside: 20
-        }
-    }
-    services:{
-        key: 50051
+        key: 9339
         value: {
             name: "gnmi"
-            inside: 50051
+            outside: 9339
+            inside: 32767
+        }
+    }
+    services:{
+        key: 9340
+        value: {
+            name: "gribi"
+            outside: 9340
+            inside: 32767
+        }
+    }
+    services:{
+        key: 9559
+        value: {
+            name: "p4rt"
+            outside: 9559
+            inside: 32767
         }
     }
 }
 nodes: {
     name: "otg"
     vendor: KEYSIGHT
-    version: "0.0.1-3423"
+    version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
     services: {
-        key: 443
+        key: 8443
         value: {
             name: "https"
-            inside: 443
+            inside: 8443
         }
     }
     services: {
@@ -86,12 +110,24 @@ nodes: {
 links: {
     a_node: "otg"
     a_int: "eth1"
-    z_node: "cptx1"
+    z_node: "cptx"
     z_int: "eth12"
 }
 links: {
-    a_node: "otg"
-    a_int: "eth2"
-    z_node: "cptx1"
-    z_int: "eth20"
+    a_node: "cptx"
+    a_int: "eth20"
+    z_node: "otg"
+    z_int: "eth2"
+}
+links: {
+    a_node: "cptx"
+    a_int: "eth28"
+    z_node: "otg"
+    z_int: "eth3"
+}
+links: {
+    a_node: "cptx"
+    a_int: "eth36"
+    z_node: "otg"
+    z_int: "eth4"
 }

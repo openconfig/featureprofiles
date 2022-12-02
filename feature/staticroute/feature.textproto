@@ -12,6 +12,9 @@ config_path {
 config_path {
     path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop"
 }
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/interface-ref/config/interface"
+}
 telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix"
 }
@@ -21,7 +24,9 @@ telemetry_path {
 telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop"
 }
-
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/interface-ref/state/interface"
+}
 feature_profile_dependency {
   name: "networkinstance"
   version: 1

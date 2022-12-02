@@ -25,7 +25,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -79,9 +81,9 @@ var (
 )
 
 // configInterfaceDUT configures the DUT interfaces.
-func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -99,15 +101,15 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutPort1))
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
 
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutPort2))
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
 }
 
 // configureATE configures port1 and port2 on the ATE.
@@ -152,16 +154,16 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 
 	time.Sleep(time.Minute)
 
-	flowPath := ate.Telemetry().Flow(flow.Name())
+	flowPath := gnmi.OC().Flow(flow.Name())
 
 	if !wantLoss {
-		if got := flowPath.LossPct().Get(t); got != 0 {
+		if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got != 0 {
 			t.Errorf("FAIL: LossPct for flow named %s got %g, want 0", flow.Name(), got)
 		} else {
 			t.Logf("LossPct for flow named %s got %g, want 0", flow.Name(), got)
 		}
 	} else {
-		if got := flowPath.LossPct().Get(t); got != 100 {
+		if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got != 100 {
 			t.Errorf("FAIL: LossPct for flow named %s got %g, want 100", flow.Name(), got)
 		} else {
 			t.Logf("LossPct for flow named %s got %g, want 100", flow.Name(), got)
@@ -189,22 +191,24 @@ func addRoute(ctx context.Context, t *testing.T, args *testArgs, clientA *gribi.
 // verifyAFT verifies through AFT Telemetry if a route is present on the DUT.
 func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify through AFT Telemetry that %s is active", ateDstNetCIDR)
-	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := ipv4Path.Prefix().Watch(t, time.Minute, func(val *telemetry.QualifiedString) bool {
-		return val.IsPresent() && val.Val(t) == ateDstNetCIDR
+	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		prefix, present := val.Val()
+		return present && prefix == ateDstNetCIDR
 	}).Await(t); !ok {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got.Val(t), ateDstNetCIDR)
+		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 	}
 }
 
 // verifyNoAFT verifies through AFT Telemetry that a route is NOT present on the DUT.
 func verifyNoAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify through Telemetry that the route to %s is not present", ateDstNetCIDR)
-	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := ipv4Path.Prefix().Watch(t, time.Minute, func(val *telemetry.QualifiedString) bool {
-		return !val.IsPresent() || (val.IsPresent() && val.Val(t) == "")
+	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		prefix, present := val.Val()
+		return !present || (present && prefix == "")
 	}).Await(t); !ok {
-		t.Errorf("ipv4-entry/state/prefix got %s, want nil", got.Val(t))
+		t.Errorf("ipv4-entry/state/prefix got %s, want nil", got)
 	}
 }
 
@@ -256,10 +260,9 @@ func TestLeaderFailover(t *testing.T) {
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to false.
 		clientA := &gribi.Client{
-			DUT:                  dut,
-			FibACK:               false,
-			Persistence:          false,
-			InitialElectionIDLow: 10,
+			DUT:         dut,
+			FIBACK:      false,
+			Persistence: false,
 		}
 
 		defer clientA.Close(t)
@@ -268,6 +271,7 @@ func TestLeaderFailover(t *testing.T) {
 		if err := clientA.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection for clientA could not be established")
 		}
+		clientA.BecomeLeader(t)
 
 		t.Run("AddRoute", func(t *testing.T) {
 			t.Logf("Add gRIBI route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
@@ -310,16 +314,16 @@ func TestLeaderFailover(t *testing.T) {
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to true.
 		clientA := &gribi.Client{
-			DUT:                  args.dut,
-			FibACK:               false,
-			Persistence:          true,
-			InitialElectionIDLow: 10,
+			DUT:         args.dut,
+			FIBACK:      false,
+			Persistence: true,
 		}
 
 		t.Log("Reconnect clientA, with PERSISTENCE set to TRUE/PRESERVE")
 		if err := clientA.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection for clientA could not be re-established")
 		}
+		clientA.BecomeLeader(t)
 
 		defer clientA.Close(t)
 
@@ -359,18 +363,21 @@ func TestLeaderFailover(t *testing.T) {
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to true.
 		clientA := &gribi.Client{
-			DUT:                  args.dut,
-			FibACK:               false,
-			Persistence:          true,
-			InitialElectionIDLow: 10,
+			DUT:         args.dut,
+			FIBACK:      false,
+			Persistence: true,
 		}
 
 		t.Log("Reconnect clientA")
 		if err := clientA.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection for clientA could not be re-established")
 		}
+		clientA.BecomeLeader(t)
 
 		defer clientA.Close(t)
+
+		// Flush all gRIBI routes.
+		defer clientA.FlushAll(t)
 
 		t.Run("DeleteRoute", func(t *testing.T) {
 			t.Logf("Delete route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
