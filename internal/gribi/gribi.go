@@ -200,13 +200,14 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
 func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHOptions) {
 	t.Helper()
-	if address == "Decap" {
+	switch address {
+	case "Decap":
 		c.fluentC.Modify().AddEntry(t,
 			fluent.NextHopEntry().
 				WithNetworkInstance(instance).
 				WithIndex(nhIndex).
 				WithDecapsulateHeader(fluent.IPinIP))
-	} else if address == "DecapEncap" {
+	case "DecapEncap":
 		NH := fluent.NextHopEntry().
 			WithNetworkInstance(instance).
 			WithIndex(nhIndex)
@@ -217,7 +218,7 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, e
 			NH = NH.WithNextHopNetworkInstance(opt.VrfName)
 		}
 		c.fluentC.Modify().AddEntry(t, NH)
-	} else {
+	default:
 		c.fluentC.Modify().AddEntry(t,
 			fluent.NextHopEntry().
 				WithNetworkInstance(instance).

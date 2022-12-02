@@ -9,7 +9,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -21,18 +20,16 @@ import (
 const (
 	ipv4PrefixLen        = 30
 	ipv6PrefixLen        = 126
-	innerdstPfx          = "201.1.0.1"
-	dstPfxMin            = "203.0.113.0"
-	dstPfxMask           = "24"
+	innerdstPfx          = "203.0.113.55"
 	mask                 = "32"
-	primaryTunnelDstIP   = "198.51.100.1"
-	secondaryTunnelDstIP = "10.1.0.1"
+	primaryTunnelDstIP   = "203.0.113.1"
+	secondaryTunnelDstIP = "203.0.113.70"
 	secondaryTunnelSrcIP = "222.222.222.222"
 	vrfName              = "VRF-1"
 	NH1ID                = 1
 	NH2ID                = 2
 	NH3ID                = 3
-	innersrcPfx          = "5.5.5.5"
+	innersrcPfx          = "198.51.100.1"
 )
 
 // testArgs holds the objects needed by a test case.
@@ -133,26 +130,27 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 
 // configureDUT configures port1, port2, port3 and port4 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	d.Interface(p1.Name()).Update(t, dutPort1.NewInterface(p1.Name()))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
 
 	p2 := dut.Port(t, "port2")
-	d.Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
 
 	p3 := dut.Port(t, "port3")
-	d.Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 
 }
 
 // Add static route
 func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
-	s := &telemetry.Device{}
-	static := s.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	d := gnmi.OC()
+	s := &oc.Root{}
+	static := s.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	ipv4Nh := static.GetOrCreateStatic(innerdstPfx + "/" + mask).GetOrCreateNextHop(atePort3.IPv4)
 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort3.IPv4)
-	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Update(t, static)
+	gnmi.Update(t, dut, d.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 }
 
 // Add vrf VRF-1
@@ -203,7 +201,7 @@ func TestBackupNHGAction(t *testing.T) {
 	// Configure the gRIBI client client
 	client := gribi.Client{
 		DUT:         dut,
-		FIBACK:      false,
+		FIBACK:      true,
 		Persistence: true,
 	}
 	defer client.Close(t)
@@ -230,6 +228,7 @@ func TestBackupNHGAction(t *testing.T) {
 	}
 }
 
+// TE11.3 - case 1: next-hop viability triggers decap in backup NHG
 func testbackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Logf("Adding NH %d with ATE port-2 via gRIBI", NH1ID)
@@ -250,10 +249,20 @@ func testbackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	ateP := args.ate.Port(t, "port2")
 	args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(false).Send(t)
 	defer args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(true).Send(t)
+
+	p2 := args.dut.Port(t, "port2")
+	t.Log("Capture port2 status if down")
+	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 10*time.Second, oc.Interface_OperStatus_DOWN)
+	operStatus := gnmi.Get(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State())
+	if want := oc.Interface_OperStatus_DOWN; operStatus != want {
+		t.Errorf("Get(DUT port2 oper status): got %v, want %v", operStatus, want)
+	}
+
 	t.Log("Validate traffic passes through port3")
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port3"})
 }
 
+// TE11.3 - case 2: new tunnel viability triggers decap in the backup NHG
 func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Logf("Adding NH %d with ATE port-2 via gRIBI", NH3ID)
@@ -273,6 +282,14 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("an IPv4Entry for %s with primary DecapEncap & backup decap via gRIBI", primaryTunnelDstIP)
 	args.client.AddIPv4(t, primaryTunnelDstIP+"/"+mask, NH1ID, vrfName, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
+	p2 := args.dut.Port(t, "port2")
+	t.Log("Capture port2 status if Up")
+	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 10*time.Second, oc.Interface_OperStatus_UP)
+	operStatus := gnmi.Get(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State())
+	if want := oc.Interface_OperStatus_UP; operStatus != want {
+		t.Errorf("Get(DUT port2 oper status): got %v, want %v", operStatus, want)
+	}
+
 	t.Logf("Create base flow with dst %s", primaryTunnelDstIP)
 	BaseFlow := createFlow(t, args.ate, args.top, "Baseflow", primaryTunnelDstIP)
 	t.Logf("Validate traffic passes through port2")
@@ -282,6 +299,13 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	ateP := args.ate.Port(t, "port2")
 	args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(false).Send(t)
 	defer args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(true).Send(t)
+
+	t.Log("Capture port2 status if down")
+	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 10*time.Second, oc.Interface_OperStatus_DOWN)
+	operStatusAfterShut := gnmi.Get(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State())
+	if want := oc.Interface_OperStatus_DOWN; operStatusAfterShut != want {
+		t.Errorf("Get(DUT port2 oper status): got %v, want %v", operStatus, want)
+	}
 
 	t.Log("Validate traffic passes through port3")
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port3"})
