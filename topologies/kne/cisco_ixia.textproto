@@ -2,7 +2,7 @@ name: "cisco-ixia"
 nodes: {
     name: "otg"
     vendor: KEYSIGHT
-    version: "0.0.1-9999"
+    version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
     services: {
         key: 8443
         value: {
