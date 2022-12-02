@@ -258,9 +258,9 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) 
 }
 
 func (tc *testCase) isSupervisorReady(ctx context.Context, t *testing.T) error {
-	var counter int8
+	var counter int
 	const maxRetries = 15
-	for i := int8(1); i < maxRetries; i++ {
+	for i := 1; i < maxRetries; i++ {
 		if counter == maxRetries {
 			return fmt.Errorf("OS.Verify RPC did not report the standby supervisor state as available")
 		}
