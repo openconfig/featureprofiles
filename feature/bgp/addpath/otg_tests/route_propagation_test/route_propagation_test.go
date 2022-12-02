@@ -202,6 +202,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 	for neighbor := range d.bgpOC.Neighbor {
+		time.Sleep(5 * time.Second)
 		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
 			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 			Bgp().
