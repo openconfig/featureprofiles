@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 const (
 	ipv4PrefixLen         = 30
 	ipv6PrefixLen         = 126
-	instance              = "default"
+	instance              = "DEFAULT"
 	dstPfx                = "198.51.100.1"
 	mask                  = "32"
 	dstPfxMin             = "198.51.100.1"
@@ -228,16 +228,17 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 			t.Errorf("Incorrect value for InterfaceRef Subinterface  got %d, want %d", value, 1)
 		}
 	})
-	t.Run("Telemetry on NextHop EncapsulateHeader", func(t *testing.T) {
-		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).EncapsulateHeader()
-		value := path.Get(t)
-		t.Logf("NextHop EncapsulateHeader Value: %d", value)
-	})
-	t.Run("Telemetry on NextHop DecapsulateHeader", func(t *testing.T) {
-		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).DecapsulateHeader()
-		value := path.Get(t)
-		t.Logf("NextHop DecapsulateHeader Value: %d", value)
-	})
+	// NOT-SUPPORTED
+	// t.Run("Telemetry on NextHop EncapsulateHeader", func(t *testing.T) {
+	// 	path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).EncapsulateHeader()
+	// 	value := path.Get(t)
+	// 	t.Logf("NextHop EncapsulateHeader Value: %d", value)
+	// })
+	// t.Run("Telemetry on NextHop DecapsulateHeader", func(t *testing.T) {
+	// 	path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).DecapsulateHeader()
+	// 	value := path.Get(t)
+	// 	t.Logf("NextHop DecapsulateHeader Value: %d", value)
+	// })
 	t.Run("Telemetry on NextHop IpAddress", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).IpAddress()
 		value := path.Get(t)
@@ -259,8 +260,8 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Run("Telemetry on NextHop ProgrammedIndex", func(t *testing.T) {
 		path := args.dut.Telemetry().NetworkInstance(instance).Afts().NextHop(nexthop).ProgrammedIndex()
 		value := path.Get(t)
-		if value != 5002 {
-			t.Errorf("Incorrect value for NextHop ProgrammedIndex  got %d, want %d", value, 5002)
+		if value == 0 {
+			t.Errorf("Incorrect value for NextHop ProgrammedIndex  got %d, want non-zero", value)
 		}
 	})
 	t.Run("Telemetry on NextHopGroup ProgrammedId", func(t *testing.T) {
