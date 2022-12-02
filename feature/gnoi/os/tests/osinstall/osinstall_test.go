@@ -94,6 +94,9 @@ func TestOSInstall(t *testing.T) {
 		tc.activateOS(ctx, t, true)
 	}
 	tc.rebootDUT(ctx, t)
+	if tc.dualSup {
+		tc.isSupervisorReady(ctx, t)
+	}
 	tc.verifyInstall(ctx, t)
 }
 
@@ -252,6 +255,33 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) 
 	} else {
 		t.Log("OS.Install supervisor image transfer complete.")
 	}
+}
+
+func (tc *testCase) isSupervisorReady(ctx context.Context, t *testing.T) error {
+	var counter int8
+	const maxRetries = 15
+	for i := int8(1); i < maxRetries; i++ {
+		if counter == maxRetries {
+			return fmt.Errorf("OS.Verify RPC did not report the standby supervisor state as available")
+		}
+		counter++
+		r, err := tc.osc.Verify(ctx, &ospb.VerifyRequest{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		switch v := r.GetVerifyStandby().GetState().(type) {
+		case *ospb.VerifyStandby_StandbyState:
+			switch v.StandbyState.GetState() {
+			case ospb.StandbyState_UNSPECIFIED, ospb.StandbyState_UNSUPORTED:
+				t.Fatalf("OS.Verify RPC reported that the standby supervisor is %v", v.StandbyState.GetState())
+			case ospb.StandbyState_NON_EXISTENT, ospb.StandbyState_UNAVAILABLE:
+				t.Logf("OS.Verify RPC reported that the standby supervisor is %v, waiting 60s and retrying: %d/15", v.StandbyState.GetState(), counter)
+				time.Sleep(1 * time.Minute)
+			}
+		}
+	}
+	t.Logf("OS.Verify RPC Reported that the standby supervisor is AVAILABLE")
+	return nil
 }
 
 // verifyInstall validates the OS.Verify RPC returns no failures and version numbers match the
