@@ -242,7 +242,7 @@ func configureATE(t *testing.T, ateParams *bgpTestParams, connectionType connTyp
 
 // TestEstablishAndDisconnect Establishes BGP session between DUT and ATE and Verifies
 // abnormal termination of session using notification message:
-// Also configures and verifies MD5 authentication password
+// Also configures and verifies MD5 authentication password via BGP adajacency implicitly.
 func TestEstablishAndDisconnect(t *testing.T) {
 	// DUT configurations.
 	t.Log("Start DUT config load:")
