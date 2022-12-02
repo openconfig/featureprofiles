@@ -292,7 +292,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	// Verify BGP status
 	t.Log("Check BGP parameters")
 	verifyBgpTelemetry(t, dut)
-         
+
 	// Password authentication is currently disabled as how OC handles BGP password
 	// is still under debate.
 	//t.Log("Check Authentication password")
