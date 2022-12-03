@@ -302,6 +302,23 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	t.Log("Check BGP Capabilities")
 	verifyBGPCapabilities(t, dut)
 
+	t.Logf("Configure different md5 auth password on DUT to validate md5 authentication")
+	gnmi.Replace(t, dut, dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Config(), "PASSWORDNEGSCENARIO")
+	t.Logf("wait till hold time expires")
+	time.Sleep(time.Second * dutHoldTime)
+
+	t.Log("Verify BGP session state : Should not be in ESTABLISHED state when passwords does not match")
+	status := gnmi.Get(t, dut, nbrPath.SessionState().State())
+	if status == oc.Bgp_Neighbor_SessionState_ESTABLISHED {
+		t.Logf("BGP Adajcency is UP when passwords are not matching")
+		t.Errorf("Md5 authentication verification failed, %v", status)
+	}
+
+	t.Logf("Revert md5 auth password on DUT.")
+	gnmi.Replace(t, dut, dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
+	t.Log("Verify BGP session state : Should be ESTABLISHED")
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*50, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+
 	// Send Cease Notification from ATE to DUT
 	t.Log("Send Cease Notification from ATE to DUT")
 	ate.Actions().NewBGPPeerNotification().WithCode(6).WithSubCode(6).WithPeers(bgpPeer).Send(t)
