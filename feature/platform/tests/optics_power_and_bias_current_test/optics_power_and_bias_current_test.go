@@ -35,6 +35,7 @@ const (
 	maxOpticsPower         = 10.0
 	minOpticsHighThreshold = 1.0
 	maxOpticsLowThreshold  = -1.0
+	ethernetCsmacd  = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
 func TestMain(m *testing.M) {
@@ -126,6 +127,7 @@ func TestOpticsPowerUpdate(t *testing.T) {
 		t.Log(tc.desc)
 		intUpdateTime := 2 * time.Minute
 		t.Run(tc.desc, func(t *testing.T) {
+			i.Type = ethernetCsmacd
 			i.Enabled = ygot.Bool(tc.IntfStatus)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedStatus)
