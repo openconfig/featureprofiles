@@ -16,11 +16,6 @@ package fptest
 
 import (
 	"testing"
-
-	"github.com/openconfig/ondatra"
-	ci "github.com/openconfig/ondatra/config/interfaces"
-	ti "github.com/openconfig/ondatra/telemetry/interfaces"
-	"github.com/openconfig/ygot/ygot"
 )
 
 func TestSanitizeFilename(t *testing.T) {
@@ -38,22 +33,5 @@ func TestSanitizeFilename(t *testing.T) {
 func TestWriteOutput(t *testing.T) {
 	if err := WriteOutput("TestWriteOutput", ".json", "{}"); err != nil {
 		t.Errorf("writeOutput got error: %v", err)
-	}
-}
-
-func TestIsConfig(t *testing.T) {
-	cases := []struct {
-		path ygot.PathStruct
-		want bool
-	}{
-		{&ondatra.Config{}, true},
-		{&ci.InterfacePath{}, true},
-		{&ti.InterfacePath{}, false},
-	}
-
-	for i, c := range cases {
-		if got := isConfig(c.path); got != c.want {
-			t.Errorf("case[%d] got %v, want %v", i, got, c.want)
-		}
 	}
 }
