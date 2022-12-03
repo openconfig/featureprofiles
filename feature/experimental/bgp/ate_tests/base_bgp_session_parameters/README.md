@@ -16,7 +16,11 @@ Test the abnormal termination of session using notification message:
 
     *   Ensure session state should be `ESTABLISHED`.
     *   Verify BGP capabilities: route refresh, ASN32 and MPBGP.
-
+    *   Enable MD5 authentication on DUT and ATE. Password verification
+        is implicit, done through bgp adajcency.
+    *   Configure different password on DUT, Verify if BGP adajcency fails when     
+        passwords are not matching on DUT - ATE.
+    
 *   Verify BGP session disconnect by sending notification message from ATE.
 
     *   Send `CEASE` notification from ATE.
@@ -37,7 +41,6 @@ Test the normal session establishment and termination:
     And include the following session parameters for all cases:
 
     *   Explicitly specified Router ID.
-    *   Enable MD5 authentication on DUT and ATE.
     *   Explicit holdtime interval and keepalive interval.
     *   Explicit connect retry interval.
 
