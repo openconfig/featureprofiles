@@ -185,7 +185,7 @@ tests:
   priority: 5
 - name: dp-1.4 (QoS Interface Output Queue Counters) 
   path: feature/experimental/qos/ate_tests/qos_output_queue_counters_test
-  #patch: exec/firex/plugins/fp_patch/qos_output_queue_counters_test.patch
+  patch: exec/firex/plugins/fp_patch/qos_output_queue_counters_test.patch
   owner: arvbaska@cisco.com
   mustpass: true
   priority: 27
