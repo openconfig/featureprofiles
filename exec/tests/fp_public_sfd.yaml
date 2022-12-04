@@ -19,7 +19,7 @@ tests:
 #  priority: 3
 - name: TE-15.1 (gRIBI Compliance) 
   path: feature/gribi/ate_tests/gribigo_compliance_test
-  priority: 7
+  priority: 3
   owner: mananpat@cisco.com
   mustpass: true
 - name: TE-2.1 (gRIBI IPv4 Entry) 
