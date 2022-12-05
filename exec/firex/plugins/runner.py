@@ -58,7 +58,8 @@ whitelist_arguments([
     'test_patch',
     'test_timeout',
     'test_must_pass',
-    'test_debug'
+    'test_debug',
+    'apply_patches'
 ])
 
 @app.task(base=FireX, bind=True)
@@ -70,7 +71,8 @@ def BringupTestbed(self, ws, images = None,
                         ondatra_testbed_path=None,
                         ondatra_binding_path=None,
                         base_conf_path=None,
-                        skip_install=False):
+                        skip_install=False,
+                        apply_patches=True):
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
 
@@ -119,34 +121,33 @@ def BringupTestbed(self, ws, images = None,
                 base_conf_path = os.path.join(fp_repo_dir, base_conf_path)
             check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
 
-    with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
-        fp.write("replace github.com/openconfig/ondatra => ../ondatra")
+    if apply_patches:
+        with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
+            fp.write("replace github.com/openconfig/ondatra => ../ondatra")
+
+        fp_repo = git.Repo(fp_repo_dir)
+        fp_repo.config_writer().set_value("name", "email", "gob4").release()
+        fp_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
+
+        ondatra_repo = git.Repo(ondatra_repo_dir)
+        ondatra_repo.git.checkout("7558e3ba93a6f25cfdff517627b579f6cd903a25")
+        ondatra_repo.config_writer().set_value("name", "email", "gob4").release()
+        ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
+
+        for patch in FP_PATCHES:
+            fp_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo_dir, patch)])
+
+        fp_repo.git.add(update=True)
+        fp_repo.git.commit('-m', 'patched for testing')
+
+        if topo_file and len(topo_file) > 0:
+            ONDATRA_PATCHES.extend(ONDATRA_SIM_PATCHES)
         
-    # check_output(f'{GO_BIN} mod tidy', cwd=fp_repo_dir)
+        for patch in ONDATRA_PATCHES:
+            ondatra_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo_dir, patch)])
 
-    fp_repo = git.Repo(fp_repo_dir)
-    fp_repo.config_writer().set_value("name", "email", "gob4").release()
-    fp_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
-
-    ondatra_repo = git.Repo(ondatra_repo_dir)
-    ondatra_repo.git.checkout("7558e3ba93a6f25cfdff517627b579f6cd903a25")
-    ondatra_repo.config_writer().set_value("name", "email", "gob4").release()
-    ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
-
-    for patch in FP_PATCHES:
-        fp_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo_dir, patch)])
-
-    fp_repo.git.add(update=True)
-    fp_repo.git.commit('-m', 'patched for testing')
-
-    if topo_file and len(topo_file) > 0:
-        ONDATRA_PATCHES.extend(ONDATRA_SIM_PATCHES)
-        
-    for patch in ONDATRA_PATCHES:
-        ondatra_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo_dir, patch)])
-
-    ondatra_repo.git.add(update=True)
-    ondatra_repo.git.commit('-m', 'patched for testing')
+        ondatra_repo.git.add(update=True)
+        ondatra_repo.git.commit('-m', 'patched for testing')
 
     if (not topo_file or len(topo_file) == 0) and not skip_install:
         image_version = check_output(
@@ -212,6 +213,7 @@ def b4_fp_chain_provider(ws,
                          test_timeout=0,
                          test_must_pass=False,
                          test_debug=True,
+                         apply_patches=True,
                          **kwargs):
 
     if ondatra_binding_path[0] != '/':
@@ -234,6 +236,7 @@ def b4_fp_chain_provider(ws,
                     test_timeout=test_timeout,
                     test_must_pass=test_must_pass,
                     test_debug=test_debug,
+                    apply_patches=apply_patches,
                     **kwargs)
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
@@ -247,7 +250,7 @@ def b4_fp_chain_provider(ws,
     fp_repo.git.reset('--hard')
     fp_repo.git.clean('-xdf')
 
-    if test_patch:
+    if apply_patches and test_patch:
         chain |= PatchFP.s(fp_repo=fp_repo_dir, patch_path=test_patch)
 
     chain |= ReleaseIxiaPorts.s(ws=ws, fp_ws=fp_repo_dir, ondatra_binding_path=ondatra_binding_path)
@@ -265,7 +268,6 @@ def b4_fp_chain_provider(ws,
                 chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path)
 
     chain |= GoReporting.s(fp_ws=fp_repo_dir)
-
     return chain
 
 # noinspection PyPep8Naming
