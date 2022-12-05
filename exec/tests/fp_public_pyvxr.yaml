@@ -291,6 +291,7 @@ tests:
   priority: 45
 - name: FP_GNMI_System
   path: feature/system/tests
+  patch: exec/firex/plugins/fp_patch/system_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
   priority: 46

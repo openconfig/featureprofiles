@@ -1,5 +1,5 @@
 diff --git a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
-index 2f0fe644..cff236b6
+index 2f0fe644..cff236b6 100644
 --- a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
 +++ b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
 @@ -125,16 +125,19 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
@@ -158,3 +158,16 @@ index 2f0fe644..cff236b6
  					t.Errorf("Traffic flow got %v, want true", got)
  				}
  			})
+diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
+index 07866187..d3c3047e 100644
+--- a/internal/deviations/deviations.go
++++ b/internal/deviations/deviations.go
+@@ -106,4 +106,8 @@ var (
+ 	GNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
+ 
+ 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
++
++	SubinterfaceOriginCheck = flag.Bool("subinterface_origin_check", false, "Skip telemetry on subinterfaces/subinterface/neighbors/neighbors/state/origin till CSCwc63655 is fixed")
++
++    PortSpeedEnabled = flag.Bool("port_speed_enabled", false, "SKIP since XR does not support three of the leafs (DuplexMode and AutoNegotiate and PortSpeed)")
+ )
