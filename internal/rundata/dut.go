@@ -143,7 +143,18 @@ func (di *dutInfo) setFromLLDP(ctx context.Context, y components.Y) {
 //
 // This is the new OpenConfig mechanism.
 func (di *dutInfo) setFromSystem(ctx context.Context, y components.Y) {
-	//lint:ignore U1000 Uncomment this once Ondatra updates the ygnmi generated package.
+	if di.osver != "" {
+		softVerPath := ocpath.Root().System().SoftwareVersion()
+		softVer, err := ygnmi.Get(ctx, y.Client, softVerPath.State())
+		if err != nil {
+			glog.Errorf("Missing system software-version: %v", err)
+		} else {
+			di.osver = softVer
+			glog.V(2).Infof("Setting osver from system software-version: %s", di.osver)
+		}
+	}
+
+	//lint:ignore U1000 Uncomment this once "model" is defined.
 	const notSupported = `
 	if di.model != "" {
 		modelPath := ocpath.Root().System().Model()
@@ -153,17 +164,6 @@ func (di *dutInfo) setFromSystem(ctx context.Context, y components.Y) {
 		} else {
 			di.model = model
 			glog.V(2).Infof("Setting model from system model: %s", di.model)
-		}
-	}
-
-	if di.osver != "" {
-		softVerPath := ocpath.Root().System().SoftwareVersion()
-		softVer, err := ygnmi.Get(ctx, y.Client, softVerPath.State())
-		if err != nil {
-			glog.Errorf("Missing system software-version: %v", err)
-		} else {
-			di.osver = softVer
-			glog.V(2).Infof("Setting osver from system software-version: %s", di.osver)
 		}
 	}
 `

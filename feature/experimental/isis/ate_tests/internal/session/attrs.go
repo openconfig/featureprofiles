@@ -99,8 +99,8 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
 	return intf
 }
 
-// NewInterface returns a new *oc.Interface configured with these attributes
-func (a *Attributes) NewInterface(name string) *oc.Interface {
+// NewOCInterface returns a new *oc.Interface configured with these attributes
+func (a *Attributes) NewOCInterface(name string) *oc.Interface {
 	return a.ConfigInterface(&oc.Interface{Name: ygot.String(name)})
 }
 
