@@ -492,11 +492,6 @@ func TestEstablish(t *testing.T) {
 	t.Logf("Start DUT interface Config")
 	configureDUT(t, dut)
 
-	d := &oc.Root{}
-	t.Log("Configure BGP Policy with BGP actions on the neighbor")
-	rpl := configureBGPPolicy(d)
-	//dut.Config().RoutingPolicy().Replace(t, rpl)
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
 	// Configure Network instance type on DUT
 	t.Log("Configure Network Instance type")
 	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
