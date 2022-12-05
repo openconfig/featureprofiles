@@ -28,7 +28,7 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -84,7 +84,7 @@ var (
 )
 
 type PacketIO interface {
-	GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEntryInfo
+	GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo
 	GetPacketTemplate() *PacketIOPacket
 	GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow
 	GetEgressPort() []string
@@ -112,7 +112,7 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 	err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   deviceID,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
-		Updates: wbb.ACLWbbIngressTableEntryGet(
+		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete),
 		),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
@@ -455,12 +455,12 @@ type GDPPacketIO struct {
 }
 
 // GetTableEntry creates wbb acl entry related to GDP.
-func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEntryInfo {
+func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
 	if delete {
 		actionType = p4_v1.Update_DELETE
 	}
-	return []*wbb.ACLWbbIngressTableEntryInfo{{
+	return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
 		EtherType:     0x6007,
 		EtherTypeMask: 0xFFFF,

@@ -27,7 +27,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -150,9 +149,9 @@ func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *att
 	s6.Mtu = ygot.Uint32(uint32(tc.mtu))
 }
 
-func (tc *testCase) configureDUTBreakout(t *testing.T) *telemetry.Component_Port_BreakoutMode_Group {
+func (tc *testCase) configureDUTBreakout(t *testing.T) *oc.Component_Port_BreakoutMode_Group {
 	t.Helper()
-	d := tc.dut.Config()
+	d := gnmi.OC()
 	tc.breakoutPorts = make(map[string][]string)
 
 	for _, dp := range tc.dut.Ports() {
@@ -160,18 +159,18 @@ func (tc *testCase) configureDUTBreakout(t *testing.T) *telemetry.Component_Port
 		if dp.PMD() != ondatra.PMD100GBASEFR {
 			continue
 		}
-		parent := tc.dut.Telemetry().Interface(dp.Name()).HardwarePort().Get(t)
+		parent := gnmi.Get(t, tc.dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
 		tc.breakoutPorts[parent] = append(tc.breakoutPorts[parent], dp.Name())
 	}
-	var group *telemetry.Component_Port_BreakoutMode_Group
+	var group *oc.Component_Port_BreakoutMode_Group
 	for physical := range tc.breakoutPorts {
-		bmode := &telemetry.Component_Port_BreakoutMode{}
+		bmode := &oc.Component_Port_BreakoutMode{}
 		bmp := d.Component(physical).Port().BreakoutMode()
 		group = bmode.GetOrCreateGroup(0)
 		// TODO(liulk): use one of the logical port.Speed().
-		group.BreakoutSpeed = telemetry.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+		group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 		group.NumBreakouts = ygot.Uint8(4)
-		bmp.Replace(t, bmode)
+		gnmi.Replace(t, tc.dut, bmp.Config(), bmode)
 	}
 	return group
 
@@ -282,7 +281,7 @@ func (tc *testCase) verifyInterfaceDUT(
 
 // verifyDUT checks the telemetry against the parameters set by
 // configureDUT().
-func (tc *testCase) verifyDUT(t *testing.T, breakoutGroup *telemetry.Component_Port_BreakoutMode_Group) {
+func (tc *testCase) verifyDUT(t *testing.T, breakoutGroup *oc.Component_Port_BreakoutMode_Group) {
 	t.Run("Port1", func(t *testing.T) {
 		tc.verifyInterfaceDUT(t, tc.dut.Port(t, "port1"), tc.duti1, &ateSrc)
 	})
