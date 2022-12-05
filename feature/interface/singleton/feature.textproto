@@ -54,6 +54,12 @@ config_path {
 telemetry_path {
   path: "/interfaces/interface/state/forwarding-viable"
 }
+config_path {
+  path: "/interfaces/interface/config/loopback-mode"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/loopback-mode"
+}
 telemetry_path {
   path: "/interfaces/interface/state/oper-status"
 }
@@ -146,6 +152,12 @@ config_path {
 }
 telemetry_path {
   path: "/interfaces/interface/ethernet/state/enable-flow-control"
+}
+config_path {
+  path: "/interfaces/interface/ethernet/config/auto-negotiate"
+}
+telemetry_path {
+  path: "/interfaces/interface/ethernet/state/auto-negotiate"
 }
 telemetry_path {
   path: "/interfaces/interface/ethernet/state/counters/in-mac-pause-frames"
