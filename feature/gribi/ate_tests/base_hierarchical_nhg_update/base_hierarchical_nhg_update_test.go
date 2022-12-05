@@ -255,9 +255,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p1VRF.Subinterface = ygot.Uint32(0)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), vrf)
 
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
-	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
+	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
+	gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
