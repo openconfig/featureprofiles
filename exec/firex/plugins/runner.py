@@ -59,7 +59,8 @@ whitelist_arguments([
     'test_timeout',
     'test_must_pass',
     'test_debug',
-    'apply_patches'
+    'apply_patches',
+    'exec_repo_dir'
 ])
 
 @app.task(base=FireX, bind=True)
@@ -72,7 +73,8 @@ def BringupTestbed(self, ws, images = None,
                         ondatra_binding_path=None,
                         base_conf_path=None,
                         skip_install=False,
-                        apply_patches=True):
+                        apply_patches=True,
+                        exec_repo_dir=None):
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
 
@@ -80,6 +82,9 @@ def BringupTestbed(self, ws, images = None,
                         ONDATRA_REPO_CLONE_INFO.path)
     fp_repo_dir = os.path.join(pkgs_parent_path, 
                         FP_REPO_CLONE_INFO.path)
+    
+    if not exec_repo_dir:
+        exec_repo_dir = fp_repo_dir
 
     c = B4GoClone.s(b4go_pkg_url=ONDATRA_REPO_CLONE_INFO.url,
                         b4go_pkg_path=ondatra_repo_dir,
@@ -95,7 +100,7 @@ def BringupTestbed(self, ws, images = None,
 
     if topo_file and len(topo_file) > 0:
         if topo_file[0] != '/':
-            topo_file = os.path.join(fp_repo_dir, topo_file)
+            topo_file = os.path.join(exec_repo_dir, topo_file)
 
         c = InjectArgs(**self.abog)
         c |= self.orig.s(plat='8000', topo_file=topo_file)
@@ -111,14 +116,14 @@ def BringupTestbed(self, ws, images = None,
             file=ondatra_testbed_path)
     else:
         if ondatra_binding_path[0] != '/':
-            ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
+            ondatra_binding_path = os.path.join(exec_repo_dir, ondatra_binding_path)
 
         if ondatra_testbed_path[0] != '/':
-            ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
+            ondatra_testbed_path = os.path.join(exec_repo_dir, ondatra_testbed_path)
 
         if base_conf_path and len(base_conf_path) > 0:
             if base_conf_path[0] != '/':
-                base_conf_path = os.path.join(fp_repo_dir, base_conf_path)
+                base_conf_path = os.path.join(exec_repo_dir, base_conf_path)
             check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
 
     if apply_patches:
@@ -135,7 +140,7 @@ def BringupTestbed(self, ws, images = None,
         ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
 
         for patch in FP_PATCHES:
-            fp_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo_dir, patch)])
+            fp_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(exec_repo_dir, patch)])
 
         fp_repo.git.add(update=True)
         fp_repo.git.commit('-m', 'patched for testing')
@@ -144,7 +149,7 @@ def BringupTestbed(self, ws, images = None,
             ONDATRA_PATCHES.extend(ONDATRA_SIM_PATCHES)
         
         for patch in ONDATRA_PATCHES:
-            ondatra_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo_dir, patch)])
+            ondatra_repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(exec_repo_dir, patch)])
 
         ondatra_repo.git.add(update=True)
         ondatra_repo.git.commit('-m', 'patched for testing')
@@ -214,12 +219,20 @@ def b4_fp_chain_provider(ws,
                          test_must_pass=False,
                          test_debug=True,
                          apply_patches=True,
+                         exec_repo_dir=None,
                          **kwargs):
 
+    pkgs_parent_path = os.path.join(ws, f'go_pkgs')
+    fp_repo_dir = os.path.join(pkgs_parent_path, 
+                    FP_REPO_CLONE_INFO.path)
+
+    if not exec_repo_dir:
+        exec_repo_dir = fp_repo_dir
+
     if ondatra_binding_path[0] != '/':
-        ondatra_binding_path = os.path.join(fp_repo_dir, ondatra_binding_path)
+        ondatra_binding_path = os.path.join(exec_repo_dir, ondatra_binding_path)
     if ondatra_testbed_path[0] != '/':
-        ondatra_testbed_path = os.path.join(fp_repo_dir, ondatra_testbed_path)
+        ondatra_testbed_path = os.path.join(exec_repo_dir, ondatra_testbed_path)
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
@@ -238,11 +251,6 @@ def b4_fp_chain_provider(ws,
                     test_debug=test_debug,
                     apply_patches=apply_patches,
                     **kwargs)
-
-    pkgs_parent_path = os.path.join(ws, f'go_pkgs')
-
-    fp_repo_dir = os.path.join(pkgs_parent_path, 
-                        FP_REPO_CLONE_INFO.path)
     
     fp_repo = git.Repo(fp_repo_dir)
     fp_repo.git.reset('--hard')
@@ -251,9 +259,9 @@ def b4_fp_chain_provider(ws,
     fp_repo.git.clean('-xdf')
 
     if apply_patches and test_patch:
-        chain |= PatchFP.s(fp_repo=fp_repo_dir, patch_path=test_patch)
+        chain |= PatchFP.s(fp_repo=fp_repo_dir, patch_path=os.path.join(exec_repo_dir, test_patch))
 
-    chain |= ReleaseIxiaPorts.s(ws=ws, fp_ws=fp_repo_dir, ondatra_binding_path=ondatra_binding_path)
+    chain |= ReleaseIxiaPorts.s(ws=ws, fp_ws=exec_repo_dir, ondatra_binding_path=ondatra_binding_path)
 
     if fp_pre_tests:
         for pt in fp_pre_tests:
@@ -267,14 +275,14 @@ def b4_fp_chain_provider(ws,
             for k, v in pt.items():
                 chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path)
 
-    chain |= GoReporting.s(fp_ws=fp_repo_dir)
+    chain |= GoReporting.s(fp_ws=exec_repo_dir)
     return chain
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def PatchFP(self, fp_repo, patch_path):
     repo = git.Repo(fp_repo)
-    repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', os.path.join(fp_repo, patch_path)])
+    repo.git.apply(['--ignore-space-change', '--ignore-whitespace', '-v', patch_path])
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
