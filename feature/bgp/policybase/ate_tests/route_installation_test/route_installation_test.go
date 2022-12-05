@@ -407,7 +407,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
 		WithSrcEndpoints(iDut1).
 		WithDstEndpoints(iDut2).
 		WithHeaders(ethHeader, ipv4Header).
-		WithFrameSize(512).WithFrameRateFPS(100)
+		WithFrameSize(512)
 
 	// BGP IP V6 traffic
 	ipv6Header := ondatra.NewIPv6Header()
@@ -418,7 +418,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
 		WithSrcEndpoints(iDut1).
 		WithDstEndpoints(iDut2).
 		WithHeaders(ethHeader, ipv6Header).
-		WithFrameSize(512).WithFrameRateFPS(100)
+		WithFrameSize(512)
 
 	return []*ondatra.Flow{flowipv4, flowipv6}
 }
