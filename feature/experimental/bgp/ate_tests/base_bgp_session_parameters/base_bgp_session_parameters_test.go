@@ -257,7 +257,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 
 	// ATE Configuration.
-	t.Log("configure port and BGP configs on ATE")
+	t.Log("Configure port and BGP configs on ATE")
 	ate := ondatra.ATE(t, "ate")
 	port1 := ate.Port(t, "port1")
 	topo := ate.Topology().New()
@@ -333,7 +333,7 @@ func TestPassword(t *testing.T) {
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 
 	// ATE Configuration.
-	t.Log("configure port and BGP configs on ATE")
+	t.Log("Configure port and BGP configs on ATE")
 	ate := ondatra.ATE(t, "ate")
 	port1 := ate.Port(t, "port1")
 	topo := ate.Topology().New()
@@ -351,19 +351,19 @@ func TestPassword(t *testing.T) {
 	t.Log("Check BGP parameters")
 	verifyBgpTelemetry(t, dut)
 
-	t.Logf("Configure mismatching md5 auth password on DUT")
+	t.Log("Configure mismatching md5 auth password on DUT")
 	gnmi.Replace(t, dut, dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Config(), "PASSWORDNEGSCENARIO")
-	t.Logf("wait till hold time expires...")
+	t.Log("Wait till hold time expires...")
 	time.Sleep(time.Second * dutHoldTime)
 
 	t.Log("Verify BGP session state : Should not be in ESTABLISHED state when passwords does not match")
 	status := gnmi.Get(t, dut, nbrPath.SessionState().State())
 	if status == oc.Bgp_Neighbor_SessionState_ESTABLISHED {
-		t.Logf("BGP Adajcency is UP when passwords are not matching")
+		t.Log("BGP Adjacency is UP when passwords are not matching")
 		t.Errorf("Md5 authentication verification failed, %v", status)
 	}
 
-	t.Logf("Revert md5 auth password on DUT to match with ATE.")
+	t.Log("Revert md5 auth password on DUT to match with ATE.")
 	gnmi.Replace(t, dut, dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
 	t.Log("Verify BGP session state : Should be ESTABLISHED")
 	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*50, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
