@@ -22,7 +22,6 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -31,7 +30,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra/gnmi"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -250,7 +249,7 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, dstPfx, NHGID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 
 	// create flow
-	dstMac := args.ate.OTG().Telemetry().Interface(atePort1.Name + ".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().Get(t)
+	dstMac := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
 	BaseFlow := createFlow(t, args.ate, args.top, "BaseFlow", dstMac)
 
 	// validate programming using AFT
@@ -301,8 +300,8 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, ateTop gosnappi.
 	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), ateTop)
 	otgutils.LogPortMetrics(t, ate.OTG(), ateTop)
-	flowPath := ate.OTG().Telemetry().Flow(flow)
-	got := flowPath.LossPct().Get(t)
+	flowPath := gnmi.OTG().Flow(flow)
+	got := gnmi.Get(t, ate.OTG(), flowPath.LossPct().State())
 	if drop {
 		if got != 100 {
 			t.Fatalf("Traffic passing for flow %s got %f, want 100 percent loss", flow, got)
@@ -318,10 +317,10 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, ateTop gosnappi.
 func flapinterface(t *testing.T, dut *ondatra.DUTDevice, port string, action bool) {
 	// Currently, setting the OTG port down has no effect on kne and thus the corresponding dut port will be used
 	dutP := dut.Port(t, port)
-	dc := dut.Config()
-	i := &telemetry.Interface{}
+	dc := gnmi.OC()
+	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(action)
-	dc.Interface(dutP.Name()).Update(t, i)
+	gnmi.Update(t, dut, dc.Interface(dutP.Name()).Config(), i)
 }
 
 // aftCheck does ipv4, NHG and NH aft check
@@ -362,8 +361,7 @@ func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, expectedNH []
 func waitOTGARPEntry(t *testing.T) {
 	t.Helper()
 	ate := ondatra.ATE(t, "ate")
-	ate.OTG().Telemetry().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-			return val.IsPresent()
-		}).Await(t)
+	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
 }
