@@ -46,7 +46,9 @@ FP_PATCHES = [
 
 whitelist_arguments([
     'ondatra_repo_branch', 
+    'fp_repo_url',
     'fp_repo_branch', 
+    'fp_repo_rev',
     'topo_file',
     'ondatra_binding_path',
     'ondatra_testbed_path', 
@@ -64,10 +66,12 @@ whitelist_arguments([
 ])
 
 @app.task(base=FireX, bind=True)
-@returns('ondatra_binding_path', 'ondatra_testbed_path')
+@returns('ondatra_binding_path', 'ondatra_testbed_path', 'exec_repo_dir', 'fp_repo_dir')
 def BringupTestbed(self, ws, images = None,  
                         ondatra_repo_branch='main',
+                        fp_repo_url=FP_REPO_CLONE_INFO.url,
                         fp_repo_branch='master',  
+                        fp_repo_rev=None,
                         topo_file=None,                      
                         ondatra_testbed_path=None,
                         ondatra_binding_path=None,
@@ -92,11 +96,15 @@ def BringupTestbed(self, ws, images = None,
 
     self.enqueue_child_and_get_results(c)
 
-    c = B4GoClone.s(b4go_pkg_url=FP_REPO_CLONE_INFO.url,
+    c = B4GoClone.s(b4go_pkg_url=fp_repo_url,
                         b4go_pkg_path=fp_repo_dir,
                         b4go_pkg_branch=fp_repo_branch)
 
     self.enqueue_child_and_get_results(c)
+
+    if fp_repo_rev:
+        fp_repo = git.Repo(fp_repo_dir)
+        fp_repo.git.checkout(fp_repo_rev)
 
     if topo_file and len(topo_file) > 0:
         if topo_file[0] != '/':
@@ -188,7 +196,7 @@ def BringupTestbed(self, ws, images = None,
         check_output(testbed_info_cmd, cwd=fp_repo_dir)
     except: pass
 
-    return ondatra_binding_path, ondatra_testbed_path
+    return ondatra_binding_path, ondatra_testbed_path, exec_repo_dir, fp_repo_dir
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, uid, ws):
@@ -208,8 +216,8 @@ def b4_fp_chain_provider(ws,
                          cflow,
                          ondatra_testbed_path,
                          ondatra_binding_path,
-                         ondatra_repo_branch='main',
-                         fp_repo_branch='master',
+                         exec_repo_dir,
+                         fp_repo_dir,
                          fp_pre_tests=[],
                          fp_post_tests=[],
                          test_path=None,
@@ -219,20 +227,7 @@ def b4_fp_chain_provider(ws,
                          test_must_pass=False,
                          test_debug=True,
                          apply_patches=True,
-                         exec_repo_dir=None,
                          **kwargs):
-
-    pkgs_parent_path = os.path.join(ws, f'go_pkgs')
-    fp_repo_dir = os.path.join(pkgs_parent_path, 
-                    FP_REPO_CLONE_INFO.path)
-
-    if not exec_repo_dir:
-        exec_repo_dir = fp_repo_dir
-
-    if ondatra_binding_path[0] != '/':
-        ondatra_binding_path = os.path.join(exec_repo_dir, ondatra_binding_path)
-    if ondatra_testbed_path[0] != '/':
-        ondatra_testbed_path = os.path.join(exec_repo_dir, ondatra_testbed_path)
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
@@ -253,8 +248,6 @@ def b4_fp_chain_provider(ws,
                     **kwargs)
     
     fp_repo = git.Repo(fp_repo_dir)
-    fp_repo.git.reset('--hard')
-    fp_repo.git.checkout(fp_repo_branch)
     fp_repo.git.reset('--hard')
     fp_repo.git.clean('-xdf')
 
