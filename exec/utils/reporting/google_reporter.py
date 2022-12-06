@@ -41,11 +41,13 @@ parser = argparse.ArgumentParser(description='Generate MD FireX report')
 parser.add_argument('test_suites', help='Testsuite files')
 parser.add_argument('firex_ids', help='FireX run IDs')
 parser.add_argument('out_dir', help='Output directory')
+parser.add_argument('--patches', default=False, action='store_true', help="include patches")
 args = parser.parse_args()
 
 testsuite_files = args.test_suites
 firex_ids= args.firex_ids
 out_dir = args.out_dir
+include_patches = args.patches
 
 for firex_id in firex_ids.split(','):
     logs_dir = os.path.join(constants.base_logs_dir, firex_id, 'tests_logs')
@@ -61,3 +63,5 @@ for firex_id in firex_ids.split(','):
                 test_out_dir = os.path.join(out_dir, t['path'])
                 os.makedirs(test_out_dir, exist_ok=True)
                 shutil.copyfile(log_files[0], os.path.join(test_out_dir, "test.xml"))
+                if include_patches and 'patch' in t and os.path.exists(t['patch']):
+                    shutil.copyfile(t['patch'], os.path.join(test_out_dir, "test.patch"))
