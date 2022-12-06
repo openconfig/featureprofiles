@@ -19,8 +19,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -29,8 +28,9 @@ func AssignToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, i string, ni st
 	if ni == "" {
 		t.Fatalf("Network instance not provided for interface assignment")
 	}
-	netInst := &oc.NetworkInstance{Name: ygot.String(ni)}
-	intf := &oc.Interface{Name: ygot.String(i)}
+
+	netInst := &telemetry.NetworkInstance{Name: ygot.String(ni)}
+	intf := &telemetry.Interface{Name: ygot.String(i)}
 	netInstIntf, err := netInst.NewInterface(intf.GetName())
 	if err != nil {
 		t.Errorf("Error fetching NewInterface for %s", intf.GetName())
