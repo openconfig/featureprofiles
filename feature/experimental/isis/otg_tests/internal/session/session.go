@@ -26,6 +26,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/networkinstance"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
@@ -48,9 +49,10 @@ const (
 	ATEAreaAddress = "49.0002"
 	DUTSysID       = "1920.0000.2001"
 	ATESysID       = "640000000001"
-	ISISName       = "isis"
-	pLen4          = 30
-	pLen6          = 126
+	// TODO: Change the name to DEFAULT
+	ISISName = "osisis"
+	pLen4    = 30
+	pLen6    = 126
 )
 
 var (
@@ -135,12 +137,15 @@ func addISISTopo(dev gosnappi.Device, areaAddress, sysID string) {
 	devIsis.Advanced().
 		SetAreaAddresses([]string{strings.Replace(areaAddress, ".", "", -1)})
 
-	devIsis.Interfaces().
+	devIsisInt := devIsis.Interfaces().
 		Add().
 		SetEthName(dev.Ethernets().Items()[0].Name()).
 		SetName("devIsisInt").
 		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2)
+
+	devIsisInt.Advanced().
+		SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
 
 }
 
@@ -186,8 +191,6 @@ func New(t testing.TB) (*TestSession, error) {
 		s.ATETop = otg.NewConfig(t)
 		s.ATEPort1 = s.ATE.Port(t, "port1")
 		s.ATEPort2 = s.ATE.Port(t, "port2")
-		s.ATETop.Ports().Add().SetName(s.ATEPort1.ID())
-		s.ATETop.Ports().Add().SetName(s.ATEPort2.ID())
 		s.ATEIntf1 = ATEISISAttrs.AddToOTG(s.ATETop, s.ATEPort1, DUTISISAttrs)
 		s.ATEIntf2 = ATETrafficAttrs.AddToOTG(s.ATETop, s.ATEPort2, DUTTrafficAttrs)
 	}
@@ -296,4 +299,33 @@ func (s *TestSession) MustAdjacency(t testing.TB) string {
 		t.Fatalf("Waiting for adjacency to form: %v", err)
 	}
 	return adjID
+}
+
+// MustATEInterface returns the ATE interface for the portID, or calls t.Fatal
+// if this fails.
+func (s *TestSession) MustATEInterface(t testing.TB, portID string) gosnappi.Device {
+	if s.ATE == nil {
+		t.Fatal("Cannot run test without ATE")
+	}
+	for _, d := range s.ATETop.Devices().Items() {
+		Eth := d.Ethernets().Items()[0]
+		if Eth.PortName() == portID {
+			return d
+		}
+	}
+	return nil
+}
+
+// GetPacketLoss returns the packet loss for a given flow
+func (s *TestSession) GetPacketLoss(t testing.TB, flow gosnappi.Flow) int64 {
+	t.Helper()
+	flowMetric := gnmi.Get(t, s.ATE.OTG(), gnmi.OTG().Flow(flow.Name()).State())
+	txPackets := flowMetric.GetCounters().GetOutPkts()
+	rxPackets := flowMetric.GetCounters().GetInPkts()
+	lossPct := int64((txPackets - rxPackets) * 100 / txPackets)
+
+	if txPackets == 0 {
+		return -1
+	}
+	return lossPct
 }
