@@ -19,13 +19,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry/ateflow"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -70,6 +71,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: 30,
 	}
@@ -82,6 +84,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: 30,
 	}
@@ -102,7 +105,8 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ateTop := configureATE(t, ate)
 
-	ateTop.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, ateTop)
+	ate.OTG().StartProtocols(t)
 	configureNetworkInstance(t, dut)
 
 	// Configure the gRIBI client clientA and make it leader.
@@ -179,15 +183,12 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 }
 
 // flushNonDefaultVrfPrimary issues flush request from clientA (the primary client) non default VRF should succeed.
-func flushNonDefaultVrfPrimary(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology) {
+func flushNonDefaultVrfPrimary(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, ate *ondatra.ATEDevice, ateTop gosnappi.Config) {
 
 	t.Log("Test traffic between ATE port-1 and ATE port-2 for destinations within 198.51.100.0/24")
-	srcEndPoint := ateTop.Interfaces()[atePort1.Name]
-	dstEndPoint := ateTop.Interfaces()[atePort2.Name]
 
-	flowPath := testTraffic(t, ate, ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got > 0 {
-		t.Errorf("LossPct for flow got %g, want 0", got)
+	if got := testTraffic(t, ate, ateTop); got > 0 {
+		t.Errorf("LossPct for flow got %v, want 0", got)
 	} else {
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
 	}
@@ -200,8 +201,7 @@ func flushNonDefaultVrfPrimary(ctx context.Context, t *testing.T, dut *ondatra.D
 	}
 
 	t.Log("After flush, left entry should be 0, and packets can no longer be forwarded")
-	flowPath = testTraffic(t, ate, ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got == 0 {
+	if got := testTraffic(t, ate, ateTop); got == 0 {
 		t.Error("Traffic can still be forwarded between ATE port-1 and ATE port-2")
 	} else {
 		t.Log("Traffic can not be forwarded between ATE port-1 and ATE port-2")
@@ -212,7 +212,7 @@ func flushNonDefaultVrfPrimary(ctx context.Context, t *testing.T, dut *ondatra.D
 }
 
 // flushNonDefaultVrfSecondary issues flush request from clientB (not a primary client) non default VRF should fail with NOT_PRIMARY error.
-func flushNonDefaultVrfSecondary(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology) {
+func flushNonDefaultVrfSecondary(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, ate *ondatra.ATEDevice, ateTop gosnappi.Config) {
 
 	t.Log("Issue Flush from gRIBI-B expected to fail with NOT_PRIMARY error")
 	flushRes, flushErr := gribi.Flush(client.Fluent(t), client.ElectionID(), nonDefaultVRF)
@@ -223,11 +223,9 @@ func flushNonDefaultVrfSecondary(ctx context.Context, t *testing.T, dut *ondatra
 }
 
 // flushNonDefaultVrfFailover updates clientB to become primary. Flush request from clientB (the primary client) non default VRF should succeed.
-func flushNonDefaultVrfFailover(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, clientB *gribi.Client, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology) {
+func flushNonDefaultVrfFailover(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, clientB *gribi.Client, ate *ondatra.ATEDevice, ateTop gosnappi.Config) {
 
 	t.Log("Test traffic between ATE port-1 and ATE port-2 for destinations within 198.51.100.0/24")
-	srcEndPoint := ateTop.Interfaces()[atePort1.Name]
-	dstEndPoint := ateTop.Interfaces()[atePort2.Name]
 
 	t.Log("Flush should be successful and 0 entry left")
 	if _, err := gribi.Flush(clientB.Fluent(t), clientB.ElectionID(), nonDefaultVRF); err != nil {
@@ -238,8 +236,7 @@ func flushNonDefaultVrfFailover(ctx context.Context, t *testing.T, dut *ondatra.
 	}
 
 	t.Log("After flush, left entry should be 0, and packets can no longer be forwarded")
-	flowPath := testTraffic(t, ate, ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got == 0 {
+	if got := testTraffic(t, ate, ateTop); got == 0 {
 		t.Error("Traffic can still be forwarded between ATE port-1 and ATE port-2")
 	} else {
 		t.Log("Traffic stopped as expected after flush between ATE port-1 and ATE port-2")
@@ -247,15 +244,12 @@ func flushNonDefaultVrfFailover(ctx context.Context, t *testing.T, dut *ondatra.
 }
 
 // flushNonZeroReference verified behaviour after flush operation issue for default VRF. It is expected to NOT delete all the gRIBI objects like NH and NHG.
-func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, clientB *gribi.Client, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology) {
+func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, clientB *gribi.Client, ate *ondatra.ATEDevice, ateTop gosnappi.Config) {
 
 	t.Log("Test traffic between ATE port-1 and ATE port-2 for destinations within 198.51.100.0/24")
-	srcEndPoint := ateTop.Interfaces()[atePort1.Name]
-	dstEndPoint := ateTop.Interfaces()[atePort2.Name]
 
-	flowPath := testTraffic(t, ate, ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got > 0 {
-		t.Errorf("LossPct for flow got %g, want 0", got)
+	if got := testTraffic(t, ate, ateTop); got > 0 {
+		t.Errorf("LossPct for flow got %v, want 0", got)
 	} else {
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
 	}
@@ -273,9 +267,8 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 	}
 
 	t.Log("Ensure that the IPEntry 198.51.100.0/24 (ateDstNetEntryNonDefault) is not removed, by validating packet forwarding and telemetry.")
-	flowPath = testTraffic(t, ate, ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got > 0 {
-		t.Errorf("LossPct for flow got %g, want 0", got)
+	if got := testTraffic(t, ate, ateTop); got > 0 {
+		t.Errorf("LossPct for flow got %v, want 0", got)
 	} else {
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
 	}
@@ -310,21 +303,25 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureATE configures port1, port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
-	top := ate.Topology().New()
+	top := ate.OTG().NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
-
 	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
+
+	atePort1.AddToOTG(top, p1, &dutPort1)
+	atePort2.AddToOTG(top, p2, &dutPort2)
+
+	// Adding traffic flow
+	flowipv4 := top.Flows().Add().SetName("Flow")
+	flowipv4.Metrics().SetEnable(true)
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
+	v4 := flowipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort1.IPv4)
+	v4.Dst().Increment().SetStart("198.51.100.0").SetCount(255)
 
 	return top
 }
@@ -355,25 +352,17 @@ func networkInstance(t *testing.T, name string) *oc.NetworkInstance {
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface) *ateflow.FlowPath {
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.DstAddressRange().
-		WithMin("198.51.100.0").
-		WithMax("198.51.100.254").
-		WithCount(255)
-
-	flow := ate.Traffic().NewFlow("Flow").
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint).
-		WithHeaders(ethHeader, ipv4Header)
-
-	ate.Traffic().Start(t, flow)
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) int64 {
+	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
-	ate.Traffic().Stop(t)
+	ate.OTG().StopTraffic(t)
+	otgutils.LogFlowMetrics(t, ate.OTG(), config)
 
-	flowPath := ate.Telemetry().Flow(flow.Name())
-	return flowPath
+	flowMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("Flow").State())
+	txPackets := flowMetric.GetCounters().GetOutPkts()
+	rxPackets := flowMetric.GetCounters().GetInPkts()
+	lossPct := int64((txPackets - rxPackets) * 100 / txPackets)
+	return lossPct
 }
 
 // verifyEntry checks if the entry is active through AFT Telemetry.
