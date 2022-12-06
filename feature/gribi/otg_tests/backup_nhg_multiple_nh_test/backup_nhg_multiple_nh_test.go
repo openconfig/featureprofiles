@@ -300,15 +300,16 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, ateTop gosnappi.
 	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), ateTop)
 	otgutils.LogPortMetrics(t, ate.OTG(), ateTop)
-	flowPath := gnmi.OTG().Flow(flow)
-	got := gnmi.Get(t, ate.OTG(), flowPath.LossPct().State())
+	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
+	lostPackets := recvMetric.GetCounters().GetOutPkts() - recvMetric.GetCounters().GetInPkts()
+	got := lostPackets * 100 / recvMetric.GetCounters().GetOutPkts()
 	if drop {
 		if got != 100 {
-			t.Fatalf("Traffic passing for flow %s got %f, want 100 percent loss", flow, got)
+			t.Fatalf("Traffic passing for flow %s got %v, want 100 percent loss", flow, got)
 		}
 	} else {
 		if got > 0 {
-			t.Fatalf("LossPct for flow %s got %f, want 0", flow, got)
+			t.Fatalf("LossPct for flow %s got %v, want 0", flow, got)
 		}
 	}
 }
