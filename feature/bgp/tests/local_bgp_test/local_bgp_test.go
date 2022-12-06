@@ -54,19 +54,6 @@ const (
 	peerGrpName = "BGP-PEER-GROUP"
 )
 
-// verifyAuthPassword checks that the dut applied configured auth password to bgp neighbors
-func verifyAuthPassword(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Log("Verifying BGP Authentication password")
-	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
-
-	// Get BGP Authentication password
-	authPwd := gnmi.Get(t, dut, nbrPath.AuthPassword().State())
-	if len(authPwd) == 0 {
-		t.Errorf("Authentication password is not as expected, want non zero value, got lenth %v", len(authPwd))
-	}
-}
-
 func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp_Neighbor) *oc.NetworkInstance_Protocol_Bgp {
 	bgp := &oc.NetworkInstance_Protocol_Bgp{}
 	bgp.GetOrCreateGlobal().As = ygot.Uint32(as)
@@ -129,8 +116,7 @@ func TestEstablish(t *testing.T) {
 	})
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	gnmi.Replace(t, ate, ateConfPath.Config(), ateConf)
-	time.Sleep(time.Second * 5)
-	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*30, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*60, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	dutState := gnmi.Get(t, dut, statePath.State())
 	confirm.State(t, dutConf, dutState)
 	nbr := dutState.GetNeighbor(ateAttrs.IPv4)
@@ -194,11 +180,8 @@ func TestDisconnect(t *testing.T) {
 	})
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	gnmi.Replace(t, ate, ateConfPath.Config(), ateConf)
-	time.Sleep(time.Second * 15)
-	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*30, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-	// ateConfPath.Delete(t)
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*60, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	gnmi.Replace(t, ate, ateConfPath.Neighbor(dutIP).Enabled().Config(), false)
-	time.Sleep(time.Second * 5)
 	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*15, oc.Bgp_Neighbor_SessionState_ACTIVE)
 	code := gnmi.Get(t, dut, nbrPath.Messages().Received().LastNotificationErrorCode().State())
 	if code != oc.BgpTypes_BGP_ERROR_CODE_CEASE {
@@ -383,8 +366,7 @@ func TestParameters(t *testing.T) {
 			// Renable and wait to establish
 			gnmi.Replace(t, dut, dutConfPath.Config(), tc.dutConf)
 			gnmi.Replace(t, ate, ateConfPath.Config(), tc.ateConf)
-			time.Sleep(time.Second * 15)
-			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*30, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*60, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 			stateDut := gnmi.Get(t, dut, statePath.State())
 			wantState := tc.wantState
 			if wantState == nil {
@@ -392,10 +374,6 @@ func TestParameters(t *testing.T) {
 				wantState = tc.dutConf
 			}
 			confirm.State(t, wantState, stateDut)
-			if tc.name == "password" {
-				t.Log("Check Authentication password via telemetry")
-				verifyAuthPassword(t, dut)
-			}
 		})
 	}
 }
