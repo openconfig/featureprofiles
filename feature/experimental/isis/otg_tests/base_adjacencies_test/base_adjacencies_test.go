@@ -459,11 +459,11 @@ func TestTraffic(t *testing.T) {
 	srcIpv4 := srcIntf.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	// netv4 is a simulated network containing the ipv4 addresses specified by targetNetwork
 	netv4 := dstIntf.Isis().V4Routes().Add().SetName("netv4").SetLinkMetric(10)
-	netv4.Addresses().Add().SetAddress(targetNetwork.IPv4)
+	netv4.Addresses().Add().SetAddress(targetNetwork.IPv4).SetPrefix(int32(targetNetwork.IPv4Len))
 
 	// netv6 is a simulated network containing the ipv6 addresses specified by targetNetwork
 	netv6 := dstIntf.Isis().V6Routes().Add().SetName("netv6").SetLinkMetric(10)
-	netv6.Addresses().Add().SetAddress(targetNetwork.IPv6)
+	netv6.Addresses().Add().SetAddress(targetNetwork.IPv6).SetPrefix(int32(targetNetwork.IPv6Len))
 
 	t.Logf("Configuring traffic from ATE through DUT...")
 
@@ -519,24 +519,15 @@ func TestTraffic(t *testing.T) {
 	ts.PushAndStart(t)
 	ts.MustAdjacency(t)
 
-	// _, ok := gnmi.Watch(t, otg, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
-	// 	currState, ok := val.Val()
-	// 	return ok && currState.String() == state
-	// }).Await(t)
-
 	gnmi.Watch(t, otg, gnmi.OTG().IsisRouter("devIsis").Counters().Level2().InLsp().State(), 30*time.Second, func(v *ygnmi.Value[uint64]) bool {
 		time.Sleep(5 * time.Second)
 		val, present := v.Val()
 		return present && val >= 1
 	}).Await(t)
 
-	// otg.Telemetry().IsisRouter("devIsis").Counters().Level2().InLsp().Watch(
-	// 	t, 30*time.Second, func(val *otgtelemetry.QualifiedUint64) bool {
-	// 		time.Sleep(5 * time.Second)
-	// 		return val.IsPresent() && val.Val(t) >= 1
-	// 	}).Await(t)
-
+	time.Sleep(10 * time.Second)
 	// TODO: To match the exact IS-IS route prefix once this becomes available in otg
+
 	// otg.Telemetry().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(targetNetwork.IPv4).Watch(
 	// 	t, 30*time.Second, func(val *otgtelemetry.QualifiedIsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix) bool {
 	// 		return val.IsPresent()
