@@ -287,7 +287,7 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 			}
 
 			if got, want := r.GetVerifyStandby().GetVerifyResponse().GetVersion(), *osVersion; got != want {
-				t.Logf("Attempt %d/15 - OS.Verify Standby Version: got %q, want %q", counter, got, want)
+				t.Logf("Attempt %d/%d - OS.Verify Standby Version: got %q, want %q", counter, maxRetries, got, want)
 				time.Sleep(1 * time.Minute)
 			}
 		}
