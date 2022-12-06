@@ -58,16 +58,14 @@ index 3c032e3..801b38c 100644
 +
 +}
 +
-+
-diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
-index 6ca8024..78bb244 100644
++diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
+index 6e990bb6..3cd27f76 100644
 --- a/internal/deviations/deviations.go
 +++ b/internal/deviations/deviations.go
-@@ -106,4 +106,7 @@ var (
- 	GNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
+@@ -111,4 +111,6 @@ var (
  
- 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
+ 	ExplicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
+ 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
 +
 +	NoMetadataSingleUpdate = flag.Bool("deviation_nometadata_single_update", true, "Device requires metadata update to be accompanied by another update for an OC path.")
-+
  )
