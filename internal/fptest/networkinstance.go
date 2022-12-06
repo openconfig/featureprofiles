@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -29,15 +28,14 @@ func AssignToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, i string, ni st
 	if ni == "" {
 		t.Fatalf("Network instance not provided for interface assignment")
 	}
-	if ni == *deviations.DefaultNetworkInstance && !*deviations.ExplicitInterfaceInDefaultVRF {
-		return
-	}
+
 	netInst := &telemetry.NetworkInstance{Name: ygot.String(ni)}
 	intf := &telemetry.Interface{Name: ygot.String(i)}
 	netInstIntf, err := netInst.NewInterface(intf.GetName())
 	if err != nil {
 		t.Errorf("Error fetching NewInterface for %s", intf.GetName())
 	}
+
 	netInstIntf.Interface = ygot.String(intf.GetName())
 	netInstIntf.Subinterface = ygot.Uint32(si)
 	netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
