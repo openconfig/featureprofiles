@@ -21,15 +21,13 @@ import (
 	"fmt"
 	"sort"
 	"testing"
-
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
-	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -360,12 +358,12 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, isI
 	}
 }
 
-// GetEgressPort returns expected egress port info in PacketIn.
+// GetEgressPort returns expected egress port info in Packetin.
 func (traceroute *TraceroutePacketIO) GetEgressPort() string {
 	return traceroute.EgressPort
 }
 
-// GetIngressPort return expected ingress port info in PacketIn.
+// GetIngressPort return expected ingress port info in Packetin.
 func (traceroute *TraceroutePacketIO) GetIngressPort() string {
 	return traceroute.IngressPort
 }

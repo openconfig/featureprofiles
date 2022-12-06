@@ -23,7 +23,6 @@ import (
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	"github.com/openconfig/ondatra"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
