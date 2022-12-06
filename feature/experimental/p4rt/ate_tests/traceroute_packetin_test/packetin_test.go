@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/ondatra"
