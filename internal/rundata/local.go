@@ -196,8 +196,6 @@ func deviationInfo(m map[string]string, fs *flag.FlagSet) {
 	})
 }
 
-var timeBegin = time.Now()
-
 // local populates those test properties that can be
 // collected locally without using the testbed reservation.
 func local(m map[string]string) {
@@ -206,7 +204,5 @@ func local(m map[string]string) {
 	if tp := testPath(wd); tp != "" {
 		m["test.path"] = tp
 	}
-	m["time.begin"] = fmt.Sprint(timeBegin.Unix())
-	m["time.end"] = fmt.Sprint(time.Now().Unix())
 	deviationInfo(m, flag.CommandLine)
 }

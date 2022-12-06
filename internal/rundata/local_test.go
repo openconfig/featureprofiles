@@ -413,13 +413,7 @@ func TestLocal(t *testing.T) {
 	local(m)
 	t.Log(m)
 
-	for _, k := range []string{
-		"test.path",
-		"time.begin",
-		"time.end",
-	} {
-		if _, ok := m[k]; !ok {
-			t.Errorf("Missing key from local: %s", k)
-		}
+	if _, ok := m["test.path"]; !ok {
+		t.Errorf("Missing test.path key from local.")
 	}
 }
