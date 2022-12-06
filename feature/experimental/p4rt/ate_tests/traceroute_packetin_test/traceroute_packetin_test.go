@@ -19,8 +19,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"sort"
-	"testing"
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
@@ -32,6 +30,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	"sort"
+	"testing"
 )
 
 var (
