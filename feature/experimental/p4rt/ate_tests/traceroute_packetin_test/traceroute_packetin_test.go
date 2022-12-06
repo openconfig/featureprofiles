@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"sort"
 	"testing"
-	
+
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
