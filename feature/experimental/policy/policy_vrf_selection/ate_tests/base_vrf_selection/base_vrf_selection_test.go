@@ -193,9 +193,11 @@ func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
 	fwdPolicy2 := policyFwding.GetOrCreatePolicy("match-ipip")
 	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
 	fwdPolicy2.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy2.GetOrCreateRule(2).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
-	fwdPolicy2.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
-	fwdPolicy2.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(true)
+	fwdPolicy2.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6dest)
+	fwdPolicy2.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(false)
+	fwdPolicy2.GetOrCreateRule(3).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
+	fwdPolicy2.GetOrCreateRule(3).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
+	fwdPolicy2.GetOrCreateRule(3).GetOrCreateAction().Discard = ygot.Bool(true)
 
 	fwdPolicy3 := policyFwding.GetOrCreatePolicy("match-ip4ip6")
 	fwdPolicy3.GetOrCreateRule(1).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
@@ -207,9 +209,11 @@ func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
 	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
 	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
 	fwdPolicy4.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy4.GetOrCreateRule(2).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
-	fwdPolicy4.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
-	fwdPolicy4.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(true)
+	fwdPolicy4.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6dest)
+	fwdPolicy4.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(false)
+	fwdPolicy4.GetOrCreateRule(3).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
+	fwdPolicy4.GetOrCreateRule(3).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
+	fwdPolicy4.GetOrCreateRule(3).GetOrCreateAction().Discard = ygot.Bool(true)
 
 	fwdPolicy5 := policyFwding.GetOrCreatePolicy("match-ipip-dscp42or46")
 	fwdPolicy5.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
@@ -218,9 +222,11 @@ func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
 	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
 	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
 	fwdPolicy5.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy5.GetOrCreateRule(3).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
-	fwdPolicy5.GetOrCreateRule(3).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
-	fwdPolicy3.GetOrCreateRule(3).GetOrCreateAction().Discard = ygot.Bool(true)
+	fwdPolicy5.GetOrCreateRule(3).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6dest)
+	fwdPolicy5.GetOrCreateRule(3).GetOrCreateAction().Discard = ygot.Bool(false)
+	fwdPolicy5.GetOrCreateRule(4).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
+	fwdPolicy5.GetOrCreateRule(4).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
+	fwdPolicy5.GetOrCreateRule(4).GetOrCreateAction().Discard = ygot.Bool(true)
 
 	return policyFwding
 }
@@ -377,27 +383,27 @@ func TestVrfPolicy(t *testing.T) {
 		{
 			desc:      "Match IPv4",
 			policy:    "match-ipv4",
-			passFlows: []string{"Ipv4Vlan10", "IpipVlan10", "IpipDscp46Vlan10", "IpipDscp42Vlan10"},
+			passFlows: []string{"Ipv4Vlan10", "IpipVlan10", "IpipDscp46Vlan10", "IpipDscp42Vlan10", "Ipv4Vlan20", "IpipVlan20", "IpipDscp46Vlan20", "IpipDscp42Vlan20"},
 		},
 		{
 			desc:      "Match IPinIP",
 			policy:    "match-ipip",
-			passFlows: []string{"IpipVlan10", "IpipDscp46Vlan10", "IpipDscp42Vlan10"},
+			passFlows: []string{"IpipVlan10", "IpipDscp46Vlan10", "IpipDscp42Vlan10", "IpipVlan20", "IpipDscp46Vlan20", "IpipDscp42Vlan20"},
 		},
 		{
 			desc:      "Match IPv4 and IPv6",
 			policy:    "match-ip4ip6",
-			passFlows: []string{"Ipv4Vlan10", "IpipVlan10", "IpipDscp46Vlan10", "IpipDscp42Vlan10", "Ipv6Vlan20"},
+			passFlows: []string{"Ipv4Vlan10", "IpipVlan10", "IpipDscp46Vlan10", "IpipDscp42Vlan10", "Ipv6Vlan20", "Ipv4Vlan20", "IpipVlan20", "IpipDscp46Vlan20", "IpipDscp42Vlan20", "Ipv6Vlan10"},
 		},
 		{
 			desc:      "Match IPinIP DSCP 46",
 			policy:    "match-ipip-dscp46",
-			passFlows: []string{"IpipDscp46Vlan10"},
+			passFlows: []string{"IpipDscp46Vlan10", "IpipDscp46Vlan20"},
 		},
 		{
 			desc:      "Match IPinIP DSCP 42 or 46",
 			policy:    "match-ipip-dscp42or46",
-			passFlows: []string{"IpipDscp46Vlan10", "IpipDscp46Vlan10"},
+			passFlows: []string{"IpipDscp42Vlan10", "IpipDscp46Vlan10", "IpipDscp42Vlan20", "IpipDscp46Vlan20"},
 		},
 	}
 	for _, tc := range tcs {
