@@ -83,6 +83,10 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 }
 
 func (b *staticBind) Release(ctx context.Context) error {
+	m := rundata.Timing(ctx)
+	for k, v := range m {
+		ondatra.Report().AddSuiteProperty(k, v)
+	}
 	if b.resv == nil {
 		return errors.New("no reservation")
 	}

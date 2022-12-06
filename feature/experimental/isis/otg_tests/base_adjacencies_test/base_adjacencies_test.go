@@ -27,8 +27,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -518,11 +519,22 @@ func TestTraffic(t *testing.T) {
 	ts.PushAndStart(t)
 	ts.MustAdjacency(t)
 
-	otg.Telemetry().IsisRouter("devIsis").Counters().Level2().InLsp().Watch(
-		t, 30*time.Second, func(val *otgtelemetry.QualifiedUint64) bool {
-			time.Sleep(5 * time.Second)
-			return val.IsPresent() && val.Val(t) >= 1
-		}).Await(t)
+	// _, ok := gnmi.Watch(t, otg, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
+	// 	currState, ok := val.Val()
+	// 	return ok && currState.String() == state
+	// }).Await(t)
+
+	gnmi.Watch(t, otg, gnmi.OTG().IsisRouter("devIsis").Counters().Level2().InLsp().State(), 30*time.Second, func(v *ygnmi.Value[uint64]) bool {
+		time.Sleep(5 * time.Second)
+		val, present := v.Val()
+		return present && val >= 1
+	}).Await(t)
+
+	// otg.Telemetry().IsisRouter("devIsis").Counters().Level2().InLsp().Watch(
+	// 	t, 30*time.Second, func(val *otgtelemetry.QualifiedUint64) bool {
+	// 		time.Sleep(5 * time.Second)
+	// 		return val.IsPresent() && val.Val(t) >= 1
+	// 	}).Await(t)
 
 	// TODO: To match the exact IS-IS route prefix once this becomes available in otg
 	// otg.Telemetry().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(targetNetwork.IPv4).Watch(
@@ -535,24 +547,19 @@ func TestTraffic(t *testing.T) {
 	time.Sleep(time.Second * 30)
 	otg.StopTraffic(t)
 
-	t.Logf("Verify Flow metrics...")
+	t.Logf("Checking telemetry...")
 	otgutils.LogFlowMetrics(t, otg, ts.ATETop)
 
-	for _, flow := range ts.ATETop.Flows().Items() {
-		lossPct := ts.GetPacketLoss(t, flow)
-		if lossPct == -1 {
-			t.Errorf("Tx packets for flow %s is 0", flow.Name())
-			continue
-		}
-		if flow.Name() != "deadFlow" {
-			if lossPct > 0 {
-				t.Errorf("LossPct for flow %s: got %v, want 0", flow.Name(), lossPct)
-			}
-		} else {
-			if lossPct < 100 {
-				t.Errorf("LossPct for flow %s: got %v, want 0", flow.Name(), lossPct)
-			}
-		}
+	v4Loss := ts.GetPacketLoss(t, v4Flow)
+	v6Loss := ts.GetPacketLoss(t, v6Flow)
+	deadLoss := ts.GetPacketLoss(t, deadFlow)
+	if v4Loss > 1 {
+		t.Errorf("Got %v%% IPv4 packet loss; expected < 1%%", v4Loss)
 	}
-
+	if v6Loss > 1 {
+		t.Errorf("Got %v%% IPv6 packet loss; expected < 1%%", v6Loss)
+	}
+	if deadLoss != 100 {
+		t.Errorf("Got %v%% invalid packet loss; expected 100%%", deadLoss)
+	}
 }

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 // TestCurrentDateTime verifies that the current date and time state path can
@@ -31,7 +32,7 @@ func TestCurrentDateTime(t *testing.T) {
 	t.Skip("Need working implementation to validate against")
 
 	dut := ondatra.DUT(t, "dut")
-	now := dut.Telemetry().System().CurrentDatetime().Get(t)
+	now := gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 	_, err := time.Parse(time.RFC3339, now)
 	if err != nil {
 		t.Errorf("Failed to parse current time: got %s: %s", now, err)
@@ -44,7 +45,7 @@ func TestCurrentDateTime(t *testing.T) {
 // telemetry_path:/system/state/boot-time
 func TestBootTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	bt := dut.Telemetry().System().BootTime().Get(t)
+	bt := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 
 	// Boot time should be after Dec 22, 2021 00:00:00 GMT in nanoseconds
 	if bt < 1640131200000000000 {
@@ -76,28 +77,28 @@ func TestTimeZone(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			config := dut.Config().System().Clock().TimezoneName()
-			state := dut.Telemetry().System().Clock().TimezoneName()
+			config := gnmi.OC().System().Clock().TimezoneName()
+			state := gnmi.OC().System().Clock().TimezoneName()
 
-			config.Replace(t, testCase.tz)
+			gnmi.Replace(t, dut, config.Config(), testCase.tz)
 
 			t.Run("Get Timezone Config", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if configGot != testCase.tz {
 					t.Errorf("Config timezone: got %s, want %s", configGot, testCase.tz)
 				}
 			})
 
 			t.Run("Get Timezone Telemetry", func(t *testing.T) {
-				stateGot := state.Await(t, 5*time.Second, testCase.tz)
-				if stateGot.Val(t) != testCase.tz {
+				stateGot := gnmi.Await(t, dut, state.State(), 5*time.Second, testCase.tz)
+				if got, _ := stateGot.Val(); got != testCase.tz {
 					t.Errorf("State domainname: got %v, want %s", stateGot, testCase.tz)
 				}
 			})
 
 			t.Run("Delete Timezone", func(t *testing.T) {
-				config.Delete(t)
-				if qs := config.Lookup(t); qs.IsPresent() == true {
+				gnmi.Delete(t, dut, config.Config())
+				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
 					t.Errorf("Delete timezone fail: got %v", qs)
 				}
 			})

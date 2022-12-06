@@ -26,6 +26,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/networkinstance"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
@@ -55,7 +56,7 @@ const (
 )
 
 var (
-	// Network entity title for the DUT
+	// DUTNET is the Network Entity Title for the DUT
 	DUTNET = fmt.Sprintf("%v.%v.00", DUTAreaAddress, DUTSysID)
 	// DUTISISAttrs has attributes for the DUT ISIS connection on port1
 	DUTISISAttrs = &Attributes{
@@ -110,6 +111,7 @@ func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
 func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
+	prot.Enabled = ygot.Bool(true)
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
 	glob.Instance = ygot.String(ISISName)
@@ -317,12 +319,13 @@ func (s *TestSession) MustATEInterface(t testing.TB, portID string) gosnappi.Dev
 // GetPacketLoss returns the packet loss for a given flow
 func (s *TestSession) GetPacketLoss(t testing.TB, flow gosnappi.Flow) int64 {
 	t.Helper()
-	flowMetric := s.ATE.OTG().Telemetry().Flow(flow.Name()).Get(t)
+	flowMetric := gnmi.Get(t, s.ATE.OTG(), gnmi.OTG().Flow(flow.Name()).State())
 	txPackets := flowMetric.GetCounters().GetOutPkts()
 	rxPackets := flowMetric.GetCounters().GetInPkts()
+	lossPct := int64((txPackets - rxPackets) * 100 / txPackets)
+
 	if txPackets == 0 {
 		return -1
 	}
-	lossPct := int64((txPackets - rxPackets) * 100 / txPackets)
 	return lossPct
 }
