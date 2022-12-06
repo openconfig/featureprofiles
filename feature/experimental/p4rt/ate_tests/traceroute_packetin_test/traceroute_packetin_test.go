@@ -300,14 +300,14 @@ type TraceroutePacketIO struct {
 	EgressPort  string
 }
 
-// GetTableEntry creates wbb acl entry related to Traceroute protocol.
-func (traceroute *TraceroutePacketIO) GetTableEntry(delete bool, IsIpv4 bool) []*wbb.ACLWbbIngressTableEntryInfo {
+// GetTableEntry creates p4rtutils acl entry related to Traceroute protocol.
+func (traceroute *TraceroutePacketIO) GetTableEntry(delete bool, IsIpv4 bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
 	if IsIpv4 {
 		actionType := p4_v1.Update_INSERT
 		if delete {
 			actionType = p4_v1.Update_DELETE
 		}
-		return []*wbb.ACLWbbIngressTableEntryInfo{{
+		return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 			Type:    actionType,
 			IsIpv4:  0x1,
 			TTL:     0x1,
@@ -325,7 +325,7 @@ func (traceroute *TraceroutePacketIO) GetTableEntry(delete bool, IsIpv4 bool) []
 		if delete {
 			actionType = p4_v1.Update_DELETE
 		}
-		return []*wbb.ACLWbbIngressTableEntryInfo{{
+		return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 			Type:    actionType,
 			IsIpv6:  0x1,
 			TTL:     0x1,

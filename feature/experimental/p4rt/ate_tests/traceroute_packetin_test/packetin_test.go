@@ -28,7 +28,7 @@ import (
 )
 
 type PacketIO interface {
-	GetTableEntry(delete bool, IsIpv4 bool) []*wbb.ACLWbbIngressTableEntryInfo
+	GetTableEntry(delete bool, IsIpv4 bool) []*p4rtutils.ACLWbbIngressTableEntryInfo
 	GetPacketTemplate() *PacketIOPacket
 	GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []*ondatra.Flow
 	GetEgressPort() string
@@ -58,7 +58,7 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 	err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   deviceId,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
-		Updates: wbb.ACLWbbIngressTableEntryGet(
+		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete, IsIpv4),
 		),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
@@ -131,18 +131,18 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 	follower := args.follower
 
 	if IsIpv4 {
-		// Insert wbb acl entry on the DUT
+		// Insert p4rtutils acl entry on the DUT
 		if err := programmTableEntry(ctx, t, leader, args.packetIO, false, true); err != nil {
 			t.Fatalf("There is error when programming entry")
 		}
-		// Delete wbb acl entry on the device
+		// Delete p4rtutils acl entry on the device
 		defer programmTableEntry(ctx, t, leader, args.packetIO, true, true)
 	} else {
-		// Insert wbb acl entry on the DUT
+		// Insert p4rtutils acl entry on the DUT
 		if err := programmTableEntry(ctx, t, leader, args.packetIO, false, false); err != nil {
 			t.Fatalf("There is error when programming entry")
 		}
-		// Delete wbb acl entry on the device
+		// Delete p4rtutils acl entry on the device
 		defer programmTableEntry(ctx, t, leader, args.packetIO, true, false)
 	}
 
