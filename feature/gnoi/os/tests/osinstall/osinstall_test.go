@@ -270,26 +270,25 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 	}
 
 	if tc.dualSup {
-		var counter int
 		const maxRetries = 15
-		for i := 1; i < maxRetries; i++ {
+		for i := 1; i <= maxRetries; i++ {
+			t.Logf("Attempt %d of %d", i, maxRetries)
 			r, err := tc.osc.Verify(ctx, &ospb.VerifyRequest{})
 			if err != nil {
 				t.Fatalf("OS.Verify request failed: %s", err)
 			}
-			if counter == maxRetries {
-				t.Fatalf("OS.Verify Standby could not obtain version status in %d retries", maxRetries)
-			}
-			counter++
-
 			if got, want := r.GetVerifyStandby().GetVerifyResponse().GetActivationFailMessage(), ""; got != want {
 				t.Errorf("OS.Verify Standby ActivationFailMessage: got %q, want %q", got, want)
 			}
-
 			if got, want := r.GetVerifyStandby().GetVerifyResponse().GetVersion(), *osVersion; got != want {
-				t.Logf("Attempt %d/%d - OS.Verify Standby Version: got %q, want %q", counter, maxRetries, got, want)
-				time.Sleep(1 * time.Minute)
+				t.Logf("OS.Verify Standby Version: got %q, want %q", got, want)
+			} else {
+				break
 			}
+			if i == maxRetries {
+				t.Fatalf("OS.Verify Standby could not obtain version status in %d retries", maxRetries)
+			}
+			time.Sleep(1 * time.Minute)
 		}
 	}
 	t.Log("OS.Verify complete")
