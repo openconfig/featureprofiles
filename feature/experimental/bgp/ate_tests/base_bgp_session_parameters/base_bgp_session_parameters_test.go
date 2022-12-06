@@ -428,8 +428,7 @@ func TestParameters(t *testing.T) {
 			tc.ateConf.Push(t)
 			tc.ateConf.StartProtocols(t)
 			t.Log("Verify BGP session state : ESTABLISHED")
-			time.Sleep(time.Second * 5)
-			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*15, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*30, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 			stateDut := gnmi.Get(t, dut, statePath.State())
 			wantState := tc.dutConf
 			confirm.State(t, wantState, stateDut)
