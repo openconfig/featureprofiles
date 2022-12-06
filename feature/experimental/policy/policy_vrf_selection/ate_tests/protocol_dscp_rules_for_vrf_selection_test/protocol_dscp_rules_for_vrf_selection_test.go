@@ -146,13 +146,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 		WithDefaultGateway(dutPort1.IPv6)
 
 	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
-	i2.IPv6().
-		WithAddress(atePort2.IPv6CIDR()).
-		WithDefaultGateway(dutPort2.IPv6)
 
 	// configure vlans on ATE port2
 	i2v10 := top.AddInterface("atePort2Vlan10").WithPort(p2)
@@ -186,17 +179,24 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 }
 
 // configNetworkInstance creates VRFs and subinterfaces and then applies VRFs on the subinterfaces.
-func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfname string, subint uint32) {
+func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfname string, subint uint32, vlanID uint16) {
 	// create empty subinterface
 	si := &oc.Interface_Subinterface{}
 	si.Index = ygot.Uint32(subint)
+	if *deviations.DeprecatedVlanID {
+		si.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
+	} else {
+		si.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+	}
 	gnmi.Replace(t, dut, gnmi.OC().Interface(intfname).Subinterface(subint).Config(), si)
 
 	// create vrf and apply on subinterface
 	v := &oc.NetworkInstance{
 		Name: ygot.String(vrfname),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 	}
 	vi := v.GetOrCreateInterface(intfname + "." + strconv.Itoa(int(subint)))
+	vi.Interface = ygot.String(intfname)
 	vi.Subinterface = ygot.Uint32(subint)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfname).Config(), v)
 }
@@ -242,20 +242,18 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
 
 	p2 := dut.Port(t, "port2")
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
 
 	outpath := d.Interface(p2.Name())
 	// create VRFs and VRF enabled subinterfaces
-	configNetworkInstance(t, dut, "VRF10", p2.Name(), uint32(1))
+	configNetworkInstance(t, dut, "VRF10", p2.Name(), uint32(1), 10)
 
 	// configure IP addresses on subinterfaces
 	gnmi.Update(t, dut, outpath.Subinterface(1).Config(), getSubInterface(&dutPort2Vlan10, 1, 10))
 
-	configNetworkInstance(t, dut, "VRF20", p2.Name(), uint32(2))
+	configNetworkInstance(t, dut, "VRF20", p2.Name(), uint32(2), 20)
 	gnmi.Update(t, dut, outpath.Subinterface(2).Config(), getSubInterface(&dutPort2Vlan20, 2, 20))
 
-	configNetworkInstance(t, dut, "VRF30", p2.Name(), uint32(3))
+	configNetworkInstance(t, dut, "VRF30", p2.Name(), uint32(3), 30)
 	gnmi.Update(t, dut, outpath.Subinterface(3).Config(), getSubInterface(&dutPort2Vlan30, 3, 30))
 }
 
