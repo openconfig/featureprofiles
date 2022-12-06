@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -102,9 +103,9 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -131,11 +132,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := dut.Config()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
 	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutPort1))
 
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutPort2))
 }
 
@@ -166,18 +167,18 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 
 // configureDeviceId configures p4rt device-id on the DUT.
 func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	component := telemetry.Component{}
-	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
+	component := oc.Component{}
+	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 	component.Name = ygot.String(*p4rtNodeName)
 	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceId)
-	dut.Config().Component(*p4rtNodeName).Replace(t, &component)
+	gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).Config(), &component)
 }
 
 // configurePortId configures p4rt port-id on the DUT.
 func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	ports := sortPorts(dut.Ports())
 	for i, port := range ports {
-		dut.Config().Interface(port.Name()).Id().Replace(t, uint32(i)+portId)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Id().Config(), uint32(i)+portID)
 	}
 }
 
