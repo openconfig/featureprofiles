@@ -127,6 +127,11 @@ var (
 			desc: "Program gribi with wucmp and verify qos streaming",
 			fn:   testQoswrrStreaming,
 		},
+		{
+			name: "Test Delete of sequence and add back sequence",
+			desc: "testing gribi tests with sequence del and add",
+			fn:   testQoswrrdeladdseq,
+		},
 	}
 )
 
@@ -391,3 +396,9 @@ func TestWrrTrafficQos(t *testing.T) {
 		})
 	}
 }
+
+// func TestDelQos(t *testing.T) {
+// 	dut := ondatra.DUT(t, "dut")
+// 	dut.Config().Qos().Delete(t)
+
+// }

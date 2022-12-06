@@ -658,19 +658,21 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	outpupacket := outpackets[0]
 	fmt.Printf("*********************oupackets is %+v", outpackets)
 	fmt.Printf("*********************inputpackets is %+v", inpackets)
-	interfaceTelemetryPath := args.dut.Telemetry().Qos().Interface("Bundle-Ether120")
+	//interfaceTelemetryPath := args.dut.Telemetry().Qos().Interface("Bundle-Ether120")
 	t.Run(fmt.Sprintf("Get Interface Telemetry %s", "Bundle-Ether120"), func(t *testing.T) {
-		got := interfaceTelemetryPath.Get(t)
-		for classifierType, classifier := range got.Input.Classifier {
-			for termId, term := range classifier.Term {
-				t.Run(fmt.Sprintf("Verify Matched-Packets of %v %s", classifierType, termId), func(t *testing.T) {
-					if !(*term.MatchedPackets >= outpupacket) {
-						t.Errorf("Get Interface Telemetry fail: got %+v", *got)
-					}
-				})
+		classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
+		for _, term := range classmaps {
+			MatchedPkts := gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether120").Input().Classifier(1).Term(term).MatchedPackets().State())
+			if !(MatchedPkts >= outpupacket) {
+				t.Errorf(" Error Get Interface Telemetry fail for term %v", term)
 			}
+
 		}
+
 	})
+
+	//gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether120").Input().Classifier(4).Term("cmap1").MatchedPackets().State())
+	//gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(EgressInterface).Output().Queue(queueName).TransmitPkts().State())
 	interfaceList := []string{}
 	for i := 121; i < 128; i++ {
 		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
@@ -715,8 +717,7 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 
 }
 func testQoswrrStreaming(ctx context.Context, t *testing.T, args *testArgs) {
-	defer args.clientA.FlushServer(t)
-	defer teardownQos(t, args.dut)
+
 	dutQosPktsBeforeTraffic := make(map[string]uint64)
 	dutQosPktsAfterTraffic := make(map[string]uint64)
 	queueNames := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
@@ -756,7 +757,83 @@ func testQoswrrStreaming(ctx context.Context, t *testing.T, args *testArgs) {
 
 }
 func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
-	ConfigureDelSeq(t, args.dut)
+	defer args.clientA.FlushServer(t)
+	defer teardownQos(t, args.dut)
+	ConfigureDelAddSeq(t, args.dut)
+	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	t.Logf("clear qos counters on all interfaces")
+	cliHandle := args.dut.RawAPIs().CLI(t)
+	defer cliHandle.Close()
+	resp, err := cliHandle.SendCommand(context.Background(), "clear qos counters interface all")
+	t.Logf(resp, err)
+	t.Logf("sleeping after clearing qos counters")
+	time.Sleep(3 * time.Minute)
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	outpackets := []uint64{}
+	inpackets := []uint64{}
+	flowstats := args.ate.Telemetry().FlowAny().Counters().Get(t)
+	for _, s := range flowstats {
+		fmt.Println("number of out packets in flow is", *s.OutPkts)
+		outpackets = append(outpackets, *s.OutPkts)
+		inpackets = append(inpackets, *s.InPkts)
+	}
+	outpupacket := outpackets[0]
+	fmt.Printf("*********************oupackets is %+v", outpackets)
+	fmt.Printf("*********************inputpackets is %+v", inpackets)
+
+	t.Run(fmt.Sprintf("Get Interface Telemetry %s", "Bundle-Ether120"), func(t *testing.T) {
+		classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
+		for _, term := range classmaps {
+			MatchedPkts := gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether120").Input().Classifier(1).Term(term).MatchedPackets().State())
+			if !(MatchedPkts >= outpupacket) {
+				t.Errorf(" Error Get Interface Telemetry fail for term %v", term)
+			}
+
+		}
+	})
+	interfaceList := []string{}
+	for i := 121; i < 128; i++ {
+		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
+	}
+	queuestats := make(map[string]uint64)
+	ixiastats := make(map[string]uint64)
+	queueNames := []string{}
+	for _, EgressInterface := range interfaceList {
+		interfaceTelemetryEgrPath := args.dut.Telemetry().Qos().Interface(EgressInterface)
+		t.Run(fmt.Sprintf("Get Interface Telemetry %s", EgressInterface), func(t *testing.T) {
+			gote := interfaceTelemetryEgrPath.Get(t)
+			for queueName, queue := range gote.Output.Queue {
+				queuestats[queueName] += *queue.TransmitPkts
+
+				queueNames = append(queueNames, queueName)
+
+			}
+		})
+	}
+	for index, inPkt := range inpackets {
+		ixiastats[queueNames[index]] = inPkt
+	}
+	fmt.Printf("queuestats is %+v", queuestats)
+	fmt.Printf("ixiastats is %+v", ixiastats)
+
+	for name := range queuestats {
+		//if !(queuestats[name] >= ixiastats[name] ){
+		if name == "tc7" {
+			if !(queuestats[name] >= ixiastats[name]) {
+				t.Errorf("Stats not matching for queue %+v", name)
+			}
+		} else {
+
+			if !(queuestats[name] <= ixiastats[name]+10 ||
+				queuestats[name] >= ixiastats[name]-10) {
+				t.Errorf("Stats not matching for queue %+v", name)
+
+			}
+		}
+
+	}
 
 }
 func testSchedulerwrr(ctx context.Context, t *testing.T, args *testArgs) {
@@ -930,9 +1007,31 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 	dut.Config().Qos().Interface(*classinterface.InterfaceId).Replace(t, classinterface)
 }
 
-func ConfigureDelSeq(t *testing.T, dut *ondatra.DUTDevice) {
+func ConfigureDelAddSeq(t *testing.T, dut *ondatra.DUTDevice) {
 
 	dut.Config().Qos().SchedulerPolicy("eg_policy1111").Scheduler(2).Delete(t)
+	d := &oc.Device{}
+	qos := d.GetOrCreateQos()
+	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
+	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
+	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
+	var weight uint64
+	weight = 0
+	for _, wrrqueue := range nonpriorqueues {
+		inputwrr := schedulenonprior.GetOrCreateInput(wrrqueue)
+		inputwrr.Id = ygot.String(wrrqueue)
+		inputwrr.Queue = ygot.String(wrrqueue)
+		inputwrr.Weight = ygot.Uint64(60 - weight)
+		weight += 10
+		configInputwrr := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
+		configInputwrr.Update(t, inputwrr)
+		configGotwrr := configInputwrr.Get(t)
+		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
+			t.Errorf("Config Input fail: \n%v", diff)
+		}
+
+	}
 
 }
 func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
