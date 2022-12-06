@@ -1,27 +1,8 @@
 diff --git a/binding/ixweb/ixstats.go b/binding/ixweb/ixstats.go
-index be5bb4a..8d47431 100644
+index 878d2cd..8d47431 100644
 --- a/binding/ixweb/ixstats.go
 +++ b/binding/ixweb/ixstats.go
-@@ -16,7 +16,6 @@ package ixweb
- 
- import (
- 	"bytes"
--	"golang.org/x/net/context"
- 	"encoding/csv"
- 	"errors"
- 	"fmt"
-@@ -27,7 +26,9 @@ import (
- 	"sync/atomic"
- 	"time"
- 
--	"github.com/openconfig/gocloser"
-+	"golang.org/x/net/context"
-+
-+	closer "github.com/openconfig/gocloser"
- )
- 
- const (
-@@ -37,6 +38,8 @@ const (
+@@ -38,6 +38,8 @@ const (
  	EgressStatsCaption = "EgressStatView"
  	// TrafficItemStatsCaption is the name of the trafic item statics view.
  	TrafficItemStatsCaption = "Traffic Item Statistics"
@@ -30,7 +11,7 @@ index be5bb4a..8d47431 100644
  
  	viewsPath   = "statistics/view"
  	viewOpsPath = viewsPath + "/operations"
-@@ -173,7 +176,7 @@ type StatRow map[string]string
+@@ -174,7 +176,7 @@ type StatRow map[string]string
  // If drilldowns are specified, the results of each drilldown on each row of
  // the target table are also returned.
  func (v *StatView) FetchTable(ctx context.Context, drilldowns ...string) (StatTable, error) {
