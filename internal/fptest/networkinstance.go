@@ -29,7 +29,6 @@ func AssignToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, i string, ni st
 	if ni == "" {
 		t.Fatalf("Network instance not provided for interface assignment")
 	}
-
 	netInst := &oc.NetworkInstance{Name: ygot.String(ni)}
 	intf := &oc.Interface{Name: ygot.String(i)}
 	netInstIntf, err := netInst.NewInterface(intf.GetName())
