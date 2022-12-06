@@ -278,7 +278,7 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 				t.Fatalf("OS.Verify request failed: %s", err)
 			}
 			if counter == maxRetries {
-				t.Fatalf("OS.Verify Standby could not obtain version status in 15 minutes")
+				t.Fatalf("OS.Verify Standby could not obtain version status in %d retries", maxRetries)
 			}
 			counter++
 
