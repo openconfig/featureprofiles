@@ -80,8 +80,7 @@ connections:
       - ate.1/9
 custom: 
   ondatra: 
-    ate: 
-      model: IXIA_TG
+    ate:
       ports: 
         ixnetwork: 
           opts: 
@@ -91,7 +90,7 @@ custom:
           username: admin
       session: 1
     dut: 
-      model: CISCO_XRD
+      vendor: CISCO
       ports: 
         gnmi: 
           opts: 
