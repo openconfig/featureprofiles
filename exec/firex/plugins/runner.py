@@ -46,6 +46,7 @@ FP_PATCHES = [
 
 whitelist_arguments([
     'ondatra_repo_branch', 
+    'ondatra_repo_rev',
     'fp_repo_url',
     'fp_repo_branch', 
     'fp_repo_rev',
@@ -69,6 +70,7 @@ whitelist_arguments([
 @returns('ondatra_binding_path', 'ondatra_testbed_path', 'exec_repo_dir', 'fp_repo_dir')
 def BringupTestbed(self, ws, images = None,  
                         ondatra_repo_branch='main',
+                        ondatra_repo_rev=None,
                         fp_repo_url=FP_REPO_CLONE_INFO.url,
                         fp_repo_branch='master',  
                         fp_repo_rev=None,
@@ -143,7 +145,8 @@ def BringupTestbed(self, ws, images = None,
         fp_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
 
         ondatra_repo = git.Repo(ondatra_repo_dir)
-        ondatra_repo.git.checkout("7558e3ba93a6f25cfdff517627b579f6cd903a25")
+        if ondatra_repo_rev:
+            ondatra_repo.git.checkout(ondatra_repo_rev) # 7558e3ba93a6f25cfdff517627b579f6cd903a25
         ondatra_repo.config_writer().set_value("name", "email", "gob4").release()
         ondatra_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
 
