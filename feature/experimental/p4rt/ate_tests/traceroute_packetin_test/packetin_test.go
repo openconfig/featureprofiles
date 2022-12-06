@@ -70,7 +70,7 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 	return nil
 }
 
-// decodePacket decodes L2 header in the packet and returns TTL. packetData[14:0] to remove first 14 bytes of Ethernet header
+// decodePacket decodes L2 header in the packet and returns TTL. packetData[14:0] to remove first 14 bytes of Ethernet header.
 func decodePacket4(packetData []byte) uint8 {
 	packet := gopacket.NewPacket(packetData[14:], layers.LayerTypeIPv4, gopacket.Default)
 	if IPv4 := packet.Layer(layers.LayerTypeIPv4); IPv4 != nil {
@@ -125,7 +125,7 @@ func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTCli
 	return packets
 }
 
-// testPacketIn programs p4rt table entry and sends traffic related to GDP,
+// testPacketIn programs p4rt table entry and sends traffic related to Traceroute,
 // then validates packetin message metadata and payload.
 func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool) {
 	leader := args.leader
