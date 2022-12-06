@@ -94,9 +94,6 @@ func TestOSInstall(t *testing.T) {
 		tc.activateOS(ctx, t, true)
 	}
 	tc.rebootDUT(ctx, t)
-	if tc.dualSup {
-		tc.isSupervisorReady(ctx, t)
-	}
 	tc.verifyInstall(ctx, t)
 }
 
@@ -257,33 +254,6 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) 
 	}
 }
 
-func (tc *testCase) isSupervisorReady(ctx context.Context, t *testing.T) error {
-	var counter int
-	const maxRetries = 15
-	for i := 1; i < maxRetries; i++ {
-		if counter == maxRetries {
-			return fmt.Errorf("OS.Verify RPC did not report the standby supervisor state as available")
-		}
-		counter++
-		r, err := tc.osc.Verify(ctx, &ospb.VerifyRequest{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		switch v := r.GetVerifyStandby().GetState().(type) {
-		case *ospb.VerifyStandby_StandbyState:
-			switch v.StandbyState.GetState() {
-			case ospb.StandbyState_UNSPECIFIED, ospb.StandbyState_UNSUPORTED:
-				t.Fatalf("OS.Verify RPC reported that the standby supervisor is %v", v.StandbyState.GetState())
-			case ospb.StandbyState_NON_EXISTENT, ospb.StandbyState_UNAVAILABLE:
-				t.Logf("OS.Verify RPC reported that the standby supervisor is %v, waiting 60s and retrying: %d/15", v.StandbyState.GetState(), counter)
-				time.Sleep(1 * time.Minute)
-			}
-		}
-	}
-	t.Logf("OS.Verify RPC Reported that the standby supervisor is AVAILABLE")
-	return nil
-}
-
 // verifyInstall validates the OS.Verify RPC returns no failures and version numbers match the
 // newly requested software version.
 func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
@@ -300,15 +270,28 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 	}
 
 	if tc.dualSup {
-		if got, want := r.GetVerifyStandby().GetVerifyResponse().GetActivationFailMessage(), ""; got != want {
-			t.Errorf("OS.Verify Standby ActivationFailMessage: got %q, want %q", got, want)
-		}
+		var counter int
+		const maxRetries = 15
+		for i := 1; i < maxRetries; i++ {
+			r, err := tc.osc.Verify(ctx, &ospb.VerifyRequest{})
+			if err != nil {
+				t.Fatalf("OS.Verify request failed: %s", err)
+			}
+			if counter == maxRetries {
+				t.Fatalf("OS.Verify Standby could not obtain version status in 15 minutes")
+			}
+			counter++
 
-		if got, want := r.GetVerifyStandby().GetVerifyResponse().GetVersion(), *osVersion; got != want {
-			t.Errorf("OS.Verify Standby Version: got %q, want %q", got, want)
+			if got, want := r.GetVerifyStandby().GetVerifyResponse().GetActivationFailMessage(), ""; got != want {
+				t.Errorf("OS.Verify Standby ActivationFailMessage: got %q, want %q", got, want)
+			}
+
+			if got, want := r.GetVerifyStandby().GetVerifyResponse().GetVersion(), *osVersion; got != want {
+				t.Logf("Attempt %d/15 - OS.Verify Standby Version: got %q, want %q", counter, got, want)
+				time.Sleep(1 * time.Minute)
+			}
 		}
 	}
-
 	t.Log("OS.Verify complete")
 }
 
