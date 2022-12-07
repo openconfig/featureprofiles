@@ -651,13 +651,13 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	inpackets := []uint64{}
 	flowstats := args.ate.Telemetry().FlowAny().Counters().Get(t)
 	for _, s := range flowstats {
-		fmt.Println("number of out packets in flow is", *s.OutPkts)
+		t.Log("number of out packets in flow is", *s.OutPkts)
 		outpackets = append(outpackets, *s.OutPkts)
 		inpackets = append(inpackets, *s.InPkts)
 	}
 	outpupacket := outpackets[0]
-	fmt.Printf("*********************oupackets is %+v", outpackets)
-	fmt.Printf("*********************inputpackets is %+v", inpackets)
+	t.Logf("*********************oupackets is %+v", outpackets)
+	t.Logf("*********************inputpackets is %+v", inpackets)
 	//interfaceTelemetryPath := args.dut.Telemetry().Qos().Interface("Bundle-Ether120")
 	t.Run(fmt.Sprintf("Get Interface Telemetry %s", "Bundle-Ether120"), func(t *testing.T) {
 		classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
