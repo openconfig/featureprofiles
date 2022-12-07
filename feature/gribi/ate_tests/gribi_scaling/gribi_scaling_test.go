@@ -62,9 +62,9 @@ const (
 	IPBlock1      = "198.18.0.1/18"   // IPBlock1 represents the ipv4 entries in VRF1
 	IPBlock2      = "198.18.64.1/18"  // IPBlock2 represents the ipv4 entries in VRF2
 	IPBlock3      = "198.18.128.1/18" // IPBlock3 represents the ipv4 entries in VRF3
-	nhID1         = 2                 // nhID1 is the starting nh Index for entries in VRF1
-	nhID2         = 1002              // nhID2 is the starting nh Index for entries in VRF2
-	nhID3         = 18502             // nhID3 is the starting nh Index for entries in VRF3
+	nhID1         = 65                 // nhID1 is the starting nh Index for entries in VRF1
+	nhID2         = 1065              // nhID2 is the starting nh Index for entries in VRF2
+	nhID3         = 18565             // nhID3 is the starting nh Index for entries in VRF3
 	tunnelSrcIP   = "198.18.204.1"    // tunnelSrcIP represents Source IP of IPinIP Tunnel
 	tunnelDstIP   = "198.18.208.1"    // tunnelDstIP represents Dest IP of IPinIP Tunnel
 )
@@ -252,14 +252,14 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) []strin
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithIndex(index).
 				WithIPAddress(nextHops[i]).
-				WithElectionID(12, 0))
+				WithElectionID(args.electionID.Low, args.electionID.High))
 
 		args.client.Modify().AddEntry(t,
 			fluent.NextHopGroupEntry().
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithID(uint64(2)).
 				AddNextHop(index, 64).
-				WithElectionID(12, 0))
+				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 	time.Sleep(time.Minute)
 	virtualVIPs := createIPv4Entries("198.18.196.1/22")
@@ -270,7 +270,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) []strin
 				WithPrefix(virtualVIPs[ip]+"/32").
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithNextHopGroup(uint64(2)).
-				WithElectionID(12, 0))
+				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
 		t.Fatalf("Could not program entries via clientA, got err: %v", err)
@@ -298,14 +298,15 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) 
 			i := d.GetOrCreateNetworkInstance(vrf)
 			i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 			i.Enabled = ygot.Bool(true)
-			i.EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{
-				oc.Types_ADDRESS_FAMILY_IPV4,
-				oc.Types_ADDRESS_FAMILY_IPV6,
-			}
 			i.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 			nip := gnmi.OC().NetworkInstance(vrf)
 			fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
+		} else if vrf == *deviations.DefaultNetworkInstance {
+			i := d.GetOrCreateNetworkInstance(vrf)
+			i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
+			i.Enabled = ygot.Bool(true)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 		}
 	}
 }
@@ -340,7 +341,7 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	nextHops := []string{}
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 0; i <= nextHopCount; i++ {
-		vlanID := uint16(i)
+		vlanID := uint16(i) + 1
 		name := fmt.Sprintf(`dst%d`, i)
 		Index := uint32(i)
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
@@ -360,7 +361,6 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 	if vrf != "" {
 		t.Logf("Put port %s into vrf %s", dutPort.Name(), vrf)
 		d.GetOrCreateNetworkInstance(vrf).GetOrCreateInterface(dutPort.Name())
-		d.GetOrCreateNetworkInstance(vrf).EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4}
 	}
 
 	i := d.GetOrCreateInterface(dutPort.Name())
