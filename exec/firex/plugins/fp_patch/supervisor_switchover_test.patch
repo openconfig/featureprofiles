@@ -1,8 +1,13 @@
 diff --git a/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go b/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
-index e9b3ce16..91a6da20 100644
+index e9b3ce1..dd04245 100644
 --- a/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
 +++ b/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go
-@@ -20,12 +20,12 @@ import (
+@@ -16,16 +16,17 @@ package supervisor_switchover_test
+ import (
+ 	"context"
+ 	"sort"
++	"strings"
+ 	"testing"
  	"time"
  
  	"github.com/openconfig/featureprofiles/internal/components"
@@ -16,13 +21,7 @@ index e9b3ce16..91a6da20 100644
  	"github.com/openconfig/ondatra/gnmi"
  	"github.com/openconfig/ondatra/gnmi/oc"
  	"github.com/openconfig/ygnmi/ygnmi"
-@@ -73,12 +73,12 @@ func TestSupervisorSwitchover(t *testing.T) {
- 	dut := ondatra.DUT(t, "dut")
- 
- 	supervisors := components.FindComponentsByType(t, dut, controlcardType)
-+	//supervisors := []string{"0/RP0/CPU0","0/RP1/CPU0"}
- 	t.Logf("Found supervisor list: %v", supervisors)
- 	// Only perform the switchover for the chassis with dual RPs/Supervisors.
+@@ -78,7 +79,6 @@ func TestSupervisorSwitchover(t *testing.T) {
  	if got, want := len(supervisors), 2; got != want {
  		t.Skipf("Dual RP/SUP is required on %v: got %v, want %v", dut.Model(), got, want)
  	}
@@ -30,25 +29,23 @@ index e9b3ce16..91a6da20 100644
  	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, supervisors)
  	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
  
-@@ -96,10 +96,9 @@ func TestSupervisorSwitchover(t *testing.T) {
- 	}
+@@ -97,9 +97,7 @@ func TestSupervisorSwitchover(t *testing.T) {
  
  	gnoiClient := dut.RawAPIs().GNOI().New(t)
-+	compPath := components.GetSubcomponentPath(rpStandbyBeforeSwitch)
  	switchoverRequest := &spb.SwitchControlProcessorRequest{
 -		ControlProcessor: &tpb.Path{
 -			Elem: []*tpb.PathElem{{Name: rpStandbyBeforeSwitch}},
 -		},
-+		ControlProcessor: compPath, 
++		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch),
  	}
  	t.Logf("switchoverRequest: %v", switchoverRequest)
  	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-@@ -109,7 +108,13 @@ func TestSupervisorSwitchover(t *testing.T) {
+@@ -109,7 +107,13 @@ func TestSupervisorSwitchover(t *testing.T) {
  	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
  
  	want := rpStandbyBeforeSwitch
 -	if got := switchoverResponse.GetControlProcessor().GetElem()[0].GetName(); got != want {
-+	got:= ""
++	got := ""
 +	if *deviations.GNOISubcomponentPath {
 +		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
 +	} else {
@@ -58,17 +55,39 @@ index e9b3ce16..91a6da20 100644
  		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
  	}
  	if got, want := switchoverResponse.GetVersion(), ""; got == want {
-@@ -148,6 +153,13 @@ func TestSupervisorSwitchover(t *testing.T) {
- 	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
+@@ -149,6 +153,13 @@ func TestSupervisorSwitchover(t *testing.T) {
  		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
  	}
-+    
-+	switchoverReady = gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
-+	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
-+	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
-+	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
-+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
-+	}
  
++	interfaceCheckToSkip := ""
++	if *deviations.SkipStandbyManagementInterfaceCheck {
++		if dut.Vendor() == ondatra.CISCO {
++			interfaceCheckToSkip = "MgmtEth" + rpStandbyAfterSwitch
++		}
++	}
++
  	batch := gnmi.OCBatch()
  	for _, port := range intfsOperStatusUPBeforeSwitch {
+ 		batch.AddPaths(gnmi.OC().Interface(port).OperStatus())
+@@ -159,6 +170,9 @@ func TestSupervisorSwitchover(t *testing.T) {
+ 			return false
+ 		}
+ 		for _, port := range intfsOperStatusUPBeforeSwitch {
++			if strings.HasPrefix(port, interfaceCheckToSkip) {
++				continue
++			}
+ 			if root.GetInterface(port).GetOperStatus() != oc.Interface_OperStatus_UP {
+ 				return false
+ 			}
+diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
+index 6e990bb..4c0cac2 100644
+--- a/internal/deviations/deviations.go
++++ b/internal/deviations/deviations.go
+@@ -111,4 +111,7 @@ var (
+ 
+ 	ExplicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
+ 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
++
++	SkipStandbyManagementInterfaceCheck = flag.Bool("deviation_skip_standby_management_interface_check", true,
++		"Device does not generate an event for backup menegment interface after switchover, so suppress the oper-status check for backup managment interface after switchover.")
+ )
