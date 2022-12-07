@@ -495,8 +495,8 @@ func testTrafficqoswrr(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, to
 		TotalInPktstc1 += *flowcounterstc1.InPkts
 		TotalInOctstc1 += *flowcounterstc1.InOctets
 	}
-	var mul float64
-	mul = 2.9
+
+	mul := 2.9
 
 	if float64(TotalInPktstc5)/float64(TotalInPktstc1) < mul {
 		t.Errorf(" ERROR the flows not honoring configured Bandwidth remaining ratio")
