@@ -26,6 +26,10 @@ var (
 	gdpEtherType = *ygot.Uint32(0x6007)
 	portID       = *ygot.Uint32(10)
 	deviceID     = *ygot.Uint64(1)
+	highID       = *ygot.Uint64(0)
+	pDesc        = "Primary Connection"
+	sDesc        = "Secondary Connection"
+	npDesc       = "New Primary"
 )
 
 // Define PacketIO Interface
@@ -285,35 +289,30 @@ func TestZeroMaster(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDeviceId(t, dut)
 	configurePortId(t, dut)
-	testCases := []testArgs{
-		{
-			desc:         "Primary connection",
-			lowID:        *ygot.Uint64(0),
-			highID:       *ygot.Uint64(0),
-			handle:       clientConnection(t, dut),
-			deviceID:     *ygot.Uint64(1),
-			expectPass:   false,
-			expectStatus: 0,
-		},
+	test := testArgs{
+
+		desc:         pDesc,
+		lowID:        *ygot.Uint64(0),
+		highID:       highID,
+		handle:       clientConnection(t, dut),
+		deviceID:     deviceID,
+		expectPass:   false,
+		expectStatus: 0,
 	}
-	var p4Clients []*p4rt_client.P4RTClient
-	for _, test := range testCases {
-		t.Run(test.desc, func(t *testing.T) {
-			resp, err := streamP4RTArb(&test)
-			if err == nil && test.expectPass {
-				t.Errorf("Zero ElectionID (0,0) is allowed: %v", err)
-				removeClient(test.handle)
-			} else {
-				t.Logf("Zero ElectionID (0,0) connection failed as expected: %v", err)
-			}
-			// Validate status code
-			if resp != test.expectStatus {
-				t.Errorf("Incorrect status code received: want %d, got %d", test.expectStatus, resp)
-			}
-			// Keep track of connections for teardown
-			p4Clients = append(p4Clients, test.handle)
-		})
-	}
+	t.Run(test.desc, func(t *testing.T) {
+		resp, err := streamP4RTArb(&test)
+		if err == nil && test.expectPass {
+			t.Errorf("Zero ElectionID (0,0) is allowed: %v", err)
+			removeClient(test.handle)
+		} else {
+			t.Logf("Zero ElectionID (0,0) connection failed as expected: %v", err)
+		}
+		// Validate status code
+		if resp != test.expectStatus {
+			t.Errorf("Incorrect status code received: want %d, got %d", test.expectStatus, resp)
+		}
+	})
+
 }
 
 // Test Primary Reconnect
@@ -323,9 +322,9 @@ func TestPrimaryReconnect(t *testing.T) {
 	configurePortId(t, dut)
 	testCases := []testArgs{
 		{
-			desc:         "Primary connection",
+			desc:         pDesc,
 			lowID:        *ygot.Uint64(100),
-			highID:       *ygot.Uint64(0),
+			highID:       highID,
 			handle:       clientConnection(t, dut),
 			deviceID:     deviceID,
 			expectPass:   true,
@@ -333,9 +332,9 @@ func TestPrimaryReconnect(t *testing.T) {
 			expectRead:   true,
 			expectStatus: 0,
 		}, {
-			desc:         "Secondary connection",
+			desc:         sDesc,
 			lowID:        *ygot.Uint64(90),
-			highID:       *ygot.Uint64(0),
+			highID:       highID,
 			handle:       clientConnection(t, dut),
 			deviceID:     deviceID,
 			expectPass:   true,
@@ -343,9 +342,9 @@ func TestPrimaryReconnect(t *testing.T) {
 			expectRead:   true,
 			expectStatus: 5,
 		}, {
-			desc:         "Primary reconnection",
+			desc:         pDesc,
 			lowID:        *ygot.Uint64(100),
-			highID:       *ygot.Uint64(0),
+			highID:       highID,
 			handle:       clientConnection(t, dut),
 			deviceID:     deviceID,
 			expectPass:   true,
@@ -379,9 +378,9 @@ func TestPrimarySecondary(t *testing.T) {
 	configurePortId(t, dut)
 	testCases := []testArgs{
 		{
-			desc:         "Primary connection",
+			desc:         pDesc,
 			lowID:        *ygot.Uint64(100),
-			highID:       *ygot.Uint64(0),
+			highID:       highID,
 			handle:       clientConnection(t, dut),
 			deviceID:     deviceID,
 			expectPass:   true,
@@ -389,9 +388,9 @@ func TestPrimarySecondary(t *testing.T) {
 			expectRead:   true,
 			expectStatus: 0,
 		}, {
-			desc:         "Secondary connection",
+			desc:         pDesc,
 			lowID:        *ygot.Uint64(90),
-			highID:       *ygot.Uint64(0),
+			highID:       highID,
 			handle:       clientConnection(t, dut),
 			deviceID:     deviceID,
 			expectPass:   true,
@@ -430,17 +429,17 @@ func TestDuplicateElectionID(t *testing.T) {
 	configurePortId(t, dut)
 	testCases := []testArgs{
 		{
-			desc:         "Primary connection",
+			desc:         pDesc,
 			lowID:        *ygot.Uint64(100),
-			highID:       *ygot.Uint64(0),
+			highID:       highID,
 			handle:       clientConnection(t, dut),
 			deviceID:     deviceID,
 			expectPass:   true,
 			expectStatus: 0,
 		}, {
-			desc:         "Secondary connection",
+			desc:         sDesc,
 			lowID:        *ygot.Uint64(100),
-			highID:       *ygot.Uint64(0),
+			highID:       highID,
 			handle:       clientConnection(t, dut),
 			deviceID:     deviceID,
 			expectPass:   false,
@@ -485,9 +484,9 @@ func TestReplacePrimary(t *testing.T) {
 			expectPass: true,
 			Items: [2]*testArgs{
 				{
-					desc:              "Primary connection",
+					desc:              pDesc,
 					lowID:             *ygot.Uint64(101),
-					highID:            *ygot.Uint64(0),
+					highID:            highID,
 					handle:            clientConnection(t, dut),
 					deviceID:          deviceID,
 					expectPass:        true,
@@ -497,9 +496,9 @@ func TestReplacePrimary(t *testing.T) {
 					expectFinalStatus: 6,
 				},
 				{
-					desc:              "new Primary",
+					desc:              npDesc,
 					lowID:             *ygot.Uint64(102),
-					highID:            *ygot.Uint64(0),
+					highID:            highID,
 					handle:            clientConnection(t, dut),
 					deviceID:          deviceID,
 					expectPass:        true,
@@ -561,53 +560,52 @@ func TestArbitrationUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDeviceId(t, dut)
 	configurePortId(t, dut)
-	testCases := []testArgs{
-		{
-			desc:         "Primary connection",
-			lowID:        *ygot.Uint64(102),
-			highID:       *ygot.Uint64(0),
-			handle:       clientConnection(t, dut),
-			deviceID:     deviceID,
-			expectPass:   false,
-			expectWrite:  true,
-			expectRead:   true,
-			expectStatus: 0,
-		},
+	test := testArgs{
+
+		desc:         pDesc,
+		lowID:        *ygot.Uint64(102),
+		highID:       highID,
+		handle:       clientConnection(t, dut),
+		deviceID:     deviceID,
+		expectPass:   false,
+		expectWrite:  true,
+		expectRead:   true,
+		expectStatus: 0,
 	}
 	var p4Clients []*p4rt_client.P4RTClient
-	for _, test := range testCases {
-		t.Run(test.desc, func(t *testing.T) {
-			resp, err := streamP4RTArb(&test)
-			if err != nil && test.expectPass {
-				t.Errorf("Failed to setup P4RT Client: %v", err)
-			}
-			// Validate status code
-			if resp != test.expectStatus {
-				t.Errorf("Incorrect status code received: want %d, got %d", test.expectStatus, resp)
-			}
-			// Validates that client can read/write
-			validateRWResp(t, &test)
-			// Updating ElectionID to lower value
-			test.lowID = 99
-			// After updating electionID, statusCode also changes
-			// to secondary without a primary
-			test.expectStatus = 5
-			// After updating election, expectWrite is false
-			// as this client is no longer primary
-			test.expectWrite = false
-			resp, err = streamP4RTArb(&test)
-			if err != nil && test.expectPass {
-				t.Errorf("Failed to setup P4RT Client: %v", err)
-			}
-			// Validate status code
-			if resp != test.expectStatus {
-				t.Errorf("Incorrect status code received: want %d, got %d", test.expectStatus, resp)
-			}
-			validateRWResp(t, &test)
-			// Keep track of connections for teardown
-			p4Clients = append(p4Clients, test.handle)
-		})
-	}
+
+	t.Run(test.desc, func(t *testing.T) {
+		resp, err := streamP4RTArb(&test)
+		if err != nil && test.expectPass {
+			t.Errorf("Failed to setup P4RT Client: %v", err)
+		}
+		// Validate status code
+		if resp != test.expectStatus {
+			t.Errorf("Incorrect status code received: want %d, got %d", test.expectStatus, resp)
+		}
+		// Validates that client can read/write
+		validateRWResp(t, &test)
+		// Updating ElectionID to lower value
+		test.lowID = 99
+		// After updating electionID, statusCode also changes
+		// to secondary without a primary
+		test.expectStatus = 5
+		// After updating election, expectWrite is false
+		// as this client is no longer primary
+		test.expectWrite = false
+		resp, err = streamP4RTArb(&test)
+		if err != nil && test.expectPass {
+			t.Errorf("Failed to setup P4RT Client: %v", err)
+		}
+		// Validate status code
+		if resp != test.expectStatus {
+			t.Errorf("Incorrect status code received: want %d, got %d", test.expectStatus, resp)
+		}
+		validateRWResp(t, &test)
+		// Keep track of connections for teardown
+		p4Clients = append(p4Clients, test.handle)
+	})
+
 	// Teardown clients
 	for _, p4Client := range p4Clients {
 		removeClient(p4Client)
