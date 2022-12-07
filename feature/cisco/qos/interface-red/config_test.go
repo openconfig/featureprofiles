@@ -1464,6 +1464,7 @@ func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 	}
 	cliHandle := dut.RawAPIs().CLI(t)
 	defer cliHandle.Close()
+
 	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
 	t.Logf(resp)
 	if err != nil {
@@ -1491,9 +1492,8 @@ func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 	updtwrr.Weight = ygot.Uint64(55)
 	ConfigUpdWrr := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*updtwrr.Id)
 	ConfigUpdWrr.Update(t, updtwrr)
-	cliHandle1 := dut.RawAPIs().CLI(t)
-	defer cliHandle1.Close()
-	resp1, err1 := cliHandle1.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
+
+	resp1, err1 := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
 	t.Logf(resp1)
 	if err1 != nil {
 		t.Error(err1)
