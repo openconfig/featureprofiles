@@ -58,7 +58,7 @@ index 3c032e3..801b38c 100644
 +
 +}
 +
-+diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
+diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
 index 6e990bb6..3cd27f76 100644
 --- a/internal/deviations/deviations.go
 +++ b/internal/deviations/deviations.go
