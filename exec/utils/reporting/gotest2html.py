@@ -598,22 +598,27 @@ def _parse(file, json_data, suite_name=None, known_failures=[]):
 
         test_name = entry['Test']
         test_pkg = entry['Package']
+        key = (test_name, test_pkg)
 
         if entry["Action"] == 'run':
             c = _get_parent(test_map, entry, top_test).create_child(test_name, test_pkg)
-            test_map[(test_name, test_pkg)] = c
+            test_map[key] = c
                 
         elif entry["Action"] == 'output':
-            test_map[(test_name, test_pkg)].append_output(entry["Output"])
+            if key in test_map:
+                test_map[key].append_output(entry["Output"])
 
         elif entry["Action"] == 'pass':
-            test_map[(test_name, test_pkg)].mark_passed()
+            if key in test_map:
+                test_map[key].mark_passed()
 
         elif entry["Action"] == 'fail':
-            test_map[(test_name, test_pkg)].mark_failed()
+            if key in test_map:
+                test_map[key].mark_failed()
         
         elif entry["Action"] == 'skip':
-            test_map[(test_name, test_pkg)].mark_skipped()
+            if key in test_map:
+                test_map[key].mark_skipped()
 
     for t in test_map.values():
         t.find_failures(known_failures)

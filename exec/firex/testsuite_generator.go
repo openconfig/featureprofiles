@@ -107,7 +107,7 @@ var (
             {{- end }}
         {{- end }}
     script_paths:
-        - ({{ $gt.ID }}) {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}{{ if hasDeviation $gt }} (Deviation){{ end }}:
+        - ({{ $gt.ID }}) {{ $gt.Name }}{{ if $gt.Patch }} (Patched){{ end }}{{ if hasDeviation $gt }} (Deviation){{ end }}{{ if $gt.MustPass }} (MP){{ end }}:
             test_path: {{ $gt.Path }}
             {{- if $gt.Args }}
             test_args: {{ join $gt.Args " " }}

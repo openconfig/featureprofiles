@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/ondatra"
@@ -476,7 +477,7 @@ func TestCD5PBR(t *testing.T) {
 				prefix: &gribiPrefix{
 					scale:           1,
 					host:            "11.11.11.0",
-					vrfName:         "TE",
+					vrfName:         *ciscoFlags.NonDefaultNetworkInstance,
 					vipPrefixLength: "32",
 
 					vip1Ip: "192.0.2.40",
