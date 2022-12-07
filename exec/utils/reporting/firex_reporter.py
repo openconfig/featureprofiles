@@ -127,6 +127,9 @@ for ts in  _get_testsuites(testsuite_files.split(',')):
                     gt.mark_deviated()
                     break
 
+            if t.get('mustpass', False):
+                gt.mark_must_pass()
+
             gh_issue = FPGHRepo.instance().get_issue(t['name'])
             if gh_issue:
                 gt.set_gh_issue(gh_issue)

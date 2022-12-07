@@ -63,7 +63,8 @@ whitelist_arguments([
     'test_must_pass',
     'test_debug',
     'apply_patches',
-    'exec_repo_dir'
+    'exec_repo_dir',
+    'ondatra_logging',
 ])
 
 @app.task(base=FireX, bind=True)
@@ -80,6 +81,7 @@ def BringupTestbed(self, ws, images = None,
                         base_conf_path=None,
                         skip_install=False,
                         apply_patches=True,
+                        ondatra_logging=True,
                         exec_repo_dir=None):
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
@@ -126,11 +128,15 @@ def BringupTestbed(self, ws, images = None,
             file=ondatra_testbed_path)
     else:
         if ondatra_binding_path[0] != '/':
-            ondatra_binding_path = os.path.join(exec_repo_dir, ondatra_binding_path)
+            shutil.copyfile(os.path.join(exec_repo_dir, ondatra_binding_path), 
+                os.path.join(ws, 'ondatra.binding'))
+            ondatra_binding_path = os.path.join(ws, 'ondatra.binding')
 
         if ondatra_testbed_path[0] != '/':
-            ondatra_testbed_path = os.path.join(exec_repo_dir, ondatra_testbed_path)
-
+            shutil.copyfile(os.path.join(exec_repo_dir, ondatra_testbed_path), 
+                os.path.join(ws, 'ondatra.testbed'))
+            ondatra_testbed_path = os.path.join(ws, 'ondatra.testbed')
+        
         if base_conf_path and len(base_conf_path) > 0:
             if base_conf_path[0] != '/':
                 base_conf_path = os.path.join(exec_repo_dir, base_conf_path)
@@ -230,6 +236,7 @@ def b4_fp_chain_provider(ws,
                          test_must_pass=False,
                          test_debug=True,
                          apply_patches=True,
+                         ondatra_logging=True,
                          **kwargs):
 
     chain = InjectArgs(ws=ws,
@@ -248,6 +255,7 @@ def b4_fp_chain_provider(ws,
                     test_must_pass=test_must_pass,
                     test_debug=test_debug,
                     apply_patches=apply_patches,
+                    ondatra_logging=ondatra_logging,
                     **kwargs)
     
     fp_repo = git.Repo(fp_repo_dir)
@@ -262,14 +270,14 @@ def b4_fp_chain_provider(ws,
     if fp_pre_tests:
         for pt in fp_pre_tests:
             for k, v in pt.items():
-                chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'),ondatra_binding_path=ondatra_binding_path)
+                chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'),ondatra_binding_path=ondatra_binding_path, ondatra_logging=ondatra_logging)
 
-    chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = test_path, test_args = test_args, test_timeout = test_timeout, ondatra_binding_path=ondatra_binding_path)
+    chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = test_path, test_args = test_args, test_timeout = test_timeout, ondatra_binding_path=ondatra_binding_path, ondatra_logging=ondatra_logging)
 
     if fp_post_tests:
         for pt in fp_post_tests:
             for k, v in pt.items():
-                chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path)
+                chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path, ondatra_logging=ondatra_logging)
 
     chain |= GoReporting.s(fp_ws=exec_repo_dir)
     return chain
@@ -305,6 +313,7 @@ def RunB4FPTest(self,
                 xunit_results_filepath,
                 ondatra_testbed_path=None,
                 ondatra_binding_path=None,
+                ondatra_logging=True,
                 test_path=None,
                 test_args=None,
                 test_timeout=0,
@@ -354,7 +363,10 @@ def RunB4FPTest(self,
           f'--debug ' \
           f'--raw-command ' \
           f'-- ' \
-          f'{GO_BIN} test -v {test_path} {go_args} -args {test_args} -xml "{xml_results_file}"'
+          f'{GO_BIN} test -v {test_path} {go_args} -args {test_args}'
+
+    if ondatra_logging:
+        cmd += f' -xml "{xml_results_file}"'
  
     start_time = self.get_current_time()
     try:
