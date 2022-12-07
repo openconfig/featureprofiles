@@ -138,7 +138,7 @@ def BringupTestbed(self, ws, images = None,
                 base_conf_path = os.path.join(exec_repo_dir, base_conf_path)
             check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
 
-    if apply_patches or ondatra_logging:
+    if apply_patches:
         with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
             fp.write("replace github.com/openconfig/ondatra => ../ondatra")
 
