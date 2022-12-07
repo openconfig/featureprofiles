@@ -268,14 +268,12 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 // else configures the Default Network Instance.
 func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
 	t.Helper()
-	addressFamilies := []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4}
 	// Use default NI if not provided
 	if a.networkInstance != "" {
 		ni := &oc.NetworkInstance{
 			Name:                   ygot.String(a.networkInstance),
 			Enabled:                ygot.Bool(true),
 			Type:                   oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
-			EnabledAddressFamilies: addressFamilies,
 		}
 		i := ni.GetOrCreateInterface(p.Name())
 		i.Interface = ygot.String(p.Name())
@@ -286,7 +284,6 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
 		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
 	} else {
 		dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
-		gnmi.Replace(t, d, dni.EnabledAddressFamilies().Config(), addressFamilies)
 		gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
 			Id:           ygot.String(p.Name()),
 			Interface:    ygot.String(p.Name()),
