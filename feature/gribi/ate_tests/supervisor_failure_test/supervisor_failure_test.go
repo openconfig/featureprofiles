@@ -30,7 +30,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 
 	spb "github.com/openconfig/gnoi/system"
-	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -332,9 +331,7 @@ func TestSupFailure(t *testing.T) {
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: &tpb.Path{
-			Elem: []*tpb.PathElem{{Name: secondaryBeforeSwitch}},
-		},
+		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
