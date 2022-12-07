@@ -25,8 +25,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -72,15 +74,18 @@ func TestOverloadBit(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, ok := otg.Telemetry().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Flags().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedE_Lsps_FlagsSlice) bool {
-			for _, flag := range val.Val(t) {
+	_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Flags().State(), time.Minute, func(v *ygnmi.Value[[]otgtelemetry.E_Lsps_Flags]) bool {
+		time.Sleep(1 * time.Second)
+		flags, present := v.Val()
+		if present {
+			for _, flag := range flags {
 				if flag == otgtelemetry.Lsps_Flags_OVERLOAD {
 					return true
 				}
 			}
-			return false
-		}).Await(t)
+		}
+		return false
+	}).Await(t)
 
 	if !ok {
 		t.Fatalf("OverLoad Bit not seen on learned lsp on ATE")
@@ -106,13 +111,19 @@ func TestMetric(t *testing.T) {
 	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
-	_, ok := otg.Telemetry().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedUint32) bool {
-			return val.Val(t) == configuredMetric
-		}).Await(t)
 
-	metricInReceivedLsp := otg.Telemetry().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().Get(t)
+	_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
+		time.Sleep(1 * time.Second)
+		metric, present := v.Val()
+		if present {
+			if metric == configuredMetric {
+				return true
+			}
+		}
+		return false
+	}).Await(t)
 
+	metricInReceivedLsp := gnmi.GetAll(t, otg, gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State())[0]
 	if !ok {
 		t.Fatalf("Metric not matched. Expected %d got %d ", configuredMetric, metricInReceivedLsp)
 	}
