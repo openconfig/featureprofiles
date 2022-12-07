@@ -287,7 +287,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	t.Log("Send Cease Notification from ATE to DUT")
 	ate.Actions().NewBGPPeerNotification().WithCode(6).WithSubCode(6).WithPeers(bgpPeer).Send(t)
 	t.Log("Verify BGP session state : ACTIVE")
-	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*20, oc.Bgp_Neighbor_SessionState_ACTIVE)
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*60, oc.Bgp_Neighbor_SessionState_ACTIVE)
 
 	// Verify if Cease notification is received on DUT.
 	t.Log("Verify Error code received on DUT: BgpTypes_BGP_ERROR_CODE_CEASE")
