@@ -19,6 +19,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -110,7 +111,11 @@ func TestGNOIPing(t *testing.T) {
 	if len(ipv6Addrs) == 0 {
 		t.Fatalf("Failed to get a valid IPv6 loopback address: %+v", ipv6Addrs)
 	}
-
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		if dut.Vendor() == ondatra.NOKIA {
+			fptest.AssignToNetworkInstance(t, dut, lbIntf, "mgmt", 0)
+		}
+	}
 	commonExpectedIPv4Reply := &spb.PingResponse{
 		Source:   ipv4Addrs[0].GetIp(),
 		Time:     minimumPingTime,
