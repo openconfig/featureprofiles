@@ -1,8 +1,8 @@
 diff --git a/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go b/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
-index 581e0771..f3110e9b
+index 581e0771..8fa41953 100644
 --- a/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
 +++ b/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
-@@ -15,32 +15,29 @@
+@@ -15,32 +15,32 @@
  package tls_authentication_over_grpc_test
  
  import (
@@ -13,6 +13,7 @@ index 581e0771..f3110e9b
  	"flag"
  	"fmt"
 +	"os"
++	"strings"
  	"testing"
  
  	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -22,7 +23,9 @@ index 581e0771..f3110e9b
  	"google.golang.org/grpc"
  	"google.golang.org/grpc/credentials"
  	"google.golang.org/grpc/metadata"
++	"google.golang.org/protobuf/encoding/prototext"
  
++	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
  	gpb "github.com/openconfig/gnmi/proto/gnmi"
 -	"github.com/openconfig/ondatra/gnmi"
 -	"github.com/openconfig/ondatra/gnmi/oc"
@@ -41,7 +44,7 @@ index 581e0771..f3110e9b
  )
  
  func TestMain(m *testing.M) {
-@@ -59,7 +56,7 @@ func keyboardInteraction(password string) ssh.KeyboardInteractiveChallenge {
+@@ -59,7 +59,7 @@ func keyboardInteraction(password string) ssh.KeyboardInteractiveChallenge {
  func gnmiClient(ctx context.Context) (gpb.GNMIClient, error) {
  	conn, err := grpc.DialContext(
  		ctx,
@@ -50,13 +53,41 @@ index 581e0771..f3110e9b
  		grpc.WithTransportCredentials(
  			credentials.NewTLS(&tls.Config{
  				InsecureSkipVerify: true, // NOLINT
-@@ -72,17 +69,65 @@ func gnmiClient(ctx context.Context) (gpb.GNMIClient, error) {
+@@ -71,18 +71,93 @@ func gnmiClient(ctx context.Context) (gpb.GNMIClient, error) {
+ 	return gpb.NewGNMIClient(conn), nil
  }
  
++func parseBindingFile(t *testing.T) (string, string, string) {
++	t.Helper()
++
++	bindingFile := flag.Lookup("binding").Value.String()
++	in, err := os.ReadFile(bindingFile)
++	if err != nil {
++		t.Fatalf("unable to read binding file")
++	}
++
++	b := &bindpb.Binding{}
++	if err := prototext.Unmarshal(in, b); err != nil {
++		t.Fatalf("unable to parse binding file")
++	}
++
++	sshTarget := strings.Split(b.Duts[0].Ssh.Target, ":")
++	gnmiTarget := strings.Split(b.Duts[0].Gnmi.Target, ":")
++
++	sshIp := sshTarget[0]
++	sshPort := "22"
++	gnmiPort := "6030"
++	if len(sshTarget) > 1 {
++		sshPort = sshTarget[1]
++	}
++	if len(gnmiTarget) > 1 {
++		gnmiPort = gnmiTarget[1]
++	}
++	return sshIp, sshPort, gnmiPort
++}
++
  func TestAuthentication(t *testing.T) {
-+	*sshIP = os.Getenv("SSH_IP")
-+	*sshPort = os.Getenv("SSH_PORT")
-+	*gnmiPort = os.Getenv("GNMI_NONDEFAULT_PORT")
++	*sshIP, *sshPort, *gnmiPort = parseBindingFile(t)
  	if *sshIP == "" {
  		t.Fatal("--ssh_ip flag must be set.")
  	}
@@ -123,7 +154,7 @@ index 581e0771..f3110e9b
  
  	tests := []struct {
  		desc       string
-@@ -106,7 +151,7 @@ func TestAuthentication(t *testing.T) {
+@@ -106,7 +181,7 @@ func TestAuthentication(t *testing.T) {
  	for _, tc := range tests {
  		t.Run(tc.desc, func(t *testing.T) {
  			t.Log("Trying SSH credentials")
@@ -132,7 +163,7 @@ index 581e0771..f3110e9b
  				User: tc.user,
  				Auth: []ssh.AuthMethod{
  					ssh.KeyboardInteractive(keyboardInteraction(tc.pass)),
-@@ -139,7 +184,8 @@ func TestAuthentication(t *testing.T) {
+@@ -139,7 +214,8 @@ func TestAuthentication(t *testing.T) {
  					Elem: []*gpb.PathElem{
  						{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
  				},
@@ -142,7 +173,7 @@ index 581e0771..f3110e9b
  			})
  			if tc.wantErr != (err != nil) {
  				if tc.wantErr {
-@@ -149,15 +195,15 @@ func TestAuthentication(t *testing.T) {
+@@ -149,15 +225,15 @@ func TestAuthentication(t *testing.T) {
  				}
  			}
  			t.Log("Trying credentials with GNMI Set")
