@@ -16,10 +16,12 @@ package supervisor_switchover_test
 import (
 	"context"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
@@ -149,6 +151,13 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
 	}
 
+	interfaceCheckToSkip := ""
+	if *deviations.SkipStandbyManagementInterfaceCheck {
+		if dut.Vendor() == ondatra.CISCO {
+			interfaceCheckToSkip = "MgmtEth" + rpStandbyAfterSwitch
+		}
+	}
+
 	batch := gnmi.OCBatch()
 	for _, port := range intfsOperStatusUPBeforeSwitch {
 		batch.AddPaths(gnmi.OC().Interface(port).OperStatus())
@@ -159,6 +168,9 @@ func TestSupervisorSwitchover(t *testing.T) {
 			return false
 		}
 		for _, port := range intfsOperStatusUPBeforeSwitch {
+			if strings.HasPrefix(port, interfaceCheckToSkip) {
+				continue
+			}
 			if root.GetInterface(port).GetOperStatus() != oc.Interface_OperStatus_UP {
 				return false
 			}
