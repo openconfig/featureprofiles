@@ -22,13 +22,17 @@ import (
 	"testing"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/util"
+	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -98,6 +102,14 @@ func TestGNMIMetadataAnnotation(t *testing.T) {
 		gpbSetRequest, err := buildMetadataAnnotation(tc.protoMsg)
 		if err != nil {
 			t.Errorf("Cannot build a gNMI SetRequest from proto message: %v", err)
+		}
+
+		if *deviations.NoMetadataSingleUpdate {
+			t.Log("Appending an update to the metadata due to NoMetadataSingleUpdate deviation")
+			// accompaniedPath and accompaniedUpdateVal can be any valid oc path and value
+			accompaniedPath := gnmi.OC().System().Hostname().Config().PathStruct()
+			accompaniedUpdateVal := gnmi.Get[string](t, dut, gnmi.OC().System().Hostname().Config())
+			gpbSetRequest.Update = append(gpbSetRequest.Update, buildGNMIUpdate(t, accompaniedPath, &accompaniedUpdateVal))
 		}
 
 		t.Log("gnmiClient Set metadata annotation")
@@ -216,4 +228,25 @@ func extractMetadataAnnotation(getResponse *gpb.GetResponse, m proto.Message) er
 		return fmt.Errorf("cannot unmarshal received proto msg, err: %v", err)
 	}
 	return nil
+}
+
+// buildGNMIUpdate builds a gnmi update for a given ygot path and value.
+func buildGNMIUpdate(t *testing.T, yPath ygnmi.PathStruct, val interface{}) *gpb.Update {
+	path, _, errs := ygnmi.ResolvePath(yPath)
+	if errs != nil {
+		t.Fatalf("Could not resolve the ygot path; %v", errs)
+	}
+	js, err := ygot.Marshal7951(val, ygot.JSONIndent("  "), &ygot.RFC7951JSONConfig{AppendModuleName: true, PreferShadowPath: true})
+	if err != nil {
+		t.Fatalf("Could not encode value into JSON format: %v", err)
+	}
+	return &gpb.Update{
+		Path: path,
+		Val: &gpb.TypedValue{
+			Value: &gpb.TypedValue_JsonIetfVal{
+				JsonIetfVal: js,
+			},
+		},
+	}
+
 }
