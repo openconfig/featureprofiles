@@ -1,9 +1,12 @@
 diff --git a/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go b/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
-index 581e0771..5f632068
+index 581e0771..9ac86620
 --- a/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
 +++ b/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
-@@ -17,30 +17,27 @@ package tls_authentication_over_grpc_test
+@@ -15,32 +15,29 @@
+ package tls_authentication_over_grpc_test
+ 
  import (
++	"bytes"
  	"context"
  	"crypto/tls"
 +	"encoding/json"
@@ -13,7 +16,6 @@ index 581e0771..5f632068
  	"testing"
  
  	"github.com/openconfig/featureprofiles/internal/fptest"
-+	"github.com/openconfig/featureprofiles/tools/inputcisco/feature"
  	"github.com/openconfig/ondatra"
 -	"github.com/openconfig/ygot/ygot"
  	"golang.org/x/crypto/ssh"
@@ -48,7 +50,7 @@ index 581e0771..5f632068
  		grpc.WithTransportCredentials(
  			credentials.NewTLS(&tls.Config{
  				InsecureSkipVerify: true, // NOLINT
-@@ -75,14 +72,40 @@ func TestAuthentication(t *testing.T) {
+@@ -75,14 +72,59 @@ func TestAuthentication(t *testing.T) {
  	if *sshIP == "" {
  		t.Fatal("--ssh_ip flag must be set.")
  	}
@@ -82,7 +84,6 @@ index 581e0771..5f632068
 +		}
 +	  }`)
 +	f, err := os.Create("user.json")
-+
 +	if err != nil {
 +		t.Error("Error occcured while creating the file ", err)
 +	}
@@ -92,11 +93,31 @@ index 581e0771..5f632068
 +	if err2 != nil {
 +		t.Error("Error occcured while writing to file ", err2)
 +	}
-+	feature.ConfigJSON(dut, t, "user.json")
++	client := dut.RawAPIs().GNMI().New(t)
++	data, _ := os.ReadFile("user.json")
++	rawjson := string(bytes.TrimRight(data, "\n"))
++	setreq := &gpb.SetRequest{
++		Update: []*gpb.Update{{
++			Path: &gpb.Path{
++				Origin: "openconfig",
++				Elem:   []*gpb.PathElem{},
++			},
++			Val: &gpb.TypedValue{
++				Value: &gpb.TypedValue_JsonIetfVal{
++					JsonIetfVal: []byte(rawjson),
++				},
++			},
++		}},
++	}
++	response, err := client.Set(context.Background(), setreq)
++	if err != nil {
++		t.Log(response)
++		t.Error(err)
++	}
  
  	tests := []struct {
  		desc       string
-@@ -106,7 +129,7 @@ func TestAuthentication(t *testing.T) {
+@@ -106,7 +148,7 @@ func TestAuthentication(t *testing.T) {
  	for _, tc := range tests {
  		t.Run(tc.desc, func(t *testing.T) {
  			t.Log("Trying SSH credentials")
@@ -105,7 +126,7 @@ index 581e0771..5f632068
  				User: tc.user,
  				Auth: []ssh.AuthMethod{
  					ssh.KeyboardInteractive(keyboardInteraction(tc.pass)),
-@@ -139,7 +162,8 @@ func TestAuthentication(t *testing.T) {
+@@ -139,7 +181,8 @@ func TestAuthentication(t *testing.T) {
  					Elem: []*gpb.PathElem{
  						{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
  				},
@@ -115,7 +136,7 @@ index 581e0771..5f632068
  			})
  			if tc.wantErr != (err != nil) {
  				if tc.wantErr {
-@@ -149,15 +173,15 @@ func TestAuthentication(t *testing.T) {
+@@ -149,15 +192,15 @@ func TestAuthentication(t *testing.T) {
  				}
  			}
  			t.Log("Trying credentials with GNMI Set")
