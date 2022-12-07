@@ -49,11 +49,19 @@ func EqualToDefault[T any](query ygnmi.SingletonQuery[T], val T) check.Validator
 	return check.Equal(query, val)
 }
 
+func checkSliceContains(s1 string, s2 []string) bool {
+	for _, str := range s2 {
+		if s1 == str {
+			return true
+		}
+	}
+	return false
+}
+
 // TestBasic configures IS-IS on the DUT and confirms that the various values and defaults propagate
 // then configures the ATE as well, waits for the adjacency to form, and checks that numerous
 // counters and other values now have sensible values.
 func TestBasic(t *testing.T) {
-
 	ts := session.MustNew(t).WithISIS()
 	// Only push DUT config - no adjacency established yet
 	if err := ts.PushDUT(context.Background()); err != nil {
@@ -61,7 +69,7 @@ func TestBasic(t *testing.T) {
 	}
 	isisRoot := session.ISISPath()
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
-	if err := check.Equal(isisRoot.Global().Instance().State(), session.ISISName).AwaitFor(time.Second*30, ts.DUTClient); err != nil {
+	if err := check.Equal(isisRoot.Global().Instance().State(), session.ISISName).AwaitFor(time.Second*5, ts.DUTClient); err != nil {
 		t.Fatalf("IS-IS failed to configure: %v", err)
 	}
 	// There might be lag between when the instance name is set and when the
@@ -85,7 +93,6 @@ func TestBasic(t *testing.T) {
 			})
 		}
 	})
-
 	t.Run("read_auth", func(t *testing.T) {
 		// TODO: Enable these tests once supported
 		t.Skip("Authentication not supported")
@@ -142,6 +149,7 @@ func TestBasic(t *testing.T) {
 				})
 			}
 		})
+
 		t.Run("circuit_counters", func(t *testing.T) {
 			cCounts := port1ISIS.CircuitCounters()
 			for _, vd := range []check.Validator{
@@ -162,7 +170,6 @@ func TestBasic(t *testing.T) {
 			}
 		})
 		t.Run("level_counters", func(t *testing.T) {
-			deadline := time.Now().Add(time.Second * 30)
 			sysCounts := isisRoot.Level(2).SystemLevelCounters()
 			for _, vd := range []check.Validator{
 				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
@@ -188,18 +195,17 @@ func TestBasic(t *testing.T) {
 	// Form the adjacency
 	ts.PushAndStartATE(t)
 	systemID, err := ts.AwaitAdjacency()
-
 	if err != nil {
 		t.Fatalf("No IS-IS adjacency formed: %v", err)
 	}
 	// Allow 1s of lag between adjacency appearing and all data being populated
+
 	t.Run("adjacency_state", func(t *testing.T) {
 		deadline = time.Now().Add(time.Minute)
 		adj := port1ISIS.Level(2).Adjacency(systemID)
 		for _, vd := range []check.Validator{
 			check.Equal(adj.AdjacencyState().State(), oc.Isis_IsisInterfaceAdjState_UP),
 			check.Equal(adj.SystemId().State(), systemID),
-			check.Equal(adj.AreaAddress().State(), []string{session.DUTAreaAddress, session.ATEAreaAddress}),
 			check.Equal(adj.DisSystemId().State(), "0000.0000.0000"),
 			check.NotEqual(adj.LocalExtendedCircuitId().State(), uint32(0)),
 			check.Equal(adj.MultiTopology().State(), false),
@@ -223,6 +229,14 @@ func TestBasic(t *testing.T) {
 				}
 			})
 		}
+		status := gnmi.Get(t, ts.DUT, adj.AreaAddress().State())
+		want := []string{session.ATEAreaAddress, session.DUTAreaAddress}
+		for _, wantAddress := range want {
+			if checkSliceContains(wantAddress, status) != true {
+				t.Errorf("isis area address is not found in telemetry: got %v, want %v ", status, wantAddress)
+			}
+		}
+
 	})
 
 	t.Run("counters_after_adjacency", func(t *testing.T) {
@@ -234,7 +248,7 @@ func TestBasic(t *testing.T) {
 		// Note: This is not a subtest because a failure here means checking the
 		//   rest of the counters is pointless - none of them will change if we
 		//   haven't been exchanging IS-IS messages.
-		deadline = time.Now().Add(time.Minute)
+		deadline = time.Now().Add(time.Second * 15)
 		for _, vd := range []check.Validator{
 			check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
 			check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
@@ -246,6 +260,7 @@ func TestBasic(t *testing.T) {
 				}
 			})
 		}
+		deadline = time.Now().Add(time.Minute)
 		t.Run("packet_counters", func(t *testing.T) {
 			pCounts := port1ISIS.Level(2).PacketCounters()
 			for _, vd := range []check.Validator{
@@ -465,11 +480,11 @@ func TestTraffic(t *testing.T) {
 	net.IPv4().WithAddress(targetNetwork.IPv4CIDR()).WithCount(1)
 	net.IPv6().WithAddress(targetNetwork.IPv6CIDR()).WithCount(1)
 	net.ISIS().WithIPReachabilityExternal().WithIPReachabilityMetric(10)
-	t.Logf("Starting protocols on ATE...")
+	t.Log("Starting protocols on ATE...")
 	ts.PushAndStart(t)
 	defer ts.ATETop.StopProtocols(t)
 	ts.MustAdjacency(t)
-	t.Logf("Configuring traffic from ATE through DUT...")
+	t.Log("Configuring traffic from ATE through DUT...")
 	v4Header := ondatra.NewIPv4Header()
 	v4Header.DstAddressRange().WithMin(targetNetwork.IPv4).WithCount(1)
 	v4Flow := ate.Traffic().NewFlow("v4Flow").
@@ -487,11 +502,11 @@ func TestTraffic(t *testing.T) {
 	deadFlow := ate.Traffic().NewFlow("flow2").
 		WithSrcEndpoints(srcIntf).WithDstEndpoints(dstIntf).
 		WithHeaders(ondatra.NewEthernetHeader(), deadHeader)
-	t.Logf("Running traffic for 30s...")
+	t.Log("Running traffic for 30s...")
 	ate.Traffic().Start(t, v4Flow, v6Flow, deadFlow)
 	time.Sleep(time.Second * 30)
 	ate.Traffic().Stop(t)
-	t.Logf("Checking telemetry...")
+	t.Log("Checking telemetry...")
 	telem := gnmi.OC()
 	v4Loss := gnmi.Get(t, ate, telem.Flow(v4Flow.Name()).LossPct().State())
 	v6Loss := gnmi.Get(t, ate, telem.Flow(v6Flow.Name()).LossPct().State())
