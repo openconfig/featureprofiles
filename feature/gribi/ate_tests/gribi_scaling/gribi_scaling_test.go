@@ -25,11 +25,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -149,7 +151,6 @@ func createIPv4Entries(startIP string) []string {
 	for i := firstIP; i <= lastIP; i++ {
 		ip := make(net.IP, 4)
 		binary.BigEndian.PutUint32(ip, i)
-
 		entries = append(entries, fmt.Sprint(ip))
 	}
 	return entries
@@ -169,14 +170,14 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 				WithDecapsulateHeader(fluent.IPinIP).
 				WithEncapsulateHeader(fluent.IPinIP).
 				WithNextHopNetworkInstance(vrf1).
-				WithElectionID(12, 0)
+				WithElectionID(args.electionID.Low, args.electionID.High)
 			args.client.Modify().AddEntry(t, nh)
 		} else {
 			nh := fluent.NextHopEntry().
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithIndex(ind).
 				WithIPAddress(ateAddr).
-				WithElectionID(12, 0)
+				WithElectionID(args.electionID.Low, args.electionID.High)
 			args.client.Modify().AddEntry(t, nh)
 		}
 
@@ -184,7 +185,7 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 			WithNetworkInstance(*deviations.DefaultNetworkInstance).
 			WithID(uint64(localIndex)).
 			AddNextHop(ind, uint64(index.maxNhCount)).
-			WithElectionID(12, 0)
+			WithElectionID(args.electionID.Low, args.electionID.High)
 		args.client.Modify().AddEntry(t, nhg)
 		nextCount = nextCount + 1
 		if nextCount == index.maxNhCount {
@@ -192,6 +193,13 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 			nextCount = 0
 		}
 	}
+	nhgCount := localIndex - index.nhgIndex
+	if nextCount == 0 { // last nhg without no nh needs to be ignored
+		nhgCount--
+	}
+	// maxIPCount should be set based on the number of added nhg,
+	// otherwise ipv4entry may be added with invalid nhg id (Note. forward refrencing is not allowed)
+	index.maxIPCount = (len(ips) / nhgCount) + 1
 	nextCount = 0
 	localIndex = index.nhgIndex
 	for ip := range ips {
@@ -244,14 +252,14 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) []strin
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithIndex(index).
 				WithIPAddress(nextHops[i]).
-				WithElectionID(12, 0))
+				WithElectionID(args.electionID.Low, args.electionID.High))
 
 		args.client.Modify().AddEntry(t,
 			fluent.NextHopGroupEntry().
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithID(uint64(2)).
 				AddNextHop(index, 64).
-				WithElectionID(12, 0))
+				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 	time.Sleep(time.Minute)
 	virtualVIPs := createIPv4Entries("198.18.196.1/22")
@@ -262,7 +270,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) []strin
 				WithPrefix(virtualVIPs[ip]+"/32").
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithNextHopGroup(uint64(2)).
-				WithElectionID(12, 0))
+				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
 		t.Fatalf("Could not program entries via clientA, got err: %v", err)
@@ -282,41 +290,43 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) []strin
 }
 
 // createVrf creates takes in a list of VRF names and creates them on the target devices.
-func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *telemetry.Device, vrfs []string) {
+func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) {
 	for _, vrf := range vrfs {
 		// For non-default VRF, we want to replace the
 		// entire VRF tree so the instance is created.
-		i := d.GetOrCreateNetworkInstance(vrf)
-		i.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		i.Enabled = ygot.Bool(true)
-		i.EnabledAddressFamilies = []telemetry.E_Types_ADDRESS_FAMILY{
-			telemetry.Types_ADDRESS_FAMILY_IPV4,
-			telemetry.Types_ADDRESS_FAMILY_IPV6,
+		if vrf != *deviations.DefaultNetworkInstance {
+			i := d.GetOrCreateNetworkInstance(vrf)
+			i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+			i.Enabled = ygot.Bool(true)
+			i.EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{
+				oc.Types_ADDRESS_FAMILY_IPV4,
+				oc.Types_ADDRESS_FAMILY_IPV6,
+			}
+			i.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
+			nip := gnmi.OC().NetworkInstance(vrf)
+			fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
 		}
-		i.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
-		dut.Config().NetworkInstance(vrf).Replace(t, i)
-		nip := dut.Config().NetworkInstance(vrf)
-		fptest.LogYgot(t, "nonDefaultNI", nip, nip.Get(t))
 	}
 }
 
 // pushConfig pushes the configuration generated by this
 // struct to the device using gNMI SetReplace.
-func pushConfig(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d *telemetry.Device) {
+func pushConfig(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d *oc.Root) {
 	t.Helper()
 
 	iname := dutPort.Name()
 	i := d.GetOrCreateInterface(iname)
-	dut.Config().Interface(iname).Replace(t, i)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(iname).Config(), i)
 }
 
 // configureInterfaceDUT configures a single DUT layer 2 port.
-func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *telemetry.Device, desc string) {
+func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *oc.Root, desc string) {
 	t.Helper()
 
 	i := d.GetOrCreateInterface(dutPort.Name())
 	i.Description = ygot.String(desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -326,7 +336,7 @@ func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *telemetry.Dev
 // generateSubIntfPair takes the number of subInterfaces, dut,ate,ports and Ixia topology.
 // It configures ATE/DUT SubInterfaces on the target device
 // It returns a slice of the corresponding ATE IPAddresses.
-func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, ate *ondatra.ATEDevice, atePort *ondatra.Port, top *ondatra.ATETopology, d *telemetry.Device) []string {
+func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, ate *ondatra.ATEDevice, atePort *ondatra.Port, top *ondatra.ATETopology, d *oc.Root) []string {
 	nextHops := []string{}
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 0; i <= nextHopCount; i++ {
@@ -345,18 +355,22 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 }
 
 // configureSubinterfaceDUT configures a single DUT layer 3 sub-interface.
-func configureSubinterfaceDUT(t *testing.T, d *telemetry.Device, dutPort *ondatra.Port, index uint32, vlanID uint16, dutIPv4 string, vrf string) {
+func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, index uint32, vlanID uint16, dutIPv4 string, vrf string) {
 	t.Helper()
 	if vrf != "" {
 		t.Logf("Put port %s into vrf %s", dutPort.Name(), vrf)
 		d.GetOrCreateNetworkInstance(vrf).GetOrCreateInterface(dutPort.Name())
-		d.GetOrCreateNetworkInstance(vrf).EnabledAddressFamilies = []telemetry.E_Types_ADDRESS_FAMILY{telemetry.Types_ADDRESS_FAMILY_IPV4}
+		d.GetOrCreateNetworkInstance(vrf).EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4}
 	}
 
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
 	if vlanID != 0 {
-		s.GetOrCreateVlan().VlanId = telemetry.UnionUint16(vlanID)
+		if *deviations.DeprecatedVlanID {
+			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+		}
 	}
 
 	sipv4 := s.GetOrCreateIpv4()
@@ -391,15 +405,16 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx    context.Context
-	client *fluent.GRIBIClient
-	dut    *ondatra.DUTDevice
-	ate    *ondatra.ATEDevice
-	top    *ondatra.ATETopology
+	ctx        context.Context
+	client     *fluent.GRIBIClient
+	dut        *ondatra.DUTDevice
+	ate        *ondatra.ATEDevice
+	top        *ondatra.ATETopology
+	electionID gribi.Uint128
 }
 
 func TestScaling(t *testing.T) {
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
@@ -422,25 +437,34 @@ func TestScaling(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
-	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader via a
-	// higher election_id of 12.
+	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.
 	client := fluent.NewClient()
-	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(12, 0).
+	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
 		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
 
 	client.Start(ctx, t)
 	defer client.Stop(t)
+
+	defer func() {
+		// Flush all entries after test.
+		if err := gribi.FlushAll(client); err != nil {
+			t.Error(err)
+		}
+	}()
+
 	client.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation for clientA: %v", err)
 	}
+	eID := gribi.BecomeLeader(t, client)
 
 	args := &testArgs{
-		ctx:    ctx,
-		client: client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
+		ctx:        ctx,
+		client:     client,
+		dut:        dut,
+		ate:        ate,
+		top:        top,
+		electionID: eID,
 	}
 	// nextHops are ipv4 entries used for deriving nextHops for IPBlock1 and IPBlock2
 	nextHops := pushDefaultEntries(t, args, subIntfIPs)

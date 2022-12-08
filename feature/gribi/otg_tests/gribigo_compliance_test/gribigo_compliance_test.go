@@ -27,7 +27,8 @@ import (
 	"github.com/openconfig/gribigo/compliance"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 )
 
@@ -157,18 +158,18 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 
-	dut.Config().Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
-	dut.Config().Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
-	dut.Config().Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(*nonDefaultNI)
-	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
-	dut.Config().NetworkInstance(*nonDefaultNI).Replace(t, ni)
+	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*nonDefaultNI).Config(), ni)
 
-	nip := dut.Config().NetworkInstance(*nonDefaultNI)
-	fptest.LogYgot(t, "nonDefaultNI", nip, nip.Get(t))
+	nip := gnmi.OC().NetworkInstance(*nonDefaultNI)
+	fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
 }
 
 // configreATE configures port1-3 on the ATE.
@@ -179,32 +180,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	p2 := ate.Port(t, "port2")
 	p3 := ate.Port(t, "port3")
 
-	addToOTG(top, p1, &atePort1, &dutPort1)
-	addToOTG(top, p2, &atePort2, &dutPort2)
-	addToOTG(top, p3, &atePort3, &dutPort3)
+	atePort1.AddToOTG(top, p1, &dutPort1)
+	atePort2.AddToOTG(top, p2, &dutPort2)
+	atePort3.AddToOTG(top, p3, &dutPort3)
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
 	return top
-}
-
-// addToOTG adds elements to a gosnappi configuration
-func addToOTG(top gosnappi.Config, ap *ondatra.Port, port, peer *attrs.Attributes) {
-	top.Ports().Add().SetName(ap.ID())
-	dev := top.Devices().Add().SetName(port.Name)
-	eth := dev.Ethernets().Add().SetName(port.Name + ".Eth")
-	eth.SetPortName(ap.ID()).SetMac(port.MAC)
-
-	if port.MTU > 0 {
-		eth.SetMtu(int32(port.MTU))
-	}
-	if port.IPv4 != "" {
-		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
-		ip.SetAddress(port.IPv4).SetGateway(peer.IPv4).SetPrefix(int32(port.IPv4Len))
-	}
-	if port.IPv6 != "" {
-		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv6")
-		ip.SetAddress(port.IPv6).SetGateway(peer.IPv6).SetPrefix(int32(port.IPv6Len))
-	}
 }
