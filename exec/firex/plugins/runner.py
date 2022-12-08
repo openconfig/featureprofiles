@@ -191,7 +191,7 @@ def BringupTestbed(self, ws, images = None,
             f'-alsologtostderr'
 
         logger.print(f'Executing osinstall command:\n {install_cmd}')
-        logger.print(check_output(install_cmd, cwd=fp_repo_dir))
+        logger.print(check_output(install_cmd, cwd=exec_repo_dir))
 
     testbed_info_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/testbed ' \
@@ -202,7 +202,7 @@ def BringupTestbed(self, ws, images = None,
             f'-outFile {os.path.join(ws, "testbed_info.txt")}'
     logger.print(testbed_info_cmd)
     try:
-        check_output(testbed_info_cmd, cwd=fp_repo_dir)
+        check_output(testbed_info_cmd, cwd=exec_repo_dir)
     except: pass
 
     return ondatra_binding_path, ondatra_testbed_path, exec_repo_dir, fp_repo_dir
