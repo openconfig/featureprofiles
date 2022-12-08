@@ -60,10 +60,9 @@ tests:
   args:
       - '-deviation_interface_enabled="true"'
       - '-deviation_ipv4_missing_enabled="true"'
+      - '-deviation_no_osinstall_for_standby_rp="true"'
   # patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
   owner: mananpat@cisco.com
-  args:
-     - '-deviation_no_osinstall_for_standby_rp="true"'
   mustpass: false
   priority: 7
 - name: TE-3.2 (Traffic Balancing According to Weights) 
