@@ -154,7 +154,7 @@ tests:
   priority: 4
   mustpass: true
 - name: P4RT-7.2 (LLDP PacketOut)
-  path: feature/experimental/p4rt/ate_tests/lldp_packetout_test/lldp_packetout_test.go
+  path: feature/experimental/p4rt/ate_tests/lldp_packetout_test
   args:
     - '-p4rt_node_name="0/RP0/CPU0/0"'
   skip: false
