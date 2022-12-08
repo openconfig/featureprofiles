@@ -14,6 +14,7 @@ tests:
   owner: arvbaska@cisco.com
   priority: 60
   mustpass: true
+  skip: true
 - name: TE-15.1 (gRIBI Compliance) 
   path: feature/gribi/ate_tests/gribigo_compliance_test
   priority: 2
@@ -141,6 +142,7 @@ tests:
   owner: arvbaska@cisco.com
   priority: 3
   mustpass: true
+  skip: true
 - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
   path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
   args:
@@ -148,6 +150,7 @@ tests:
   owner: sprem@cisco.com
   priority: 4
   mustpass: true
+  skip: true
 - name: P4RT-3.1 (Google Discovery Protocol PacketIn)
   path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetin_test
   args:
@@ -155,6 +158,7 @@ tests:
   owner: sprem@cisco.com
   priority: 4
   mustpass: true
+  skip: true
 - name: P4RT-7.2 (LLDP PacketOut)
   path: feature/experimental/p4rt/ate_tests/lldp_packetout_test
   args:
