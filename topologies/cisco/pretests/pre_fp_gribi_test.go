@@ -15,6 +15,7 @@
 package pre_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
@@ -78,17 +80,19 @@ var (
 
 func TestResetGRIBIServerFP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &system.KillProcessRequest{Name: "emsd", Restart: true, Signal: system.KillProcessRequest_SIGNAL_TERM})
+	time.Sleep(90 * time.Second)
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
-		DUT:         dut,
-		FIBACK:      false,
-		Persistence: true,
+		DUT:                  dut,
+		FibACK:               false,
+		Persistence:          true,
+		InitialElectionIDLow: 1,
 	}
 	defer clientA.Close(t)
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	clientA.BecomeLeader(t)
 	t.Logf("an IPv4Entry for %s pointing to ATE port-3 via gRIBI-B", ateDstNetCIDR)
 	clientA.AddNH(t, nhIndex, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
 	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
@@ -115,12 +119,12 @@ func TestResetGRIBIServerFP(t *testing.T) {
 		// Do nothing in this matching function, as we already filter on the prefix.
 		return true
 	}).Await(t)
+	/*
+		ipv4Path.Prefix().Lookup(t)
+		ipv4Path.Prefix().Watch(t, 33*time.Second, func(val *telemetry.QualifiedString) bool {
+			// Do nothing in this matching function, as we already filter on the prefix.
+			return true
+		}).Await(t)*/
 
-	ipv4Path.Prefix().Lookup(t)
-	ipv4Path.Prefix().Watch(t, 33*time.Second, func(val *telemetry.QualifiedString) bool {
-		// Do nothing in this matching function, as we already filter on the prefix.
-		return true
-	}).Await(t)
-
-	clientA.FlushAll(t)
+	clientA.Flush(t)
 }
