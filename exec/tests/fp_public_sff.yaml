@@ -165,7 +165,7 @@ tests:
   path: feature/experimental/p4rt/ate_tests/traceroute_packetout_test
   args:
     - '-p4rt_node_name="0/RP0/CPU0/0"'
-  skip: false
+  skip: true
   owner: sprem@cisco.com
   priority: 4
   mustpass: true
