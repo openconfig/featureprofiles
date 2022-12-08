@@ -69,7 +69,6 @@ import (
 
 // Vendor deviation flags.
 var (
-
 	MissingEthernetPhy = flag.Bool("deviation_missing_ethernet_phy", false,
 		"Device does not support configuring Ethernet PHY settings (duplex-mode, auto-negotiate and port-speed). Fully compliant devices should allow these to be configured.")
 
@@ -119,3 +118,4 @@ var (
 	ExplicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
 )
+
