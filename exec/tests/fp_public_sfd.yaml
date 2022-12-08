@@ -155,7 +155,7 @@ tests:
   priority: 4
   mustpass: true
 - name: P4RT-7.2 (LLDP PacketOut)
-  path: feature/experimental/p4rt/ate_tests/lldp_packetout_test/lldp_packetout_test.go
+  path: feature/experimental/p4rt/ate_tests/lldp_packetout_test
   args:
     - '-p4rt_node_name="0/0/CPU0-NPU0"'
   owner: sprem@cisco.com
