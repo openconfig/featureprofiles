@@ -63,7 +63,6 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.leader
 	desc := "PacketOut from Primary Controller"
 	ttls := []int{0, 1}
-
 	//for ipv4
 	t.Run(desc+" ipv4 ", func(t *testing.T) {
 		// Check initial packet counters
