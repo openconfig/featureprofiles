@@ -129,22 +129,29 @@ func TestProperties(t *testing.T) {
 	}
 
 	wantKeys := []string{
-		"build.go_version",
-		"build.path",
-		"build.main.path",
-		"build.main.version",
-		"build.main.sum",
 		"test.path",
 		"test.plan_id",
 		"topology",
-		"time.begin",
-		"time.end",
 		"known_issue_url",
 	}
 
 	for _, k := range wantKeys {
 		if _, ok := got[k]; !ok {
 			t.Errorf("Missing key from Properties: %s", k)
+		}
+	}
+}
+
+func TestTiming(t *testing.T) {
+	got := Timing(context.Background())
+	t.Log(got)
+
+	for _, k := range []string{
+		"time.begin",
+		"time.end",
+	} {
+		if _, ok := got[k]; !ok {
+			t.Errorf("Missing key from Timing: %s", k)
 		}
 	}
 }
