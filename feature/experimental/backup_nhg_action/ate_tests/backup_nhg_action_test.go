@@ -143,7 +143,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 }
 
-// Add static route
+// addStaticRoute configures static route.
 func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	s := &oc.Root{}
@@ -153,7 +153,7 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, d.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 }
 
-// Add vrf VRF-1
+// configureNetworkInstance configures vrf VRF-1 and adds the vrf to port1.
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	c := &oc.Root{}
 	ni := c.GetOrCreateNetworkInstance(vrfName)
@@ -168,11 +168,12 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), ni)
 }
 
+// TE11.3 backup nhg action tests.
 func TestBackupNHGAction(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
 
-	//configure DUT
+	// Configure DUT
 	configureDUT(t, dut)
 	configureNetworkInstance(t, dut)
 	addStaticRoute(t, dut)
@@ -228,7 +229,7 @@ func TestBackupNHGAction(t *testing.T) {
 	}
 }
 
-// TE11.3 - case 1: next-hop viability triggers decap in backup NHG
+// TE11.3 - case 1: next-hop viability triggers decap in backup NHG.
 func testbackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Logf("Adding NH %d with ATE port-2 via gRIBI", NH1ID)
@@ -241,9 +242,10 @@ func testbackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, primaryTunnelDstIP+"/"+mask, NH1ID, vrfName, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	t.Logf("Create flow with dst %s", primaryTunnelDstIP)
-	BaseFlow := createFlow(t, args.ate, args.top, "BaseFlow", primaryTunnelDstIP)
+	baselineFlow := createFlow(t, args.ate, args.top, "BaseFlow", primaryTunnelDstIP, &atePort2)
+	backupFlow := createFlow(t, args.ate, args.top, "BackupFlow", primaryTunnelDstIP, &atePort3)
 	t.Log("Validate traffic passes")
-	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port2"})
+	validateTrafficFlows(t, args.ate, baselineFlow, backupFlow)
 
 	t.Log("Shutdown Port2")
 	ateP := args.ate.Port(t, "port2")
@@ -252,17 +254,17 @@ func testbackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 
 	p2 := args.dut.Port(t, "port2")
 	t.Log("Capture port2 status if down")
-	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 10*time.Second, oc.Interface_OperStatus_DOWN)
+	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
 	operStatus := gnmi.Get(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State())
 	if want := oc.Interface_OperStatus_DOWN; operStatus != want {
 		t.Errorf("Get(DUT port2 oper status): got %v, want %v", operStatus, want)
 	}
 
 	t.Log("Validate traffic passes through port3")
-	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port3"})
+	validateTrafficFlows(t, args.ate, backupFlow, baselineFlow)
 }
 
-// TE11.3 - case 2: new tunnel viability triggers decap in the backup NHG
+// TE11.3 - case 2: new tunnel viability triggers decap in the backup NHG.
 func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Logf("Adding NH %d with ATE port-2 via gRIBI", NH3ID)
@@ -279,21 +281,22 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Adding NH %d as DecapEncap and NHG %d via gRIBI", NH1ID, NH1ID)
 	args.client.AddNH(t, NH1ID, "DecapEncap", *deviations.DefaultNetworkInstance, fluent.InstalledInRIB, &gribi.NHOptions{Src: secondaryTunnelSrcIP, Dest: secondaryTunnelDstIP, VrfName: vrfName})
 	args.client.AddNHG(t, NH1ID, map[uint64]uint64{NH1ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: NH2ID})
-	t.Logf("an IPv4Entry for %s with primary DecapEncap & backup decap via gRIBI", primaryTunnelDstIP)
+	t.Logf("Adding an IPv4Entry for %s with primary DecapEncap & backup decap via gRIBI", primaryTunnelDstIP)
 	args.client.AddIPv4(t, primaryTunnelDstIP+"/"+mask, NH1ID, vrfName, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	p2 := args.dut.Port(t, "port2")
 	t.Log("Capture port2 status if Up")
-	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 10*time.Second, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_UP)
 	operStatus := gnmi.Get(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State())
 	if want := oc.Interface_OperStatus_UP; operStatus != want {
 		t.Errorf("Get(DUT port2 oper status): got %v, want %v", operStatus, want)
 	}
 
 	t.Logf("Create base flow with dst %s", primaryTunnelDstIP)
-	BaseFlow := createFlow(t, args.ate, args.top, "Baseflow", primaryTunnelDstIP)
+	baselineFlow := createFlow(t, args.ate, args.top, "BaseFlow", primaryTunnelDstIP, &atePort2)
+	backupFlow := createFlow(t, args.ate, args.top, "BackupFlow", primaryTunnelDstIP, &atePort3)
 	t.Logf("Validate traffic passes through port2")
-	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port2"})
+	validateTrafficFlows(t, args.ate, baselineFlow, backupFlow)
 
 	t.Log("Shutdown Port2")
 	ateP := args.ate.Port(t, "port2")
@@ -301,25 +304,20 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(true).Send(t)
 
 	t.Log("Capture port2 status if down")
-	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 10*time.Second, oc.Interface_OperStatus_DOWN)
+	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
 	operStatusAfterShut := gnmi.Get(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State())
 	if want := oc.Interface_OperStatus_DOWN; operStatusAfterShut != want {
 		t.Errorf("Get(DUT port2 oper status): got %v, want %v", operStatus, want)
 	}
 
 	t.Log("Validate traffic passes through port3")
-	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port3"})
+	validateTrafficFlows(t, args.ate, backupFlow, baselineFlow)
 }
 
-// createFlow returns a flow from atePort1 to the dstPfx
-func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, name string, dstPfx string) *ondatra.Flow {
+// createFlow returns a flow from atePort1 to the dstPfx.
+func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, name string, dstPfx string, dst *attrs.Attributes) *ondatra.Flow {
 	srcEndPoint := top.Interfaces()[atePort1.Name]
-	dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range top.Interfaces() {
-		if intf != "atePort1" {
-			dstEndPoint = append(dstEndPoint, intf_data)
-		}
-	}
+	dstEndPoint := top.Interfaces()[dst.Name]
 	hdr := ondatra.NewIPv4Header()
 	hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dstPfx).WithCount(1)
 	innerIpv4Header := ondatra.NewIPv4Header()
@@ -327,25 +325,21 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, 
 	innerIpv4Header.DstAddressRange().WithMin(innerdstPfx).WithCount(1)
 	flow := ate.Traffic().NewFlow(name).
 		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint...).
+		WithDstEndpoints(dstEndPoint).
 		WithHeaders(ondatra.NewEthernetHeader(), hdr, innerIpv4Header).WithFrameSize(300)
 	return flow
 }
 
-// validateTrafficFlows verifies that the flow on ATE and check interface counters on DUT
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow, drop bool, d_port []string) {
-	ate.Traffic().Start(t, flow)
-	time.Sleep(60 * time.Second)
+// validateTrafficFlows verifies that the flow on ATE good flow delivers traffic, bad flow doesnt.
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good *ondatra.Flow, bad *ondatra.Flow) {
+	ate.Traffic().Start(t, good, bad)
+	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
-	flowPath := ate.Telemetry().Flow(flow.Name())
-	got := flowPath.LossPct().Get(t)
-	if drop {
-		if got != 100 {
-			t.Fatalf("Traffic passing for flow %s got %f, want 100 percent loss", flow.Name(), got)
-		}
-	} else {
-		if got > 0 {
-			t.Fatalf("LossPct for flow %s got %f, want 0", flow.Name(), got)
-		}
+
+	if got := ate.Telemetry().Flow(good.Name()).LossPct().Get(t); got > 0 {
+		t.Fatalf("LossPct for flow %s: got %g, want 0", good.Name(), got)
+	}
+	if got := ate.Telemetry().Flow(bad.Name()).LossPct().Get(t); got < 100 {
+		t.Fatalf("LossPct for flow %s: got %g, want 100", bad.Name(), got)
 	}
 }
