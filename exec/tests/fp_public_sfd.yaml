@@ -99,6 +99,8 @@ tests:
 - name: TE-3.1 (Base Hierarchical Route Installation) 
   path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
   patch: exec/firex/plugins/fp_patch/base_hierarchical_route_installation_test.patch
+  args:
+      - '-deviation_gribi_preserve_only="true"'
   timeout: 4200
   owner: mananpat@cisco.com
   mustpass: false
