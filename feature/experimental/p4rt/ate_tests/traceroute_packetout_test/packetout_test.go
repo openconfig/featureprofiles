@@ -63,6 +63,10 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.leader
 	desc := "PacketOut from Primary Controller"
 	ttls := []int{0, 1}
+	if *deviationTTL0 {
+		ttls = []int{1}
+	}
+
 	//for ipv4
 	t.Run(desc+" ipv4 ", func(t *testing.T) {
 		// Check initial packet counters
@@ -89,8 +93,14 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			// Verify InPkts stats to check P4RT stream
 			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
 
-			if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
-				t.Fatalf("Not all the packets are received.")
+			if ttl == 0 {
+				if counter1-counter0 > uint64(float64(packetCounter)*0.05) {
+					t.Fatalf("Ttl=0 packets are being forwarded.")
+				}
+			} else {
+				if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
+					t.Fatalf("Not all the packets are received.")
+				}
 			}
 			time.Sleep(20 * time.Second)
 		}
@@ -122,9 +132,14 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 			// Verify InPkts stats to check P4RT stream
 			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
-
-			if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
-				t.Fatalf("Not all the packets are received.")
+			if ttl == 0 {
+				if counter1-counter0 > uint64(float64(packetCounter)*0.05) {
+					t.Fatalf("Hoplimit=0 packets are being forwarded.")
+				}
+			} else {
+				if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
+					t.Fatalf("Not all the packets are received.")
+				}
 			}
 
 			time.Sleep(20 * time.Second)
