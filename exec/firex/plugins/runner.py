@@ -71,7 +71,7 @@ whitelist_arguments([
 @returns('ondatra_binding_path', 'ondatra_testbed_path', 'exec_repo_dir', 'fp_repo_dir')
 def BringupTestbed(self, ws, images = None,  
                         ondatra_repo_branch='main',
-                        ondatra_repo_rev='89ea1ae2f3284530e65586cf86a9846d92782516',
+                        ondatra_repo_rev='1b90e33d211b8f84f63b7672ab163d81b532b504',
                         fp_repo_url=FP_REPO_CLONE_INFO.url,
                         fp_repo_branch='main',  
                         fp_repo_rev=None,
