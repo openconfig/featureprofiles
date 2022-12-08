@@ -57,9 +57,23 @@ var (
 		"test_names", "", "comma separated list of tests to include",
 	)
 
-	testDescFiles []string
+	patchedOnlyFlag = flag.Bool(
+		"patched_only", false, "include only patched test",
+	)
 
-	testNames []string
+	excludePatchedFlag = flag.Bool(
+		"exclude_patched", false, "exclude patched test",
+	)
+
+	mustPassOnlyFlag = flag.Bool(
+		"must_pass_only", false, "include only mustpass test",
+	)
+
+	testDescFiles  []string
+	testNames      []string
+	patchedOnly    bool
+	mustPassOnly   bool
+	excludePatched bool
 )
 
 var (
@@ -142,6 +156,10 @@ func init() {
 	if len(*testNamesFlag) > 0 {
 		testNames = strings.Split(*testNamesFlag, ",")
 	}
+
+	mustPassOnly = *mustPassOnlyFlag
+	patchedOnly = *patchedOnlyFlag
+	excludePatched = *excludePatchedFlag
 }
 
 func main() {
@@ -183,7 +201,10 @@ func main() {
 		for i := range suite {
 			keptTests := []GoTest{}
 			for j := range suite[i].Tests {
-				if !suite[i].Tests[j].Skip {
+				if !suite[i].Tests[j].Skip &&
+					(!mustPassOnly || suite[i].Tests[j].MustPass) &&
+					(!patchedOnly || suite[i].Tests[j].Patch != "") &&
+					(!excludePatched || suite[i].Tests[j].Patch == "") {
 					keptTests = append(keptTests, suite[i].Tests[j])
 				}
 			}
