@@ -60,10 +60,8 @@ tests:
   args:
       - '-deviation_interface_enabled="true"'
       - '-deviation_ipv4_missing_enabled="true"'
-  patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
+  # patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
   owner: mananpat@cisco.com
-  args:
-     - '-deviation_no_osinstall_for_standby_rp="true"'
   mustpass: false
   priority: 7
 - name: TE-3.2 (Traffic Balancing According to Weights) 
@@ -125,7 +123,7 @@ tests:
   priority: 7
 - name: TE-14.1 (gRIBI Scaling)
   path: feature/gribi/ate_tests/gribi_scaling
-  patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
+  # patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
   timeout: 7200
   owner: mananpat@cisco.com
   mustpass: true
