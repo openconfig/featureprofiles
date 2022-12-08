@@ -14,9 +14,6 @@ tests:
   owner: arvbaska@cisco.com
   priority: 2
   mustpass: true
-#- name: first_get_workaround
-#  path: topologies/cisco/pretests/pre_fp_gribi_test.go
-#  priority: 3
 - name: TE-15.1 (gRIBI Compliance) 
   path: feature/gribi/ate_tests/gribigo_compliance_test
   priority: 2
@@ -64,7 +61,7 @@ tests:
   owner: mananpat@cisco.com
   mustpass: false
   priority: 7
-  skip: true
+  skip: false
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
   patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
@@ -101,7 +98,7 @@ tests:
   path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
   patch: exec/firex/plugins/fp_patch/base_hierarchical_route_installation_test.patch
   timeout: 4200
-  skip: true
+  skip: false
   owner: mananpat@cisco.com
   mustpass: false
   priority: 7
@@ -160,7 +157,7 @@ tests:
   path: feature/experimental/p4rt/ate_tests/lldp_packetout_test/lldp_packetout_test.go
   args:
     - '-p4rt_node_name="0/RP0/CPU0/0"'
-  skip: true
+  skip: false
   owner: sprem@cisco.com
   priority: 10
   mustpass: true
@@ -329,7 +326,7 @@ tests:
   path: feature/lldp/tests/core_lldp_tlv_population_test
   patch: exec/firex/plugins/fp_patch/core_lldp_tlv_population_test.patch
   owner: agvarghe@cisco.com
-  skip: true
+  skip: false
   mustpass: false 
   priority: 51
 - name: RT-1.3 (BGP Route Propagation) 
@@ -373,7 +370,7 @@ tests:
   patch: exec/firex/plugins/fp_patch/telemetry_inventory_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
-  skip: true
+  skip: false
   priority: 80
   timeout: 7200
 - name: TE-1.1 (Static ARP) 
@@ -381,8 +378,7 @@ tests:
   owner: mbagherz@cisco.com
   mustpass: true
   priority: 50
-  skip: true
-
+  skip: false
 
 
 
