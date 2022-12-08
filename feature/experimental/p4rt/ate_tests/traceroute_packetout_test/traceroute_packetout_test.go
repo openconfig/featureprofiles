@@ -52,7 +52,6 @@ var (
 	streamName                                 = "p4rt"
 	tracerouteipv4InLayers layers.EthernetType = 0x0800
 	checksum                                   = uint16(200)
-	deviationTTL0                              = flag.Bool("deviation_ttl0", false, "deviation for not supporting ttl0 packet forwarding")
 )
 
 var (
