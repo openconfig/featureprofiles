@@ -268,14 +268,14 @@ def b4_fp_chain_provider(ws,
     if fp_pre_tests:
         for pt in fp_pre_tests:
             for k, v in pt.items():
-                chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'),ondatra_binding_path=ondatra_binding_path)
+                chain |= RunB4FPTest.s(fp_ws=exec_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'),ondatra_binding_path=ondatra_binding_path)
 
     chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = test_path, test_args = test_args, test_timeout = test_timeout, ondatra_binding_path=ondatra_binding_path)
 
     if fp_post_tests:
         for pt in fp_post_tests:
             for k, v in pt.items():
-                chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path)
+                chain |= RunB4FPTest.s(fp_ws=exec_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path)
 
     chain |= GoReporting.s(fp_ws=exec_repo_dir)
     return chain
