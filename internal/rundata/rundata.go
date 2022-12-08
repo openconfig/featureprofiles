@@ -55,6 +55,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/openconfig/ondatra/binding"
 )
@@ -107,5 +108,15 @@ func Properties(ctx context.Context, resv *binding.Reservation) map[string]strin
 		dutsInfo(ctx, m, resv)
 	}
 
+	return m
+}
+
+var timeBegin = time.Now()
+
+// Timing builds the test properties with the begin and end times.
+func Timing(context.Context) map[string]string {
+	m := make(map[string]string)
+	m["time.begin"] = fmt.Sprint(timeBegin.Unix())
+	m["time.end"] = fmt.Sprint(time.Now().Unix())
 	return m
 }
