@@ -124,7 +124,7 @@ func (tc *testCase) configInterfaceDUT(i *telemetry.Interface, dp *ondatra.Port,
 	a.ConfigInterface(i)
 
 	// Deviation for DuplexMode, AutoNegotiate and PortSpeed
-	if *deviations.PortSpeedDuplexAutoNegotiateEnabled {
+	if *deviations.MissingEthernetPhy {
 		e := i.GetOrCreateEthernet()
 		if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
 			e.AutoNegotiate = ygot.Bool(true)
@@ -238,7 +238,7 @@ func (tc *testCase) verifyInterfaceDUT(
 			}
 		}
 	}
-	if !*deviations.SubinterfaceOriginLeaf {
+	if !*deviations.MissingNeighborOrigin {
 		disp := dip.Subinterface(0)
 		// IPv4 neighbor discovered by ARP.
 		dis4np := disp.Ipv4().Neighbor(atea.IPv4)

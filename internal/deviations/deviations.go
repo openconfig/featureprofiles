@@ -67,11 +67,11 @@ import "flag"
 
 // Vendor deviation flags.
 var (
-	PortSpeedDuplexAutoNegotiateEnabled = flag.Bool("port_speed_enabled", false,
-		"Device does not support DuplexMode, AutoNegotiate and PortSpeed leafs, so suppress configuring these leafs")
+	MissingEthernetPhy = flag.Bool("missing_ethernet_phy", false,
+		"Device does not support configuring Ethernet PHY settings (duplex-mode, auto-negotiate and port-speed). Fully compliant devices should allow these to be configured.")
 
-	SubinterfaceOriginLeaf = flag.Bool("subinterface_origin_check", false,
-		"Device does not support querying subinterfaces/subinterface/neighbors/neighbors/state/origin leaf,  so the test will skip checking them.")
+	MissingNeighborOrigin = flag.Bool("missing_neighbor_origin", false,
+		"Device does not support querying the MAC origin of a subinterface neighbor. Fully compliant device should report whether the MAC entry is static or dynamic.")
 
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
