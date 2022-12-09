@@ -14,13 +14,14 @@
  limitations under the License.
 */
 
-package interface_assignments
+package interface_assignments_test
 
 import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+  "github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
@@ -54,9 +55,10 @@ type portSpec struct {
 // a network instance.
 func TestInterfaceAssignment(t *testing.T) {
 	tests := []struct {
-		desc          string
-		inAssignments map[string]intfNIAssignment
-		wantErr       bool
+		desc             string
+		inPreAssignments map[string]intfNIAssignment
+		inAssignments    map[string]intfNIAssignment
+		wantErr          bool
 	}{{
 		desc: "explicit assignment of port1 to DEFAULT",
 		inAssignments: map[string]intfNIAssignment{
@@ -69,9 +71,41 @@ func TestInterfaceAssignment(t *testing.T) {
 			},
 		},
 	}, {
-		desc: "explicit assingment of port1 to non-default NI",
+		desc: "explicit assignment of port1 to non-default NI",
 		inAssignments: map[string]intfNIAssignment{
-			"DEFAULT": {
+			"BLUE": {
+				Ports: []portSpec{{
+					Name:    "port1",
+					Subintf: 0,
+				}},
+				Type: telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+			},
+		},
+	}, {
+		desc: "assignment to a NI with no type - invalid",
+		inAssignments: map[string]intfNIAssignment{
+			"RED": {
+				Ports: []portSpec{{
+					Name:    "port1",
+					Subintf: 0,
+				}},
+			},
+		},
+		wantErr: true,
+	}, {
+		desc: "move assignment from BLUE to RED",
+		inPreAssignments: map[string]intfNIAssignment{
+			"BLUE": {
+				Ports: []portSpec{{
+					Name:    "port1",
+					Subintf: 0,
+				}},
+				Type: telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+			},
+		},
+		wantErr: true,
+		inAssignments: map[string]intfNIAssignment{
+			"RED": {
 				Ports: []portSpec{{
 					Name:    "port1",
 					Subintf: 0,
@@ -85,25 +119,39 @@ func TestInterfaceAssignment(t *testing.T) {
 		t.Run(tt.desc, func(t *testing.T) {
 			dut := ondatra.DUT(t, "dut")
 
+			assignPort := func(t *testing.T, d *telemetry.Device, niName string, p portSpec) {
+				dp := dut.Port(t, p.Name)
+				ni := d.GetOrCreateNetworkInstance(niName)
+
+				// Create the interface to ensure we have no missing references.
+				intf := d.GetOrCreateInterface(dp.Name())
+				intf.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+				intf.GetOrCreateSubinterface(p.Subintf).
+					GetOrCreateIpv4().GetOrCreateAddress(p.IPv4).PrefixLength = &p.PrefixLength
+
+				// Assign the interface to a network instance.
+				i := ni.GetOrCreateInterface(p.Name)
+				i.Interface = ygot.String(dp.Name())
+				i.Subinterface = ygot.Uint32(p.Subintf)
+			}
+
+			initialDev := &telemetry.Device{}
+			for niName, spec := range tt.inPreAssignments {
+				ni := initialDev.GetOrCreateNetworkInstance(niName)
+				ni.Type = spec.Type
+
+				for _, p := range spec.Ports {
+					assignPort(t, initialDev, niName, p)
+				}
+			}
+
 			d := &telemetry.Device{}
 			for niName, spec := range tt.inAssignments {
 				ni := d.GetOrCreateNetworkInstance(niName)
 				ni.Type = spec.Type
 
 				for _, p := range spec.Ports {
-
-					dp := dut.Port(t, p.Name)
-
-					// Create the interface to ensure we have no missing references.
-					intf := d.GetOrCreateInterface(dp.Name())
-					intf.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
-					intf.GetOrCreateSubinterface(p.Subintf).
-						GetOrCreateIpv4().GetOrCreateAddress(p.IPv4).PrefixLength = &p.PrefixLength
-
-					// Assign the interface to a network instance.
-					i := ni.GetOrCreateInterface(p.Name)
-					i.Interface = ygot.String(dp.Name())
-					i.Subinterface = ygot.Uint32(p.Subintf)
+					assignPort(t, d, niName, p)
 				}
 			}
 
@@ -112,7 +160,14 @@ func TestInterfaceAssignment(t *testing.T) {
 			}); tt.wantErr && got != "" || !tt.wantErr && got == "" {
 				t.Fatalf("did not get expected Fatal error, got: %s, wantErr? %v", got, tt.wantErr)
 			}
+
+			// Clean up the test by removing explicit assignments that we have made.
+			for niName := range tt.inPreAssignments {
+				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(niName).Interface())
+			}
+			for niName := range tt.inAssignments {
+				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(niName).Interface())
+			}
 		})
 	}
-
 }
