@@ -254,7 +254,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 func (tc *testCase) verifyDUT(t *testing.T, numPort int) {
 	dutPort := tc.dut.Port(t, "port1")
 	want := int(dutPort.Speed()) * numPort * 1000
-	val, _ := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().LagSpeed().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool { return val.IsPresent() }).Await(t)
+	val, _ := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().LagSpeed().State(), 60*time.Second, func(val *ygnmi.Value[uint32]) bool { return val.IsPresent() }).Await(t)
 	if got, _ := val.Val(); int(got) != want {
 		t.Errorf("Get(DUT port status): got %v, want %v", got, want)
 	}
