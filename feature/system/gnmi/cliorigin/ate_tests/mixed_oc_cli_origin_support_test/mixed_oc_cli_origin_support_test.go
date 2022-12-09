@@ -24,6 +24,7 @@ import (
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -93,8 +94,8 @@ func TestCLIBeforeOpenConfig(t *testing.T) {
 
 	// `origin: ""` (openconfig, default origin) setting the DUT port-1
 	//  string value at `/interfaces/interface/config/description` to `"from oc"`.
-	resolvedPath := dut.Config().Interface(dp.Name()).Description()
-	path, _, errs := ygot.ResolvePath(resolvedPath)
+	resolvedPath := gnmi.OC().Interface(dp.Name()).Description().Config().PathStruct()
+	path, _, errs := ygnmi.ResolvePath(resolvedPath)
 	if errs != nil {
 		t.Fatalf("Could not resolve path: %v", errs)
 	}
@@ -131,8 +132,8 @@ func TestOpenConfigBeforeCLI(t *testing.T) {
 
 	// `origin: ""` (openconfig, default origin) setting the DUT port-1
 	//  string value at `/interfaces/interface/config/description` to `"from oc"`.
-	resolvedPath := dut.Config().Interface(dp.Name()).Description()
-	path, _, errs := ygot.ResolvePath(resolvedPath)
+	resolvedPath := gnmi.OC().Interface(dp.Name()).Description().Config().PathStruct()
+	path, _, errs := ygnmi.ResolvePath(resolvedPath)
 	if errs != nil {
 		t.Fatalf("Could not resolve path: %v", errs)
 	}
@@ -185,8 +186,8 @@ func TestMixedOriginOCCLIConfig(t *testing.T) {
 
 	// `origin: ""` (openconfig, default origin) setting the DUT port-2
 	//  string value at `/interfaces/interface/config/description` to `"foo2"`.
-	resolvedPath := dut.Config().Interface(dp2.Name()).Description()
-	path, _, errs := ygot.ResolvePath(resolvedPath)
+	resolvedPath := gnmi.OC().Interface(dp2.Name()).Description().Config().PathStruct()
+	path, _, errs := ygnmi.ResolvePath(resolvedPath)
 
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{

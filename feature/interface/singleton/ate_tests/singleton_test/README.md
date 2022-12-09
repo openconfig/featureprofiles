@@ -22,7 +22,7 @@ a new testbed configuration with the desired port types.
         correctly reported.
 *   For IPv4 and IPv6:
     *   With traffic flow from ATE port-1 to ATE port-2, ensure:
-        *   For MTUs [^1] of 1500, 5000, 9212:
+        *   For MTUs [^1] of 1500, 5000, 9236:
             *   Packets with size greater than the configured MTU with DF-bit
                 set are not transmitted.
             *   Packets with size of configured MTU are received.
