@@ -59,7 +59,7 @@ tests:
   #    - '-deviation_ipv4_missing_enabled="true"'
   # patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
   owner: mananpat@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 7
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
@@ -70,7 +70,7 @@ tests:
   #args:
   #    - '-traffic_duration="20s"'
   #    - '-traffic_pause="2s"'
-  mustpass: false
+  mustpass: true
   priority: 7
 - name: TE-3.3 (Hierarchical weight resolution)
   path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
@@ -103,7 +103,7 @@ tests:
       - '-deviation_gribi_preserve_only="true"'
   timeout: 4200
   owner: mananpat@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 7
 - name: TE-11.2 (Backup NHG Multiple NH)
   path: feature/gribi/ate_tests/backup_nhg_multiple_nh_test
@@ -168,15 +168,14 @@ tests:
     - '-p4rt_node_name="0/0/CPU0-NPU0"'
   owner: sprem@cisco.com
   priority: 10
-  mustpass: true
+  mustpass: false
 - name: P4RT-5.2 (Traceroute Packetout)
   path: feature/experimental/p4rt/ate_tests/traceroute_packetout_test
   args:
     - '-p4rt_node_name="0/0/CPU0-NPU0"'
-  skip: true
   owner: sprem@cisco.com
   priority: 4
-  mustpass: true
+  mustpass: false
 - name: gNMI-1.1 (cli Origin) 
   path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
   owner: agvarghe@cisco.com
@@ -214,7 +213,7 @@ tests:
 - name: RT-3.1 Policy based VRF selection
   path: feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection
   owner: sprem@cisco.com
-  mustpass: true
+  mustpass: false
   priority: 30
 - name: RT-5.1 (Singleton Interface) 
   path: feature/interface/singleton/ate_tests/singleton_test
@@ -232,7 +231,7 @@ tests:
   path: feature/gnmi/ate_tests/telemetry_port_speed_test
   patch: exec/firex/plugins/fp_patch/telemetry_port_speed_test.patch
   owner: agvarghe@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 3
 - name: gNMI-1.10 (Telemetry Basic Check) 
   path: feature/gnmi/ate_tests/telemetry_basic_check_test
@@ -242,7 +241,7 @@ tests:
       - '-deviation_subinterface_packet_counters_missing="true"'
   #patch: exec/firex/plugins/fp_patch/telemetry_basic_check_test.patch
   owner: agvarghe@cisco.com
-  mustpass: true
+  mustpass: false
   priority: 34
 - name: gNMI-1.11 (Telemetry Interface Packet Counters) 
   path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
@@ -282,13 +281,13 @@ tests:
 - name: gNOI-3.4 (Chassis Reboot Status and Reboot Cancellation) 
   path: feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
   owner: arvbaska@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 42
 - name: SEC-3.1 (Authentication) 
   path: feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test
   patch: exec/firex/plugins/fp_patch/tls_authentication_over_grpc_test.patch
   owner: agvarghe@cisco.com
-  mustpass: false
+  mustpass: true
   skip: false
   priority: 43
 - name: FP_GNMI_GET
@@ -383,7 +382,7 @@ tests:
   path: feature/gnoi/system/tests/supervisor_switchover_test
   patch: exec/firex/plugins/fp_patch/supervisor_switchover_test.patch
   owner: arvbaska@cisco.com
-  mustpass: false
+  mustpass: true
   skip: false
   priority: 2
   timeout: 7200
@@ -391,7 +390,7 @@ tests:
   path: feature/gnoi/system/tests/per_component_reboot_test
   patch: exec/firex/plugins/fp_patch/per_component_reboot_test.patch
   owner: arvbaska@cisco.com
-  mustpass: false
+  mustpass: true
   skip: false
   priority: 2
   timeout: 7200
