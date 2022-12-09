@@ -260,14 +260,18 @@ func (tc *testCase) verifyLAG(t *testing.T) {
 		t.Logf("Waiting LAG OTG ports to start collecting and distributing")
 		for _, p := range tc.atePorts[1:] {
 			_, ok := gnmi.Watch(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMember(p.ID()).Collecting().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
+				time.Sleep(1 * time.Second)
 				col, present := val.Val()
+				t.Logf("collecting for port %v is %v and present is %v", p.ID(), col, present)
 				return present && col
 			}).Await(t)
 			if !ok {
 				t.Fatalf("OTG LAG port %v is not collecting", p)
 			}
 			_, ok = gnmi.Watch(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMember(p.ID()).Distributing().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
+				time.Sleep(1 * time.Second)
 				dist, present := val.Val()
+				t.Logf("distributing for port %v is %v and present is %v", p.ID(), dist, present)
 				return present && dist
 			}).Await(t)
 			if !ok {
@@ -363,7 +367,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	p0 := tc.atePorts[0]
 	tc.top.Ports().Add().SetName(p0.ID())
 	d0 := tc.top.Devices().Add().SetName(ateSrc.Name)
-	srcEth := d0.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetPortName(p0.ID()).SetMac(ateSrc.MAC)
+	srcEth := d0.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
 	srcEth.Connection().SetChoice("port_name").SetPortName(p0.ID())
 	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
 	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
@@ -384,7 +388,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId("01:01:01:01:01:01")
 
 	dstDev := tc.top.Devices().Add().SetName(agg.Name())
-	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetPortName(agg.Name()).SetMac(ateDst.MAC)
+	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
 	dstEth.Connection().SetChoice("lag_name").SetLagName(agg.Name())
 	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
 	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
