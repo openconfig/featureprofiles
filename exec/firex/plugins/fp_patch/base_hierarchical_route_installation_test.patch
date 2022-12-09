@@ -1,16 +1,13 @@
 diff --git a/feature/gribi/ate_tests/base_hierarchical_route_installation_test/base_hierarchical_route_installation_test.go b/feature/gribi/ate_tests/base_hierarchical_route_installation_test/base_hierarchical_route_installation_test.go
-index 3fdb7940..fe4a64e9 100644
+index 3fdb7940..8a97d2cb 100644
 --- a/feature/gribi/ate_tests/base_hierarchical_route_installation_test/base_hierarchical_route_installation_test.go
 +++ b/feature/gribi/ate_tests/base_hierarchical_route_installation_test/base_hierarchical_route_installation_test.go
-@@ -282,9 +282,10 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
- 	if got, want := ipv4Entry.GetPrefix(), ateDstNetCIDR; got != want {
- 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/prefix = %v, want %v", got, want)
- 	}
-+	/* Waiting for fix: CSCwc56906(CSC.ena,Update,cms)afts/ipv4-entry/state/origin-protocol and afts/ipv4-entry/state/next-hop-group
- 	if got, want := ipv4Entry.GetOriginProtocol(), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI; got != want {
- 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/origin-protocol = %v, want %v", got, want)
--	}
-+	} */
- 	if got, want := ipv4Entry.GetNextHopGroupNetworkInstance(), *deviations.DefaultNetworkInstance; got != want {
- 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/next-hop-group-network-instance = %v, want %v", got, want)
- 	}
+@@ -302,7 +302,7 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
+ 			t.Errorf("next-hop index is incorrect: got %v, want %v", got, want)
+ 		}
+ 		nh := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(nhIndexInst).State())
+-		if got, want := nh.GetIpAddress(), atePort2.IPv4; got != want {
++		if got, want := nh.GetIpAddress(), ateIndirectNH; got != want {
+ 			t.Errorf("next-hop is incorrect: got %v, want %v", got, want)
+ 		}
+ 		if nh.GetInterfaceRef().GetInterface() == "" {

@@ -39,14 +39,14 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 	}
-	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	r2 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r2.SequenceId = ygot.Uint32(2)
 	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(16)},
 	}
-	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r3.SequenceId = ygot.Uint32(3)
@@ -60,7 +60,7 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(48)},
 	}
-	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
@@ -89,7 +89,7 @@ func configNewPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string, ds
 			*ygot.Uint8(dscp),
 		},
 	}
-	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(policyName)
@@ -246,7 +246,7 @@ func configNewRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, rule
 	if protocol == 4 {
 		r.Ipv4.Protocol = telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP
 	}
-	r.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 	dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Rule(ruleID).Replace(t, &r)
 }
 
@@ -496,8 +496,8 @@ func getBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEndPoi
 	flow.WithHeaders(ethheader, ipheader1)
 	flow.WithSrcEndpoints(srcEndpoint)
 	flow.WithDstEndpoints(dstEndPoint)
-	flow.WithFrameRateFPS(100)
-	flow.WithFrameSize(1024)
+	flow.WithFrameRateFPS(*ciscoFlags.FlowFps)
+	flow.WithFrameSize(*ciscoFlags.FrameSize)
 	return flow
 }
 
@@ -510,8 +510,8 @@ func getBoundedFlowIpv6(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dstEn
 	flow.WithHeaders(ethheader, ipheader1)
 	flow.WithSrcEndpoints(srcEndpoint)
 	flow.WithDstEndpoints(dstEndPoint)
-	flow.WithFrameRateFPS(100)
-	flow.WithFrameSize(1024)
+	flow.WithFrameRateFPS(*ciscoFlags.FlowFps)
+	flow.WithFrameSize(*ciscoFlags.FrameSize)
 	return flow
 }
 
@@ -531,8 +531,8 @@ func getBoundedFlowIPinIP(t *testing.T, ate *ondatra.ATEDevice, srcEndpoint, dst
 	flow.WithHeaders(ethheader, outerIPHeader, innerIPHeader)
 	flow.WithSrcEndpoints(srcEndpoint)
 	flow.WithDstEndpoints(dstEndPoint)
-	flow.WithFrameRateFPS(100)
-	flow.WithFrameSize(1024)
+	flow.WithFrameRateFPS(*ciscoFlags.FlowFps)
+	flow.WithFrameSize(*ciscoFlags.FrameSize)
 	return flow
 }
 
@@ -869,6 +869,16 @@ func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	t.Run("Remove dscp-set", func(t *testing.T) {
+		// A class map without any entry is invalid. Adding IPinIP entry in Rule2 such that on deleting
+		// dscp set, class map is not left empty.
+		r1 := &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+		r1.SequenceId = ygot.Uint32(2)
+		r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+			Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+		}
+		r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
+		args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(2).Update(t, r1)
+
 		// Remove existing match field
 		args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().DscpSet().Delete(t)
 		defer configBasePBR(t, args.dut)
@@ -898,7 +908,7 @@ func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 				Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 				DscpSet:  []uint8{10},
 			}
-			r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+			r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 			args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(1).Replace(t, r1)
 		})
 		if !success {
@@ -922,12 +932,11 @@ func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 		// 	verifyConfigPbrMatchIpv4DscpSet(ctx, t, args, 2, []uint8{})
 		// })
 
-		t.Run("Expect traffic fail", func(t *testing.T) {
+		t.Run("Expect traffic Pass", func(t *testing.T) {
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
-			// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-			// Expecting Traffic fail
-			testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+			// Expecting Traffic to pass as Rule1 still has match on dscp set {10}
+			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
 		})
 	})
 }
@@ -1074,25 +1083,29 @@ func testAclAndPBRUnderSameInterface(ctx context.Context, t *testing.T, args *te
 	// Create and apply ACL that allows DSCP16 traffic to ingress interface. Verify traffic passes.
 	dscp := uint8(16)
 	aclName := "dscp_pass"
-	aclConfig := GetIpv4Acl(aclName, 10, dscp, telemetry.Acl_FORWARDING_ACTION_ACCEPT)
-	args.dut.Config().Acl().Replace(t, aclConfig)
-	args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).SetName().Replace(t, aclName)
-
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
+	t.Run("AclWithActionAccept", func(t *testing.T) {
+		aclConfig := GetIpv4Acl(aclName, 10, dscp, telemetry.Acl_FORWARDING_ACTION_ACCEPT)
+		args.dut.Config().Acl().Replace(t, aclConfig)
+		defer args.dut.Config().Acl().Delete(t)
 
+		args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).SetName().Replace(t, aclName)
+		defer args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
+
+		testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
+	})
 	//Create and apply ACL that drops DSCP16 traffic incoming on the ingress interface. Verify traffic drops.
 	aclName = "dscp_drop"
-	aclConfig = GetIpv4Acl(aclName, 10, dscp, telemetry.Acl_FORWARDING_ACTION_REJECT)
-	args.dut.Config().Acl().Replace(t, aclConfig)
-	args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).SetName().Replace(t, aclName)
+	t.Run("AclWithActionReject", func(t *testing.T) {
+		aclConfig := GetIpv4Acl(aclName, 10, dscp, telemetry.Acl_FORWARDING_ACTION_REJECT)
+		args.dut.Config().Acl().Replace(t, aclConfig)
+		defer args.dut.Config().Acl().Delete(t)
 
-	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
+		args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).SetName().Replace(t, aclName)
+		defer args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
 
-	// Cleanup
-	args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
-	args.dut.Config().Acl().Delete(t)
-
+		testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
+	})
 }
 
 func testPolicesReplace(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1114,7 +1127,7 @@ func testPolicesReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(16)},
 	}
-	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r3.SequenceId = ygot.Uint32(3)
@@ -1128,7 +1141,7 @@ func testPolicesReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(48)},
 	}
-	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
@@ -1162,7 +1175,7 @@ func testPolicyReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(16)},
 	}
-	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r3.SequenceId = ygot.Uint32(3)
@@ -1176,7 +1189,7 @@ func testPolicyReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(48)},
 	}
-	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
