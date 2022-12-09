@@ -266,7 +266,7 @@ func (tc *testCase) verifyInterfaceDUT(
 			}
 		}
 	}
-if !*deviations.MissingNeighborOrigin {
+        if !*deviations.MissingNeighborOrigin {
 		disp := dip.Subinterface(0)
 
 		// IPv4 neighbor discovered by ARP.
@@ -280,7 +280,7 @@ if !*deviations.MissingNeighborOrigin {
 		if got := gnmi.Get(t, tc.dut, dis6np.Origin().State()); got != dynamic {
 			t.Errorf("%s IPv6 neighbor %s origin got %v, want %v", dp, atea.IPv6, got, dynamic)
 		}
-	}
+        }
 }
 
 // verifyDUT checks the telemetry against the parameters set by
