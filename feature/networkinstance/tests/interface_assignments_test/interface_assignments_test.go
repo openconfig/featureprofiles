@@ -19,6 +19,7 @@ package interface_assignments_test
 import (
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
   "github.com/openconfig/ondatra/gnmi"
@@ -62,10 +63,12 @@ func TestInterfaceAssignment(t *testing.T) {
 	}{{
 		desc: "explicit assignment of port1 to DEFAULT",
 		inAssignments: map[string]intfNIAssignment{
-			"DEFAULT": {
+			*deviations.DefaultNetworkInstance: {
 				Ports: []portSpec{{
-					Name:    "port1",
-					Subintf: 0,
+					Name:         "port1",
+					Subintf:      0,
+					IPv4:         "192.0.2.0",
+					PrefixLength: 31,
 				}},
 				Type: telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 			},
@@ -74,6 +77,7 @@ func TestInterfaceAssignment(t *testing.T) {
 		desc: "explicit assignment of port1 to non-default NI",
 		inAssignments: map[string]intfNIAssignment{
 			"BLUE": {
+<<<<<<< HEAD:feature/networkinstance/tests/interface_assignments_test/interface_assignments_test.go
 				Ports: []portSpec{{
 					Name:    "port1",
 					Subintf: 0,
@@ -107,8 +111,10 @@ func TestInterfaceAssignment(t *testing.T) {
 		inAssignments: map[string]intfNIAssignment{
 			"RED": {
 				Ports: []portSpec{{
-					Name:    "port1",
-					Subintf: 0,
+					Name:         "port1",
+					Subintf:      0,
+					IPv4:         "192.0.2.0",
+					PrefixLength: 31,
 				}},
 				Type: telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 			},
@@ -154,11 +160,15 @@ func TestInterfaceAssignment(t *testing.T) {
 					assignPort(t, d, niName, p)
 				}
 			}
+			fptest.LogYgot(t, "Device", dut.Config(), d)
 
-			if got := testt.ExpectFatal(t, func(t testing.TB) {
-				dut.Config().Update(t, d)
-			}); tt.wantErr && got != "" || !tt.wantErr && got == "" {
-				t.Fatalf("did not get expected Fatal error, got: %s, wantErr? %v", got, tt.wantErr)
+			if tt.wantErr {
+				if got := testt.ExpectFatal(t, func(t testing.TB) {
+					dut.Config().Update(t, d)
+				}); got == "" {
+					t.Fatalf("did not get expected Fatal error, got: %s, wantErr? %v", got, tt.wantErr)
+				}
+				return
 			}
 
 			// Clean up the test by removing explicit assignments that we have made.
