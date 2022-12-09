@@ -30,7 +30,7 @@ FP_REPO_CLONE_INFO = CloneInfo('git@wwwin-github.cisco.com:B4Test/featureprofile
 ONDATRA_PATCHES = [
     'exec/firex/plugins/ondatra/0001-windows-ixia-path.patch', 
     'exec/firex/plugins/ondatra/0002-disable-log.patch',
-    'exec/firex/plugins/ondatra/disable-annotate-err.patch',
+#    'exec/firex/plugins/ondatra/disable-annotate-err.patch',
     'exec/firex/plugins/ondatra/xml-stdout-smlt-logs.patch',
 #    'exec/firex/plugins/ondatra/p4rt-error-msg-workaround.patch',
 #    'exec/firex/plugins/ondatra/tmp-disable-close-send.patch'
@@ -62,16 +62,16 @@ whitelist_arguments([
     'test_timeout',
     'test_must_pass',
     'test_debug',
-    'apply_patches',
+    'apply_test_patches',
+    'apply_ondatra_patches',
     'exec_repo_dir',
-    'ondatra_logging',
 ])
 
 @app.task(base=FireX, bind=True)
 @returns('ondatra_binding_path', 'ondatra_testbed_path', 'exec_repo_dir', 'fp_repo_dir')
 def BringupTestbed(self, ws, images = None,  
                         ondatra_repo_branch='main',
-                        ondatra_repo_rev='89ea1ae2f3284530e65586cf86a9846d92782516',
+                        ondatra_repo_rev='1b90e33d211b8f84f63b7672ab163d81b532b504',
                         fp_repo_url=FP_REPO_CLONE_INFO.url,
                         fp_repo_branch='main',  
                         fp_repo_rev=None,
@@ -80,8 +80,8 @@ def BringupTestbed(self, ws, images = None,
                         ondatra_binding_path=None,
                         base_conf_path=None,
                         skip_install=False,
-                        apply_patches=True,
-                        ondatra_logging=True,
+                        apply_test_patches=True,
+                        apply_ondatra_patches=True,
                         exec_repo_dir=None):
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
@@ -142,7 +142,7 @@ def BringupTestbed(self, ws, images = None,
                 base_conf_path = os.path.join(exec_repo_dir, base_conf_path)
             check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
 
-    if apply_patches:
+    if apply_ondatra_patches:
         with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
             fp.write("replace github.com/openconfig/ondatra => ../ondatra")
 
@@ -191,7 +191,7 @@ def BringupTestbed(self, ws, images = None,
             f'-alsologtostderr'
 
         logger.print(f'Executing osinstall command:\n {install_cmd}')
-        logger.print(check_output(install_cmd, cwd=fp_repo_dir))
+        logger.print(check_output(install_cmd, cwd=exec_repo_dir))
 
     testbed_info_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/testbed ' \
@@ -202,7 +202,7 @@ def BringupTestbed(self, ws, images = None,
             f'-outFile {os.path.join(ws, "testbed_info.txt")}'
     logger.print(testbed_info_cmd)
     try:
-        check_output(testbed_info_cmd, cwd=fp_repo_dir)
+        check_output(testbed_info_cmd, cwd=exec_repo_dir)
     except: pass
 
     return ondatra_binding_path, ondatra_testbed_path, exec_repo_dir, fp_repo_dir
@@ -235,8 +235,7 @@ def b4_fp_chain_provider(ws,
                          test_timeout=0,
                          test_must_pass=False,
                          test_debug=True,
-                         apply_patches=True,
-                         ondatra_logging=True,
+                         apply_test_patches=True,
                          **kwargs):
 
     chain = InjectArgs(ws=ws,
@@ -254,15 +253,14 @@ def b4_fp_chain_provider(ws,
                     test_timeout=test_timeout,
                     test_must_pass=test_must_pass,
                     test_debug=test_debug,
-                    apply_patches=apply_patches,
-                    ondatra_logging=ondatra_logging,
+                    apply_test_patches=apply_test_patches,
                     **kwargs)
     
     fp_repo = git.Repo(fp_repo_dir)
     fp_repo.git.reset('--hard')
     fp_repo.git.clean('-xdf')
 
-    if apply_patches and test_patch:
+    if apply_test_patches and test_patch:
         chain |= PatchFP.s(fp_repo=fp_repo_dir, patch_path=os.path.join(exec_repo_dir, test_patch))
 
     chain |= ReleaseIxiaPorts.s(ws=ws, fp_ws=exec_repo_dir, ondatra_binding_path=ondatra_binding_path)
@@ -270,14 +268,14 @@ def b4_fp_chain_provider(ws,
     if fp_pre_tests:
         for pt in fp_pre_tests:
             for k, v in pt.items():
-                chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'),ondatra_binding_path=ondatra_binding_path, ondatra_logging=ondatra_logging)
+                chain |= RunB4FPTest.s(fp_ws=exec_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'),ondatra_binding_path=ondatra_binding_path)
 
-    chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = test_path, test_args = test_args, test_timeout = test_timeout, ondatra_binding_path=ondatra_binding_path, ondatra_logging=ondatra_logging)
+    chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = test_path, test_args = test_args, test_timeout = test_timeout, ondatra_binding_path=ondatra_binding_path)
 
     if fp_post_tests:
         for pt in fp_post_tests:
             for k, v in pt.items():
-                chain |= RunB4FPTest.s(fp_ws=fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path, ondatra_logging=ondatra_logging)
+                chain |= RunB4FPTest.s(fp_ws=exec_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path)
 
     chain |= GoReporting.s(fp_ws=exec_repo_dir)
     return chain
@@ -313,7 +311,6 @@ def RunB4FPTest(self,
                 xunit_results_filepath,
                 ondatra_testbed_path=None,
                 ondatra_binding_path=None,
-                ondatra_logging=True,
                 test_path=None,
                 test_args=None,
                 test_timeout=0,
@@ -354,20 +351,9 @@ def RunB4FPTest(self,
     extra_env_vars = {'GOVERSION': '3.0'}  # Needed by gotestsum; 3.0 is what we see when GO is in path
     extra_env_vars.update(get_go_env())
 
-    cmd = f'/auto/firex/bin/gotestsum ' \
-          f'--junitfile {xunit_results_filepath} ' \
-          f'--junitfile-testsuite-name short ' \
-          f'--junitfile-testcase-classname short ' \
-          f'--jsonfile "{json_results_file}" ' \
-          f'--format testname ' \
-          f'--debug ' \
-          f'--raw-command ' \
-          f'-- ' \
-          f'{GO_BIN} test -v {test_path} {go_args} -args {test_args}'
+    cmd = f'{GO_BIN} test -v {test_path} {go_args} -args {test_args} ' \
+            f'-xml "{xml_results_file}"'
 
-    if ondatra_logging:
-        cmd += f' -xml "{xml_results_file}"'
- 
     start_time = self.get_current_time()
     try:
         inactivity_timeout = 1800
@@ -379,11 +365,16 @@ def RunB4FPTest(self,
                         extra_env_vars=extra_env_vars,
                         cwd=fp_ws)
         stop_time = self.get_current_time()
+    finally:
+        if Path(xml_results_file).is_file():
+            shutil.copyfile(xml_results_file, xunit_results_filepath)
+
+        if Path(self.console_output_file).is_file():
+            shutil.copyfile(self.console_output_file, json_results_file)
+
+        copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
 
         check_output(f"sed -i 's|skipped|disabled|g' "+xunit_results_filepath)
-
-    finally:
-        copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
 
     if not Path(xunit_results_filepath).is_file():
         logger.warn('Test did not produce expected xunit result')

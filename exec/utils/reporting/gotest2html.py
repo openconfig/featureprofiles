@@ -638,8 +638,11 @@ def _read_log_file(file):
     with open(file, 'r') as fp:
         lines = fp.readlines()
         for i, f in enumerate(lines):
-            content += f
-            if i < len(lines) - 1: content += ','
+            try:
+                json.loads(f)
+                content += f
+                if i < len(lines) - 1: content += ','
+            except: continue
     content += ']'
     return content
 

@@ -15,17 +15,19 @@ import (
 
 // GoTest represents a single go test
 type GoTest struct {
-	ID       string
-	Name     string
-	Owner    string
-	Priority int
-	Path     string
-	Patch    string
-	Baseconf string
-	Args     []string
-	Timeout  int
-	Skip     bool
-	MustPass bool
+	ID        string
+	Name      string
+	Owner     string
+	Priority  int
+	Path      string
+	Patch     string
+	Baseconf  string
+	Args      []string
+	Timeout   int
+	Skip      bool
+	MustPass  bool
+	Pretests  []GoTest
+	Posttests []GoTest
 }
 
 // FirexTest represents a single firex test suite
@@ -55,9 +57,23 @@ var (
 		"test_names", "", "comma separated list of tests to include",
 	)
 
-	testDescFiles []string
+	patchedOnlyFlag = flag.Bool(
+		"patched_only", false, "include only patched test",
+	)
 
-	testNames []string
+	excludePatchedFlag = flag.Bool(
+		"exclude_patched", false, "exclude patched test",
+	)
+
+	mustPassOnlyFlag = flag.Bool(
+		"must_pass_only", false, "include only mustpass test",
+	)
+
+	testDescFiles  []string
+	testNames      []string
+	patchedOnly    bool
+	mustPassOnly   bool
+	excludePatched bool
 )
 
 var (
@@ -99,11 +115,11 @@ var (
     supported_platforms:
         - "8000"
     fp_pre_tests:
-        {{- range $j, $gt := $ft.Pretests}}
-        - {{ $gt.Name }}:
-            test_path: {{ $gt.Path }}
-            {{- if $gt.Args }}
-            test_args: {{ join $gt.Args " " }}
+        {{- range $j, $pt := $gt.Pretests}}
+        - {{ $pt.Name }}:
+            test_path: {{ $pt.Path }}
+            {{- if $pt.Args }}
+            test_args: {{ join $pt.Args " " }}
             {{- end }}
         {{- end }}
     script_paths:
@@ -117,11 +133,11 @@ var (
             {{- end }}
             test_timeout: {{ $gt.Timeout }}
     fp_post_tests:
-        {{- range $j, $gt := $ft.Posttests}}
-        - {{ $gt.Name }}:
-            test_path: {{ $gt.Path }}
-            {{- if $gt.Args }}
-            test_args: {{ join $gt.Args " " }}
+        {{- range $j, $pt := $gt.Posttests}}
+        - {{ $pt.Name }}:
+            test_path: {{ $pt.Path }}
+            {{- if $pt.Args }}
+            test_args: {{ join $pt.Args " " }}
             {{- end }}
         {{- end }}
     smart_sanity_exclude: True
@@ -140,6 +156,10 @@ func init() {
 	if len(*testNamesFlag) > 0 {
 		testNames = strings.Split(*testNamesFlag, ",")
 	}
+
+	mustPassOnly = *mustPassOnlyFlag
+	patchedOnly = *patchedOnlyFlag
+	excludePatched = *excludePatchedFlag
 }
 
 func main() {
@@ -181,7 +201,10 @@ func main() {
 		for i := range suite {
 			keptTests := []GoTest{}
 			for j := range suite[i].Tests {
-				if !suite[i].Tests[j].Skip {
+				if !suite[i].Tests[j].Skip &&
+					(!mustPassOnly || suite[i].Tests[j].MustPass) &&
+					(!patchedOnly || suite[i].Tests[j].Patch != "") &&
+					(!excludePatched || suite[i].Tests[j].Patch == "") {
 					keptTests = append(keptTests, suite[i].Tests[j])
 				}
 			}
@@ -218,6 +241,14 @@ func main() {
 
 			if len(suite[i].Baseconf) > 0 && len(suite[i].Tests[j].Baseconf) == 0 {
 				suite[i].Tests[j].Baseconf = suite[i].Baseconf
+			}
+
+			if len(suite[i].Tests[j].Pretests) == 0 {
+				suite[i].Tests[j].Pretests = append(suite[i].Tests[j].Pretests, suite[i].Pretests...)
+			}
+
+			if len(suite[i].Tests[j].Posttests) == 0 {
+				suite[i].Tests[j].Posttests = append(suite[i].Tests[j].Posttests, suite[i].Posttests...)
 			}
 		}
 	}

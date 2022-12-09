@@ -12,8 +12,9 @@ tests:
 - name: gNOI-3.1 (Complete Chassis Reboot) 
   path: feature/gnoi/system/tests/complete_chassis_reboot
   owner: arvbaska@cisco.com
-  priority: 60
+  priority: 1
   mustpass: true
+  skip: true
 - name: TE-15.1 (gRIBI Compliance) 
   path: feature/gribi/ate_tests/gribigo_compliance_test
   priority: 2
@@ -54,10 +55,10 @@ tests:
   priority: 7
 - name: TE-3.7 (Base Hierarchical NHG Update) 
   path: feature/gribi/ate_tests/base_hierarchical_nhg_update
-  args:
-      - '-deviation_interface_enabled="true"'
-      - '-deviation_ipv4_missing_enabled="true"'
-  patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
+  #args:
+  #    - '-deviation_interface_enabled="true"'
+  #    - '-deviation_ipv4_missing_enabled="true"'
+  # patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
   owner: mananpat@cisco.com
   mustpass: false
   priority: 7
@@ -97,6 +98,8 @@ tests:
 - name: TE-3.1 (Base Hierarchical Route Installation) 
   path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
   patch: exec/firex/plugins/fp_patch/base_hierarchical_route_installation_test.patch
+  args:
+     - '-deviation_gribi_preserve_only="true"'
   timeout: 4200
   skip: false
   owner: mananpat@cisco.com
@@ -120,7 +123,7 @@ tests:
   priority: 7
 - name: TE-14.1 (gRIBI Scaling)
   path: feature/gribi/ate_tests/gribi_scaling
-  patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
+  # patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
   timeout: 7200
   owner: mananpat@cisco.com
   mustpass: true
@@ -139,6 +142,7 @@ tests:
   owner: arvbaska@cisco.com
   priority: 3
   mustpass: true
+  skip: true
 - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
   path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
   args:
@@ -146,6 +150,7 @@ tests:
   owner: sprem@cisco.com
   priority: 4
   mustpass: true
+  skip: true
 - name: P4RT-3.1 (Google Discovery Protocol PacketIn)
   path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetin_test
   args:
@@ -153,8 +158,9 @@ tests:
   owner: sprem@cisco.com
   priority: 4
   mustpass: true
+  skip: true
 - name: P4RT-7.2 (LLDP PacketOut)
-  path: feature/experimental/p4rt/ate_tests/lldp_packetout_test/lldp_packetout_test.go
+  path: feature/experimental/p4rt/ate_tests/lldp_packetout_test
   args:
     - '-p4rt_node_name="0/RP0/CPU0/0"'
   skip: false
@@ -337,10 +343,10 @@ tests:
   skip: false
 - name: RT-1.5 (BGP Prefix Limit) 
   path: feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test
-  #patch: exec/firex/plugins/fp_patch/bgp_prefix_limit_test.patch
+  patch: exec/firex/plugins/fp_patch/bgp_prefix_limit_test.patch
   owner: sprem@cisco.com
-  mustpass: false
-  priority: 53
+  mustpass: true
+  priority: 3
   skip: false
 - name: RT-1.4 (BGP Graceful Restart) 
   path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
@@ -357,14 +363,14 @@ tests:
   skip: false
 - name: RT-1.2 (BGP Policy and Route Installation) 
   path: feature/bgp/policybase/ate_tests/route_installation_test
-  #patch: exec/firex/plugins/fp_patch/route_installation_test.patch
+  patch: exec/firex/plugins/fp_patch/route_installation_test.patch
   owner: sprem@cisco.com
   args:
      - '-deviation_rpl_under_peergroup=true'
      - '-deviation_prepolicy_received_routes=true'
-  mustpass: false
+  mustpass: true
   skip: false
-  priority: 56
+  priority: 3
 - name: gNMI-1.4 (Telemetry Inventory) 
   path: feature/platform/ate_tests/telemetry_inventory_test
   patch: exec/firex/plugins/fp_patch/telemetry_inventory_test.patch

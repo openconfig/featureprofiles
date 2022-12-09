@@ -12,11 +12,8 @@ tests:
 - name: gNOI-3.1 (Complete Chassis Reboot) 
   path: feature/gnoi/system/tests/complete_chassis_reboot
   owner: arvbaska@cisco.com
-  priority: 2
+  priority: 1
   mustpass: true
-#- name: first_get_workaround
-#  path: topologies/cisco/pretests/pre_fp_gribi_test.go
-#  priority: 3
 - name: TE-15.1 (gRIBI Compliance) 
   path: feature/gribi/ate_tests/gribigo_compliance_test
   priority: 3
@@ -57,16 +54,19 @@ tests:
   priority: 7
 - name: TE-3.7 (Base Hierarchical NHG Update) 
   path: feature/gribi/ate_tests/base_hierarchical_nhg_update
-  args:
-      - '-deviation_interface_enabled="true"'
-      - '-deviation_ipv4_missing_enabled="true"'
-  patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
+  #args:
+  #    - '-deviation_interface_enabled="true"'
+  #    - '-deviation_ipv4_missing_enabled="true"'
+  # patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
   owner: mananpat@cisco.com
   mustpass: false
   priority: 7
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
   patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
+  pretests:
+    - name: first_get_workaround
+      path: topologies/cisco/pretests/emsd_restart_test
   #args:
   #    - '-traffic_duration="20s"'
   #    - '-traffic_pause="2s"'
@@ -99,6 +99,8 @@ tests:
 - name: TE-3.1 (Base Hierarchical Route Installation) 
   path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
   patch: exec/firex/plugins/fp_patch/base_hierarchical_route_installation_test.patch
+  args:
+      - '-deviation_gribi_preserve_only="true"'
   timeout: 4200
   owner: mananpat@cisco.com
   mustpass: false
@@ -108,6 +110,9 @@ tests:
   owner: mananpat@cisco.com
   mustpass: true
   priority: 7
+  pretests:
+    - name: first_get_workaround
+      path: topologies/cisco/pretests/emsd_restart_test
 - name: TE-8.1 (DUT Daemon Failure)
   path: feature/experimental/gribi/ate_tests/dut_daemon_failure
   owner: mananpat@cisco.com
@@ -119,9 +124,12 @@ tests:
   owner: mananpat@cisco.com
   mustpass: true
   priority: 7
+  pretests:
+    - name: first_get_workaround
+      path: topologies/cisco/pretests/emsd_restart_test
 - name: TE-14.1 (gRIBI Scaling)
   path: feature/gribi/ate_tests/gribi_scaling
-  patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
+  # patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
   timeout: 7200
   owner: mananpat@cisco.com
   mustpass: true
@@ -155,7 +163,7 @@ tests:
   priority: 4
   mustpass: true
 - name: P4RT-7.2 (LLDP PacketOut)
-  path: feature/experimental/p4rt/ate_tests/lldp_packetout_test/lldp_packetout_test.go
+  path: feature/experimental/p4rt/ate_tests/lldp_packetout_test
   args:
     - '-p4rt_node_name="0/0/CPU0-NPU0"'
   owner: sprem@cisco.com
@@ -225,7 +233,7 @@ tests:
   patch: exec/firex/plugins/fp_patch/telemetry_port_speed_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
-  priority: 33
+  priority: 3
 - name: gNMI-1.10 (Telemetry Basic Check) 
   path: feature/gnmi/ate_tests/telemetry_basic_check_test
   args:
@@ -363,7 +371,7 @@ tests:
      - '-deviation_prepolicy_received_routes=true'
   mustpass: true
   skip: false
-  priority: 56
+  priority: 3
 - name: gNMI-1.4 (Telemetry Inventory) 
   path: feature/platform/ate_tests/telemetry_inventory_test
   patch: exec/firex/plugins/fp_patch/telemetry_inventory_test.patch
@@ -377,7 +385,7 @@ tests:
   owner: arvbaska@cisco.com
   mustpass: false
   skip: false
-  priority: 70
+  priority: 2
   timeout: 7200
 - name: gNOI-3.2 (Per-Component Reboot) 
   path: feature/gnoi/system/tests/per_component_reboot_test
@@ -385,7 +393,7 @@ tests:
   owner: arvbaska@cisco.com
   mustpass: false
   skip: false
-  priority: 70
+  priority: 2
   timeout: 7200
 - name: TE-8.2 (Supervisor Failure)
   path: feature/gribi/ate_tests/supervisor_failure_test
@@ -394,7 +402,7 @@ tests:
   skip: false
   mustpass: true
   timeout: 7200
-  priority: 70
+  priority: 2
 - name: TE-1.1 (Static ARP) 
   path: feature/interface/staticarp/ate_tests/static_arp_test
   owner: mbagherz@cisco.com
