@@ -331,7 +331,7 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	staticRoute := static.GetOrCreateStatic(staticCIDR)
 	nextHop := staticRoute.GetOrCreateNextHop("0")
 	nextHop.NextHop = oc.UnionString(atePort2.IPv4)
-	gnmi.Replace(t, args.dut, niProto.Config(), static)
+	gnmi.Update(t, args.dut, niProto.Config(), static)
 	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {
 		ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
