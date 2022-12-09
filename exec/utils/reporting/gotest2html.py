@@ -148,6 +148,7 @@ Suite | T | P | F | S | Logs | DDTS | Attr | Result
             result_attr = []
             if s["test"].is_patched(): result_attr.append('P')
             if s["test"].is_deviated(): result_attr.append('D')
+            if s["test"].is_must_pass(): result_attr.append('MP')
             if len(result_attr) > 0:
                 result_attr = f'{", ".join(result_attr)}'
             else: result_attr = ''
@@ -176,6 +177,7 @@ class GoTest:
         self._gh_issue = None
         self._deviated = False
         self._patched = False
+        self._is_must_pass = False
         self._log_file_name = hashlib.md5(name.encode("utf")).hexdigest() + '.txt'
 
         if parent:
@@ -269,6 +271,9 @@ class GoTest:
 
     def mark_deviated(self):
         self._deviated = True
+
+    def mark_must_pass(self):
+        self._is_must_pass = True
         
     def add_failure(self, failure):
         self._failures.append(failure)
@@ -342,6 +347,9 @@ class GoTest:
     
     def is_deviated(self):
         return self._deviated
+
+    def is_must_pass(self):
+        return self._is_must_pass
 
     def get_total(self):
         return len(self.get_descendants())
@@ -598,22 +606,27 @@ def _parse(file, json_data, suite_name=None, known_failures=[]):
 
         test_name = entry['Test']
         test_pkg = entry['Package']
+        key = (test_name, test_pkg)
 
         if entry["Action"] == 'run':
             c = _get_parent(test_map, entry, top_test).create_child(test_name, test_pkg)
-            test_map[(test_name, test_pkg)] = c
+            test_map[key] = c
                 
         elif entry["Action"] == 'output':
-            test_map[(test_name, test_pkg)].append_output(entry["Output"])
+            if key in test_map:
+                test_map[key].append_output(entry["Output"])
 
         elif entry["Action"] == 'pass':
-            test_map[(test_name, test_pkg)].mark_passed()
+            if key in test_map:
+                test_map[key].mark_passed()
 
         elif entry["Action"] == 'fail':
-            test_map[(test_name, test_pkg)].mark_failed()
+            if key in test_map:
+                test_map[key].mark_failed()
         
         elif entry["Action"] == 'skip':
-            test_map[(test_name, test_pkg)].mark_skipped()
+            if key in test_map:
+                test_map[key].mark_skipped()
 
     for t in test_map.values():
         t.find_failures(known_failures)
@@ -625,8 +638,11 @@ def _read_log_file(file):
     with open(file, 'r') as fp:
         lines = fp.readlines()
         for i, f in enumerate(lines):
-            content += f
-            if i < len(lines) - 1: content += ','
+            try:
+                json.loads(f)
+                content += f
+                if i < len(lines) - 1: content += ','
+            except: continue
     content += ']'
     return content
 

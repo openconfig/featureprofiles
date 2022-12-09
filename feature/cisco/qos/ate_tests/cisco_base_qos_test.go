@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-
-	//"time"
+	"time"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
@@ -113,6 +112,7 @@ var (
 func TestTrafficQos(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	cliHandle := dut.RawAPIs().CLI(t)
+	defer cliHandle.Close()
 	resp, err := cliHandle.SendCommand(context.Background(), "show version")
 	t.Logf(resp)
 	if err != nil {
@@ -122,7 +122,7 @@ func TestTrafficQos(t *testing.T) {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
 	}
-	cliHandle.Close()
+
 	//Configure IPv6 addresses and VLANS on DUT
 	configureIpv6AndVlans(t, dut)
 
@@ -198,7 +198,9 @@ func TestTrafficQos(t *testing.T) {
 
 func TestScheduler(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	time.Sleep(time.Minute)
 	cliHandle := dut.RawAPIs().CLI(t)
+	defer cliHandle.Close()
 	resp, err := cliHandle.SendCommand(context.Background(), "show version")
 	t.Logf(resp)
 	if err != nil {
@@ -208,7 +210,6 @@ func TestScheduler(t *testing.T) {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
 	}
-	cliHandle.Close()
 
 	// Dial gRIBI
 	ctx := context.Background()

@@ -135,14 +135,14 @@ func getBasePBROCConfig(t *testing.T, args *testArgs) (ygot.PathStruct, interfac
 	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 	}
-	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	r2 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r2.SequenceId = ygot.Uint32(2)
 	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(16)},
 	}
-	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r3.SequenceId = ygot.Uint32(3)
@@ -156,7 +156,7 @@ func getBasePBROCConfig(t *testing.T, args *testArgs) (ygot.PathStruct, interfac
 	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(48)},
 	}
-	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
@@ -176,7 +176,7 @@ func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygot.PathStruct, inter
 	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 	}
-	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	r2 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r2.SequenceId = ygot.Uint32(2)
@@ -184,7 +184,7 @@ func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygot.PathStruct, inter
 		//DscpSet: []uint8{*ygot.Uint8(14)}, // wrong value
 		DscpSet: []uint8{*ygot.Uint8(17)}, // wrong value
 	}
-	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r3.SequenceId = ygot.Uint32(3)
@@ -199,7 +199,7 @@ func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygot.PathStruct, inter
 	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(49)}, // wrong value
 	}
-	//r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	//r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
