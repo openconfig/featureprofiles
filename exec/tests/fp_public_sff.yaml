@@ -12,7 +12,7 @@ tests:
 - name: gNOI-3.1 (Complete Chassis Reboot) 
   path: feature/gnoi/system/tests/complete_chassis_reboot
   owner: arvbaska@cisco.com
-  priority: 60
+  priority: 1
   mustpass: true
   skip: true
 - name: TE-15.1 (gRIBI Compliance) 
@@ -55,9 +55,9 @@ tests:
   priority: 7
 - name: TE-3.7 (Base Hierarchical NHG Update) 
   path: feature/gribi/ate_tests/base_hierarchical_nhg_update
-  args:
-      - '-deviation_interface_enabled="true"'
-      - '-deviation_ipv4_missing_enabled="true"'
+  #args:
+  #    - '-deviation_interface_enabled="true"'
+  #    - '-deviation_ipv4_missing_enabled="true"'
   # patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
   owner: mananpat@cisco.com
   mustpass: false
@@ -346,7 +346,7 @@ tests:
   patch: exec/firex/plugins/fp_patch/bgp_prefix_limit_test.patch
   owner: sprem@cisco.com
   mustpass: true
-  priority: 53
+  priority: 3
   skip: false
 - name: RT-1.4 (BGP Graceful Restart) 
   path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
@@ -370,7 +370,7 @@ tests:
      - '-deviation_prepolicy_received_routes=true'
   mustpass: true
   skip: false
-  priority: 56
+  priority: 3
 - name: gNMI-1.4 (Telemetry Inventory) 
   path: feature/platform/ate_tests/telemetry_inventory_test
   patch: exec/firex/plugins/fp_patch/telemetry_inventory_test.patch
