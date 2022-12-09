@@ -12,7 +12,7 @@ tests:
 - name: gNOI-3.1 (Complete Chassis Reboot) 
   path: feature/gnoi/system/tests/complete_chassis_reboot
   owner: arvbaska@cisco.com
-  priority: 100
+  priority: 1
   mustpass: true
 - name: TE-15.1 (gRIBI Compliance) 
   path: feature/gribi/ate_tests/gribigo_compliance_test
@@ -385,7 +385,7 @@ tests:
   owner: arvbaska@cisco.com
   mustpass: false
   skip: false
-  priority: 70
+  priority: 2
   timeout: 7200
 - name: gNOI-3.2 (Per-Component Reboot) 
   path: feature/gnoi/system/tests/per_component_reboot_test
@@ -393,7 +393,7 @@ tests:
   owner: arvbaska@cisco.com
   mustpass: false
   skip: false
-  priority: 70
+  priority: 2
   timeout: 7200
 - name: TE-8.2 (Supervisor Failure)
   path: feature/gribi/ate_tests/supervisor_failure_test
@@ -402,7 +402,7 @@ tests:
   skip: false
   mustpass: true
   timeout: 7200
-  priority: 70
+  priority: 2
 - name: TE-1.1 (Static ARP) 
   path: feature/interface/staticarp/ate_tests/static_arp_test
   owner: mbagherz@cisco.com
