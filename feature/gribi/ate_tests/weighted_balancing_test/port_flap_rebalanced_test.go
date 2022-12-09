@@ -117,17 +117,10 @@ func TestPortFlap(t *testing.T) {
 		WithPersistence()
 	c.Start(ctx, t)
 	defer c.Stop(t)
-	defer func() {
-		// Flush all entries after test.
-		if err := gribi.FlushAll(c); err != nil {
-			t.Errorf("Cannot flush: %v", err)
-		}
-	}()
 	c.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation: %v", err)
 	}
-
 	gribi.BecomeLeader(t, c)
 
 	// Flush all entries before test.
