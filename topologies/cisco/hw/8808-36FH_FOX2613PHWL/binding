@@ -77,7 +77,7 @@ ates {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
     #target: "10.85.232.95:19187"
-    target :"10.85.109.25"
+    target :"10.85.84.194"
     skip_verify: true
     username: "admin"
     password: "ixia123!"
