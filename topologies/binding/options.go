@@ -24,15 +24,15 @@ import (
 	"os"
 	"time"
 
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	"github.com/openconfig/ondatra/binding/ixweb"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
-
-	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
-	"github.com/openconfig/ondatra/binding/ixweb"
 )
 
 // IANA assigns 9339 for gNxI, and 9559 for P4RT.  There hasn't been a
@@ -89,13 +89,17 @@ func (d *dialer) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.C
 		c := &creds{d.Username, d.Password, !d.Insecure}
 		opts = append(opts, grpc.WithPerRPCCredentials(c))
 	}
-	if d.Timeout != 0 {
-		ctx, cancelFunc := context.WithTimeout(ctx, time.Duration(d.Timeout)*time.Second)
-		defer cancelFunc()
-		return grpc.DialContext(ctx, d.Target, opts...)
-	} else {
+	if d.Timeout == 0 {
 		return grpc.DialContext(ctx, d.Target, opts...)
 	}
+	retryOpt := grpc_retry.WithPerRetryTimeout(time.Duration(d.Timeout) * time.Second)
+	opts = append(opts,
+		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpt)),
+		grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpt)),
+	)
+	ctx, cancelFunc := context.WithTimeout(ctx, time.Duration(d.Timeout)*time.Second)
+	defer cancelFunc()
+	return grpc.DialContext(ctx, d.Target, opts...)
 }
 
 var knownHostsFiles = []string{
