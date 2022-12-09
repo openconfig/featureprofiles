@@ -20,114 +20,67 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/ate_tests/internal/setup"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
-
-const (
-	isisMed = 100
-)
-
-// setISISOverloadBit is used to configure isis overload bit to true
-func setISISOverloadBit(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-
-	// ISIS Configs to set OVerload Bit to true
-	dutISISPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.IsisInstance).Isis()
-	lspBit := dutISISPath.Global().LspBit().OverloadBit()
-	lspBit.SetBit().Replace(t, true)
-}
 
 // setISISMetric is used to configure metric on isis interfaces
 func setISISMetric(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	dutISISPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.IsisInstance).Isis()
+	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.IsisInstance).Isis()
 
-	// Set ISIS metric to 100
+	t.Logf("Configure ISIS metric to %v", setup.ISISMetric)
 	for _, dp := range dut.Ports() {
-		dutISISPathIntfAF := dutISISPath.Interface(dp.Name()).Level(2).Af(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST)
-		dutISISPathIntfAF.Metric().Replace(t, isisMed)
+		dutISISPathIntfAF := dutISISPath.Interface(dp.Name()).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		gnmi.Replace(t, dut, dutISISPathIntfAF.Metric().Config(), setup.ISISMetric)
 	}
 }
 
-// TODO: verifyISISOverloadBit is used to verify on ATE to see how much time it
-// has taken to apply overload bit on isis adjacencies.
-// https://github.com/openconfig/ondatra/issues/51
-func verifyISISOverloadBit(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-
-	t.Run("ISIS Overload bit verification", func(t *testing.T) {
-		at := ate.Telemetry()
-		for _, ap := range ate.Ports() {
-			if ap.ID() == "port1" {
-				//port1 is ingress, skip verification on ingress port
-				continue
-			}
-
-			const want = telemetry.Interface_OperStatus_UP
-
-			if got := at.Interface(ap.Name()).OperStatus().Get(t); got != want {
-				t.Errorf("%s oper-status got %v, want %v", ap, got, want)
-			}
-			// https://github.com/openconfig/ondatra/issues/51
-			/*is := at.NetworkInstance(ap.Name()).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
-			seq1 := is.LevelAny().LspAny().Tlv(telemetry.IsisLsdbTypes_ISIS_TLV_TYPE_IS_NEIGHBOR_ATTRIBUTE).Get(t)
-			fmt.Println(seq1)*/
-
-		}
-	})
-
-}
-
-// TODO: verifyISISMetric is used to verify on ATE to see how much time it
+// verifyISISMetric is used to verify on ATE to see how much time it
 // has taken to apply changes in metric
-// https://github.com/openconfig/ondatra/issues/51
 func verifyISISMetric(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
-	t.Run("ISIS Overload bit verification", func(t *testing.T) {
-		at := ate.Telemetry()
+	t.Run("ISIS Metric verification", func(t *testing.T) {
+		at := gnmi.OC()
 		for _, ap := range ate.Ports() {
 			if ap.ID() == "port1" {
-				//port1 is ingress, skip verification on ingress port
+				// Port1 is ingress, skip verification on ingress port
 				continue
 			}
 
-			const want = telemetry.Interface_OperStatus_UP
+			const want = oc.Interface_OperStatus_UP
 
-			if got := at.Interface(ap.Name()).OperStatus().Get(t); got != want {
+			if got := gnmi.Get(t, ate, at.Interface(ap.Name()).OperStatus().State()); got != want {
 				t.Errorf("%s oper-status got %v, want %v", ap, got, want)
 			}
+			is := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
+			lsps := is.LevelAny().LspAny()
+			metric := gnmi.GetAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Metric().State())
 
-			// https://github.com/openconfig/ondatra/issues/51
-			/*is := at.NetworkInstance(ap.Name()).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
-			seq := is.LevelAny().LspAny().SequenceNumber().Get(t)
-			fmt.Println(seq)*/
+			if diff := cmp.Diff(setup.ISISMetricArray, metric); diff != "" {
+				t.Errorf("obtained Metric on ATE is not as expected, got %v, want %v", metric, setup.ISISMetricArray)
+			}
 
 		}
 	})
-
 }
 
 // TestISISBenchmarking is to test ISIS overload bit and metric change
 // applied on all isis sessions.
 func TestISISBenchmarking(t *testing.T) {
 
-	// start timer
+	t.Log("Start timer")
 	start := time.Now()
-	setISISOverloadBit(t)
-	verifyISISOverloadBit(t)
-	//End the timer and calculate time
-	elapsed := time.Since(start)
-	t.Logf("Duration taken to apply overload bit  %v", elapsed)
-
-	// start timer
-	start = time.Now()
+	t.Log("Configure ISIS Metric on DUT")
 	setISISMetric(t)
+	t.Log("Verify on ATE if ISIS Metric changes are reflected")
 	verifyISISMetric(t)
-	//End the timer and calculate time
-	elapsed = time.Since(start)
+	t.Log("End the timer and calculate time taken to apply ISIS Metric")
+	elapsed := time.Since(start)
 	t.Logf("Duration taken to apply isis metric  %v", elapsed)
 }

@@ -17,7 +17,7 @@ defined in the case):
         *   At t=0, send Set to DUT marking IS-IS overload bit.
         *   Measure time between t=0 and all IS-IS sessions on ATE to
             report DUT as overloaded.
-    *   TODO: IS-IS metric change:
+    *   IS-IS metric change:
         *   A t=0, send Set to DUT marking IS-IS metric as changed for
             all IS-IS interfaces.
         *   Measure time between t=0 and all IS-IS sessions on ATE to
@@ -27,7 +27,7 @@ defined in the case):
             to prepend AS_PATH.
         *   Measure time between t=0 and all BGP received routes on ATE to
             to report change in as path.
-    *   BGP MED manipulation.   
+    *   TODO: BGP MED manipulation.   
         *   At t=0, send Set to DUT changing BGP policy for each session to
             set MED to non-default value.
         *   Measure time between t=0 and all BGP received routes on ATE to

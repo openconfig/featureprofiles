@@ -29,7 +29,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -53,6 +55,11 @@ const (
 	authPassword          = "ISISAuthPassword"
 	advertiseISISRoutesv4 = "198.18.0.0"
 	IsisInstance          = "DEFAULT"
+	ISISMetric            = 100
+	// DUTAreaAddress can be exported
+	DUTAreaAddress = "49.0001"
+	// DUTSysID can be exported
+	DUTSysID = "1920.0000.2001"
 )
 
 var (
@@ -60,6 +67,9 @@ var (
 	DutIPPool = make(map[string]net.IP)
 	// AteIPPool can be exported
 	AteIPPool = make(map[string]net.IP)
+	// ISISMetricArray can be exported
+	ISISMetricArray []uint32
+	ISISSetBitArray []bool
 )
 
 // BuildIPPool is to Build pool of ip addresses for both DUT and ATE interfaces.
@@ -103,17 +113,17 @@ func nextIP(ip net.IP, hostIndex int, subnetIndex int) net.IP {
 // which will have configurations for all the ports.
 func BuildOCUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 
 	// Default Network instance and Global BGP configs
 	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 
-	bgp := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	bgp := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(DutAS)
 	global.RouterId = ygot.String(dutStartIPAddr)
 
-	afi := global.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	afi := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	afi.Enabled = ygot.Bool(true)
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
@@ -123,10 +133,11 @@ func BuildOCUpdate(t *testing.T) {
 	pg.PeerGroupName = ygot.String(PeerGrpName)
 
 	// ISIS Configs
-	isis := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, IsisInstance).GetOrCreateIsis()
+	isis := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, IsisInstance).GetOrCreateIsis()
 
 	globalISIS := isis.GetOrCreateGlobal()
 	globalISIS.AuthenticationCheck = ygot.Bool(true)
+	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", DUTAreaAddress, DUTSysID)}
 	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
 	lspBit.SetBit = ygot.Bool(false)
 	isisTimers := globalISIS.GetOrCreateTimers()
@@ -140,18 +151,18 @@ func BuildOCUpdate(t *testing.T) {
 
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.Enabled = ygot.Bool(true)
-	isisLevel2.MetricStyle = telemetry.IsisTypes_MetricStyle_WIDE_METRIC
+	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 
 	isisLevel2Auth := isisLevel2.GetOrCreateAuthentication()
 	isisLevel2Auth.Enabled = ygot.Bool(true)
 	isisLevel2Auth.AuthPassword = ygot.String(authPassword)
-	isisLevel2Auth.AuthMode = telemetry.IsisTypes_AUTH_MODE_MD5
-	isisLevel2Auth.AuthType = telemetry.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+	isisLevel2Auth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	isisLevel2Auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 
 	for _, dp := range dut.Ports() {
 		// Interface config
 		i := d.GetOrCreateInterface(dp.Name())
-		i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		if *deviations.InterfaceEnabled {
 			i.Enabled = ygot.Bool(true)
 		}
@@ -179,14 +190,14 @@ func BuildOCUpdate(t *testing.T) {
 		// ISIS configs
 		isisIntf := isis.GetOrCreateInterface(dp.Name())
 		isisIntf.Enabled = ygot.Bool(true)
-		isisIntf.HelloPadding = telemetry.IsisTypes_HelloPaddingType_ADAPTIVE
-		isisIntf.CircuitType = telemetry.IsisTypes_CircuitType_POINT_TO_POINT
+		isisIntf.HelloPadding = oc.Isis_HelloPaddingType_ADAPTIVE
+		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 
 		isisIntfAuth := isisIntf.GetOrCreateAuthentication()
 		isisIntfAuth.Enabled = ygot.Bool(true)
 		isisIntfAuth.AuthPassword = ygot.String(authPassword)
-		isisIntfAuth.AuthMode = telemetry.IsisTypes_AUTH_MODE_MD5
-		isisIntfAuth.AuthType = telemetry.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+		isisIntfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+		isisIntfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 		isisIntfLevel.Enabled = ygot.Bool(true)
@@ -195,17 +206,18 @@ func BuildOCUpdate(t *testing.T) {
 		isisIntfLevelTimers.HelloInterval = ygot.Uint32(1)
 		isisIntfLevelTimers.HelloMultiplier = ygot.Uint8(5)
 
-		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST)
+		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		isisIntfLevelAfi.Metric = ygot.Uint32(200)
 		isisIntfLevelAfi.Enabled = ygot.Bool(true)
 	}
-	p := dut.Config()
-	fptest.LogYgot(t, fmt.Sprintf("%s to Update()", dut), p, d)
+	p := gnmi.OC()
+	fptest.LogQuery(t, "Configs to be applied at DUT", p.Config(), d)
+
 	t.Run("Apply benchmarking config on DUT", func(t *testing.T) {
-		//Start the timer.
+		// Start the timer.
 		start := time.Now()
-		p.Update(t, d)
-		//End the timer and calculate time requied to apply the config on DUT
+		gnmi.Update(t, dut, p.Config(), d)
+		// End the timer and calculate time requied to apply the config on DUT
 		elapsed := time.Since(start)
 		t.Logf("Time taken for gNMI Set request is: %v", elapsed)
 	})
@@ -217,6 +229,8 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 	topo := ate.Topology().New()
 
 	for _, dp := range ate.Ports() {
+		ISISMetricArray = append(ISISMetricArray, ISISMetric)
+		ISISSetBitArray = append(ISISSetBitArray, true)
 		atePortAttr := attrs.Attributes{
 			Name:    "ate" + dp.ID(),
 			IPv4:    AteIPPool[dp.ID()].String(),
@@ -227,13 +241,12 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 
 		// Add BGP routes and ISIS routes , ate port1 is ingress port.
 		if dp.ID() == "port1" {
-			//port1 is ingress port.
 			// Add BGP on ATE
 			bgpDut1 := iDut1.BGP()
 			bgpDut1.AddPeer().WithPeerAddress(DutIPPool[dp.ID()].String()).WithLocalASN(ateAS2).
 				WithTypeExternal()
 
-			// Add BGP on ATE
+			// Add ISIS on ATE
 			isisDut1 := iDut1.ISIS()
 			isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DutIPPool[dp.ID()].String()).WithAuthMD5(authPassword)
 
@@ -261,23 +274,25 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 
 	}
 
-	t.Logf("Pushing config to ATE and starting protocols...")
+	t.Log("Pushing config to ATE...")
 	topo.Push(t)
+	t.Log("Starting protocols to ATE...")
 	topo.StartProtocols(t)
 }
 
 // VerifyISISTelemetry function to used verify ISIS telemetry on DUT
 // using OC isis telemetry path.
 func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
-	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, IsisInstance).Isis()
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, IsisInstance).Isis()
 	for _, dp := range dut.Ports() {
 		nbrPath := statePath.Interface(dp.Name())
-		_, ok := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().Watch(t, time.Minute,
-			func(val *telemetry.QualifiedE_IsisTypes_IsisInterfaceAdjState) bool {
-				return val.IsPresent() && val.Val(t) == telemetry.IsisTypes_IsisInterfaceAdjState_UP
-			}).Await(t)
+		query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
+		_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+			state, present := val.Val()
+			return present && state == oc.Isis_IsisInterfaceAdjState_UP
+		}).Await(t)
 		if !ok {
-			fptest.LogYgot(t, fmt.Sprintf("IS-IS state on %v has no adjacencies", dp.Name()), nbrPath, nbrPath.Get(t))
+			t.Logf("IS-IS state on %v has no adjacencies", dp.Name())
 			t.Fatal("No IS-IS adjacencies reported.")
 		}
 	}
@@ -286,22 +301,23 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 // VerifyBgpTelemetry function to verify BGP telemetry on DUT using
 // BGP OC telemetry path.
 func VerifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
-	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	for _, peerAddr := range AteIPPool {
 		nbrIP := peerAddr.String()
 		nbrPath := statePath.Neighbor(nbrIP)
 
 		// Get BGP adjacency state
-		_, ok := nbrPath.SessionState().Watch(t, time.Minute, func(val *telemetry.QualifiedE_Bgp_Neighbor_SessionState) bool {
-			return val.IsPresent() && val.Val(t) == telemetry.Bgp_Neighbor_SessionState_ESTABLISHED
+		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			state, present := val.Val()
+			return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
 		if !ok {
-			fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
 			t.Fatal("No BGP neighbor formed")
 		}
-		status := nbrPath.SessionState().Get(t)
-		if want := telemetry.Bgp_Neighbor_SessionState_ESTABLISHED; status != want {
+		status := gnmi.Get(t, dut, nbrPath.SessionState().State())
+		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; status != want {
 			t.Errorf("BGP peer %s status got %d, want %d", nbrIP, status, want)
 		}
+
 	}
 }
