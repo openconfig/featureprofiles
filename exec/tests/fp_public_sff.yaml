@@ -12,7 +12,7 @@ tests:
 - name: gNOI-3.1 (Complete Chassis Reboot) 
   path: feature/gnoi/system/tests/complete_chassis_reboot
   owner: arvbaska@cisco.com
-  priority: 2
+  priority: 1
   mustpass: true
   skip: true
 - name: TE-15.1 (gRIBI Compliance) 
@@ -231,7 +231,7 @@ tests:
   patch: exec/firex/plugins/fp_patch/telemetry_port_speed_test.patch
   owner: agvarghe@cisco.com
   mustpass: true
-  priority: 1
+  priority: 33
 - name: gNMI-1.10 (Telemetry Basic Check) 
   path: feature/gnmi/ate_tests/telemetry_basic_check_test
   args:
