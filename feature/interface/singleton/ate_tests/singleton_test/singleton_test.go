@@ -124,19 +124,19 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
 func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *attrs.Attributes) {
 	a.ConfigOCInterface(i)
 
-// Deviation for DuplexMode, AutoNegotiate and PortSpeed
-if *deviations.MissingEthernetPhy {
-	e := i.GetOrCreateEthernet()
-	if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
-		e.AutoNegotiate = ygot.Bool(true)
-	} else {
-		e.AutoNegotiate = ygot.Bool(false)
-	}
-	if tc.auto == forcedNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
-		if speed, ok := portSpeed[dp.Speed()]; ok {
-			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-			e.PortSpeed = speed
-		}
+        // Deviation for DuplexMode, AutoNegotiate and PortSpeed
+        if *deviations.MissingEthernetPhy {
+	        e := i.GetOrCreateEthernet()
+	        if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
+	        	e.AutoNegotiate = ygot.Bool(true)
+	        } else {
+			e.AutoNegotiate = ygot.Bool(false)
+	        }
+	        if tc.auto == forcedNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
+			if speed, ok := portSpeed[dp.Speed()]; ok {
+				e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+				e.PortSpeed = speed
+			}
 		}
 	}
 
