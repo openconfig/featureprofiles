@@ -35,8 +35,9 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -152,12 +153,12 @@ type nextHop struct {
 // dutInterface builds a DUT interface ygot struct for a given port
 // according to portsIPv4.  Returns nil if the port has no IP address
 // mapping.
-func dutInterface(p *ondatra.Port) *telemetry.Interface {
+func dutInterface(p *ondatra.Port) *oc.Interface {
 	id := fmt.Sprintf("%s:%s", p.Device().ID(), p.ID())
-	i := &telemetry.Interface{
+	i := &oc.Interface{
 		Name:        ygot.String(p.Name()),
 		Description: ygot.String(p.String()),
-		Type:        telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 	}
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
@@ -181,26 +182,26 @@ func dutInterface(p *ondatra.Port) *telemetry.Interface {
 
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
-	dc := dut.Config()
+	dc := gnmi.OC()
 
 	// We add a discard route so that when the nexthop interface goes
 	// down, the device does not attempt to route packets through the
 	// default gateway 0.0.0.0/0.  Packets destined to the more specific
 	// next hop CIDRs will be routed.
-	static := &telemetry.NetworkInstance_Protocol_Static{
+	static := &oc.NetworkInstance_Protocol_Static{
 		Prefix: ygot.String(discardCIDR),
 	}
 	static.GetOrCreateNextHop("AUTO_drop_2").
-		NextHop = telemetry.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
+		NextHop = oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
 	staticp := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
 		Static(discardCIDR)
-	fptest.LogYgot(t, "discard route", staticp, static)
-	staticp.Replace(t, static)
+	fptest.LogQuery(t, "discard route", staticp.Config(), static)
+	gnmi.Replace(t, dut, staticp.Config(), static)
 
 	for _, dp := range dut.Ports() {
 		if i := dutInterface(dp); i != nil {
-			dc.Interface(dp.Name()).Replace(t, i)
+			gnmi.Replace(t, dut, dc.Interface(dp.Name()).Config(), i)
 		} else {
 			t.Fatalf("No address found for port %v", dp)
 		}
@@ -210,10 +211,10 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 // setDUTInterfaceState sets the admin state on the dut interface
 func setDUTInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port, state bool) {
 	t.Helper()
-	dc := dut.Config()
-	i := &telemetry.Interface{}
+	dc := gnmi.OC()
+	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(state)
-	dc.Interface(p.Name()).Update(t, i)
+	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
 }
 
 // configureATE configures the topology of the ATE.
@@ -314,7 +315,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
 	waitOTGARPEntry(t, time.Minute)
-	dstMac := ate.OTG().Telemetry().Interface(ateSrcPort + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
+	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(ateSrcPort+".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().State())
 	config.Flows().Clear().Items()
 	flow := config.Flows().Add().SetName("flow")
 	flow.Metrics().SetEnable(true)
@@ -369,7 +370,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	otgutils.LogPortMetrics(t, ate.OTG(), config)
 	for i, ap := range atePorts {
 		for _, p := range config.Ports().Items() {
-			portMetrics := ate.OTG().Telemetry().Port(p.Name()).Get(t)
+			portMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(p.Name()).State())
 			if ap.ID() == p.Name() {
 				inPkts[i] = portMetrics.GetCounters().GetInFrames()
 				outPkts[i] = portMetrics.GetCounters().GetOutFrames()
@@ -424,9 +425,9 @@ func portWants(nexthops []nextHop, atePorts []*ondatra.Port) []float64 {
 
 func debugGRIBI(t testing.TB, dut *ondatra.DUTDevice) {
 	// Debugging through OpenConfig.
-	aftsPath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts()
-	if q := aftsPath.Lookup(t); q.IsPresent() {
-		fptest.LogYgot(t, "Afts", aftsPath, q.Val(t))
+	aftsPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts()
+	if q, present := gnmi.Lookup(t, dut, aftsPath.State()).Val(); present {
+		fptest.LogQuery(t, "Afts", aftsPath.State(), q)
 	} else {
 		t.Log("afts value not present")
 	}
@@ -453,8 +454,7 @@ func incrementMAC(mac string, i int) (string, error) {
 func waitOTGARPEntry(t *testing.T, timeout time.Duration) {
 	t.Helper()
 	ate := ondatra.ATE(t, "ate")
-	ate.OTG().Telemetry().Interface(ateSrcPort+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
-		t, timeout, func(val *otgtelemetry.QualifiedString) bool {
-			return val.IsPresent()
-		}).Await(t)
+	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(ateSrcPort+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), timeout, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
 }

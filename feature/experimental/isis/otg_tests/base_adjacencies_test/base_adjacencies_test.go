@@ -26,9 +26,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/ixnet"
+
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -353,9 +354,8 @@ func TestHelloPadding(t *testing.T) {
 			ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
 				global := isis.GetOrCreateGlobal()
 				global.HelloPadding = tc.mode
-			}, func(isis *ixnet.ISIS) {
-				isis.WithHelloPaddingEnabled(tc.mode != oc.Isis_HelloPaddingType_DISABLE)
 			})
+			ts.ATEIntf1.Isis().Advanced().SetEnableHelloPadding(tc.mode != oc.Isis_HelloPaddingType_DISABLE)
 			ts.PushAndStart(t)
 			_, err := ts.AwaitAdjacency()
 			if err != nil {
@@ -406,20 +406,19 @@ func TestAuthentication(t *testing.T) {
 						intf.GetLevel(2).GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 					}
 				}
-			}, func(isis *ixnet.ISIS) {
-				if tc.enabled {
-					switch tc.mode {
-					case oc.IsisTypes_AUTH_MODE_TEXT:
-						isis.WithAuthPassword(password)
-					case oc.IsisTypes_AUTH_MODE_MD5:
-						isis.WithAuthMD5(password)
-					default:
-						t.Fatalf("test case has bad mode: %v", tc.mode)
-					}
-				} else {
-					isis.WithAuthDisabled()
-				}
 			})
+			if tc.enabled {
+				switch tc.mode {
+				case oc.IsisTypes_AUTH_MODE_TEXT:
+					ts.ATEIntf1.Isis().Interfaces().Items()[0].Authentication().SetAuthType("password")
+					ts.ATEIntf1.Isis().Interfaces().Items()[0].Authentication().SetPassword(password)
+				case oc.IsisTypes_AUTH_MODE_MD5:
+					ts.ATEIntf1.Isis().Interfaces().Items()[0].Authentication().SetAuthType("md5")
+					ts.ATEIntf1.Isis().Interfaces().Items()[0].Authentication().SetMd5(password)
+				default:
+					t.Fatalf("test case has bad mode: %v", tc.mode)
+				}
+			}
 			ts.PushAndStart(t)
 			ts.MustAdjacency(t)
 		})
@@ -430,6 +429,7 @@ func TestAuthentication(t *testing.T) {
 // appropriately.
 func TestTraffic(t *testing.T) {
 	ts := session.MustNew(t).WithISIS()
+	otg := ts.ATE.OTG()
 	targetNetwork := &attrs.Attributes{
 		Desc:    "External network (simulated by ATE)",
 		IPv4:    "198.51.100.0",
@@ -449,51 +449,101 @@ func TestTraffic(t *testing.T) {
 		// disable global hello padding on the DUT
 		global := isis.GetOrCreateGlobal()
 		global.HelloPadding = oc.Isis_HelloPaddingType_DISABLE
-	}, func(isis *ixnet.ISIS) {
-		// disable global hello padding on the ATE
-		isis.WithHelloPaddingEnabled(false)
 	})
+	ts.ATEIntf1.Isis().Advanced().SetEnableHelloPadding(false)
 
-	ate := ts.ATE
 	// We generate traffic entering along port2 and destined for port1
 	srcIntf := ts.MustATEInterface(t, "port2")
 	dstIntf := ts.MustATEInterface(t, "port1")
-	// net is a simulated network containing the addresses specified by targetNetwork
-	net := dstIntf.AddNetwork("net")
-	net.IPv4().WithAddress(targetNetwork.IPv4CIDR()).WithCount(1)
-	net.IPv6().WithAddress(targetNetwork.IPv6CIDR()).WithCount(1)
-	net.ISIS().WithIPReachabilityExternal().WithIPReachabilityMetric(10)
+
+	srcIpv4 := srcIntf.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+	// netv4 is a simulated network containing the ipv4 addresses specified by targetNetwork
+	netv4 := dstIntf.Isis().V4Routes().Add().SetName("netv4").SetLinkMetric(10)
+	netv4.Addresses().Add().SetAddress(targetNetwork.IPv4).SetPrefix(int32(targetNetwork.IPv4Len))
+
+	// netv6 is a simulated network containing the ipv6 addresses specified by targetNetwork
+	netv6 := dstIntf.Isis().V6Routes().Add().SetName("netv6").SetLinkMetric(10)
+	netv6.Addresses().Add().SetAddress(targetNetwork.IPv6).SetPrefix(int32(targetNetwork.IPv6Len))
+
+	t.Logf("Configuring traffic from ATE through DUT...")
+
+	v4Flow := ts.ATETop.Flows().Add()
+	v4Flow.SetName("v4Flow")
+	v4Flow.TxRx().Device().SetTxNames([]string{srcIpv4.Name()}).SetRxNames([]string{netv4.Name()})
+
+	v4FlowEth := v4Flow.Packet().Add().Ethernet()
+	v4FlowEth.Src().SetValue(session.ATETrafficAttrs.MAC)
+
+	v4FlowIp := v4Flow.Packet().Add().Ipv4()
+	v4FlowIp.Src().SetValue(session.ATETrafficAttrs.IPv4)
+	v4FlowIp.Dst().SetValue(targetNetwork.IPv4)
+
+	v4Flow.Rate().SetPps(50)
+	v4Flow.Size().SetFixed(128)
+	v4Flow.Metrics().SetEnable(true)
+
+	srcIpv6 := srcIntf.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
+	v6Flow := ts.ATETop.Flows().Add()
+	v6Flow.SetName("v6Flow")
+	v6Flow.TxRx().Device().SetTxNames([]string{srcIpv6.Name()}).SetRxNames([]string{netv6.Name()})
+
+	v6FlowEth := v6Flow.Packet().Add().Ethernet()
+	v6FlowEth.Src().SetValue(session.ATETrafficAttrs.MAC)
+
+	v6FlowIp := v6Flow.Packet().Add().Ipv6()
+	v6FlowIp.Src().SetValue(session.ATETrafficAttrs.IPv6)
+	v6FlowIp.Dst().SetValue(targetNetwork.IPv6)
+
+	// v6Flow.Duration().FixedPackets().SetPackets(100)
+	v6Flow.Rate().SetPps(50)
+	v6Flow.Size().SetFixed(128)
+	v6Flow.Metrics().SetEnable(true)
+
+	deadFlow := ts.ATETop.Flows().Add()
+	deadFlow.SetName("deadFlow")
+	deadFlow.TxRx().Device().SetTxNames([]string{srcIpv4.Name()}).SetRxNames([]string{netv4.Name()})
+
+	deadFlowEth := deadFlow.Packet().Add().Ethernet()
+	deadFlowEth.Src().SetValue(session.ATETrafficAttrs.MAC)
+
+	deadFlowIp := deadFlow.Packet().Add().Ipv4()
+	deadFlowIp.Src().SetValue(session.ATETrafficAttrs.IPv4)
+	deadFlowIp.Dst().SetValue(deadNetwork.IPv4)
+
+	// deadFlow.Duration().FixedPackets().SetPackets(100)
+	deadFlow.Rate().SetPps(50)
+	deadFlow.Size().SetFixed(128)
+	deadFlow.Metrics().SetEnable(true)
+
 	t.Logf("Starting protocols on ATE...")
 	ts.PushAndStart(t)
-	defer ts.ATETop.StopProtocols(t)
 	ts.MustAdjacency(t)
-	t.Logf("Configuring traffic from ATE through DUT...")
-	v4Header := ondatra.NewIPv4Header()
-	v4Header.DstAddressRange().WithMin(targetNetwork.IPv4).WithCount(1)
-	v4Flow := ate.Traffic().NewFlow("v4Flow").
-		WithSrcEndpoints(srcIntf).WithDstEndpoints(dstIntf).
-		WithHeaders(ondatra.NewEthernetHeader(), v4Header)
-	v6Header := ondatra.NewIPv6Header()
-	v6Header.DstAddressRange().WithMin(targetNetwork.IPv6).WithCount(1)
-	v6Flow := ate.Traffic().NewFlow("v6Flow").
-		WithSrcEndpoints(srcIntf).WithDstEndpoints(dstIntf).
-		WithHeaders(ondatra.NewEthernetHeader(), v6Header)
-	// deadFlow is addressed to a nonexistent network as a consistency check -
-	// all traffic should be blackholed.
-	deadHeader := ondatra.NewIPv4Header()
-	deadHeader.DstAddressRange().WithMin(deadNetwork.IPv4).WithCount(1)
-	deadFlow := ate.Traffic().NewFlow("flow2").
-		WithSrcEndpoints(srcIntf).WithDstEndpoints(dstIntf).
-		WithHeaders(ondatra.NewEthernetHeader(), deadHeader)
+
+	gnmi.Watch(t, otg, gnmi.OTG().IsisRouter("devIsis").Counters().Level2().InLsp().State(), 30*time.Second, func(v *ygnmi.Value[uint64]) bool {
+		time.Sleep(5 * time.Second)
+		val, present := v.Val()
+		return present && val >= 1
+	}).Await(t)
+
+	time.Sleep(10 * time.Second)
+	// TODO: To match the exact IS-IS route prefix once this becomes available in otg
+
+	// otg.Telemetry().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(targetNetwork.IPv4).Watch(
+	// 	t, 30*time.Second, func(val *otgtelemetry.QualifiedIsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix) bool {
+	// 		return val.IsPresent()
+	// 	}).Await(t)
+
 	t.Logf("Running traffic for 30s...")
-	ate.Traffic().Start(t, v4Flow, v6Flow, deadFlow)
+	otg.StartTraffic(t)
 	time.Sleep(time.Second * 30)
-	ate.Traffic().Stop(t)
+	otg.StopTraffic(t)
+
 	t.Logf("Checking telemetry...")
-	telem := ate.Telemetry()
-	v4Loss := telem.Flow(v4Flow.Name()).LossPct().Get(t)
-	v6Loss := telem.Flow(v6Flow.Name()).LossPct().Get(t)
-	deadLoss := telem.Flow(deadFlow.Name()).LossPct().Get(t)
+	otgutils.LogFlowMetrics(t, otg, ts.ATETop)
+
+	v4Loss := ts.GetPacketLoss(t, v4Flow)
+	v6Loss := ts.GetPacketLoss(t, v6Flow)
+	deadLoss := ts.GetPacketLoss(t, deadFlow)
 	if v4Loss > 1 {
 		t.Errorf("Got %v%% IPv4 packet loss; expected < 1%%", v4Loss)
 	}

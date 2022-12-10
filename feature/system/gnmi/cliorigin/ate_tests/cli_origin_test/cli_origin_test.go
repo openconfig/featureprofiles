@@ -22,7 +22,8 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
@@ -71,20 +72,20 @@ func TestOriginCliConfig(t *testing.T) {
 	cases := []struct {
 		desc                string
 		intfOper            bool
-		expectedAdminStatus telemetry.E_Interface_AdminStatus
-		expectedOperStatus  telemetry.E_Interface_OperStatus
+		expectedAdminStatus oc.E_Interface_AdminStatus
+		expectedOperStatus  oc.E_Interface_OperStatus
 	}{
 		{
 			desc:                "Set interface admin status to down",
 			intfOper:            false,
-			expectedAdminStatus: telemetry.Interface_AdminStatus_DOWN,
-			expectedOperStatus:  telemetry.Interface_OperStatus_DOWN,
+			expectedAdminStatus: oc.Interface_AdminStatus_DOWN,
+			expectedOperStatus:  oc.Interface_OperStatus_DOWN,
 		},
 		{
 			desc:                "Set interface admin status to up",
 			intfOper:            true,
-			expectedAdminStatus: telemetry.Interface_AdminStatus_UP,
-			expectedOperStatus:  telemetry.Interface_OperStatus_UP,
+			expectedAdminStatus: oc.Interface_AdminStatus_UP,
+			expectedOperStatus:  oc.Interface_OperStatus_UP,
 		},
 	}
 
@@ -114,13 +115,13 @@ func TestOriginCliConfig(t *testing.T) {
 				t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 			}
 
-			dut.Telemetry().Interface(dp1.Name()).OperStatus().Await(t, 2*time.Minute, tc.expectedOperStatus)
-			dut.Telemetry().Interface(dp1.Name()).AdminStatus().Await(t, 2*time.Minute, tc.expectedAdminStatus)
-			operStatus := dut.Telemetry().Interface(dp1.Name()).OperStatus().Get(t)
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 2*time.Minute, tc.expectedOperStatus)
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).AdminStatus().State(), 2*time.Minute, tc.expectedAdminStatus)
+			operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State())
 			if want := tc.expectedOperStatus; operStatus != want {
 				t.Errorf("Get(DUT port1 oper status): got %v, want %v", operStatus, want)
 			}
-			adminStatus := dut.Telemetry().Interface(dp1.Name()).AdminStatus().Get(t)
+			adminStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).AdminStatus().State())
 			if want := tc.expectedAdminStatus; adminStatus != want {
 				t.Errorf("Get(DUT port1 admin status): got %v, want %v", adminStatus, want)
 			}

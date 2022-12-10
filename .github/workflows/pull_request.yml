@@ -10,7 +10,7 @@ jobs:
       with:
         go-version: '1.19'
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Cache
       uses: actions/cache@v3
       with:
@@ -47,6 +47,7 @@ jobs:
           fi
         done
         if [ "$fail" == "1" ]; then exit 1; fi
+
   validate_oc_paths:
     name: Validate OpenConfig Paths
     runs-on: ubuntu-latest
@@ -56,7 +57,7 @@ jobs:
       with:
         go-version: '1.19'
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Cache
       uses: actions/cache@v2
       with:
@@ -69,6 +70,7 @@ jobs:
       run: make openconfig_public
     - name: Validate Paths
       run: make validate_paths
+
   check_style:
     name: Check style against CONTRIBUTING.md
     runs-on: ubuntu-latest
@@ -79,7 +81,7 @@ jobs:
         install: |
           Net::IP
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: IP Addresses Assignment
       run: |
         find . -path ./yang/fpoc -prune -o -name \*.go \
@@ -114,6 +116,7 @@ jobs:
           echo "See CONTRIBUTING.md#default-network-instance" >&2
           exit 1
         fi
+
   static_analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
@@ -123,7 +126,7 @@ jobs:
       with:
         go-version: '1.19'
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Cache
       uses: actions/cache@v2
       with:

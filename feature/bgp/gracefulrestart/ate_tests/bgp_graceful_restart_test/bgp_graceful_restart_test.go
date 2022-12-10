@@ -22,8 +22,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/config/acl"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/acl"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -107,23 +109,23 @@ var (
 
 // configureDUT configures all the interfaces and network instance on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	dc := dut.Config()
-	i1 := dutSrc.NewInterface(dut.Port(t, "port1").Name())
-	dc.Interface(i1.GetName()).Replace(t, i1)
+	dc := gnmi.OC()
+	i1 := dutSrc.NewOCInterface(dut.Port(t, "port1").Name())
+	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
 
-	i2 := dutDst.NewInterface(dut.Port(t, "port2").Name())
-	dc.Interface(i2.GetName()).Replace(t, i2)
+	i2 := dutDst.NewOCInterface(dut.Port(t, "port2").Name())
+	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 
 	t.Log("Configure/update Network Instance")
 	dutConfNIPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 }
 
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
 	for _, p := range dev.Ports() {
-		status := dev.Telemetry().Interface(p.Name()).OperStatus().Get(t)
-		if want := telemetry.Interface_OperStatus_UP; status != want {
+		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
+		if want := oc.Interface_OperStatus_UP; status != want {
 			t.Errorf("%s Status: got %v, want %v", p, status, want)
 		}
 	}
@@ -143,8 +145,8 @@ func buildNbrList(asN uint32) []*bgpNeighbor {
 	return []*bgpNeighbor{nbr1v4, nbr2v4, nbr1v6, nbr2v6}
 }
 
-func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *telemetry.NetworkInstance_Protocol_Bgp {
-	bgp := &telemetry.NetworkInstance_Protocol_Bgp{}
+func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol_Bgp {
+	bgp := &oc.NetworkInstance_Protocol_Bgp{}
 	g := bgp.GetOrCreateGlobal()
 	g.As = ygot.Uint32(as)
 	g.RouterId = ygot.String(dutDst.IPv4)
@@ -164,13 +166,13 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *telemetry.NetworkInstance_Proto
 			nv4.GetOrCreateTimers().HoldTime = ygot.Uint16(180)
 			nv4.PeerAs = ygot.Uint32(nbr.as)
 			nv4.Enabled = ygot.Bool(true)
-			nv4.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			nv6.PeerGroup = ygot.String(peerGrpName)
 			nv6.PeerAs = ygot.Uint32(nbr.as)
 			nv6.Enabled = ygot.Bool(true)
-			nv6.GetOrCreateAfiSafi(telemetry.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 		}
 	}
 	return bgp
@@ -178,31 +180,33 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *telemetry.NetworkInstance_Proto
 
 func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP state")
-	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateSrc.IPv4)
 	nbrPathv6 := statePath.Neighbor(ateSrc.IPv6)
 
 	// Get BGP adjacency state
 	t.Log("Waiting for BGP neighbor to establish...")
-	_, ok := nbrPath.SessionState().Watch(t, time.Minute, func(val *telemetry.QualifiedE_Bgp_Neighbor_SessionState) bool {
-		return val.IsPresent() && val.Val(t) == telemetry.Bgp_Neighbor_SessionState_ESTABLISHED
+	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+		currState, ok := val.Val()
+		return ok && currState == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}).Await(t)
 	if !ok {
-		fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
+		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
 		t.Fatal("No BGP neighbor formed...")
 	}
 
 	// Get BGPv6 adjacency state
 	t.Log("Waiting for BGPv6 neighbor to establish...")
-	_, ok = nbrPathv6.SessionState().Watch(t, time.Minute, func(val *telemetry.QualifiedE_Bgp_Neighbor_SessionState) bool {
-		return val.IsPresent() && val.Val(t) == telemetry.Bgp_Neighbor_SessionState_ESTABLISHED
+	_, ok = gnmi.Watch(t, dut, nbrPathv6.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+		currState, ok := val.Val()
+		return ok && currState == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}).Await(t)
 	if !ok {
-		fptest.LogYgot(t, "BGPv6 reported state", nbrPathv6, nbrPathv6.Get(t))
+		fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, dut, nbrPathv6.State()))
 		t.Fatal("No BGPv6 neighbor formed...")
 	}
 
-	isGrEnabled := statePath.Global().GracefulRestart().Enabled().Get(t)
+	isGrEnabled := gnmi.Get(t, dut, statePath.Global().GracefulRestart().Enabled().State())
 	t.Logf("isGrEnabled %v", isGrEnabled)
 	if isGrEnabled {
 		t.Logf("Graceful restart on neighbor %v enabled as Expected", ateDst.IPv4)
@@ -210,7 +214,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Errorf("Expected Graceful restart status on neighbor: got %v, want Enabled", isGrEnabled)
 	}
 
-	grTimerVal := statePath.Global().GracefulRestart().RestartTime().Get(t)
+	grTimerVal := gnmi.Get(t, dut, statePath.Global().GracefulRestart().RestartTime().State())
 	t.Logf("grTimerVal %v", grTimerVal)
 	if grTimerVal == uint16(grRestartTime) {
 		t.Logf("Graceful restart timer enabled as expected to be %v", grRestartTime)
@@ -282,7 +286,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
 func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
 	captureTrafficStats(t, ate)
 	for _, flow := range allFlows {
-		if lossPct := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t); lossPct < 5.0 {
+		if lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); lossPct < 5.0 {
 			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
 		} else {
 			t.Errorf("Traffic Loss Pct for Flow %s: got %v", flow.Name(), lossPct)
@@ -292,7 +296,7 @@ func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatr
 
 func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
 	for _, flow := range allFlows {
-		if lossPct := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t); lossPct > 99.0 {
+		if lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); lossPct > 99.0 {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
 			t.Errorf("Traffic %s is expected to fail: got %v, want 100%% failure", flow.Name(), lossPct)
@@ -302,14 +306,14 @@ func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra
 
 func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice) {
 	ap := ate.Port(t, "port1")
-	aic1 := ate.Telemetry().Interface(ap.Name()).Counters()
-	sentPkts := aic1.OutPkts().Get(t)
-	fptest.LogYgot(t, "ate:port1 counters", aic1, aic1.Get(t))
+	aic1 := gnmi.OC().Interface(ap.Name()).Counters()
+	sentPkts := gnmi.Get(t, ate, aic1.OutPkts().State())
+	fptest.LogQuery(t, "ate:port1 counters", aic1.State(), gnmi.Get(t, ate, aic1.State()))
 
 	op := ate.Port(t, "port2")
-	aic2 := ate.Telemetry().Interface(op.Name()).Counters()
-	rxPkts := aic2.InPkts().Get(t)
-	fptest.LogYgot(t, "ate:port2 counters", aic2, aic2.Get(t))
+	aic2 := gnmi.OC().Interface(op.Name()).Counters()
+	rxPkts := gnmi.Get(t, ate, aic2.InPkts().State())
+	fptest.LogQuery(t, "ate:port2 counters", aic2.State(), gnmi.Get(t, ate, aic2.State()))
 	var lostPkts uint64
 	// Account for control plane packets in rxPkts
 	if rxPkts > sentPkts {
@@ -328,47 +332,47 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow,
 	t.Log("Traffic stopped")
 }
 
-func configACL(d *telemetry.Device, name string) *telemetry.Acl_AclSet {
-	acl := d.GetOrCreateAcl().GetOrCreateAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4)
+func configACL(d *oc.Root, name string) *oc.Acl_AclSet {
+	acl := d.GetOrCreateAcl().GetOrCreateAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
 	aclEntry10 := acl.GetOrCreateAclEntry(10)
 	aclEntry10.SequenceId = ygot.Uint32(10)
-	aclEntry10.GetOrCreateActions().ForwardingAction = telemetry.Acl_FORWARDING_ACTION_DROP
+	aclEntry10.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_DROP
 	a := aclEntry10.GetOrCreateIpv4()
 	a.SourceAddress = ygot.String(aclNullPrefix)
 	a.DestinationAddress = ygot.String(ateDstCIDR)
 
 	aclEntry20 := acl.GetOrCreateAclEntry(20)
 	aclEntry20.SequenceId = ygot.Uint32(20)
-	aclEntry20.GetOrCreateActions().ForwardingAction = telemetry.Acl_FORWARDING_ACTION_DROP
+	aclEntry20.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_DROP
 	a2 := aclEntry20.GetOrCreateIpv4()
 	a2.SourceAddress = ygot.String(ateDstCIDR)
 	a2.DestinationAddress = ygot.String(aclNullPrefix)
 
 	aclEntry30 := acl.GetOrCreateAclEntry(30)
 	aclEntry30.SequenceId = ygot.Uint32(30)
-	aclEntry30.GetOrCreateActions().ForwardingAction = telemetry.Acl_FORWARDING_ACTION_ACCEPT
+	aclEntry30.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
 	a3 := aclEntry30.GetOrCreateIpv4()
 	a3.SourceAddress = ygot.String(aclNullPrefix)
 	a3.DestinationAddress = ygot.String(aclNullPrefix)
 	return acl
 }
 
-func configAdmitAllACL(d *telemetry.Device, name string) *telemetry.Acl_AclSet {
-	acl := d.GetOrCreateAcl().GetOrCreateAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4)
+func configAdmitAllACL(d *oc.Root, name string) *oc.Acl_AclSet {
+	acl := d.GetOrCreateAcl().GetOrCreateAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
 	acl.DeleteAclEntry(10)
 	acl.DeleteAclEntry(20)
 	return acl
 }
 
-func configACLInterface(t *testing.T, dut *ondatra.DUTDevice, iFace *telemetry.Acl_Interface, ifName string) *acl.Acl_InterfacePath {
-	aclConf := dut.Config().Acl().Interface(ifName)
+func configACLInterface(t *testing.T, iFace *oc.Acl_Interface, ifName string) *acl.Acl_InterfacePath {
+	aclConf := gnmi.OC().Acl().Interface(ifName)
 	if ifName != "" {
-		iFace.GetOrCreateIngressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4)
+		iFace.GetOrCreateIngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
 		iFace.GetOrCreateInterfaceRef().Interface = ygot.String(ifName)
 		iFace.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	} else {
-		iFace.GetOrCreateIngressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4)
-		iFace.DeleteIngressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4)
+		iFace.GetOrCreateIngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
+		iFace.DeleteIngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
 	}
 	return aclConf
 }
@@ -386,12 +390,12 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	// Configure BGP+Neighbors on the DUT
 	t.Run("configureBGP", func(t *testing.T) {
 		t.Log("Configure BGP with Graceful Restart option under Global Bgp")
-		dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-		dutConfPath.Delete(t)
+		dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+		gnmi.Delete(t, dut, dutConfPath.Config())
 		nbrList := buildNbrList(ateAS)
 		dutConf := bgpWithNbr(dutAS, nbrList)
-		dutConfPath.Replace(t, dutConf)
-		fptest.LogYgot(t, "DUT BGP Config", dutConfPath, dutConfPath.Get(t))
+		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 	})
 	// ATE Configuration.
 	var allFlows []*ondatra.Flow
@@ -415,18 +419,18 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		verifyNoPacketLoss(t, ate, allFlows)
 	})
 	// Configure an ACL to block BGP
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	ifName := dut.Port(t, "port2").Name()
 	iFace := d.GetOrCreateAcl().GetOrCreateInterface(ifName)
 	t.Run("VerifyTrafficPasswithGRTimerWithAclApplied", func(t *testing.T) {
 		t.Log("Configure Acl to block BGP on port 179")
 		const stopDuration = 45 * time.Second
-		dut.Config().Acl().AclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Replace(t, configACL(d, aclName))
-		aclConf := configACLInterface(t, dut, iFace, ifName)
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
+		aclConf := configACLInterface(t, iFace, ifName)
 		t.Log("Starting traffic")
 		ate.Traffic().Start(t, allFlows...)
 		startTime := time.Now()
-		aclConf.Replace(t, iFace)
+		gnmi.Replace(t, dut, aclConf.Config(), iFace)
 		replaceDuration := time.Since(startTime)
 		time.Sleep(grTimer - stopDuration - replaceDuration)
 		t.Log("Send Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
@@ -435,15 +439,16 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		verifyNoPacketLoss(t, ate, allFlows)
 	})
 
-	statePath := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
 	t.Run("VerifyBGPNOTEstablished", func(t *testing.T) {
 		t.Logf("Waiting for BGP neighbor to establish...")
-		_, ok := nbrPath.SessionState().Watch(t, 2*time.Minute, func(val *telemetry.QualifiedE_Bgp_Neighbor_SessionState) bool {
-			return val.IsPresent() && val.Val(t) == telemetry.Bgp_Neighbor_SessionState_CONNECT
+		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			currState, ok := val.Val()
+			return ok && currState == oc.Bgp_Neighbor_SessionState_CONNECT
 		}).Await(t)
 		if !ok {
-			fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
 			t.Errorf("BGP session did not go Down as expected")
 		}
 	})
@@ -456,24 +461,26 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 
 	t.Run("RemoveAclInterface", func(t *testing.T) {
 		t.Log("Removing Acl on the interface to restore BGP GR. Traffic should now pass!")
-		dut.Config().Acl().AclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Replace(t, configAdmitAllACL(d, aclName))
-		configACLInterface(t, dut, iFace, ifName).Replace(t, iFace)
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
+		aclPath := configACLInterface(t, iFace, ifName)
+		gnmi.Replace(t, dut, aclPath.Config(), iFace)
 	})
 
 	t.Run("VerifyBGPEstablished", func(t *testing.T) {
 		t.Logf("Waiting for BGP neighbor to establish...")
-		_, ok := nbrPath.SessionState().Watch(t, time.Minute, func(val *telemetry.QualifiedE_Bgp_Neighbor_SessionState) bool {
-			return val.IsPresent() && val.Val(t) == telemetry.Bgp_Neighbor_SessionState_ESTABLISHED
+		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			currState, ok := val.Val()
+			return ok && currState == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
 		if !ok {
-			fptest.LogYgot(t, "BGP reported state", nbrPath, nbrPath.Get(t))
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
 			t.Errorf("BGP session not Established as expected")
 		}
 	})
 
 	t.Run("VerifyTrafficPassBGPRestored", func(t *testing.T) {
-		status := nbrPath.SessionState().Get(t)
-		if want := telemetry.Bgp_Neighbor_SessionState_ESTABLISHED; status != want {
+		status := gnmi.Get(t, dut, nbrPath.SessionState().State())
+		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; status != want {
 			t.Errorf("Get(BGP peer %s status): got %d, want %d", ateDst.IPv4, status, want)
 		}
 		sendTraffic(t, ate, allFlows, trafficDuration)

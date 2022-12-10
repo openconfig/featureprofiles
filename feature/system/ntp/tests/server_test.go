@@ -19,7 +19,8 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 // TestNtpServerConfigurability tests basic configurability of NTP server paths.
@@ -37,34 +38,34 @@ func TestNtpServerConfigurability(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			config := dut.Config().System().Ntp()
-			state := dut.Telemetry().System().Ntp()
+			config := gnmi.OC().System().Ntp()
+			state := gnmi.OC().System().Ntp()
 
-			ntpServer := telemetry.System_Ntp_Server{
+			ntpServer := oc.System_Ntp_Server{
 				Address: &testCase.address,
 			}
-			if *deviations.NtpAssociationType {
-				ntpServer.AssociationType = telemetry.Server_AssociationType_SERVER
+			if *deviations.NTPAssociationTypeRequired {
+				ntpServer.AssociationType = oc.Server_AssociationType_SERVER
 			}
-			config.Server(testCase.address).Replace(t, &ntpServer)
+			gnmi.Replace(t, dut, config.Server(testCase.address).Config(), &ntpServer)
 
 			t.Run("Get NTP Server Config", func(t *testing.T) {
-				configGot := config.Server(testCase.address).Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Server(testCase.address).Config())
 				if address := configGot.GetAddress(); address != testCase.address {
 					t.Errorf("Config NTP Server: got %s, want %s", address, testCase.address)
 				}
 			})
 
 			t.Run("Get NTP Server Telemetry", func(t *testing.T) {
-				stateGot := state.Server(testCase.address).Get(t)
+				stateGot := gnmi.Get(t, dut, state.Server(testCase.address).State())
 				if address := stateGot.GetAddress(); address != testCase.address {
 					t.Errorf("Telemetry NTP Server: got %s, want %s", address, testCase.address)
 				}
 			})
 
 			t.Run("Delete NTP Server", func(t *testing.T) {
-				config.Server(testCase.address).Delete(t)
-				if qs := config.Server(testCase.address).Lookup(t); qs.IsPresent() == true {
+				gnmi.Delete(t, dut, config.Server(testCase.address).Config())
+				if qs := gnmi.LookupConfig(t, dut, config.Server(testCase.address).Config()); qs.IsPresent() == true {
 					t.Errorf("Delete NTP Server fail: got %v", qs)
 				}
 			})

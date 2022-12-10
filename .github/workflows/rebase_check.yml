@@ -1,0 +1,43 @@
+name: Rebase Check
+on:
+  pull_request:
+    # Ignore the rebase check if the pull request touches the checked files.
+    paths-ignore:
+      - go.mod
+      - .github/CODEOWNERS
+      - .github/workflows/pull_request.yml
+
+jobs:
+  check_files:
+    name: Check for outdated files
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout current
+      uses: actions/checkout@v3
+      with:
+        path: current
+    - name: Checkout main
+      uses: actions/checkout@v3
+      with:
+        repository: openconfig/featureprofiles
+        ref: main
+        path: main
+    - name: Check if dependencies and checks are up to date.
+      run: |
+        fail=0
+        # Since GitHub runs pull request checks before the merge, if these
+        # files are not up to date in the pull request, the checks may have a
+        # false positive and break the build after merge.
+        for f in \
+          go.mod \
+          .github/CODEOWNERS \
+          .github/workflows/pull_request.yml
+        do
+          if ! diff -q "current/$f" "main/$f"; then
+            fail=1
+          fi
+        done
+        if ((fail)); then
+          echo "Please rebase your pull request to main and rerun checks."
+          exit 1
+        fi
