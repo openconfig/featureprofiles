@@ -78,8 +78,10 @@ func TestInterfaceAssignment(t *testing.T) {
 		inAssignments: map[string]intfNIAssignment{
 			"BLUE": {
 				Ports: []portSpec{{
-					Name:    "port1",
-					Subintf: 0,
+					Name:         "port1",
+					Subintf:      0,
+					IPv4:         "192.0.2.0",
+					PrefixLength: 31,
 				}},
 				Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 			},
@@ -100,13 +102,14 @@ func TestInterfaceAssignment(t *testing.T) {
 		inPreAssignments: map[string]intfNIAssignment{
 			"BLUE": {
 				Ports: []portSpec{{
-					Name:    "port1",
-					Subintf: 0,
+					Name:         "port1",
+					Subintf:      0,
+					IPv4:         "192.0.2.0",
+					PrefixLength: 31,
 				}},
 				Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 			},
 		},
-		wantErr: true,
 		inAssignments: map[string]intfNIAssignment{
 			"RED": {
 				Ports: []portSpec{{
@@ -140,17 +143,19 @@ func TestInterfaceAssignment(t *testing.T) {
 				i.Subinterface = ygot.Uint32(p.Subintf)
 			}
 
-			initialDev := &oc.Root{}
-			for niName, spec := range tt.inPreAssignments {
-				ni := initialDev.GetOrCreateNetworkInstance(niName)
-				ni.Type = spec.Type
+			if len(tt.inPreAssignments) != 0 {
+				initialDev := &oc.Root{}
+				for niName, spec := range tt.inPreAssignments {
+					ni := initialDev.GetOrCreateNetworkInstance(niName)
+					ni.Type = spec.Type
 
-				for _, p := range spec.Ports {
-					assignPort(t, initialDev, niName, p)
+					for _, p := range spec.Ports {
+						assignPort(t, initialDev, niName, p)
+					}
 				}
+				fptest.LogQuery(t, "initial configuration", gnmi.OC().Config(), initialDev)
+				gnmi.Update(t, dut, gnmi.OC().Config(), initialDev)
 			}
-
-			gnmi.Update(t, dut, gnmi.OC().Config(), initialDev)
 
 			d := &oc.Root{}
 			for niName, spec := range tt.inAssignments {
@@ -171,6 +176,8 @@ func TestInterfaceAssignment(t *testing.T) {
 				return
 			}
 
+			fptest.LogQuery(t, "test configuration", gnmi.OC().Config(), d)
+			gnmi.Update(t, dut, gnmi.OC().Config(), d)
 			// Clean up the test by removing explicit assignments that we have made.
 			for niName, spec := range tt.inPreAssignments {
 				for _, p := range spec.Ports {
