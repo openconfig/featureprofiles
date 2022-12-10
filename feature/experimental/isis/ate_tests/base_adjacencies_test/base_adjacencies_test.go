@@ -73,7 +73,7 @@ func TestBasic(t *testing.T) {
 		t.Fatalf("IS-IS failed to configure: %v", err)
 	}
 	// There might be lag between when the instance name is set and when the
-	// other parameters are set; we expect the total lag to be under 5s
+	// other parameters are set; we expect the total lag to be under one minute
 	deadline := time.Now().Add(time.Minute)
 
 	t.Run("read_config", func(t *testing.T) {
@@ -198,7 +198,7 @@ func TestBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("No IS-IS adjacency formed: %v", err)
 	}
-	// Allow 1s of lag between adjacency appearing and all data being populated
+	// Allow 1 Minute of lag between adjacency appearing and all data being populated
 
 	t.Run("adjacency_state", func(t *testing.T) {
 		deadline = time.Now().Add(time.Minute)
