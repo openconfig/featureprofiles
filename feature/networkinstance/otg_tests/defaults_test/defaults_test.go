@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 
 func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attributes) {
 	t.Helper()
-	ni := d.GetOrCreateNetworkInstance(niName)
+	d.GetOrCreateNetworkInstance(niName)
 
 	ocInt := a.ConfigOCInterface(&oc.Interface{})
 	ocInt.Name = ygot.String(intf)
@@ -46,11 +46,6 @@ func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attribut
 	if err := d.AppendInterface(ocInt); err != nil {
 		t.Fatalf("AddInterface(%v): cannot configure interface %s, %v", ocInt, intf, err)
 	}
-
-	// Assign the interface to a network instance.
-	i := ni.GetOrCreateInterface(intf)
-	i.Interface = ygot.String(intf)
-	i.Subinterface = ygot.Uint32(0)
 }
 
 var (
@@ -96,6 +91,12 @@ func TestDefaultAddressFamilies(t *testing.T) {
 	// Assign two ports into the default network instance.
 	assignPort(t, d, dut.Port(t, "port1").Name(), *deviations.DefaultNetworkInstance, dutPort1)
 	assignPort(t, d, dut.Port(t, "port2").Name(), *deviations.DefaultNetworkInstance, dutPort2)
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port1").Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port2").Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+
 	fptest.LogQuery(t, "test configuration", gnmi.OC().Config(), d)
 	gnmi.Update(t, dut, gnmi.OC().Config(), d)
 
