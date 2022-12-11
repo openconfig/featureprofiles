@@ -32,3 +32,19 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/state/type"
 }
+
+# Description
+config_path {
+  path: "/network-instances/network-instance/config/description"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/state/description"
+}
+
+# Interfaces
+config_path {
+  path: "/network-instances/network-instance/interfaces/interface/config/id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/interfaces/interface/state/id"
+}

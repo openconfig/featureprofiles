@@ -22,11 +22,13 @@ import (
 
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 type testArgs struct {
@@ -154,26 +156,26 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 				ateP2 := ate.Port(t, "port2")
 				dutP2 := dut.Port(t, "port2")
 				ate.Actions().NewSetPortState().WithPort(ateP2).WithEnabled(false).Send(t)
-				dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
+				gnmi.Await(t, dut, gnmi.OC().Interface(dutP2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
 			},
 			removeImpairmentFn: func() {
 				ateP2 := ate.Port(t, "port2")
 				dutP2 := dut.Port(t, "port2")
 				ate.Actions().NewSetPortState().WithPort(ateP2).WithEnabled(true).Send(t)
-				dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
+				gnmi.Await(t, dut, gnmi.OC().Interface(dutP2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 			},
 		},
 		{
 			desc: "Disable DUT port-2",
 			applyImpairmentFn: func() {
 				dutP2 := dut.Port(t, "port2")
-				dut.Config().Interface(dutP2.Name()).Enabled().Replace(t, false)
-				dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
+				gnmi.Replace(t, dut, gnmi.OC().Interface(dutP2.Name()).Enabled().Config(), false)
+				gnmi.Await(t, dut, gnmi.OC().Interface(dutP2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
 			},
 			removeImpairmentFn: func() {
 				dutP2 := dut.Port(t, "port2")
-				dut.Config().Interface(dutP2.Name()).Enabled().Replace(t, true)
-				dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
+				gnmi.Replace(t, dut, gnmi.OC().Interface(dutP2.Name()).Enabled().Config(), true)
+				gnmi.Await(t, dut, gnmi.OC().Interface(dutP2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 			},
 		},
 	}
@@ -292,15 +294,15 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 
 // configureDUT configures port1-3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 
-	d.Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
-	d.Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
-	d.Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 }
 
 // configureBackupNextHopGroup creates and deletes the gribi nexthops, nexthop
@@ -403,22 +405,23 @@ func (a *testArgs) createFlow(name string, dst *attrs.Attributes) *ondatra.Flow 
 }
 
 func (a *testArgs) validateAftTelemetry(t *testing.T) {
-	aftPfxNHG := a.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(dstPfx).NextHopGroup()
-	aftPfxNHGVal, found := aftPfxNHG.Watch(t, 10*time.Second, func(val *telemetry.QualifiedUint64) bool {
-		// Do nothing in this matching function, as we already filter on the prefix.
+	aftPfxNHG := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(dstPfx).NextHopGroup()
+	aftPfxNHGVal, found := gnmi.Watch(t, a.dut, aftPfxNHG.State(), 10*time.Second, func(val *ygnmi.Value[uint64]) bool {
+
 		return true
 	}).Await(t)
 	if !found {
 		t.Fatalf("Could not find prefix %s in telemetry AFT", dstPfx)
 	}
+	nhg, _ := aftPfxNHGVal.Val()
 
-	aftNHG := a.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(aftPfxNHGVal.Val(t)).Get(t)
+	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhg).State())
 	if got := len(aftNHG.NextHop); got != 1 {
 		t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", dstPfx, got)
 	}
 
 	for k := range aftNHG.NextHop {
-		aftnh := a.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(k).Get(t)
+		aftnh := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(k).State())
 		if got, want := aftnh.GetIpAddress(), atePort2.IPv4; got != want {
 			t.Fatalf("Prefix %s next-hop IP: got %s, want %s", dstPfx, got, want)
 		}
@@ -432,10 +435,10 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, good *ondatra.Flow, bad *o
 	time.Sleep(15 * time.Second)
 	a.ate.Traffic().Stop(t)
 
-	if got := a.ate.Telemetry().Flow(good.Name()).LossPct().Get(t); got > 0 {
+	if got := gnmi.Get(t, a.ate, gnmi.OC().Flow(good.Name()).LossPct().State()); got > 0 {
 		t.Fatalf("LossPct for flow %s: got %g, want 0", good.Name(), got)
 	}
-	if got := a.ate.Telemetry().Flow(bad.Name()).LossPct().Get(t); got < 100 {
+	if got := gnmi.Get(t, a.ate, gnmi.OC().Flow(bad.Name()).LossPct().State()); got < 100 {
 		t.Fatalf("LossPct for flow %s: got %g, want 100", bad.Name(), got)
 	}
 }

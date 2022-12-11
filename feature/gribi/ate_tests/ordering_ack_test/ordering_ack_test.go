@@ -25,11 +25,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -95,9 +97,9 @@ var (
 )
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -115,15 +117,15 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutSrc))
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc))
 
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutDst))
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst))
 }
 
 // configureATE configures port1 and port2 on the ATE.
@@ -169,8 +171,8 @@ func testTraffic(
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
-	flowPath := ate.Telemetry().Flow(flow.Name())
-	if got := flowPath.LossPct().Get(t); got > 0 {
+	flowPath := gnmi.OC().Flow(flow.Name())
+	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got > 0 {
 		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
 	}
 }
@@ -325,8 +327,8 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 			t.Errorf("next-hop-group/next-hop/state/weight got %v, want %v", got, want)
 		}
 
-		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-		if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
+		ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	})
@@ -339,8 +341,8 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 // aftNextHopWeights queries AFT telemetry using Get() and returns
 // the weights. If not-found, an empty list is returned.
 func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, networkInstance string) []uint64 {
-	aft := dut.Telemetry().NetworkInstance(networkInstance).Afts().Get(t)
-	var nhgD *telemetry.NetworkInstance_Afts_NextHopGroup
+	aft := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(networkInstance).Afts().State())
+	var nhgD *oc.NetworkInstance_Afts_NextHopGroup
 	for _, nhgData := range aft.NextHopGroup {
 		if nhgData.GetProgrammedId() == nhg {
 			nhgD = nhgData
@@ -404,8 +406,8 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 	)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-		if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
+		ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	})
@@ -497,14 +499,11 @@ func TestOrderingACK(t *testing.T) {
 					if err := awaitTimeout(ctx, c, t); err != nil {
 						t.Fatalf("Await got error during session negotiation: %v", err)
 					}
+					gribi.BecomeLeader(t, c)
 
 					if persist == usePreserve {
 						defer func() {
-							_, err := c.Flush().
-								WithElectionOverride().
-								WithAllNetworkInstances().
-								Send()
-							if err != nil {
+							if err := gribi.FlushAll(c); err != nil {
 								t.Errorf("Cannot flush: %v", err)
 							}
 						}()
