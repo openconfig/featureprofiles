@@ -1,8 +1,6 @@
 name: oc_compliance
 owner: agvarghe@cisco.com
-testbed: topologies/cisco/pyvxr/testbed
-pyvxr:
-  topology: topologies/cisco/pyvxr/topo.yaml
+topology: topologies/cisco/pyvxr/topo.yaml
 tests:
 - name: ACL OC leaf level coverage 
   path: feature/cisco/acl/...

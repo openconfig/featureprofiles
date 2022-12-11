@@ -1,9 +1,7 @@
 name: fp_public_pyvxr
 owner: mbagherz@cisco.com
 priority: 1
-testbed: topologies/cisco/pyvxr/testbed
-pyvxr:
-  topology: topologies/cisco/pyvxr/topo.yaml
+topology: topologies/cisco/pyvxr/topo.yaml
 pretests:
   - name: pre_fp_gribi_test
     path: topologies/cisco/pretests/pre_fp_gribi_test.go
