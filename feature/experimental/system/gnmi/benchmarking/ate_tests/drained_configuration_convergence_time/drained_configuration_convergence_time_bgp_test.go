@@ -113,13 +113,13 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice) {
 				gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State())
 				switch {
 				case gotSent == setup.RouteCount:
-					t.Logf("prefixes sent from ingress port are learnt at ATE dst port : %v", setup.AteIPPool[ap.ID()].String())
+					t.Logf("Prefixes sent from ingress port are learnt at ATE dst port : %v", setup.AteIPPool[ap.ID()].String())
 					break prefixLoop
 				case repeat > 0 && gotSent < setup.RouteCount:
-					t.Logf("all the prefixes are not learnt , wait for 5 secs before retry.. got %v, want %v", gotSent, setup.RouteCount)
+					t.Logf("All the prefixes are not learnt , wait for 5 secs before retry.. got %v, want %v", gotSent, setup.RouteCount)
 					time.Sleep(time.Second * 5)
 				case repeat == 0 && gotSent < setup.RouteCount:
-					t.Errorf("Sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.AteIPPool[ap.ID()].String(), gotSent, setup.RouteCount)
+					t.Errorf("sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.AteIPPool[ap.ID()].String(), gotSent, setup.RouteCount)
 				}
 			}
 
@@ -177,10 +177,10 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice) {
 				gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State())
 				switch {
 				case gotSent == setup.RouteCount:
-					t.Logf("prefixes sent from ingress port are learnt at ATE dst port : %v", setup.AteIPPool[ap.ID()].String())
+					t.Logf("Prefixes sent from ingress port are learnt at ATE dst port : %v", setup.AteIPPool[ap.ID()].String())
 					break prefixLoop
 				case repeat > 0 && gotSent < setup.RouteCount:
-					t.Logf("all the prefixes are not learnt , wait for 5 secs before retry.. got %v, want %v", gotSent, setup.RouteCount)
+					t.Logf("All the prefixes are not learnt , wait for 5 secs before retry.. got %v, want %v", gotSent, setup.RouteCount)
 					time.Sleep(time.Second * 5)
 				case repeat == 0 && gotSent < setup.RouteCount:
 					t.Errorf("Sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.AteIPPool[ap.ID()].String(), gotSent, setup.RouteCount)
@@ -223,7 +223,7 @@ func TestEstablish(t *testing.T) {
 	t.Log("Configure BGP and ISIS test configs")
 	setup.BuildOCUpdate(t)
 
-	t.Log("Coonfigure ATE with Interfaces, BGP, ISIS configs")
+	t.Log("Configure ATE with Interfaces, BGP, ISIS configs")
 	ate := ondatra.ATE(t, "ate")
 	setup.ConfigureATE(t, ate)
 
