@@ -69,6 +69,7 @@ var (
 	AteIPPool = make(map[string]net.IP)
 	// ISISMetricArray can be exported
 	ISISMetricArray []uint32
+	// ISISSetBitArray can be exported
 	ISISSetBitArray []bool
 )
 
