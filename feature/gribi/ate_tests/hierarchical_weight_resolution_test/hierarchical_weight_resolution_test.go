@@ -28,7 +28,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/featureprofiles/internal/tcheck"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -379,11 +378,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	time.Sleep(2 * time.Minute)
 	ate.Traffic().Stop(t)
 
-	// Verify total traffic loss is 0%.
-	vd := tcheck.Equal(ate.Telemetry().Flow("flow").LossPct(), float32(0))
-	if err := vd.Await(t, time.Minute); err != nil {
-		t.Errorf("Packet loss: %v", err)
-	}
+	gnmi.Await(t, ate, gnmi.OC().Flow("flow").LossPct().State(), time.Minute, 0)
 
 	// Compare traffic distribution with the wanted results.
 	results := filterPacketReceived(t, "flow", ate)
