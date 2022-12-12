@@ -21,8 +21,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openconfig/ondatra"
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"google.golang.org/grpc"
@@ -218,7 +218,7 @@ func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.
 	return gpb.NewGNMIClient(conn), nil
 }
 
-func (a *staticATE) DialOTG(ctx context.Context) (gosnappi.GosnappiApi, error) {
+func (a *staticATE) DialOTG(ctx context.Context, opts ...grpc.DialOption) (gosnappi.GosnappiApi, error) {
 	if a.dev.Otg == nil {
 		return nil, fmt.Errorf("otg must be configured in ATE binding to run OTG test")
 	}
@@ -226,7 +226,7 @@ func (a *staticATE) DialOTG(ctx context.Context) (gosnappi.GosnappiApi, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn, err := dialer.dialGRPC(ctx, grpc.WithBlock())
+	conn, err := dialer.dialGRPC(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
