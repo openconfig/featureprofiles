@@ -30,6 +30,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/vargs"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -47,7 +48,6 @@ const (
 
 var (
 	p4InfoFile                                 = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	p4rtNodeName                               = flag.String("p4rt_node_name", "FPC0:NPU0", "component name for P4RT Node")
 	streamName                                 = "p4rt"
 	tracerouteipv4InLayers layers.EthernetType = 0x0800
 	checksum                                   = uint16(200)
@@ -135,9 +135,9 @@ func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 		IntegratedCircuit: &oc.Component_IntegratedCircuit{
 			NodeId: ygot.Uint64(deviceId),
 		},
-		Name: ygot.String(*p4rtNodeName),
+		Name: ygot.String(*vargs.P4RTNodeName),
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).Config(), &component)
+	gnmi.Replace(t, dut, gnmi.OC().Component(*vargs.P4RTNodeName).Config(), &component)
 }
 
 // configurePortId configures p4rt port-id on the DUT.

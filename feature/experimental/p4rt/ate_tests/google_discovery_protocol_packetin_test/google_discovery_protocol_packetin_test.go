@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/vargs"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -45,7 +46,6 @@ const (
 
 var (
 	p4InfoFile            = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	p4rtNodeName          = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
 	gdpSrcMAC             = flag.String("gdp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
 	streamName            = "p4rt"
 	gdpMAC                = "00:0a:da:f0:f0:f0"
@@ -330,9 +330,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	component := oc.Component{}
 	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-	component.Name = ygot.String(*p4rtNodeName)
+	component.Name = ygot.String(*vargs.P4RTNodeName)
 	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
-	gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).Config(), &component)
+	gnmi.Replace(t, dut, gnmi.OC().Component(*vargs.P4RTNodeName).Config(), &component)
 }
 
 // configurePortId configures p4rt port-id on the DUT.

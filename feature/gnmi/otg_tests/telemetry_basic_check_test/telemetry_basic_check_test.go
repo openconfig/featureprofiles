@@ -15,7 +15,6 @@
 package telemetry_basic_check_test
 
 import (
-	"flag"
 	"math"
 	"regexp"
 	"strings"
@@ -24,16 +23,13 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/vargs"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
-)
-
-var (
-	p4rtNodeName = flag.String("p4rt_node_name", "SwitchChip3/0", "component name for P4RT Node")
 )
 
 const (
@@ -642,7 +638,7 @@ func TestP4rtNodeID(t *testing.T) {
 	// TODO: add p4rtNodeName to Ondatra's netutil
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
-	ic := d.GetOrCreateComponent(*p4rtNodeName).GetOrCreateIntegratedCircuit()
+	ic := d.GetOrCreateComponent(*vargs.P4RTNodeName).GetOrCreateIntegratedCircuit()
 
 	cases := []struct {
 		desc   string
@@ -661,17 +657,17 @@ func TestP4rtNodeID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ic.NodeId = ygot.Uint64(tc.nodeID)
-			gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).IntegratedCircuit().Config(), ic)
+			gnmi.Replace(t, dut, gnmi.OC().Component(*vargs.P4RTNodeName).IntegratedCircuit().Config(), ic)
 
 			// Check path /components/component/integrated-circuit/state/node-id.
-			nodeID := gnmi.Lookup(t, dut, gnmi.OC().Component(*p4rtNodeName).IntegratedCircuit().NodeId().State())
+			nodeID := gnmi.Lookup(t, dut, gnmi.OC().Component(*vargs.P4RTNodeName).IntegratedCircuit().NodeId().State())
 			nodeIDVal, present := nodeID.Val()
 			if !present {
-				t.Fatalf("nodeID.IsPresent() for %q: got false, want true", *p4rtNodeName)
+				t.Fatalf("nodeID.IsPresent() for %q: got false, want true", *vargs.P4RTNodeName)
 			}
 			t.Logf("Telemetry path/value: %v=>%v:", nodeID.Path.String(), nodeIDVal)
 			if nodeIDVal != tc.nodeID {
-				t.Fatalf("nodeID.Val(t) for %q: got %d, want %d", *p4rtNodeName, nodeIDVal, tc.nodeID)
+				t.Fatalf("nodeID.Val(t) for %q: got %d, want %d", *vargs.P4RTNodeName, nodeIDVal, tc.nodeID)
 			}
 		})
 	}
