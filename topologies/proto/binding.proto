@@ -81,6 +81,9 @@ message Device {
 
   // Dial options for IxNetwork (ATE only).
   Options ixnetwork = 17;
+
+  // Dial options for OTG Ixia-C (HW Only).
+  Options otg = 18;
 }
 
 // Dial options.
@@ -104,6 +107,9 @@ message Options {
 
   // The session_id for ATE REST API session id
   int32 session_id = 6;
+
+  // gRPC request timeout (second)
+  int32 timeout = 7;
 }
 
 // Port binding.
