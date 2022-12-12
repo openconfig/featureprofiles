@@ -39,8 +39,8 @@ jobs:
         #   * comm -23 SET1 SET2 shows what's in SET1 and not in SET2.
         outdated_unchanged="$(
           comm -23 \
-            <(git diff --name-only "${BASE}" origin/main -- "${CHECKED_FILES[@]}") \
-            <(git diff --name-only "${BASE}" "${HEAD}" -- "${CHECKED_FILES[@]}")
+            <(git diff --name-only "${BASE}" origin/main -- "${CHECKED_FILES[@]}" | sort) \
+            <(git diff --name-only "${BASE}" "${HEAD}" -- "${CHECKED_FILES[@]}" | sort)
         )"
         if [ "${outdated_unchanged}" ]; then
           echo "The following files are outdated: ${outdated_unchanged}"
