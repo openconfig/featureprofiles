@@ -2,7 +2,7 @@
 
 ## Summary
 
-Validate the P4RT server handles primary election and failover
+Validate the P4RT server handles primary election and failover.
 
 ## Procedure
 
@@ -14,7 +14,7 @@ Validate the P4RT server handles primary election and failover
     * Replace Primary after Failure
     * Fail To become Primary after Primary Disconnect
     * Reconnect Primary
-    * Double Primary
+    * Double Primary: Second client attempts a connection with the same parameters as the current primary.
     * Slave Cannot Write
     * Slave Can Read
     * Get Notified of Actual Primary

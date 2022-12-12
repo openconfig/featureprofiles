@@ -18,18 +18,26 @@ import (
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
-// Variable definitions
+// Flag variable definitions
 var (
-	streamName   = "p4rt"
 	p4InfoFile   = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	p4rtNodeName = flag.String("p4rt_node_name", "SwitchChip1/0", "component name for P4RT Node")
-	gdpEtherType = *ygot.Uint32(0x6007)
-	portID       = *ygot.Uint32(10)
-	deviceID     = *ygot.Uint64(1)
-	highID       = *ygot.Uint64(0)
+)
+
+// Variable definitions
+var (
 	pDesc        = "Primary Connection"
 	sDesc        = "Secondary Connection"
 	npDesc       = "New Primary"
+	gdpEtherType = *ygot.Uint32(0x6007)
+	portId       = *ygot.Uint32(10)
+	deviceId     = *ygot.Uint64(1)
+	inId0        = *ygot.Uint64(0)
+	inId90       = *ygot.Uint64(90)
+	inId100      = *ygot.Uint64(100)
+	inId101      = *ygot.Uint64(101)
+	inId102      = *ygot.Uint64(102)
+	streamName   = "p4rt"
 )
 
 // Define PacketIO Interface
@@ -50,38 +58,38 @@ type PacketIOPacket struct {
 
 // Define Multiple Client Args Structure
 type mcTestArgs struct {
-	name       string
-	Items      [2]*testArgs
-	expectPass bool
+	name     string
+	Items    [2]*testArgs
+	wantFail bool
 }
 
 // Define Test Args Structure
 type testArgs struct {
-	desc              string
-	lowID             uint64
-	highID            uint64
-	deviceID          uint64
-	handle            *p4rt_client.P4RTClient
-	expectStatus      int32
-	expectFinalStatus int32
-	expectPass        bool
-	expectWrite       bool
-	expectRead        bool
+	desc            string
+	lowID           uint64
+	highID          uint64
+	deviceID        uint64
+	handle          *p4rt_client.P4RTClient
+	wantStatus      int32
+	wantFinalStatus int32
+	wantFail        bool
+	wantWrite       bool
+	wantRead        bool
 }
 
 // configureDeviceId configures p4rt device-id on the DUT.
 func configureDeviceId(t *testing.T, dut *ondatra.DUTDevice) {
-	component := oc.Component{}
+	component := &oc.Component{}
 	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 	component.Name = ygot.String(*p4rtNodeName)
-	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
-	gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).Config(), &component)
+	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceId)
+	gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).Config(), component)
 }
 
 // configurePortId configures p4rt port-id on the DUT.
 func configurePortId(t *testing.T, dut *ondatra.DUTDevice) {
 	portName := dut.Port(t, "port1").Name()
-	gnmi.Replace(t, dut, gnmi.OC().Interface(portName).Id().Config(), portID)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(portName).Id().Config(), portId)
 }
 
 // Create client connection
@@ -93,7 +101,9 @@ func clientConnection(t *testing.T, dut *ondatra.DUTDevice) *p4rt_client.P4RTCli
 	return &clientHandle
 }
 
-// Setup P4RT Arbitration Stream
+// Setup P4RT Arbitration Stream which will return a GRPC status code
+// in line with the client arbitration notifications. An error can also
+// be returned.
 func streamP4RTArb(args *testArgs) (int32, error) {
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
@@ -145,7 +155,7 @@ func getGDPParameter(t *testing.T) PacketIO {
 		PacketIOPacket: PacketIOPacket{
 			EthernetType: &gdpEtherType,
 		},
-		IngressPort: fmt.Sprint(portID),
+		IngressPort: fmt.Sprint(portId),
 	}
 }
 
@@ -243,8 +253,8 @@ func canWrite(t *testing.T, args *testArgs) (bool, error) {
 	pktIO := getGDPParameter(t)
 	writeErr := writeTableEntry(args, t, pktIO, false)
 	if writeErr != nil {
-		if args.expectWrite == false {
-			t.Logf("Expected P4Client error: Client write permission (highID %d, lowID %d): want %v, got %v", args.highID, args.lowID, args.expectWrite, false)
+		if args.wantWrite == false {
+			t.Logf("Expected P4Client error: Client write permission (highID %d, lowID %d): want %v, got %v", args.highID, args.lowID, args.wantWrite, false)
 		}
 		return false, writeErr
 	}
@@ -258,8 +268,8 @@ func validateRWResp(t *testing.T, args *testArgs) bool {
 	returnWriteVal := true
 	// Validate write permissions
 	writeOp, writeErr := canWrite(t, args)
-	if args.expectWrite != writeOp {
-		t.Errorf("Client write permission error: (highID %d, lowID %d): want %v, got %v", args.highID, args.lowID, args.expectWrite, writeOp)
+	if args.wantWrite != writeOp {
+		t.Errorf("Client write permission error: (highID %d, lowID %d): want %v, got %v", args.highID, args.lowID, args.wantWrite, writeOp)
 		if writeErr != nil {
 			t.Errorf("Write Error %v", writeErr)
 		}
@@ -268,8 +278,8 @@ func validateRWResp(t *testing.T, args *testArgs) bool {
 
 	// Validate read permissions
 	readOp, readErr := canRead(t, args)
-	if args.expectRead != readOp {
-		t.Errorf("Client read permission error: (highID %d, lowID %d): want %v, got %v", args.highID, args.lowID, args.expectRead, readOp)
+	if args.wantRead != readOp {
+		t.Errorf("Client read permission error: (highID %d, lowID %d): want %v, got %v", args.highID, args.lowID, args.wantRead, readOp)
 		t.Errorf("Read Error: %v", readErr)
 		returnReadVal = false
 	}
@@ -290,26 +300,25 @@ func TestZeroMaster(t *testing.T) {
 	configureDeviceId(t, dut)
 	configurePortId(t, dut)
 	test := testArgs{
-
-		desc:         pDesc,
-		lowID:        *ygot.Uint64(0),
-		highID:       highID,
-		handle:       clientConnection(t, dut),
-		deviceID:     deviceID,
-		expectPass:   false,
-		expectStatus: 0,
+		desc:       pDesc,
+		lowID:      inId0,
+		highID:     inId0,
+		handle:     clientConnection(t, dut),
+		deviceID:   deviceId,
+		wantFail:   true,
+		wantStatus: 0,
 	}
 	t.Run(test.desc, func(t *testing.T) {
 		resp, err := streamP4RTArb(&test)
-		if err == nil && test.expectPass {
+		if err == nil && test.wantFail {
 			t.Errorf("Zero ElectionID (0,0) is allowed: %v", err)
 			removeClient(test.handle)
 		} else {
 			t.Logf("Zero ElectionID (0,0) connection failed as expected: %v", err)
 		}
 		// Validate status code
-		if resp != test.expectStatus {
-			t.Errorf("Incorrect status code received: want %d, got %d", test.expectStatus, resp)
+		if resp != test.wantStatus {
+			t.Errorf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 		}
 	})
 
@@ -322,46 +331,46 @@ func TestPrimaryReconnect(t *testing.T) {
 	configurePortId(t, dut)
 	testCases := []testArgs{
 		{
-			desc:         pDesc,
-			lowID:        *ygot.Uint64(100),
-			highID:       highID,
-			handle:       clientConnection(t, dut),
-			deviceID:     deviceID,
-			expectPass:   true,
-			expectWrite:  true,
-			expectRead:   true,
-			expectStatus: 0,
+			desc:       pDesc,
+			lowID:      inId100,
+			highID:     inId0,
+			handle:     clientConnection(t, dut),
+			deviceID:   deviceId,
+			wantFail:   false,
+			wantWrite:  true,
+			wantRead:   true,
+			wantStatus: 0,
 		}, {
-			desc:         sDesc,
-			lowID:        *ygot.Uint64(90),
-			highID:       highID,
-			handle:       clientConnection(t, dut),
-			deviceID:     deviceID,
-			expectPass:   true,
-			expectWrite:  false,
-			expectRead:   true,
-			expectStatus: 5,
+			desc:       sDesc,
+			lowID:      inId90,
+			highID:     inId0,
+			handle:     clientConnection(t, dut),
+			deviceID:   deviceId,
+			wantFail:   false,
+			wantWrite:  false,
+			wantRead:   true,
+			wantStatus: 5,
 		}, {
-			desc:         pDesc,
-			lowID:        *ygot.Uint64(100),
-			highID:       highID,
-			handle:       clientConnection(t, dut),
-			deviceID:     deviceID,
-			expectPass:   true,
-			expectWrite:  true,
-			expectRead:   true,
-			expectStatus: 0,
+			desc:       pDesc,
+			lowID:      inId100,
+			highID:     inId0,
+			handle:     clientConnection(t, dut),
+			deviceID:   deviceId,
+			wantFail:   false,
+			wantWrite:  true,
+			wantRead:   true,
+			wantStatus: 0,
 		},
 	}
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
 			resp, err := streamP4RTArb(&test)
-			if err != nil && test.expectPass {
+			if err != nil && test.wantFail {
 				t.Errorf("Failed to setup P4RT Client: %v", err)
 			}
 			// Validate status code
-			if resp != test.expectStatus {
-				t.Errorf("Incorrect status code received: want %d, got %d", test.expectStatus, resp)
+			if resp != test.wantStatus {
+				t.Errorf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 			}
 			// Validate the response for Read/Write for each client
 			validateRWResp(t, &test)
@@ -378,37 +387,37 @@ func TestPrimarySecondary(t *testing.T) {
 	configurePortId(t, dut)
 	testCases := []testArgs{
 		{
-			desc:         pDesc,
-			lowID:        *ygot.Uint64(100),
-			highID:       highID,
-			handle:       clientConnection(t, dut),
-			deviceID:     deviceID,
-			expectPass:   true,
-			expectWrite:  true,
-			expectRead:   true,
-			expectStatus: 0,
+			desc:       pDesc,
+			lowID:      inId100,
+			highID:     inId0,
+			handle:     clientConnection(t, dut),
+			deviceID:   deviceId,
+			wantFail:   false,
+			wantWrite:  true,
+			wantRead:   true,
+			wantStatus: 0,
 		}, {
-			desc:         pDesc,
-			lowID:        *ygot.Uint64(90),
-			highID:       highID,
-			handle:       clientConnection(t, dut),
-			deviceID:     deviceID,
-			expectPass:   true,
-			expectWrite:  false,
-			expectRead:   true,
-			expectStatus: 6,
+			desc:       pDesc,
+			lowID:      inId90,
+			highID:     inId0,
+			handle:     clientConnection(t, dut),
+			deviceID:   deviceId,
+			wantFail:   false,
+			wantWrite:  false,
+			wantRead:   true,
+			wantStatus: 6,
 		},
 	}
 	var p4Clients []*p4rt_client.P4RTClient
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
 			resp, err := streamP4RTArb(&test)
-			if err != nil && test.expectPass {
+			if err != nil && test.wantFail {
 				t.Errorf("Failed to setup P4RT Client: %v", err)
 			}
 			// Validate status code
-			if resp != test.expectStatus {
-				t.Errorf("Incorrect status code received: want %d, got %d", test.expectStatus, resp)
+			if resp != test.wantStatus {
+				t.Errorf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 			}
 			// Validate the response for Read/Write for each client
 			validateRWResp(t, &test)
@@ -429,28 +438,28 @@ func TestDuplicateElectionID(t *testing.T) {
 	configurePortId(t, dut)
 	testCases := []testArgs{
 		{
-			desc:         pDesc,
-			lowID:        *ygot.Uint64(100),
-			highID:       highID,
-			handle:       clientConnection(t, dut),
-			deviceID:     deviceID,
-			expectPass:   true,
-			expectStatus: 0,
+			desc:       pDesc,
+			lowID:      inId100,
+			highID:     inId0,
+			handle:     clientConnection(t, dut),
+			deviceID:   deviceId,
+			wantFail:   false,
+			wantStatus: 0,
 		}, {
-			desc:         sDesc,
-			lowID:        *ygot.Uint64(100),
-			highID:       highID,
-			handle:       clientConnection(t, dut),
-			deviceID:     deviceID,
-			expectPass:   false,
-			expectStatus: 0,
+			desc:       sDesc,
+			lowID:      inId100,
+			highID:     inId0,
+			handle:     clientConnection(t, dut),
+			deviceID:   deviceId,
+			wantFail:   true,
+			wantStatus: 0,
 		},
 	}
 	var p4Clients []*p4rt_client.P4RTClient
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
 			resp, err := streamP4RTArb(&test)
-			if test.expectPass {
+			if !test.wantFail {
 				if err != nil {
 					t.Errorf("Failed to setup P4RT Client: %v", err)
 				}
@@ -461,8 +470,8 @@ func TestDuplicateElectionID(t *testing.T) {
 			}
 
 			// Validate status code
-			if resp != test.expectStatus {
-				t.Errorf("Incorrect status code received: want %d, got %d", test.expectStatus, resp)
+			if resp != test.wantStatus {
+				t.Errorf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 			}
 			// Keep track of connections for teardown
 			p4Clients = append(p4Clients, test.handle)
@@ -480,32 +489,32 @@ func TestReplacePrimary(t *testing.T) {
 	configurePortId(t, dut)
 	testCases := []mcTestArgs{
 		{
-			name:       "Primary_secondary_OK",
-			expectPass: true,
+			name:     "Primary_secondary_OK",
+			wantFail: true,
 			Items: [2]*testArgs{
 				{
-					desc:              pDesc,
-					lowID:             *ygot.Uint64(101),
-					highID:            highID,
-					handle:            clientConnection(t, dut),
-					deviceID:          deviceID,
-					expectPass:        true,
-					expectWrite:       true,
-					expectRead:        true,
-					expectStatus:      0,
-					expectFinalStatus: 6,
+					desc:            pDesc,
+					lowID:           inId101,
+					highID:          inId0,
+					handle:          clientConnection(t, dut),
+					deviceID:        deviceId,
+					wantFail:        false,
+					wantWrite:       true,
+					wantRead:        true,
+					wantStatus:      0,
+					wantFinalStatus: 6,
 				},
 				{
-					desc:              npDesc,
-					lowID:             *ygot.Uint64(102),
-					highID:            highID,
-					handle:            clientConnection(t, dut),
-					deviceID:          deviceID,
-					expectPass:        true,
-					expectWrite:       true,
-					expectRead:        true,
-					expectStatus:      0,
-					expectFinalStatus: 0,
+					desc:            npDesc,
+					lowID:           inId102,
+					highID:          inId0,
+					handle:          clientConnection(t, dut),
+					deviceID:        deviceId,
+					wantFail:        false,
+					wantWrite:       true,
+					wantRead:        true,
+					wantStatus:      0,
+					wantFinalStatus: 0,
 				},
 			},
 		},
@@ -513,12 +522,12 @@ func TestReplacePrimary(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			resp, err := streamP4RTArb(test.Items[0])
-			if err != nil && test.expectPass {
+			if err != nil && test.wantFail {
 				t.Errorf("Failed to setup P4RT Client: %v", err)
 			}
 			// Validate status code
-			if resp != test.Items[0].expectStatus {
-				t.Errorf("Incorrect status code received: want %d, got %d", test.Items[0].expectStatus, resp)
+			if resp != test.Items[0].wantStatus {
+				t.Errorf("Incorrect status code received: want %d, got %d", test.Items[0].wantStatus, resp)
 			}
 			// Validates that client0 can read/write
 			validateRWResp(t, test.Items[0])
@@ -527,8 +536,8 @@ func TestReplacePrimary(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to setup P4RT Client: %v", err)
 			}
-			if newResp != test.Items[1].expectStatus {
-				t.Errorf("Incorrect status code received: want %d, got %d", test.Items[1].expectStatus, newResp)
+			if newResp != test.Items[1].wantStatus {
+				t.Errorf("Incorrect status code received: want %d, got %d", test.Items[1].wantStatus, newResp)
 			}
 			// Validates that client1 can read/write
 			validateRWResp(t, test.Items[1])
@@ -538,12 +547,12 @@ func TestReplacePrimary(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed get response code from primary: %v", err)
 			}
-			if arbResp != test.Items[0].expectFinalStatus {
-				t.Errorf("Incorrect status code received: want %d, got %d", test.Items[0].expectFinalStatus, arbResp)
+			if arbResp != test.Items[0].wantFinalStatus {
+				t.Errorf("Incorrect status code received: want %d, got %d", test.Items[0].wantFinalStatus, arbResp)
 			}
 			// Since client1 has connected with higher election ID
-			// the expectWrite flag is moved to false
-			test.Items[0].expectWrite = false
+			// the wantWrite flag is moved to false
+			test.Items[0].wantWrite = false
 			// Validates that client0 can only read, cannot write anymore
 			validateRWResp(t, test.Items[0])
 		})
@@ -562,26 +571,26 @@ func TestArbitrationUpdate(t *testing.T) {
 	configurePortId(t, dut)
 	test := testArgs{
 
-		desc:         pDesc,
-		lowID:        *ygot.Uint64(102),
-		highID:       highID,
-		handle:       clientConnection(t, dut),
-		deviceID:     deviceID,
-		expectPass:   false,
-		expectWrite:  true,
-		expectRead:   true,
-		expectStatus: 0,
+		desc:       pDesc,
+		lowID:      inId102,
+		highID:     inId0,
+		handle:     clientConnection(t, dut),
+		deviceID:   deviceId,
+		wantFail:   true,
+		wantWrite:  true,
+		wantRead:   true,
+		wantStatus: 0,
 	}
 	var p4Clients []*p4rt_client.P4RTClient
 
 	t.Run(test.desc, func(t *testing.T) {
 		resp, err := streamP4RTArb(&test)
-		if err != nil && test.expectPass {
+		if err != nil && test.wantFail {
 			t.Errorf("Failed to setup P4RT Client: %v", err)
 		}
 		// Validate status code
-		if resp != test.expectStatus {
-			t.Errorf("Incorrect status code received: want %d, got %d", test.expectStatus, resp)
+		if resp != test.wantStatus {
+			t.Errorf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 		}
 		// Validates that client can read/write
 		validateRWResp(t, &test)
@@ -589,17 +598,17 @@ func TestArbitrationUpdate(t *testing.T) {
 		test.lowID = 99
 		// After updating electionID, statusCode also changes
 		// to secondary without a primary
-		test.expectStatus = 5
-		// After updating election, expectWrite is false
+		test.wantStatus = 5
+		// After updating election, wantWrite is false
 		// as this client is no longer primary
-		test.expectWrite = false
+		test.wantWrite = false
 		resp, err = streamP4RTArb(&test)
-		if err != nil && test.expectPass {
+		if err != nil && test.wantFail {
 			t.Errorf("Failed to setup P4RT Client: %v", err)
 		}
 		// Validate status code
-		if resp != test.expectStatus {
-			t.Errorf("Incorrect status code received: want %d, got %d", test.expectStatus, resp)
+		if resp != test.wantStatus {
+			t.Errorf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 		}
 		validateRWResp(t, &test)
 		// Keep track of connections for teardown
