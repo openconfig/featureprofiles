@@ -64,18 +64,12 @@ var (
 	// LLDP configuration.
 	lldpSrc = lldpTestParameters{
 		SystemName: "ixia-otg",
-		MACAddress: "aa:bb:00:00:00:00",
+		MACAddress: "02:00:22:01:01:01",
 		OtgName:    "ixia-otg",
 	}
 )
 
 // Determine LLDP advertisement and reception operates correctly.
-// Since ATE(Ixia) does not implement LLDP API, we are using
-// DUT-DUT setup for topology.
-//
-// Topology:
-//
-//	dut1:port1 <--> dut2:port1
 func TestCoreLLDPTLVPopulation(t *testing.T) {
 	tests := []struct {
 		desc        string
@@ -107,7 +101,7 @@ func TestCoreLLDPTLVPopulation(t *testing.T) {
 			otgConfig := configureATE(t, otg)
 			t.Log(otgConfig.ToJson())
 
-			waitFor(func() bool { return checkOtgLldpMetrics(t, otg, otgConfig, test.lldpEnabled) }, t)
+			checkOtgLldpMetrics(t, otg, otgConfig, test.lldpEnabled)
 
 			dutPeerState := lldpNeighbors{
 				systemName:    lldpSrc.SystemName,
@@ -129,15 +123,14 @@ func TestCoreLLDPTLVPopulation(t *testing.T) {
 						},
 					},
 				}
-
-				waitFor(func() bool { return checkOtgLldpNeighbors(t, otg, otgConfig, expOtgLldpNeighbors) }, t)
+				checkOtgLldpNeighbors(t, otg, otgConfig, expOtgLldpNeighbors)
 				verifyDUTTelemetry(t, dut, dutPort, dutConf, dutPeerState, test.lldpEnabled)
 			} else {
 				expOtgLldpNeighbors := map[string][]lldpNeighbors{
 					"ixia-otg": {},
 				}
 
-				waitFor(func() bool { return checkOtgLldpNeighbors(t, otg, otgConfig, expOtgLldpNeighbors) }, t)
+				checkOtgLldpNeighbors(t, otg, otgConfig, expOtgLldpNeighbors)
 			}
 		})
 	}
@@ -214,56 +207,46 @@ func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, 
 	}
 }
 
-func waitFor(fn func() bool, t testing.TB) {
-	start := time.Now()
-	for {
-		done := fn()
-		if done {
-			t.Logf("Expected LLDP Stats/Metric received")
-			break
-		}
-		if time.Since(start) > 65*time.Second {
-			t.Error("Timeout while waiting for expected stats...")
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-}
-
 // checkOtgLldpMetrics verifies OTG side lldp Metrics values based on DUT side lldp is enabled or not
-func checkOtgLldpMetrics(t *testing.T, otg *otg.OTG, c gosnappi.Config, lldpEnabled bool) bool {
-	otgutils.LogLLDPMetrics(t, otg, c)
+func checkOtgLldpMetrics(t *testing.T, otg *otg.OTG, c gosnappi.Config, lldpEnabled bool) {
 	for _, lldp := range c.Lldp().Items() {
-		lldpName := lldp.Name()
-		lldpState := gnmi.Get(t, otg, gnmi.OTG().LldpInterface(lldpName).State())
-		lldpStateCounters := lldpState.GetCounters()
-
-		if lldpStateCounters.GetFrameOut() == 0 {
-			return false
+		lastValue, ok := gnmi.Watch(t, otg, gnmi.OTG().LldpInterface(lldp.Name()).Counters().FrameOut().State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
+			time.Sleep(1 * time.Second)
+			txPackets, _ := v.Val()
+			return v.IsPresent() && txPackets != 0
+		}).Await(t)
+		if !ok {
+			txPackets, _ := lastValue.Val()
+			t.Errorf("LLDP sent packets got: %v, want: > 0.", txPackets)
 		}
-
+		framesIn, _ := gnmi.Watch(t, otg, gnmi.OTG().LldpInterface(lldp.Name()).Counters().FrameIn().State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
+			time.Sleep(1 * time.Second)
+			return v.IsPresent()
+		}).Await(t)
+		otgutils.LogLLDPMetrics(t, otg, c)
 		if lldpEnabled {
-			if lldpStateCounters.GetFrameIn() == 0 {
-				return false
+			if rxPackets, _ := framesIn.Val(); rxPackets == 0 {
+				t.Errorf("LLDP received packets got: %v, want: > 0.", rxPackets)
 			}
 		} else {
-			if lldpStateCounters.GetFrameIn() != 0 {
-				return false
+			if rxPackets, _ := framesIn.Val(); rxPackets != 0 {
+				t.Errorf("LLDP received packets got: %v, want: 0.", rxPackets)
 			}
 		}
 	}
-	return true
 }
 
 // checkOtgLldpMetrics verifies OTG side lldp neighbor states
-func checkOtgLldpNeighbors(t *testing.T, otg *otg.OTG, c gosnappi.Config, expLldpNeighbors map[string][]lldpNeighbors) bool {
-	// otgutils.LogLLDPNeighborStates(t, otg, c)
+func checkOtgLldpNeighbors(t *testing.T, otg *otg.OTG, c gosnappi.Config, expLldpNeighbors map[string][]lldpNeighbors) {
+	otgutils.LogLLDPNeighborStates(t, otg, c)
 
 	for lldp, lldpNeighbors := range expLldpNeighbors {
 		lldpState := gnmi.Get(t, otg, gnmi.OTG().LldpInterface(lldp).State())
 
 		if len(lldpNeighbors) == 0 {
 			if lldpState.LldpNeighborDatabase != nil {
-				return false
+				t.Errorf("LLDP Neighbordatabase not expected nil")
+				return
 			}
 		} else {
 			neighbors := lldpState.GetLldpNeighborDatabase().LldpNeighbor
@@ -285,13 +268,12 @@ func checkOtgLldpNeighbors(t *testing.T, otg *otg.OTG, c gosnappi.Config, expLld
 				}
 
 				if !neighborFound {
-					return false
+					t.Errorf("LLDP Neighbor not found")
 				}
 			}
 		}
 
 	}
-	return true
 }
 
 // verifyNodeTelemetry verifies the telemetry values from the node such as port LLDP neighbor info.

@@ -153,7 +153,7 @@ func LogLLDPMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	fmt.Fprintln(&out, strings.Repeat("-", 120))
 	out.WriteString("\n")
 	fmt.Fprintf(&out,
-		"%-10s%-15s%-18s%-15s%-15s%-20s%-20s\n",
+		"%-15s%-15s%-15s%-18s%-20s%-18s%-18s\n",
 		"Name",
 		"Frames Tx",
 		"Frames Rx",
@@ -171,7 +171,7 @@ func LogLLDPMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 		tlvsDiscard := lldpMetric.GetTlvDiscard()
 		tlvsUnknown := lldpMetric.GetTlvUnknown()
 		out.WriteString(fmt.Sprintf(
-			"%-10v%-15v%-18v%-15v%-15v%-20v%-20v\n",
+			"%-15v%-15v%-15v%-18v%-20v%-18v%-18v\n",
 			lldp.Name(), framesTx, framesRx, framesErrorRx, framesDiscard, tlvsDiscard, tlvsUnknown,
 		))
 	}
@@ -188,7 +188,7 @@ func LogLLDPNeighborStates(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	fmt.Fprintln(&out, strings.Repeat("-", 120))
 	out.WriteString("\n")
 	fmt.Fprintf(&out,
-		"%-10s%-15s%-18s%-15s%-15s%-20s\n",
+		"%-15s%-18s%-18s%-18s%-20s%-20s\n",
 		"LLDP Name",
 		"System Name",
 		"Port Id",
@@ -206,7 +206,7 @@ func LogLLDPNeighborStates(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 			chassisIdType := lldpNeighborState.GetChassisIdType()
 
 			out.WriteString(fmt.Sprintf(
-				"%-10v%-15v%-18v%-15v%-15v%-20v\n",
+				"%-15s%-18s%-18s%-18s%-20s%-20s\n",
 				lldp.Name(), systemName, portId, portIdType, chassisId, chassisIdType,
 			))
 		}
