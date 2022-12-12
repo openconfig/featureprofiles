@@ -75,7 +75,6 @@ func TestOverloadBit(t *testing.T) {
 	}
 
 	_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Flags().State(), time.Minute, func(v *ygnmi.Value[[]otgtelemetry.E_Lsps_Flags]) bool {
-		time.Sleep(1 * time.Second)
 		flags, present := v.Val()
 		if present {
 			for _, flag := range flags {
