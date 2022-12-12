@@ -20,18 +20,19 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"strconv"
+	"sort"
 	"testing"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -68,8 +69,7 @@ var (
 	deviceId1 = uint64(100)
 	deviceId2 = uint64(200)
 
-	portId1 = uint32(2100)
-	portId2 = uint32(3100)
+	portId = uint32(20)
 
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
@@ -97,10 +97,9 @@ var (
 )
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes, p4rtid uint32) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
-	i.Id = ygot.Uint32(p4rtid)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -116,34 +115,50 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes, p4rtid uint
 	return i
 }
 
-// configComponentDUT configures the component with NodeId
-func configComponentDUT(c *telemetry.Component, nodeid uint64) *telemetry.Component {
-	ic := c.GetOrCreateIntegratedCircuit()
-	ic.NodeId = ygot.Uint64(nodeid)
-
-	c.IntegratedCircuit = ic
-	return c
-
+// configureDeviceId configures p4rt device-id on the DUT.
+func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, components []string, deviceids []uint64) {
+	for i, comp := range components {
+		component := oc.Component{}
+		component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+		component.Name = ygot.String(comp)
+		component.IntegratedCircuit.NodeId = ygot.Uint64(deviceids[i])
+		gnmi.Replace(t, dut, gnmi.OC().Component(comp).Config(), &component)
+	}
 }
 
-// configureDUT configures ports on the DUT.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ports []attrs.Attributes, components []string, nodeids []uint64, p4rtids []uint32) {
-	//create a for loop to configure for the given number of ports
-	d := dut.Config()
-	for n, port := range ports {
-		p_name := "port" + strconv.Itoa(n+1)
-		p := dut.Port(t, p_name)
-		i := &telemetry.Interface{Name: ygot.String(p.Name())}
-		d.Interface(p.Name()).Replace(t, configInterfaceDUT(i, &port, p4rtids[n]))
-		fptest.LogYgot(t, fmt.Sprintf("%s to Replace()", p), d.Interface(p.Name()), configInterfaceDUT(i, &port, p4rtids[n]))
-	}
+// sortPorts sorts the ports by the testbed port ID.
+func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
+	sort.Slice(ports, func(i, j int) bool {
+		idi, idj := ports[i].ID(), ports[j].ID()
+		li, lj := len(idi), len(idj)
+		if li == lj {
+			return idi < idj
+		}
+		return li < lj // "port2" < "port10"
+	})
+	return ports
+}
 
-	for n, comp := range components {
-		c := &telemetry.Component{Name: ygot.String(comp)}
-		d.Component(comp).Replace(t, configComponentDUT(c, nodeids[n]))
-		fptest.LogYgot(t, fmt.Sprintf("%s to Replace()", comp), d.Component(comp), configComponentDUT(c, nodeids[n]))
+// configurePortId configures p4rt port-id on the DUT.
+func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	ports := sortPorts(dut.Ports())
+	for i, port := range ports {
+		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Type().Config(), oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Id().Config(), uint32(i)+portId)
 	}
+}
 
+// configureDUT configures port1 and port2 on the DUT.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	d := gnmi.OC()
+
+	p1 := dut.Port(t, "port1")
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+
+	p2 := dut.Port(t, "port2")
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
 }
 
 // ATE configuration with IP address
@@ -280,18 +295,20 @@ func TestP4rtConnect(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	// configure DUT with P4RT node-id and ids on different FAPs
-	configureDUT(t, dut, []attrs.Attributes{dutPort1, dutPort2}, []string{*comp1name, *comp2name}, []uint64{deviceId1, deviceId2}, []uint32{portId1, portId2})
+	configureDUT(t, dut)
+	configureDeviceId(ctx, t, dut, []string{*comp1name, *comp2name}, []uint64{deviceId1, deviceId2})
 
+	configurePortId(ctx, t, dut)
 	top := configureATE(t, ate)
 
 	// Setup two different clients for different FAPs
 	client1 := p4rt_client.P4RTClient{}
-	if err := client1.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
+	if err := client1.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	client2 := p4rt_client.P4RTClient{}
-	if err := client2.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
+	if err := client2.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
@@ -315,22 +332,25 @@ func TestP4rtConnect(t *testing.T) {
 		err := client.Write(&p4_v1.WriteRequest{
 			DeviceId:   deviceid_list[index],
 			ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
-			Updates: wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+			Updates: p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
 				{
 					Type:          p4_v1.Update_INSERT,
 					EtherType:     0x6007,
 					EtherTypeMask: 0xFFFF,
+					Priority:      1,
 				},
 				{
 					Type:          p4_v1.Update_INSERT,
 					EtherType:     0x88cc,
 					EtherTypeMask: 0xFFFF,
+					Priority:      1,
 				},
 				{
-					Type:    p4_v1.Update_INSERT,
-					IsIpv4:  0x1,
-					TTL:     0x1,
-					TTLMask: 0xFF,
+					Type:     p4_v1.Update_INSERT,
+					IsIpv4:   0x1,
+					TTL:      0x1,
+					TTLMask:  0xFF,
+					Priority: 1,
 				},
 			}),
 			Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
@@ -367,7 +387,7 @@ func TestP4rtConnect(t *testing.T) {
 		t.Logf("Verify Read response for client%d", index)
 
 		// Construct expected table for GDP to match with received table entry
-		expected_update := wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+		expected_update := p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
 			{
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x6007,
@@ -381,7 +401,7 @@ func TestP4rtConnect(t *testing.T) {
 		}
 
 		// Construct expected table for LLDP to match with received table entry
-		expected_update = wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+		expected_update = p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
 			{
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x88cc,
@@ -394,7 +414,7 @@ func TestP4rtConnect(t *testing.T) {
 		}
 
 		// Construct expected table for traceroute to match with received table entry
-		expected_update = wbb.ACLWbbIngressTableEntryGet([]*wbb.ACLWbbIngressTableEntryInfo{
+		expected_update = p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
 			{
 				Type:    p4_v1.Update_INSERT,
 				IsIpv4:  0x1,
