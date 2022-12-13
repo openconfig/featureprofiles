@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -123,16 +124,22 @@ func testNextHop(
 		WithPersistence()
 	c.Start(ctx, t)
 	defer c.Stop(t)
+
+	defer func() {
+		// Flush all entries after test.
+		if err := gribi.FlushAll(c); err != nil {
+			t.Errorf("Cannot flush: %v", err)
+		}
+	}()
+
 	c.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation: %v", err)
 	}
+	gribi.BecomeLeader(t, c)
 
-	_, err := c.Flush().
-		WithElectionOverride().
-		WithAllNetworkInstances().
-		Send()
-	if err != nil {
+	// Flush all entries before test.
+	if err := gribi.FlushAll(c); err != nil {
 		t.Errorf("Cannot flush: %v", err)
 	}
 

@@ -21,10 +21,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"google.golang.org/grpc"
 
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	grpb "github.com/openconfig/gribi/v1/proto/service"
@@ -71,18 +74,20 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	resv.ID = resvID
 	b.resv = resv
 
-	if err := b.reserveIxSessions(ctx); err != nil {
+	if err := b.afterReserve(ctx); err != nil {
 		return nil, err
 	}
-	if b.pushConfig {
-		if err := b.reset(ctx); err != nil {
-			return nil, err
-		}
+	if err := b.reserveIxSessions(ctx); err != nil {
+		return nil, err
 	}
 	return resv, nil
 }
 
 func (b *staticBind) Release(ctx context.Context) error {
+	m := rundata.Timing(ctx)
+	for k, v := range m {
+		ondatra.Report().AddSuiteProperty(k, v)
+	}
 	if b.resv == nil {
 		return errors.New("no reservation")
 	}
@@ -97,12 +102,48 @@ func (b *staticBind) FetchReservation(ctx context.Context, id string) (*binding.
 	if b.resv == nil || id != resvID {
 		return nil, fmt.Errorf("reservation not found: %s", id)
 	}
-	if b.pushConfig {
-		if err := b.reset(ctx); err != nil {
-			return nil, err
-		}
+	if err := b.afterReserve(ctx); err != nil {
+		return nil, err
 	}
 	return b.resv, nil
+}
+
+func (b *staticBind) afterReserve(ctx context.Context) error {
+	m := rundata.Properties(ctx, b.resv)
+	for k, v := range m {
+		ondatra.Report().AddSuiteProperty(k, v)
+	}
+
+	if !b.pushConfig {
+		return nil
+	}
+	return b.reset(ctx)
+}
+
+func (b *staticBind) reset(ctx context.Context) error {
+	for _, dut := range b.resv.DUTs {
+		if sdut, ok := dut.(*staticDUT); ok {
+			if err := sdut.reset(ctx); err != nil {
+				return fmt.Errorf("could not reset device %s: %w", sdut.Name(), err)
+			}
+		}
+	}
+	return nil
+}
+
+func (d *staticDUT) reset(ctx context.Context) error {
+	// Each of the individual reset functions should be no-op if the reset action is not
+	// requested.
+	if err := resetCLI(ctx, d.dev, d.r); err != nil {
+		return err
+	}
+	if err := resetGNMI(ctx, d.dev, d.r); err != nil {
+		return err
+	}
+	if err := resetGRIBI(ctx, d.dev, d.r); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
@@ -153,7 +194,7 @@ func (d *staticDUT) DialP4RT(ctx context.Context, opts ...grpc.DialOption) (p4pb
 	return p4pb.NewP4RuntimeClient(conn), nil
 }
 
-func (d *staticDUT) DialCLI(ctx context.Context, opts ...grpc.DialOption) (binding.StreamClient, error) {
+func (d *staticDUT) DialCLI(ctx context.Context) (binding.StreamClient, error) {
 	dialer, err := d.r.ssh(d.Name())
 	if err != nil {
 		return nil, err
@@ -163,6 +204,39 @@ func (d *staticDUT) DialCLI(ctx context.Context, opts ...grpc.DialOption) (bindi
 		return nil, err
 	}
 	return newCLI(sc)
+}
+
+func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
+	dialer, err := a.r.ateGNMI(a.Name())
+	if err != nil {
+		return nil, err
+	}
+	conn, err := dialer.dialGRPC(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return gpb.NewGNMIClient(conn), nil
+}
+
+func (a *staticATE) DialOTG(ctx context.Context, opts ...grpc.DialOption) (gosnappi.GosnappiApi, error) {
+	if a.dev.Otg == nil {
+		return nil, fmt.Errorf("otg must be configured in ATE binding to run OTG test")
+	}
+	dialer, err := a.r.ateOtg(a.Name())
+	if err != nil {
+		return nil, err
+	}
+	conn, err := dialer.dialGRPC(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	api := gosnappi.NewApi()
+	grpcTransport := api.NewGrpcTransport().SetClientConnection(conn)
+	if dialer.Timeout != 0 {
+		grpcTransport.SetRequestTimeout(time.Duration(dialer.Timeout) * time.Second)
+	}
+	return api, nil
 }
 
 func (a *staticATE) DialIxNetwork(ctx context.Context) (*binding.IxNetwork, error) {
@@ -264,32 +338,6 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 	return resv, nil
 }
 
-func (b *staticBind) reset(ctx context.Context) error {
-	for _, dut := range b.resv.DUTs {
-		if sdut, ok := dut.(*staticDUT); ok {
-			if err := sdut.reset(ctx); err != nil {
-				return fmt.Errorf("could not reset device %s: %w", sdut.Name(), err)
-			}
-		}
-	}
-	return nil
-}
-
-func (d *staticDUT) reset(ctx context.Context) error {
-	// Each of the individual reset functions should be no-op if the reset action is not
-	// requested.
-	if err := resetCLI(ctx, d.dev, d.r); err != nil {
-		return err
-	}
-	if err := resetGNMI(ctx, d.dev, d.r); err != nil {
-		return err
-	}
-	if err := resetGRIBI(ctx, d.dev, d.r); err != nil {
-		return err
-	}
-	return nil
-}
-
 func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
 	portmap, err := ports(td.Ports, bd.Ports)
 	if err != nil {
@@ -336,6 +384,15 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 func (b *staticBind) reserveIxSessions(ctx context.Context) error {
 	ates := b.resv.ATEs
 	for _, ate := range ates {
+
+		bate := b.r.ateByName(ate.Name())
+		if bate == nil {
+			return fmt.Errorf("missing binding for ATE %q", bate.Id)
+		}
+		if bate.Ixnetwork == nil {
+			continue
+		}
+
 		dialer, err := b.r.ixnetwork(ate.Name())
 		if err != nil {
 			return err

@@ -23,12 +23,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	transceiverType        = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
+	transceiverType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
 	sleepDuration          = time.Minute
 	minOpticsPower         = -30.0
 	maxOpticsPower         = 10.0
@@ -61,27 +62,27 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 
 	for _, transceiver := range transceivers {
 		t.Logf("Validate transceiver: %s", transceiver)
-		component := dut.Telemetry().Component(transceiver)
+		component := gnmi.OC().Component(transceiver)
 
-		if !component.MfgName().Lookup(t).IsPresent() {
+		if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
 			t.Logf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiver)
 			continue
 		}
-		mfgName := component.MfgName().Get(t)
+		mfgName := gnmi.Get(t, dut, component.MfgName().State())
 		t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
 
-		inputPowers := component.Transceiver().ChannelAny().InputPower().Instant().Get(t)
+		inputPowers := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().InputPower().Instant().State())
 		t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
 		if len(inputPowers) == 0 {
 			t.Errorf("Get inputPowers list for %q: got 0, want > 0", transceiver)
 		}
-		outputPowers := component.Transceiver().ChannelAny().OutputPower().Instant().Get(t)
+		outputPowers := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().OutputPower().Instant().State())
 		t.Logf("Transceiver %s outputPowers: %v", transceiver, outputPowers)
 		if len(outputPowers) == 0 {
 			t.Errorf("Get outputPowers list for %q: got 0, want > 0", transceiver)
 		}
 
-		biasCurrents := component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().Get(t)
+		biasCurrents := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State())
 		t.Logf("Transceiver %s biasCurrents: %v", transceiver, biasCurrents)
 		if len(outputPowers) == 0 {
 			t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
@@ -92,32 +93,32 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 func TestOpticsPowerUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp.Name())
 
 	cases := []struct {
 		desc                string
 		IntfStatus          bool
-		expectedStatus      telemetry.E_Interface_OperStatus
+		expectedStatus      oc.E_Interface_OperStatus
 		expectedMaxOutPower float64
 		checkMinOutPower    bool
 	}{{
 		// Check both input and output optics power are in normal range.
 		desc:                "Check initial input and output optics powers are OK",
 		IntfStatus:          true,
-		expectedStatus:      telemetry.Interface_OperStatus_UP,
+		expectedStatus:      oc.Interface_OperStatus_UP,
 		expectedMaxOutPower: maxOpticsPower,
 		checkMinOutPower:    true,
 	}, {
 		desc:                "Check output optics power is very small after interface is disabled",
 		IntfStatus:          false,
-		expectedStatus:      telemetry.Interface_OperStatus_DOWN,
+		expectedStatus:      oc.Interface_OperStatus_DOWN,
 		expectedMaxOutPower: minOpticsPower,
 		checkMinOutPower:    false,
 	}, {
 		desc:                "Check output optics power is normal after interface is re-enabled",
 		IntfStatus:          true,
-		expectedStatus:      telemetry.Interface_OperStatus_UP,
+		expectedStatus:      oc.Interface_OperStatus_UP,
 		expectedMaxOutPower: maxOpticsPower,
 		checkMinOutPower:    true,
 	}}
@@ -126,25 +127,25 @@ func TestOpticsPowerUpdate(t *testing.T) {
 		intUpdateTime := 2 * time.Minute
 		t.Run(tc.desc, func(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
-			dut.Config().Interface(dp.Name()).Replace(t, i)
-			dut.Telemetry().Interface(dp.Name()).OperStatus().Await(t, intUpdateTime, tc.expectedStatus)
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedStatus)
 
 			transceiverName, err := findTransceiverName(dut, dp.Name())
 			if err != nil {
 				t.Fatalf("findTransceiver(%s, %s): %v", dut.Name(), dp.Name(), err)
 			}
 
-			component := dut.Telemetry().Component(transceiverName)
-			if !component.MfgName().Lookup(t).IsPresent() {
+			component := gnmi.OC().Component(transceiverName)
+			if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
 				t.Skipf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiverName)
 			}
 
-			mfgName := component.MfgName().Get(t)
+			mfgName := gnmi.Get(t, dut, component.MfgName().State())
 			t.Logf("Transceiver MfgName: %s", mfgName)
 
-			channels := dut.Telemetry().Component(dp.Name()).Transceiver().ChannelAny()
-			inputPowers := channels.InputPower().Instant().Get(t)
-			outputPowers := channels.OutputPower().Instant().Get(t)
+			channels := gnmi.OC().Component(dp.Name()).Transceiver().ChannelAny()
+			inputPowers := gnmi.GetAll(t, dut, channels.InputPower().Instant().State())
+			outputPowers := gnmi.GetAll(t, dut, channels.OutputPower().Instant().State())
 			for _, inPower := range inputPowers {
 				if inPower > maxOpticsPower || inPower < minOpticsPower {
 					t.Errorf("Get inputPower for port %q): got %.2f, want within [%f, %f]", dp.Name(), inPower, minOpticsPower, maxOpticsPower)

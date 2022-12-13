@@ -16,17 +16,26 @@ package ipv4_entry_test
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -68,19 +77,22 @@ var (
 	}
 
 	atePort1 = attrs.Attributes{
-		Name:    "atePort1",
+		Name:    "port1",
+		MAC:     "02:00:01:01:01:01",
 		Desc:    "ATE Port 1",
 		IPv4:    "192.0.2.2",
 		IPv4Len: 30,
 	}
 	atePort2 = attrs.Attributes{
-		Name:    "atePort2",
+		Name:    "port2",
+		MAC:     "02:00:02:01:01:01",
 		Desc:    "ATE Port 2",
 		IPv4:    "192.0.2.6",
 		IPv4Len: 30,
 	}
 	atePort3 = attrs.Attributes{
-		Name:    "atePort3",
+		Name:    "port3",
+		MAC:     "02:00:03:01:01:01",
 		Desc:    "ATE Port 3",
 		IPv4:    "192.0.2.10",
 		IPv4Len: 30,
@@ -98,19 +110,17 @@ func TestIPv4Entry(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 
-	ate := ondatra.ATE(t, "ate")
-	ateTop := configureATE(t, ate)
+	gribic := dut.RawAPIs().GRIBI().Default(t)
 
-	port2Flow := createFlow("Port 1 to Port 2", ate, ateTop, &atePort2)
-	port3Flow := createFlow("Port 1 to Port 3", ate, ateTop, &atePort3)
-	ecmpFlow := createFlow("Port 1 to Port 2 & 3", ate, ateTop, &atePort2, &atePort3)
+	ate := ondatra.ATE(t, "ate")
+	configureATE(t, ate)
 
 	cases := []struct {
 		desc                 string
 		entries              []fluent.GRIBIEntry
 		downPort             *ondatra.Port
-		wantGoodFlows        []*ondatra.Flow
-		wantBadFlows         []*ondatra.Flow
+		wantGoodFlows        []string
+		wantBadFlows         []string
 		wantOperationResults []*client.OpResult
 	}{
 		{
@@ -123,8 +133,8 @@ func TestIPv4Entry(t *testing.T) {
 				fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 					WithPrefix(dstPfx).WithNextHopGroup(nhgID),
 			},
-			wantGoodFlows: []*ondatra.Flow{port2Flow},
-			wantBadFlows:  []*ondatra.Flow{port3Flow},
+			wantGoodFlows: []string{"port2Flow"},
+			wantBadFlows:  []string{"port3Flow"},
 			wantOperationResults: []*client.OpResult{
 				fluent.OperationResult().
 					WithNextHopOperation(nh1ID).
@@ -155,7 +165,7 @@ func TestIPv4Entry(t *testing.T) {
 				fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 					WithPrefix(dstPfx).WithNextHopGroup(nhgID),
 			},
-			wantGoodFlows: []*ondatra.Flow{ecmpFlow},
+			wantGoodFlows: []string{"ecmpFlow"},
 			wantOperationResults: []*client.OpResult{
 				fluent.OperationResult().
 					WithNextHopOperation(nh1ID).
@@ -187,7 +197,7 @@ func TestIPv4Entry(t *testing.T) {
 				fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 					WithPrefix(dstPfx).WithNextHopGroup(nhgID),
 			},
-			wantBadFlows: []*ondatra.Flow{port2Flow, port3Flow},
+			wantBadFlows: []string{"port2Flow", "port3Flow"},
 			wantOperationResults: []*client.OpResult{
 				fluent.OperationResult().
 					WithNextHopGroupOperation(nhgID).
@@ -202,8 +212,9 @@ func TestIPv4Entry(t *testing.T) {
 			},
 		},
 		{
+			// ate port link cannot be set to down in kne, therefore the downPort is a dut port
 			desc:     "Downed next-hop interface",
-			downPort: ate.Port(t, "port2"),
+			downPort: dut.Port(t, "port2"),
 			entries: []fluent.GRIBIEntry{
 				fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 					WithIndex(nh1ID).WithIPAddress(atePort2.IPv4).
@@ -213,7 +224,7 @@ func TestIPv4Entry(t *testing.T) {
 				fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 					WithPrefix(dstPfx).WithNextHopGroup(nhgID),
 			},
-			wantBadFlows: []*ondatra.Flow{port2Flow, port3Flow},
+			wantBadFlows: []string{"port2Flow", "port3Flow"},
 			wantOperationResults: []*client.OpResult{
 				fluent.OperationResult().
 					WithNextHopOperation(nh1ID).
@@ -234,114 +245,226 @@ func TestIPv4Entry(t *testing.T) {
 		},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			gribic := dut.RawAPIs().GRIBI().Default(t)
-			c := fluent.NewClient()
-			c.Connection().WithStub(gribic).
-				WithRedundancyMode(fluent.ElectedPrimaryClient).
-				WithFIBACK().
-				WithInitialElectionID(1, 0)
-			c.Start(ctx, t)
-			defer c.Stop(t)
-			c.StartSending(ctx, t)
-			if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-				t.Fatalf("Await got error during session negotiation: %v", err)
+	const (
+		usePreserve = "PRESERVE"
+		useDelete   = "DELETE"
+	)
+
+	// Each case will run with its own gRIBI fluent client.
+	for _, persist := range []string{usePreserve, useDelete} {
+		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
+			if *deviations.GRIBIPreserveOnly && persist == useDelete {
+				t.Skip("Skipping due to --deviation_gribi_preserve_only")
 			}
 
-			if tc.downPort != nil {
-				ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(false).Send(t)
-				defer ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(true).Send(t)
-			}
+			for _, tc := range cases {
+				t.Run(tc.desc, func(t *testing.T) {
+					// Configure the gRIBI client.
+					c := fluent.NewClient()
+					conn := c.Connection().
+						WithStub(gribic).
+						WithRedundancyMode(fluent.ElectedPrimaryClient).
+						WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
+					if persist == usePreserve {
+						conn.WithPersistence()
+					}
 
-			c.Modify().AddEntry(t, tc.entries...)
-			if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-				t.Fatalf("Await got error for entries: %v", err)
-			}
-			defer func() {
-				c.Modify().DeleteEntry(t, tc.entries...)
-				if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-					t.Fatalf("Await got error for entries: %v", err)
-				}
-			}()
+					if !*deviations.GRIBIRIBAckOnly {
+						// The main difference WithFIBACK() made was that we are now expecting
+						// fluent.InstalledInFIB in []*client.OpResult, as opposed to
+						// fluent.InstalledInRIB.
+						conn.WithFIBACK()
+					}
 
-			for _, wantResult := range tc.wantOperationResults {
-				chk.HasResult(t, c.Results(t), wantResult, chk.IgnoreOperationID())
-			}
+					c.Start(ctx, t)
+					defer c.Stop(t)
+					c.StartSending(ctx, t)
+					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+						t.Fatalf("Await got error during session negotiation: %v", err)
+					}
+					gribi.BecomeLeader(t, c)
 
-			validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
+					if persist == usePreserve {
+						defer func() {
+							if err := gribi.FlushAll(c); err != nil {
+								t.Errorf("Cannot flush: %v", err)
+							}
+						}()
+					}
+
+					if tc.downPort != nil {
+						// Setting admin state down on the DUT interface.
+						// Setting the otg interface down has no effect on kne and is not yet supported in otg
+						setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, false)
+						defer setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, true)
+					}
+
+					c.Modify().AddEntry(t, tc.entries...)
+					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+						t.Fatalf("Await got error for entries: %v", err)
+					}
+					defer func() {
+						// Delete should reverse the order of entries, i.e. IPv4Entry must be removed
+						// before NextHopGroupEntry, which must be removed before NextHopEntry.
+						var revEntries []fluent.GRIBIEntry
+						for i := len(tc.entries) - 1; i >= 0; i-- {
+							revEntries = append(revEntries, tc.entries[i])
+						}
+						c.Modify().DeleteEntry(t, revEntries...)
+						if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+							t.Fatalf("Await got error for entries: %v", err)
+						}
+					}()
+
+					for _, wantResult := range tc.wantOperationResults {
+						chk.HasResult(t, c.Results(t), wantResult, chk.IgnoreOperationID())
+					}
+
+					validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
+				})
+			}
 		})
 	}
 }
 
 // configureDUT configures port1-3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 
-	d.Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
-	d.Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
-	d.Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 }
 
 // configreATE configures port1-3 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	top := ate.OTG().NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
 	p3 := ate.Port(t, "port3")
 
-	atePort1.AddToATE(top, p1, &dutPort1)
-	atePort2.AddToATE(top, p2, &dutPort2)
-	atePort3.AddToATE(top, p3, &dutPort3)
+	atePort1.AddToOTG(top, p1, &dutPort1)
+	atePort2.AddToOTG(top, p2, &dutPort2)
+	atePort3.AddToOTG(top, p3, &dutPort3)
 
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	return top
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
-func createFlow(name string, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology, dsts ...*attrs.Attributes) *ondatra.Flow {
-	hdr := ondatra.NewIPv4Header()
-	hdr.WithSrcAddress(dutPort1.IPv4).
-		DstAddressRange().WithMin(dstPfxMin).WithMax(dstPfxMax).WithCount(dstPfxCount)
+func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnappi.Config, dsts ...*attrs.Attributes) string {
 
-	endpoints := []ondatra.Endpoint{}
+	// Multiple devices is not supported on the OTG flows
+	modName := strings.Replace(name, " ", "_", -1)
+	var rxEndpoints []string
 	for _, dst := range dsts {
-		endpoints = append(endpoints, ateTop.Interfaces()[dst.Name])
+		rxEndpoints = append(rxEndpoints, dst.Name+".IPv4")
 	}
-
-	flow := ate.Traffic().NewFlow(name).
-		WithSrcEndpoints(ateTop.Interfaces()[atePort1.Name]).
-		WithDstEndpoints(endpoints...).
-		WithHeaders(ondatra.NewEthernetHeader(), hdr)
-
-	return flow
+	otg := ate.OTG()
+	flowipv4 := ateTop.Flows().Add().SetName(modName)
+	flowipv4.Metrics().SetEnable(true)
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	if len(dsts) > 1 {
+		flowipv4.TxRx().Port().SetTxName(atePort1.Name)
+		waitOTGARPEntry(t)
+		dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
+		e1.Dst().SetChoice("value").SetValue(dstMac)
+	} else {
+		flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
+	}
+	v4 := flowipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort1.IPv4)
+	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
+	otg.PushConfig(t, ateTop)
+	otg.StartProtocols(t)
+	return modName
 }
 
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []*ondatra.Flow, bad []*ondatra.Flow) {
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string) {
+	ateTop := ate.OTG().FetchConfig(t)
 	if len(good) == 0 && len(bad) == 0 {
 		return
 	}
 
-	flows := append(good, bad...)
-	ate.Traffic().Start(t, flows...)
-	time.Sleep(15 * time.Second)
-	ate.Traffic().Stop(t)
+	var newGoodFlows, newBadFlows []string
+	allFlows := append(good, bad...)
+	ateTop.Flows().Clear().Items()
+	for _, flow := range allFlows {
+		if flow == "port2Flow" {
+			if elementInSlice(flow, good) {
+				newGoodFlows = append(newGoodFlows, createFlow(t, "Port 1 to Port 2", ate, ateTop, &atePort2))
+			}
+			if elementInSlice(flow, bad) {
+				newBadFlows = append(newBadFlows, createFlow(t, "Port 1 to Port 2", ate, ateTop, &atePort2))
+			}
+		}
+		if flow == "port3Flow" {
+			if elementInSlice(flow, good) {
+				newGoodFlows = append(newGoodFlows, createFlow(t, "Port 1 to Port 3", ate, ateTop, &atePort3))
+			}
+			if elementInSlice(flow, bad) {
+				newBadFlows = append(newBadFlows, createFlow(t, "Port 1 to Port 3", ate, ateTop, &atePort3))
+			}
 
-	for _, flow := range good {
-		if got := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t); got > 0 {
-			t.Fatalf("LossPct for flow %s: got %g, want 0", flow.Name(), got)
+		}
+		if flow == "ecmpFlow" {
+			if elementInSlice(flow, good) {
+				newGoodFlows = append(newGoodFlows, createFlow(t, "ecmpFlow", ate, ateTop, &atePort2, &atePort3))
+			}
+			if elementInSlice(flow, bad) {
+				newBadFlows = append(newBadFlows, createFlow(t, "ecmpFlow", ate, ateTop, &atePort2, &atePort3))
+			}
+
+		}
+	}
+	ate.OTG().StartTraffic(t)
+	time.Sleep(15 * time.Second)
+	ate.OTG().StopTraffic(t)
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), ateTop)
+	otgutils.LogPortMetrics(t, ate.OTG(), ateTop)
+
+	for _, flow := range newGoodFlows {
+		var txPackets, rxPackets uint64
+		if flow == "ecmpFlow" {
+			for _, p := range ateTop.Ports().Items() {
+				portMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(p.Name()).State())
+				txPackets = txPackets + portMetrics.GetCounters().GetOutFrames()
+				rxPackets = rxPackets + portMetrics.GetCounters().GetInFrames()
+			}
+			lostPackets := int64(txPackets - rxPackets)
+			lossPct := lostPackets * 100 / int64(txPackets)
+			if got := lossPct; got > 0 {
+				t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
+			}
+		} else {
+			recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
+			txPackets = recvMetric.GetCounters().GetOutPkts()
+			rxPackets = recvMetric.GetCounters().GetInPkts()
+			lostPackets := txPackets - rxPackets
+			lossPct := lostPackets * 100 / txPackets
+			if got := lossPct; got > 0 {
+				t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
+			}
 		}
 	}
 
-	for _, flow := range bad {
-		if got := ate.Telemetry().Flow(flow.Name()).LossPct().Get(t); got < 100 {
-			t.Fatalf("LossPct for flow %s: got %g, want 100", flow.Name(), got)
+	for _, flow := range newBadFlows {
+		recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
+		txPackets := recvMetric.GetCounters().GetOutPkts()
+		rxPackets := recvMetric.GetCounters().GetInPkts()
+		lostPackets := txPackets - rxPackets
+		lossPct := lostPackets * 100 / txPackets
+		if got := lossPct; got < 100 {
+			t.Fatalf("LossPct for flow %s: got %v, want 100", flow, got)
 		}
 	}
 }
@@ -351,4 +474,32 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 	subctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return c.Await(subctx, t)
+}
+
+// Waits for at least one ARP entry on the tx OTG interface
+func waitOTGARPEntry(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	got, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	if !ok {
+		t.Fatalf("Did not receive OTG Neighbor entry, last got: %v", got)
+	}
+}
+
+// setDUTInterfaceState sets the admin state on the dut interface
+func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *attrs.Attributes, p *ondatra.Port, state bool) {
+	dc := gnmi.OC()
+	i := &oc.Interface{}
+	i.Enabled = ygot.Bool(state)
+	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
+}
+
+func elementInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }

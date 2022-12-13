@@ -103,6 +103,11 @@ func staticBinding(bindingFile string) (binding.Binding, error) {
 	if err := prototext.Unmarshal(in, b); err != nil {
 		return nil, fmt.Errorf("unable to parse binding file: %w", err)
 	}
+	for _, ate := range b.Ates {
+		if ate.Otg != nil && ate.Ixnetwork != nil {
+			return nil, fmt.Errorf("otg and ixnetwork are mutually exclusive, please configure one of them in ate %s binding", ate.Name)
+		}
+	}
 	return &staticBind{
 		Binding:    nil,
 		r:          resolver{b},
