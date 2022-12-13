@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+// package to test P4RT with traceroute traffic of IPV4 and IPV6 with TTL/HopLimit as 0&1.
+// go test -v . -testbed /root/ondatra/featureprofiles/topologies/atedut_2.testbed -binding /root/ondatra/featureprofiles/topologies/atedut_2.binding -outputs_dir logs
 
 package traceroute_packetin_test
 
@@ -111,14 +113,12 @@ func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTCli
 		switch err {
 		case io.EOF:
 			t.Logf("EOF error is seen in PacketIn.")
-			break
 		case nil:
 			if packet != nil {
 				packets = append(packets, packet)
 			}
 		default:
 			t.Fatalf("There is error seen when receving packets. %v, %s", err, err)
-			break
 		}
 	}
 	return packets
