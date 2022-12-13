@@ -36,7 +36,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
-	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 const (
@@ -44,17 +44,17 @@ const (
 )
 
 var (
-	p4InfoFile            = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	p4rtNodeName          = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
-	lldpSrcMAC            = flag.String("lldp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
-	streamName            = "p4rt"
-	lldpMAC               = "01:80:c2:00:00:0e"
-	lldpEtherType         = *ygot.Uint32(0x88cc)
-	deviceID              = *ygot.Uint64(1)
-	portID                = *ygot.Uint32(10)
-	electionID            = *ygot.Uint64(100)
-	METADATA_INGRESS_PORT = *ygot.Uint32(1)
-	METADATA_EGRESS_PORT  = *ygot.Uint32(2)
+	p4InfoFile          = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	p4rtNodeName        = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
+	lldpSrcMAC          = flag.String("lldp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
+	streamName          = "p4rt"
+	lldpMAC             = "01:80:c2:00:00:0e"
+	lldpEtherType       = *ygot.Uint32(0x88cc)
+	deviceID            = *ygot.Uint64(1)
+	portID              = *ygot.Uint32(10)
+	electionID          = *ygot.Uint64(100)
+	metadataIngressPort = *ygot.Uint32(1)
+	metadataEgressPort  = *ygot.Uint32(2)
 )
 
 var (
@@ -109,13 +109,13 @@ type testArgs struct {
 // programmTableEntry programs or deletes p4rt table entry based on delete flag.
 func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool) error {
 	t.Helper()
-	err := client.Write(&p4_v1.WriteRequest{
+	err := client.Write(&p4v1.WriteRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+		ElectionId: &p4v1.Uint128{High: uint64(0), Low: electionID},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete),
 		),
-		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+		Atomicity: p4v1.WriteRequest_CONTINUE_ON_ERROR,
 	})
 	if err != nil {
 		return err
@@ -163,7 +163,7 @@ func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTCli
 				packets = append(packets, packet)
 			}
 		} else {
-			t.Fatalf("There is error seen when receving packets. %v, %s", err, err)
+			t.Fatalf("There is error seen when receiving packets. %v, %s", err, err)
 			break
 		}
 	}
@@ -222,12 +222,12 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 
 						metaData := packet.Pkt.GetMetadata()
 						for _, data := range metaData {
-							if data.GetMetadataId() == METADATA_INGRESS_PORT {
+							if data.GetMetadataId() == metadataIngressPort {
 								if string(data.GetValue()) != args.packetIO.GetIngressPort() {
 									t.Fatalf("Ingress Port Id is not matching expectation.")
 								}
 							}
-							if data.GetMetadataId() == METADATA_EGRESS_PORT {
+							if data.GetMetadataId() == metadataEgressPort {
 								found := false
 								for _, portData := range args.packetIO.GetEgressPort() {
 									if string(data.GetValue()) == portData {
@@ -315,8 +315,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// configureDeviceId configures p4rt device-id on the DUT.
-func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+// configureDeviceID configures p4rt device-id on the DUT.
+func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	component := oc.Component{}
 	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 	component.Name = ygot.String(*p4rtNodeName)
@@ -324,8 +324,8 @@ func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).Config(), &component)
 }
 
-// configurePortId configures p4rt port-id on the DUT.
-func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+// configurePortID configures p4rt port-id on the DUT.
+func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	ports := sortPorts(dut.Ports())
 	for i, port := range ports {
 		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Id().Config(), uint32(i)+portID)
@@ -348,21 +348,21 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	for index, client := range clients {
 		if client != nil {
 			client.StreamChannelCreate(&streamParameter)
-			if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Arbitration{
-					Arbitration: &p4_v1.MasterArbitrationUpdate{
+			if err := client.StreamChannelSendMsg(&streamName, &p4v1.StreamMessageRequest{
+				Update: &p4v1.StreamMessageRequest_Arbitration{
+					Arbitration: &p4v1.MasterArbitrationUpdate{
 						DeviceId: streamParameter.DeviceId,
-						ElectionId: &p4_v1.Uint128{
+						ElectionId: &p4v1.Uint128{
 							High: streamParameter.ElectionIdH,
 							Low:  streamParameter.ElectionIdL - uint64(index),
 						},
 					},
 				},
 			}); err != nil {
-				return errors.New("Errors seen when sending ClientArbitration message.")
+				return errors.New("errors seen when sending ClientArbitration message")
 			}
 			if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
-				return errors.New("Errors seen in ClientArbitration response.")
+				return errors.New("errors seen in ClientArbitration response")
 			}
 		}
 	}
@@ -370,22 +370,22 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	// Load p4info file.
 	p4Info, err := utils.P4InfoLoad(p4InfoFile)
 	if err != nil {
-		return errors.New("Errors seen when loading p4info file.")
+		return errors.New("errors seen when loading p4info file")
 	}
 
 	// Send SetForwardingPipelineConfig for p4rt leader client.
-	if err := args.leader.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
+	if err := args.leader.SetForwardingPipelineConfig(&p4v1.SetForwardingPipelineConfigRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
-		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
-		Config: &p4_v1.ForwardingPipelineConfig{
+		ElectionId: &p4v1.Uint128{High: uint64(0), Low: electionID},
+		Action:     p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
+		Config: &p4v1.ForwardingPipelineConfig{
 			P4Info: &p4Info,
-			Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
+			Cookie: &p4v1.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
 		},
 	}); err != nil {
-		return errors.New("Errors seen when sending SetForwardingPipelineConfig.")
+		return errors.New("errors seen when sending SetForwardingPipelineConfig")
 	}
 	return nil
 }
@@ -414,8 +414,8 @@ func TestPacketIn(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	// Configure P4RT device-id and port-id
-	configureDeviceId(ctx, t, dut)
-	configurePortId(ctx, t, dut)
+	configureDeviceID(ctx, t, dut)
+	configurePortID(ctx, t, dut)
 
 	t.Logf("Disable LLDP config")
 	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
@@ -454,9 +454,9 @@ type LLDPPacketIO struct {
 
 // GetTableEntry creates wbb acl entry related to LLDP.
 func (lldp *LLDPPacketIO) GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
-	actionType := p4_v1.Update_INSERT
+	actionType := p4v1.Update_INSERT
 	if delete {
-		actionType = p4_v1.Update_DELETE
+		actionType = p4v1.Update_DELETE
 	}
 	return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
