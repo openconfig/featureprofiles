@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/featureprofiles/internal/vargs"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -635,10 +635,10 @@ func TestP4rtInterfaceID(t *testing.T) {
 }
 
 func TestP4rtNodeID(t *testing.T) {
-	// TODO: add p4rtNodeName to Ondatra's netutil
+	// TODO: add P4RTNodeName1 to Ondatra's netutil
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
-	ic := d.GetOrCreateComponent(*vargs.P4RTNodeName).GetOrCreateIntegratedCircuit()
+	ic := d.GetOrCreateComponent(*args.P4RTNodeName1).GetOrCreateIntegratedCircuit()
 
 	cases := []struct {
 		desc   string
@@ -657,17 +657,17 @@ func TestP4rtNodeID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ic.NodeId = ygot.Uint64(tc.nodeID)
-			gnmi.Replace(t, dut, gnmi.OC().Component(*vargs.P4RTNodeName).IntegratedCircuit().Config(), ic)
+			gnmi.Replace(t, dut, gnmi.OC().Component(*args.P4RTNodeName1).IntegratedCircuit().Config(), ic)
 
 			// Check path /components/component/integrated-circuit/state/node-id.
-			nodeID := gnmi.Lookup(t, dut, gnmi.OC().Component(*vargs.P4RTNodeName).IntegratedCircuit().NodeId().State())
+			nodeID := gnmi.Lookup(t, dut, gnmi.OC().Component(*args.P4RTNodeName1).IntegratedCircuit().NodeId().State())
 			nodeIDVal, present := nodeID.Val()
 			if !present {
-				t.Fatalf("nodeID.IsPresent() for %q: got false, want true", *vargs.P4RTNodeName)
+				t.Fatalf("nodeID.IsPresent() for %q: got false, want true", *args.P4RTNodeName1)
 			}
 			t.Logf("Telemetry path/value: %v=>%v:", nodeID.Path.String(), nodeIDVal)
 			if nodeIDVal != tc.nodeID {
-				t.Fatalf("nodeID.Val(t) for %q: got %d, want %d", *vargs.P4RTNodeName, nodeIDVal, tc.nodeID)
+				t.Fatalf("nodeID.Val(t) for %q: got %d, want %d", *args.P4RTNodeName1, nodeIDVal, tc.nodeID)
 			}
 		})
 	}

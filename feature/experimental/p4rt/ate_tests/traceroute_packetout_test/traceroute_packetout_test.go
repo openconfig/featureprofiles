@@ -28,9 +28,9 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/vargs"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -135,9 +135,9 @@ func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 		IntegratedCircuit: &oc.Component_IntegratedCircuit{
 			NodeId: ygot.Uint64(deviceId),
 		},
-		Name: ygot.String(*vargs.P4RTNodeName),
+		Name: ygot.String(*args.P4RTNodeName1),
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Component(*vargs.P4RTNodeName).Config(), &component)
+	gnmi.Replace(t, dut, gnmi.OC().Component(*args.P4RTNodeName1).Config(), &component)
 }
 
 // configurePortId configures p4rt port-id on the DUT.

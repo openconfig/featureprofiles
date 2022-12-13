@@ -29,10 +29,10 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/vargs"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -330,9 +330,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	component := oc.Component{}
 	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-	component.Name = ygot.String(*vargs.P4RTNodeName)
+	component.Name = ygot.String(*args.P4RTNodeName1)
 	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
-	gnmi.Replace(t, dut, gnmi.OC().Component(*vargs.P4RTNodeName).Config(), &component)
+	gnmi.Replace(t, dut, gnmi.OC().Component(*args.P4RTNodeName1).Config(), &component)
 }
 
 // configurePortId configures p4rt port-id on the DUT.

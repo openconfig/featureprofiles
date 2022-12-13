@@ -27,6 +27,7 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -59,10 +60,6 @@ var (
 	p4InfoFile  = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName1 = "p4rt1"
 	streamName2 = "p4rt2"
-
-	//Enter Component name used as string type
-	comp1name = flag.String("p4rt_node_name1", "FPC0:NPU0", "component name for P4RT Node1")
-	comp2name = flag.String("p4rt_node_name2", "FPC1:NPU0", "component name for P4RT Node2")
 
 	electionId = uint64(100)
 	//Enter the P4RT openconfig node-id and P4RT port-id to be configured in DUT and for client connection
@@ -296,7 +293,7 @@ func TestP4rtConnect(t *testing.T) {
 
 	// configure DUT with P4RT node-id and ids on different FAPs
 	configureDUT(t, dut)
-	configureDeviceId(ctx, t, dut, []string{*comp1name, *comp2name}, []uint64{deviceId1, deviceId2})
+	configureDeviceId(ctx, t, dut, []string{*args.P4RTNodeName1, *args.P4RTNodeName2}, []uint64{deviceId1, deviceId2})
 
 	configurePortId(ctx, t, dut)
 	top := configureATE(t, ate)
