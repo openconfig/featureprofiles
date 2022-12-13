@@ -64,9 +64,6 @@ tests:
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
   patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
-  pretests:
-    - name: first_get_workaround
-      path: topologies/cisco/pretests/emsd_restart_test
   #args:
   #    - '-traffic_duration="20s"'
   #    - '-traffic_pause="2s"'
@@ -110,9 +107,6 @@ tests:
   owner: mananpat@cisco.com
   mustpass: true
   priority: 7
-  pretests:
-    - name: first_get_workaround
-      path: topologies/cisco/pretests/emsd_restart_test
 - name: TE-8.1 (DUT Daemon Failure)
   path: feature/experimental/gribi/ate_tests/dut_daemon_failure
   owner: mananpat@cisco.com
@@ -124,9 +118,6 @@ tests:
   owner: mananpat@cisco.com
   mustpass: true
   priority: 7
-  pretests:
-    - name: first_get_workaround
-      path: topologies/cisco/pretests/emsd_restart_test
 - name: TE-14.1 (gRIBI Scaling)
   path: feature/gribi/ate_tests/gribi_scaling
   # patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
