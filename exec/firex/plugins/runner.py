@@ -169,12 +169,12 @@ def BringupTestbed(self, ws, images = None,
         ondatra_repo.git.commit('-m', 'patched for testing')
 
     if (not topo_file or len(topo_file) == 0) and not skip_install:
+        images = images[0]
         image_version = check_output(
             f"/usr/bin/isoinfo -i {images} -x '/MDATA/BUILD_IN.TXT;1' " \
                 f"| tail -n1 | cut -d'=' -f2 | cut -d'-' -f1", 
             shell=True
         ).strip()
-        image_version = os.environ["XR_IMAGE_VERSION"]
         logger.print(f'Image version: {image_version}')
 
         install_cmd = f'{GO_BIN} test -v ' \
