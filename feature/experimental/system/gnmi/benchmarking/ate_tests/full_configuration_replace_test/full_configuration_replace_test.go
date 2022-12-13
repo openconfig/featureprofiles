@@ -15,7 +15,6 @@
 package full_configuration_replace_test
 
 import (
-	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -24,7 +23,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -59,9 +59,9 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 }
 
 // modIntfDesc builds OC config to modify description of a subset of interfaces.
-func modIntfDesc(t *testing.T) *telemetry.Device {
+func modIntfDesc(t *testing.T) *oc.Root {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	dutPorts := sortPorts(dut.Ports())
 
 	for i := 0; i < len(dutPorts); i++ {
@@ -80,29 +80,29 @@ func TestGnmiFullConfigReplace(t *testing.T) {
 	// Build pool of ip addresses to configure DUT interfaces
 	setup.BuildIPPool(t)
 
-	// Configure Network instance type on DUT
-	t.Log("Configure Network Instance")
-	dutConfNIPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfNIPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	t.Log("Configure Network Instance type to DEFAULT on DUT")
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
-	// Cleanup exisitng bgp and isis configs on DUT
-	dutBGPPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	dutBGPPath.Delete(t)
-	dutISISPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.IsisInstance).Isis()
-	dutISISPath.Delete(t)
+	t.Log("Cleanup exisitng bgp and isis configs on DUT before configuring test configs")
+	dutBGPPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	gnmi.Delete(t, dut, dutBGPPath.Config())
+	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.IsisInstance).Isis()
+	gnmi.Delete(t, dut, dutISISPath.Config())
 
 	t.Logf("Build interfaces, ISIS and BGP protocols configuration and send gNMI Set request")
 	setup.BuildOCUpdate(t)
 
 	t.Logf("Modify description of a subset of interfaces and send gNMI Set request")
 	d2 := modIntfDesc(t)
-	conf := dut.Config()
+	confP := gnmi.OC()
 
-	fptest.LogYgot(t, fmt.Sprintf("%s to Update()", dut), conf, d2)
+	fptest.LogQuery(t, "DUT", confP.Config(), d2)
 	//Start the timer.
 	start := time.Now()
 
-	conf.Update(t, d2)
+	//conf.Update(t, d2)
+	gnmi.Update(t, dut, confP.Config(), d2)
 
 	//End the timer and calculate time.
 	elapsed := time.Since(start)
