@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"text/template"
@@ -238,8 +239,13 @@ func main() {
 	// Targeted mode: remove untargeted tests
 	if len(testNames) > 0 {
 		targetedTests := map[string]bool{}
+		res := []*regexp.Regexp{}
 		for _, t := range testNames {
-			targetedTests[strings.Split(t, " ")[0]] = true
+			if strings.HasPrefix(t, "r/") {
+				res = append(res, regexp.MustCompile(t[2:]))
+			} else {
+				targetedTests[strings.Split(t, " ")[0]] = true
+			}
 		}
 
 		for i := range suite {
@@ -248,6 +254,13 @@ func main() {
 				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
 				if _, found := targetedTests[prefix]; found {
 					keptTests = append(keptTests, suite[i].Tests[j])
+				} else {
+					for _, re := range res {
+						if re.MatchString(suite[i].Tests[j].Name) {
+							keptTests = append(keptTests, suite[i].Tests[j])
+							break
+						}
+					}
 				}
 			}
 			suite[i].Tests = keptTests
