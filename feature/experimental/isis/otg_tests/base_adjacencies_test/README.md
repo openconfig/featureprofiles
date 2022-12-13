@@ -29,12 +29,12 @@ Base IS-IS functionality and adjacency establishment.
     *   Confirm in each case that that adjacency forms and the correct values
         are reported back by the device.
 *   Routing test
-    *   With ISIS level authentication enabled and hello authentication enabled:
-        *   Ensure that IPv4 and IPv6 prefixes that are advertised as attached
+*   With ISIS level authentication enabled and hello authentication enabled:
+    *   Ensure that IPv4 and IPv6 prefixes that are advertised as attached
             prefixes within each LSP are correctly installed into the DUT
             routing table, by ensuring that packets are received to the attached
             prefix when forwarded from ATE port-1.
-        *   Ensure that IPv4 and IPv6 prefixes that are advertised as part of an
+    *   Ensure that IPv4 and IPv6 prefixes that are advertised as part of an
             (emulated) neighboring system are installed into the DUT routing
             table, and validate that packets are sent and received to them.
     *   With a known LSP content, ensure that the telemetry received from the
