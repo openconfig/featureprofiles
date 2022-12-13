@@ -174,6 +174,7 @@ def BringupTestbed(self, ws, images = None,
                 f"| tail -n1 | cut -d'=' -f2 | cut -d'-' -f1", 
             shell=True
         ).strip()
+        image_version = os.environ["XR_IMAGE_VERSION"]
         logger.print(f'Image version: {image_version}')
 
         install_cmd = f'{GO_BIN} test -v ' \
