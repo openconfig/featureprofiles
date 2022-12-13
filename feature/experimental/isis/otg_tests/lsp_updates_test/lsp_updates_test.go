@@ -112,7 +112,6 @@ func TestMetric(t *testing.T) {
 	}
 
 	_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
-		time.Sleep(1 * time.Second)
 		metric, present := v.Val()
 		if present {
 			if metric == configuredMetric {
