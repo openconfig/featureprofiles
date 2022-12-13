@@ -54,8 +54,7 @@ type testArgs struct {
 }
 
 // programmTableEntry programs or deletes p4rt table entry based on delete flag.
-func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool, IsIpv4 bool) error {
-	t.Helper()
+func programmTableEntry(client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool, IsIpv4 bool) error {
 	err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   deviceId,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
@@ -64,14 +63,12 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 		),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
 	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // decodePacket decodes L2 header in the packet and returns TTL. packetData[14:0] to remove first 14 bytes of Ethernet header.
-func decodePacket4(packetData []byte) uint8 {
+func decodePacket4(t *testing.T, packetData []byte) uint8 {
+	t.Helper()
 	packet := gopacket.NewPacket(packetData[14:], layers.LayerTypeIPv4, gopacket.Default)
 	if IPv4 := packet.Layer(layers.LayerTypeIPv4); IPv4 != nil {
 		ipv4, _ := IPv4.(*layers.IPv4)
@@ -82,7 +79,8 @@ func decodePacket4(packetData []byte) uint8 {
 }
 
 // decodePacket decodes IPV6 L2 header in the packet and returns HopLimit. packetData[14:] to remove first 14 bytes of Ethernet header.
-func decodePacket6(packetData []byte) uint8 {
+func decodePacket6(t *testing.T, packetData []byte) uint8 {
+	t.Helper()
 	packet := gopacket.NewPacket(packetData[14:], layers.LayerTypeIPv6, gopacket.Default)
 	if IPv6 := packet.Layer(layers.LayerTypeIPv6); IPv6 != nil {
 		ipv6, _ := IPv6.(*layers.IPv6)
@@ -110,14 +108,15 @@ func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTCli
 	packets := []*p4rt_client.P4RTPacketInfo{}
 	for i := 0; i < expectNumber; i++ {
 		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
-		if err == io.EOF {
+		switch err {
+		case io.EOF:
 			t.Logf("EOF error is seen in PacketIn.")
 			break
-		} else if err == nil {
+		case nil:
 			if packet != nil {
 				packets = append(packets, packet)
 			}
-		} else {
+		default:
 			t.Fatalf("There is error seen when receving packets. %v, %s", err, err)
 			break
 		}
@@ -133,18 +132,18 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 
 	if IsIpv4 {
 		// Insert p4rtutils acl entry on the DUT
-		if err := programmTableEntry(ctx, t, leader, args.packetIO, false, true); err != nil {
+		if err := programmTableEntry(leader, args.packetIO, false, IsIpv4); err != nil {
 			t.Fatalf("There is error when programming entry")
 		}
 		// Delete p4rtutils acl entry on the device
-		defer programmTableEntry(ctx, t, leader, args.packetIO, true, true)
+		defer programmTableEntry(leader, args.packetIO, true, IsIpv4)
 	} else {
 		// Insert p4rtutils acl entry on the DUT
-		if err := programmTableEntry(ctx, t, leader, args.packetIO, false, false); err != nil {
+		if err := programmTableEntry(leader, args.packetIO, true, false); err != nil {
 			t.Fatalf("There is error when programming entry")
 		}
 		// Delete p4rtutils acl entry on the device
-		defer programmTableEntry(ctx, t, leader, args.packetIO, true, false)
+		defer programmTableEntry(leader, args.packetIO, true, false)
 	}
 
 	// Send GDP traffic from ATE
@@ -187,47 +186,48 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 				if !test.expectPass {
 					if len(packets) > 0 {
 						t.Fatalf("Unexpected packets received.")
+						return
 					}
+					return
 				} else {
 					if len(packets) == 0 {
 						t.Fatalf("There are no packets received.")
+						return
 					}
 					t.Logf("Start to decode packet and compare with expected packets.")
 					wantPacket := args.packetIO.GetPacketTemplate()
 					for _, packet := range packets {
 						if packet != nil {
 							if wantPacket.TTL != nil {
+								//TTL/HopLimit comparison for IPV4 & IPV6
 								if IsIpv4 {
 									if TTL.TTL == 1 {
-										captureTTL := decodePacket4(packet.Pkt.GetPayload())
+										captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
 										if captureTTL != TTL1 {
-											t.Log(*wantPacket.TTL)
-											t.Log(TTL)
-											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4")
+											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")
 										}
 									} else {
-										captureTTL := decodePacket4(packet.Pkt.GetPayload())
+										captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
 										if captureTTL != TTL0 {
-											t.Log(*wantPacket.TTL)
-											t.Log(TTL)
-											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4")
+											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL0")
 										}
 									}
 								} else {
 									if TTL.TTL == 1 {
-										captureHopLimit := decodePacket6(packet.Pkt.GetPayload())
+										captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
 										if captureHopLimit != HopLimit1 {
-											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6")
+											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit1")
 										}
 									} else {
-										captureHopLimit := decodePacket6(packet.Pkt.GetPayload())
+										captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
 										if captureHopLimit != HopLimit0 {
-											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6")
+											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit0")
 										}
 									}
 								}
 							}
 
+							//Metadata comparision
 							metaData := packet.Pkt.GetMetadata()
 							for _, data := range metaData {
 								if data.GetMetadataId() == METADATA_INGRESS_PORT {
@@ -243,7 +243,6 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 									if !found {
 										t.Fatalf("Egress Port Id is not matching expectation.")
 									}
-
 								}
 							}
 						}
