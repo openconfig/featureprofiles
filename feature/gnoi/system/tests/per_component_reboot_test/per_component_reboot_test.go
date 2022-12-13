@@ -23,19 +23,21 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
-	controlcardType   = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	linecardType      = telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
-	activeController  = telemetry.PlatformTypes_ComponentRedundantRole_PRIMARY
-	standbyController = telemetry.PlatformTypes_ComponentRedundantRole_SECONDARY
+	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	linecardType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
+	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
+	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 )
 
 func TestMain(m *testing.M) {
@@ -107,10 +109,9 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 	}
 	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
 
-	watch := dut.Telemetry().Component(rpStandby).RedundantRole().Watch(
-		t, 10*time.Minute, func(val *telemetry.QualifiedE_PlatformTypes_ComponentRedundantRole) bool {
-			return val.IsPresent()
-		})
+	watch := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+		return val.IsPresent()
+	})
 	if val, ok := watch.Await(t); !ok {
 		t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
 	}
@@ -133,11 +134,11 @@ func TestLinecardReboot(t *testing.T) {
 	var removableLinecard string
 	for _, lc := range lcs {
 		t.Logf("Check if %s is removable", lc)
-		if got := dut.Telemetry().Component(lc).Removable().Lookup(t).IsPresent(); !got {
+		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Removable().State()).IsPresent(); !got {
 			t.Logf("Detected non-removable line card: %v", lc)
 			continue
 		}
-		if got := dut.Telemetry().Component(lc).Removable().Get(t); got {
+		if got := gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()); got {
 			t.Logf("Found removable line card: %v", lc)
 			removableLinecard = lc
 		}
@@ -185,16 +186,20 @@ func TestLinecardReboot(t *testing.T) {
 	}
 
 	t.Logf("Validate removable linecard %v status", removableLinecard)
-	dut.Telemetry().Component(removableLinecard).Removable().Await(t, linecardBoottime, true)
+	gnmi.Await(t, dut, gnmi.OC().Component(removableLinecard).Removable().State(), linecardBoottime, true)
 
 	t.Logf("Validate interface OperStatus.")
-	batch := dut.Telemetry().NewBatch()
+	batch := gnmi.OCBatch()
 	for _, port := range intfsOperStatusUPBeforeReboot {
-		dut.Telemetry().Interface(port).OperStatus().Batch(t, batch)
+		batch.AddPaths(gnmi.OC().Interface(port).OperStatus())
 	}
-	watch := batch.Watch(t, 5*time.Minute, func(val *telemetry.QualifiedDevice) bool {
+	watch := gnmi.Watch(t, dut, batch.State(), 5*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
+		root, present := val.Val()
+		if !present {
+			return false
+		}
 		for _, port := range intfsOperStatusUPBeforeReboot {
-			if val.Val(t).GetInterface(port).GetOperStatus() != telemetry.Interface_OperStatus_UP {
+			if root.GetInterface(port).GetOperStatus() != oc.Interface_OperStatus_UP {
 				return false
 			}
 		}
@@ -210,14 +215,13 @@ func TestLinecardReboot(t *testing.T) {
 func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
 	var activeRP, standbyRP string
 	for _, supervisor := range supervisors {
-		watch := dut.Telemetry().Component(supervisor).RedundantRole().Watch(
-			t, 5*time.Minute, func(val *telemetry.QualifiedE_PlatformTypes_ComponentRedundantRole) bool {
-				return val.IsPresent()
-			})
+		watch := gnmi.Watch(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 5*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+			return val.IsPresent()
+		})
 		if val, ok := watch.Await(t); !ok {
 			t.Fatalf("DUT did not reach target state within %v: got %v", 5*time.Minute, val)
 		}
-		role := dut.Telemetry().Component(supervisor).RedundantRole().Get(t)
+		role := gnmi.Get(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State())
 		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
 		if role == standbyController {
 			standbyRP = supervisor
@@ -237,10 +241,10 @@ func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (
 
 func fetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice) []string {
 	intfsOperStatusUP := []string{}
-	intfs := dut.Telemetry().InterfaceAny().Name().Get(t)
+	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
 	for _, intf := range intfs {
-		operStatus := dut.Telemetry().Interface(intf).OperStatus().Lookup(t)
-		if operStatus.IsPresent() && operStatus.Val(t) == telemetry.Interface_OperStatus_UP {
+		operStatus := gnmi.Lookup(t, dut, gnmi.OC().Interface(intf).OperStatus().State())
+		if status, present := operStatus.Val(); present && status == oc.Interface_OperStatus_UP {
 			intfsOperStatusUP = append(intfsOperStatusUP, intf)
 		}
 	}

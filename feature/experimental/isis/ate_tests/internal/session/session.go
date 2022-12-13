@@ -52,7 +52,7 @@ const (
 )
 
 var (
-	// Network entity title for the DUT
+	// DUTNET is the Network Entity Title for the DUT
 	DUTNET = fmt.Sprintf("%v.%v.00", DUTAreaAddress, DUTSysID)
 	// DUTISISAttrs has attributes for the DUT ISIS connection on port1
 	DUTISISAttrs = &Attributes{
@@ -105,6 +105,7 @@ func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
 func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
+	prot.Enabled = ygot.Bool(true)
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
 	glob.Instance = ygot.String(ISISName)

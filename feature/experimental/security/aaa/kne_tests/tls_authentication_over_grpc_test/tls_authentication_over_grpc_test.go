@@ -30,7 +30,8 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	telemetry "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 var (
@@ -76,13 +77,12 @@ func TestAuthentication(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	dut.Config().System().Aaa().Authentication().
-		User("alice").
-		Replace(t, &telemetry.System_Aaa_Authentication_User{
-			Username: ygot.String("alice"),
-			Password: ygot.String("password"),
-			Role:     telemetry.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
-		})
+	gnmi.Replace(t, dut, gnmi.OC().System().Aaa().Authentication().
+		User("alice").Config(), &oc.System_Aaa_Authentication_User{
+		Username: ygot.String("alice"),
+		Password: ygot.String("password"),
+		Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
+	})
 
 	tests := []struct {
 		desc       string

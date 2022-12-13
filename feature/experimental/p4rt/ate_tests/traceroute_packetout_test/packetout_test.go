@@ -21,6 +21,7 @@ import (
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
@@ -69,7 +70,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 		for _, ttl := range ttls {
 			t.Logf("Sending ipv4 pakcets with ttl %d", ttl)
-			counter0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 			t.Logf("Initial number of packets: %d", counter0)
 
 			packets := args.packetIO.GetPacketOut(portId, true, uint8(ttl))
@@ -82,7 +83,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			time.Sleep(60 * time.Second)
 
 			// Check packet counters after packet out
-			counter1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			counter1 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 			t.Logf("Final number of packets: %d", counter1)
 
 			// Verify InPkts stats to check P4RT stream
@@ -103,7 +104,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 		for _, ttl := range ttls {
 			t.Logf("Sending ipv6 packets with ttl = %d", ttl)
-			counter0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 			t.Logf("Initial number of packets: %d", counter0)
 
 			packets := args.packetIO.GetPacketOut(portId, false, uint8(ttl))
@@ -116,7 +117,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			time.Sleep(60 * time.Second)
 
 			// Check packet counters after packet out
-			counter1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
+			counter1 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 			t.Logf("Final number of packets: %d", counter1)
 
 			// Verify InPkts stats to check P4RT stream
