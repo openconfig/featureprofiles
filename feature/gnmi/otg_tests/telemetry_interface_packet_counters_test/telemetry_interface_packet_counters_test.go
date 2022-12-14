@@ -21,8 +21,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -33,21 +35,21 @@ func TestMain(m *testing.M) {
 func TestEthernetCounters(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
-	counters := dut.Telemetry().Interface(dp.Name()).Ethernet().Counters()
+	counters := gnmi.OC().Interface(dp.Name()).Ethernet().Counters()
 	ethCounterPath := "/interfaces/interface/ethernet/state/counters/"
 
 	cases := []struct {
 		desc    string
 		path    string
-		counter *telemetry.QualifiedUint64
+		counter *ygnmi.Value[uint64]
 	}{{
 		desc:    "InMacPauseFrames",
 		path:    ethCounterPath + "out-mac-pause-frames",
-		counter: counters.InMacPauseFrames().Lookup(t),
+		counter: gnmi.Lookup(t, dut, counters.InMacPauseFrames().State()),
 	}, {
 		desc:    "OutMacPauseFrames",
 		path:    ethCounterPath + "in-mac-pause-frames",
-		counter: counters.OutMacPauseFrames().Lookup(t),
+		counter: gnmi.Lookup(t, dut, counters.OutMacPauseFrames().State()),
 	}, {
 		desc: "InMaxsizeExceeded",
 		path: ethCounterPath + "in-maxsize-exceeded",
@@ -56,15 +58,15 @@ func TestEthernetCounters(t *testing.T) {
 	}, {
 		desc:    "InFragmentFrames",
 		path:    ethCounterPath + "in-fragment-frames",
-		counter: counters.InFragmentFrames().Lookup(t),
+		counter: gnmi.Lookup(t, dut, counters.InFragmentFrames().State()),
 	}, {
 		desc:    "InCrcErrors",
 		path:    ethCounterPath + "in-crc-errors",
-		counter: counters.InCrcErrors().Lookup(t),
+		counter: gnmi.Lookup(t, dut, counters.InCrcErrors().State()),
 	}, {
 		desc:    "InJabberFrames",
 		path:    ethCounterPath + "in-jabber-frames",
-		counter: counters.InJabberFrames().Lookup(t),
+		counter: gnmi.Lookup(t, dut, counters.InJabberFrames().State()),
 	}}
 
 	for _, tc := range cases {
@@ -74,10 +76,11 @@ func TestEthernetCounters(t *testing.T) {
 				t.Skipf("Counter in-maxsize-exceeded is not supported yet.")
 			}
 
-			if !tc.counter.IsPresent() {
+			val, present := tc.counter.Val()
+			if !present {
 				t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
 			}
-			t.Logf("Got path/value: %s:%d", tc.path, tc.counter.Val(t))
+			t.Logf("Got path/value: %s:%d", tc.path, val)
 		})
 	}
 }
@@ -90,8 +93,8 @@ func TestInterfaceCounters(t *testing.T) {
 	ConfigureDUTIntf(t, dut)
 
 	// TODO: Uncomment the code which is commented out after the issue fixed.
-	intfCounters := dut.Telemetry().Interface(dp.Name()).Counters()
-	subint := dut.Telemetry().Interface(dp.Name()).Subinterface(0)
+	intfCounters := gnmi.OC().Interface(dp.Name()).Counters()
+	subint := gnmi.OC().Interface(dp.Name()).Subinterface(0)
 	ipv4Counters := subint.Ipv4().Counters()
 	ipv6Counters := subint.Ipv6().Counters()
 	intfCounterPath := "/interfaces/interface/state/counters/"
@@ -101,43 +104,43 @@ func TestInterfaceCounters(t *testing.T) {
 	cases := []struct {
 		desc    string
 		path    string
-		counter *telemetry.QualifiedUint64
+		counter *ygnmi.Value[uint64]
 	}{{
 		desc:    "InUnicastPkts",
 		path:    intfCounterPath + "in-unicast-pkts",
-		counter: intfCounters.InUnicastPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, intfCounters.InUnicastPkts().State()),
 	}, {
 		desc:    "InPkts",
 		path:    intfCounterPath + "in-pkts",
-		counter: intfCounters.InPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, intfCounters.InPkts().State()),
 	}, {
 		desc:    "OutPkts",
 		path:    intfCounterPath + "out-pkts",
-		counter: intfCounters.OutPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, intfCounters.OutPkts().State()),
 	}, {
 		// desc: "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",
-		counter: ipv4Counters.InPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, ipv4Counters.InPkts().State()),
 	}, {
 		// desc: "IPv4OutPkts",
 		path:    ipv4CounterPath + "out-pkts",
-		counter: ipv4Counters.OutPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, ipv4Counters.OutPkts().State()),
 	}, {
 		// desc: "IPv6InPkts",
 		path:    ipv6CounterPath + "in-pkts",
-		counter: ipv6Counters.InPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, ipv6Counters.InPkts().State()),
 	}, {
 		// desc: "IPv6OutPkts",
 		path:    ipv6CounterPath + "out-pkts",
-		counter: ipv6Counters.OutPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, ipv6Counters.OutPkts().State()),
 	}, {
 		// desc: "IPv6InDiscardedPkts",
 		path:    ipv6CounterPath + "in-discarded-pkts",
-		counter: ipv6Counters.InDiscardedPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, ipv6Counters.InDiscardedPkts().State()),
 	}, {
 		// desc: "IPv6OutDiscardedPkts",
 		path:    ipv6CounterPath + "out-discarded-pkts",
-		counter: ipv6Counters.OutDiscardedPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, ipv6Counters.OutDiscardedPkts().State()),
 	}}
 
 	for _, tc := range cases {
@@ -147,10 +150,11 @@ func TestInterfaceCounters(t *testing.T) {
 				t.Skipf("Counter %v is not supported.", tc.desc)
 			}
 
-			if !tc.counter.IsPresent() {
+			val, present := tc.counter.Val()
+			if !present {
 				t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
 			}
-			t.Logf("Got path/value: %s:%d", tc.path, tc.counter.Val(t))
+			t.Logf("Got path/value: %s:%d", tc.path, val)
 		})
 	}
 }
@@ -220,17 +224,17 @@ func TestIntfCounterUpdate(t *testing.T) {
 	otg.StartProtocols(t)
 
 	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
-	i1 := dut.Telemetry().Interface(dp1.Name())
+	i1 := gnmi.OC().Interface(dp1.Name())
 	// subintf1 := i1.Subinterface(0)
 	dutInPktsBeforeTraffic := map[string]uint64{
-		"parent": i1.Counters().InUnicastPkts().Get(t),
+		"parent": gnmi.Get(t, dut, i1.Counters().InUnicastPkts().State()),
 		// "ipv4":   subintf1.Ipv4().Counters().InPkts().Get(t),
 		// "ipv6":   subintf1.Ipv6().Counters().InPkts().Get(t),
 	}
-	i2 := dut.Telemetry().Interface(dp2.Name())
+	i2 := gnmi.OC().Interface(dp2.Name())
 	// subintf2 := i2.Subinterface(0)
 	dutOutPktsBeforeTraffic := map[string]uint64{
-		"parent": i2.Counters().OutUnicastPkts().Get(t),
+		"parent": gnmi.Get(t, dut, i2.Counters().OutUnicastPkts().State()),
 		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
 		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
 	}
@@ -244,18 +248,18 @@ func TestIntfCounterUpdate(t *testing.T) {
 	otg.StopTraffic(t)
 
 	// Check interface status is up.
-	ds1 := dut.Telemetry().Interface(dp1.Name()).OperStatus().Get(t)
-	if want := telemetry.Interface_OperStatus_UP; ds1 != want {
+	ds1 := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State())
+	if want := oc.Interface_OperStatus_UP; ds1 != want {
 		t.Errorf("Get(DUT port1 status): got %v, want %v", ds1, want)
 	}
-	ds2 := dut.Telemetry().Interface(dp2.Name()).OperStatus().Get(t)
-	if want := telemetry.Interface_OperStatus_UP; ds2 != want {
+	ds2 := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State())
+	if want := oc.Interface_OperStatus_UP; ds2 != want {
 		t.Errorf("Get(DUT port2 status): got %v, want %v", ds2, want)
 	}
 
 	// Verifying the ate port link state
 	for _, p := range config.Ports().Items() {
-		portMetrics := otg.Telemetry().Port(p.Name()).Get(t)
+		portMetrics := gnmi.Get(t, otg, gnmi.OTG().Port(p.Name()).State())
 		if portMetrics.GetLink() != otgtelemetry.Port_Link_UP {
 			t.Errorf("Get(ATE %v status): got %v, want %v", p.Name(), portMetrics.GetLink(), otgtelemetry.Port_Link_UP)
 		}
@@ -266,7 +270,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	ateInPkts := map[string]uint64{}
 	ateOutPkts := map[string]uint64{}
 	for _, f := range config.Flows().Items() {
-		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
+		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
 		if f.Name() == "IPv4_test_flow" {
 			ateInPkts["IPv4"] = recvMetric.GetCounters().GetInPkts()
 			ateOutPkts["IPv4"] = recvMetric.GetCounters().GetOutPkts()
@@ -300,12 +304,12 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
 	dutInPktsAfterTraffic := map[string]uint64{
-		"parent": i1.Counters().InUnicastPkts().Get(t),
+		"parent": gnmi.Get(t, dut, i1.Counters().InUnicastPkts().State()),
 		// "ipv4":   subintf1.Ipv4().Counters().InPkts().Get(t),
 		// "ipv6":   subintf1.Ipv6().Counters().InPkts().Get(t),
 	}
 	dutOutPktsAfterTraffic := map[string]uint64{
-		"parent": i2.Counters().OutUnicastPkts().Get(t),
+		"parent": gnmi.Get(t, dut, i2.Counters().OutUnicastPkts().State()),
 		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
 		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
 	}
@@ -352,10 +356,10 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure IPv4 and IPv6 addresses under subinterface.
 	for _, intf := range dutIntfs {
 		t.Logf("Configure DUT interface %s with attributes %v", intf.intfName, intf)
-		i := &telemetry.Interface{
+		i := &oc.Interface{
 			Name:        ygot.String(intf.intfName),
 			Description: ygot.String(intf.desc),
-			Type:        telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0)
@@ -373,14 +377,14 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		v4.Enabled = ygot.Bool(true)
 		v6.Enabled = ygot.Bool(true)
 
-		dut.Config().Interface(intf.intfName).Replace(t, i)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 
 		t.Logf("Validate that IPv4 and IPv6 addresses are enabled: %s", intf.intfName)
-		subint := dut.Telemetry().Interface(intf.intfName).Subinterface(0)
-		if !subint.Ipv4().Enabled().Get(t) {
+		subint := gnmi.OC().Interface(intf.intfName).Subinterface(0)
+		if !gnmi.Get(t, dut, subint.Ipv4().Enabled().State()) {
 			t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
 		}
-		if !subint.Ipv6().Enabled().Get(t) {
+		if !gnmi.Get(t, dut, subint.Ipv6().Enabled().State()) {
 			t.Errorf("Ipv6().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
 		}
 	}
@@ -393,11 +397,11 @@ func TestInterfaceCPU(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
 	path := "/interfaces/interface/state/cpu"
-	cpu := dut.Telemetry().Interface(dp.Name()).Cpu().Lookup(t)
-	if !cpu.IsPresent() {
+	cpu, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Cpu().State()).Val()
+	if !present {
 		t.Errorf("cpu.IsPresent() for path: %q: got false, want true", path)
 	} else {
-		t.Logf("Got path/value: %s:%v", path, cpu.Val(t))
+		t.Logf("Got path/value: %s:%v", path, cpu)
 	}
 }
 
@@ -408,11 +412,11 @@ func TestInterfaceMgmt(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
 	path := "/interfaces/interface/state/management"
-	mgmt := dut.Telemetry().Interface(dp.Name()).Management().Lookup(t)
-	if !mgmt.IsPresent() {
+	mgmt, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Management().State()).Val()
+	if !present {
 		t.Errorf("mgmt.IsPresent() for path: %q: got false, want true", path)
 	} else {
-		t.Logf("Got path/value: %s:%v", path, mgmt.Val(t))
+		t.Logf("Got path/value: %s:%v", path, mgmt)
 	}
 }
 
@@ -421,13 +425,11 @@ func waitOTGARPEntry(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
 
-	otg.Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-			return val.IsPresent()
-		}).Await(t)
-	otg.Telemetry().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-			return val.IsPresent()
-		}).Await(t)
+	gnmi.WatchAll(t, otg, gnmi.OTG().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	gnmi.WatchAll(t, otg, gnmi.OTG().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
 
 }

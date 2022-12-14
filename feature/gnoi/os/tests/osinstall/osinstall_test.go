@@ -26,13 +26,14 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	closer "github.com/openconfig/gocloser"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	ospb "github.com/openconfig/gnoi/os"
 	spb "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 var packageReader func(context.Context) (io.ReadCloser, error) = func(ctx context.Context) (io.ReadCloser, error) {
@@ -145,7 +146,7 @@ func (tc *testCase) fetchStandbySupervisorStatus(ctx context.Context, t *testing
 }
 
 func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T) {
-	bootTime := tc.dut.Telemetry().System().BootTime().Get(t)
+	bootTime := gnmi.Get(t, tc.dut, gnmi.OC().System().BootTime().State())
 	deadline := time.Now().Add(*timeout)
 
 	t.Log("Send DUT Reboot Request")
@@ -158,18 +159,24 @@ func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T) {
 		t.Fatalf("System.Reboot request failed: %s", err)
 	}
 	for {
-		var curBootTime *telemetry.QualifiedUint64
+		var curBootTime *ygnmi.Value[uint64]
 
 		// While the device is rebooting, Lookup will fatal due to unresponsive GNMI service.
 		testt.CaptureFatal(t, func(t testing.TB) {
-			curBootTime = tc.dut.Telemetry().System().BootTime().Lookup(t)
+			curBootTime = gnmi.Lookup(t, tc.dut, gnmi.OC().System().BootTime().State())
 		})
 
-		if curBootTime != nil && curBootTime.Val(t) > bootTime {
-			t.Log("Reboot completed.")
-			break
-		} else if curBootTime != nil && curBootTime.Val(t) == bootTime {
-			t.Log("DUT has not rebooted.")
+		if curBootTime != nil {
+			val, present := curBootTime.Val()
+			if !present {
+				t.Log("Reboot time not present")
+			}
+			if val > bootTime {
+				t.Log("Reboot completed.")
+				break
+			} else if val == bootTime {
+				t.Log("DUT has not rebooted.")
+			}
 		}
 
 		if time.Now().After(deadline) {

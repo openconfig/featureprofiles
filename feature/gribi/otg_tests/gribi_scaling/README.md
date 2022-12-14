@@ -10,7 +10,7 @@ Validate gRIBI scaling requirements.
 *   Create 64 L3 sub-interfaces under DUT port-2 and corresponding 64 L3
     sub-interfaces on ATE port-2
 *   Establish gRIBI client connection with DUT negotiating FIBACK as the
-    requested ack_type.
+    requested ack_type and make it become leader.
 *   Using gRIBI Modify RPC install the following IPv4Entry sets, and validate
     the specified behaviours:
     *   <Default VRF> IPv4Entries -> NHG -> Multiple NH.
