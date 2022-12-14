@@ -89,11 +89,14 @@ func TestRebootStatus(t *testing.T) {
 
 	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
 	if !*deviations.GNOIStatusWithEmptySubcomponent {
-		supervisors := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+		controllerCards := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+		if len(controllerCards) == 0 {
+			t.Fatal("No controller card components found in DUT.")
+		}
 		// the test reboots the chasis, so any subcomponent should be ok to check the status
 		statusReq = &spb.RebootStatusRequest{
 			Subcomponents: []*tpb.Path{
-				components.GetSubcomponentPath(supervisors[0]),
+				components.GetSubcomponentPath(controllerCards[0]),
 			},
 		}
 	}
@@ -102,6 +105,7 @@ func TestRebootStatus(t *testing.T) {
 			if tc.rebootRequest != nil {
 				t.Logf("Send reboot request: %v", tc.rebootRequest)
 				rebootResponse, err := gnoiClient.System().Reboot(context.Background(), tc.rebootRequest)
+				defer gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
 				t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
 				if err != nil {
 					t.Fatalf("Failed to request reboot with unexpected err: %v", err)
@@ -159,17 +163,21 @@ func TestCancelReboot(t *testing.T) {
 
 	t.Logf("Send reboot request: %v", rebootRequest)
 	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+	defer gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
 	t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
 	if err != nil {
 		t.Fatalf("Failed to request reboot with unexpected err: %v", err)
 	}
 	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
 	if !*deviations.GNOIStatusWithEmptySubcomponent {
-		supervisors := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+		controllerCards := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+		if len(controllerCards) == 0 {
+			t.Fatal("No controller card components found in DUT.")
+		}
 		// the test reboots the chasis, so any subcomponent should be ok to check the status
 		statusReq = &spb.RebootStatusRequest{
 			Subcomponents: []*tpb.Path{
-				components.GetSubcomponentPath(supervisors[0]),
+				components.GetSubcomponentPath(controllerCards[0]),
 			},
 		}
 	}

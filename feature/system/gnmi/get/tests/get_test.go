@@ -22,8 +22,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ygot/ytypes"
 	"google.golang.org/grpc/codes"
@@ -98,7 +98,7 @@ func TestGNMIGet(t *testing.T) {
 			protocmp.IgnoreFields(&gpb.GetResponse{}, "notification"),
 		},
 		chkFn: func(t *testing.T, res *gpb.GetResponse) {
-			d := &fpoc.Device{}
+			d := &oc.Root{}
 			for _, n := range res.Notification {
 				for _, u := range n.Update {
 					// The updates here are all TypedValue JSON_IETF fields that should be
@@ -106,7 +106,7 @@ func TestGNMIGet(t *testing.T) {
 					if u.GetVal().GetJsonIetfVal() == nil {
 						t.Fatalf("got an update with a non JSON_IETF schema, got: %s", u)
 					}
-					if err := fpoc.Unmarshal(u.Val.GetJsonIetfVal(), d, &ytypes.IgnoreExtraFields{}); err != nil {
+					if err := oc.Unmarshal(u.Val.GetJsonIetfVal(), d, &ytypes.IgnoreExtraFields{}); err != nil {
 						t.Fatalf("cannot call Unmarshal for path %s, err: %v", u.Path, err)
 					}
 				}
