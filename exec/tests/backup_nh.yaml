@@ -11,3 +11,4 @@ tests:
   mustpass: true
   args: 
     - '-gribi_fib_check="true"'
+    - '-gribi_aft_check="false"'
