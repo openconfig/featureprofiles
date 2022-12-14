@@ -118,6 +118,13 @@ type dutData struct {
 	bgpOC *oc.NetworkInstance_Protocol_Bgp
 }
 
+func configureRoutingPolicy(d *oc.Root) *oc.RoutingPolicy {
+	rp := d.GetOrCreateRoutingPolicy()
+	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
+	pdef.GetOrCreateStatement("20").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	return rp
+}
+
 func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 		ocName := dut.Port(t, a.Name).Name()
@@ -145,6 +152,8 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 			},
 		},
 	}
+	rpl := configureRoutingPolicy(&oc.Root{})
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
 	gnmi.Replace(t, dut, dutProto.Config(), niOC.Protocol[key])
 }
 
