@@ -19,10 +19,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gnps "github.com/openconfig/gnoi/system"
 	grps "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
@@ -50,10 +52,11 @@ func TestMain(m *testing.M) {
 //   * Destination network: -> 203.0.113.0/24
 
 const (
-	ipv4PrefixLen = 30
-	ateDstNetCIDR = "203.0.113.0/24"
-	nhIndex       = 1
-	nhgIndex      = 42
+	ipv4PrefixLen    = 30
+	ateDstNetCIDR    = "203.0.113.0/24"
+	ateDstNetStartIp = "203.0.113.1"
+	nhIndex          = 1
+	nhgIndex         = 42
 )
 
 var (
@@ -65,6 +68,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -77,6 +81,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -121,58 +126,45 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureATE configures port1 and port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	otg := ate.OTG()
+	top := otg.NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
-
 	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
+
+	atePort1.AddToOTG(top, p1, &dutPort1)
+	atePort2.AddToOTG(top, p2, &dutPort2)
+
+	flow := top.Flows().Add().SetName("Flow")
+	flow.Metrics().SetEnable(true)
+	e1 := flow.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
+	v4 := flow.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort1.IPv4)
+	v4.Dst().Increment().SetStart(ateDstNetStartIp).SetCount(250)
 
 	return top
 }
 
-// startTraffic generates traffic flow from source network to
-// destination network via srcEndPoint to dstEndPoint.
-// Returns the flow object that it creates.
-func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint, dstEndPoint *ondatra.Interface) *ondatra.Flow {
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.DstAddressRange().
-		WithMin("203.0.113.1").
-		WithMax("203.0.113.250").
-		WithCount(250)
-
-	flow := ate.Traffic().NewFlow("Flow").
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint).
-		WithHeaders(ethHeader, ipv4Header)
-
-	ate.Traffic().Start(t, flow)
-
-	return flow
-}
-
 // stopAndVerifyTraffic stops traffic on the ATE
 // and checks for packet loss for the given flow.
-func stopAndVerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
+func stopAndVerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 
-	ate.Traffic().Stop(t)
+	flowName := "Flow"
+	ate.OTG().StopTraffic(t)
+	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 	time.Sleep(time.Minute)
 
-	flowPath := gnmi.OC().Flow(flow.Name())
-	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got != 0 {
-		t.Errorf("FAIL: LossPct for flow named %s got %g, want 0", flow.Name(), got)
+	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
+	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().InPkts().State())
+
+	if got := (txPkts - rxPkts) * 100 / txPkts; got != 0 {
+		t.Errorf("FAIL: LossPct for flow named %s got %v, want 0", flowName, got)
 	} else {
-		t.Logf("LossPct for flow named %s got %g, want 0", flow.Name(), got)
+		t.Logf("LossPct for flow named %s got %v, want 0", flowName, got)
 	}
 }
 
@@ -181,7 +173,7 @@ type testArgs struct {
 	ctx context.Context
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
-	top *ondatra.ATETopology
+	top gosnappi.Config
 }
 
 // addRoute programs an IPv4 route entry through the given gRIBI client
@@ -208,13 +200,11 @@ func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 // verifyTraffic verifies that traffic flows through the DUT without any loss.
 func verifyTraffic(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify by running traffic that %s is active", ateDstNetCIDR)
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()[atePort2.Name]
 
-	flow := startTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+	args.ate.OTG().StartTraffic(t)
 	t.Logf("Wait for 15 seconds")
 	time.Sleep(15 * time.Second)
-	stopAndVerifyTraffic(t, args.ate, flow)
+	stopAndVerifyTraffic(t, args.ate, args.top)
 
 }
 
@@ -271,7 +261,6 @@ func TestDUTDaemonFailure(t *testing.T) {
 	start := time.Now()
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
-	var flow *ondatra.Flow
 
 	// Check if vendor specific gRIBI daemon name has been added to gRIBIDaemons var
 	if _, ok := gRIBIDaemons[dut.Vendor()]; !ok {
@@ -286,7 +275,8 @@ func TestDUTDaemonFailure(t *testing.T) {
 	t.Logf("Configure ATE")
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	t.Logf("Time check: %s", time.Since(start))
 
@@ -333,10 +323,7 @@ func TestDUTDaemonFailure(t *testing.T) {
 
 	t.Run("RestartTraffic", func(t *testing.T) {
 
-		srcEndPoint := top.Interfaces()[atePort1.Name]
-		dstEndPoint := top.Interfaces()[atePort2.Name]
-
-		flow = startTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+		args.ate.OTG().StartTraffic(t)
 
 		t.Logf("Wait for 15 seconds")
 		time.Sleep(15 * time.Second)
@@ -376,7 +363,7 @@ func TestDUTDaemonFailure(t *testing.T) {
 		})
 
 		t.Run("VerifyTrafficContinuesToFlow", func(t *testing.T) {
-			stopAndVerifyTraffic(t, args.ate, flow)
+			stopAndVerifyTraffic(t, args.ate, args.top)
 		})
 
 	})
