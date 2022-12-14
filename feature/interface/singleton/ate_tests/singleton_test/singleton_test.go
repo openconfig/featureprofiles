@@ -326,24 +326,26 @@ func (tc *testCase) verifyATE(t *testing.T) {
 }
 
 type counters struct {
-	unicast, multicast, broadcast uint64
+	unicast, multicast, broadcast, drop uint64
 }
 
 func inCounters(tic *oc.Interface_Counters) *counters {
 	return &counters{unicast: tic.GetInUnicastPkts(),
 		multicast: tic.GetInMulticastPkts(),
-		broadcast: tic.GetInBroadcastPkts()}
+		broadcast: tic.GetInBroadcastPkts(),
+		drop:      tic.GetInDiscards()}
 }
 
 func outCounters(tic *oc.Interface_Counters) *counters {
 	return &counters{unicast: tic.GetOutUnicastPkts(),
-		multicast: tic.GetOutMulticastPkts(), broadcast: tic.GetOutBroadcastPkts()}
+		multicast: tic.GetOutMulticastPkts(), broadcast: tic.GetOutBroadcastPkts(), drop: tic.GetInDiscards()}
 }
 
 func diffCounters(before, after *counters) *counters {
 	return &counters{unicast: after.unicast - before.unicast,
 		multicast: after.multicast - before.multicast,
-		broadcast: after.broadcast - before.broadcast}
+		broadcast: after.broadcast - before.broadcast,
+		drop:      after.drop - before.drop}
 }
 
 // testFlow returns whether the traffic flow from ATE port1 to ATE
@@ -421,7 +423,9 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 	}
 
 	if pktlmtu {
-		t.Logf("Skipping packet check for packets larger than MTU")
+		if p1InDiff.drop < outPkts {
+			t.Errorf("DUT dropped too few source packets: got %d, want >= %d", p1InDiff.drop, outPkts)
+		}
 	} else {
 		if p1InDiff.unicast < outPkts {
 			t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
