@@ -5,6 +5,9 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 var (

@@ -3,8 +3,6 @@ package confgen
 import (
 	"os"
 	"testing"
-
-	oc "github.com/openconfig/ondatra/telemetry"
 )
 
 var bundles = []Bundle{

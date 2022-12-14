@@ -4,15 +4,16 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/tools/inputcisco/proto"
-	oc "github.com/openconfig/ondatra/telemetry"
 
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 // ConfigVrf Configures Vrf as per input file
 func ConfigVrf(dev *ondatra.DUTDevice, t *testing.T, vrf *proto.InputVrf) error {
 
-	dev.Config().NetworkInstance(vrf.Name).Update(t, configVrf(vrf))
+	gnmi.Update(t, dev, gnmi.OC().NetworkInstance(vrf.Name).Config(), configVrf(vrf))
 	return nil
 
 }
@@ -20,7 +21,7 @@ func ConfigVrf(dev *ondatra.DUTDevice, t *testing.T, vrf *proto.InputVrf) error 
 // ReplaceVrf Replaces Vrfs as per input file
 func ReplaceVrf(dev *ondatra.DUTDevice, t *testing.T, vrf *proto.InputVrf) error {
 
-	dev.Config().NetworkInstance(vrf.Name).Replace(t, configVrf(vrf))
+	gnmi.Replace(t, dev, gnmi.OC().NetworkInstance(vrf.Name).Config(), configVrf(vrf))
 	return nil
 
 }
@@ -28,7 +29,7 @@ func ReplaceVrf(dev *ondatra.DUTDevice, t *testing.T, vrf *proto.InputVrf) error
 // UnConfigVrf Deletes Vrfs as per input file
 func UnConfigVrf(dev *ondatra.DUTDevice, t *testing.T, vrf *proto.InputVrf) error {
 
-	dev.Config().NetworkInstance(vrf.Name).Delete(t)
+	gnmi.Delete(t, dev, gnmi.OC().NetworkInstance(vrf.Name).Config())
 	return nil
 
 }

@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 var (
@@ -108,9 +110,9 @@ func CheckEqualRates(rates []float64, tolerance ...float64) ([]bool, []float64, 
 //
 // Model: openconfig-interfaces.
 // YANG path: /interfaces/interface/state/counters
-func GetAllInterfaceCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]*telemetry.QualifiedInterface_Counters {
-	got := dut.Telemetry().InterfaceAny().Counters().Lookup(t)
-	data := make(map[string]*telemetry.QualifiedInterface_Counters)
+func GetAllInterfaceCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]*ygnmi.Value[*oc.Interface_Counters] {
+	got := gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().Counters().State())
+	data := make(map[string]*ygnmi.Value[*oc.Interface_Counters])
 	for _, counters := range got {
 		if intf, ok := counters.Path.Elem[1].Key["name"]; ok {
 			data[intf] = counters
@@ -124,9 +126,9 @@ func GetAllInterfaceCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]*t
 //
 // Model: openconfig-interfaces.
 // YANG path: /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters
-func GetAllInterfaceIpv4Counters(t *testing.T, dut *ondatra.DUTDevice) map[string]*telemetry.QualifiedInterface_Subinterface_Ipv4_Counters {
-	got := dut.Telemetry().InterfaceAny().Subinterface(0).Ipv4().Counters().Lookup(t)
-	data := make(map[string]*telemetry.QualifiedInterface_Subinterface_Ipv4_Counters)
+func GetAllInterfaceIpv4Counters(t *testing.T, dut *ondatra.DUTDevice) map[string]*ygnmi.Value[*oc.Interface_Subinterface_Ipv4_Counters] {
+	got := gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().Subinterface(0).Ipv4().Counters().State())
+	data := make(map[string]*ygnmi.Value[*oc.Interface_Subinterface_Ipv4_Counters])
 	for _, counters := range got {
 		if intf, ok := counters.Path.Elem[1].Key["name"]; ok {
 			data[intf] = counters
@@ -178,8 +180,8 @@ func GetDUTInterfaceRates(t *testing.T, dut *ondatra.DUTDevice, intfs []string, 
 			continue
 		}
 		sampleInterval := s2.Timestamp.Sub(s1.Timestamp).Seconds()
-		counters1 := s1.Val(t)
-		counters2 := s2.Val(t)
+		counters1, _ := s1.Val()
+		counters2, _ := s2.Val()
 		rates[i] = &InterfaceRates{
 			SampleInterval:     sampleInterval,
 			InPktsRate:         float64(*counters2.InPkts-*counters1.InPkts) / sampleInterval,
@@ -229,8 +231,8 @@ func GetDUTInterfaceIpv4Rates(t *testing.T, dut *ondatra.DUTDevice, intfs []stri
 			continue
 		}
 		sampleInterval := s2.Timestamp.Sub(s1.Timestamp).Seconds()
-		counters1 := s1.Val(t)
-		counters2 := s2.Val(t)
+		counters1, _ := s1.Val()
+		counters2, _ := s2.Val()
 		rates[i] = &InterfaceIpv4Rates{
 			SampleInterval: sampleInterval,
 			InPktsRate:     float64(*counters2.InPkts-*counters1.InPkts) / sampleInterval,

@@ -8,7 +8,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 // ConfigISIS configures ISIS as in input file
@@ -26,7 +27,7 @@ func ConfigISIS(dev *ondatra.DUTDevice, t *testing.T, isis *proto.Input_ISIS) er
 			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
 		}: model,
 	}
-	dev.Config().NetworkInstance(isis.Vrf).Update(t, request)
+	gnmi.Update(t, dev, gnmi.OC().NetworkInstance(isis.Vrf).Config(), request)
 	return nil
 
 }
@@ -36,7 +37,7 @@ func UnConfigISIS(dev *ondatra.DUTDevice, t *testing.T, isis *proto.Input_ISIS) 
 	if isis.Vrf == "" {
 		isis.Vrf = "default"
 	}
-	dev.Config().NetworkInstance(isis.Vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isis.Vrf).Isis().Delete(t)
+	gnmi.Delete(t, dev, gnmi.OC().NetworkInstance(isis.Vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isis.Vrf).Isis().Config())
 	return nil
 
 }
@@ -108,16 +109,16 @@ func GetIsisAfiSafiname(afisafitype proto.Input_ISIS_AfiSafiType) (oc.E_IsisType
 }
 
 // GetIsisLevelType returns the level type enum for input file parameter
-func GetIsisLevelType(afisafitype proto.Input_ISIS_Level) oc.E_IsisTypes_LevelType {
+func GetIsisLevelType(afisafitype proto.Input_ISIS_Level) oc.E_Isis_LevelType {
 	switch afisafitype {
 	case proto.Input_ISIS_level_1:
-		return oc.IsisTypes_LevelType_LEVEL_1
+		return oc.Isis_LevelType_LEVEL_1
 	case proto.Input_ISIS_level_2:
-		return oc.IsisTypes_LevelType_LEVEL_2
+		return oc.Isis_LevelType_LEVEL_2
 	case proto.Input_ISIS_level_1_2:
-		return oc.IsisTypes_LevelType_LEVEL_1_2
+		return oc.Isis_LevelType_LEVEL_1_2
 	default:
-		return oc.IsisTypes_LevelType_UNSET
+		return oc.Isis_LevelType_UNSET
 
 	}
 }

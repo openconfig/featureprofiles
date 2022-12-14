@@ -17,7 +17,10 @@ import (
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -215,56 +218,56 @@ func testP4RTTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow
 }
 
 func configureStaticRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, delete bool) {
-	dc := dut.Config()
+	dc := gnmi.OC()
 	discardCIDR := "0.0.0.0/0"
 
-	static := &telemetry.NetworkInstance_Protocol_Static{
+	static := &oc.NetworkInstance_Protocol_Static{
 		Prefix: ygot.String(discardCIDR),
 	}
 	static.GetOrCreateNextHop("AUTO_drop_2").
-		NextHop = telemetry.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
+		NextHop = oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
 	staticp := dc.NetworkInstance("default").
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default").
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default").
 		Static(discardCIDR)
 	if delete {
-		staticp.Delete(t)
+		gnmi.Delete(t, dut, staticp.Config())
 	} else {
-		staticp.Replace(t, static)
+		gnmi.Replace(t, dut, staticp.Config(), static)
 	}
 }
 
 func configureInterface(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, interfaceName, ipv4Address string, subInterface uint32) {
-	config := telemetry.Interface{
+	config := oc.Interface{
 		Name:    ygot.String(interfaceName),
 		Enabled: ygot.Bool(true),
-		Subinterface: map[uint32]*telemetry.Interface_Subinterface{
+		Subinterface: map[uint32]*oc.Interface_Subinterface{
 			subInterface: {
 				Index: ygot.Uint32(subInterface),
-				Ipv4: &telemetry.Interface_Subinterface_Ipv4{
-					Address: map[string]*telemetry.Interface_Subinterface_Ipv4_Address{
+				Ipv4: &oc.Interface_Subinterface_Ipv4{
+					Address: map[string]*oc.Interface_Subinterface_Ipv4_Address{
 						ipv4Address: {
 							Ip:           ygot.String(ipv4Address),
 							PrefixLength: ygot.Uint8(24),
 						},
 					},
 				},
-				Ipv6: &telemetry.Interface_Subinterface_Ipv6{
+				Ipv6: &oc.Interface_Subinterface_Ipv6{
 					Enabled: ygot.Bool(true),
 				},
 			},
 		},
 	}
 	if subInterface > 0 {
-		config.Subinterface[subInterface].Vlan = &telemetry.Interface_Subinterface_Vlan{
-			Match: &telemetry.Interface_Subinterface_Vlan_Match{
-				SingleTagged: &telemetry.Interface_Subinterface_Vlan_Match_SingleTagged{
+		config.Subinterface[subInterface].Vlan = &oc.Interface_Subinterface_Vlan{
+			Match: &oc.Interface_Subinterface_Vlan_Match{
+				SingleTagged: &oc.Interface_Subinterface_Vlan_Match_SingleTagged{
 					VlanId: ygot.Uint16(uint16(subInterface)),
 				},
 			},
 		}
-		dut.Config().Interface(interfaceName).Subinterface(subInterface).Replace(t, config.Subinterface[subInterface])
+		gnmi.Replace(t, dut, gnmi.OC().Interface(interfaceName).Subinterface(subInterface).Config(), config.Subinterface[subInterface])
 	} else {
-		dut.Config().Interface(interfaceName).Replace(t, &config)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(interfaceName).Config(), &config)
 	}
 
 }
@@ -294,9 +297,9 @@ func testEntryProgrammingPacketIn(ctx context.Context, t *testing.T, args *testA
 
 func testEntryProgrammingPacketInAndNoReply(ctx context.Context, t *testing.T, args *testArgs) {
 	portName := sortPorts(args.dut.Ports())[0].Name()
-	count_0 := args.dut.Telemetry().Interface(portName).Counters().OutPkts().Get(t)
+	count_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(portName).Counters().OutPkts().State())
 	testEntryProgrammingPacketIn(ctx, t, args)
-	count_1 := args.dut.Telemetry().Interface(portName).Counters().OutPkts().Get(t)
+	count_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(portName).Counters().OutPkts().State())
 	if count_1-count_0 > 15 {
 		t.Errorf("Unexpected replies are sent from router!")
 	}
@@ -509,11 +512,11 @@ func testEntryProgrammingPacketInAndChangeDeviceID(ctx context.Context, t *testi
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
 	componentName := getComponentID(ctx, t, args.dut)
-	component := telemetry.Component{}
-	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
+	component := oc.Component{}
+	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 	component.Name = ygot.String(componentName)
 	component.IntegratedCircuit.NodeId = ygot.Uint64(^deviceID)
-	args.dut.Config().Component(componentName).Replace(t, &component)
+	gnmi.Replace(t, args.dut, gnmi.OC().Component(componentName).Config(), &component)
 
 	// Setup P4RT ClientB to be primary
 	newStreamName := "new_primary"
@@ -521,11 +524,11 @@ func testEntryProgrammingPacketInAndChangeDeviceID(ctx context.Context, t *testi
 
 	defer func() {
 		componentName := getComponentID(ctx, t, args.dut)
-		component := telemetry.Component{}
-		component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
+		component := oc.Component{}
+		component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 		component.Name = ygot.String(componentName)
 		component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
-		args.dut.Config().Component(componentName).Replace(t, &component)
+		gnmi.Replace(t, args.dut, gnmi.OC().Component(componentName).Config(), &component)
 
 		args.p4rtClientA.StreamChannelDestroy(&streamName)
 		args.p4rtClientB.StreamChannelDestroy(&streamName)
@@ -583,13 +586,13 @@ func testEntryProgrammingPacketInAndChangePortID(ctx context.Context, t *testing
 	newPortID := ^portID % maxPortID
 	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.packetIO.SetIngressPorts(t, fmt.Sprint(newPortID))
-	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+	gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(newPortID),
 	})
 
 	defer args.packetIO.SetIngressPorts(t, fmt.Sprint(portID))
-	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(portID),
 	})
@@ -617,9 +620,9 @@ func testProgrammingPacketInWithInterfaceMACAsGDPMac(ctx context.Context, t *tes
 
 	// Change mac address for the related bundle interface MAC
 	newMAC := gdpMAC
-	currentMAC := args.dut.Telemetry().Interface(args.interfaces.in[0]).Ethernet().MacAddress().Get(t)
-	args.dut.Config().Interface(args.interfaces.in[0]).Ethernet().MacAddress().Replace(t, newMAC)
-	defer args.dut.Config().Interface(args.interfaces.in[0]).Ethernet().MacAddress().Replace(t, currentMAC)
+	currentMAC := gnmi.Get(t, args.dut, gnmi.OC().Interface(args.interfaces.in[0]).Ethernet().MacAddress().State())
+	gnmi.Replace(t, args.dut, gnmi.OC().Interface(args.interfaces.in[0]).Ethernet().MacAddress().Config(), newMAC)
+	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(args.interfaces.in[0]).Ethernet().MacAddress().Config(), currentMAC)
 
 	// Send Packet
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -859,8 +862,8 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 
 func testEntryProgrammingPacketInWithouthPortID(ctx context.Context, t *testing.T, args *testArgs) {
 	portName := sortPorts(args.dut.Ports())[0].Name()
-	args.dut.Config().Interface(portName).Id().Delete(t)
-	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+	gnmi.Delete(t, args.dut, gnmi.OC().Interface(portName).Id().Config())
+	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(portID),
 	})
@@ -888,8 +891,8 @@ func testEntryProgrammingPacketInWithouthPortID(ctx context.Context, t *testing.
 
 func testEntryProgrammingPacketInWithouthPortIDThenAddPortID(ctx context.Context, t *testing.T, args *testArgs) {
 	portName := sortPorts(args.dut.Ports())[0].Name()
-	args.dut.Config().Interface(portName).Id().Delete(t)
-	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+	gnmi.Delete(t, args.dut, gnmi.OC().Interface(portName).Id().Config())
+	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(portID),
 	})
@@ -914,7 +917,7 @@ func testEntryProgrammingPacketInWithouthPortIDThenAddPortID(ctx context.Context
 		t.Errorf("Unexpected packets received.")
 	}
 
-	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+	gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(^portID),
 	})
@@ -990,8 +993,8 @@ func testEntryProgrammingPacketInWithInnerTTL(ctx context.Context, t *testing.T,
 
 func testEntryProgrammingPacketInWithMalformedPacket(ctx context.Context, t *testing.T, args *testArgs) {
 	portName := sortPorts(args.dut.Ports())[0].Name()
-	args.dut.Config().Interface(portName).Id().Delete(t)
-	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+	gnmi.Delete(t, args.dut, gnmi.OC().Interface(portName).Id().Config())
+	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(portID),
 	})
@@ -1064,7 +1067,7 @@ func testEntryProgrammingPacketInWithUDP(ctx context.Context, t *testing.T, args
 	client := args.p4rtClientA
 
 	portName := sortPorts(args.dut.Ports())[0].Name()
-	count_0 := args.dut.Telemetry().Interface(portName).Counters().OutPkts().Get(t)
+	count_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(portName).Counters().OutPkts().State())
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
@@ -1096,7 +1099,7 @@ func testEntryProgrammingPacketInWithUDP(ctx context.Context, t *testing.T, args
 
 	validatePackets(t, args, packets)
 
-	count_1 := args.dut.Telemetry().Interface(portName).Counters().OutPkts().Get(t)
+	count_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(portName).Counters().OutPkts().State())
 	if count_1-count_0 > 15 {
 		t.Errorf("Unexpected replies are sent from router!")
 	}
@@ -1146,9 +1149,9 @@ func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *t
 	client := args.p4rtClientA
 
 	portName := sortPorts(args.dut.Ports())[0].Name()
-	existingConfig := args.dut.Config().Interface(portName).Get(t)
+	existingConfig := gnmi.GetConfig(t, args.dut, gnmi.OC().Interface(portName).Config())
 	configureInterface(ctx, t, args.dut, portName, "103.102.101.100", 0)
-	defer args.dut.Config().Interface(portName).Replace(t, existingConfig)
+	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(portName).Config(), existingConfig)
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
@@ -1158,7 +1161,7 @@ func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *t
 
 	mac := args.packetIO.GetPacketIOPacket(t).DstMAC
 	existingMAC := *mac
-	*mac = args.dut.Telemetry().Interface(portName).Ethernet().MacAddress().Get(t)
+	*mac = gnmi.Get(t, args.dut, gnmi.OC().Interface(portName).Ethernet().MacAddress().State())
 	defer func() { *mac = existingMAC }()
 
 	// Send Packet
@@ -1180,7 +1183,7 @@ func testEntryProgrammingPacketInWithSubInterface(ctx context.Context, t *testin
 	client := args.p4rtClientA
 
 	configureInterface(ctx, t, args.dut, args.interfaces.in[0], "103.102.101.100", 1)
-	defer args.dut.Config().Interface(args.interfaces.in[0]).Subinterface(1).Delete(t)
+	defer gnmi.Delete(t, args.dut, gnmi.OC().Interface(args.interfaces.in[0]).Subinterface(1).Config())
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
@@ -1248,14 +1251,14 @@ func testEntryProgrammingPacketInWithAcl(ctx context.Context, t *testing.T, args
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
 	// Configure Acl
-	acl := (&telemetry.Device{}).GetOrCreateAcl()
-	aclSetIPv4 := acl.GetOrCreateAclSet("ttl-ipv4", telemetry.Acl_ACL_TYPE_ACL_IPV4)
+	acl := (&oc.Root{}).GetOrCreateAcl()
+	aclSetIPv4 := acl.GetOrCreateAclSet("ttl-ipv4", oc.Acl_ACL_TYPE_ACL_IPV4)
 	aclEntryIpv4 := aclSetIPv4.GetOrCreateAclEntry(1).GetOrCreateIpv4()
 	aclEntryIpv4.HopLimit = ygot.Uint8(1)
 	aclEntryAction := aclSetIPv4.GetOrCreateAclEntry(1).GetOrCreateActions()
-	aclEntryAction.ForwardingAction = telemetry.Acl_FORWARDING_ACTION_REJECT
+	aclEntryAction.ForwardingAction = oc.Acl_FORWARDING_ACTION_REJECT
 	aclEntryActionDefault := aclSetIPv4.GetOrCreateAclEntry(2).GetOrCreateActions()
-	aclEntryActionDefault.ForwardingAction = telemetry.Acl_FORWARDING_ACTION_ACCEPT
+	aclEntryActionDefault.ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
 
 	// aclSetIPv6 := acl.GetOrCreateAclSet("ttl-ipv6", telemetry.Acl_ACL_TYPE_ACL_IPV6)
 	// aclEntryIPv6 := aclSetIPv6.GetOrCreateAclEntry(1).GetOrCreateIpv6()
@@ -1263,13 +1266,13 @@ func testEntryProgrammingPacketInWithAcl(ctx context.Context, t *testing.T, args
 	// aclEntryActionIPv6 := aclSetIPv6.GetOrCreateAclEntry(1).GetOrCreateActions()
 	// aclEntryActionIPv6.ForwardingAction = telemetry.Acl_FORWARDING_ACTION_REJECT
 
-	args.dut.Config().Acl().Update(t, acl)
+	gnmi.Update(t, args.dut, gnmi.OC().Acl().Config(), acl)
 
-	args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv4", telemetry.Acl_ACL_TYPE_ACL_IPV4).SetName().Update(t, "ttl-ipv4")
+	gnmi.Update(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv4", oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), "ttl-ipv4")
 	// args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv6", telemetry.Acl_ACL_TYPE_ACL_IPV6).SetName().Update(t, "ttl-ipv6")
 	defer func() {
-		args.dut.Config().Acl().Delete(t)
-		defer args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv4", telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
+		gnmi.Delete(t, args.dut, gnmi.OC().Acl().Config())
+		defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv4", oc.Acl_ACL_TYPE_ACL_IPV4).Config())
 		// defer args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv6", telemetry.Acl_ACL_TYPE_ACL_IPV6).Delete(t)
 	}()
 
@@ -1319,7 +1322,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	packet := args.packetIO.GetPacketOut(t, portID, true)
 
@@ -1331,7 +1334,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1355,7 +1358,7 @@ func testPacketOutWithoutMatchEntry(ctx context.Context, t *testing.T, args *tes
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	packet := args.packetIO.GetPacketOut(t, portID, true)
 
@@ -1367,7 +1370,7 @@ func testPacketOutWithoutMatchEntry(ctx context.Context, t *testing.T, args *tes
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1391,7 +1394,7 @@ func testPacketOutTTLOneWithoutMatchEntry(ctx context.Context, t *testing.T, arg
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	ttl := args.packetIO.GetPacketOutObj(t).TTL
 	val := *ttl
@@ -1410,7 +1413,7 @@ func testPacketOutTTLOneWithoutMatchEntry(ctx context.Context, t *testing.T, arg
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1440,7 +1443,7 @@ func testPacketOutTTLOneWithUDP(ctx context.Context, t *testing.T, args *testArg
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	ttl := args.packetIO.GetPacketOutObj(t).TTL
 	val := *ttl
@@ -1461,7 +1464,7 @@ func testPacketOutTTLOneWithUDP(ctx context.Context, t *testing.T, args *testArg
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1485,7 +1488,7 @@ func testPacketOutTTLOneWithStaticroute(ctx context.Context, t *testing.T, args 
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	configureStaticRoute(ctx, t, args.dut, false)
 	defer configureStaticRoute(ctx, t, args.dut, true)
@@ -1511,7 +1514,7 @@ func testPacketOutTTLOneWithStaticroute(ctx context.Context, t *testing.T, args 
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1535,7 +1538,7 @@ func testPacketOutWithForUsIP(ctx context.Context, t *testing.T, args *testArgs)
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	dstIP := args.packetIO.GetPacketOutObj(t).DstIPv4
 	val := *dstIP
@@ -1554,7 +1557,7 @@ func testPacketOutWithForUsIP(ctx context.Context, t *testing.T, args *testArgs)
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1578,7 +1581,7 @@ func testPacketOutTTLOneWithForUsIP(ctx context.Context, t *testing.T, args *tes
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	dstIP := args.packetIO.GetPacketOutObj(t).DstIPv4
 	ttl := args.packetIO.GetPacketOutObj(t).TTL
@@ -1601,7 +1604,7 @@ func testPacketOutTTLOneWithForUsIP(ctx context.Context, t *testing.T, args *tes
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1674,7 +1677,7 @@ func testPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	packet := args.packetIO.GetPacketOut(t, portID, false)
 
@@ -1686,7 +1689,7 @@ func testPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1704,7 +1707,7 @@ func testPacketOutEgressWithoutMatchEntry(ctx context.Context, t *testing.T, arg
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	packet := args.packetIO.GetPacketOut(t, portID, false)
 
@@ -1716,7 +1719,7 @@ func testPacketOutEgressWithoutMatchEntry(ctx context.Context, t *testing.T, arg
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1734,7 +1737,7 @@ func testPacketOutEgressWithStaticroute(ctx context.Context, t *testing.T, args 
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	configureStaticRoute(ctx, t, args.dut, false)
 	defer configureStaticRoute(ctx, t, args.dut, true)
@@ -1760,7 +1763,7 @@ func testPacketOutEgressWithStaticroute(ctx context.Context, t *testing.T, args 
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1790,7 +1793,7 @@ func testPacketOutEgressTTLOneWithUDP(ctx context.Context, t *testing.T, args *t
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	ttl := args.packetIO.GetPacketOutObj(t).TTL
 	val := *ttl
@@ -1811,7 +1814,7 @@ func testPacketOutEgressTTLOneWithUDP(ctx context.Context, t *testing.T, args *t
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1841,7 +1844,7 @@ func testPacketOutEgressTTLOneWithUDPAndStaticRoute(ctx context.Context, t *test
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	ipv4 := args.packetIO.GetPacketOutObj(t).DstIPv4
 	ipv6 := args.packetIO.GetPacketOutObj(t).DstIPv6
@@ -1870,7 +1873,7 @@ func testPacketOutEgressTTLOneWithUDPAndStaticRoute(ctx context.Context, t *test
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1894,7 +1897,7 @@ func testPacketOutEgressTTLOneWithStaticroute(ctx context.Context, t *testing.T,
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	configureStaticRoute(ctx, t, args.dut, false)
 	defer configureStaticRoute(ctx, t, args.dut, true)
@@ -1924,7 +1927,7 @@ func testPacketOutEgressTTLOneWithStaticroute(ctx context.Context, t *testing.T,
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1951,7 +1954,7 @@ func testPacketOutEgressWithInvalidPortId(ctx context.Context, t *testing.T, arg
 	// port := sortPorts(args.ate.Ports())[0].Name()
 	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	packet := args.packetIO.GetPacketOut(t, ^portID, false)
 
@@ -1964,7 +1967,7 @@ func testPacketOutEgressWithInvalidPortId(ctx context.Context, t *testing.T, arg
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -1982,12 +1985,12 @@ func testPacketOutEgressWithChangePortId(ctx context.Context, t *testing.T, args
 
 	newPortID := ^portID % maxPortID
 	portName := sortPorts(args.dut.Ports())[0].Name()
-	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+	gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(newPortID),
 	})
 
-	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(portID),
 	})
@@ -1996,7 +1999,7 @@ func testPacketOutEgressWithChangePortId(ctx context.Context, t *testing.T, args
 	// port := sortPorts(args.ate.Ports())[0].Name()
 	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	packet := args.packetIO.GetPacketOut(t, newPortID, false)
 
@@ -2009,7 +2012,7 @@ func testPacketOutEgressWithChangePortId(ctx context.Context, t *testing.T, args
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -2027,12 +2030,12 @@ func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, ar
 
 	newPortID := ^portID % maxPortID
 	portName := sortPorts(args.dut.Ports())[0].Name()
-	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+	gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(newPortID),
 	})
 
-	defer args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
+	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(portID),
 	})
@@ -2041,7 +2044,7 @@ func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, ar
 	// port := sortPorts(args.ate.Ports())[0].Name()
 	// counter_0 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	packets := args.packetIO.GetPacketOut(t, portID, false)
 
@@ -2060,7 +2063,7 @@ func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, ar
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -2083,7 +2086,7 @@ func testPacketOutIngressWithInterfaceFlap(ctx context.Context, t *testing.T, ar
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	packet := args.packetIO.GetPacketOut(t, portID, true)
 
@@ -2095,7 +2098,7 @@ func testPacketOutIngressWithInterfaceFlap(ctx context.Context, t *testing.T, ar
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -2118,7 +2121,7 @@ func testPacketOutIngressWithInterfaceFlap(ctx context.Context, t *testing.T, ar
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_2 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_2 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -2142,7 +2145,7 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	packet := args.packetIO.GetPacketOut(t, portID, false)
 
@@ -2154,7 +2157,7 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -2180,7 +2183,7 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_2 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_2 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
@@ -2249,7 +2252,7 @@ func testPacketOutEgressScale(ctx context.Context, t *testing.T, args *testArgs)
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
-	counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	packet := args.packetIO.GetPacketOut(t, portID, false)
 
@@ -2272,7 +2275,7 @@ func testPacketOutEgressScale(ctx context.Context, t *testing.T, args *testArgs)
 
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-	counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)

@@ -10,7 +10,10 @@ import (
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -21,9 +24,9 @@ var (
 
 func getComponentList(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) []string {
 	result := []string{}
-	resp := dut.Telemetry().ComponentAny().Get(t)
-	component := telemetry.Component{}
-	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
+	resp := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	component := oc.Component{}
+	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 	pattern, _ := regexp.Compile(`.*-NPU\d+`)
 
 	for _, c := range resp {
@@ -48,14 +51,14 @@ func getComponentList(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice)
 func TestP4RTTMP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	component := telemetry.Component{}
-	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
+	component := oc.Component{}
+	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 
 	resp := []string{"0/1/CPU0-NPU0", "0/1/CPU0-NPU1"}
 	for i, name := range resp {
 		component.Name = ygot.String(name)
 		component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID + uint64(i))
-		dut.Config().Component(name).Replace(t, &component)
+		gnmi.Replace(t, dut, gnmi.OC().Component(name).Config(), &component)
 	}
 
 }

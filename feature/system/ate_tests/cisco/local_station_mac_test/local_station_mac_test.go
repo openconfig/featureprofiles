@@ -28,7 +28,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/protobuf/testing/protocmp"
 )
@@ -88,9 +91,9 @@ func TestMain(m *testing.M) {
 // configInterfaceDUT configures the interface on "me" with static ARP
 // of peer.  Note that peermac is used for static ARP, and not
 // peer.MAC.
-func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peermac string) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, peermac string) *oc.Interface {
 	i.Description = ygot.String(me.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	i.Enabled = ygot.Bool(true)
 
 	if me.MAC != "" {
@@ -128,18 +131,16 @@ func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peer
 // configureDUT configures ipv4/ipv6 and mac addresses on the dut interfaces
 func configureDUT(t *testing.T, peermac string) {
 	dut := ondatra.DUT(t, "dut")
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t,
-		configInterfaceDUT(i1, &dutSrc, &ateSrc, noStationMAC))
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, &ateSrc, noStationMAC))
 
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 
-	d.Interface(p2.Name()).Replace(t,
-		configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
 }
 
 // configureATE configures ATE ports with ipv4/ipv6 addresses
@@ -190,9 +191,9 @@ func testFlow(
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
-	flowPath := ate.Telemetry().Flow(flow.Name())
+	flowPath := gnmi.OC().Flow(flow.Name())
 
-	if got := flowPath.LossPct().Get(t); got > 0 {
+	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got > 0 {
 		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
 	}
 }
@@ -246,8 +247,8 @@ func TestLocalStationMac(t *testing.T) {
 	configureDUT(t, stationMAC)
 
 	// defer deleting of static arp
-	defer dut.Config().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv4().Neighbor(ateDst.IPv4).Delete(t)
-	defer dut.Config().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv6().Neighbor(ateDst.IPv6).Delete(t)
+	defer gnmi.Delete(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv4().Neighbor(ateDst.IPv4).Config())
+	defer gnmi.Delete(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv6().Neighbor(ateDst.IPv6).Config())
 
 	t.Run("Traffic Destined to Local Station Mac With Static ARP", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
