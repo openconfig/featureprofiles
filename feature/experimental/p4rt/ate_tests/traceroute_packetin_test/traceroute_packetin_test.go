@@ -14,7 +14,6 @@
 // package to test P4RT with traceroute traffic of IPV4 and IPV6 with TTL/HopLimit as 0&1.
 // go test -v . -testbed /root/ondatra/featureprofiles/topologies/atedut_2.testbed -binding /root/ondatra/featureprofiles/topologies/atedut_2.binding -outputs_dir logs
 
-
 package traceroute_packetin_test
 
 import (
