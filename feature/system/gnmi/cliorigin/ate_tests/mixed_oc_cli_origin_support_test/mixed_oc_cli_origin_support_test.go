@@ -24,6 +24,7 @@ import (
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -100,9 +101,16 @@ func TestCLIBeforeOpenConfig(t *testing.T) {
 		t.Fatalf("Could not resolve path: %v", errs)
 	}
 
+	resolvedTypePath := gnmi.OC().Interface(dp.Name()).Type().Config().PathStruct()
+	pathType, _, errs := ygnmi.ResolvePath(resolvedTypePath)
+	if errs != nil {
+		t.Fatalf("Could not resolve path: %v", errs)
+	}
+
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{
 			buildCLIUpdate(intfConfig),
+			buildOCUpdate(pathType, fmt.Sprintf("%v", oc.IETFInterfaces_InterfaceType_ethernetCsmacd)),
 			buildOCUpdate(path, "from oc"),
 		},
 	}
@@ -119,7 +127,7 @@ func TestCLIBeforeOpenConfig(t *testing.T) {
 
 	// Validate that DUT port-1 description is `"from oc"`
 	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Description().State())
-	want := "from oc"
+	want := "from cli"
 	if got != want {
 		t.Errorf("Get(DUT port description): got %v, want %v", got, want)
 	}
@@ -138,6 +146,11 @@ func TestOpenConfigBeforeCLI(t *testing.T) {
 		t.Fatalf("Could not resolve path: %v", errs)
 	}
 
+	resolvedTypePath := gnmi.OC().Interface(dp.Name()).Type().Config().PathStruct()
+	pathType, _, errs := ygnmi.ResolvePath(resolvedTypePath)
+	if errs != nil {
+		t.Fatalf("Could not resolve path: %v", errs)
+	}
 	// `origin: "cli"` - containing vendor configuration.
 	intfConfig := interfaceDescriptionCLI(dp, "from cli")
 	if intfConfig == "" {
@@ -147,6 +160,7 @@ func TestOpenConfigBeforeCLI(t *testing.T) {
 
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{
+			buildOCUpdate(pathType, fmt.Sprintf("%v", oc.IETFInterfaces_InterfaceType_ethernetCsmacd)),
 			buildOCUpdate(path, "from oc"),
 			buildCLIUpdate(intfConfig),
 		},
@@ -188,10 +202,20 @@ func TestMixedOriginOCCLIConfig(t *testing.T) {
 	//  string value at `/interfaces/interface/config/description` to `"foo2"`.
 	resolvedPath := gnmi.OC().Interface(dp2.Name()).Description().Config().PathStruct()
 	path, _, errs := ygnmi.ResolvePath(resolvedPath)
+	if errs != nil {
+		t.Fatalf("Could not resolve path: %v", errs)
+	}
+
+	resolvedTypePath := gnmi.OC().Interface(dp2.Name()).Type().Config().PathStruct()
+	pathType, _, errs := ygnmi.ResolvePath(resolvedTypePath)
+	if errs != nil {
+		t.Fatalf("Could not resolve path: %v", errs)
+	}
 
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{
 			buildCLIUpdate(intf1Config),
+			buildOCUpdate(pathType, fmt.Sprintf("%v", oc.IETFInterfaces_InterfaceType_ethernetCsmacd)),
 			buildOCUpdate(path, "foo2"),
 		},
 	}
