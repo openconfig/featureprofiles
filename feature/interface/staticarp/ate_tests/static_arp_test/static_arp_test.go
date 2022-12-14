@@ -154,7 +154,7 @@ func configureDUT(t *testing.T, peermac string) {
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
 	if *deviations.ExplicitPortSpeed {
-		fptest.SetPortSpeed(t, dut, "port1")
+		fptest.SetPortSpeed(t, p1)
 	}
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
@@ -164,7 +164,7 @@ func configureDUT(t *testing.T, peermac string) {
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
 	if *deviations.ExplicitPortSpeed {
-		fptest.SetPortSpeed(t, dut, "port2")
+		fptest.SetPortSpeed(t, p2)
 	}
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
