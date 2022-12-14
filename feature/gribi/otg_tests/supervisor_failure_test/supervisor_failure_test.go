@@ -303,6 +303,7 @@ func TestSupFailure(t *testing.T) {
 	routeInstall(ctx, t, args)
 	// Verify that static route(203.0.113.0/24) to ATE port-2 is preferred by the traffic.`
 	sendTraffic(t, args.ate)
+	time.Sleep(15 * time.Second)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	verifyTraffic(t, args.ate)
 
