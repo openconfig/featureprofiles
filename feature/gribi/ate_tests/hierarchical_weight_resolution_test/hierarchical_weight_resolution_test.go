@@ -243,7 +243,7 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(i))
 		}
 		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled {
+		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 			s4.Enabled = ygot.Bool(true)
 		}
 		s4a := s4.GetOrCreateAddress(ip)
