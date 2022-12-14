@@ -112,5 +112,5 @@ var (
 	ExplicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
 
-	ExplicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requiring port-speed reconfiguration, where interface configuration using Replace resets the port-speed to default.")
+	ExplicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
 )

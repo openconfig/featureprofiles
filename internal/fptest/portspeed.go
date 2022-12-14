@@ -42,13 +42,11 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
 // SetPortSpeed sets the DUT config for the interface port-speed according
 // to ondatra.Prot.Speed()
 func SetPortSpeed(t *testing.T, p *ondatra.Port) {
-	dut := p.Device()
-	ps := p.Speed()
-	if ps == 0 {
-		// Port speed is unspecified. Explicit config not performed
+	speed, ok := portSpeed[p.Speed()]
+	if !ok {
+		// Port speed is unspecified or unrecognized. Explicit config not performed
 		return
 	}
-	speed := portSpeed[ps]
 	t.Logf("Configuring %v port-speed to %v", p.Name(), speed)
-	gnmi.Update(t, dut, gnmi.OC().Interface(p.Name()).Ethernet().PortSpeed().Config(), speed)
+	gnmi.Update(t, p.Device(), gnmi.OC().Interface(p.Name()).Ethernet().PortSpeed().Config(), speed)
 }
