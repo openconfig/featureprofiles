@@ -1,7 +1,9 @@
 name: "arista-ceos-dutdut"
 nodes: {
   name: "dut1"
-  type: ARISTA_CEOS
+  vendor: ARISTA
+  model: "ceos"
+  os: "eos"
   config: {
     config_path: "/mnt/flash"
     config_file: "startup-config"
@@ -41,7 +43,9 @@ nodes: {
 }
 nodes: {
   name: "dut2"
-  type: ARISTA_CEOS
+  vendor: ARISTA
+  model: "ceos"
+  os: "eos"
   config: {
     config_path: "/mnt/flash"
     config_file: "startup-config"

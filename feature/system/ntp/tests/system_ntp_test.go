@@ -19,6 +19,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -30,12 +31,12 @@ func TestNtpEnable(t *testing.T) {
 	t.Skip("Need working implementation to validate against")
 
 	dut := ondatra.DUT(t, "dut")
-	config := dut.Config().System().Ntp()
-	state := dut.Telemetry().System().Ntp()
+	config := gnmi.OC().System().Ntp()
+	state := gnmi.OC().System().Ntp()
 
-	config.Enabled().Replace(t, true)
-	if state.Enabled().Get(t) != true {
+	gnmi.Replace(t, dut, config.Enabled().Config(), true)
+	if gnmi.Get(t, dut, state.Enabled().State()) != true {
 		t.Error("NTP Enable Telemetry failed: want true, got false")
 	}
-	config.Enabled().Delete(t)
+	gnmi.Delete(t, dut, config.Enabled().Config())
 }
