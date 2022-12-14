@@ -39,8 +39,8 @@ type dutInfo struct {
 
 // setFromComponentChassis sets dutInfo from the first component of type CHASSIS.
 //
-//   - vendor from mfg-name (Arista, Cisco).
-//   - model from either description (Cisco, Juniper) or part-no (Arista).
+//   - vendor from mfg-name (Arista, Cisco, newer Nokia).
+//   - model from either description (Cisco, Juniper, newer Nokia) or part-no (Arista).
 //   - osver from software-version (Juniper).
 func (di *dutInfo) setFromComponentChassis(ctx context.Context, y components.Y) {
 	if di.vendor != "" && di.model != "" && di.osver != "" {
@@ -81,7 +81,12 @@ func (di *dutInfo) setFromComponentChassis(ctx context.Context, y components.Y) 
 	}
 
 	if desc := component.Description; desc != nil {
-		if di.model == "" || strings.HasPrefix(*desc, "Cisco ") {
+		switch {
+		case strings.HasPrefix(di.vendor, "Cisco"):
+			fallthrough
+		case strings.HasPrefix(di.vendor, "Nokia"):
+			fallthrough
+		case di.model == "":
 			di.model = *desc
 			glog.V(2).Infof("Setting model from chassis description: %s", di.model)
 		}
@@ -120,11 +125,11 @@ func (di *dutInfo) setFromComponentOS(ctx context.Context, y components.Y) {
 	}
 }
 
-// setFromLLDP sets dutInfo vendor (Juniper, Nokia) and osver (Nokia) from LLDP
-// system-description.  This is less reliable because LLDP config can be changed.
+// setFromLLDP sets dutInfo vendor (Juniper, older Nokia) and osver (older Nokia) from
+// LLDP system-description.  This is less reliable because LLDP config can be changed.
 func (di *dutInfo) setFromLLDP(ctx context.Context, y components.Y) {
-	if di.vendor != "" {
-		return // No-op if vendor is already set.
+	if di.vendor != "" && di.osver != "" {
+		return // No-op if vendor and osver are already set.
 	}
 
 	lldpPath := ocpath.Root().Lldp().SystemDescription()
@@ -140,12 +145,16 @@ func (di *dutInfo) setFromLLDP(ctx context.Context, y components.Y) {
 	}
 
 	if srlinux := "SRLinux-v"; strings.HasPrefix(lldp, srlinux) {
-		di.vendor = "Nokia Corporation"
-		glog.Infof("Setting vendor from lldp system-description: %s", di.vendor)
+		if di.vendor == "" {
+			di.vendor = "Nokia"
+			glog.Infof("Setting vendor from lldp system-description: %s", di.vendor)
+		}
 
-		parts := strings.Split(lldp, " ")
-		di.osver = parts[0][len(srlinux):]
-		glog.Infof("Setting osver from lldp system-description: %s", di.osver)
+		if di.osver == "" {
+			parts := strings.Split(lldp, " ")
+			di.osver = parts[0][len(srlinux):]
+			glog.Infof("Setting osver from lldp system-description: %s", di.osver)
+		}
 	}
 }
 
