@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -29,9 +28,6 @@ import (
 func AssignToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, i string, ni string, si uint32) {
 	if ni == "" {
 		t.Fatalf("Network instance not provided for interface assignment")
-	}
-	if ni == *deviations.DefaultNetworkInstance && !*deviations.ExplicitInterfaceInDefaultVRF {
-		return
 	}
 	netInst := &oc.NetworkInstance{Name: ygot.String(ni)}
 	intf := &oc.Interface{Name: ygot.String(i)}

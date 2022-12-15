@@ -118,8 +118,6 @@ func bgpCreateNbr(bgpParams *bgpTestParams) *oc.NetworkInstance_Protocol_Bgp {
 		nv4.LocalAs = ygot.Uint32(bgpParams.nbrLocalAS)
 	}
 
-	nv4.AuthPassword = ygot.String(authPassword)
-
 	nv4t := nv4.GetOrCreateTimers()
 	nv4t.HoldTime = ygot.Uint16(dutHoldTime)
 	nv4t.KeepaliveInterval = ygot.Uint16(dutKeepaliveTime)
@@ -220,10 +218,10 @@ func configureATE(t *testing.T, ateParams *bgpTestParams, connectionType connTyp
 
 	if connectionType == connInternal {
 		bgpDut1.AddPeer().WithPeerAddress(ateParams.peerIP).WithLocalASN(ateParams.localAS).WithTypeInternal().
-			WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
+			WithHoldTime(ateHoldTime)
 	} else {
 		bgpDut1.AddPeer().WithPeerAddress(ateParams.peerIP).WithLocalASN(ateParams.localAS).WithTypeExternal().
-			WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
+			WithHoldTime(ateHoldTime)
 	}
 	return topo
 
@@ -250,14 +248,16 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
-	fptest.LogQuery(t, "DUT BGP Config before", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS})
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+	// Configure Md5 auth password.
+	gnmi.Replace(t, dut, dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
+
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 
 	// ATE Configuration.
-	t.Log("configure port and BGP configs on ATE")
+	t.Log("Configure port and BGP configs on ATE")
 	ate := ondatra.ATE(t, "ate")
 	port1 := ate.Port(t, "port1")
 	topo := ate.Topology().New()
@@ -286,8 +286,6 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	// Send Cease Notification from ATE to DUT
 	t.Log("Send Cease Notification from ATE to DUT")
 	ate.Actions().NewBGPPeerNotification().WithCode(6).WithSubCode(6).WithPeers(bgpPeer).Send(t)
-
-	// Verify BGP session state : ACTIVE
 	t.Log("Verify BGP session state : ACTIVE")
 	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*60, oc.Bgp_Neighbor_SessionState_ACTIVE)
 
@@ -303,9 +301,79 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	gnmi.Delete(t, dut, dutConfPath.Config())
 }
 
+// TestPassword is to verify md5 authentication password on DUT.
+// Verification is done through BGP adjacency implicitly.
+func TestPassword(t *testing.T) {
+	// DUT configurations.
+	t.Log("Start DUT config load:")
+	dut := ondatra.DUT(t, "dut")
+
+	// Configure interface on the DUT
+	t.Log("Start DUT interface Config")
+	configureDUT(t, dut)
+
+	// Configure Network instance type on DUT
+	t.Log("Configure Network Instance")
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
+	t.Log("Configure BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
+
+	gnmi.Delete(t, dut, dutConfPath.Config())
+	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS})
+	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+	t.Log("Configure matching Md5 auth password on DUT")
+	gnmi.Replace(t, dut, dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
+
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+
+	// ATE Configuration.
+	t.Log("Configure port and BGP configs on ATE")
+	ate := ondatra.ATE(t, "ate")
+	port1 := ate.Port(t, "port1")
+	topo := ate.Topology().New()
+	iDut1 := topo.AddInterface(ateAttrs.Name).WithPort(port1)
+	iDut1.IPv4().WithAddress(ateAttrs.IPv4CIDR()).WithDefaultGateway(dutAttrs.IPv4)
+	bgpDut1 := iDut1.BGP()
+	bgpDut1.AddPeer().WithPeerAddress(dutAttrs.IPv4).WithLocalASN(ateAS).WithTypeExternal().
+		WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
+
+	t.Log("Pushing config to ATE and starting protocols...")
+	topo.Push(t)
+	topo.StartProtocols(t)
+
+	// Verify BGP status
+	t.Log("Check BGP parameters")
+	verifyBgpTelemetry(t, dut)
+
+	t.Log("Configure mismatching md5 auth password on DUT")
+	gnmi.Replace(t, dut, dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Config(), "PASSWORDNEGSCENARIO")
+	t.Log("Wait till hold time expires...")
+	time.Sleep(time.Second * dutHoldTime)
+
+	t.Log("Verify BGP session state : Should not be in ESTABLISHED state when passwords does not match")
+	status := gnmi.Get(t, dut, nbrPath.SessionState().State())
+	if status == oc.Bgp_Neighbor_SessionState_ESTABLISHED {
+		t.Log("BGP Adjacency is UP when passwords are not matching")
+		t.Errorf("Md5 authentication verification failed, %v", status)
+	}
+
+	t.Log("Revert md5 auth password on DUT to match with ATE.")
+	gnmi.Replace(t, dut, dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
+	t.Log("Verify BGP session state : Should be ESTABLISHED")
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*50, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+
+	// Clear config on DUT and ATE
+	topo.StopProtocols(t)
+	gnmi.Delete(t, dut, dutConfPath.Config())
+}
+
 // TestParameters is to verify normal session establishment and termination
 // in both eBGP and iBGP scenarios using session parameters like explicit
-// router id , timers and MD5 authentication.
+// router id , timers.
 func TestParameters(t *testing.T) {
 	ateIP := ateAttrs.IPv4
 	dutIP := dutAttrs.IPv4
@@ -349,7 +417,6 @@ func TestParameters(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fptest.LogQuery(t, "DUT BGP Config before", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 			t.Log("Clear BGP Configs on DUT")
 			gnmi.Delete(t, dut, dutConfPath.Config())
 			t.Log("Configure BGP Configs on DUT")
