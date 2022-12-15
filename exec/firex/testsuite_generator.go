@@ -131,8 +131,10 @@ var (
         - {{ $pl }}
     {{- end }}
     {{- end }}
-	{{- if $.Test.Topology }}
+    {{- if $.Test.Topology }}
     topo_file: {{ $.Test.Topology }}
+    {{- else }}
+    topo_file: ""
     {{- end }}
     {{- if $.Test.Testbed }}
     ondatra_testbed_path: {{ $.Test.Testbed }}
