@@ -74,9 +74,8 @@ func TestSupervisorSwitchover(t *testing.T) {
 
 	supervisors := components.FindComponentsByType(t, dut, controlcardType)
 	t.Logf("Found supervisor list: %v", supervisors)
-	// Only perform the switchover for the chassis with dual RPs/Supervisors.
 	if got, want := len(supervisors), 2; got != want {
-		t.Skipf("Dual RP/SUP is required on %v: got %v, want %v", dut.Model(), got, want)
+		t.Errorf("Dual RP/SUP is required on %v: got %v, want %v", dut.Model(), got, want)
 	}
 
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, supervisors)
