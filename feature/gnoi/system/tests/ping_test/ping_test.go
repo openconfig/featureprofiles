@@ -112,9 +112,7 @@ func TestGNOIPing(t *testing.T) {
 		t.Fatalf("Failed to get a valid IPv6 loopback address: %+v", ipv6Addrs)
 	}
 	if *deviations.ExplicitInterfaceInDefaultVRF {
-		if dut.Vendor() == ondatra.NOKIA {
-			fptest.AssignToNetworkInstance(t, dut, lbIntf, "mgmt", 0)
-		}
+		fptest.AssignToNetworkInstance(t, dut, lbIntf, "mgmt", 0)
 	}
 	commonExpectedIPv4Reply := &spb.PingResponse{
 		Source:   ipv4Addrs[0].GetIp(),
