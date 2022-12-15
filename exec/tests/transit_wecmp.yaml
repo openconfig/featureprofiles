@@ -9,3 +9,5 @@ tests:
   path: feature/gribi/ate_tests/cisco/transit_wecmp_flush
   timeout: 36000
   mustpass: true
+  args: 
+    - '-gribi_aft_check="false"'
