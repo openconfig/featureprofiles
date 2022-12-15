@@ -148,6 +148,7 @@ Suite | T | P | F | S | Logs | DDTS | Attr | Result
             result_attr = []
             if s["test"].is_patched(): result_attr.append('P')
             if s["test"].is_deviated(): result_attr.append('D')
+            if s["test"].is_must_pass(): result_attr.append('MP')
             if len(result_attr) > 0:
                 result_attr = f'{", ".join(result_attr)}'
             else: result_attr = ''
@@ -176,6 +177,7 @@ class GoTest:
         self._gh_issue = None
         self._deviated = False
         self._patched = False
+        self._is_must_pass = False
         self._log_file_name = hashlib.md5(name.encode("utf")).hexdigest() + '.txt'
 
         if parent:
@@ -269,6 +271,9 @@ class GoTest:
 
     def mark_deviated(self):
         self._deviated = True
+
+    def mark_must_pass(self):
+        self._is_must_pass = True
         
     def add_failure(self, failure):
         self._failures.append(failure)
@@ -342,6 +347,9 @@ class GoTest:
     
     def is_deviated(self):
         return self._deviated
+
+    def is_must_pass(self):
+        return self._is_must_pass
 
     def get_total(self):
         return len(self.get_descendants())
@@ -630,8 +638,11 @@ def _read_log_file(file):
     with open(file, 'r') as fp:
         lines = fp.readlines()
         for i, f in enumerate(lines):
-            content += f
-            if i < len(lines) - 1: content += ','
+            try:
+                json.loads(f)
+                content += f
+                if i < len(lines) - 1: content += ','
+            except: continue
     content += ']'
     return content
 

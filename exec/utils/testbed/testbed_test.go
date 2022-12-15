@@ -46,6 +46,7 @@ func TestShowVersion(t *testing.T) {
 				content += err.Error()
 				content += "\n"
 			}
+			dut.RawAPIs().CLI(t).Close()
 		})
 	}
 

@@ -1,10 +1,16 @@
-from collections import namedtuple
+import argparse
 import json
 import os
+
 from subprocess import check_output
 
-lineup = 'xr-dev'
-nightly_label = '*NIGHTLY*'
+parser = argparse.ArgumentParser(description='Find latest pims image')
+parser.add_argument('--lineup', default='xr-dev', help="image lineup")
+parser.add_argument('--label', default='*NIGHTLY*', help="image label")
+args = parser.parse_args()
+
+lineup = args.lineup
+nightly_label = args.label
 image_subpaths = ['8000/8000-x64.iso', 'img-8000/8000-x64.iso']
 
 candidates = []

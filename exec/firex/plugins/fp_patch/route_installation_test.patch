@@ -1,5 +1,5 @@
 diff --git a/feature/bgp/policybase/ate_tests/route_installation_test/route_installation_test.go b/feature/bgp/policybase/ate_tests/route_installation_test/route_installation_test.go
-index 1f44f61..4748111 100644
+index 1f44f61..e465a17 100644
 --- a/feature/bgp/policybase/ate_tests/route_installation_test/route_installation_test.go
 +++ b/feature/bgp/policybase/ate_tests/route_installation_test/route_installation_test.go
 @@ -15,6 +15,7 @@
@@ -130,3 +130,15 @@ index 1f44f61..4748111 100644
  		}
  	}
  }
+@@ -461,6 +488,11 @@ func TestEstablish(t *testing.T) {
+ 	t.Logf("Start DUT config load:")
+ 	dut := ondatra.DUT(t, "dut")
+ 
++	t.Log("Configure Route Policies")
++	d := &oc.Root{}
++	rpl := configureBGPPolicy(d)
++	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
++
+ 	// Configure interface on the DUT
+ 	t.Logf("Start DUT interface Config")
+ 	configureDUT(t, dut)

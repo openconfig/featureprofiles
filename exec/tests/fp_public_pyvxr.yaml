@@ -1,9 +1,7 @@
 name: fp_public_pyvxr
 owner: mbagherz@cisco.com
 priority: 1
-testbed: topologies/cisco/pyvxr/testbed
-pyvxr:
-  topology: topologies/cisco/pyvxr/topo.yaml
+topology: topologies/cisco/pyvxr/topo.yaml
 pretests:
   - name: pre_fp_gribi_test
     path: topologies/cisco/pretests/pre_fp_gribi_test.go
@@ -57,7 +55,6 @@ tests:
   args:
       - '-deviation_interface_enabled="true"'
       - '-deviation_ipv4_missing_enabled="true"'
-  patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
   owner: mananpat@cisco.com
   mustpass: false
   priority: 13
