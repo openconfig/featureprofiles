@@ -106,6 +106,31 @@ var (
 			desc: "create congestion on egress interface and test scheduling",
 			fn:   testScheduler2,
 		},
+		{
+			name: "testing scheduling functionality with wrr and ecn",
+			desc: "create congestion on egress interface and test scheduling interfaces",
+			fn:   testSchedulerwrr,
+		},
+	}
+)
+var (
+	QoSWrrTrafficTestcases = []Testcase{
+
+		{
+			name: "Test QOS counters with Traffic with wrr configs",
+			desc: "Program gribi with wucmp and verify qos counters",
+			fn:   testQoswrrCounter,
+		},
+		{
+			name: "Test QOS counters streaming with Traffic with wrr configs",
+			desc: "Program gribi with wucmp and verify qos streaming",
+			fn:   testQoswrrStreaming,
+		},
+		{
+			name: "Test Delete of sequence and add back sequence",
+			desc: "testing gribi tests with sequence del and add",
+			fn:   testQoswrrdeladdseq,
+		},
 	}
 )
 
@@ -288,3 +313,96 @@ func TestScheduler(t *testing.T) {
 		})
 	}
 }
+
+func TestWrrTrafficQos(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	time.Sleep(time.Minute)
+	cliHandle := dut.RawAPIs().CLI(t)
+	defer cliHandle.Close()
+	resp, err := cliHandle.SendCommand(context.Background(), "show version")
+	t.Logf(resp)
+	if err != nil {
+		t.Error(err)
+	}
+	if strings.Contains(resp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
+	//Configure IPv6 addresses and VLANS on DUT
+	configureIpv6AndVlans(t, dut)
+
+	// Dial gRIBI
+	ctx := context.Background()
+
+	// Configure the ATE
+	ate := ondatra.ATE(t, "ate")
+	top := configureATE(t, ate)
+	top.Push(t).StartProtocols(t)
+
+	for _, tt := range QoSWrrTrafficTestcases {
+		// Each case will run with its own gRIBI fluent client.
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Name: %s", tt.name)
+			t.Logf("Description: %s", tt.desc)
+
+			clientA := gribi.Client{
+				DUT:                   dut,
+				FibACK:                *ciscoFlags.GRIBIFIBCheck,
+				Persistence:           true,
+				InitialElectionIDLow:  10,
+				InitialElectionIDHigh: 0,
+			}
+			defer clientA.Close(t)
+			if err := clientA.Start(t); err != nil {
+				t.Fatalf("Could not initialize gRIBI: %v", err)
+			}
+			//clientA.BecomeLeader(t)
+
+			interfaceList := []string{}
+			for i := 121; i < 128; i++ {
+				interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
+			}
+
+			interfaces := interfaces{
+				in:  []string{"Bundle-Ether120"},
+				out: interfaceList,
+			}
+
+			args := &testArgs{
+				ctx:        ctx,
+				clientA:    &clientA,
+				dut:        dut,
+				ate:        ate,
+				top:        top,
+				usecase:    0,
+				interfaces: &interfaces,
+				prefix: &gribiPrefix{
+					scale:           1,
+					host:            "11.11.11.0",
+					vrfName:         "TE",
+					vipPrefixLength: "32",
+
+					vip1Ip: "192.0.2.40",
+					vip2Ip: "192.0.2.42",
+
+					vip1NhIndex:  uint64(100),
+					vip1NhgIndex: uint64(100),
+
+					vip2NhIndex:  uint64(200),
+					vip2NhgIndex: uint64(200),
+
+					vrfNhIndex:  uint64(1000),
+					vrfNhgIndex: uint64(1000),
+				},
+			}
+
+			tt.fn(ctx, t, args)
+		})
+	}
+}
+
+// func TestDelQos(t *testing.T) {
+// 	dut := ondatra.DUT(t, "dut")
+// 	dut.Config().Qos().Delete(t)
+
+// }
