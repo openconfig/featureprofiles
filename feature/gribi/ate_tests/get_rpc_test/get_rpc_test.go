@@ -319,17 +319,16 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	niProto := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 
-  dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, args.dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-	
-  ni := &oc.NetworkInstance{Name: deviations.DefaultNetworkInstance}
+
+	ni := &oc.NetworkInstance{Name: deviations.DefaultNetworkInstance}
 	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	staticRoute := static.GetOrCreateStatic(staticCIDR)
 	nextHop := staticRoute.GetOrCreateNextHop("0")
 	nextHop.NextHop = oc.UnionString(atePort2.IPv4)
 	gnmi.Update(t, args.dut, niProto.Config(), static)
-
-  validateGetRPC(ctx, t, args.clientA)
+	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {
 		ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
 		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR[ip]; got != want {
