@@ -176,7 +176,7 @@ func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
 	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	ipv4Address := "0.0.0.0/0"
 	ipv6Address := "::/0"
-	ipv6dest := "2001:db8::1/128"
+	icmp6 := 58
 
 	// Match policy
 	policyFwding := ni.GetOrCreatePolicyForwarding()
@@ -184,7 +184,7 @@ func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
 	fwdPolicy1 := policyFwding.GetOrCreatePolicy("match-ipv4")
 	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
 	fwdPolicy1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy1.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6dest)
+	fwdPolicy1.GetOrCreateRule(2).GetOrCreateIpv6().Protocol = oc.UnionUint8(icmp6)
 	fwdPolicy1.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(false)
 	fwdPolicy1.GetOrCreateRule(3).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
 	fwdPolicy1.GetOrCreateRule(3).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
@@ -193,7 +193,7 @@ func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
 	fwdPolicy2 := policyFwding.GetOrCreatePolicy("match-ipip")
 	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
 	fwdPolicy2.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy2.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6dest)
+	fwdPolicy2.GetOrCreateRule(2).GetOrCreateIpv6().Protocol = oc.UnionUint8(icmp6)
 	fwdPolicy2.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(false)
 	fwdPolicy2.GetOrCreateRule(3).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
 	fwdPolicy2.GetOrCreateRule(3).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
@@ -209,7 +209,7 @@ func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
 	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
 	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
 	fwdPolicy4.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy4.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6dest)
+	fwdPolicy4.GetOrCreateRule(2).GetOrCreateIpv6().Protocol = oc.UnionUint8(icmp6)
 	fwdPolicy4.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(false)
 	fwdPolicy4.GetOrCreateRule(3).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
 	fwdPolicy4.GetOrCreateRule(3).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
@@ -222,7 +222,7 @@ func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
 	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
 	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
 	fwdPolicy5.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy5.GetOrCreateRule(3).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6dest)
+	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv6().Protocol = oc.UnionUint8(icmp6)
 	fwdPolicy5.GetOrCreateRule(3).GetOrCreateAction().Discard = ygot.Bool(false)
 	fwdPolicy5.GetOrCreateRule(4).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
 	fwdPolicy5.GetOrCreateRule(4).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
