@@ -185,7 +185,7 @@ tests:
 - name: gNOI-5.1 (Ping Test) 
   path: feature/gnoi/system/tests/ping_test
   owner: arvbaska@cisco.com
-  priority: 4
+  priority: 5
   mustpass: true
 - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
   path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
@@ -271,7 +271,7 @@ tests:
   patch: exec/firex/plugins/fp_patch/telemetry_port_speed_test.patch
   owner: agvarghe@cisco.com
   mustpass: true
-  priority: 3
+  priority: 33
 - name: gNMI-1.10 (Telemetry Basic Check) 
   path: feature/gnmi/ate_tests/telemetry_basic_check_test
   args:
@@ -431,7 +431,7 @@ tests:
   owner: arvbaska@cisco.com
   mustpass: true
   skip: false
-  priority: 3
+  priority: 55
   timeout: 7200
 - name: TE-8.2 (Supervisor Failure)
   path: feature/gribi/ate_tests/supervisor_failure_test
