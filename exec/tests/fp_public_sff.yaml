@@ -14,7 +14,7 @@ tests:
   owner: arvbaska@cisco.com
   priority: 1
   mustpass: true
-  skip: true
+  skip: false
 - name: TE-15.1 (gRIBI Compliance) 
   path: feature/gribi/ate_tests/gribigo_compliance_test
   priority: 2
@@ -60,7 +60,7 @@ tests:
   #    - '-deviation_ipv4_missing_enabled="true"'
   # patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
   owner: mananpat@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 7
   skip: false
 - name: TE-3.2 (Traffic Balancing According to Weights) 
@@ -103,7 +103,7 @@ tests:
   timeout: 4200
   skip: false
   owner: mananpat@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 7
 - name: TE-11.2 (Backup NHG Multiple NH)
   path: feature/gribi/ate_tests/backup_nhg_multiple_nh_test
@@ -142,7 +142,7 @@ tests:
   owner: arvbaska@cisco.com
   priority: 3
   mustpass: true
-  skip: true
+
 - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
   path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
   args:
@@ -174,7 +174,7 @@ tests:
   skip: true
   owner: sprem@cisco.com
   priority: 4
-  mustpass: true
+  mustpass: false
 - name: gNMI-1.1 (cli Origin) 
   path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
   owner: agvarghe@cisco.com
@@ -212,7 +212,7 @@ tests:
 - name: RT-3.1 Policy based VRF selection
   path: feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection
   owner: sprem@cisco.com
-  mustpass: true
+  mustpass: false
   priority: 30
 - name: RT-5.1 (Singleton Interface) 
   path: feature/interface/singleton/ate_tests/singleton_test
@@ -240,7 +240,7 @@ tests:
       - '-deviation_subinterface_packet_counters_missing="true"'
   #patch: exec/firex/plugins/fp_patch/telemetry_basic_check_test.patch
   owner: agvarghe@cisco.com
-  mustpass: true
+  mustpass: false
   priority: 34
 - name: gNMI-1.11 (Telemetry Interface Packet Counters) 
   path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
@@ -280,7 +280,7 @@ tests:
 - name: gNOI-3.4 (Chassis Reboot Status and Reboot Cancellation) 
   path: feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
   owner: arvbaska@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 42
 - name: SEC-3.1 (Authentication) 
   path: feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test
