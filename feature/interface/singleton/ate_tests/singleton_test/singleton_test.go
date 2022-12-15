@@ -266,7 +266,7 @@ func (tc *testCase) verifyInterfaceDUT(
 			}
 		}
 	}
-	if !*deviations.MissingNeighborOrigin {
+	if !*deviations.MissingSubinterfaceNeighbor {
 		disp := dip.Subinterface(0)
 
 		// IPv4 neighbor discovered by ARP.

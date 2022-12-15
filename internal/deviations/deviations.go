@@ -72,7 +72,7 @@ var (
 	MissingEthernetPhy = flag.Bool("deviation_missing_ethernet_phy", false,
 		"Device does not support configuring Ethernet PHY settings (duplex-mode, auto-negotiate and port-speed). Fully compliant devices should allow these to be configured.")
 
-	MissingNeighborOrigin = flag.Bool("deviation_missing_neighbor_origin", false,
+	MissingSubinterfaceNeighbor = flag.Bool("deviation_missing_subinterface_neighbor", false,
 		"Device does not support querying the MAC origin of a subinterface neighbor. Fully compliant device should report whether the MAC entry is static or dynamic.")
 
 	NTPAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,
