@@ -1,8 +1,9 @@
 name: local_station_mac
 owner: sprem@cisco.com
 priority: 5
-testbed: topologies/cisco/pyvxr/ate_dut_9.yaml
-- name: LocalStationMac
+topology: topologies/cisco/pyvxr/ate_dut_9.yaml
+tests:
+- name: Local Station Mac
   path: feature/system/ate_tests/cisco/local_station_mac_test
+  mustpass: true
   timeout: 1200
-  
