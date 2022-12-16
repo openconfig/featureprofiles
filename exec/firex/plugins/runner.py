@@ -261,7 +261,7 @@ def b4_fp_chain_provider(ws,
     if apply_test_patches and test_patch:
         chain |= PatchFP.s(fp_repo=fp_repo_dir, patch_path=os.path.join(exec_repo_dir, test_patch))
 
-    chain |= ReleaseIxiaPorts.s(ws=ws, fp_ws=exec_repo_dir, ondatra_binding_path=ondatra_binding_path)
+    #chain |= ReleaseIxiaPorts.s(ws=ws, fp_ws=exec_repo_dir, ondatra_binding_path=ondatra_binding_path)
 
     if fp_pre_tests:
         for pt in fp_pre_tests:
