@@ -252,14 +252,14 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) []strin
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithIndex(index).
 				WithIPAddress(nextHops[i]).
-				WithElectionID(12, 0))
+				WithElectionID(args.electionID.Low, args.electionID.High))
 
 		args.client.Modify().AddEntry(t,
 			fluent.NextHopGroupEntry().
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithID(uint64(2)).
 				AddNextHop(index, 64).
-				WithElectionID(12, 0))
+				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 	time.Sleep(time.Minute)
 	virtualVIPs := createIPv4Entries("198.18.196.1/22")
@@ -270,7 +270,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) []strin
 				WithPrefix(virtualVIPs[ip]+"/32").
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithNextHopGroup(uint64(2)).
-				WithElectionID(12, 0))
+				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
 		t.Fatalf("Could not program entries via clientA, got err: %v", err)
@@ -375,7 +375,7 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 
 	sipv4 := s.GetOrCreateIpv4()
 
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		sipv4.Enabled = ygot.Bool(true)
 	}
 
