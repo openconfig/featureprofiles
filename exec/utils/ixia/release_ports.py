@@ -56,6 +56,7 @@ try:
                     slot, port = pname.split('/')
                     port_map.Map(chassis, slot, port)
                 port_map.Connect(ForceOwnership=True)
+                port_map.Disconnect()
                 session_assistant.Session.remove()
 except ModuleNotFoundError:
     ixiaVenv = IxiaEnv('ixia_venv')
