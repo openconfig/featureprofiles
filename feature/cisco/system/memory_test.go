@@ -20,6 +20,9 @@ import (
 	"testing"
 
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // /system/memory/state/reserved
@@ -27,7 +30,7 @@ func TestMemoryReserved(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/memory/state/reserved", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			memoryReserved := dut.Telemetry().System().Memory().Reserved().Get(t)
+			memoryReserved := gnmi.Get(t, dut, gnmi.OC().System().Memory().Reserved().State())
 			if memoryReserved == uint64(0) {
 				t.Logf("Got correct reserved memory value")
 			} else {
@@ -42,7 +45,7 @@ func TestMemoryPhysical(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/memory/state/physical", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			memoryReserved := dut.Telemetry().System().Memory().Physical().Get(t)
+			memoryReserved := gnmi.Get(t, dut, gnmi.OC().System().Memory().Physical().State())
 			if memoryReserved > uint64(0) {
 				t.Logf("Got correct Physical memory value")
 			} else {

@@ -15,8 +15,11 @@ import (
 	//"github.com/openconfig/featureprofiles/tools/inputcisco/proto"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -41,7 +44,7 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for j, redprofile := range redprofilelist {
@@ -52,9 +55,9 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 		redqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[j])
 		redqueumreduni.EnableEcn = ygot.Bool(true)
 	}
-	configqos := dut.Config().Qos()
-	configqos.Replace(t, qos)
-	configGotqos := configqos.Get(t)
+	configqos := gnmi.OC().Qos()
+	gnmi.Replace(t, dut, configqos.Config(), qos)
+	configGotqos := gnmi.GetConfig(t, dut, configqos.Config())
 	if diff := cmp.Diff(*configGotqos, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -63,14 +66,14 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	var ind uint64
 	ind = 0
 	for i, schedqueue := range queues {
 		schedule := schedulerpol.GetOrCreateScheduler(uint32(i))
-		schedule.Priority = telemetry.Scheduler_Priority_STRICT
+		schedule.Priority = oc.Scheduler_Priority_STRICT
 		input := schedule.GetOrCreateInput(schedqueue)
 		input.Id = ygot.String(schedqueue)
 		input.Queue = ygot.String(schedqueue)
@@ -78,9 +81,9 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 		ind += 1
 
 	}
-	ConfigSced := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name)
-	ConfigSced.Replace(t, schedulerpol)
-	ConfigGotSched := ConfigSced.Get(t)
+	ConfigSced := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
+	gnmi.Replace(t, dut, ConfigSced.Config(), schedulerpol)
+	ConfigGotSched := gnmi.GetConfig(t, dut, ConfigSced.Config())
 	if diff := cmp.Diff(*ConfigGotSched, *schedulerpol); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -90,8 +93,8 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
 
-	dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name().Replace(t, "eg_policy1111")
-	ConfigGetIntf := dut.Config().Qos().Interface("Bundle-Ether121").Get(t)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name().Config(), "eg_policy1111")
+	ConfigGetIntf := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Config())
 	if diff := cmp.Diff(*ConfigGetIntf, *schedinterface); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -99,9 +102,9 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 	for i, priorque := range priorqueus {
 		queueout := schedinterfaceout.GetOrCreateQueue(priorque)
 		queueout.QueueManagementProfile = ygot.String(redprofilelist[i])
-		configqm := dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(priorque)
-		configqm.Replace(t, queueout)
-		configgotqm := configqm.Get(t)
+		configqm := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(priorque)
+		gnmi.Replace(t, dut, configqm.Config(), queueout)
+		configgotqm := gnmi.GetConfig(t, dut, configqm.Config())
 
 		if diff := cmp.Diff(*configgotqm, *queueout); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
@@ -150,9 +153,9 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := dut.Config().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
-		configqm.Replace(t, wredqueumred)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
+		gnmi.Replace(t, dut, configqm.Config(), wredqueumred)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -161,9 +164,9 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 	for i, priorque := range priorqueus {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(priorque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
-		configqmwred := dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(priorque)
-		configqmwred.Replace(t, queueoutwred)
-		configgotqmwred := configqmwred.Get(t)
+		configqmwred := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(priorque)
+		gnmi.Replace(t, dut, configqmwred.Config(), queueoutwred)
+		configgotqmwred := gnmi.GetConfig(t, dut, configqmwred.Config())
 
 		if diff := cmp.Diff(*configgotqmwred, *queueoutwred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
@@ -218,7 +221,7 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
@@ -229,9 +232,9 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := dut.Config().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
-		configqm.Replace(t, wredqueumred)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
+		gnmi.Replace(t, dut, configqm.Config(), wredqueumred)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -242,12 +245,12 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Replace(t, q1)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -258,9 +261,9 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 		ind += 1
 
 	}
-	configprior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
-	configprior.Replace(t, schedule)
-	configGotprior := configprior.Get(t)
+	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
+	gnmi.Replace(t, dut, configprior.Config(), schedule)
+	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -268,11 +271,11 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 	inputupd.Id = ygot.String("tc5")
 	inputupd.Weight = ygot.Uint64(5)
 	inputupd.Queue = ygot.String("tc5")
-	dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input("tc5").Update(t, inputupd)
+	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input("tc5").Config(), inputupd)
 
 	nonpriorqueues := []string{"tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -281,17 +284,17 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 		inputwrr.Queue = ygot.String(wrrqueue)
 		inputwrr.Weight = ygot.Uint64(60 - weight)
 		weight += 10
-		configInputwrr := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
-		configInputwrr.Replace(t, inputwrr)
-		configGotwrr := configInputwrr.Get(t)
+		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
+		gnmi.Replace(t, dut, configInputwrr.Config(), inputwrr)
+		configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
 		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
 
 	}
-	confignonprior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
+	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	//confignonprior.Replace(t, schedulenonprior)
-	configGotnonprior := confignonprior.Get(t)
+	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -300,9 +303,9 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	configIntf := dut.Config().Qos().Interface(*schedinterface.InterfaceId)
-	configIntf.Replace(t, schedinterface)
-	configGetIntf := configIntf.Get(t)
+	configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
+	gnmi.Replace(t, dut, configIntf.Config(), schedinterface)
+	configGetIntf := gnmi.GetConfig(t, dut, configIntf.Config())
 	if diff := cmp.Diff(*configGetIntf, *schedinterface); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -311,20 +314,20 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
-		configqmwred := dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(wrrque)
-		configqmwred.Replace(t, queueoutwred)
-		configgotqmwred := configqmwred.Get(t)
+		configqmwred := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(wrrque)
+		gnmi.Replace(t, dut, configqmwred.Config(), queueoutwred)
+		configgotqmwred := gnmi.GetConfig(t, dut, configqmwred.Config())
 
 		if diff := cmp.Diff(*configgotqmwred, *queueoutwred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 
 	}
-	configGet := configIntf.Get(t)
+	configGet := gnmi.GetConfig(t, dut, configIntf.Config())
 	if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 		t.Errorf("Config Interface Get fail: \n%v", diff)
 	}
-	configGetScedPol := dut.Config().Qos().SchedulerPolicy("eg_policy1111").Get(t)
+	configGetScedPol := gnmi.GetConfig(t, dut, gnmi.OC().Qos().SchedulerPolicy("eg_policy1111").Config())
 	if diff := cmp.Diff(*configGetScedPol, *schedulerpol); diff != "" {
 		t.Errorf("Config of wrr red Get fail: \n%v", diff)
 	}
@@ -359,9 +362,9 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 		redqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[j])
 		redqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[j])
 		redqueumreduni.EnableEcn = ygot.Bool(true)
-		configqm := dut.Config().Qos().QueueManagementProfile(*redqueum.Name).Red()
-		configqm.Replace(t, redqueumred)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red()
+		gnmi.Replace(t, dut, configqm.Config(), redqueumred)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *redqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -370,9 +373,9 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 	for i, wrrque := range wrrqueues {
 		queueout := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueout.QueueManagementProfile = ygot.String(redprofilelist[i])
-		configqm := dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(wrrque)
-		configqm.Replace(t, queueout)
-		configgotqm := configqm.Get(t)
+		configqm := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(wrrque)
+		gnmi.Replace(t, dut, configqm.Config(), queueout)
+		configgotqm := gnmi.GetConfig(t, dut, configqm.Config())
 
 		if diff := cmp.Diff(*configgotqm, *queueout); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
@@ -429,7 +432,7 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
@@ -440,9 +443,9 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := dut.Config().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
-		configqm.Replace(t, wredqueumred)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
+		gnmi.Replace(t, dut, configqm.Config(), wredqueumred)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -453,12 +456,12 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Replace(t, q1)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -469,9 +472,9 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 		ind += 1
 
 	}
-	configprior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
-	configprior.Replace(t, schedule)
-	configGotprior := configprior.Get(t)
+	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
+	gnmi.Replace(t, dut, configprior.Config(), schedule)
+	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -479,11 +482,11 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 	inputupd.Id = ygot.String("tc5")
 	inputupd.Weight = ygot.Uint64(5)
 	inputupd.Queue = ygot.String("tc5")
-	dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input("tc5").Update(t, inputupd)
+	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input("tc5").Config(), inputupd)
 
 	nonpriorqueues := []string{"tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -492,17 +495,17 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 		inputwrr.Queue = ygot.String(wrrqueue)
 		inputwrr.Weight = ygot.Uint64(60 - weight)
 		weight += 10
-		configInputwrr := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
-		configInputwrr.Update(t, inputwrr)
-		configGotwrr := configInputwrr.Get(t)
+		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
+		gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
+		configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
 		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
 
 	}
-	confignonprior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name)
-	confignonprior.Replace(t, schedulerpol)
-	configGotnonprior := confignonprior.Get(t)
+	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
+	gnmi.Replace(t, dut, confignonprior.Config(), schedulerpol)
+	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulerpol); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -518,9 +521,9 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
 	}
-	ConfigOutput := dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output()
-	ConfigOutput.Replace(t, schedinterfaceout)
-	ConfigOutputGot := ConfigOutput.Get(t)
+	ConfigOutput := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output()
+	gnmi.Replace(t, dut, ConfigOutput.Config(), schedinterfaceout)
+	ConfigOutputGot := gnmi.GetConfig(t, dut, ConfigOutput.Config())
 	if diff := cmp.Diff(*ConfigOutputGot, *schedinterfaceout); diff != "" {
 		t.Errorf("Config Input fail: \n%v", diff)
 	}
@@ -552,7 +555,7 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 	ind = 0
 	for i, schedqueue := range queues {
 		schedulerep := schedulerpolrep.GetOrCreateScheduler(uint32(i))
-		schedulerep.Priority = telemetry.Scheduler_Priority_STRICT
+		schedulerep.Priority = oc.Scheduler_Priority_STRICT
 		inputrep := schedulerep.GetOrCreateInput(schedqueue)
 		inputrep.Id = ygot.String(schedqueue)
 		inputrep.Queue = ygot.String(schedqueue)
@@ -560,7 +563,7 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 		indrep += 1
 
 	}
-	dut.Config().Qos().SchedulerPolicy(*schedulerpolrep.Name).Replace(t, schedulerpolrep)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpolrep.Name).Config(), schedulerpolrep)
 	for j, redprofile := range redprofilelist {
 		redqueum := qos.GetOrCreateQueueManagementProfile(redprofile)
 		redqueumred := redqueum.GetOrCreateRed()
@@ -568,9 +571,9 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 		redqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[j])
 		redqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[j])
 		redqueumreduni.EnableEcn = ygot.Bool(true)
-		configqm := dut.Config().Qos().QueueManagementProfile(*redqueum.Name).Red()
-		configqm.Replace(t, redqueumred)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red()
+		gnmi.Replace(t, dut, configqm.Config(), redqueumred)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *redqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -582,9 +585,9 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 		queueoutred := schedinterfaceoutrep.GetOrCreateQueue(wrrque)
 		queueoutred.QueueManagementProfile = ygot.String(redprofilelist[i])
 	}
-	ConfigOut := dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output()
-	ConfigOut.Replace(t, schedinterfaceoutrep)
-	ConfigGotOut := ConfigOut.Get(t)
+	ConfigOut := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output()
+	gnmi.Replace(t, dut, ConfigOut.Config(), schedinterfaceoutrep)
+	ConfigGotOut := gnmi.GetConfig(t, dut, ConfigOut.Config())
 	if diff := cmp.Diff(*ConfigGotOut, *schedinterfaceoutrep); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -638,7 +641,7 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		redprofilelist = append(redprofilelist, fmt.Sprintf("redprofile%d", i))
 	}
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
@@ -649,9 +652,9 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := dut.Config().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
-		configqm.Update(t, wredqueumreduni)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
+		gnmi.Update(t, dut, configqm.Config(), wredqueumreduni)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumreduni); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -661,12 +664,12 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -677,9 +680,9 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		ind += 1
 
 	}
-	configprior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
-	configprior.Replace(t, schedule)
-	configGotprior := configprior.Get(t)
+	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
+	gnmi.Replace(t, dut, configprior.Config(), schedule)
+	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -687,11 +690,11 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 	inputupd.Id = ygot.String("tc5")
 	inputupd.Weight = ygot.Uint64(5)
 	inputupd.Queue = ygot.String("tc5")
-	dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input("tc5").Update(t, inputupd)
+	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input("tc5").Config(), inputupd)
 
 	nonpriorqueues := []string{"tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -700,17 +703,17 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		inputwrr.Queue = ygot.String(wrrqueue)
 		inputwrr.Weight = ygot.Uint64(60 - weight)
 		weight += 10
-		configInputwrr := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
-		configInputwrr.Update(t, inputwrr)
-		configGotwrr := configInputwrr.Get(t)
+		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
+		gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
+		configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
 		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
 
 	}
-	confignonprior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
+	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	// confignonprior.Update(t, schedulenonprior)
-	configGotnonprior := confignonprior.Get(t)
+	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -732,10 +735,10 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 			queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 			queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
 		}
-		ConfigIntf := dut.Config().Qos().Interface(*schedinterface.InterfaceId)
-		ConfigIntf.Replace(t, schedinterface)
+		ConfigIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
+		gnmi.Replace(t, dut, ConfigIntf.Config(), schedinterface)
 
-		ConfigGotIntf := ConfigIntf.Get(t)
+		ConfigGotIntf := gnmi.GetConfig(t, dut, ConfigIntf.Config())
 		if diff := cmp.Diff(*ConfigGotIntf, *schedinterface); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -768,7 +771,7 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 	ind = 0
 	for i, schedqueue := range queues {
 		schedulerep := schedulerpolrep.GetOrCreateScheduler(uint32(i))
-		schedulerep.Priority = telemetry.Scheduler_Priority_STRICT
+		schedulerep.Priority = oc.Scheduler_Priority_STRICT
 		inputrep := schedulerep.GetOrCreateInput(schedqueue)
 		inputrep.Id = ygot.String(schedqueue)
 		inputrep.Queue = ygot.String(schedqueue)
@@ -776,7 +779,7 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		indrep += 1
 
 	}
-	dut.Config().Qos().SchedulerPolicy(*schedulerpolrep.Name).Replace(t, schedulerpolrep)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpolrep.Name).Config(), schedulerpolrep)
 	for j, redprofile := range redprofilelist {
 		redqueum := qos.GetOrCreateQueueManagementProfile(redprofile)
 		redqueumred := redqueum.GetOrCreateRed()
@@ -784,9 +787,9 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		redqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[j])
 		redqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[j])
 		redqueumreduni.EnableEcn = ygot.Bool(true)
-		configqm := dut.Config().Qos().QueueManagementProfile(*redqueum.Name).Red()
-		configqm.Replace(t, redqueumred)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red()
+		gnmi.Replace(t, dut, configqm.Config(), redqueumred)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *redqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -803,10 +806,10 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 			queueoutwred := schedinterfaceoutrep.GetOrCreateQueue(wrrque)
 			queueoutwred.QueueManagementProfile = ygot.String(redprofilelist[i])
 		}
-		ConfigIntf := dut.Config().Qos().Interface(*schedinterfacerep.InterfaceId)
-		ConfigIntf.Replace(t, schedinterfacerep)
+		ConfigIntf := gnmi.OC().Qos().Interface(*schedinterfacerep.InterfaceId)
+		gnmi.Replace(t, dut, ConfigIntf.Config(), schedinterfacerep)
 
-		ConfigGotIntf := ConfigIntf.Get(t)
+		ConfigGotIntf := gnmi.GetConfig(t, dut, ConfigIntf.Config())
 		if diff := cmp.Diff(*ConfigGotIntf, *schedinterfacerep); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -841,19 +844,19 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 
 func TestQmRedWrrSetUpdateQos(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -866,7 +869,7 @@ func TestQmRedWrrSetUpdateQos(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -913,9 +916,9 @@ func TestQmRedWrrSetUpdateQos(t *testing.T) {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
 	}
-	ConfigQos := dut.Config().Qos()
-	ConfigQos.Update(t, qos)
-	ConfigQosGet := ConfigQos.Get(t)
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
+	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -964,7 +967,7 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
@@ -975,9 +978,9 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := dut.Config().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
-		configqm.Update(t, wredqueumreduni)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
+		gnmi.Update(t, dut, configqm.Config(), wredqueumreduni)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumreduni); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -987,12 +990,12 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -1003,9 +1006,9 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 		ind += 1
 
 	}
-	configprior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
-	configprior.Update(t, schedule)
-	configGotprior := configprior.Get(t)
+	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
+	gnmi.Update(t, dut, configprior.Config(), schedule)
+	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -1013,11 +1016,11 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 	inputupd.Id = ygot.String("tc5")
 	inputupd.Weight = ygot.Uint64(5)
 	inputupd.Queue = ygot.String("tc5")
-	dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input("tc5").Update(t, inputupd)
+	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input("tc5").Config(), inputupd)
 
 	nonpriorqueues := []string{"tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -1026,22 +1029,22 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 		inputwrr.Queue = ygot.String(wrrqueue)
 		inputwrr.Weight = ygot.Uint64(60 - weight)
 		weight += 10
-		configInputwrr := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
-		configInputwrr.Update(t, inputwrr)
-		configGotwrr := configInputwrr.Get(t)
+		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
+		gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
+		configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
 		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
 
 	}
-	confignonprior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
+	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	// confignonprior.Update(t, schedulenonprior)
-	configGotnonprior := confignonprior.Get(t)
+	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
 
-	dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Update(t, schedulerpol)
+	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Config(), schedulerpol)
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
@@ -1052,19 +1055,19 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
 	}
-	ConfigIntf := dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output()
-	ConfigIntf.Update(t, schedinterfaceout)
+	ConfigIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output()
+	gnmi.Update(t, dut, ConfigIntf.Config(), schedinterfaceout)
 
-	ConfigGotIntf := ConfigIntf.Get(t)
+	ConfigGotIntf := gnmi.GetConfig(t, dut, ConfigIntf.Config())
 	if diff := cmp.Diff(*ConfigGotIntf, *schedinterfaceout); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
 	updatequeue := "tc7"
 	queueoutupd := schedinterfaceout.GetOrCreateQueue(updatequeue)
 	queueoutupd.QueueManagementProfile = ygot.String(wredprofilelist[6])
-	UpdateConfig := dut.Config().Qos().Interface("Bundle-Ether121").Output().Queue(updatequeue)
-	UpdateConfig.Update(t, queueoutupd)
-	ConfigGetUpdateQueue := UpdateConfig.Get(t)
+	UpdateConfig := gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(updatequeue)
+	gnmi.Update(t, dut, UpdateConfig.Config(), queueoutupd)
+	ConfigGetUpdateQueue := gnmi.GetConfig(t, dut, UpdateConfig.Config())
 
 	if diff := cmp.Diff(*ConfigGetUpdateQueue, *queueoutupd); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1096,19 +1099,19 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 
 func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -1121,7 +1124,7 @@ func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -1172,9 +1175,9 @@ func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 
 	}
 	//dut.Config().Qos().Interface("Bundle-Ether121").Replace(t, schedinterface)
-	ConfigQos := dut.Config().Qos()
-	ConfigQos.Update(t, qos)
-	ConfigQosGet := ConfigQos.Get(t)
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
+	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1202,8 +1205,8 @@ func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 		}
 	}
 
-	dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().Queue("tc7").Delete(t)
-	ConfigGetOutput := dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().Get(t)
+	gnmi.Delete(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue("tc7").Config())
+	ConfigGetOutput := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Config())
 	if diff := cmp.Diff(*ConfigGetOutput, *schedinterfaceout); diff == "" {
 		t.Errorf("Delete failed: \n%v", diff)
 	}
@@ -1219,9 +1222,9 @@ func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 	updatequeue := "tc7"
 	queueoutupd := schedinterfaceout.GetOrCreateQueue(updatequeue)
 	queueoutupd.QueueManagementProfile = ygot.String(wredprofilelist[6])
-	UpdateConfig := dut.Config().Qos().Interface("Bundle-Ether121").Output().Queue(updatequeue)
-	UpdateConfig.Update(t, queueoutupd)
-	ConfigGetUpdateQueue := UpdateConfig.Get(t)
+	UpdateConfig := gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(updatequeue)
+	gnmi.Update(t, dut, UpdateConfig.Config(), queueoutupd)
+	ConfigGetUpdateQueue := gnmi.GetConfig(t, dut, UpdateConfig.Config())
 
 	if diff := cmp.Diff(*ConfigGetUpdateQueue, *queueoutupd); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1254,19 +1257,19 @@ func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 
 func TestQmRedWrrSetUpdateWredProfile(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -1279,7 +1282,7 @@ func TestQmRedWrrSetUpdateWredProfile(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -1326,9 +1329,9 @@ func TestQmRedWrrSetUpdateWredProfile(t *testing.T) {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
 	}
-	ConfigQos := dut.Config().Qos()
-	ConfigQos.Update(t, qos)
-	ConfigQosGet := ConfigQos.Get(t)
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
+	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1362,9 +1365,9 @@ func TestQmRedWrrSetUpdateWredProfile(t *testing.T) {
 	wredqueumreduni5.MaxThreshold = ygot.Uint64(390070272)
 	wredqueumreduni5.EnableEcn = ygot.Bool(true)
 	wredqueumreduni5.MaxDropProbabilityPercent = ygot.Uint8(10)
-	configUpdate := dut.Config().Qos().QueueManagementProfile(*wredqueum5.Name)
-	configUpdate.Update(t, wredqueum5)
-	ConfigAfterUpdate := configUpdate.Get(t)
+	configUpdate := gnmi.OC().Qos().QueueManagementProfile(*wredqueum5.Name)
+	gnmi.Update(t, dut, configUpdate.Config(), wredqueum5)
+	ConfigAfterUpdate := gnmi.GetConfig(t, dut, configUpdate.Config())
 	if diff := cmp.Diff(*ConfigAfterUpdate, *wredqueum5); diff != "" {
 		t.Errorf("Update failed: \n%v", diff)
 	}
@@ -1381,19 +1384,19 @@ func TestQmRedWrrSetUpdateWredProfile(t *testing.T) {
 
 func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -1406,7 +1409,7 @@ func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -1455,9 +1458,9 @@ func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
 		//dut.Config().Qos().Interface("Bundle-Ether121").Output().Queue(wrrque).Replace(t, queueoutwred)
 	}
-	ConfigQos := dut.Config().Qos()
-	ConfigQos.Update(t, qos)
-	ConfigQosGet := ConfigQos.Get(t)
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
+	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1490,8 +1493,8 @@ func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 	updtwrr.Id = ygot.String("tc5")
 	updtwrr.Queue = ygot.String("tc5")
 	updtwrr.Weight = ygot.Uint64(55)
-	ConfigUpdWrr := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*updtwrr.Id)
-	ConfigUpdWrr.Update(t, updtwrr)
+	ConfigUpdWrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*updtwrr.Id)
+	gnmi.Update(t, dut, ConfigUpdWrr.Config(), updtwrr)
 
 	resp1, err1 := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
 	t.Logf(resp1)
@@ -1506,19 +1509,19 @@ func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 
 func TestQmRedDelSchedIntf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -1531,7 +1534,7 @@ func TestQmRedDelSchedIntf(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -1573,8 +1576,8 @@ func TestQmRedDelSchedIntf(t *testing.T) {
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	ConfigQos := dut.Config().Qos()
-	ConfigQos.Update(t, qos)
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
 	// ConfigQosGet := ConfigQos.Get(t)
 
 	// if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
@@ -1584,14 +1587,14 @@ func TestQmRedDelSchedIntf(t *testing.T) {
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
-		dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(wrrque).Replace(t, queueoutwred)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(wrrque).Config(), queueoutwred)
 	}
 
-	dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().Delete(t)
-	ConfigPolicyIntf := dut.Config().Qos().Interface("Bundle-Ether121")
+	gnmi.Delete(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Config())
+	ConfigPolicyIntf := gnmi.OC().Qos().Interface("Bundle-Ether121")
 	t.Run("Delete the wredprofile attached to interface", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			ConfigPolicyIntf.Get(t) //catch the error  as it is expected and absorb the panic.
+			gnmi.GetConfig(t, dut, ConfigPolicyIntf.Config()) //catch the error  as it is expected and absorb the panic.
 		}); errMsg != nil {
 			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 		} else {
@@ -1600,9 +1603,9 @@ func TestQmRedDelSchedIntf(t *testing.T) {
 	})
 
 	//Add back the configs
-	ConfigOutput := dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output()
-	ConfigOutput.Update(t, schedinterfaceout)
-	ConfigOutputGet := ConfigOutput.Get(t)
+	ConfigOutput := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output()
+	gnmi.Update(t, dut, ConfigOutput.Config(), schedinterfaceout)
+	ConfigOutputGet := gnmi.GetConfig(t, dut, ConfigOutput.Config())
 	if diff := cmp.Diff(*ConfigOutputGet, *schedinterfaceout); diff != "" {
 		t.Errorf("Config delete output fail: \n%v", diff)
 	}
@@ -1637,19 +1640,19 @@ func TestDelWredAttchdIntf(t *testing.T) {
 	//This tests will try to Delete the wred profile already attached to interface
 	//Expected to Fail and will have to capture the Error
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -1662,7 +1665,7 @@ func TestDelWredAttchdIntf(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -1704,8 +1707,8 @@ func TestDelWredAttchdIntf(t *testing.T) {
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	ConfigQos := dut.Config().Qos()
-	ConfigQos.Update(t, qos)
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
 	// ConfigQosGet := ConfigQos.Get(t)
 
 	// if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
@@ -1715,13 +1718,13 @@ func TestDelWredAttchdIntf(t *testing.T) {
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
-		dut.Config().Qos().Interface("Bundle-Ether121").Output().Queue(wrrque).Update(t, queueoutwred)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(wrrque).Config(), queueoutwred)
 	}
 
-	ConfigWredDel := dut.Config().Qos().QueueManagementProfile(wredprofilelist[1])
+	ConfigWredDel := gnmi.OC().Qos().QueueManagementProfile(wredprofilelist[1])
 	t.Run("Delete the wredprofile attached to interface", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			ConfigWredDel.Delete(t) //catch the error  as it is expected and absorb the panic.
+			gnmi.Delete(t, dut, ConfigWredDel.Config()) //catch the error  as it is expected and absorb the panic.
 		}); errMsg != nil {
 			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 		} else {
@@ -1734,19 +1737,19 @@ func TestDelWredAttchdIntf(t *testing.T) {
 func TestRepWredAttchdIntf(t *testing.T) {
 	//This test will try to replace the wred profile attached and this will fail
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -1759,7 +1762,7 @@ func TestRepWredAttchdIntf(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -1802,9 +1805,9 @@ func TestRepWredAttchdIntf(t *testing.T) {
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	ConfigQos := dut.Config().Qos()
-	ConfigQos.Update(t, qos)
-	ConfigQosGet := ConfigQos.Get(t)
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
+	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1813,7 +1816,7 @@ func TestRepWredAttchdIntf(t *testing.T) {
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
-		dut.Config().Qos().Interface("Bundle-Ether121").Output().Queue(wrrque).Replace(t, queueoutwred)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(wrrque).Config(), queueoutwred)
 	}
 	cliHandle := dut.RawAPIs().CLI(t)
 	defer cliHandle.Close()
@@ -1845,9 +1848,9 @@ func TestRepWredAttchdIntf(t *testing.T) {
 	wredqueumreduni5.MaxThreshold = ygot.Uint64(390070272)
 	wredqueumreduni5.EnableEcn = ygot.Bool(true)
 	wredqueumreduni5.MaxDropProbabilityPercent = ygot.Uint8(17)
-	configUpdate := dut.Config().Qos().QueueManagementProfile(*wredqueum5.Name)
-	configUpdate.Replace(t, wredqueum5)
-	ConfigGotUpdate := configUpdate.Get(t)
+	configUpdate := gnmi.OC().Qos().QueueManagementProfile(*wredqueum5.Name)
+	gnmi.Replace(t, dut, configUpdate.Config(), wredqueum5)
+	ConfigGotUpdate := gnmi.GetConfig(t, dut, configUpdate.Config())
 	if diff := cmp.Diff(*ConfigGotUpdate, *wredqueum5); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -1867,19 +1870,19 @@ func TestRepWredAttchdIntf(t *testing.T) {
 func TestRepSchedQueueAttchdIntf(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -1892,7 +1895,7 @@ func TestRepSchedQueueAttchdIntf(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -1934,17 +1937,17 @@ func TestRepSchedQueueAttchdIntf(t *testing.T) {
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	ConfigQos := dut.Config().Qos()
-	ConfigQos.Update(t, qos)
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
 
 	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
-		dut.Config().Qos().Interface("Bundle-Ether121").Output().Queue(wrrque).Replace(t, queueoutwred)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(wrrque).Config(), queueoutwred)
 	}
 
-	ConfigQosGet := ConfigQos.Get(t)
+	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -1976,11 +1979,11 @@ func TestRepSchedQueueAttchdIntf(t *testing.T) {
 	updtwrr.Id = ygot.String("tc1")
 	updtwrr.Queue = ygot.String("tc1")
 	updtwrr.Weight = ygot.Uint64(15)
-	ConfigUpdWrr := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*updtwrr.Id)
+	ConfigUpdWrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*updtwrr.Id)
 
 	t.Run(" Replace input queue attached to interface", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			ConfigUpdWrr.Replace(t, updtwrr) //catch the error  as it is expected and absorb the panic.
+			gnmi.Replace(t, dut, ConfigUpdWrr.Config(), updtwrr) //catch the error  as it is expected and absorb the panic.
 		}); errMsg != nil {
 			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 		} else {
@@ -1993,19 +1996,19 @@ func TestRepSchedQueueAttchdIntf(t *testing.T) {
 func TestDelSchedQueueAttchdIntf(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -2018,7 +2021,7 @@ func TestDelSchedQueueAttchdIntf(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -2065,9 +2068,9 @@ func TestDelSchedQueueAttchdIntf(t *testing.T) {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
 	}
-	ConfigQos := dut.Config().Qos()
-	ConfigQos.Update(t, qos)
-	ConfigQosGet := ConfigQos.Get(t)
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
+	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -2095,11 +2098,11 @@ func TestDelSchedQueueAttchdIntf(t *testing.T) {
 		}
 	}
 
-	ConfigUpdWrr := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input("tc1")
+	ConfigUpdWrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input("tc1")
 
 	t.Run(" Delete the queue from Input queue", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			ConfigUpdWrr.Delete(t) //catch the error  as it is expected and absorb the panic.
+			gnmi.Delete(t, dut, ConfigUpdWrr.Config()) //catch the error  as it is expected and absorb the panic.
 		}); errMsg != nil {
 			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 		} else {
@@ -2113,19 +2116,19 @@ func TestDelSchedQueueAttchdIntf(t *testing.T) {
 
 func TestRepSchedSeqAttchdIntf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -2138,7 +2141,7 @@ func TestRepSchedSeqAttchdIntf(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -2185,9 +2188,9 @@ func TestRepSchedSeqAttchdIntf(t *testing.T) {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
 	}
-	ConfigQos := dut.Config().Qos()
-	ConfigQos.Update(t, qos)
-	ConfigQosGet := ConfigQos.Get(t)
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
+	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -2218,7 +2221,7 @@ func TestRepSchedSeqAttchdIntf(t *testing.T) {
 
 	nonpriorrepqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonreprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonreprior.Priority = telemetry.Scheduler_Priority_STRICT
+	schedulenonreprior.Priority = oc.Scheduler_Priority_STRICT
 
 	for _, wrrqueue := range nonpriorrepqueues {
 		inputwrr := schedulenonprior.GetOrCreateInput(wrrqueue)
@@ -2227,11 +2230,11 @@ func TestRepSchedSeqAttchdIntf(t *testing.T) {
 		inputwrr.Weight = ygot.Uint64(7 - ind)
 		ind += 1
 	}
-	ConfigRepSeq := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
+	ConfigRepSeq := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 
 	t.Run("Replace the scheduler attached with WRR", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			ConfigRepSeq.Replace(t, schedulenonreprior) //catch the error  as it is expected and absorb the panic.
+			gnmi.Replace(t, dut, ConfigRepSeq.Config(), schedulenonreprior) //catch the error  as it is expected and absorb the panic.
 		}); errMsg != nil {
 			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 		} else {
@@ -2243,19 +2246,19 @@ func TestRepSchedSeqAttchdIntf(t *testing.T) {
 
 func TestDelSchedSeqAttchdIntf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -2268,7 +2271,7 @@ func TestDelSchedSeqAttchdIntf(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -2305,7 +2308,7 @@ func TestDelSchedSeqAttchdIntf(t *testing.T) {
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
 
 	}
-	dut.Config().Qos().Update(t, qos)
+	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), qos)
 	interfaceList := []string{}
 	for i := 121; i < 128; i++ {
 		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
@@ -2322,19 +2325,19 @@ func TestDelSchedSeqAttchdIntf(t *testing.T) {
 			queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 			queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
 		}
-		ConfigIntf := dut.Config().Qos().Interface(*schedinterface.InterfaceId)
-		ConfigIntf.Replace(t, schedinterface)
+		ConfigIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
+		gnmi.Replace(t, dut, ConfigIntf.Config(), schedinterface)
 
-		ConfigGotIntf := ConfigIntf.Get(t)
+		ConfigGotIntf := gnmi.GetConfig(t, dut, ConfigIntf.Config())
 		if diff := cmp.Diff(*ConfigGotIntf, *schedinterface); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 	}
-	ConfigSeq := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input("tc1")
+	ConfigSeq := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input("tc1")
 
 	t.Run(" Delete the sequence attached with wrr", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			ConfigSeq.Delete(t) //catch the error  as it is expected and absorb the panic.
+			gnmi.Delete(t, dut, ConfigSeq.Config()) //catch the error  as it is expected and absorb the panic.
 		}); errMsg != nil {
 			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 		} else {
@@ -2346,19 +2349,19 @@ func TestDelSchedSeqAttchdIntf(t *testing.T) {
 
 func TestDelSchedPolAttchdIntf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -2371,7 +2374,7 @@ func TestDelSchedPolAttchdIntf(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -2418,16 +2421,16 @@ func TestDelSchedPolAttchdIntf(t *testing.T) {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
 	}
-	ConfigQos := dut.Config().Qos()
-	ConfigQos.Update(t, qos)
-	ConfigQosGet := ConfigQos.Get(t)
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
+	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	ConfigSchedPol := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name)
+	ConfigSchedPol := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
 	t.Run("Delete  the Sequence  attached to the interface", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			ConfigSchedPol.Delete(t) //catch the error  as it is expected and absorb the panic.
+			gnmi.Delete(t, dut, ConfigSchedPol.Config()) //catch the error  as it is expected and absorb the panic.
 		}); errMsg != nil {
 			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 		} else {
@@ -2440,19 +2443,19 @@ func TestDelSchedPolAttchdIntf(t *testing.T) {
 func TestRepSchedPolAttchdIntf(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -2465,7 +2468,7 @@ func TestRepSchedPolAttchdIntf(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -2512,8 +2515,8 @@ func TestRepSchedPolAttchdIntf(t *testing.T) {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
 	}
-	ConfigQos := dut.Config().Qos()
-	ConfigQos.Update(t, qos)
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
 	// ConfigQosGet := ConfigQos.Get(t)
 	// if diff := cmp.Diff(*ConfigQosGet, *ConfigQos); diff != "" {
 	// 	t.Errorf("Config Schedule fail: \n%v", diff)
@@ -2526,7 +2529,7 @@ func TestRepSchedPolAttchdIntf(t *testing.T) {
 	ind = 0
 	for i, schedqueue := range repqueues {
 		schedule := repschedulerpol.GetOrCreateScheduler(uint32(i))
-		schedule.Priority = telemetry.Scheduler_Priority_STRICT
+		schedule.Priority = oc.Scheduler_Priority_STRICT
 		input := schedule.GetOrCreateInput(schedqueue)
 		input.Id = ygot.String(schedqueue)
 		input.Queue = ygot.String(schedqueue)
@@ -2534,12 +2537,12 @@ func TestRepSchedPolAttchdIntf(t *testing.T) {
 		repind += 1
 
 	}
-	dut.Config().Qos().SchedulerPolicy(*repschedulerpol.Name).Update(t, repschedulerpol)
+	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*repschedulerpol.Name).Config(), repschedulerpol)
 	// repscheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	// repscheinterfaceschedpol.Name = ygot.String("eg_policy1112")
-	ConfigReplSchedInt := dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name()
-	ConfigReplSchedInt.Replace(t, "eg_policy1112")
-	ConfigGotQosPol := dut.Config().Qos().SchedulerPolicy("eg_policy1112").Get(t)
+	ConfigReplSchedInt := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name()
+	gnmi.Replace(t, dut, ConfigReplSchedInt.Config(), "eg_policy1112")
+	ConfigGotQosPol := gnmi.GetConfig(t, dut, gnmi.OC().Qos().SchedulerPolicy("eg_policy1112").Config())
 
 	if diff := cmp.Diff(*ConfigGotQosPol, *repschedulerpol); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)

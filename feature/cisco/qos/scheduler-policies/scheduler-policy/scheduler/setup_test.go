@@ -5,7 +5,10 @@ import (
 
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 	//	"github.com/openconfig/testt"
 )
 
@@ -31,12 +34,12 @@ type interfaceScheduler struct {
 
 func setupQos(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *oc.Qos {
 	bc := setup.BaseConfig(baseConfigFile)
-	dut.Config().Qos().Update(t, bc)
+	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), bc)
 	return bc
 }
 
 func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
-	dut.Config().Qos().Delete(t)
+	gnmi.Delete(t, dut, gnmi.OC().Qos().Config())
 }
 
 func init() {

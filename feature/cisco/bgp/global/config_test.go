@@ -8,7 +8,10 @@ import (
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -25,7 +28,7 @@ const (
 )
 
 func cleanup(t *testing.T, dut *ondatra.DUTDevice, bgpInst string) {
-	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp().Delete(t)
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp().Config())
 	time.Sleep(configDeleteTime)
 }
 
@@ -45,17 +48,17 @@ func TestAs(t *testing.T) {
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/global/config/as using value %v", input), func(t *testing.T) {
 			bgpInst := fmt.Sprint(input)
-			bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp()
-			bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp()
+			bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp()
+			bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp()
 			config := bgpConfig.Global().As()
 			state := bgpState.Global().As()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 			defer cleanup(t, dut, bgpInst)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/global/state/as: got %v, want %v", stateGot, input)
 				}
@@ -76,32 +79,32 @@ func TestRouterId(t *testing.T) {
 		"195.3.253.50",
 	}
 
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
 	config := bgpConfig.Global().RouterId()
 	state := bgpState.Global().RouterId()
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id using value %v", input), func(t *testing.T) {
-			bgpConfig.Global().As().Update(t, bgpAs)
+			gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgpAs)
 			time.Sleep(configApplyTime)
 			defer cleanup(t, dut, bgpInstance)
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 			defer cleanup(t, dut, bgpInstance)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/global/state/router-id: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != "0.0.0.0" {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id fail: got %v, want 0.0.0.0", stateGot)
 				}

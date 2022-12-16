@@ -9,8 +9,11 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	oc "github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -33,9 +36,9 @@ func TestMultipleQueueSchedulerPolicy(t *testing.T) {
 	baseConfig1 := setup.BaseConfig("scheduler_base1.json")
 	// Create the queue from scheduler_base.json. only 1 queue
 	baseConfigQueue := setup.GetAnyValue(baseConfig.Queue)
-	config := dut.Config().Qos().Queue(*baseConfigQueue.Name)
+	config := gnmi.OC().Qos().Queue(*baseConfigQueue.Name)
 	t.Run("Step 1 , Update  queue container", func(t *testing.T) {
-		config.Update(t, baseConfigQueue)
+		gnmi.Update(t, dut, config.Config(), baseConfigQueue)
 	})
 	// defer call at the end. baseconfig1 because assumption is that after all configs , thats needs to be deleted.
 	defer teardownQos(t, dut, baseConfig1)
@@ -44,14 +47,14 @@ func TestMultipleQueueSchedulerPolicy(t *testing.T) {
 		t.Run(fmt.Sprintf("Testing /qos/queues/queue using value %v", input), func(t *testing.T) {
 			baseConfigQueue := setup.GetAnyValue(baseConfig.Queue)
 			*baseConfigQueue.Name = input
-			config := dut.Config().Qos().Queue(*baseConfigQueue.Name)
+			config := gnmi.OC().Qos().Queue(*baseConfigQueue.Name)
 			t.Run("Step :Update container queue ", func(t *testing.T) {
-				config.Update(t, baseConfigQueue)
+				gnmi.Update(t, dut, config.Config(), baseConfigQueue)
 			})
 			//Not working.
 			if !setup.SkipGet() {
 				t.Run("Get queue Config", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if diff := cmp.Diff(*configGot, *baseConfigQueue); diff != "" {
 						t.Errorf("Config queue fail: \n%v", diff)
 					}
@@ -61,14 +64,14 @@ func TestMultipleQueueSchedulerPolicy(t *testing.T) {
 	}
 	//Add scheduler for baseconfig1 as it has all queues mapped to policy.
 	baseConfig1SchedulerPolicy := setup.GetAnyValue(baseConfig1.SchedulerPolicy)
-	config1 := dut.Config().Qos().SchedulerPolicy(*baseConfig1SchedulerPolicy.Name)
+	config1 := gnmi.OC().Qos().SchedulerPolicy(*baseConfig1SchedulerPolicy.Name)
 	t.Run("Create Policy ", func(t *testing.T) {
-		config1.Update(t, baseConfig1SchedulerPolicy)
+		gnmi.Update(t, dut, config1.Config(), baseConfig1SchedulerPolicy)
 	})
 	//Not working as Sequence which is leafRef not being returned by  XR
 	if !setup.SkipGet() {
 		t.Run("Get Policy Config", func(t *testing.T) {
-			configGot := config1.Get(t)
+			configGot := gnmi.GetConfig(t, dut, config1.Config())
 			if diff := cmp.Diff(*configGot, *baseConfig1SchedulerPolicy); diff != "" {
 				t.Errorf("Config Schedule fail: \n%v", diff)
 			}
@@ -76,14 +79,14 @@ func TestMultipleQueueSchedulerPolicy(t *testing.T) {
 	}
 	/// Add the interface config with scheduler.
 	baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
-	config2 := dut.Config().Qos().Interface(*baseConfigInterface.InterfaceId)
+	config2 := gnmi.OC().Qos().Interface(*baseConfigInterface.InterfaceId)
 	t.Run("Update container Interface", func(t *testing.T) {
-		config2.Update(t, baseConfigInterface)
+		gnmi.Update(t, dut, config2.Config(), baseConfigInterface)
 	})
 	//Works.
 	if setup.SkipGet() {
 		t.Run("Get interface Config", func(t *testing.T) {
-			configGot := config2.Get(t)
+			configGot := gnmi.GetConfig(t, dut, config2.Config())
 			if diff := cmp.Diff(*configGot, *baseConfigInterface); diff != "" {
 				t.Errorf("Config interface fail: \n%v", diff)
 			}
@@ -109,10 +112,10 @@ func Test1DeleteQueueSchedulerPolicy(t *testing.T) {
 			baseConfigSchedulerPolicySchedulerInput := setup.GetAnyValue(baseConfigSchedulerPolicyScheduler.Input)
 			*baseConfigSchedulerPolicySchedulerInput.Queue = input
 
-			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).Input(*baseConfigSchedulerPolicySchedulerInput.Id)
+			config := gnmi.OC().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).Input(*baseConfigSchedulerPolicySchedulerInput.Id)
 			if *baseConfigSchedulerPolicySchedulerInput.Id == "tc7" {
 				t.Run(" Delete the queue from Scheduler-policy", func(t *testing.T) {
-					config.Delete(t)
+					gnmi.Delete(t, dut, config.Config())
 					//Lookup Not working.
 					//if qs := config.Lookup(t); qs.IsPresent() == true {
 					//	t.Errorf("Delete queue from scheduler-policy failed: got %v", qs)
@@ -142,14 +145,14 @@ func TestMultipleDeleteQueueSchedulerPolicy(t *testing.T) {
 			baseConfigSchedulerPolicySchedulerInput := setup.GetAnyValue(baseConfigSchedulerPolicyScheduler.Input)
 			*baseConfigSchedulerPolicySchedulerInput.Queue = input
 			*baseConfigSchedulerPolicySchedulerInput.Id = input
-			config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).Input(*baseConfigSchedulerPolicySchedulerInput.Id)
+			config := gnmi.OC().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).Input(*baseConfigSchedulerPolicySchedulerInput.Id)
 			if *baseConfigSchedulerPolicySchedulerInput.Id == "tc1" {
 				t.Run(" Delete the queue from Input queue", func(t *testing.T) {
-					config.Delete(t)
+					gnmi.Delete(t, dut, config.Config())
 				})
 				if !setup.SkipGet() {
 					t.Run("Get scheduer  Config", func(t *testing.T) {
-						configGot := config.Get(t)
+						configGot := gnmi.GetConfig(t, dut, config.Config())
 						if diff := cmp.Diff(*configGot, *baseConfigSchedulerPolicy); diff != "" {
 							t.Errorf(" config check  fail: \n%v", diff)
 						}
@@ -181,12 +184,12 @@ func TestRandomDeleteQueueSchedulerPolicy(t *testing.T) {
 	baseConfigSchedulerPolicySchedulerInput := setup.GetAnyValue(baseConfigSchedulerPolicyScheduler.Input)
 	*baseConfigSchedulerPolicySchedulerInput.Queue = queueToBeDeleted
 	*baseConfigSchedulerPolicySchedulerInput.Id = queueToBeDeleted
-	config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).Input(*baseConfigSchedulerPolicySchedulerInput.Id)
+	config := gnmi.OC().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).Input(*baseConfigSchedulerPolicySchedulerInput.Id)
 
 	// we are expecting the queue delete to be failed so catch thru fatal.
 	t.Run(" Delete the queue from Input queue", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			config.Delete(t) //catch the error  as it is expected and absorb the panic.
+			gnmi.Delete(t, dut, config.Config()) //catch the error  as it is expected and absorb the panic.
 		}); errMsg != nil {
 			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 		} else {
@@ -195,7 +198,7 @@ func TestRandomDeleteQueueSchedulerPolicy(t *testing.T) {
 	})
 	if !setup.SkipGet() {
 		t.Run("Get scheduer  Config", func(t *testing.T) {
-			configGot := config.Get(t)
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 			if diff := cmp.Diff(*configGot, *baseConfigSchedulerPolicy); diff != "" {
 				t.Errorf(" config check  fail: \n%v", diff)
 			}
@@ -209,7 +212,7 @@ func TestUpdateWrongSchedulerPolicyWeight(t *testing.T) {
 	// defer teardownQos(t, dut, baseConfig)
 	t.Run(" Delete the queue from Input queue", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			dut.Config().Qos().Update(t, baseConfig)
+			gnmi.Update(t, dut, gnmi.OC().Qos().Config(), baseConfig)
 		}); errMsg != nil {
 			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 		} else {
@@ -235,10 +238,10 @@ func TestInvalidUpdateSchedulerPolicy(t *testing.T) {
 	baseConfigSchedulerPolicySchedulerInput := setup.GetAnyValue(baseConfigSchedulerPolicyScheduler.Input)
 	*baseConfigSchedulerPolicySchedulerInput.Queue = queueToBeDeleted
 	*baseConfigSchedulerPolicySchedulerInput.Weight = uint64(n)
-	config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).Input(*baseConfigSchedulerPolicySchedulerInput.Id)
+	config := gnmi.OC().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).Input(*baseConfigSchedulerPolicySchedulerInput.Id)
 	t.Run(" Delete the queue from Input queue", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			config.Update(t, baseConfigSchedulerPolicySchedulerInput) //catch the error  as it is expected and absorb the panic.
+			gnmi.Update(t, dut, config.Config(), baseConfigSchedulerPolicySchedulerInput) //catch the error  as it is expected and absorb the panic.
 		}); errMsg != nil {
 			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 		} else {
@@ -247,7 +250,7 @@ func TestInvalidUpdateSchedulerPolicy(t *testing.T) {
 	})
 	if !setup.SkipGet() {
 		t.Run("Get scheduer  Config", func(t *testing.T) {
-			configGot := config.Get(t)
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 			t.Logf("got this config: \n%v", configGot)
 			if diff := cmp.Diff(*configGot, *baseConfigSchedulerPolicy); diff != "" {
 				t.Errorf(" config check  fail: \n%v", diff)
@@ -264,10 +267,10 @@ func TestSameQueueDifferentSchedulerTwoInterfaceU(t *testing.T) {
 		baseConfig = setupQos(t, dut, "scheduler_base3.json")
 	})
 	defer teardownQos(t, dut, baseConfig)
-	config := dut.Config().Qos()
+	config := gnmi.OC().Qos()
 	if !setup.SkipGet() {
 		t.Run("Get Qos Config", func(t *testing.T) {
-			configGot := config.Get(t)
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 			t.Logf("got this config: \n%v", configGot)
 			if diff := cmp.Diff(*configGot, *baseConfig); diff != "" {
 				t.Errorf(" config check  fail: \n%v", diff)
@@ -284,10 +287,10 @@ func TestSameQueueDifferentSchedulerTwoInterfaceAddDelete(t *testing.T) {
 		baseConfig = setupQos(t, dut, "scheduler_base3.json")
 	})
 	defer teardownQos(t, dut, baseConfig)
-	config := dut.Config().Qos()
+	config := gnmi.OC().Qos()
 	if !setup.SkipGet() {
 		t.Run("Get Qos Config", func(t *testing.T) {
-			configGot := config.Get(t)
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 			t.Logf("got this config: \n%v", configGot)
 			if diff := cmp.Diff(*configGot, *baseConfig); diff != "" {
 				t.Errorf(" config check  fail: \n%v", diff)
@@ -303,14 +306,14 @@ func TestSameQueueDifferentSchedulerTwoInterfaceAddDelete(t *testing.T) {
 		baseConfigInterfaceOutputSchedulerPolicy := baseConfigInterfaceOutput.SchedulerPolicy
 		*baseConfigInterfaceOutputSchedulerPolicy.Name = input.policyName
 		//config := dut.Config().Qos().Interface(*baseConfigInterface.InterfaceId).Output().SchedulerPolicy().Name()
-		config := dut.Config().Qos().Interface(*baseConfigInterface.InterfaceId)
+		config := gnmi.OC().Qos().Interface(*baseConfigInterface.InterfaceId)
 		t.Run(" Delete the scheduler from interface", func(t *testing.T) {
-			config.Output().SchedulerPolicy().Name().Delete(t)
+			gnmi.Delete(t, dut, config.Output().SchedulerPolicy().Name().Config())
 		})
 		//Not working
 		if !setup.SkipGet() {
 			t.Run("Get Qos  interface Config", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				t.Logf("got this config: \n%v", configGot)
 				if diff := cmp.Diff(*configGot, *baseConfigInterfaceOutputSchedulerPolicy); diff != "" {
 					t.Errorf(" config check  fail: \n%v", diff)
@@ -319,7 +322,7 @@ func TestSameQueueDifferentSchedulerTwoInterfaceAddDelete(t *testing.T) {
 		}
 		//Add them back.
 		t.Run(" Add  the scheduler for interface", func(t *testing.T) {
-			config.Update(t, baseConfigInterface)
+			gnmi.Update(t, dut, config.Config(), baseConfigInterface)
 		})
 	}
 }

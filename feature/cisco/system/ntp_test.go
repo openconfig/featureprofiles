@@ -4,41 +4,44 @@ import (
 	"testing"
 
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
 func TestNTPEnableConfig(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	config := dut.Config().System().Ntp().Enabled()
+	config := gnmi.OC().System().Ntp().Enabled()
 	t.Run("Replace//system/ntp/config/enabled", func(t *testing.T) {
 		defer observer.RecordYgot(t, "REPLACE", config)
-		config.Replace(t, true)
-		config.Replace(t, false)
+		gnmi.Replace(t, dut, config.Config(), true)
+		gnmi.Replace(t, dut, config.Config(), false)
 	})
 	t.Run("Update//system/ntp/config/enabled", func(t *testing.T) {
 		defer observer.RecordYgot(t, "UPDATE", config)
-		config.Update(t, true)
-		config.Update(t, false)
+		gnmi.Update(t, dut, config.Config(), true)
+		gnmi.Update(t, dut, config.Config(), false)
 	})
 	t.Run("Delete//system/ntp/config/enabled", func(t *testing.T) {
 		defer observer.RecordYgot(t, "DELETE", config)
-		config.Update(t, true)
-		config.Delete(t)
+		gnmi.Update(t, dut, config.Config(), true)
+		gnmi.Delete(t, dut, config.Config())
 	})
 }
 
 func TestNTPEnableState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	config := dut.Config().System().Ntp()
+	config := gnmi.OC().System().Ntp()
 	model := &oc.System_Ntp{}
 	model.Enabled = ygot.Bool(true)
-	config.Replace(t, model)
-	defer config.Delete(t)
-	telemetry := dut.Telemetry().System().Ntp().Enabled()
+	gnmi.Replace(t, dut, config.Config(), model)
+	defer gnmi.Delete(t, dut, config.Config())
+	telemetry := gnmi.OC().System().Ntp().Enabled()
 	t.Run("Subscribe//system/ntp/config/enabled", func(t *testing.T) {
 		defer observer.RecordYgot(t, "SUBSCRIBE", config)
-		enabled := telemetry.Get(t)
+		enabled := gnmi.Get(t, dut, oc.State())
 		if enabled != true {
 			t.Errorf("Ntp Enabled: got %t, want %t", enabled, true)
 		}

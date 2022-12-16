@@ -8,6 +8,9 @@ import (
 
 	frpb "github.com/openconfig/gnoi/factory_reset"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 type encryptionCommands struct {

@@ -7,7 +7,10 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -26,12 +29,12 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	setup.ResetStruct(bcInterface, []string{"IngressAclSet"})
 	bcInterfaceIngressAclSet := setup.GetAnyValue(bcInterface.IngressAclSet)
 	setup.ResetStruct(bcInterfaceIngressAclSet, []string{})
-	dut.Config().Acl().Replace(t, bc)
+	gnmi.Replace(t, dut, gnmi.OC().Acl().Config(), bc)
 	return bc
 }
 
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
-	dut.Config().Acl().Delete(t)
+	gnmi.Delete(t, dut, gnmi.OC().Acl().Config())
 }
 func TestType(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -49,15 +52,15 @@ func TestType(t *testing.T) {
 			baseConfigInterfaceIngressAclSet := setup.GetAnyValue(baseConfigInterface.IngressAclSet)
 			baseConfigInterfaceIngressAclSet.Type = input
 
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName, baseConfigInterfaceIngressAclSet.Type)
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName, baseConfigInterfaceIngressAclSet.Type)
+			config := gnmi.OC().Acl().Interface(*baseConfigInterface.Id).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName, baseConfigInterfaceIngressAclSet.Type)
+			state := gnmi.OC().Acl().Interface(*baseConfigInterface.Id).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName, baseConfigInterfaceIngressAclSet.Type)
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigInterfaceIngressAclSet)
+				gnmi.Replace(t, dut, config.Config(), baseConfigInterfaceIngressAclSet)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if configGot.Type != input {
 						t.Errorf("Config /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/type: got %v, want %v", configGot, input)
 					}
@@ -65,16 +68,16 @@ func TestType(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if stateGot.Type != input {
 						t.Errorf("State /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/type: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).Type != 0 {
+					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).Type != 0 {
 						t.Errorf("Delete /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/type fail: got %v", qs)
 					}
 				}
@@ -98,15 +101,15 @@ func TestSetName(t *testing.T) {
 			baseConfigInterfaceIngressAclSet := setup.GetAnyValue(baseConfigInterface.IngressAclSet)
 			*baseConfigInterfaceIngressAclSet.SetName = input
 
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName, baseConfigInterfaceIngressAclSet.Type)
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName, baseConfigInterfaceIngressAclSet.Type)
+			config := gnmi.OC().Acl().Interface(*baseConfigInterface.Id).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName, baseConfigInterfaceIngressAclSet.Type)
+			state := gnmi.OC().Acl().Interface(*baseConfigInterface.Id).IngressAclSet(*baseConfigInterfaceIngressAclSet.SetName, baseConfigInterfaceIngressAclSet.Type)
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigInterfaceIngressAclSet)
+				gnmi.Replace(t, dut, config.Config(), baseConfigInterfaceIngressAclSet)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.SetName != input {
 						t.Errorf("Config /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name: got %v, want %v", configGot, input)
 					}
@@ -114,16 +117,16 @@ func TestSetName(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.SetName != input {
 						t.Errorf("State /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).SetName != nil {
+					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).SetName != nil {
 						t.Errorf("Delete /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name fail: got %v", qs)
 					}
 				}

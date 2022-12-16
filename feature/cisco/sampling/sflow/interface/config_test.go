@@ -7,7 +7,10 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/sampling/setup"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -26,35 +29,35 @@ func TestEnabledAtContainer(t *testing.T) {
 			baseConfigSflowInterface := setup.GetAnyValue(baseConfigSflow.Interface)
 			*baseConfigSflowInterface.Enabled = input
 
-			config := dut.Config().Sampling().Sflow().Interface(*baseConfigSflowInterface.Name)
-			state := dut.Telemetry().Sampling().Sflow().Interface(*baseConfigSflowInterface.Name)
+			config := gnmi.OC().Sampling().Sflow().Interface(*baseConfigSflowInterface.Name)
+			state := gnmi.OC().Sampling().Sflow().Interface(*baseConfigSflowInterface.Name)
 
 			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigSflowInterface)
+				gnmi.Replace(t, dut, config.Config(), baseConfigSflowInterface)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.Enabled != input {
 						t.Errorf("Config /sampling/sflow/interfaces/interface/config/enabled: got %v, want %v", configGot, input)
 					}
 				})
 			}
 			t.Run("Update container", func(t *testing.T) {
-				config.Update(t, baseConfigSflowInterface)
+				gnmi.Update(t, dut, config.Config(), baseConfigSflowInterface)
 			})
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.Enabled != input {
 						t.Errorf("State /sampling/sflow/interfaces/interface/config/enabled: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete container", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).Enabled != nil {
+					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).Enabled != nil {
 						t.Errorf("Delete /sampling/sflow/interfaces/interface/config/enabled fail: got %v", qs)
 					}
 				}
@@ -73,15 +76,15 @@ func TestEnabledAtLeaf(t *testing.T) {
 		t.Run(fmt.Sprintf("Testing /sampling/sflow/interfaces/interface/config/enabled using value %v", input), func(t *testing.T) {
 			baseConfigSflowInterface := setup.GetAnyValue(baseConfig.Sflow.Interface)
 
-			config := dut.Config().Sampling().Sflow().Interface(*baseConfigSflowInterface.Name).Enabled()
-			state := dut.Telemetry().Sampling().Sflow().Interface(*baseConfigSflowInterface.Name).Enabled()
+			config := gnmi.OC().Sampling().Sflow().Interface(*baseConfigSflowInterface.Name).Enabled()
+			state := gnmi.OC().Sampling().Sflow().Interface(*baseConfigSflowInterface.Name).Enabled()
 
 			t.Run("Replace leaf", func(t *testing.T) {
-				config.Replace(t, input)
+				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/interfaces/interface/config/enabled: got %v, want %v", configGot, input)
 					}
@@ -89,16 +92,16 @@ func TestEnabledAtLeaf(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if stateGot != input {
 						t.Errorf("State /sampling/sflow/interfaces/interface/config/enabled: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete leaf", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs != nil {
+					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs != nil {
 						t.Errorf("Delete /sampling/sflow/interfaces/interface/config/enabled fail: got %v", qs)
 					}
 				}
@@ -121,26 +124,26 @@ func TestNameAtContainer(t *testing.T) {
 			*baseConfigSflowInterface.Enabled = true
 			*baseConfigSflow.Enabled = true
 
-			config := dut.Config().Sampling().Sflow().Interface(*baseConfigSflowInterface.Name)
-			state := dut.Telemetry().Sampling().Sflow().Interface(*baseConfigSflowInterface.Name)
+			config := gnmi.OC().Sampling().Sflow().Interface(*baseConfigSflowInterface.Name)
+			state := gnmi.OC().Sampling().Sflow().Interface(*baseConfigSflowInterface.Name)
 
 			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigSflowInterface)
+				gnmi.Replace(t, dut, config.Config(), baseConfigSflowInterface)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.Name != input {
 						t.Errorf("Config /sampling/sflow/interfaces/interface/config/name: got %v, want %v", configGot, input)
 					}
 				})
 			}
 			t.Run("Update container", func(t *testing.T) {
-				config.Update(t, baseConfigSflowInterface)
+				gnmi.Update(t, dut, config.Config(), baseConfigSflowInterface)
 			})
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.Name != input {
 						t.Errorf("State /sampling/sflow/interfaces/interface/config/name: got %v, want %v", stateGot, input)
 					}
@@ -161,28 +164,28 @@ func TestGlobalSampleSize(t *testing.T) {
 		*baseConfigSflow.Enabled = true
 		*baseConfigSflow.SampleSize = 256
 
-		config := dut.Config().Sampling().Sflow()
+		config := gnmi.OC().Sampling().Sflow()
 		t.Run("Replace container", func(t *testing.T) {
-			config.Replace(t, baseConfigSflow)
+			gnmi.Replace(t, dut, config.Config(), baseConfigSflow)
 		})
 		t.Run("Replace leaf", func(t *testing.T) {
-			dut.Config().Sampling().Sflow().SampleSize().Replace(t, 128)
+			gnmi.Replace(t, dut, gnmi.OC().Sampling().Sflow().SampleSize().Config(), 128)
 		})
 		if !setup.SkipGet() {
 			t.Run("Get container", func(t *testing.T) {
-				configGot := dut.Config().Sampling().Sflow().SampleSize().Get(t)
+				configGot := gnmi.GetConfig(t, dut, gnmi.OC().Sampling().Sflow().SampleSize().Config())
 				if configGot != 128 {
 					t.Errorf("Config /sampling/sflow/config/sample-size: got %v, want 710", configGot)
 				}
 			})
 		}
 		t.Run("Update leaf", func(t *testing.T) {
-			dut.Config().Sampling().Sflow().SampleSize().Update(t, 256)
+			gnmi.Update(t, dut, gnmi.OC().Sampling().Sflow().SampleSize().Config(), 256)
 		})
 		t.Run("Delete leaf", func(t *testing.T) {
-			dut.Config().Sampling().Sflow().SampleSize().Delete(t)
+			gnmi.Delete(t, dut, gnmi.OC().Sampling().Sflow().SampleSize().Config())
 			if !setup.SkipSubscribe() {
-				if qs := config.Lookup(t); qs.Val(t).SampleSize != nil {
+				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).SampleSize != nil {
 					t.Errorf("Delete /sampling/sflow/config/sample-size fail: got %v", qs)
 				}
 			}

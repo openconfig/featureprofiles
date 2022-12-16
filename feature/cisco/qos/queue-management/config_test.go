@@ -8,7 +8,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -36,7 +39,7 @@ func TestQmWredQosSet(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	t.Run("Step 1 updae /openconfig/qos and Get qos", func(t *testing.T) {
 		qos := d.GetOrCreateQos()
@@ -50,9 +53,9 @@ func TestQmWredQosSet(t *testing.T) {
 			wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
 		}
 
-		configqos := dut.Config().Qos()
-		configqos.Update(t, qos)
-		configGotqos := configqos.Get(t)
+		configqos := gnmi.OC().Qos()
+		gnmi.Update(t, dut, configqos.Config(), qos)
+		configGotqos := gnmi.GetConfig(t, dut, configqos.Config())
 		if diff := cmp.Diff(*configGotqos, *qos); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -76,7 +79,7 @@ func TestQmRedQosSet(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for j, redprofile := range redprofilelist {
@@ -87,9 +90,9 @@ func TestQmRedQosSet(t *testing.T) {
 		redqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[j])
 		redqueumreduni.EnableEcn = ygot.Bool(true)
 	}
-	configqos := dut.Config().Qos()
-	configqos.Update(t, qos)
-	configGotqos := configqos.Get(t)
+	configqos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, configqos.Config(), qos)
+	configGotqos := gnmi.GetConfig(t, dut, configqos.Config())
 	if diff := cmp.Diff(*configGotqos, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -100,7 +103,7 @@ func TestQueueManagementQosReplace(t *testing.T) {
 	t.Run("Step 2 Replace /openconfig/qos and Get qos", func(t *testing.T) {
 
 		dut := ondatra.DUT(t, "dut")
-		d := &telemetry.Device{}
+		d := &oc.Root{}
 		defer teardownQos(t, dut)
 		qosr := d.GetOrCreateQos()
 		wredqueum1 := qosr.GetOrCreateQueueManagementProfile("wredprofile11")
@@ -110,9 +113,9 @@ func TestQueueManagementQosReplace(t *testing.T) {
 		wredqueumredunir.MaxThreshold = ygot.Uint64(180000)
 		wredqueumredunir.EnableEcn = ygot.Bool(true)
 		wredqueumredunir.MaxDropProbabilityPercent = ygot.Uint8(10)
-		configqosreplace := dut.Config().Qos()
-		configqosreplace.Replace(t, qosr)
-		configGotqos := configqosreplace.Get(t)
+		configqosreplace := gnmi.OC().Qos()
+		gnmi.Replace(t, dut, configqosreplace.Config(), qosr)
+		configGotqos := gnmi.GetConfig(t, dut, configqosreplace.Config())
 		if diff := cmp.Diff(*configGotqos, *qosr); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -139,7 +142,7 @@ func TestQMQmwredSet(t *testing.T) {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
@@ -150,16 +153,16 @@ func TestQMQmwredSet(t *testing.T) {
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := dut.Config().Qos().QueueManagementProfile(*wredqueum.Name)
-		configqm.Replace(t, wredqueum)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
+		gnmi.Replace(t, dut, configqm.Config(), wredqueum)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 
 	}
-	configqos := dut.Config().Qos()
-	configGotqos := configqos.Get(t)
+	configqos := gnmi.OC().Qos()
+	configGotqos := gnmi.GetConfig(t, dut, configqos.Config())
 	if diff := cmp.Diff(*configGotqos, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -171,9 +174,9 @@ func TestQMQmwredSet(t *testing.T) {
 	wredqueumreduni5.MaxThreshold = ygot.Uint64(390070272)
 	wredqueumreduni5.EnableEcn = ygot.Bool(true)
 	wredqueumreduni5.MaxDropProbabilityPercent = ygot.Uint8(10)
-	configUpdate := dut.Config().Qos().QueueManagementProfile(*wredqueum5.Name)
-	configUpdate.Update(t, wredqueum5)
-	configGot := configUpdate.Get(t)
+	configUpdate := gnmi.OC().Qos().QueueManagementProfile(*wredqueum5.Name)
+	gnmi.Update(t, dut, configUpdate.Config(), wredqueum5)
+	configGot := gnmi.GetConfig(t, dut, configUpdate.Config())
 	if diff := cmp.Diff(*configGot, *wredqueum5); diff != "" {
 		t.Errorf("Config Schedule update failed: \n%v", diff)
 	}
@@ -196,7 +199,7 @@ func TestQMQmredSet(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for j, redprofile := range redprofilelist {
@@ -206,15 +209,15 @@ func TestQMQmredSet(t *testing.T) {
 		redqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[j])
 		redqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[j])
 		redqueumreduni.EnableEcn = ygot.Bool(true)
-		configqm := dut.Config().Qos().QueueManagementProfile(*redqueum.Name)
-		configqm.Replace(t, redqueum)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name)
+		gnmi.Replace(t, dut, configqm.Config(), redqueum)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *redqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 	}
-	configqos := dut.Config().Qos()
-	configGotqos := configqos.Get(t)
+	configqos := gnmi.OC().Qos()
+	configGotqos := gnmi.GetConfig(t, dut, configqos.Config())
 	if diff := cmp.Diff(*configGotqos, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -223,16 +226,16 @@ func TestQMQmredSet(t *testing.T) {
 	redqueumreduni1 := redqueumred1.GetOrCreateUniform()
 	redqueumreduni1.MinThreshold = ygot.Uint64(120000)
 	redqueumreduni1.MaxThreshold = ygot.Uint64(130000)
-	configred := dut.Config().Qos().QueueManagementProfile(*redqueum1.Name)
-	configred.Update(t, redqueum1)
-	configGot := configred.Get(t)
+	configred := gnmi.OC().Qos().QueueManagementProfile(*redqueum1.Name)
+	gnmi.Update(t, dut, configred.Config(), redqueum1)
+	configGot := gnmi.GetConfig(t, dut, configred.Config())
 	if diff := cmp.Diff(*configGot, *redqueum1); diff != "" {
 		t.Errorf("Config Schedule update failed: \n%v", diff)
 	}
 	redqueumreduni1.EnableEcn = ygot.Bool(true)
-	configredecn := dut.Config().Qos().QueueManagementProfile(*redqueum1.Name)
-	configredecn.Update(t, redqueum1)
-	configGotEcn := configredecn.Get(t)
+	configredecn := gnmi.OC().Qos().QueueManagementProfile(*redqueum1.Name)
+	gnmi.Update(t, dut, configredecn.Config(), redqueum1)
+	configGotEcn := gnmi.GetConfig(t, dut, configredecn.Config())
 	if diff := cmp.Diff(*configGotEcn, *redqueum1); diff != "" {
 		t.Errorf("Config Schedule update failed: \n%v", diff)
 	}
@@ -264,7 +267,7 @@ func TestQMWredSetReplace(t *testing.T) {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
@@ -275,9 +278,9 @@ func TestQMWredSetReplace(t *testing.T) {
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := dut.Config().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
-		configqm.Replace(t, wredqueumred)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
+		gnmi.Replace(t, dut, configqm.Config(), wredqueumred)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -305,7 +308,7 @@ func TestQMWredUniReplace(t *testing.T) {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
@@ -316,9 +319,9 @@ func TestQMWredUniReplace(t *testing.T) {
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := dut.Config().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
-		configqm.Replace(t, wredqueumreduni)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
+		gnmi.Replace(t, dut, configqm.Config(), wredqueumreduni)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumreduni); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -346,7 +349,7 @@ func TestQMWredSetUpdate(t *testing.T) {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
@@ -357,9 +360,9 @@ func TestQMWredSetUpdate(t *testing.T) {
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := dut.Config().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
-		configqm.Update(t, wredqueumred)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
+		gnmi.Update(t, dut, configqm.Config(), wredqueumred)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -386,7 +389,7 @@ func TestQMWredUniUpdate(t *testing.T) {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
@@ -397,9 +400,9 @@ func TestQMWredUniUpdate(t *testing.T) {
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := dut.Config().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
-		configqm.Update(t, wredqueumreduni)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
+		gnmi.Update(t, dut, configqm.Config(), wredqueumreduni)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumreduni); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -424,7 +427,7 @@ func TestQMRedReplace(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for j, redprofile := range redprofilelist {
@@ -434,9 +437,9 @@ func TestQMRedReplace(t *testing.T) {
 		redqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[j])
 		redqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[j])
 		redqueumreduni.EnableEcn = ygot.Bool(true)
-		configqm := dut.Config().Qos().QueueManagementProfile(*redqueum.Name).Red()
-		configqm.Replace(t, redqueumred)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red()
+		gnmi.Replace(t, dut, configqm.Config(), redqueumred)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *redqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -459,7 +462,7 @@ func TestQMRedSetUpdate(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for j, redprofile := range redprofilelist {
@@ -469,9 +472,9 @@ func TestQMRedSetUpdate(t *testing.T) {
 		redqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[j])
 		redqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[j])
 		redqueumreduni.EnableEcn = ygot.Bool(true)
-		configqm := dut.Config().Qos().QueueManagementProfile(*redqueum.Name).Red()
-		configqm.Update(t, redqueumred)
-		configGotQM := configqm.Get(t)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red()
+		gnmi.Update(t, dut, configqm.Config(), redqueumred)
+		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *redqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -480,7 +483,7 @@ func TestQMRedSetUpdate(t *testing.T) {
 
 func TestQmUpdateEcn(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
 	wredqueum := qos.GetOrCreateQueueManagementProfile("wredprofile11")
@@ -494,13 +497,13 @@ func TestQmUpdateEcn(t *testing.T) {
 	redqueumreduni := redqueumred.GetOrCreateUniform()
 	redqueumreduni.MinThreshold = ygot.Uint64(120000)
 	redqueumreduni.MaxThreshold = ygot.Uint64(130000)
-	config1 := dut.Config().Qos().QueueManagementProfile(*redqueum.Name).Wred().Uniform()
-	config1.Update(t, wredqueumreduni)
-	config2 := dut.Config().Qos().QueueManagementProfile(*wredqueum.Name).Red().Uniform()
-	config2.Update(t, redqueumreduni)
-	configsetwredecn := dut.Config().Qos().QueueManagementProfile(*redqueum.Name).Wred().Uniform().EnableEcn()
-	configsetwredecn.Update(t, true)
-	ConfigGetEcn := dut.Config().Qos().QueueManagementProfile(*redqueum.Name).Get(t)
+	config1 := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Wred().Uniform()
+	gnmi.Update(t, dut, config1.Config(), wredqueumreduni)
+	config2 := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Red().Uniform()
+	gnmi.Update(t, dut, config2.Config(), redqueumreduni)
+	configsetwredecn := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Wred().Uniform().EnableEcn()
+	gnmi.Update(t, dut, configsetwredecn.Config(), true)
+	ConfigGetEcn := gnmi.GetConfig(t, dut, gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Config())
 	if diff := cmp.Diff(*ConfigGetEcn, *redqueumred); diff == "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -514,7 +517,7 @@ func TestQueueManagementDeleteAdd(t *testing.T) {
 	// Step 6 Subscribe to the Queue of the interface .
 	// Step 8  Defar called to delete all.
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
 	wredqueum := qos.GetOrCreateQueueManagementProfile("wredprofile11")
@@ -537,36 +540,36 @@ func TestQueueManagementDeleteAdd(t *testing.T) {
 	redqueumreduni1.MaxThreshold = ygot.Uint64(130000)
 	redqueumreduni1.EnableEcn = ygot.Bool(true)
 	//dut.Config().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Replace(t, wredqueumred)
-	config1 := dut.Config().Qos().QueueManagementProfile(*redqueum.Name)
-	config2 := dut.Config().Qos().QueueManagementProfile(*wredqueum.Name)
-	config3 := dut.Config().Qos().QueueManagementProfile(*redqueum1.Name)
+	config1 := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name)
+	config2 := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
+	config3 := gnmi.OC().Qos().QueueManagementProfile(*redqueum1.Name)
 	t.Run("Step 1 , Update  queue-management-container", func(t *testing.T) {
-		config1.Update(t, redqueum)
-		config2.Update(t, wredqueum)
-		config3.Update(t, redqueum1)
+		gnmi.Update(t, dut, config1.Config(), redqueum)
+		gnmi.Update(t, dut, config2.Config(), wredqueum)
+		gnmi.Update(t, dut, config3.Config(), redqueum1)
 	})
 	t.Run("Step 2 , Get one of queue-management-container before delete", func(t *testing.T) {
-		configGot1 := config1.Get(t)
+		configGot1 := gnmi.GetConfig(t, dut, config1.Config())
 		if diff := cmp.Diff(*configGot1, *redqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 	})
 	t.Run("Step 3 , Delete one of queue-management-container and verify with Get", func(t *testing.T) {
-		config1.Delete(t)
-		ConfigGotqos := dut.Config().Qos().Get(t)
+		gnmi.Delete(t, dut, config1.Config())
+		ConfigGotqos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
 
 		if diff := cmp.Diff(*ConfigGotqos, *qos); diff == "" {
 			t.Errorf("Failed to Delete %v", *redqueum.Name)
 		}
 	})
 	t.Run("Step 4 , add back qm profile back and verify with Get", func(t *testing.T) {
-		configuni := dut.Config().Qos().QueueManagementProfile(*redqueum.Name).Red().Uniform()
-		configuni.Update(t, redqueumreduni)
-		configGotUni := configuni.Get(t)
+		configuni := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red().Uniform()
+		gnmi.Update(t, dut, configuni.Config(), redqueumreduni)
+		configGotUni := gnmi.GetConfig(t, dut, configuni.Config())
 		if diff := cmp.Diff(*configGotUni, *redqueumreduni); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
-		ConfigGotqos := dut.Config().Qos().Get(t)
+		ConfigGotqos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
 		if diff := cmp.Diff(*ConfigGotqos, *qos); diff != "" {
 			t.Errorf("Qm profile %v not  added back", *redqueum.Name)
 		}

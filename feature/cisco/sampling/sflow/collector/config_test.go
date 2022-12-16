@@ -7,7 +7,10 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/sampling/setup"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -26,36 +29,36 @@ func TestNetworkInstanceAtContainer(t *testing.T) {
 			baseConfigSflowCollector := setup.GetAnyValue(baseConfigSflow.Collector)
 			*baseConfigSflowCollector.NetworkInstance = input
 
-			config := dut.Config().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port)
-			state := dut.Telemetry().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port)
+			config := gnmi.OC().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port)
+			state := gnmi.OC().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port)
 
 			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigSflowCollector)
+				gnmi.Replace(t, dut, config.Config(), baseConfigSflowCollector)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.NetworkInstance != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/network-instance: got %v, want %v", configGot, input)
 					}
 				})
 			}
 			t.Run("Update container", func(t *testing.T) {
-				config.Update(t, baseConfigSflowCollector)
+				gnmi.Update(t, dut, config.Config(), baseConfigSflowCollector)
 			})
 
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.NetworkInstance != input {
 						t.Errorf("State /sampling/sflow/collectors/collector/config/network-instance: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete container", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).NetworkInstance != nil {
+					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).NetworkInstance != nil {
 						t.Errorf("Delete /sampling/sflow/collectors/collector/config/network-instance fail: got %v", qs)
 					}
 				}
@@ -73,15 +76,15 @@ func TestNetworkInstanceAtLeaf(t *testing.T) {
 		t.Run(fmt.Sprintf("Testing /sampling/sflow/collectors/collector/config/network-instance using value %v", input), func(t *testing.T) {
 			baseConfigSflowCollector := setup.GetAnyValue(baseConfig.Sflow.Collector)
 
-			config := dut.Config().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port).NetworkInstance()
-			state := dut.Telemetry().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port).NetworkInstance()
+			config := gnmi.OC().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port).NetworkInstance()
+			state := gnmi.OC().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port).NetworkInstance()
 
 			t.Run("Replace leaf", func(t *testing.T) {
-				config.Replace(t, input)
+				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/network-instance: got %v, want %v", configGot, input)
 					}
@@ -89,16 +92,16 @@ func TestNetworkInstanceAtLeaf(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if stateGot != input {
 						t.Errorf("State /sampling/sflow/collectors/collector/config/network-instance: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete leaf", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs != nil {
+					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs != nil {
 						t.Errorf("Delete /sampling/sflow/collectors/collector/config/network-instance fail: got %v", qs)
 					}
 				}
@@ -118,26 +121,26 @@ func TestPortAtContainer(t *testing.T) {
 			baseConfigSflowCollector := setup.GetAnyValue(baseConfigSflow.Collector)
 			*baseConfigSflowCollector.Port = input
 
-			config := dut.Config().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port)
-			state := dut.Telemetry().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port)
+			config := gnmi.OC().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port)
+			state := gnmi.OC().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port)
 
 			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigSflowCollector)
+				gnmi.Replace(t, dut, config.Config(), baseConfigSflowCollector)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.Port != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/port: got %v, want %v", configGot, input)
 					}
 				})
 			}
 			t.Run("Update container", func(t *testing.T) {
-				config.Update(t, baseConfigSflowCollector)
+				gnmi.Update(t, dut, config.Config(), baseConfigSflowCollector)
 			})
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.Port != input {
 						t.Errorf("State /sampling/sflow/collectors/collector/config/port: got %v, want %v", stateGot, input)
 					}
@@ -158,40 +161,40 @@ func TestAddressAtContainer(t *testing.T) {
 			baseConfigSflowCollector := setup.GetAnyValue(baseConfigSflow.Collector)
 			*baseConfigSflowCollector.Address = input
 
-			config := dut.Config().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port)
-			state := dut.Telemetry().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port)
+			config := gnmi.OC().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port)
+			state := gnmi.OC().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port)
 
 			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigSflowCollector)
+				gnmi.Replace(t, dut, config.Config(), baseConfigSflowCollector)
 			})
 
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.Address != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/address: got %v, want %v", configGot, input)
 					}
 				})
 			}
 			t.Run("Update container", func(t *testing.T) {
-				config.Update(t, baseConfigSflowCollector)
+				gnmi.Update(t, dut, config.Config(), baseConfigSflowCollector)
 			})
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.Address != input {
 						t.Errorf("State /sampling/sflow/collectors/collector/config/address: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Subscribe Address", func(t *testing.T) {
-				state.Address().Get(t)
+				gnmi.Get(t, dut, state.Address().State())
 			})
 			t.Run("Subscribe Port", func(t *testing.T) {
-				state.Port().Get(t)
+				gnmi.Get(t, dut, state.Port().State())
 			})
 			t.Run("Subscribe NetworkInstance", func(t *testing.T) {
-				state.NetworkInstance().Get(t)
+				gnmi.Get(t, dut, state.NetworkInstance().State())
 			})
 		})
 	}

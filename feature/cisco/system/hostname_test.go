@@ -21,6 +21,9 @@ import (
 	"time"
 
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // TestHostname verifies that the hostname configuration paths can be read,
@@ -44,16 +47,16 @@ func TestHostname(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			config := dut.Config().System().Hostname()
-			state := dut.Telemetry().System().Hostname()
+			config := gnmi.OC().System().Hostname()
+			state := gnmi.OC().System().Hostname()
 			t.Run("Replace//system/config/hostname", func(t *testing.T) {
 				defer observer.RecordYgot(t, "REPLACE", config)
-				config.Replace(t, testCase.hostname)
+				gnmi.Replace(t, dut, config.Config(), testCase.hostname)
 			})
 
 			t.Run("Subscribe//system/state/hostname", func(t *testing.T) {
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				stateGot := state.Await(t, 35*time.Second, testCase.hostname)
+				stateGot := gnmi.Await(t, dut, state.State(), 35*time.Second, testCase.hostname)
 				time.Sleep(35 * time.Second)
 				if stateGot.Val(t) != testCase.hostname {
 					t.Errorf("Telemetry hostname: got %v, want %s", stateGot, testCase.hostname)
@@ -62,12 +65,12 @@ func TestHostname(t *testing.T) {
 
 			t.Run("Update//system/config/hostname", func(t *testing.T) {
 				defer observer.RecordYgot(t, "UPDATE", config)
-				config.Update(t, testCase.hostname+"New")
+				gnmi.Update(t, dut, config.Config(), testCase.hostname+"New")
 			})
 
 			t.Run("Delete//system/config/hostname", func(t *testing.T) {
 				defer observer.RecordYgot(t, "DELETE", config)
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 			})
 		})
 	}

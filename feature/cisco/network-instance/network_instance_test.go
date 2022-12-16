@@ -5,7 +5,10 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -17,7 +20,7 @@ func TestNetworkInstance(t *testing.T) {
 		request := &oc.NetworkInstance{
 			Name: &instance.name,
 		}
-		path := dut.Config().NetworkInstance(instance.name)
+		path := gnmi.OC().NetworkInstance(instance.name)
 		if instance.description != "" {
 			request.Description = &instance.description
 		}
@@ -27,7 +30,7 @@ func TestNetworkInstance(t *testing.T) {
 		})
 		t.Run("Update//network-instances/network-instance/config/name", func(t *testing.T) {
 			defer observer.RecordYgot(t, "UPDATE", path.Name())
-			path.Update(t, request)
+			gnmi.Update(t, dut, path.Config(), request)
 		})
 	}
 	t.Run("Update//network-instances/network-instance/config/description", func(t *testing.T) {

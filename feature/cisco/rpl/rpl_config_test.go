@@ -4,7 +4,10 @@ import (
 	"testing"
 
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestRPLConfig(t *testing.T) {
@@ -26,98 +29,98 @@ func TestRPLConfig(t *testing.T) {
 		}
 		updatePolicy(statement, policy.Policy)
 		t.Run("Replace//routing-policy/policy-definitions/policy-definition", func(t *testing.T) {
-			path := dut.Config().RoutingPolicy()
+			path := gnmi.OC().RoutingPolicy()
 
 			defer observer.RecordYgot(t, "UPDATE", dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Name())
 			defer observer.RecordYgot(t, "UPDATE", dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Name())
-			path.Update(t, rpl)
+			gnmi.Update(t, dut, path.Config(), rpl)
 
 		})
 
 		if policy.Policy != nil {
 			t.Run("Replace//routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result", func(t *testing.T) {
-				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().PolicyResult()
+				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().PolicyResult()
 				defer observer.RecordYgot(t, "REPLACE", path)
-				path.Replace(t, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+				gnmi.Replace(t, dut, path.Config(), oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 			})
 		}
 		if policy.Policy.Bgpaction != nil {
 			t.Run("Replace//routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref", func(t *testing.T) {
-				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetLocalPref()
+				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetLocalPref()
 				defer observer.RecordYgot(t, "REPLACE", path)
-				path.Replace(t, 1)
+				gnmi.Replace(t, dut, path.Config(), 1)
 
 			})
 
 			t.Run("Replace//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/set-as-path-prepend/config/asn", func(t *testing.T) {
-				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetAsPathPrepend().Asn()
+				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetAsPathPrepend().Asn()
 				defer observer.RecordYgot(t, "REPLACE", path)
-				path.Replace(t, 1)
+				gnmi.Replace(t, dut, path.Config(), 1)
 
 			})
 
 			t.Run("Replace//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/set-as-path-prepend/config/repeat-n", func(t *testing.T) {
-				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetAsPathPrepend().RepeatN()
+				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetAsPathPrepend().RepeatN()
 				defer observer.RecordYgot(t, "REPLACE", path)
-				path.Replace(t, 1)
+				gnmi.Replace(t, dut, path.Config(), 1)
 
 			})
 
 			t.Run("Replace//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/config/set-med", func(t *testing.T) {
-				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetMed()
+				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetMed()
 				defer observer.RecordYgot(t, "REPLACE", path)
-				path.Replace(t, oc.UnionString("3"))
+				gnmi.Replace(t, dut, path.Config(), oc.UnionString("3"))
 
 			})
 
 			t.Run("Replace//routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref", func(t *testing.T) {
-				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetLocalPref()
+				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetLocalPref()
 				defer observer.RecordYgot(t, "REPLACE", path)
-				path.Replace(t, 1)
+				gnmi.Replace(t, dut, path.Config(), 1)
 
 			})
 
 		}
 		if policy.Policy != nil {
 			t.Run("Update//routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result", func(t *testing.T) {
-				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().PolicyResult()
+				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().PolicyResult()
 				defer observer.RecordYgot(t, "UPDATE", path)
-				path.Update(t, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+				gnmi.Update(t, dut, path.Config(), oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 			})
 		}
 		if policy.Policy.Bgpaction != nil {
 			t.Run("Update//routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref", func(t *testing.T) {
-				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetLocalPref()
+				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetLocalPref()
 				defer observer.RecordYgot(t, "UPDATE", path)
-				path.Update(t, 1)
+				gnmi.Update(t, dut, path.Config(), 1)
 
 			})
 
 			t.Run("Update//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/set-as-path-prepend/config/asn", func(t *testing.T) {
-				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetAsPathPrepend().Asn()
+				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetAsPathPrepend().Asn()
 				defer observer.RecordYgot(t, "UPDATE", path)
-				path.Update(t, 1)
+				gnmi.Update(t, dut, path.Config(), 1)
 
 			})
 
 			t.Run("Update//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/set-as-path-prepend/config/repeat-n", func(t *testing.T) {
-				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetAsPathPrepend().RepeatN()
+				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetAsPathPrepend().RepeatN()
 				defer observer.RecordYgot(t, "UPDATE", path)
-				path.Update(t, 1)
+				gnmi.Update(t, dut, path.Config(), 1)
 
 			})
 
 			t.Run("Replace//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/config/set-med", func(t *testing.T) {
-				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetMed()
+				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetMed()
 				defer observer.RecordYgot(t, "UPDATE", path)
-				path.Update(t, oc.UnionString("3"))
+				gnmi.Update(t, dut, path.Config(), oc.UnionString("3"))
 
 			})
 
 			t.Run("Update//routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref", func(t *testing.T) {
-				path := dut.Config().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetLocalPref()
+				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetLocalPref()
 				defer observer.RecordYgot(t, "UPDATE", path)
-				path.Update(t, 1)
+				gnmi.Update(t, dut, path.Config(), 1)
 
 			})
 

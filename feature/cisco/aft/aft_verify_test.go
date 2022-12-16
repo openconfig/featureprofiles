@@ -18,17 +18,20 @@ import (
 	"testing"
 
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func getaftnh(t *testing.T, dut *ondatra.DUTDevice, ipv4prefix string, ipv4nwinstance string, nhgnwinstance string) (nh []uint64, nhg uint64) {
 
-	nexthopgroup := dut.Telemetry().NetworkInstance(ipv4nwinstance).Afts().Ipv4Entry(ipv4prefix).NextHopGroup().Get(t)
+	nexthopgroup := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ipv4nwinstance).Afts().Ipv4Entry(ipv4prefix).NextHopGroup().State())
 	t.Logf("NextHopGroup VALUE : %d", nexthopgroup)
-	nhgval := dut.Telemetry().NetworkInstance(nhgnwinstance).Afts().NextHopGroup(nexthopgroup).Get(t)
+	nhgval := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(nhgnwinstance).Afts().NextHopGroup(nexthopgroup).State())
 
 	var nhlist []uint64
 	for i := range nhgval.NextHop {
-		nexthopval := dut.Telemetry().NetworkInstance(nhgnwinstance).Afts().NextHop(i).Get(t)
+		nexthopval := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(nhgnwinstance).Afts().NextHop(i).State())
 		index := nexthopval.GetIndex()
 		nhlist = append(nhlist, index)
 		addr := nexthopval.GetIpAddress()

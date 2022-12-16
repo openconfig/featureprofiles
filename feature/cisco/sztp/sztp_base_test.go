@@ -10,7 +10,10 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 var (
@@ -92,7 +95,7 @@ func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
 
 		time.Sleep(3 * time.Minute)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = dut.Telemetry().System().CurrentDatetime().Get(t)
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
 			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
 		} else {

@@ -4,7 +4,10 @@ import (
 	"testing"
 
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestSystemContainerUpdate(t *testing.T) {
@@ -12,8 +15,8 @@ func TestSystemContainerUpdate(t *testing.T) {
 	for _, system := range systemContainers {
 		container := &oc.System{}
 		container.Hostname = system.hostname
-		path := dut.Config().System()
+		path := gnmi.OC().System()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, container)
+		gnmi.Update(t, dut, path.Config(), container)
 	}
 }

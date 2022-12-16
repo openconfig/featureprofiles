@@ -7,7 +7,10 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 

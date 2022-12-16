@@ -7,7 +7,10 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -27,10 +30,10 @@ func TestInterfaceOutputTelemetry(t *testing.T) {
 	defer teardownQos(t, dut, baseConfig)
 
 	baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
-	interfaceTelemetryPath := dut.Telemetry().Qos().Interface(*baseConfigInterface.InterfaceId)
+	interfaceTelemetryPath := gnmi.OC().Qos().Interface(*baseConfigInterface.InterfaceId)
 
 	t.Run(fmt.Sprintf("Get Interface Telemetry %s", *baseConfigInterface.InterfaceId), func(t *testing.T) {
-		got := interfaceTelemetryPath.Get(t)
+		got := gnmi.Get(t, dut, interfaceTelemetryPath.State())
 		for queueName, queue := range got.Output.Queue {
 			t.Run(fmt.Sprintf("Verify Transmit-Octets of %s", queueName), func(t *testing.T) {
 				if !(*queue.TransmitOctets == 0) {
@@ -61,7 +64,7 @@ func TestInterfaceOutputTelemetry(t *testing.T) {
 	interfaceOutputQueueTelemetryPath := interfaceOutputTelemetryPath.Queue(ocQueueName)
 
 	t.Run(fmt.Sprintf("Get Interface Output Queue Telemetry %s %s", *baseConfigInterface.InterfaceId, ocQueueName), func(t *testing.T) {
-		got := interfaceOutputQueueTelemetryPath.Get(t)
+		got := gnmi.Get(t, dut, interfaceOutputQueueTelemetryPath.State())
 		t.Run("Verify Transmit-Octets", func(t *testing.T) {
 			if !(*got.TransmitOctets == 0) {
 				t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
@@ -84,19 +87,19 @@ func TestInterfaceOutputTelemetry(t *testing.T) {
 	droppedPacketsPath := interfaceOutputQueueTelemetryPath.DroppedPkts()
 
 	t.Run("Get Transmit-Packets", func(t *testing.T) {
-		transmitPackets := transmitPacketsPath.Get(t)
+		transmitPackets := gnmi.Get(t, dut, transmitPacketsPath.State())
 		if transmitPackets != 0 {
 			t.Errorf("Get Transmit-Packets fail: got %v", transmitPackets)
 		}
 	})
 	t.Run("Get Transmit-Octets", func(t *testing.T) {
-		transmitOctets := transmitOctetsPath.Get(t)
+		transmitOctets := gnmi.Get(t, dut, transmitOctetsPath.State())
 		if transmitOctets != 0 {
 			t.Errorf("Get Transmit-Octets fail: got %v", transmitOctets)
 		}
 	})
 	t.Run("Get Dropped-Packets", func(t *testing.T) {
-		droppedPackets := droppedPacketsPath.Get(t)
+		droppedPackets := gnmi.Get(t, dut, droppedPacketsPath.State())
 		if droppedPackets != 0 {
 			t.Errorf("Get Dropped-Packets fail: got %v", droppedPackets)
 		}

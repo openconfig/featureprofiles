@@ -21,8 +21,11 @@ import (
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -87,8 +90,8 @@ func testGNMISet(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsu
 		},
 	}
 	generatedConf := confgen.GenerateConfig(bundles, *configFilePath)
-	configRoot := &telemetry.Device{}
-	if err := telemetry.Unmarshal([]byte(generatedConf), configRoot); err != nil {
+	configRoot := &oc.Root{}
+	if err := oc.Unmarshal([]byte(generatedConf), configRoot); err != nil {
 		t.Fatalf(err.Error())
 	}
 	args.DUT[0].Config().Replace(t, configRoot)
@@ -233,13 +236,13 @@ out:
 }
 
 func configVRFS(t *testing.T, dut *ondatra.DUTDevice) {
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(*ciscoFlags.NonDefaultNetworkInstance)
-	ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default")
-	dut.Config().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Replace(t, ni1)
+	ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default")
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Config(), ni1)
 	ni2 := d.GetOrCreateNetworkInstance(*ciscoFlags.NonDefaultNetworkInstance)
-	ni2.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default")
-	dut.Config().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Replace(t, ni2)
+	ni2.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default")
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Config(), ni2)
 }
 
 func TestLoad(t *testing.T) {
