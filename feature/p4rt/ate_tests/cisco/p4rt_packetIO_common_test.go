@@ -1287,6 +1287,9 @@ func testEntryProgrammingPacketInWithAcl(ctx context.Context, t *testing.T, args
 }
 
 func testEntryProgrammingPacketInScaleRate(ctx context.Context, t *testing.T, args *testArgs) {
+	if *ScaleTests {
+		t.Skipf("Skipping scale test")
+	}
 	client := args.p4rtClientA
 
 	// Program the entry
@@ -2239,6 +2242,9 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 // }
 
 func testPacketOutEgressScale(ctx context.Context, t *testing.T, args *testArgs) {
+	if *ScaleTests {
+		t.Skipf("Skipping scale test")
+	}
 	client := args.p4rtClientA
 
 	// Program the entry
