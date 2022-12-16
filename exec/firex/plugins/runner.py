@@ -34,7 +34,7 @@ ONDATRA_PATCHES = [
 ]
 
 ONDATRA_SIM_PATCHES = [
-    'exec/firex/plugins/ondatra/0003-traffic_fps_vxr.patch'
+#    'exec/firex/plugins/ondatra/0003-traffic_fps_vxr.patch'
 ]
 
 FP_PATCHES = [
