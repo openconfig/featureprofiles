@@ -116,4 +116,6 @@ var (
 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
 
 	ExplicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
+
+	VRFSelectionPolicyRequired = flag.Bool("deviation_vrf_selection_policy_required", false, "Device requires VRF selection policy for TE capabilities.")
 )

@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// next hop groups are honored for next hop groups containing a single next hop.
+// Ensure backup next hop groups are honored for next hop groups containing a single next hop.
 package backup_nhg_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -46,6 +48,8 @@ const (
 	dstPfxMin   = "198.51.100.0"
 	dstPfxMax   = "198.51.100.255"
 	dstPfxCount = 256
+
+	vrfName = "VRF-1"
 )
 
 var (
@@ -89,28 +93,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// TestDirectBackupNexthopGroup validates a prefix directly linked to a next hop
-// group with a backup uses the backup when the primary next hop becomes
-// impaired.
-//
-// Setup Steps
-//   - Connect DUT port 1 <> ATE port 1.
-//   - Connect DUT port 2 <> ATE port 2.
-//   - Connect DUT port 3 <> ATE port 3.
-//   - Create prefix 198.51.100.0/24, next hop group, and next hop to forward to
-//     ATE port 2 with GRIBI.
-//   - Assign backup next hop group to forward to ATE port 3 with GRIBI.
-//
-// Validation Steps
-//   - Verify AFT telemetry shows ATE port 2 selected.
-//   - Verify traffic flows to ATE port 2 and not ATE port 3.
-//   - After each impairment, verify traffic flows to ATE port 3 and not ATE
-//     port 2.
-//
-// Impairments
-//   - Interface ATE port-2 is disabled.
-//   - Interface DUT port-2 is disabled.
-//   - TODO: Static ARP entry for ATE port 2 is removed from DUT via configuration, with no dynamic ARP enabled.
 func TestDirectBackupNexthopGroup(t *testing.T) {
 	ctx := context.Background()
 
@@ -183,7 +165,18 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Run("Validate Baseline AFT Telemetry", func(t *testing.T) {
-				tcArgs.validateAftTelemetry(t)
+				var err error
+				// AFT telemetry may take time to correctly reflect FIB.
+				for i := 0; i < 10; i++ {
+					err = tcArgs.validateAftTelemetry(t)
+					if err == nil {
+						break
+					}
+					time.Sleep(2 * time.Second)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
 			})
 
 			t.Run("Validate Baseline Traffic Delivery", func(t *testing.T) {
@@ -202,22 +195,6 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 	tcArgs.configureBackupNextHopGroup(t, true)
 }
 
-// TestIndirectBackupNexthopGroup validates the backup next hop group is utilized
-// during the failure of a single next hop that is resolved recursively.
-//
-// Setup Steps
-//   - Connect DUT port 1 <> ATE port 1.
-//   - Connect DUT port 2 <> ATE port 2.
-//   - Connect DUT port 3 <> ATE port 3.
-//   - Create prefix 198.51.100.0/24, next hop group, and next hop to forward to
-//     192.0.2.254.  Create backup next hop group to forward to DUT port 3.
-//   - Create prefix 192.0.2.254/32, next hop group, and next hop to forward to
-//     DUT port 2.
-//
-// Validation Steps
-//   - Verify traffic flows to ATE port 2 and not ATE port 3.
-//   - Delete prefix 192.0.2.254/32.
-//   - Verify traffic flows to ATE port 3 and not ATE port 2.
 func TestIndirectBackupNexthopGroup(t *testing.T) {
 	ctx := context.Background()
 
@@ -307,7 +284,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	p1c := dutPort1.NewOCInterface(p1.Name())
+	p1c.GetSubinterface(0).Ipv4 = nil
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), p1c)
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
 	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 
@@ -322,6 +301,39 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
 
+	vrf := &oc.NetworkInstance{
+		Name:    ygot.String(vrfName),
+		Enabled: ygot.Bool(true),
+		Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+		EnabledAddressFamilies: []oc.E_Types_ADDRESS_FAMILY{
+			oc.Types_ADDRESS_FAMILY_IPV4,
+		},
+	}
+	if !*deviations.VRFSelectionPolicyRequired {
+		vrfIntf := vrf.GetOrCreateInterface(p1.Name())
+		vrfIntf.Interface = ygot.String(p1.Name())
+		vrfIntf.Subinterface = ygot.Uint32(0)
+	}
+	gnmi.Replace(t, dut, d.NetworkInstance(vrfName).Config(), vrf)
+	p1c = dutPort1.NewOCInterface(p1.Name())
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Subinterface(0).Ipv4().Config(), p1c.GetSubinterface(0).GetIpv4())
+
+	if *deviations.VRFSelectionPolicyRequired {
+		policy := &oc.NetworkInstance_PolicyForwarding_Policy{
+			PolicyId: ygot.String("VRF-SELECTION-POLICY"),
+			Type:     oc.Policy_Type_VRF_SELECTION_POLICY,
+		}
+		rule := policy.GetOrCreateRule(1)
+		rule.GetOrCreateIpv4().SetProtocol(oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
+		rule.GetOrCreateAction().SetNetworkInstance(vrfName)
+		gnmi.Replace(t, dut, d.NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Policy("VRF-SELECTION-POLICY").Config(), policy)
+
+		pfi := &oc.NetworkInstance_PolicyForwarding_Interface{
+			InterfaceId:             ygot.String(p1.Name()),
+			ApplyVrfSelectionPolicy: ygot.String("VRF-SELECTION-POLICY"),
+		}
+		gnmi.Replace(t, dut, d.NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(p1.Name()).Config(), pfi)
+	}
 }
 
 // configureBackupNextHopGroup creates and deletes the gribi nexthops, nexthop
@@ -331,29 +343,39 @@ func (a *testArgs) configureBackupNextHopGroup(t *testing.T, del bool) {
 	const (
 		// Next hop group ID that the dstPfx will forward to.
 		dstNHGID = 101
+		// Backup next hop ID
+		dstBackupNHID = 104
 		// Backup next hop group ID that the dstPfx will forward to.
 		dstBackupNHGID = 102
+		// Destination prefix next hop group ID
+		dNHGID = 105
 
 		dutPort2ID, dutPort3ID = 10002, 10003
 	)
 
 	nh1 := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithIndex(dutPort2ID).WithIPAddress(atePort2.IPv4)
+		WithIndex(dutPort2ID).WithIPAddress(atePort2.IPv4).WithInterfaceRef(a.dut.Port(t, "port2").Name())
 	nh2 := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithIndex(dutPort3ID).WithIPAddress(atePort3.IPv4)
+		WithIndex(dutPort3ID).WithIPAddress(atePort3.IPv4).WithInterfaceRef(a.dut.Port(t, "port3").Name())
+	bnh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithIndex(dstBackupNHID).WithNextHopNetworkInstance(*deviations.DefaultNetworkInstance)
 
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithID(dstNHGID).AddNextHop(dutPort2ID, 1).WithBackupNHG(dstBackupNHGID)
+		WithID(dNHGID).AddNextHop(dutPort3ID, 1)
 	bnhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithID(dstBackupNHGID).AddNextHop(dutPort3ID, 1)
+		WithID(dstBackupNHGID).AddNextHop(dstBackupNHID, 1)
+	vrfNHG := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithID(dstNHGID).AddNextHop(dutPort2ID, 1).WithBackupNHG(dstBackupNHGID)
 
-	pfx := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithPrefix(dstPfx).WithNextHopGroup(dstNHGID)
+	vrfPfx := fluent.IPv4Entry().WithNetworkInstance(vrfName).WithPrefix(dstPfx).
+		WithNextHopGroup(dstNHGID).WithNextHopGroupNetworkInstance(*deviations.DefaultNetworkInstance)
+	pfx := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).WithPrefix(dstPfx).
+		WithNextHopGroup(dNHGID).WithNextHopGroupNetworkInstance(*deviations.DefaultNetworkInstance)
 
 	if del {
-		a.gribic.Modify().DeleteEntry(t, pfx, nhg, bnhg, nh2, nh1)
+		a.gribic.Modify().DeleteEntry(t, pfx, vrfPfx, vrfNHG, bnhg, nhg, bnh, nh2, nh1)
 	} else {
-		a.gribic.Modify().AddEntry(t, nh1, nh2, bnhg, nhg, pfx)
+		a.gribic.Modify().AddEntry(t, nh1, nh2, bnh, nhg, bnhg, vrfNHG, vrfPfx, pfx)
 	}
 	if err := awaitTimeout(a.ctx, a.gribic, t, time.Minute); err != nil {
 		t.Fatalf("Await got error for entries: %v", err)
@@ -375,35 +397,46 @@ func (a *testArgs) configureIndirBackupNextHopGroup(t *testing.T, del bool) {
 		recurNHGID = 103
 		// Next hop group ID that the dstPfx will forward to.
 		dstNHGID = 101
+		// Backup next hop ID
+		dstBackupNHID = 104
 		// Backup next hop group ID that the dstPfx will forward to.
 		dstBackupNHGID = 102
+		// Destination prefix next hop group ID in default VRF
+		dNHGID = 105
 
 		dutPort2ID, dutPort3ID = 10002, 10003
 	)
 
-	rnh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+	dnh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithIndex(recurNHID).WithIPAddress(recurNH)
-	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+	dnhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithID(dstNHGID).AddNextHop(recurNHID, 1).WithBackupNHG(dstBackupNHGID)
-	pfx := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithPrefix(dstPfx).WithNextHopGroup(dstNHGID)
+	dpfx := fluent.IPv4Entry().WithNetworkInstance(vrfName).WithPrefix(dstPfx).
+		WithNextHopGroup(dstNHGID).WithNextHopGroupNetworkInstance(*deviations.DefaultNetworkInstance)
+
+	bnh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithIndex(dstBackupNHID).WithNextHopNetworkInstance(*deviations.DefaultNetworkInstance)
+	bnhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithID(dstBackupNHGID).AddNextHop(dstBackupNHID, 1)
 
 	nh1 := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithIndex(dutPort2ID).WithIPAddress(atePort2.IPv4)
+		WithIndex(dutPort2ID).WithIPAddress(atePort2.IPv4).WithInterfaceRef(a.dut.Port(t, "port2").Name())
 	rnhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithID(recurNHGID).AddNextHop(dutPort2ID, 1)
-	rpfx := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithPrefix(recurPfx).WithNextHopGroup(recurNHGID)
+	rpfx := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).WithPrefix(recurPfx).
+		WithNextHopGroup(recurNHGID)
 
 	nh2 := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithIndex(dutPort3ID).WithIPAddress(atePort3.IPv4)
-	bnhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithID(dstBackupNHGID).AddNextHop(dutPort3ID, 1)
+		WithIndex(dutPort3ID).WithIPAddress(atePort3.IPv4).WithInterfaceRef(a.dut.Port(t, "port3").Name())
+	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithID(dNHGID).AddNextHop(dutPort3ID, 1)
+	pfx := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithPrefix(dstPfx).WithNextHopGroup(dNHGID)
 
 	if del {
-		a.gribic.Modify().DeleteEntry(t, pfx, nhg, bnhg, rnhg, rnh, nh2, nh1)
+		a.gribic.Modify().DeleteEntry(t, dpfx, rpfx, pfx, dnhg, bnhg, rnhg, nhg, nh2, nh1, bnh, dnh)
 	} else {
-		a.gribic.Modify().AddEntry(t, nh1, nh2, rnh, rnhg, rpfx, bnhg, nhg, pfx)
+		a.gribic.Modify().AddEntry(t, dnh, bnh, nh1, nh2, nhg, rnhg, bnhg, dnhg, pfx, rpfx, dpfx)
 	}
 	if err := awaitTimeout(a.ctx, a.gribic, t, time.Minute); err != nil {
 		t.Fatalf("Await got error for entries: %v", err)
@@ -418,33 +451,34 @@ func (a *testArgs) createFlow(name string, dst *attrs.Attributes) *ondatra.Flow 
 	flow := a.ate.Traffic().NewFlow(name).
 		WithSrcEndpoints(a.ateTop.Interfaces()[atePort1.Name]).
 		WithDstEndpoints(a.ateTop.Interfaces()[dst.Name]).
-		WithHeaders(ondatra.NewEthernetHeader(), hdr)
+		WithHeaders(ondatra.NewEthernetHeader(), hdr, hdr, ondatra.NewTCPHeader())
 
 	return flow
 }
 
-func (a *testArgs) validateAftTelemetry(t *testing.T) {
-	aftPfxNHG := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(dstPfx).NextHopGroup()
+func (a *testArgs) validateAftTelemetry(t *testing.T) error {
+	aftPfxNHG := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(dstPfx).NextHopGroup()
 	aftPfxNHGVal, found := gnmi.Watch(t, a.dut, aftPfxNHG.State(), 10*time.Second, func(val *ygnmi.Value[uint64]) bool {
-
 		return true
 	}).Await(t)
 	if !found {
-		t.Fatalf("Could not find prefix %s in telemetry AFT", dstPfx)
+		return fmt.Errorf("Could not find prefix %s in telemetry AFT", dstPfx)
 	}
 	nhg, _ := aftPfxNHGVal.Val()
 
 	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhg).State())
 	if got := len(aftNHG.NextHop); got != 1 {
-		t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", dstPfx, got)
+		return fmt.Errorf("Prefix %s next-hop entry count: got %d, want 1", dstPfx, got)
 	}
 
 	for k := range aftNHG.NextHop {
 		aftnh := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(k).State())
 		if got, want := aftnh.GetIpAddress(), atePort2.IPv4; got != want {
-			t.Fatalf("Prefix %s next-hop IP: got %s, want %s", dstPfx, got, want)
+			return fmt.Errorf("Prefix %s next-hop IP: got %s, want %s", dstPfx, got, want)
 		}
 	}
+
+	return nil
 }
 
 // validateTrafficFlows verifies that the good flow delivers traffic and the
