@@ -12,8 +12,8 @@ Verify QoS ECN feature configuration.
     * ECN profile can be created for different queues. ECN profiles per queue can be applied to the output side of interfaces.
 
       |min-threshold | max-threshold  | enable-ecn | drop  | weight  | max-drop-probability-percent |
-      |--------------|----------------|------------|-------|---------|-----------------------------|
-      |   80000      |  2^64-1        | true       | false | not set | 1                           |
+      |--------------|----------------|------------|-------|---------|------------------------------|
+      |   80000      |  2^64-1        | true       | false | not set | 1                            |
      
        * Note: max-threshold is set to max uint64 value 2^64-1 or 18446744073709551615.
 
