@@ -51,13 +51,23 @@ try:
                     LogLevel=SessionAssistant.LOGLEVEL_INFO, 
                     ClearConfig=True)
 
-                port_map = session_assistant.PortMapAssistant()
-                for pname in targetPorts:
-                    slot, port = pname.split('/')
-                    port_map.Map(chassis, slot, port)
-                port_map.Connect(ForceOwnership=True)
-                port_map.Disconnect()
-                session_assistant.Session.remove()
+                try:
+                    port_map = session_assistant.PortMapAssistant()
+                    for pname in targetPorts:
+                        slot, port = pname.split('/')
+                        port_map.Map(chassis, slot, port)
+                    port_map.Connect(ForceOwnership=True)
+
+                    ixnetwork = session_assistant.Ixnetwork
+                    for vport in ixnetwork.Vport.find(Name=port_map._get_name_regex()):
+                        port = session_assistant.Session.GetObjectFromHref(vport.ConnectedTo)
+                        if port is not None:
+                            vport.UnassignPorts(False)
+                            port.ClearOwnership()
+                except Exception as e: 
+                    print(e)
+                finally: 
+                    session_assistant.Session.remove()
 except ModuleNotFoundError:
     ixiaVenv = IxiaEnv('ixia_venv')
     ixiaVenv.run_in_venv([__file__] + sys.argv[1:])
