@@ -119,6 +119,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Configure/update Network Instance")
 	dutConfNIPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
