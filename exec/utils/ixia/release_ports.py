@@ -31,7 +31,7 @@ try:
             print(f'Checking ports: {targetPorts} on chassis {chassis}')
 
             if ixiaNet and ixiaNet.target:
-                ip, port = '127.0.0.1', 11009
+                ip, port = '127.0.0.1', 443
                 username, password = 'admin', 'admin'
 
                 if ':' in ixiaNet.target:
