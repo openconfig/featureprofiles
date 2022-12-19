@@ -139,11 +139,16 @@ func verifyNodeTelemetry(t *testing.T, node, peer gnmi.DeviceOrOpts, nodePort, p
 	if !lldpEnabled {
 		if _, ok := gnmi.Watch(t, node, interfacePath.State(), time.Minute, func(val *ygnmi.Value[*oc.Lldp_Interface]) bool {
 			intf, present := val.Val()
-			if !present {
-				return false
+
+			if intf == nil {
+				return true
+			} else {
+				if !present {
+					return false
+				}
+				gotLen = len(intf.Neighbor)
+				return gotLen == 0
 			}
-			gotLen = len(intf.Neighbor)
-			return gotLen == 0
 		}).Await(t); !ok {
 			t.Errorf("Number of neighbors got: %d, want: 0.", gotLen)
 		}
