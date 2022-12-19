@@ -17,23 +17,22 @@ import (
 
 // GoTest represents a single go test
 type GoTest struct {
-	ID            string
-	Name          string
-	Owner         string
-	Priority      int
-	Path          string
-	Patch         string
-	Testbed       string
-	Binding       string
-	Baseconf      string
-	Topology      string
-	Args          []string
-	Timeout       int
-	Skip          bool
-	MustPass      bool
-	HasDeviations bool
-	Pretests      []GoTest
-	Posttests     []GoTest
+	ID        string
+	Name      string
+	Owner     string
+	Priority  int
+	Path      string
+	Patch     string
+	Testbed   string
+	Binding   string
+	Baseconf  string
+	Topology  string
+	Args      []string
+	Timeout   int
+	Skip      bool
+	MustPass  bool
+	Pretests  []GoTest
+	Posttests []GoTest
 }
 
 // FirexTest represents a single firex test suite
@@ -113,6 +112,14 @@ var (
 var (
 	firexSuiteTemplate = template.Must(template.New("firexTestSuite").Funcs(template.FuncMap{
 		"join": strings.Join,
+		"hasDeviation": func(gt GoTest) bool {
+			for _, arg := range gt.Args {
+				if strings.HasPrefix(arg, "-deviation") {
+					return true
+				}
+			}
+			return false
+		},
 	}).Parse(`
 {{ $.Test.Name }}:
     framework: b4_fp
@@ -153,7 +160,7 @@ var (
             {{- end }}
         {{- end }}
     script_paths:
-        - ({{ $.Test.ID }}) {{ $.Test.Name }}{{ if $.Test.Patch }} (Patched){{ end }}{{ if $.Test.HasDeviations }} (Deviation){{ end }}{{ if $.Test.MustPass }} (MP){{ end }}:
+        - ({{ $.Test.ID }}) {{ $.Test.Name }}{{ if $.Test.Patch }} (Patched){{ end }}{{ if hasDeviation $.Test }} (Deviation){{ end }}{{ if $.Test.MustPass }} (MP){{ end }}:
             test_path: {{ $.Test.Path }}
             {{- if $.Test.Args }}
             test_args: {{ join $.Test.Args " " }}
@@ -352,37 +359,6 @@ func main() {
 		for j := range suite[i].Tests {
 			suite[i].Tests[j].ID = fmt.Sprintf("%0"+fmt.Sprint(widthNeeded)+"d", id)
 			id = id + 1
-		}
-	}
-
-	// Collect and remove -deviation flags
-	deviationSet := map[string]bool{}
-	for i := range suite {
-		for j := range suite[i].Tests {
-			keptsArgs := []string{}
-			for k := range suite[i].Tests[j].Args {
-				if strings.HasPrefix(suite[i].Tests[j].Args[k], "-deviation") {
-					if _, ok := deviationSet[suite[i].Tests[j].Args[k]]; !ok {
-						deviationSet[suite[i].Tests[j].Args[k]] = true
-					}
-					suite[i].Tests[j].HasDeviations = true
-				} else {
-					keptsArgs = append(keptsArgs, suite[i].Tests[j].Args[k])
-				}
-			}
-			suite[i].Tests[j].Args = keptsArgs
-		}
-	}
-
-	deviations := []string{}
-	for d := range deviationSet {
-		deviations = append(deviations, d)
-	}
-
-	// Add all deviations as args
-	for i := range suite {
-		for j := range suite[i].Tests {
-			suite[i].Tests[j].Args = append(suite[i].Tests[j].Args, deviations...)
 		}
 	}
 
