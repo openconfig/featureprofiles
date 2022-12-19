@@ -76,7 +76,7 @@ Verify that DUT does not drop bursty traffic.
     Interface# | Rate(%) | Frame size | Packet count | Inter-pkt gap(bytes) | inter burst gap(bytes) | Output(%)
     ---------- | ------- | ---------- | ------------ | -------------------- | ---------------------- | ---------
     1          | 45      | 512        | 1200         | 12                   | 48000                  | 100
-    1          | 50      | 512        | 1200         | 12                   | 96000                  | 100
+    2          | 50      | 512        | 1200         | 12                   | 96000                  | 100
 
     *   Repeat the above test case for other traffic classes::
         *   AF4
