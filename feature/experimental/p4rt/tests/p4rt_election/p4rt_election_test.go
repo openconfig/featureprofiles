@@ -196,15 +196,14 @@ func writeTableEntry(args *testArgs, t *testing.T, packetIO PacketIO, delete boo
 		return errors.New("Errors seen when sending SetForwardingPipelineConfig.")
 	}
 
-	err = args.handle.Write(&p4_v1.WriteRequest{
+	if err := args.handle.Write(&p4_v1.WriteRequest{
 		DeviceId:   args.deviceID,
 		ElectionId: &p4_v1.Uint128{High: args.highID, Low: args.lowID},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete),
 		),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
-	})
-	if err != nil {
+	}); err != nil {
 		t.Logf("Write Error: %v", err)
 		return err
 	}
