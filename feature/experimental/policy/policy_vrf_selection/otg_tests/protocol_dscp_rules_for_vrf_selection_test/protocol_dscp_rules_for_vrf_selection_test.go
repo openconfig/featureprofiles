@@ -27,7 +27,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -197,7 +198,7 @@ func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string,
 	// create empty subinterface
 	si := &oc.Interface_Subinterface{}
 	si.Index = ygot.Uint32(subint)
-	dut.Config().Interface(intfname).Subinterface(subint).Replace(t, si)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(intfname).Subinterface(subint).Config(), si)
 
 	// create vrf and apply on subinterface
 	v := &oc.NetworkInstance{
@@ -205,7 +206,7 @@ func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string,
 	}
 	vi := v.GetOrCreateInterface(intfname + "." + strconv.Itoa(int(subint)))
 	vi.Subinterface = ygot.Uint32(subint)
-	dut.Config().NetworkInstance(vrfname).Replace(t, v)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfname).Config(), v)
 }
 
 // getSubInterface returns a subinterface configuration populated with IP addresses and VLAN ID.
@@ -242,28 +243,28 @@ func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interfac
 
 // configureDUT configures the base configuration on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutPort2))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
 
 	outpath := d.Interface(p2.Name())
 	// create VRFs and VRF enabled subinterfaces
 	configNetworkInstance(t, dut, "VRF10", p2.Name(), uint32(1))
 
 	// configure IP addresses on subinterfaces
-	outpath.Subinterface(1).Update(t, getSubInterface(&dutPort2Vlan10, 1, 10))
+	gnmi.Update(t, dut, outpath.Subinterface(1).Config(), getSubInterface(&dutPort2Vlan10, 1, 10))
 
 	configNetworkInstance(t, dut, "VRF20", p2.Name(), uint32(2))
-	outpath.Subinterface(2).Update(t, getSubInterface(&dutPort2Vlan20, 2, 20))
+	gnmi.Update(t, dut, outpath.Subinterface(2).Config(), getSubInterface(&dutPort2Vlan20, 2, 20))
 
 	configNetworkInstance(t, dut, "VRF30", p2.Name(), uint32(3))
-	outpath.Subinterface(3).Update(t, getSubInterface(&dutPort2Vlan30, 3, 30))
+	gnmi.Update(t, dut, outpath.Subinterface(3).Config(), getSubInterface(&dutPort2Vlan30, 3, 30))
 }
 
 // getIPinIPFlow returns an IPv4inIPv4 *ondatra.Flow with provided DSCP value for a given set of endpoints.
@@ -324,8 +325,8 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 	otgutils.LogFlowMetrics(t, args.ate.OTG(), topology)
 	for _, flow := range flows {
 		t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
-		outPkts := args.ate.OTG().Telemetry().Flow(flow.Name()).Counters().OutPkts().Get(t)
-		inPkts := args.ate.OTG().Telemetry().Flow(flow.Name()).Counters().InPkts().Get(t)
+		outPkts := gnmi.Get(t, args.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
+		inPkts := gnmi.Get(t, args.ate, gnmi.OC().Flow(flow.Name()).Counters().InPkts().State())
 		lossPct := ((outPkts - inPkts) * 100) / outPkts
 
 		// log stats
@@ -487,18 +488,18 @@ func TestPBR(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Log(tc.desc)
-			pfpath := args.dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding()
+			pfpath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding()
 
 			//configure pbr policy-forwarding
-			dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Replace(t, tc.policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
 			// defer cleaning policy-forwarding
-			defer pfpath.Delete(t)
+			defer gnmi.Delete(t, args.dut, pfpath.Config())
 
 			// apply pbr policy on ingress interface
-			pfpath.Interface(port1.Name()).ApplyVrfSelectionPolicy().Replace(t, args.policyName)
+			gnmi.Replace(t, args.dut, pfpath.Interface(port1.Name()).ApplyVrfSelectionPolicy().Config(), args.policyName)
 
 			// defer deletion of policy from interface
-			defer pfpath.Interface(port1.Name()).ApplyVrfSelectionPolicy().Delete(t)
+			defer gnmi.Delete(t, args.dut, pfpath.Interface(port1.Name()).ApplyVrfSelectionPolicy().Config())
 
 			// traffic should pass
 			testTrafficFlows(t, args, true, tc.passingFlows...)
