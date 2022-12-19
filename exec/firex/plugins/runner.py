@@ -91,11 +91,6 @@ def BringupTestbed(self, ws, images = None,
     if not exec_repo_dir:
         exec_repo_dir = fp_repo_dir
 
-    c = B4GoClone.s(b4go_pkg_url=ONDATRA_REPO_CLONE_INFO.url,
-                        b4go_pkg_path=ondatra_repo_dir,
-                        b4go_pkg_branch=ondatra_repo_branch)
-
-    self.enqueue_child_and_get_results(c)
 
     c = B4GoClone.s(b4go_pkg_url=fp_repo_url,
                         b4go_pkg_path=fp_repo_dir,
@@ -140,6 +135,12 @@ def BringupTestbed(self, ws, images = None,
             check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
 
     if apply_ondatra_patches:
+        c = B4GoClone.s(b4go_pkg_url=ONDATRA_REPO_CLONE_INFO.url,
+                    b4go_pkg_path=ondatra_repo_dir,
+                    b4go_pkg_branch=ondatra_repo_branch)
+
+        self.enqueue_child_and_get_results(c)
+
         with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
             fp.write("replace github.com/openconfig/ondatra => ../ondatra")
 
