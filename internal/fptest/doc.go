@@ -17,6 +17,6 @@ package fptest
 
 // Import packages for test flags so that the presence of unused flags won't break tests.
 import (
-	_ "google3/third_party/openconfig/featureprofiles/internal/args/args"             // keep
-	_ "google3/third_party/openconfig/featureprofiles/internal/deviations/deviations" // keep
+	_ "github.com/openconfig/featureprofiles/internal/args/args"             // keep
+	_ "github.com/openconfig/featureprofiles/internal/deviations/deviations" // keep
 )
