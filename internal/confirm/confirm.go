@@ -22,7 +22,7 @@ import (
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/goyang/pkg/yang"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ygot/ytypes"
 )
@@ -34,7 +34,7 @@ func getSchema(s ygot.ValidatedGoStruct) (*yang.Entry, error) {
 		typ = typ.Elem()
 	}
 	typeName := typ.Name()
-	schema, ok := telemetry.SchemaTree[typeName]
+	schema, ok := oc.SchemaTree[typeName]
 	if !ok {
 		return nil, fmt.Errorf("no schema for type %v", typeName)
 	}

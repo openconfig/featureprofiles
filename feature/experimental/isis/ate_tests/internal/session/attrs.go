@@ -71,7 +71,7 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
 	s := intf.GetOrCreateSubinterface(0)
 	if a.IPv4 != "" {
 		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled {
+		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 			s4.Enabled = ygot.Bool(true)
 		}
 		if a.MTU > 0 {
@@ -99,8 +99,8 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
 	return intf
 }
 
-// NewInterface returns a new *oc.Interface configured with these attributes
-func (a *Attributes) NewInterface(name string) *oc.Interface {
+// NewOCInterface returns a new *oc.Interface configured with these attributes
+func (a *Attributes) NewOCInterface(name string) *oc.Interface {
 	return a.ConfigInterface(&oc.Interface{Name: ygot.String(name)})
 }
 
