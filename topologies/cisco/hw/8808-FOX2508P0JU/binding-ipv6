@@ -45,9 +45,9 @@
 duts {
   id: "dut"
   name: "DUT"  # Change this to the device hostname.
-  # config:{
-  #  gnmi_set_file: "$BASE_CONF_PATH"
-  #}
+   config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
 
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
@@ -75,19 +75,19 @@ duts {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "TenGigE0/7/0/2/0"  # Change this to the actual port name.
+    name: "TenGigE0/6/0/2/0"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "TenGigE0/7/0/2/1"  # Change this to the actual port name.
+    name: "TenGigE0/6/0/2/1"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "TenGigE0/7/0/2/2"  # Change this to the actual port name.
+    name: "TenGigE0/6/0/2/2"  # Change this to the actual port name.
   }
   ports {
     id: "port4"
-    name: "TenGigE0/7/0/2/3"  # Change this to the actual port name.
+    name: "TenGigE0/6/0/2/3"  # Change this to the actual port name.
   }
   ports {
     id: "port5"
@@ -153,4 +153,4 @@ ates {
     id: "port8"
     name: "5/8"  # Change this to the actual port name.
   }
-}
+} 
