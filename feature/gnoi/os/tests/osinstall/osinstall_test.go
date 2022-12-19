@@ -241,7 +241,7 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 			t.Fatalf("OS.Verify ActivationFailMessage: got %q, want %q", got, want)
 		}
 		if got, want := r.GetVersion(), *osVersion; got != want {
-			t.Log("Reboot not started yet.")
+			t.Logf("Reboot has not finished with the right version: got %s , want: %s.", got, want)
 			time.Sleep(time.Minute)
 			continue
 		}
