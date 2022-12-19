@@ -73,6 +73,14 @@ func TestEstablish(t *testing.T) {
 	atePortName := ate.Port(t, "port1").Name()
 	intf2 := ateAttrs.NewOCInterface(atePortName)
 	gnmi.Replace(t, ate, gnmi.OC().Interface(intf2.GetName()).Config(), intf2)
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+		gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		fptest.AssignToNetworkInstance(t, dut, dutPortName, *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, atePortName, *deviations.DefaultNetworkInstance, 0)
+	}
+
 	// Get BGP paths
 	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	ateConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
