@@ -466,14 +466,14 @@ func TestEstablish(t *testing.T) {
 	t.Logf("Start DUT config load:")
 	dut := ondatra.DUT(t, "dut")
 
+	// Configure interface on the DUT
+	t.Logf("Start DUT interface Config")
+	configureDUT(t, dut)
+
 	// Configure Network instance type on DUT
 	t.Log("Configure Network Instance type")
 	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-
-	// Configure interface on the DUT
-	t.Logf("Start DUT interface Config")
-	configureDUT(t, dut)
 
 	// Configure BGP+Neighbors on the DUT
 	t.Logf("Start DUT BGP Config")
@@ -521,14 +521,14 @@ func TestBGPPolicy(t *testing.T) {
 	t.Logf("Start DUT config load:")
 	dut := ondatra.DUT(t, "dut")
 
+	// Configure interface on the DUT
+	t.Logf("Start DUT interface Config")
+	configureDUT(t, dut)
+
 	// Configure Network instance type on DUT
 	t.Log("Configure Network Instance type ")
 	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-
-	// Configure interface on the DUT
-	t.Logf("Start DUT interface Config")
-	configureDUT(t, dut)
 
 	cases := []struct {
 		desc                      string

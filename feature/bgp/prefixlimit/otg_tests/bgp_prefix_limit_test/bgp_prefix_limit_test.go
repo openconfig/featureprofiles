@@ -116,14 +116,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p1 := dut.Port(t, "port1").Name()
 	i1 := dutSrc.NewOCInterface(p1)
 	gnmi.Replace(t, dut, dc.Interface(p1).Config(), i1)
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1, *deviations.DefaultNetworkInstance, 0)
-	}
 
 	p2 := dut.Port(t, "port2").Name()
 	i2 := dutDst.NewOCInterface(p2)
 	gnmi.Replace(t, dut, dc.Interface(p2).Config(), i2)
+
 	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1, *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, p2, *deviations.DefaultNetworkInstance, 0)
 	}
 

@@ -75,8 +75,6 @@ func TestEstablish(t *testing.T) {
 	gnmi.Replace(t, ate, gnmi.OC().Interface(intf2.GetName()).Config(), intf2)
 
 	if *deviations.ExplicitInterfaceInDefaultVRF {
-		dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
-		gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 		fptest.AssignToNetworkInstance(t, dut, dutPortName, *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, atePortName, *deviations.DefaultNetworkInstance, 0)
 	}

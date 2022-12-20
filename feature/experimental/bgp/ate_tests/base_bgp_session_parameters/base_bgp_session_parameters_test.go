@@ -238,14 +238,14 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	t.Log("Start DUT config load:")
 	dut := ondatra.DUT(t, "dut")
 
+	// Configure interface on the DUT
+	t.Log("Start DUT interface Config")
+	configureDUT(t, dut)
+
 	// Configure Network instance type on DUT
 	t.Log("Configure Network Instance")
 	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-
-	// Configure interface on the DUT
-	t.Log("Start DUT interface Config")
-	configureDUT(t, dut)
 
 	t.Log("Configure BGP")
 	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -312,14 +312,14 @@ func TestPassword(t *testing.T) {
 	t.Log("Start DUT config load:")
 	dut := ondatra.DUT(t, "dut")
 
+	// Configure interface on the DUT
+	t.Log("Start DUT interface Config")
+	configureDUT(t, dut)
+
 	// Configure Network instance type on DUT
 	t.Log("Configure Network Instance")
 	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-
-	// Configure interface on the DUT
-	t.Log("Start DUT interface Config")
-	configureDUT(t, dut)
 
 	t.Log("Configure BGP")
 	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
