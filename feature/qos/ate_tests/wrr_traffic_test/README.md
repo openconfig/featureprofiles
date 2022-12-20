@@ -95,7 +95,7 @@ Verify that DUT forwards AF3, AF2, AF1, BE1 and BE0 traffic based on WRR weight.
     AF3           | 50                      | 50                      | 80                    | 80
     AF2           | 50                      | 50                      | 20                    | 20
 
-*   Repeat the above 3 test oversubscription cases between traffic classes
+*   Repeat the above 3 oversubscription test cases between traffic classes
 
     *   AF2 vs AF1
     *   AF1 vs BE1
