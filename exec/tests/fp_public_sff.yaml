@@ -265,7 +265,7 @@ tests:
   priority: 32
 - name: gNMI-1.5 (Telemetry Port Speed Test) 
   path: feature/gnmi/ate_tests/telemetry_port_speed_test
-  patch: exec/firex/plugins/fp_patch/telemetry_port_speed_test.patch
+  #patch: exec/firex/plugins/fp_patch/telemetry_port_speed_test.patch
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 33
