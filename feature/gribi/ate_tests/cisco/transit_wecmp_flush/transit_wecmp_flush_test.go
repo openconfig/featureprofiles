@@ -450,7 +450,7 @@ func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) 
 	args.c1.AddNHG(t, 14, 11, weights2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "12.11.11.12/32", 14, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.c1.AddNHG(t, 11, 14, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNHG(t, 11, 14, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	portMaps := args.topology.Interfaces()
 
@@ -1015,6 +1015,11 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 // Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf
 func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
+
+	// Removing policy for the tc
+	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Delete(t)
+	defer args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
+
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
 
@@ -1153,6 +1158,8 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 	prefixes := []string{}
 	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
 		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+		prefixes = append(prefixes, util.GetIPPrefix("121.1.1.1", i, "32"))
+		prefixes = append(prefixes, util.GetIPPrefix("131.1.1.1", i, "32"))
 	}
 	weights3 := map[uint64]uint64{
 		10: 85,
@@ -1164,8 +1171,8 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//Generate flows over ISIS and BGP sessions.
-	isisFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "isis_network1", "isis_network2", "isis", 16)
-	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "bgp_network", "bgp_network", "bgp", 16)
+	isisFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "transit_wecmp_isis_1", "transit_wecmp_isis_2", "isis", 16)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 16)
 	scaleFlow := getScaleFlow(t, args.topology.Interfaces(), args.ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.90, isisFlow, bgpFlow, scaleFlow)
@@ -1209,7 +1216,7 @@ func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 
 	//Configure BGP on TGN
 	//Generate DSCP48 flow
-	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "bgp_transit_network", "bgp_transit_network", "bgp", 48)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 48)
 
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.99, bgpFlow)
@@ -1249,8 +1256,8 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 
 	// 11.11.11.0/32
 	prefixes := []string{}
-	for i := 8; i <= 32; i++ {
-		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.1", i, "32"))
+	for i := 0; i <= int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
 	}
 	weights3 := map[uint64]uint64{
 		10: 85,
@@ -1424,7 +1431,7 @@ func testSetISISOverloadBit(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Configure ISIS overload bit
-	config := args.dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+	config := args.dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
 	config.Update(t, true)
 	defer config.Delete(t)
 
@@ -1983,7 +1990,7 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 	time.Sleep(10 * time.Second)
 
 	if *ciscoFlags.GRIBITrafficCheck {
-		checkTraffic(t, "IPinIP", args.ate, false, "default")
+		checkTraffic(t, "IPinIP", args.ate, false)
 	}
 
 	// dut1.Telemetry().NetworkInstance().Afts().Ipv4Entry().Get(t)
@@ -2000,11 +2007,11 @@ func TestTransitWECMPFlush(t *testing.T) {
 		desc string
 		fn   func(t *testing.T, args *testArgs)
 	}{
-		{
-			name: "TestAddPBR",
-			desc: "ADD PBR", // make sure that PBR is added and no flowspec config is not in router
-			fn:   testChangeFlowSpecToPBR,
-		},
+		// {
+		// 	name: "TestAddPBR",
+		// 	desc: "ADD PBR", // make sure that PBR is added and no flowspec config is not in router
+		// 	fn:   testChangeFlowSpecToPBR,
+		// },
 		{
 			name: "CD2ConnectedNHIP",
 			desc: "Transit Connected nexthop",
