@@ -2007,11 +2007,11 @@ func TestTransitWECMPFlush(t *testing.T) {
 		desc string
 		fn   func(t *testing.T, args *testArgs)
 	}{
-		// {
-		// 	name: "TestAddPBR",
-		// 	desc: "ADD PBR", // make sure that PBR is added and no flowspec config is not in router
-		// 	fn:   testChangeFlowSpecToPBR,
-		// },
+		{
+			name: "TestAddPBR",
+			desc: "ADD PBR", // make sure that PBR is added and no flowspec config is not in router
+			fn:   testChangeFlowSpecToPBR,
+		},
 		{
 			name: "CD2ConnectedNHIP",
 			desc: "Transit Connected nexthop",

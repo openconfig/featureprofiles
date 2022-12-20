@@ -39,14 +39,16 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	r2 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r2.SequenceId = ygot.Uint32(2)
 	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		DscpSet: []uint8{*ygot.Uint8(16)},
+		DscpSet:  []uint8{*ygot.Uint8(16)},
+		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 	}
 	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
 
 	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r3.SequenceId = ygot.Uint32(3)
 	r3.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		DscpSet: []uint8{*ygot.Uint8(18)},
+		DscpSet:  []uint8{*ygot.Uint8(18)},
+		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 	}
 	r3.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("VRF1")}
 
