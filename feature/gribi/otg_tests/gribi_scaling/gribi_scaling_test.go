@@ -294,10 +294,6 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) 
 		i := d.GetOrCreateNetworkInstance(vrf)
 		i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 		i.Enabled = ygot.Bool(true)
-		i.EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{
-			oc.Types_ADDRESS_FAMILY_IPV4,
-			oc.Types_ADDRESS_FAMILY_IPV6,
-		}
 		i.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 		nip := gnmi.OC().NetworkInstance(vrf)
@@ -356,7 +352,6 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 	if vrf != "" {
 		t.Logf("Put port %s into vrf %s", dutPort.Name(), vrf)
 		d.GetOrCreateNetworkInstance(vrf).GetOrCreateInterface(dutPort.Name())
-		d.GetOrCreateNetworkInstance(vrf).EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4}
 	}
 
 	i := d.GetOrCreateInterface(dutPort.Name())
