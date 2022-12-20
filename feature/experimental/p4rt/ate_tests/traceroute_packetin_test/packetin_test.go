@@ -139,7 +139,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 		defer programmTableEntry(leader, args.packetIO, true, IsIpv4)
 	} else {
 		// Insert p4rtutils acl entry on the DUT
-		if err := programmTableEntry(leader, args.packetIO, true, false); err != nil {
+		if err := programmTableEntry(leader, args.packetIO, false, false); err != nil {
 			t.Fatalf("There is error when programming entry")
 		}
 		// Delete p4rtutils acl entry on the device
