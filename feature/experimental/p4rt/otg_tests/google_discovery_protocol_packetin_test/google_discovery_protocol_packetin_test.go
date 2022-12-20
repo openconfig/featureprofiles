@@ -141,10 +141,10 @@ func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType)
 }
 
 // testTraffic sends traffic flow for duration seconds.
-func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Device, duration int) {
+func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int) {
 	t.Helper()
 	for _, flow := range flows {
-		flow.TxRx().Device().SetTxNames([]string{srcEndPoint.Name()}).SetRxNames([]string{srcEndPoint.Name()})
+		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
 		top.Flows().Append(flow)
 	}
 	ate.OTG().PushConfig(t, top)
@@ -189,7 +189,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	defer programmTableEntry(ctx, t, leader, args.packetIO, true)
 
 	// Send GDP traffic from ATE
-	srcEndPoint := args.top.Devices().Items()[0]
+	srcEndPoint := ateInterface(t, args.top, "port1")
 	testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, 300, 2), srcEndPoint, 10)
 
 	packetInTests := []struct {
@@ -484,6 +484,7 @@ func (gdp *GDPPacketIO) GetPacketTemplate() *PacketIOPacket {
 func (gdp *GDPPacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []gosnappi.Flow {
 
 	flow := gosnappi.NewFlow()
+	flow.SetName("GDP")
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(*gdp.SrcMAC)
 	ethHeader.Dst().SetValue(*gdp.DstMAC)
@@ -501,4 +502,13 @@ func (gdp *GDPPacketIO) GetEgressPort() []string {
 // GetIngressPort return expected ingress port info in PacketIn.
 func (gdp *GDPPacketIO) GetIngressPort() string {
 	return gdp.IngressPort
+}
+
+func ateInterface(t *testing.T, topo gosnappi.Config, portID string) gosnappi.Port {
+	for _, p := range topo.Ports().Items() {
+		if p.Name() == portID {
+			return p
+		}
+	}
+	return nil
 }
