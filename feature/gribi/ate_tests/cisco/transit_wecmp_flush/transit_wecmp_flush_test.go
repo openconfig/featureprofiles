@@ -450,6 +450,7 @@ func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) 
 	args.c1.AddNHG(t, 14, 11, weights2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "12.11.11.12/32", 14, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
+	// not suported as confirmed by DE, in CD2 we had addnhg call, which was over writing the existing one which failed
 	args.c1.ReplaceNHG(t, 11, 14, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	portMaps := args.topology.Interfaces()
