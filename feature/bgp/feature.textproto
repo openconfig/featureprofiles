@@ -25,12 +25,6 @@ telemetry_path {
     path: "/network-instances/network-instance/state/enabled"
 }
 config_path {
-    path: "/network-instances/network-instance/config/enabled-address-families"
-}
-telemetry_path {
-    path: "/network-instances/network-instance/state/enabled-address-families"
-}
-config_path {
     path: "/network-instances/network-instance/config/name"
 }
 telemetry_path {
