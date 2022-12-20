@@ -1,16 +1,21 @@
 diff --git a/feature/gnoi/os/tests/osinstall/osinstall_test.go b/feature/gnoi/os/tests/osinstall/osinstall_test.go
-index 3457eaba..6c611cc0 100644
+index 3457eaba..686d8e95 100644
 --- a/feature/gnoi/os/tests/osinstall/osinstall_test.go
 +++ b/feature/gnoi/os/tests/osinstall/osinstall_test.go
-@@ -23,6 +23,7 @@ import (
- 	"testing"
- 	"time"
+@@ -51,6 +51,12 @@ var (
+ 	timeout = flag.Duration("timeout", time.Minute*30, "Time to wait for reboot to complete")
+ )
  
-+	"github.com/openconfig/featureprofiles/internal/deviations"
- 	"github.com/openconfig/featureprofiles/internal/fptest"
- 	closer "github.com/openconfig/gocloser"
- 	"github.com/openconfig/ondatra"
-@@ -66,6 +67,8 @@ func TestMain(m *testing.M) {
++var (
++	OSActiavteNoReboot = flag.Bool("deviation_osactiavte_noreboot", false, "Device requires seperate reboot to activate OS.")
++
++	NoOSInstallForStandbyRP = flag.Bool("deviation_no_osinstall_for_standby_rp", false, "Device does not require OS installation on standby RP since the standby RP always kept in sync with the master RP, so suppress installing OS on standby RP.")
++)
++
+ type testCase struct {
+ 	dut *ondatra.DUTDevice
+ 	// dualSup indicates if the DUT has a standby supervisor available.
+@@ -66,6 +72,8 @@ func TestMain(m *testing.M) {
  }
  
  func TestOSInstall(t *testing.T) {
@@ -19,7 +24,7 @@ index 3457eaba..6c611cc0 100644
  	if *osFile == "" || *osVersion == "" {
  		t.Fatal("Missing osfile or osver args")
  	}
-@@ -87,13 +90,21 @@ func TestOSInstall(t *testing.T) {
+@@ -87,13 +95,21 @@ func TestOSInstall(t *testing.T) {
  		sc:     dut.RawAPIs().GNOI().Default(t).System(),
  	}
  	tc.fetchStandbySupervisorStatus(ctx, t)
@@ -28,44 +33,44 @@ index 3457eaba..6c611cc0 100644
  	tc.activateOS(ctx, t, false)
 -	if tc.dualSup {
 +
-+	if !*deviations.NoOSInstallForStandbyRP && tc.dualSup {
++	if !*NoOSInstallForStandbyRP && tc.dualSup {
 +		// install and activate os on master RP
  		tc.transferOS(ctx, t, true)
  		tc.activateOS(ctx, t, true)
  	}
 -	tc.rebootDUT(ctx, t)
 +
-+	if *deviations.OSActiavteNoReboot {
++	if *OSActiavteNoReboot {
 +		tc.rebootDUT(ctx, t)
 +	}
-+	// reconnect GNOI client 
++	// reconnect GNOI client
 +	tc.osc = tc.dut.RawAPIs().GNOI().New(t).OS()
  	tc.verifyInstall(ctx, t)
  }
  
-@@ -101,7 +112,7 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool)
+@@ -101,7 +117,7 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool)
  	act, err := tc.osc.Activate(ctx, &ospb.ActivateRequest{
  		StandbySupervisor: standby,
  		Version:           *osVersion,
 -		NoReboot:          true,
-+		NoReboot:          *deviations.OSActiavteNoReboot,
++		NoReboot:          *OSActiavteNoReboot,
  	})
  	if err != nil {
  		t.Fatalf("OS.Activate request failed: %s", err)
-@@ -120,6 +131,27 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool)
+@@ -120,6 +136,27 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool)
  	default:
  		t.Fatalf("OS.Activate unexpected response: got %v (%T)", resp, resp)
  	}
-+	// when no reboot is set to false, the device expected to do reboot if is required. 
++	// when no reboot is set to false, the device expected to do reboot if is required.
 +	// Reboot is not neccessary in all cases and the device does reboot based on the number of updated packages and impacted processes.
-+	// THe below code checks and make sure the possible reboot is completed. 
-+	if !*deviations.OSActiavteNoReboot {
++	// THe below code checks and make sure the possible reboot is completed.
++	if !*OSActiavteNoReboot {
 +		t.Log("Check for os reboot to be completed when  noreboot flag is set to false")
 +		// wait for 1 minutes to ensure the reboot is started
 +		deadline := time.Now().Add(*timeout)
-+		time.Sleep(1*time.Minute) 
++		time.Sleep(1 * time.Minute)
 +		for {
-+			var bootTime *ygnmi.Value[uint64]	
++			var bootTime *ygnmi.Value[uint64]
 +			testt.CaptureFatal(t, func(t testing.TB) {
 +				bootTime = gnmi.Lookup(t, tc.dut, gnmi.OC().System().BootTime().State())
 +			})
@@ -80,16 +85,3 @@ index 3457eaba..6c611cc0 100644
  }
  
  // fetchStandbySupervisorStatus checks if the DUT has a standby supervisor available in a working state.
-diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
-index 6e990bb6..b57ccd15 100644
---- a/internal/deviations/deviations.go
-+++ b/internal/deviations/deviations.go
-@@ -111,4 +111,8 @@ var (
- 
- 	ExplicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
- 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
-+
-+	OSActiavteNoReboot = flag.Bool("deviation_osactiavte_noreboot", false, "Device requires seperate reboot to activate OS.")
-+
-+	NoOSInstallForStandbyRP = flag.Bool("deviation_no_osinstall_for_standby_rp", false, "Device does not require OS installation on standby RP since the standby RP always kept in sync with the master RP, so suppress installing OS on standby RP.")
- )
