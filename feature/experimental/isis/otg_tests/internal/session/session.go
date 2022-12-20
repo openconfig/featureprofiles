@@ -25,6 +25,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -226,11 +227,16 @@ func (s *TestSession) ConfigISIS(ocFn func(*oc.NetworkInstance_Protocol_Isis)) {
 
 // PushAndStart calls PushDUT and PushAndStartATE to send config to both
 // devices.
-func (s *TestSession) PushAndStart(t testing.TB) error {
+func (s *TestSession) PushAndStart(t *testing.T) error {
 	t.Helper()
 	if err := s.PushDUT(context.Background()); err != nil {
 		return err
 	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+
 	s.PushAndStartATE(t)
 	return nil
 }
