@@ -195,6 +195,7 @@ tests:
     - '-p4rt_node_name2="0/0/CPU0-NPU1"'
   owner: sprem@cisco.com
   priority: 5
+  mustpass: true
 - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
   path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
   args:
