@@ -72,7 +72,6 @@ func TestCopyingDebugFiles(t *testing.T) {
 	req := &hpb.GetRequest{
 		Path: &tpb.Path{
 			Elem: []*tpb.PathElem{
-				&tpb.PathElem{
 				{
 					Name: "components/component/chassis",
 				},
