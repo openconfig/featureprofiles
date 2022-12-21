@@ -15,9 +15,9 @@
 // Package transitwecmpflush_test includes all tests related to transit case of gribi
 package transitwecmpflush_test
 
-// const (
-// 	pbrName = "PBR"
-// )
+const (
+	pbrName = "PBR"
+)
 
 // func configbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 // 	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
