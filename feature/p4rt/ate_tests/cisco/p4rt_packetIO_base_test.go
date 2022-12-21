@@ -10,6 +10,7 @@ import (
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
@@ -33,17 +34,6 @@ var (
 	SUBMIT_TO_EGRESS      = uint32(0)
 	forusIP               = "10.10.10.10"
 	maxPortID             = uint32(0xFFFFFEFF)
-	//flags to selectively run a set of tests
-	GDPTests   = flag.Bool("run_gdp_tests", false, "Run only GDP tests")
-	LLDPTests  = flag.Bool("run_lldp_tests", false, "Run only LLDP tests")
-	TTLTests   = flag.Bool("run_ttl_tests", false, "Run only TTL tests")
-	TTL1v4     = flag.Bool("run_ttl_1_v4_tests", true, "Run only IPv4 TTL 1 tests") // default run TTL1 V4
-	TTL1v6     = flag.Bool("run_ttl_1_v6_tests", false, "Run only IPv6 TTL 1 tests")
-	TTL1n2v4   = flag.Bool("run_ttl_1n2_v4_tests", false, "Run only IPv4 TTL 1, 2 tests")
-	TTL1n2v6   = flag.Bool("run_ttl_1n2_v6_tests", false, "Run only IPv6 TTL 1, 2 tests")
-	TTL1v4n6   = flag.Bool("run_ttl_1_v4n6_tests", false, "Run IPv4 and IPv6 TTL 1 tests")
-	TTL1n2v4n6 = flag.Bool("run_ttl_1n2_v4n6_tests", false, "Run IPv4 and IPv6 TTL 1, 2 tests")
-	ScaleTests = flag.Bool("skip_scale_tests", true, "Run only scale tests") // skip scale tests
 )
 
 // Testcase defines testcase structure
@@ -242,7 +232,7 @@ func TestP4RTPacketIO(t *testing.T) {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 
-	if *GDPTests {
+	if *ciscoFlags.GDPTests {
 		args.packetIO = getGDPParameter(t)
 
 		for _, tt := range PublicGDPTestcases {
@@ -262,7 +252,7 @@ func TestP4RTPacketIO(t *testing.T) {
 			})
 		}
 	}
-	if *LLDPTests {
+	if *ciscoFlags.LLDPTests {
 		args.packetIO = getLLDPParameter(t)
 
 		for _, tt := range PublicLLDPDisableTestcases {
@@ -294,24 +284,24 @@ func TestP4RTPacketIO(t *testing.T) {
 			dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(false))
 		}
 	}
-	if *TTLTests {
+	if *ciscoFlags.TTLTests {
 		ttlTestcases := map[string]func(){}
-		if *TTL1v4 {
+		if *ciscoFlags.TTL1v4 {
 			ttlTestcases["IPv4 TTL1 Only"] = func() { args.packetIO = getTTLParameter(t, true, false, false) }
 		}
-		if *TTL1n2v4 {
+		if *ciscoFlags.TTL1n2v4 {
 			ttlTestcases["IPv4 TTL1 and TTL2"] = func() { args.packetIO = getTTLParameter(t, true, false, true) }
 		}
-		if *TTL1v6 {
+		if *ciscoFlags.TTL1v6 {
 			ttlTestcases["IPv6 TTL1 Only"] = func() { args.packetIO = getTTLParameter(t, false, true, false) }
 		}
-		if *TTL1n2v6 {
+		if *ciscoFlags.TTL1n2v6 {
 			ttlTestcases["IPv6 TTL1 and TTL2"] = func() { args.packetIO = getTTLParameter(t, false, true, true) }
 		}
-		if *TTL1v4n6 {
+		if *ciscoFlags.TTL1v4n6 {
 			ttlTestcases["IPv4 TTL1 and IPv6 TTL1"] = func() { args.packetIO = getTTLParameter(t, true, true, false) }
 		}
-		if *TTL1n2v4n6 {
+		if *ciscoFlags.TTL1n2v4n6 {
 			ttlTestcases["IPv4 TTL1 and TTL2 and IPv6 TTL1 and TTL2"] =
 				func() {
 					args.packetIO = getTTLParameter(t, true, true, true)

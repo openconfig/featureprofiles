@@ -13,6 +13,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -223,8 +224,8 @@ func configureStaticRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	}
 	static.GetOrCreateNextHop("AUTO_drop_2").
 		NextHop = telemetry.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
-	staticp := dc.NetworkInstance("DEFAULT").
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").
+	staticp := dc.NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *ciscoFlags.DefaultNetworkInstance).
 		Static(discardCIDR)
 	if delete {
 		staticp.Delete(t)
@@ -1287,7 +1288,7 @@ func testEntryProgrammingPacketInWithAcl(ctx context.Context, t *testing.T, args
 }
 
 func testEntryProgrammingPacketInScaleRate(ctx context.Context, t *testing.T, args *testArgs) {
-	if *ScaleTests {
+	if *ciscoFlags.ScaleTests {
 		t.Skipf("Skipping scale test")
 	}
 	client := args.p4rtClientA
@@ -2242,7 +2243,7 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 // }
 
 func testPacketOutEgressScale(ctx context.Context, t *testing.T, args *testArgs) {
-	if *ScaleTests {
+	if *ciscoFlags.ScaleTests {
 		t.Skipf("Skipping scale test")
 	}
 	client := args.p4rtClientA
