@@ -25,7 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry/ateflow"
+	"github.com/openconfig/ondatra/gnmi/oc/ateflow"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -186,7 +186,7 @@ func flushNonDefaultVrfPrimary(ctx context.Context, t *testing.T, dut *ondatra.D
 	dstEndPoint := ateTop.Interfaces()[atePort2.Name]
 
 	flowPath := testTraffic(t, ate, ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got > 0 {
+	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got > 0 {
 		t.Errorf("LossPct for flow got %g, want 0", got)
 	} else {
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
@@ -201,7 +201,7 @@ func flushNonDefaultVrfPrimary(ctx context.Context, t *testing.T, dut *ondatra.D
 
 	t.Log("After flush, left entry should be 0, and packets can no longer be forwarded")
 	flowPath = testTraffic(t, ate, ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got == 0 {
+	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got == 0 {
 		t.Error("Traffic can still be forwarded between ATE port-1 and ATE port-2")
 	} else {
 		t.Log("Traffic can not be forwarded between ATE port-1 and ATE port-2")
@@ -239,7 +239,7 @@ func flushNonDefaultVrfFailover(ctx context.Context, t *testing.T, dut *ondatra.
 
 	t.Log("After flush, left entry should be 0, and packets can no longer be forwarded")
 	flowPath := testTraffic(t, ate, ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got == 0 {
+	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got == 0 {
 		t.Error("Traffic can still be forwarded between ATE port-1 and ATE port-2")
 	} else {
 		t.Log("Traffic stopped as expected after flush between ATE port-1 and ATE port-2")
@@ -254,7 +254,7 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 	dstEndPoint := ateTop.Interfaces()[atePort2.Name]
 
 	flowPath := testTraffic(t, ate, ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got > 0 {
+	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got > 0 {
 		t.Errorf("LossPct for flow got %g, want 0", got)
 	} else {
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
@@ -274,7 +274,7 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 
 	t.Log("Ensure that the IPEntry 198.51.100.0/24 (ateDstNetEntryNonDefault) is not removed, by validating packet forwarding and telemetry.")
 	flowPath = testTraffic(t, ate, ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got > 0 {
+	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got > 0 {
 		t.Errorf("LossPct for flow got %g, want 0", got)
 	} else {
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
@@ -348,7 +348,6 @@ func networkInstance(t *testing.T, name string) *oc.NetworkInstance {
 	ni.Description = ygot.String("Non Default routing instance created for testing")
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	ni.Enabled = ygot.Bool(true)
-	ni.EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4, oc.Types_ADDRESS_FAMILY_IPV6}
 	return ni
 }
 
@@ -372,7 +371,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
-	flowPath := ate.Telemetry().Flow(flow.Name())
+	flowPath := gnmi.OC().Flow(flow.Name())
 	return flowPath
 }
 

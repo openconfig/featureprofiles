@@ -18,6 +18,7 @@ import (
 	"flag"
 	"fmt"
 	"os/exec"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +33,10 @@ import (
 )
 
 func TestBuildInfo(t *testing.T) {
+	if _, ok := debug.ReadBuildInfo(); !ok {
+		t.Skip("Skipping test because the runtime environment is missing BuildInfo.")
+	}
+
 	m := make(map[string]string)
 	buildInfo(m)
 	t.Log(m)
@@ -408,13 +413,7 @@ func TestLocal(t *testing.T) {
 	local(m)
 	t.Log(m)
 
-	for _, k := range []string{
-		"test.path",
-		"time.begin",
-		"time.end",
-	} {
-		if _, ok := m[k]; !ok {
-			t.Errorf("Missing key from local: %s", k)
-		}
+	if _, ok := m["test.path"]; !ok {
+		t.Errorf("Missing test.path key from local.")
 	}
 }

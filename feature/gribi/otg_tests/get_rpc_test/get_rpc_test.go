@@ -105,7 +105,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -324,13 +324,14 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	// and ensure that only entries for 198.51.100.0/26, 198.51.100.64/26, 198.51.100.128/26
 	// are returned, with no entry returned for 198.51.100.192/64.
 	dc := gnmi.OC()
-	ni := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
+	niProto := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
-	static := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(staticCIDR),
-	}
-	static.GetOrCreateNextHop("AUTO_0").NextHop = oc.UnionString(atePort2.IPv4)
-	gnmi.Replace(t, args.dut, ni.Static(staticCIDR).Config(), static)
+	ni := &oc.NetworkInstance{Name: deviations.DefaultNetworkInstance}
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	staticRoute := static.GetOrCreateStatic(staticCIDR)
+	nextHop := staticRoute.GetOrCreateNextHop("0")
+	nextHop.NextHop = oc.UnionString(atePort2.IPv4)
+	gnmi.Update(t, args.dut, niProto.Config(), static)
 	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {
 		ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])

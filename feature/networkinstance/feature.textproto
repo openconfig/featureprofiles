@@ -17,14 +17,6 @@ id {
   version: 1
 }
 
-# Enabled
-config_path {
-  path: "/network-instances/network-instance/config/enabled"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/state/enabled"
-}
-
 # Type
 config_path {
   path: "/network-instances/network-instance/config/type"
