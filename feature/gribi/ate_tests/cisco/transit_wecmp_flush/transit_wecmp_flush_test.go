@@ -46,13 +46,13 @@ func TestMain(m *testing.M) {
 }
 
 // Transit-83 DELETE FlowSPEC and ADD PBR config
-func testChangeFlowSpecToPBR(t *testing.T, args *testArgs) {
-	t.Log("Remove flow spec config and apply pbr config")
-	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
-	config.Reload(args.ctx, t, args.dut, configToChange, "", 15*time.Minute)
-	// configbasePBR(t, args.dut)
-	// args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
-}
+// func testChangeFlowSpecToPBR(t *testing.T, args *testArgs) {
+// 	t.Log("Remove flow spec config and apply pbr config")
+// 	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
+// 	config.Reload(args.ctx, t, args.dut, configToChange, "", 15*time.Minute)
+//  configbasePBR(t, args.dut)
+//  args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
+// }
 
 func testCD2ConnectedNHIP(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
