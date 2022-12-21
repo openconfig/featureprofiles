@@ -102,9 +102,10 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	}
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Duration(duration) * time.Second)
 
-	ate.Traffic().Stop(t)
+	ate.OTG().StopTraffic(t)
 }
 
 // fetchPackets reads p4rt packets sent to p4rt client.
