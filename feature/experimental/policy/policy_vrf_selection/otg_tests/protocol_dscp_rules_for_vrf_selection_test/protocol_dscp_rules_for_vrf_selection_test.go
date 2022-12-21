@@ -325,8 +325,8 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 	otgutils.LogFlowMetrics(t, args.ate.OTG(), topology)
 	for _, flow := range flows {
 		t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
-		outPkts := gnmi.Get(t, args.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
-		inPkts := gnmi.Get(t, args.ate, gnmi.OC().Flow(flow.Name()).Counters().InPkts().State())
+		outPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+		inPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
 		lossPct := ((outPkts - inPkts) * 100) / outPkts
 
 		// log stats
