@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -74,9 +75,13 @@ func TestSupervisorSwitchover(t *testing.T) {
 
 	supervisors := components.FindComponentsByType(t, dut, controlcardType)
 	t.Logf("Found supervisor list: %v", supervisors)
-	// Only perform the switchover for the chassis with dual RPs/Supervisors.
-	if got, want := len(supervisors), 2; got != want {
-		t.Skipf("Dual RP/SUP is required on %v: got %v, want %v", dut.Model(), got, want)
+
+	if *args.NumSupervisors >= 0 && len(supervisors) != *args.NumSupervisors {
+		t.Errorf("Incorrect number of RP/SUPs: got %v, want exactly %v (specified by flag)", len(supervisors), *args.NumSupervisors)
+	}
+
+	if got, want := len(supervisors), 2; got < want {
+		t.Skipf("Not enough RP/SUPs for the test on %v: got %v, want at least %v", dut.Model(), got, want)
 	}
 
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, supervisors)
