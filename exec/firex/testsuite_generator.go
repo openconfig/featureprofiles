@@ -4,7 +4,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -439,7 +438,7 @@ func patchHasDeviation(patch, deviation string) bool {
 		return false
 	}
 
-	if buf, err := ioutil.ReadFile(patch); err == nil {
+	if buf, err := os.ReadFile(patch); err == nil {
 		content := string(buf)
 		return !strings.Contains(content, deviation)
 	}
