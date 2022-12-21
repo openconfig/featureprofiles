@@ -451,7 +451,7 @@ func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) 
 	args.c1.AddIPv4(t, "12.11.11.12/32", 14, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// not suported as confirmed by DE, in CD2 we had addnhg call, which was over writing the existing one which failed
-	args.c1.ReplaceNHG(t, 11, 14, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	// args.c1.ReplaceNHG(t, 11, 14, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	portMaps := args.topology.Interfaces()
 
@@ -1600,10 +1600,10 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 
 	//Outer header TTL decrements by 1, DSCP stays same over gRIBI forwarding entry.
 	//flow with dscp=48, ttl=100
-	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "network102", "dscpTtlFlow", 48, 100)
+	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "transit_wecmp_isis_2", "dscpTtlFlow", 16, 100)
 	//add acl with dscp=48, ttl=99. Transit traffic will have ttl decremented by 1
 	aclName := "ttl_dscp"
-	aclConfig := util.GetIpv4Acl(aclName, 10, 48, 99, telemetry.Acl_FORWARDING_ACTION_ACCEPT)
+	aclConfig := util.GetIpv4Acl(aclName, 10, 16, 99, telemetry.Acl_FORWARDING_ACTION_ACCEPT)
 	args.dut.Config().Acl().Update(t, aclConfig)
 	//delete acl
 	defer args.dut.Config().Acl().AclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)

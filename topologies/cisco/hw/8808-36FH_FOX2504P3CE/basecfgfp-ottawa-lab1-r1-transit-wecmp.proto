@@ -65,6 +65,8 @@ replace: {
 "!\n"
 "class-map type traffic match-all 4_PBR\n"
 " match dscp ipv4 48\n"
+" match ethertype ipv4\n"
+" match protocol ipv4\n"
 " end-class-map\n"
 "!\n"
 "policy-map type pbr PBR\n"
