@@ -67,11 +67,11 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	//for ipv4
 	t.Run(desc+" ipv4 ", func(t *testing.T) {
 		// Check initial packet counters
-		port := sortPorts(args.ate.Ports())[0].Name()
+		port := sortPorts(args.ate.Ports())[0].ID()
 
 		for _, ttl := range ttls {
 			t.Logf("Sending ipv4 pakcets with ttl %d", ttl)
-			counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
+			counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
 			t.Logf("Initial number of packets: %d", counter0)
 
 			packets := args.packetIO.GetPacketOut(portId, true, uint8(ttl))
@@ -84,7 +84,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			time.Sleep(60 * time.Second)
 
 			// Check packet counters after packet out
-			counter1 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
+			counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
 			t.Logf("Final number of packets: %d", counter1)
 
 			// Verify InPkts stats to check P4RT stream
@@ -101,11 +101,11 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	//for ipv6
 	t.Run(desc+" ipv6", func(t *testing.T) {
 		// Check initial packet counters
-		port := sortPorts(args.ate.Ports())[0].Name()
+		port := sortPorts(args.ate.Ports())[0].ID()
 
 		for _, ttl := range ttls {
 			t.Logf("Sending ipv6 packets with ttl = %d", ttl)
-			counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
+			counter0 := gnmi.Get(t, args.ate, gnmi.OTG().Port(port).Counters().InFrames().State())
 			t.Logf("Initial number of packets: %d", counter0)
 
 			packets := args.packetIO.GetPacketOut(portId, false, uint8(ttl))
@@ -118,7 +118,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			time.Sleep(60 * time.Second)
 
 			// Check packet counters after packet out
-			counter1 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
+			counter1 := gnmi.Get(t, args.ate, gnmi.OTG().Port(port).Counters().InFrames().State())
 			t.Logf("Final number of packets: %d", counter1)
 
 			// Verify InPkts stats to check P4RT stream
