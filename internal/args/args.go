@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package fptest provides helper functions for organizing tests and reporting results.
-package fptest
+// Package args define arguments for testing that depend on the available components
+// and their naming on the device, if they cannot be enumerated easily from /components by type.
+// Having these arguments at the project level help us run the whole suite of tests
+// without defining them per test.
+package args
 
-// Import packages for test flags so that the presence of unused flags won't break tests.
 import (
-	_ "github.com/openconfig/featureprofiles/internal/args"       // keep
-	_ "github.com/openconfig/featureprofiles/internal/deviations" // keep
+	"flag"
+)
+
+// Global test flags.
+var (
+	NumSupervisors = flag.Int("arg_num_supervisors", -1, "The expected number of RP/SUPs. Some devices with a single supervisor report 0, which is a valid expected value. Expectation is not checked for values < 0.")
 )
