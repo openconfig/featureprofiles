@@ -15,57 +15,48 @@
 // Package transitwecmpflush_test includes all tests related to transit case of gribi
 package transitwecmpflush_test
 
-import (
-	"testing"
+// const (
+// 	pbrName = "PBR"
+// )
 
-	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygot/ygot"
-)
+// func configbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
+// 	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+// 	r1.SequenceId = ygot.Uint32(1)
+// 	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+// 		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+// 	}
+// 	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
 
-const (
-	pbrName = "PBR"
-)
+// 	r2 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+// 	r2.SequenceId = ygot.Uint32(2)
+// 	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+// 		DscpSet:  []uint8{*ygot.Uint8(16)},
+// 		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+// 	}
+// 	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
 
-func configbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
-	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
-	r1.SequenceId = ygot.Uint32(1)
-	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
-	}
-	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+// 	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+// 	r3.SequenceId = ygot.Uint32(3)
+// 	r3.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+// 		DscpSet:  []uint8{*ygot.Uint8(18)},
+// 		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+// 	}
+// 	r3.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("VRF1")}
 
-	r2 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
-	r2.SequenceId = ygot.Uint32(2)
-	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		DscpSet:  []uint8{*ygot.Uint8(16)},
-		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
-	}
-	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+// 	r4 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+// 	r4.SequenceId = ygot.Uint32(4)
+// 	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+// 		DscpSet: []uint8{*ygot.Uint8(48)},
+// 	}
+// 	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
 
-	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
-	r3.SequenceId = ygot.Uint32(3)
-	r3.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		DscpSet:  []uint8{*ygot.Uint8(18)},
-		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
-	}
-	r3.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("VRF1")}
+// 	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
+// 	p.PolicyId = ygot.String(pbrName)
+// 	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
+// 	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2, 3: &r3, 4: &r4}
 
-	r4 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
-	r4.SequenceId = ygot.Uint32(4)
-	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		DscpSet: []uint8{*ygot.Uint8(48)},
-	}
-	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+// 	policy := telemetry.NetworkInstance_PolicyForwarding{}
+// 	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
-	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
-	p.PolicyId = ygot.String(pbrName)
-	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
-	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2, 3: &r3, 4: &r4}
-
-	policy := telemetry.NetworkInstance_PolicyForwarding{}
-	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-
-	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Replace(t, &policy)
-}
+// 	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Replace(t, &policy)
+// }
