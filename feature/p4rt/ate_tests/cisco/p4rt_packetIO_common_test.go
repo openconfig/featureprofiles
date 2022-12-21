@@ -223,8 +223,8 @@ func configureStaticRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	}
 	static.GetOrCreateNextHop("AUTO_drop_2").
 		NextHop = telemetry.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
-	staticp := dc.NetworkInstance("default").
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default").
+	staticp := dc.NetworkInstance("DEFAULT").
+		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").
 		Static(discardCIDR)
 	if delete {
 		staticp.Delete(t)
@@ -916,7 +916,7 @@ func testEntryProgrammingPacketInWithouthPortIDThenAddPortID(ctx context.Context
 
 	args.dut.Config().Interface(portName).Update(t, &telemetry.Interface{
 		Name: ygot.String(portName),
-		Id:   ygot.Uint32(^portID),
+		Id:   ygot.Uint32(portID),
 	})
 
 	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)

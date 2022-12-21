@@ -72,10 +72,14 @@ func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) 
 	ports := sortPorts(dut.Ports())
 	for index, port := range ports {
 		// dut.Config().Interface(port.Name()).Id().Update(t, uint32(index)+portID)
-		dut.Config().Interface(port.Name()).Update(t, &telemetry.Interface{
+		conf := &telemetry.Interface{
 			Name: ygot.String(port.Name()),
 			Id:   ygot.Uint32(uint32(index) + portID),
-		})
+		}
+		if strings.Contains(port.Name(), "Bundle") {
+			conf.Type = telemetry.IETFInterfaces_InterfaceType_ieee8023adLag
+		}
+		dut.Config().Interface(port.Name()).Update(t, conf)
 	}
 }
 

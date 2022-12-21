@@ -37,7 +37,13 @@ var (
 	GDPTests   = flag.Bool("run_gdp_tests", false, "Run only GDP tests")
 	LLDPTests  = flag.Bool("run_lldp_tests", false, "Run only LLDP tests")
 	TTLTests   = flag.Bool("run_ttl_tests", false, "Run only TTL tests")
-	ScaleTests = flag.Bool("run_scale_tests", false, "Run only scale tests")
+	TTL1v4     = flag.Bool("run_ttl_1_v4_tests", true, "Run only IPv4 TTL 1 tests") // default run TTL1 V4
+	TTL1v6     = flag.Bool("run_ttl_1_v6_tests", false, "Run only IPv6 TTL 1 tests")
+	TTL1n2v4   = flag.Bool("run_ttl_1n2_v4_tests", false, "Run only IPv4 TTL 1, 2 tests")
+	TTL1n2v6   = flag.Bool("run_ttl_1n2_v6_tests", false, "Run only IPv6 TTL 1, 2 tests")
+	TTL1v4n6   = flag.Bool("run_ttl_1_v4n6_tests", false, "Run IPv4 and IPv6 TTL 1 tests")
+	TTL1n2v4n6 = flag.Bool("run_ttl_1n2_v4n6_tests", false, "Run IPv4 and IPv6 TTL 1, 2 tests")
+	ScaleTests = flag.Bool("skip_scale_tests", true, "Run only scale tests") // skip scale tests
 )
 
 // Testcase defines testcase structure
@@ -289,26 +295,27 @@ func TestP4RTPacketIO(t *testing.T) {
 		}
 	}
 	if *TTLTests {
-		// args.packetIO = getTTLParameter(t)
-		ttlTestcases := map[string]func(){
-			"IPv4 TTL1 Only": func() {
-				args.packetIO = getTTLParameter(t, true, false, false)
-			},
-			// "IPv4 TTL1 and TTL2": func() {
-			// 	args.packetIO = getTTLParameter(t, true, false, true)
-			// },
-			// "IPv6 TTL1 Only": func() {
-			// 	args.packetIO = getTTLParameter(t, false, true, false)
-			// },
-			// "IPv6 TTL1 and TTL2": func() {
-			// 	args.packetIO = getTTLParameter(t, false, true, true)
-			// },
-			// "IPv4 TTL1 and IPv6 TTL1": func() {
-			// 	args.packetIO = getTTLParameter(t, true, true, false)
-			// },
-			// "IPv4 TTL1 and TTL2 and IPv6 TTL1 and TTL2": func() {
-			// 	args.packetIO = getTTLParameter(t, true, true, true)
-			// },
+		ttlTestcases := map[string]func(){}
+		if *TTL1v4 {
+			ttlTestcases["IPv4 TTL1 Only"] = func() { args.packetIO = getTTLParameter(t, true, false, false) }
+		}
+		if *TTL1n2v4 {
+			ttlTestcases["IPv4 TTL1 and TTL2"] = func() { args.packetIO = getTTLParameter(t, true, false, true) }
+		}
+		if *TTL1v6 {
+			ttlTestcases["IPv6 TTL1 Only"] = func() { args.packetIO = getTTLParameter(t, false, true, false) }
+		}
+		if *TTL1n2v6 {
+			ttlTestcases["IPv6 TTL1 and TTL2"] = func() { args.packetIO = getTTLParameter(t, false, true, true) }
+		}
+		if *TTL1v4n6 {
+			ttlTestcases["IPv4 TTL1 and IPv6 TTL1"] = func() { args.packetIO = getTTLParameter(t, true, true, false) }
+		}
+		if *TTL1n2v4n6 {
+			ttlTestcases["IPv4 TTL1 and TTL2 and IPv6 TTL1 and TTL2"] =
+				func() {
+					args.packetIO = getTTLParameter(t, true, true, true)
+				}
 		}
 
 		for key, val := range ttlTestcases {
