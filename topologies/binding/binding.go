@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
@@ -205,6 +206,39 @@ func (d *staticDUT) DialCLI(ctx context.Context) (binding.StreamClient, error) {
 	return newCLI(sc)
 }
 
+func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
+	dialer, err := a.r.ateGNMI(a.Name())
+	if err != nil {
+		return nil, err
+	}
+	conn, err := dialer.dialGRPC(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return gpb.NewGNMIClient(conn), nil
+}
+
+func (a *staticATE) DialOTG(ctx context.Context, opts ...grpc.DialOption) (gosnappi.GosnappiApi, error) {
+	if a.dev.Otg == nil {
+		return nil, fmt.Errorf("otg must be configured in ATE binding to run OTG test")
+	}
+	dialer, err := a.r.ateOtg(a.Name())
+	if err != nil {
+		return nil, err
+	}
+	conn, err := dialer.dialGRPC(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	api := gosnappi.NewApi()
+	grpcTransport := api.NewGrpcTransport().SetClientConnection(conn)
+	if dialer.Timeout != 0 {
+		grpcTransport.SetRequestTimeout(time.Duration(dialer.Timeout) * time.Second)
+	}
+	return api, nil
+}
+
 func (a *staticATE) DialIxNetwork(ctx context.Context) (*binding.IxNetwork, error) {
 	dialer, err := a.r.ixnetwork(a.Name())
 	if err != nil {
@@ -350,6 +384,15 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 func (b *staticBind) reserveIxSessions(ctx context.Context) error {
 	ates := b.resv.ATEs
 	for _, ate := range ates {
+
+		bate := b.r.ateByName(ate.Name())
+		if bate == nil {
+			return fmt.Errorf("missing binding for ATE %q", bate.Id)
+		}
+		if bate.Ixnetwork == nil {
+			continue
+		}
+
 		dialer, err := b.r.ixnetwork(ate.Name())
 		if err != nil {
 			return err
