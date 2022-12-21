@@ -76,7 +76,7 @@ func TestEstablish(t *testing.T) {
 
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, dutPortName, *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, atePortName, *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, ate, atePortName, *deviations.DefaultNetworkInstance, 0)
 	}
 
 	// Get BGP paths
