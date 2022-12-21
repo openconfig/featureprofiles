@@ -10,6 +10,7 @@ import (
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
@@ -231,88 +232,93 @@ func TestP4RTPacketIO(t *testing.T) {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 
-	args.packetIO = getGDPParameter(t)
+	if *ciscoFlags.GDPTests {
+		args.packetIO = getGDPParameter(t)
 
-	for _, tt := range PublicGDPTestcases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Logf("Name: %s", tt.name)
-			t.Logf("Description: %s", tt.desc)
-			tt.fn(ctx, t, args)
-		})
-	}
+		for _, tt := range PublicGDPTestcases {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Logf("Name: %s", tt.name)
+				t.Logf("Description: %s", tt.desc)
+				tt.fn(ctx, t, args)
+			})
+		}
 
-	for _, tt := range OODGDPTestcases {
-		// Each case will run with its own gRIBI fluent client.
-		t.Run(tt.name, func(t *testing.T) {
-			t.Logf("Name: %s", tt.name)
-			t.Logf("Description: %s", tt.desc)
-			tt.fn(ctx, t, args)
-		})
-	}
-
-	args.packetIO = getLLDPParameter(t)
-
-	for _, tt := range PublicLLDPDisableTestcases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Logf("Name: %s", tt.name)
-			t.Logf("Description: %s", tt.desc)
-			tt.fn(ctx, t, args)
-		})
-	}
-
-	for _, tt := range OODLLDPDisabledTestcases {
-		// Each case will run with its own gRIBI fluent client.
-		t.Run(tt.name, func(t *testing.T) {
-			t.Logf("Name: %s", tt.name)
-			t.Logf("Description: %s", tt.desc)
-			tt.fn(ctx, t, args)
-		})
-	}
-
-	for _, tt := range LLDPEndabledTestcases {
-		dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(true))
-		// Each case will run with its own gRIBI fluent client.
-		t.Run(tt.name, func(t *testing.T) {
-			t.Logf("Name: %s", tt.name)
-			t.Logf("Description: %s", tt.desc)
-
-			tt.fn(ctx, t, args)
-		})
-		dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(false))
-	}
-
-	// args.packetIO = getTTLParameter(t)
-	ttlTestcases := map[string]func(){
-		"IPv4 TTL1 Only": func() {
-			args.packetIO = getTTLParameter(t, true, false, false)
-		},
-		// "IPv4 TTL1 and TTL2": func() {
-		// 	args.packetIO = getTTLParameter(t, true, false, true)
-		// },
-		// "IPv6 TTL1 Only": func() {
-		// 	args.packetIO = getTTLParameter(t, false, true, false)
-		// },
-		// "IPv6 TTL1 and TTL2": func() {
-		// 	args.packetIO = getTTLParameter(t, false, true, true)
-		// },
-		// "IPv4 TTL1 and IPv6 TTL1": func() {
-		// 	args.packetIO = getTTLParameter(t, true, true, false)
-		// },
-		// "IPv4 TTL1 and TTL2 and IPv6 TTL1 and TTL2": func() {
-		// 	args.packetIO = getTTLParameter(t, true, true, true)
-		// },
-	}
-
-	for key, val := range ttlTestcases {
-		val()
-		for _, tt := range OODTTLTestcases {
+		for _, tt := range OODGDPTestcases {
 			// Each case will run with its own gRIBI fluent client.
-			t.Run(key+" "+tt.name, func(t *testing.T) {
-				t.Logf("Name: %s %s", key, tt.name)
-				t.Logf("Description: %s %s", key, tt.desc)
+			t.Run(tt.name, func(t *testing.T) {
+				t.Logf("Name: %s", tt.name)
+				t.Logf("Description: %s", tt.desc)
+				tt.fn(ctx, t, args)
+			})
+		}
+	}
+	if *ciscoFlags.LLDPTests {
+		args.packetIO = getLLDPParameter(t)
+
+		for _, tt := range PublicLLDPDisableTestcases {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Logf("Name: %s", tt.name)
+				t.Logf("Description: %s", tt.desc)
+				tt.fn(ctx, t, args)
+			})
+		}
+
+		for _, tt := range OODLLDPDisabledTestcases {
+			// Each case will run with its own gRIBI fluent client.
+			t.Run(tt.name, func(t *testing.T) {
+				t.Logf("Name: %s", tt.name)
+				t.Logf("Description: %s", tt.desc)
+				tt.fn(ctx, t, args)
+			})
+		}
+
+		for _, tt := range LLDPEndabledTestcases {
+			dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(true))
+			// Each case will run with its own gRIBI fluent client.
+			t.Run(tt.name, func(t *testing.T) {
+				t.Logf("Name: %s", tt.name)
+				t.Logf("Description: %s", tt.desc)
 
 				tt.fn(ctx, t, args)
 			})
+			dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(false))
+		}
+	}
+	if *ciscoFlags.TTLTests {
+		ttlTestcases := map[string]func(){}
+		if *ciscoFlags.TTL1v4 {
+			ttlTestcases["IPv4 TTL1 Only"] = func() { args.packetIO = getTTLParameter(t, true, false, false) }
+		}
+		if *ciscoFlags.TTL1n2v4 {
+			ttlTestcases["IPv4 TTL1 and TTL2"] = func() { args.packetIO = getTTLParameter(t, true, false, true) }
+		}
+		if *ciscoFlags.TTL1v6 {
+			ttlTestcases["IPv6 TTL1 Only"] = func() { args.packetIO = getTTLParameter(t, false, true, false) }
+		}
+		if *ciscoFlags.TTL1n2v6 {
+			ttlTestcases["IPv6 TTL1 and TTL2"] = func() { args.packetIO = getTTLParameter(t, false, true, true) }
+		}
+		if *ciscoFlags.TTL1v4n6 {
+			ttlTestcases["IPv4 TTL1 and IPv6 TTL1"] = func() { args.packetIO = getTTLParameter(t, true, true, false) }
+		}
+		if *ciscoFlags.TTL1n2v4n6 {
+			ttlTestcases["IPv4 TTL1 and TTL2 and IPv6 TTL1 and TTL2"] =
+				func() {
+					args.packetIO = getTTLParameter(t, true, true, true)
+				}
+		}
+
+		for key, val := range ttlTestcases {
+			val()
+			for _, tt := range OODTTLTestcases {
+				// Each case will run with its own gRIBI fluent client.
+				t.Run(key+" "+tt.name, func(t *testing.T) {
+					t.Logf("Name: %s %s", key, tt.name)
+					t.Logf("Description: %s %s", key, tt.desc)
+
+					tt.fn(ctx, t, args)
+				})
+			}
 		}
 	}
 }
