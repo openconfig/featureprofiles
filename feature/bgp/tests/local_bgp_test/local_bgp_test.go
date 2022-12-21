@@ -92,6 +92,8 @@ func TestEstablish(t *testing.T) {
 	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	ateConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	// Remove any existing BGP config
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	gnmi.Delete(t, ate, ateConfPath.Config())
 	// Start a new session
@@ -266,6 +268,11 @@ func TestParameters(t *testing.T) {
 				AuthPassword:    ygot.String("password"),
 				PeerGroup:       ygot.String(peerGrpName),
 			}),
+			wantState: bgpWithNbr(dutAS, dutIP, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
+				PeerAs:          ygot.Uint32(ateAS),
+				NeighborAddress: ygot.String(ateIP),
+				PeerGroup:       ygot.String(peerGrpName),
+			}),
 		},
 		{
 			name: "hold-time",
@@ -283,10 +290,10 @@ func TestParameters(t *testing.T) {
 				NeighborAddress: ygot.String(dutIP),
 				PeerGroup:       ygot.String(peerGrpName),
 			}),
-			wantState: bgpWithNbr(dutAS, dutIP, &telemetry.NetworkInstance_Protocol_Bgp_Neighbor{
+			wantState: bgpWithNbr(dutAS, dutIP, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
-				Timers: &telemetry.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
+				Timers: &oc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
 					HoldTime:          ygot.Uint16(holdTime),
 					KeepaliveInterval: ygot.Uint16(30),
 				},
