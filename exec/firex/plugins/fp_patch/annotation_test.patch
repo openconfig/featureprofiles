@@ -1,8 +1,13 @@
 diff --git a/feature/system/gnmi/metadata/tests/annotation_test/annotation_test.go b/feature/system/gnmi/metadata/tests/annotation_test/annotation_test.go
-index 3c032e36..3129ae54 100644
+index 3c032e36..827b28c5 100644
 --- a/feature/system/gnmi/metadata/tests/annotation_test/annotation_test.go
 +++ b/feature/system/gnmi/metadata/tests/annotation_test/annotation_test.go
-@@ -22,13 +22,17 @@ import (
+@@ -18,10 +18,13 @@ import (
+ 	"context"
+ 	"encoding/base64"
+ 	"encoding/json"
++	"flag"
+ 	"fmt"
  	"testing"
  
  	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -11,8 +16,7 @@ index 3c032e36..3129ae54 100644
  	"google.golang.org/protobuf/types/known/anypb"
  	"google.golang.org/protobuf/types/known/timestamppb"
  
- 	"github.com/google/go-cmp/cmp"
-+	"github.com/openconfig/featureprofiles/internal/deviations"
+@@ -29,6 +32,7 @@ import (
  	"github.com/openconfig/featureprofiles/internal/fptest"
  	"github.com/openconfig/ondatra"
  	"github.com/openconfig/ygot/util"
@@ -20,11 +24,22 @@ index 3c032e36..3129ae54 100644
  	"google.golang.org/protobuf/encoding/prototext"
  	"google.golang.org/protobuf/proto"
  	"google.golang.org/protobuf/testing/protocmp"
-@@ -100,6 +104,14 @@ func TestGNMIMetadataAnnotation(t *testing.T) {
+@@ -69,6 +73,10 @@ func TestMain(m *testing.M) {
+ //        /@/openconfig-metadata:protobuf-metadata: CNyR0gk=
+ //
+ 
++var (
++	NoMetadataSingleUpdate = flag.Bool("deviation_nometadata_single_update", true, "Device requires metadata update to be accompanied by another update for an OC path.")
++)
++
+ func TestGNMIMetadataAnnotation(t *testing.T) {
+ 	dut := ondatra.DUT(t, "dut")
+ 	cases := []struct {
+@@ -100,6 +108,14 @@ func TestGNMIMetadataAnnotation(t *testing.T) {
  			t.Errorf("Cannot build a gNMI SetRequest from proto message: %v", err)
  		}
  
-+		if *deviations.NoMetadataSingleUpdate {
++		if *NoMetadataSingleUpdate {
 +			t.Log("Appneding an update to the metadata due to NoMetadataSingleUpdate deviation")
 +			// accompaniedPath and accompaniedUpdateVal can be any valid oc path and value
 +			accompaniedPath := gnmi.OC().System().Hostname().Config().PathStruct()
@@ -35,7 +50,7 @@ index 3c032e36..3129ae54 100644
  		t.Log("gnmiClient Set metadata annotation")
  		if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
  			t.Errorf("gnmi.Set unexpected error: %v", err)
-@@ -217,3 +229,23 @@ func extractMetadataAnnotation(getResponse *gpb.GetResponse, m proto.Message) er
+@@ -217,3 +233,23 @@ func extractMetadataAnnotation(getResponse *gpb.GetResponse, m proto.Message) er
  	}
  	return nil
  }
@@ -59,14 +74,3 @@ index 3c032e36..3129ae54 100644
 +		},
 +	}
 +}
-diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
-index 6e990bb6..3cd27f76 100644
---- a/internal/deviations/deviations.go
-+++ b/internal/deviations/deviations.go
-@@ -111,4 +111,6 @@ var (
- 
- 	ExplicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
- 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
-+
-+	NoMetadataSingleUpdate = flag.Bool("deviation_nometadata_single_update", true, "Device requires metadata update to be accompanied by another update for an OC path.")
- )

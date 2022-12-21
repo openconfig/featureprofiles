@@ -25,25 +25,37 @@ tests:
       - '-deviation_gribi_preserve_only="true"'
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 7
+  priority: 3
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-4.1 (Base Leader Election) 
   path: feature/gribi/ate_tests/base_leader_election_test
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 7
+  priority: 3
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test     
 - name: TE-4.2 (Leader Failover) 
   path: feature/gribi/ate_tests/leader_failover_test
   patch: exec/firex/plugins/fp_patch/leader_failover_test.patch
   args:
       - '-deviation_gribi_preserve_only="true"'
-  priority: 7
+  priority: 4
   owner: mananpat@cisco.com
   mustpass: true
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-5.1 (gRIBI Get RPC) 
   path: feature/gribi/ate_tests/get_rpc_test
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 7
+  priority: 3
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-3.5 (Ordering ACK Received) 
   path: feature/gribi/ate_tests/ordering_ack_test
   patch: exec/firex/plugins/fp_patch/ordering_ack_test.patch
@@ -51,7 +63,10 @@ tests:
         - '-deviation_gribi_preserve_only="true"'
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 7
+  priority: 3
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-3.7 (Base Hierarchical NHG Update) 
   path: feature/gribi/ate_tests/base_hierarchical_nhg_update
   #args:
@@ -60,42 +75,57 @@ tests:
   # patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 7
+  priority: 3
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
   patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
-  pretests:
-    - name: first_get_workaround
-      path: topologies/cisco/pretests/emsd_restart_test
   #args:
   #    - '-traffic_duration="20s"'
   #    - '-traffic_pause="2s"'
   mustpass: true
-  priority: 7
+  priority: 3
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-3.3 (Hierarchical weight resolution)
   path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
   patch: exec/firex/plugins/fp_patch/hierarchical_weight_resolution_test.patch
   owner: mananpat@cisco.com
   skip: false
   mustpass: false
-  priority: 7
+  priority: 3
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-6.1 (Route Removal via Flush) 
   path: feature/gribi/ate_tests/route_removal_via_flush_test
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 7
+  priority: 3
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-6.2 (Route Removal In Non Default VRF) 
   path: feature/gribi/ate_tests/route_removal_non_default_vrf_test
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 7
+  priority: 3
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-3.6 (ACK in the Presence of Other Routes) 
   path: feature/gribi/ate_tests/ack_in_presence_other_routes
   patch: exec/firex/plugins/fp_patch/route_ack_test.patch
   skip: false
   owner: mananpat@cisco.com
-  priority: 7
+  priority: 3
   mustpass: true
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-3.1 (Base Hierarchical Route Installation) 
   path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
   patch: exec/firex/plugins/fp_patch/base_hierarchical_route_installation_test.patch
@@ -104,36 +134,45 @@ tests:
   timeout: 4200
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 7
+  priority: 3
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-11.2 (Backup NHG Multiple NH)
   path: feature/gribi/ate_tests/backup_nhg_multiple_nh_test
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 7
+  priority: 3
   pretests:
-    - name: first_get_workaround
-      path: topologies/cisco/pretests/emsd_restart_test
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-8.1 (DUT Daemon Failure)
   path: feature/experimental/gribi/ate_tests/dut_daemon_failure
   owner: mananpat@cisco.com
   mustpass: true
   priority: 8
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-11.1 (Backup NHG Single NH) 
   path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
   patch: exec/firex/plugins/fp_patch/backup_nhg_test.patch
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 7
+  priority: 3
   pretests:
-    - name: first_get_workaround
-      path: topologies/cisco/pretests/emsd_restart_test
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-14.1 (gRIBI Scaling)
   path: feature/gribi/ate_tests/gribi_scaling
   # patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
   timeout: 7200
   owner: mananpat@cisco.com
   mustpass: true
-  priority: 7
+  priority: 3
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: gNOI-4.1 (Software Upgrade) 
   path: feature/gnoi/os/tests/osinstall
   patch: exec/firex/plugins/fp_patch/osinstall_test.patch
@@ -146,21 +185,30 @@ tests:
 - name: gNOI-5.1 (Ping Test) 
   path: feature/gnoi/system/tests/ping_test
   owner: arvbaska@cisco.com
-  priority: 3
+  priority: 5
+  mustpass: true
+- name: P4RT-1.1 (Base P4RT Functionality)
+  path: feature/experimental/p4rt/ate_tests/base_p4rt
+  patch: exec/firex/plugins/fp_patch/base_p4rt_test.patch
+  args:
+    - '-p4rt_node_name1="0/0/CPU0-NPU0"'
+    - '-p4rt_node_name2="0/0/CPU0-NPU1"'
+  owner: sprem@cisco.com
+  priority: 5
   mustpass: true
 - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
   path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
   args:
     - '-p4rt_node_name="0/0/CPU0-NPU0"'
   owner: sprem@cisco.com
-  priority: 4
+  priority: 5
   mustpass: true
 - name: P4RT-3.1 (Google Discovery Protocol PacketIn)
   path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetin_test
   args:
     - '-p4rt_node_name="0/0/CPU0-NPU0"'
   owner: sprem@cisco.com
-  priority: 4
+  priority: 5
   mustpass: true
 - name: P4RT-7.2 (LLDP PacketOut)
   path: feature/experimental/p4rt/ate_tests/lldp_packetout_test
@@ -174,19 +222,19 @@ tests:
   args:
     - '-p4rt_node_name="0/0/CPU0-NPU0"'
   owner: sprem@cisco.com
-  priority: 4
+  priority: 5
   mustpass: false
 - name: gNMI-1.1 (cli Origin) 
   path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
   owner: agvarghe@cisco.com
   mustpass: true
-  priority: 5
+  priority: 6
 - name: gNMI-1.12 (Mixed OpenConfig or CLI Origin) 
   path: feature/system/gnmi/cliorigin/ate_tests/mixed_oc_cli_origin_support_test
   #patch: exec/firex/plugins/fp_patch/mixed_oc_cli_origin_support_test.patch
   owner: agvarghe@cisco.com
   mustpass: true
-  priority: 5
+  priority: 6
 - name: dp-1.4 (QoS Interface Output Queue Counters) 
   path: feature/experimental/qos/ate_tests/qos_output_queue_counters_test
   patch: exec/firex/plugins/fp_patch/qos_output_queue_counters_test.patch
@@ -229,10 +277,10 @@ tests:
   priority: 32
 - name: gNMI-1.5 (Telemetry Port Speed Test) 
   path: feature/gnmi/ate_tests/telemetry_port_speed_test
-  patch: exec/firex/plugins/fp_patch/telemetry_port_speed_test.patch
+  #patch: exec/firex/plugins/fp_patch/telemetry_port_speed_test.patch
   owner: agvarghe@cisco.com
   mustpass: true
-  priority: 3
+  priority: 33
 - name: gNMI-1.10 (Telemetry Basic Check) 
   path: feature/gnmi/ate_tests/telemetry_basic_check_test
   args:
@@ -370,7 +418,7 @@ tests:
      - '-deviation_prepolicy_received_routes=true'
   mustpass: true
   skip: false
-  priority: 3
+  priority: 6
 - name: gNMI-1.4 (Telemetry Inventory) 
   path: feature/platform/ate_tests/telemetry_inventory_test
   patch: exec/firex/plugins/fp_patch/telemetry_inventory_test.patch
@@ -384,7 +432,7 @@ tests:
   owner: arvbaska@cisco.com
   mustpass: true
   skip: false
-  priority: 3
+  priority: 7
   timeout: 7200
 - name: gNOI-3.2 (Per-Component Reboot) 
   path: feature/gnoi/system/tests/per_component_reboot_test
@@ -392,7 +440,7 @@ tests:
   owner: arvbaska@cisco.com
   mustpass: true
   skip: false
-  priority: 3
+  priority: 55
   timeout: 7200
 - name: TE-8.2 (Supervisor Failure)
   path: feature/gribi/ate_tests/supervisor_failure_test
@@ -401,12 +449,18 @@ tests:
   skip: false
   mustpass: true
   timeout: 7200
-  priority: 3
+  priority: 4
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-1.1 (Static ARP) 
   path: feature/interface/staticarp/ate_tests/static_arp_test
   owner: mbagherz@cisco.com
   mustpass: true
   priority: 50
+  pretests:
+    - name: pre_fp_gribi_flush
+      path: topologies/cisco/pretests/gribi_flush_test
 
 
 

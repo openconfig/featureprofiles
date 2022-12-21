@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"text/template"
@@ -16,22 +17,23 @@ import (
 
 // GoTest represents a single go test
 type GoTest struct {
-	ID        string
-	Name      string
-	Owner     string
-	Priority  int
-	Path      string
-	Patch     string
-	Testbed   string
-	Binding   string
-	Baseconf  string
-	Topology  string
-	Args      []string
-	Timeout   int
-	Skip      bool
-	MustPass  bool
-	Pretests  []GoTest
-	Posttests []GoTest
+	ID            string
+	Name          string
+	Owner         string
+	Priority      int
+	Path          string
+	Patch         string
+	Testbed       string
+	Binding       string
+	Baseconf      string
+	Topology      string
+	Args          []string
+	Timeout       int
+	Skip          bool
+	MustPass      bool
+	HasDeviations bool
+	Pretests      []GoTest
+	Posttests     []GoTest
 }
 
 // FirexTest represents a single firex test suite
@@ -111,14 +113,6 @@ var (
 var (
 	firexSuiteTemplate = template.Must(template.New("firexTestSuite").Funcs(template.FuncMap{
 		"join": strings.Join,
-		"hasDeviation": func(gt GoTest) bool {
-			for _, arg := range gt.Args {
-				if strings.HasPrefix(arg, "-deviation") {
-					return true
-				}
-			}
-			return false
-		},
 	}).Parse(`
 {{ $.Test.Name }}:
     framework: b4_fp
@@ -129,6 +123,8 @@ var (
     {{- range $k, $pl := $.Plugins }}
         - {{ $pl }}
     {{- end }}
+    {{- end }}
+    {{- if $.Test.Topology }}
     topo_file: {{ $.Test.Topology }}
     {{- else }}
     topo_file: ""
@@ -157,7 +153,7 @@ var (
             {{- end }}
         {{- end }}
     script_paths:
-        - ({{ $.Test.ID }}) {{ $.Test.Name }}{{ if $.Test.Patch }} (Patched){{ end }}{{ if hasDeviation $.Test }} (Deviation){{ end }}{{ if $.Test.MustPass }} (MP){{ end }}:
+        - ({{ $.Test.ID }}) {{ $.Test.Name }}{{ if $.Test.Patch }} (Patched){{ end }}{{ if $.Test.HasDeviations }} (Deviation){{ end }}{{ if $.Test.MustPass }} (MP){{ end }}:
             test_path: {{ $.Test.Path }}
             {{- if $.Test.Args }}
             test_args: {{ join $.Test.Args " " }}
@@ -238,8 +234,13 @@ func main() {
 	// Targeted mode: remove untargeted tests
 	if len(testNames) > 0 {
 		targetedTests := map[string]bool{}
+		res := []*regexp.Regexp{}
 		for _, t := range testNames {
-			targetedTests[strings.Split(t, " ")[0]] = true
+			if strings.HasPrefix(t, "r/") {
+				res = append(res, regexp.MustCompile(t[2:]))
+			} else {
+				targetedTests[strings.Split(t, " ")[0]] = true
+			}
 		}
 
 		for i := range suite {
@@ -248,6 +249,13 @@ func main() {
 				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
 				if _, found := targetedTests[prefix]; found {
 					keptTests = append(keptTests, suite[i].Tests[j])
+				} else {
+					for _, re := range res {
+						if re.MatchString(suite[i].Tests[j].Name) {
+							keptTests = append(keptTests, suite[i].Tests[j])
+							break
+						}
+					}
 				}
 			}
 			suite[i].Tests = keptTests
@@ -347,6 +355,38 @@ func main() {
 		}
 	}
 
+	// Collect and remove -deviation flags
+	deviationSet := map[string]bool{}
+	for i := range suite {
+		for j := range suite[i].Tests {
+			keptsArgs := []string{}
+			for k := range suite[i].Tests[j].Args {
+				if strings.HasPrefix(suite[i].Tests[j].Args[k], "-deviation") &&
+					!patchHasDeviation(suite[i].Tests[j].Patch, suite[i].Tests[j].Args[k]) {
+					if _, ok := deviationSet[suite[i].Tests[j].Args[k]]; !ok {
+						deviationSet[suite[i].Tests[j].Args[k]] = true
+					}
+					suite[i].Tests[j].HasDeviations = true
+				} else {
+					keptsArgs = append(keptsArgs, suite[i].Tests[j].Args[k])
+				}
+			}
+			suite[i].Tests[j].Args = keptsArgs
+		}
+	}
+
+	deviations := []string{}
+	for d := range deviationSet {
+		deviations = append(deviations, d)
+	}
+
+	// Add all deviations as args
+	for i := range suite {
+		for j := range suite[i].Tests {
+			suite[i].Tests[j].Args = append(suite[i].Tests[j].Args, deviations...)
+		}
+	}
+
 	var testSuiteCode strings.Builder
 
 	for i := range suite {
@@ -391,4 +431,16 @@ func main() {
 	if len(outDir) == 0 {
 		fmt.Printf("%v", testSuiteCode.String())
 	}
+}
+
+func patchHasDeviation(patch, deviation string) bool {
+	if patch == "" || deviation == "" {
+		return false
+	}
+
+	if buf, err := os.ReadFile(patch); err == nil {
+		content := string(buf)
+		return !strings.Contains(content, deviation)
+	}
+	return false
 }
