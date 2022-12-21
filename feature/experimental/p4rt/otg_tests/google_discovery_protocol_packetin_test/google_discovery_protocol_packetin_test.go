@@ -149,6 +149,8 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	}
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+
+	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Duration(duration) * time.Second)
 
 	ate.OTG().StopTraffic(t)
