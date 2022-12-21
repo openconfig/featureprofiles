@@ -13,5 +13,5 @@ This document specifies the requirements for p4rt test implementation.
 3.  The client should make use of Ondatra Raw API
     `dut.RawAPIs().P4RT().Default(t)`
 
-4.  Use `p4rtutils.P4RTNodesByPort()` to get the p4rt node name instead of
-    passing the node names through flags.
+4.  Tests should use `p4rtutils.P4RTNodesByPort()` to get the p4rt node name
+    instead of passing the node names through flags.
