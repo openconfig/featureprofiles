@@ -28,6 +28,7 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -67,6 +68,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -79,6 +81,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -95,7 +98,7 @@ type testArgs struct {
 	follower *p4rt_client.P4RTClient
 	dut      *ondatra.DUTDevice
 	ate      *ondatra.ATEDevice
-	top      *ondatra.ATETopology
+	top      gosnappi.Config
 	packetIO PacketIO
 }
 
@@ -163,8 +166,8 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	for _, test := range packetOutTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Check initial packet counters
-			port := sortPorts(args.ate.Ports())[0].Name()
-			counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
+			port := sortPorts(args.ate.Ports())[0].ID()
+			counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
 
 			packets := args.packetIO.GetPacketOut(portID, false)
 			sendPackets(t, test.client, packets, packetCount)
@@ -173,7 +176,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			time.Sleep(60 * time.Second)
 
 			// Check packet counters after packet out
-			counter1 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
+			counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
 
 			// Verify InPkts stats to check P4RT stream
 			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
@@ -247,20 +250,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureATE configures port1 and port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	otg := ate.OTG()
+	top := otg.NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
+	atePort1.AddToOTG(top, p1, &dutPort1)
 
 	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
+	atePort2.AddToOTG(top, p2, &dutPort2)
 
 	return top
 }
@@ -356,7 +354,8 @@ func TestPacketOut(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	// Configure P4RT device-id and port-id on the DUT
 	configureDeviceId(ctx, t, dut)
