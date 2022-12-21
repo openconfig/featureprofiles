@@ -73,6 +73,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 		Path: &tpb.Path{
 			Elem: []*tpb.PathElem{
 				&tpb.PathElem{
+				{
 					Name: "components/component/chassis",
 				},
 			},
