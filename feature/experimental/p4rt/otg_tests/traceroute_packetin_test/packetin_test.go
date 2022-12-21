@@ -25,6 +25,7 @@ import (
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
@@ -33,7 +34,7 @@ import (
 type PacketIO interface {
 	GetTableEntry(delete bool, IsIpv4 bool) []*p4rtutils.ACLWbbIngressTableEntryInfo
 	GetPacketTemplate() *PacketIOPacket
-	GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []*ondatra.Flow
+	GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []gosnappi.Flow
 	GetEgressPort() string
 	GetIngressPort() string
 }
@@ -51,7 +52,7 @@ type testArgs struct {
 	follower *p4rt_client.P4RTClient
 	dut      *ondatra.DUTDevice
 	ate      *ondatra.ATEDevice
-	top      *ondatra.ATETopology
+	top      gosnappi.Config
 	packetIO PacketIO
 }
 
@@ -93,12 +94,14 @@ func decodePacket6(t *testing.T, packetData []byte) uint8 {
 }
 
 // testTraffic sends traffic flow for duration seconds.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, srcEndPoint *ondatra.Interface, duration int) {
+func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int) {
 	t.Helper()
 	for _, flow := range flows {
-		flow.WithSrcEndpoints(srcEndPoint).WithDstEndpoints(srcEndPoint)
+		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
+		top.Flows().Append(flow)
 	}
-	ate.Traffic().Start(t, flows...)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 	time.Sleep(time.Duration(duration) * time.Second)
 
 	ate.Traffic().Stop(t)
@@ -147,7 +150,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 	}
 
 	// Send GDP traffic from ATE
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+	srcEndPoint := ateInterface(t, args.top, "port1")
 
 	packetInTests := []struct {
 		desc       string
@@ -177,7 +180,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 
 	for _, TTL := range checkTTL {
 		t.Log(TTL.desc)
-		testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, TTL.TTL, 300, 2), srcEndPoint, 10)
+		testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, TTL.TTL, 300, 2), srcEndPoint, 10)
 		for _, test := range packetInTests {
 			t.Run(test.desc, func(t *testing.T) {
 				// Extract packets from PacketIn message sent to p4rt client
@@ -251,4 +254,13 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 			})
 		}
 	}
+}
+
+func ateInterface(t *testing.T, topo gosnappi.Config, portID string) gosnappi.Port {
+	for _, p := range topo.Ports().Items() {
+		if p.Name() == portID {
+			return p
+		}
+	}
+	return nil
 }

@@ -26,6 +26,7 @@ import (
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -65,6 +66,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
 		IPv4Len: ipv4PrefixLen,
@@ -81,6 +83,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: ipv4PrefixLen,
@@ -144,26 +147,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureATE configures port1 and port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	otg := ate.OTG()
+	top := otg.NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
-	i1.IPv6().
-		WithAddress(atePort1.IPv6CIDR()).
-		WithDefaultGateway(dutPort1.IPv6)
+	atePort1.AddToOTG(top, p1, &dutPort1)
 
 	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
-	i2.IPv6().
-		WithAddress(atePort2.IPv6CIDR()).
-		WithDefaultGateway(dutPort2.IPv6)
+	atePort2.AddToOTG(top, p2, &dutPort2)
 
 	return top
 }
@@ -269,7 +261,8 @@ func TestPacketIn(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	leader := p4rt_client.P4RTClient{}
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
@@ -350,16 +343,26 @@ func (traceroute *TraceroutePacketIO) GetPacketTemplate() *PacketIOPacket {
 	return &traceroute.PacketIOPacket
 }
 
-func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []*ondatra.Flow {
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header().WithSrcAddress(atePort1.IPv4).WithDstAddress(dutPort1.IPv4).WithTTL(uint8(TTL)) //ttl=1 is traceroute/lldp traffic
-	ipv6Header := ondatra.NewIPv6Header().WithSrcAddress(atePort1.IPv6).WithDstAddress(dutPort1.IPv6).WithHopLimit(uint8(TTL))
+func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []gosnappi.Flow {
 	if isIpv4 {
-		flow := ate.Traffic().NewFlow("IP4").WithFrameSize(frameSize).WithFrameRateFPS(frameRate).WithHeaders(ethHeader, ipv4Header)
-		return []*ondatra.Flow{flow}
+		flow := gosnappi.NewFlow()
+		flow.SetName("IP4")
+		flow.Packet().Add().Ethernet()
+		ipHeader := flow.Packet().Add().Ipv4()
+		ipHeader.Src().SetValue(atePort1.IPv4)
+		ipHeader.Dst().SetValue(dutPort1.IPv4)
+		ipHeader.TimeToLive().SetValue(int32(TTL))
+		return []gosnappi.Flow{flow}
+
 	} else {
-		flow := ate.Traffic().NewFlow("IP6").WithFrameSize(frameSize).WithFrameRateFPS(frameRate).WithHeaders(ethHeader, ipv6Header)
-		return []*ondatra.Flow{flow}
+		flow := gosnappi.NewFlow()
+		flow.SetName("IP6")
+		flow.Packet().Add().Ethernet()
+		ipv6Header := flow.Packet().Add().Ipv6()
+		ipv6Header.Src().SetValue(atePort1.IPv6)
+		ipv6Header.Dst().SetValue(dutPort1.IPv6)
+		ipv6Header.HopLimit().SetValue(int32(TTL))
+		return []gosnappi.Flow{flow}
 	}
 }
 
