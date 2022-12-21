@@ -9,22 +9,26 @@ tests:
 - name: P4RT PacketIO GDP
   path: feature/p4rt/ate_tests/cisco
   args:
+    - '-run TestP4RTPacketIO'
     - '-run_gdp_tests="true"'
   timeout: 7200
 - name: P4RT PacketIO LLDP
   path: feature/p4rt/ate_tests/cisco
   args:
+    - '-run TestP4RTPacketIO'
     - '-run_lldp_tests="true"'
   timeout: 7200
 - name: P4RT PacketIO TTL IPv4
   path: feature/p4rt/ate_tests/cisco
   args:
+    - '-run TestP4RTPacketIO'
     - '-run_ttl_tests="true"'
     - '-run_ttl_1_v4_tests=true'
   timeout: 7200
 - name: P4RT PacketIO TTL IPv6
   path: feature/p4rt/ate_tests/cisco
   args:
+    - '-run TestP4RTPacketIO'
     - '-run_ttl_tests="true"'
     - '-run_ttl_1_v4_tests=false'
     - '-run_ttl_1_v6_tests=true'
