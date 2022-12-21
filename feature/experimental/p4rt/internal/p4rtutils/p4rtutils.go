@@ -172,6 +172,8 @@ func ACLWbbIngressTableEntryGet(infoList []*ACLWbbIngressTableEntryInfo) []*p4_v
 	return updates
 }
 
+// P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
+// ports using the component and the interface OC tree.
 func P4RTNodesByPort(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
 	ports := make(map[string]string)
 	for _, p := range dut.Ports() {
