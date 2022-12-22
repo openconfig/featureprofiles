@@ -20,7 +20,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -218,7 +217,6 @@ func testP4RTTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow
 }
 
 func configureStaticRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, delete bool) {
-	dc := gnmi.OC()
 	discardCIDR := "0.0.0.0/0"
 
 	static := &oc.NetworkInstance_Protocol_Static{
@@ -226,8 +224,8 @@ func configureStaticRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	}
 	static.GetOrCreateNextHop("AUTO_drop_2").
 		NextHop = oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
-	staticp := oc.NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
-		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *ciscoFlags.DefaultNetworkInstance).
+	staticp := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *ciscoFlags.DefaultNetworkInstance).
 		Static(discardCIDR)
 	if delete {
 		gnmi.Delete(t, dut, staticp.Config())

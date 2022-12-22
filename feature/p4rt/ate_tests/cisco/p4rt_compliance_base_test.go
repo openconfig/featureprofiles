@@ -19,7 +19,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -75,14 +74,15 @@ func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) 
 	ports := sortPorts(dut.Ports())
 	for index, port := range ports {
 		// dut.Config().Interface(port.Name()).Id().Update(t, uint32(index)+portID)
-		gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Config(), &oc.Interface{
+		conf := &oc.Interface{
 			Name: ygot.String(port.Name()),
 			Id:   ygot.Uint32(uint32(index) + portID),
-		})
-		if strings.Contains(port.Name(), "Bundle") {
-			conf.Type = telemetry.IETFInterfaces_InterfaceType_ieee8023adLag
 		}
-		dut.Config().Interface(port.Name()).Update(t, conf)
+		if strings.Contains(port.Name(), "Bundle") {
+			conf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		}
+		gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Config(), conf)
+		// dut.Config().Interface(port.Name()).Update(t, conf)
 	}
 }
 

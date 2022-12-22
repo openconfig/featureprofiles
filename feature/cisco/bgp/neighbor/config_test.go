@@ -680,9 +680,9 @@ func TestApplyPolicyImportPolicy(t *testing.T) {
 	time.Sleep(configApplyTime)
 	batchDelete := &gnmi.SetBatch{}
 	gnmi.BatchDelete(batchDelete, bgpConfig.Config())
-	dut.Config().RoutingPolicy().PolicyDefinition("TEST_ACCEPT").BatchDelete(t, batchDelete)
-	dut.Config().RoutingPolicy().PolicyDefinition("TEST_REJECT").BatchDelete(t, batchDelete)
-	defer batchDelete.Set(t)
+	gnmi.BatchDelete(batchDelete, gnmi.OC().RoutingPolicy().PolicyDefinition("TEST_ACCEPT").Config())
+	gnmi.BatchDelete(batchDelete, gnmi.OC().RoutingPolicy().PolicyDefinition("TEST_REJECT").Config())
+	defer batchDelete.Set(t, dut)
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/import-policy using value %v", input), func(t *testing.T) {
@@ -804,11 +804,11 @@ func TestApplyPolicyExportPolicy(t *testing.T) {
 		},
 	})
 	time.Sleep(configApplyTime)
-	batchDelete := dut.Config().NewBatch()
-	bgpConfig.BatchDelete(t, batchDelete)
-	dut.Config().RoutingPolicy().PolicyDefinition("TEST_ACCEPT").BatchDelete(t, batchDelete)
-	dut.Config().RoutingPolicy().PolicyDefinition("TEST_REJECT").BatchDelete(t, batchDelete)
-	defer batchDelete.Set(t)
+	batchDelete := &gnmi.SetBatch{}
+	gnmi.BatchDelete(batchDelete, bgpConfig.Config())
+	gnmi.BatchDelete(batchDelete, gnmi.OC().RoutingPolicy().PolicyDefinition("TEST_ACCEPT").Config())
+	gnmi.BatchDelete(batchDelete, gnmi.OC().RoutingPolicy().PolicyDefinition("TEST_REJECT").Config())
+	defer batchDelete.Set(t, dut)
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/export-policy using value %v", input), func(t *testing.T) {
