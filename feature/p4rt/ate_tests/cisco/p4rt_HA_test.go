@@ -7,9 +7,6 @@ import (
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 var (
