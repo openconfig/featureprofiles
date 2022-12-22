@@ -75,7 +75,7 @@ var (
 	ComplianceTests = flag.Bool("run_compliance_tests", false, "Run only Compliance tests")
 	PacketIOTests   = flag.Bool("run_packetio_tests", false, "Run only PacketIO tests")
 
-	PbrPrecommitTests = flag.Bool("skip_hw_module", true, "Run only hw-module") // Pbr
+	PbrPrecommitTests = flag.Bool("skip_hw_module", false, "Run only hw-module") // Pbr
 
 )
 
