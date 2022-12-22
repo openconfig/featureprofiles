@@ -34,7 +34,7 @@ ONDATRA_PATCHES = [
 ]
 
 ONDATRA_SIM_PATCHES = [
-    'exec/firex/plugins/ondatra/0003-traffic_fps_vxr.patch'
+#    'exec/firex/plugins/ondatra/0003-traffic_fps_vxr.patch'
 ]
 
 FP_PATCHES = [
@@ -68,10 +68,10 @@ whitelist_arguments([
 @returns('ondatra_binding_path', 'ondatra_testbed_path', 'exec_repo_dir', 'fp_repo_dir')
 def BringupTestbed(self, ws, images = None,  
                         ondatra_repo_branch='main',
-                        ondatra_repo_rev='1b90e33d211b8f84f63b7672ab163d81b532b504',
+                        ondatra_repo_rev='7d597f5e3308250778e90ff06cc866245e277f6b',
                         fp_repo_url=FP_REPO_CLONE_INFO.url,
                         fp_repo_branch='main',  
-                        fp_repo_rev='82732de3b989fa7c8399903e02ed2534f01ee6b3',
+                        fp_repo_rev='1b33f9a62ad14c4f20efe0ff47cc3be0048c21f1',
                         topo_file=None,                      
                         ondatra_testbed_path=None,
                         ondatra_binding_path=None,
@@ -91,11 +91,6 @@ def BringupTestbed(self, ws, images = None,
     if not exec_repo_dir:
         exec_repo_dir = fp_repo_dir
 
-    c = B4GoClone.s(b4go_pkg_url=ONDATRA_REPO_CLONE_INFO.url,
-                        b4go_pkg_path=ondatra_repo_dir,
-                        b4go_pkg_branch=ondatra_repo_branch)
-
-    self.enqueue_child_and_get_results(c)
 
     c = B4GoClone.s(b4go_pkg_url=fp_repo_url,
                         b4go_pkg_path=fp_repo_dir,
@@ -140,6 +135,12 @@ def BringupTestbed(self, ws, images = None,
             check_output(f"sed -i 's|$BASE_CONF_PATH|{base_conf_path}|g' " + ondatra_binding_path)
 
     if apply_ondatra_patches:
+        c = B4GoClone.s(b4go_pkg_url=ONDATRA_REPO_CLONE_INFO.url,
+                    b4go_pkg_path=ondatra_repo_dir,
+                    b4go_pkg_branch=ondatra_repo_branch)
+
+        self.enqueue_child_and_get_results(c)
+
         with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
             fp.write("replace github.com/openconfig/ondatra => ../ondatra")
 

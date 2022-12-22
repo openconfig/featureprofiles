@@ -1,8 +1,29 @@
 diff --git a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
-index 2f0fe644..cff236b6 100644
+index c3bb9931..3131eb4b 100644
 --- a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
 +++ b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
-@@ -125,16 +125,19 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
+@@ -15,6 +15,7 @@
+ package singleton_test
+ 
+ import (
++	"flag"
+ 	"fmt"
+ 	"testing"
+ 	"time"
+@@ -55,6 +56,12 @@ const (
+ 	plen6 = 126
+ )
+ 
++var (
++	SubinterfaceOriginCheck = flag.Bool("subinterface_origin_check", false, "Skip telemetry on subinterfaces/subinterface/neighbors/neighbors/state/origin till CSCwc63655 is fixed")
++
++	PortSpeedEnabled = flag.Bool("port_speed_enabled", false, "SKIP since XR does not support three of the leafs (DuplexMode and AutoNegotiate and PortSpeed)")
++)
++
+ var (
+ 	dutSrc = attrs.Attributes{
+ 		Desc:    "DUT to ATE source",
+@@ -124,16 +131,19 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
  func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *attrs.Attributes) {
  	a.ConfigOCInterface(i)
  
@@ -17,7 +38,7 @@ index 2f0fe644..cff236b6 100644
 -			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
 -			e.PortSpeed = speed
 +	// XR does not support DuplexMode, AutoNegotiate and PortSpeed, Skipping now
-+	if *deviations.PortSpeedEnabled {
++	if *PortSpeedEnabled {
 +		e := i.GetOrCreateEthernet()
 +		if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
 +			e.AutoNegotiate = ygot.Bool(true)
@@ -32,13 +53,13 @@ index 2f0fe644..cff236b6 100644
  		}
  	}
  
-@@ -265,18 +268,21 @@ func (tc *testCase) verifyInterfaceDUT(
+@@ -264,18 +274,21 @@ func (tc *testCase) verifyInterfaceDUT(
  		}
  	}
  
 -	disp := dip.Subinterface(0)
 +	// XR does not support neighbor/origin leaf. Tracked via bug CSCwc63655
-+	if *deviations.SubinterfaceOriginCheck {
++	if *SubinterfaceOriginCheck {
 +		disp := dip.Subinterface(0)
  
 -	// IPv4 neighbor discovered by ARP.
@@ -64,7 +85,7 @@ index 2f0fe644..cff236b6 100644
  	}
  }
  
-@@ -326,29 +332,31 @@ func (tc *testCase) verifyATE(t *testing.T) {
+@@ -325,29 +338,31 @@ func (tc *testCase) verifyATE(t *testing.T) {
  }
  
  type counters struct {
@@ -101,7 +122,7 @@ index 2f0fe644..cff236b6 100644
  	i1 := tc.top.Interfaces()[ateSrc.Name]
  	i2 := tc.top.Interfaces()[ateDst.Name]
  	p1 := tc.dut.Port(t, "port1")
-@@ -418,8 +426,14 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
+@@ -417,8 +432,14 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
  	} else if avg := octets / outPkts; avg > uint64(tc.mtu) {
  		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
  	}
@@ -118,7 +139,7 @@ index 2f0fe644..cff236b6 100644
  	}
  
  	if inPkts == 0 {
-@@ -429,7 +443,8 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
+@@ -428,7 +449,8 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
  	} else if avg := octets / inPkts; avg > uint64(tc.mtu) {
  		t.Errorf("Flow destination packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
  	}
@@ -128,7 +149,7 @@ index 2f0fe644..cff236b6 100644
  		t.Errorf("ATE received too few destination packets: got %d, want >= %d", inPkts, p2OutDiff.unicast)
  	}
  	t.Logf("flow loss-pct %f", gnmi.Get(t, tc.ate, fp.LossPct().State()))
-@@ -458,17 +473,17 @@ func (tc *testCase) testMTU(t *testing.T) {
+@@ -457,17 +479,17 @@ func (tc *testCase) testMTU(t *testing.T) {
  				if c.shouldFrag {
  					t.Skip("Packet fragmentation is not expected at line rate.")
  				}
@@ -149,7 +170,7 @@ index 2f0fe644..cff236b6 100644
  					t.Errorf("Traffic flow got %v, want true", got)
  				}
  			})
-@@ -528,7 +543,7 @@ func TestNegotiate(t *testing.T) {
+@@ -527,7 +549,7 @@ func TestNegotiate(t *testing.T) {
  			t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t, breakoutGroup) })
  			t.Run("VerifyATE", func(t *testing.T) { tc.verifyATE(t) })
  			t.Run("Traffic", func(t *testing.T) {
@@ -158,16 +179,3 @@ index 2f0fe644..cff236b6 100644
  					t.Errorf("Traffic flow got %v, want true", got)
  				}
  			})
-diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
-index 6e990bb6..174861f9 100644
---- a/internal/deviations/deviations.go
-+++ b/internal/deviations/deviations.go
-@@ -111,4 +111,8 @@ var (
- 
- 	ExplicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
- 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
-+
-+	SubinterfaceOriginCheck = flag.Bool("subinterface_origin_check", false, "Skip telemetry on subinterfaces/subinterface/neighbors/neighbors/state/origin till CSCwc63655 is fixed")
-+
-+	PortSpeedEnabled = flag.Bool("port_speed_enabled", false, "SKIP since XR does not support three of the leafs (DuplexMode and AutoNegotiate and PortSpeed)")
- )

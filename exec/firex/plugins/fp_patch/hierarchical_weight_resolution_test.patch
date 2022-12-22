@@ -12,15 +12,6 @@ index 6f85ead7..81f7b9bc 100644
  )
  
  var (
-@@ -244,7 +245,7 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
- 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(i))
- 		}
- 		s4 := s.GetOrCreateIpv4()
--		if *deviations.InterfaceEnabled {
-+		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
- 			s4.Enabled = ygot.Bool(true)
- 		}
- 		s4a := s4.GetOrCreateAddress(ip)
 @@ -286,13 +287,14 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
  		gnmi.Replace(t, d, dni.Config(), ni)
  		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))

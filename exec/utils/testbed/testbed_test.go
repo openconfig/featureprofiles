@@ -33,11 +33,13 @@ func TestShowVersion(t *testing.T) {
 
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+	sshClient := dut.RawAPIs().CLI(t)
+	defer sshClient.Close()
 
 	content := ""
 	for _, cmd := range commands {
 		testt.CaptureFatal(t, func(t testing.TB) {
-			if result, err := dut.RawAPIs().CLI(t).SendCommand(ctx, cmd); err == nil {
+			if result, err := sshClient.SendCommand(ctx, cmd); err == nil {
 				content += ">" + cmd + "\n"
 				content += result
 				content += "\n"
@@ -46,7 +48,6 @@ func TestShowVersion(t *testing.T) {
 				content += err.Error()
 				content += "\n"
 			}
-			dut.RawAPIs().CLI(t).Close()
 		})
 	}
 

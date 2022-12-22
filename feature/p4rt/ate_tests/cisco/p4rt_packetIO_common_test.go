@@ -13,12 +13,14 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -224,8 +226,8 @@ func configureStaticRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	}
 	static.GetOrCreateNextHop("AUTO_drop_2").
 		NextHop = oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
-	staticp := dc.NetworkInstance("default").
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default").
+	staticp := oc.NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *ciscoFlags.DefaultNetworkInstance).
 		Static(discardCIDR)
 	if delete {
 		gnmi.Delete(t, dut, staticp.Config())
@@ -917,7 +919,7 @@ func testEntryProgrammingPacketInWithouthPortIDThenAddPortID(ctx context.Context
 
 	gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
-		Id:   ygot.Uint32(^portID),
+		Id:   ygot.Uint32(portID),
 	})
 
 	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
@@ -1288,6 +1290,9 @@ func testEntryProgrammingPacketInWithAcl(ctx context.Context, t *testing.T, args
 }
 
 func testEntryProgrammingPacketInScaleRate(ctx context.Context, t *testing.T, args *testArgs) {
+	if *ciscoFlags.ScaleTests {
+		t.Skipf("Skipping scale test")
+	}
 	client := args.p4rtClientA
 
 	// Program the entry
@@ -2240,6 +2245,9 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 // }
 
 func testPacketOutEgressScale(ctx context.Context, t *testing.T, args *testArgs) {
+	if *ciscoFlags.ScaleTests {
+		t.Skipf("Skipping scale test")
+	}
 	client := args.p4rtClientA
 
 	// Program the entry

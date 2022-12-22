@@ -236,6 +236,7 @@ func (ttl *TTLPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbbIn
 			Type:     actionType,
 			IsIpv4:   uint8(1),
 			TTL:      uint8(1),
+			TTLMask:  uint8(255),
 			Priority: 1,
 		})
 		if ttl.TtlTwo {
@@ -243,6 +244,7 @@ func (ttl *TTLPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbbIn
 				Type:     actionType,
 				IsIpv4:   uint8(1),
 				TTL:      uint8(2),
+				TTLMask:  uint8(255),
 				Priority: 1,
 			})
 		}
@@ -252,6 +254,7 @@ func (ttl *TTLPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbbIn
 			Type:     actionType,
 			IsIpv6:   uint8(1),
 			TTL:      uint8(1),
+			TTLMask:  uint8(255),
 			Priority: 1,
 		})
 		if ttl.TtlTwo {
@@ -259,6 +262,7 @@ func (ttl *TTLPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbbIn
 				Type:     actionType,
 				IsIpv4:   uint8(1),
 				TTL:      uint8(2),
+				TTLMask:  uint8(255),
 				Priority: 1,
 			})
 		}
