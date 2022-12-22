@@ -10,6 +10,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -89,7 +90,7 @@ func TestPeerGroupName(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, bgpConfig.PeerGroup(input).Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedString) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[string]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name fail: got %v", qs)
 				}
 			})
@@ -134,7 +135,7 @@ func TestPeerAs(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedUint32) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint32]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as fail: got %v", qs)
 				}
 			})
@@ -180,7 +181,7 @@ func TestLocalAs(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedUint32) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint32]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/local-as fail: got %v", qs)
 				}
 			})
@@ -195,9 +196,9 @@ func TestRemovePrivateAs(t *testing.T) {
 
 	dut := ondatra.DUT(t, dutName)
 
-	inputs := []oc.E_BgpTypes_RemovePrivateAsOption{
-		oc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL,
-		oc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REPLACE_ALL,
+	inputs := []oc.E_Bgp_RemovePrivateAsOption{
+		oc.Bgp_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL,
+		oc.Bgp_RemovePrivateAsOption_PRIVATE_AS_REPLACE_ALL,
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
@@ -226,7 +227,7 @@ func TestRemovePrivateAs(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedE_BgpTypes_RemovePrivateAsOption) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[oc.E_Bgp_RemovePrivateAsOption]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/remove-private-as fail: got %v", qs)
 				}
 			})
@@ -272,7 +273,7 @@ func TestTimersConnectRetry(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 30 {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/connect-retry fail: got %v", qs)
 				}
 			})
@@ -322,7 +323,7 @@ func TestTimersHoldTime(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 180 {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/hold-time fail: got %v", qs)
 				}
 			})
@@ -372,7 +373,7 @@ func TestTimersKeepaliveInterval(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 60 {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/keepalive-interval fail: got %v", qs)
 				}
 			})
@@ -415,7 +416,7 @@ func TestTimersMinimumAdvertisementInterval(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 30 {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/minimum-advertisement-interval fail: got %v", qs)
 				}
 			})
@@ -458,7 +459,7 @@ func TestTransportLocalAddress(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedString) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[string]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/local-address fail: got %v", qs)
 				}
 			})
@@ -503,7 +504,7 @@ func TestGracefulRestartEnabled(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedBool) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[bool]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/enabled fail: got %v", qs)
 				}
 			})
@@ -545,7 +546,7 @@ func TestGracefulRestartRestartTime(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/restart-time fail: got %v", qs)
 				}
 			})
@@ -588,7 +589,7 @@ func TestGracefulRestartStaleRoutesTime(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/stale-routes-time fail: got %v", qs)
 				}
 			})
@@ -633,7 +634,7 @@ func TestGracefulRestartHelperOnly(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedBool) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[bool]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/helper-only fail: got %v", qs)
 				}
 			})
@@ -761,7 +762,7 @@ func TestRouteReflectorClient(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *oc.QualifiedBool) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[bool]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/route-reflector/config/route-reflector-client fail: got %v", qs)
 				}
 			})
