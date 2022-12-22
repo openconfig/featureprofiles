@@ -913,18 +913,18 @@ func TestForwardingUnviableFP(t *testing.T) {
 
 	})
 
-	// t.Run("Reload the router and check for counters", func(t *testing.T) {
-	// 	util.ReloadDUT(t, dut)
-	// 	dutR := ondatra.DUT(t, device1)
-	// 	pktsBundleMemberAfter := gnmi.Get(t, dutR, gnmi.OC().Interface(iut1.Name()).Counters().OutPkts().State())
-	// 	pktsBundleAfter := gnmi.Get(t, dutR, gnmi.OC().Interface(bundleMember).Counters().OutPkts().State())
-	// 	if (pktsBundleMemberAfter == 0) && (pktsBundleAfter == 0) {
-	// 		t.Logf(" Counters after flap on Bundle interface not expected: got %v, got 0 ", pktsBundleAfter)
-	// 		t.Logf(" Counters after flap on Bundle Member interface not expected: got %v, want 0 ", pktsBundleMemberAfter)
-	// 		t.Errorf("Out pkts are increasing with forwarding-unviable upon flapping")
-	// 	}
+	t.Run("Reload the router and check for counters", func(t *testing.T) {
+		util.ReloadDUT(t, dut)
+		dutR := ondatra.DUT(t, device1)
+		pktsBundleMemberAfter := gnmi.Get(t, dutR, gnmi.OC().Interface(iut1.Name()).Counters().OutPkts().State())
+		pktsBundleAfter := gnmi.Get(t, dutR, gnmi.OC().Interface(bundleMember).Counters().OutPkts().State())
+		if (pktsBundleMemberAfter == 0) && (pktsBundleAfter == 0) {
+			t.Logf(" Counters after flap on Bundle interface not expected: got %v, got 0 ", pktsBundleAfter)
+			t.Logf(" Counters after flap on Bundle Member interface not expected: got %v, want 0 ", pktsBundleMemberAfter)
+			t.Errorf("Out pkts are increasing with forwarding-unviable upon flapping")
+		}
 
-	// })
+	})
 
 }
 func TestForwardViableSDN(t *testing.T) {
