@@ -9,8 +9,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -77,7 +75,7 @@ func TestProtocol(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).Protocol != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Protocol != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/protocol fail: got %v", qs)
 					}
 				}
@@ -128,7 +126,7 @@ func TestSourceFlowLabel(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).SourceFlowLabel != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.SourceFlowLabel != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/source-flow-label fail: got %v", qs)
 					}
 				}
@@ -185,7 +183,7 @@ func TestDscpSet(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).DscpSet != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.DscpSet != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/dscp-set fail: got %v", qs)
 					}
 				}
@@ -236,7 +234,7 @@ func TestDestinationFlowLabel(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).DestinationFlowLabel != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.DestinationFlowLabel != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/destination-flow-label fail: got %v", qs)
 					}
 				}
@@ -286,7 +284,7 @@ func TestDestinationAddress(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).DestinationAddress != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.DestinationAddress != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/destination-address fail: got %v", qs)
 					}
 				}
@@ -336,7 +334,7 @@ func TestDscp(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).Dscp != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Dscp != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/dscp fail: got %v", qs)
 					}
 				}
@@ -386,7 +384,7 @@ func TestHopLimit(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).HopLimit != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.HopLimit != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/hop-limit fail: got %v", qs)
 					}
 				}
@@ -436,7 +434,7 @@ func TestSourceAddress(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).SourceAddress != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.SourceAddress != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/source-address fail: got %v", qs)
 					}
 				}

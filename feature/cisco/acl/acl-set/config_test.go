@@ -9,8 +9,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -72,7 +70,7 @@ func TestType(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).Type != 0 {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Type != 0 {
 						t.Errorf("Delete /acl/acl-sets/acl-set/config/type fail: got %v", qs)
 					}
 				}
@@ -120,7 +118,7 @@ func TestName(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).Name != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Name != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/config/name fail: got %v", qs)
 					}
 				}
@@ -169,7 +167,7 @@ func TestDescription(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).Description != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Description != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/config/description fail: got %v", qs)
 					}
 				}

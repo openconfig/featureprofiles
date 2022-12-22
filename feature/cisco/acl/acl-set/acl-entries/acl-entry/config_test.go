@@ -9,8 +9,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -73,7 +71,7 @@ func TestSequenceId(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).SequenceId != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.SequenceId != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/config/sequence-id fail: got %v", qs)
 					}
 				}
@@ -123,7 +121,7 @@ func TestDescription(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).Description != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Description != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/config/description fail: got %v", qs)
 					}
 				}

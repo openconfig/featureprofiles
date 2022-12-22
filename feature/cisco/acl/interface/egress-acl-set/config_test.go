@@ -9,8 +9,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -78,7 +76,7 @@ func TestType(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).Type != 0 {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Type != 0 {
 						t.Errorf("Delete /acl/interfaces/interface/egress-acl-sets/egress-acl-set/config/type fail: got %v", qs)
 					}
 				}
@@ -127,7 +125,7 @@ func TestSetName(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).SetName != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.SetName != nil {
 						t.Errorf("Delete /acl/interfaces/interface/egress-acl-sets/egress-acl-set/config/set-name fail: got %v", qs)
 					}
 				}

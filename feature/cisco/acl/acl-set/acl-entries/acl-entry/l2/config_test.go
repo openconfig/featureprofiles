@@ -9,8 +9,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -78,7 +76,7 @@ func TestDestinationMacMask(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).DestinationMacMask != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.DestinationMacMask != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac-mask fail: got %v", qs)
 					}
 				}
@@ -129,7 +127,7 @@ func TestEthertype(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).Ethertype != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Ethertype != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype fail: got %v", qs)
 					}
 				}
@@ -179,7 +177,7 @@ func TestDestinationMac(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).DestinationMac != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.DestinationMac != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac fail: got %v", qs)
 					}
 				}
@@ -229,7 +227,7 @@ func TestSourceMac(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).SourceMac != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.SourceMac != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/source-mac fail: got %v", qs)
 					}
 				}
@@ -279,7 +277,7 @@ func TestSourceMacMask(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).SourceMacMask != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.SourceMacMask != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/source-mac-mask fail: got %v", qs)
 					}
 				}

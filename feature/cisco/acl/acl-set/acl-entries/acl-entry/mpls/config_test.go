@@ -9,8 +9,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -78,7 +76,7 @@ func TestStartLabelValue(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).StartLabelValue != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.StartLabelValue != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/start-label-value fail: got %v", qs)
 					}
 				}
@@ -129,7 +127,7 @@ func TestTrafficClass(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).TrafficClass != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.TrafficClass != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class fail: got %v", qs)
 					}
 				}
@@ -180,7 +178,7 @@ func TestEndLabelValue(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).EndLabelValue != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.EndLabelValue != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/end-label-value fail: got %v", qs)
 					}
 				}
@@ -231,7 +229,7 @@ func TestTtlValue(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).TtlValue != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.TtlValue != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value fail: got %v", qs)
 					}
 				}

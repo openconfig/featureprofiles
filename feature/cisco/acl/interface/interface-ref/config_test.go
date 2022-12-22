@@ -9,8 +9,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -77,7 +75,7 @@ func TestSubinterface(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).Subinterface != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Subinterface != nil {
 						t.Errorf("Delete /acl/interfaces/interface/interface-ref/config/subinterface fail: got %v", qs)
 					}
 				}
@@ -126,7 +124,7 @@ func TestInterface(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).Interface != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Interface != nil {
 						t.Errorf("Delete /acl/interfaces/interface/interface-ref/config/interface fail: got %v", qs)
 					}
 				}

@@ -9,8 +9,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -118,7 +116,7 @@ func TestLogAction(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.LogAction().Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).LogAction != 0 {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.LogAction != 0 {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/log-action fail: got %v", qs)
 					}
 				}
