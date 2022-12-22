@@ -9,8 +9,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -53,7 +51,7 @@ func TestEnabledAtContainer(t *testing.T) {
 			t.Run("Delete container", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).Enabled != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Enabled != nil {
 						t.Errorf("Delete /sampling/sflow/config/enabled fail: got %v", qs)
 					}
 				}
@@ -140,8 +138,8 @@ func TestSampleSizeAtContainer(t *testing.T) {
 			t.Run("Delete container", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).SampleSize != nil {
-						t.Errorf("Delete /sampling/sflow/config/sample-size fail: got %v", qs)
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.SampleSize != nil {
+						t.Errorf("Delete /sampling/sflow/config/sample-size fail: got %v", qs.SampleSize)
 					}
 				}
 			})

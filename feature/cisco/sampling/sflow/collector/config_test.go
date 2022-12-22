@@ -9,8 +9,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -58,8 +56,8 @@ func TestNetworkInstanceAtContainer(t *testing.T) {
 			t.Run("Delete container", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.Val(t).NetworkInstance != nil {
-						t.Errorf("Delete /sampling/sflow/collectors/collector/config/network-instance fail: got %v", qs)
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.NetworkInstance != nil {
+						t.Errorf("Delete /sampling/sflow/collectors/collector/config/network-instance fail: got %v", qs.NetworkInstance)
 					}
 				}
 			})

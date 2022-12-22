@@ -2,13 +2,12 @@ package fptest
 
 import (
 	"encoding/csv"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/openconfig/ygot/ygot"
 )
 
 var (
@@ -33,7 +32,7 @@ func (o *Observer) AddCsvRecorder(name string) *Observer {
 }
 
 // RecordYgot records a ygot operation
-func (o *Observer) RecordYgot(t *testing.T, operation string, pathstruct ygot.PathStruct) {
+func (o *Observer) RecordYgot(t *testing.T, operation string, pathstruct interface{}) {
 	ygotEvents := newYgotEvent(o.name, t, operation, pathstruct)
 	for _, event := range ygotEvents {
 		for _, listner := range o.listeners {
@@ -101,7 +100,7 @@ type ygotEvent struct {
 	timestamp string
 }
 
-func newYgotEvent(name string, t *testing.T, operation string, pathstruct ygot.PathStruct) (events []ygotEvent) {
+func newYgotEvent(name string, t *testing.T, operation string, pathstruct interface{}) (events []ygotEvent) {
 	status := "PASSED"
 	if t.Failed() {
 		status = "FAILED"
@@ -113,7 +112,7 @@ func newYgotEvent(name string, t *testing.T, operation string, pathstruct ygot.P
 		status:    status,
 		operation: operation,
 		timestamp: timestamp,
-		path:      pathToText(pathstruct),
+		path:      fmt.Sprintf("%v", pathstruct),
 	})
 	return
 }
