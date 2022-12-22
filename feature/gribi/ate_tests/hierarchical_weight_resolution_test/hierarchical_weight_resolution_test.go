@@ -271,9 +271,8 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
 	// Use default NI if not provided
 	if a.networkInstance != "" {
 		ni := &oc.NetworkInstance{
-			Name:    ygot.String(a.networkInstance),
-			Enabled: ygot.Bool(true),
-			Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+			Name: ygot.String(a.networkInstance),
+			Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 		}
 		i := ni.GetOrCreateInterface(p.Name())
 		i.Interface = ygot.String(p.Name())

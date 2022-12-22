@@ -347,7 +347,6 @@ func networkInstance(t *testing.T, name string) *oc.NetworkInstance {
 	ni := d.GetOrCreateNetworkInstance(name)
 	ni.Description = ygot.String("Non Default routing instance created for testing")
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	ni.Enabled = ygot.Bool(true)
 	return ni
 }
 
