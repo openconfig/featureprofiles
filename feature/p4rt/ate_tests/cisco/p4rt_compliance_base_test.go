@@ -15,6 +15,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
@@ -118,6 +119,9 @@ func programmGDPMatchEntryWithStreamParameter(ctx context.Context, t *testing.T,
 }
 
 func TestP4RTCompliance(t *testing.T) {
+	if !*ciscoFlags.ComplianceTests {
+		t.Skip()
+	}
 	dut := ondatra.DUT(t, "dut")
 
 	// Dial gRIBI
