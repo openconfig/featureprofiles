@@ -10,8 +10,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -99,7 +97,8 @@ func TestNeighborAddress(t *testing.T) {
 				gnmi.Update(t, dut, bgpConfig.Neighbor(input).Enabled().Config(), true)
 				time.Sleep(configApplyTime)
 				stateGot := gnmi.Await(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, true)
-				if stateGot.Val(t) == false {
+				value, _ := stateGot.Val()
+				if value == false {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled: got %v, want %v", stateGot, true)
 				}
 			})
@@ -108,7 +107,8 @@ func TestNeighborAddress(t *testing.T) {
 				gnmi.Update(t, dut, bgpConfig.Neighbor(input).Enabled().Config(), false)
 				time.Sleep(configApplyTime)
 				stateGot := gnmi.Await(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, false)
-				if stateGot.Val(t) == true {
+				value, _ := stateGot.Val()
+				if value == true {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled: got %v, want %v", stateGot, false)
 				}
 			})
@@ -970,7 +970,7 @@ func TestAfiSafiMaxPrefixes(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs := gnmi.Lookup(t, dut, state.State()); qs.Val(t) != uint32(4294967295) {
+				if qs, _ := gnmi.Lookup(t, dut, state.State()).Val(); qs != uint32(4294967295) {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes fail: got %v,want %v", qs, uint32(4294967295))
 				}
 			})
