@@ -9,6 +9,7 @@ import (
 	"time"
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -47,6 +48,9 @@ func getComponentList(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice)
 }
 
 func TestP4RTTMP(t *testing.T) {
+	if !*ciscoFlags.HATests {
+		t.Skip()
+	}
 	dut := ondatra.DUT(t, "dut")
 
 	component := oc.Component{}
@@ -62,6 +66,9 @@ func TestP4RTTMP(t *testing.T) {
 }
 
 func TestP4RTHA(t *testing.T) {
+	if !*ciscoFlags.HATests {
+		t.Skip()
+	}
 	dut := ondatra.DUT(t, "dut")
 
 	// Dial gRIBI

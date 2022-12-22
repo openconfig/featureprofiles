@@ -1110,7 +1110,6 @@ func testAclAndPBRUnderSameInterface(ctx context.Context, t *testing.T, args *te
 }
 
 func testPolicesReplace(ctx context.Context, t *testing.T, args *testArgs) {
-	t.Skip()
 	defer configBasePBR(t, args.dut)
 	defer flushServer(t, args)
 
@@ -1158,7 +1157,6 @@ func testPolicesReplace(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testPolicyReplace(ctx context.Context, t *testing.T, args *testArgs) {
-	t.Skip()
 	defer configBasePBR(t, args.dut)
 	defer flushServer(t, args)
 

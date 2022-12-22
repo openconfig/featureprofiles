@@ -155,6 +155,9 @@ func getTTLParameter(t *testing.T, ipv4, ipv6, ttlTwo bool) PacketIO {
 }
 
 func TestP4RTPacketIO(t *testing.T) {
+	if !*ciscoFlags.PacketIOTests {
+		t.Skip()
+	}
 	dut := ondatra.DUT(t, "dut")
 
 	// Dial gRIBI

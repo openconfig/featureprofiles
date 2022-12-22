@@ -16,6 +16,10 @@ import (
 )
 
 func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
+
+	if !*ciscoFlags.PbrPrecommitTests {
+		t.Skip()
+	}
 	t.Helper()
 	defer flushServer(t, args)
 
@@ -278,6 +282,9 @@ func removeConfHeader(baseConf string) string {
 }
 func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, args *testArgs) {
 
+	if !*ciscoFlags.PbrPrecommitTests {
+		t.Skip()
+	}
 	defer flushServer(t, args)
 	baseConfig := removeConfHeader(config.CMDViaGNMI(ctx, t, args.dut, "show running-config"))
 	defer config.GNMICommitReplace(context.Background(), t, args.dut, baseConfig)
