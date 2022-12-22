@@ -22,8 +22,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // /system/cpus/cpu/state/index
@@ -31,11 +29,11 @@ func TestCPUIndex(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/index", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIndex := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Index().State())
-			if cpuIndex == oc.Cpu_Index_Enum_ALL {
+			cpuIndex := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Index().State())
+			if cpuIndex == oc.Cpu_Index_ALL {
 				t.Logf("Got correct CPU Index value")
 			} else {
-				t.Errorf("Unexpected CPU Index value: got: %v want: %v", cpuIndex, oc.Cpu_Index_Enum_ALL)
+				t.Errorf("Unexpected CPU Index value: got: %v want: %v", cpuIndex, oc.Cpu_Index_ALL)
 			}
 		})
 	})
@@ -46,7 +44,7 @@ func TestCPUTotalInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Total().Instant().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Total().Instant().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU Idle Instant value")
 			} else {
@@ -60,7 +58,7 @@ func TestCPUTotalAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Total().Avg().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Total().Avg().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU Idle Avg value")
 			} else {
@@ -74,7 +72,7 @@ func TestCPUTotalMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Total().Min().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Total().Min().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU Idle Min value")
 			} else {
@@ -88,7 +86,7 @@ func TestCPUTotalMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Total().Max().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Total().Max().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU Idle Max value")
 			} else {
@@ -102,7 +100,7 @@ func TestCPUTotalInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Total().Interval().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Total().Interval().State())
 			if cpuValue == uint64(0) || cpuValue > uint64(0) {
 				t.Logf("Got correct CPU Idle Interval value")
 			} else {
@@ -116,7 +114,7 @@ func TestCPUTotalMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Total().MinTime().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Total().MinTime().State())
 			if cpuValue == uint64(0) || cpuValue > uint64(0) {
 				t.Logf("Got correct CPU Idle MinTime value")
 			} else {
@@ -130,7 +128,7 @@ func TestCPUTotalMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Total().MaxTime().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Total().MaxTime().State())
 			if cpuValue == uint64(0) || cpuValue > uint64(0) {
 				t.Logf("Got correct CPU Idle Maxtime value")
 			} else {
@@ -145,7 +143,7 @@ func TestCPUUserInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).User().Instant().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).User().Instant().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU User Instant value")
 			} else {
@@ -159,7 +157,7 @@ func TestCPUUserAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).User().Avg().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).User().Avg().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU User Avg value")
 			} else {
@@ -173,7 +171,7 @@ func TestCPUUserMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).User().Min().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).User().Min().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU User Min value")
 			} else {
@@ -187,7 +185,7 @@ func TestCPUUserMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).User().Max().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).User().Max().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU User Max value")
 			} else {
@@ -201,7 +199,7 @@ func TestCPUUserInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).User().Interval().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).User().Interval().State())
 			if cpuValue == uint64(0) || cpuValue > uint64(0) {
 				t.Logf("Got correct CPU User Interval value")
 			} else {
@@ -215,7 +213,7 @@ func TestCPUUserMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).User().MinTime().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).User().MinTime().State())
 			if cpuValue == uint64(0) || cpuValue > uint64(0) {
 				t.Logf("Got correct CPU User MinTime value")
 			} else {
@@ -229,7 +227,7 @@ func TestCPUUserMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).User().MaxTime().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).User().MaxTime().State())
 			if cpuValue == uint64(0) || cpuValue > uint64(0) {
 				t.Logf("Got correct CPU User Maxtime value")
 			} else {
@@ -244,7 +242,7 @@ func TestCPUKernelInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Kernel().Instant().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Kernel().Instant().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU Kernel Instant value")
 			} else {
@@ -258,7 +256,7 @@ func TestCPUKernelAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Kernel().Avg().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Kernel().Avg().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU Kernel Avg value")
 			} else {
@@ -272,7 +270,7 @@ func TestCPUKernelMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Kernel().Min().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Kernel().Min().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU Kernel Min value")
 			} else {
@@ -286,7 +284,7 @@ func TestCPUKernelMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Kernel().Max().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Kernel().Max().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU Kernel Max value")
 			} else {
@@ -300,7 +298,7 @@ func TestCPUKernelInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Kernel().Interval().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Kernel().Interval().State())
 			if cpuValue == uint64(0) || cpuValue > uint64(0) {
 				t.Logf("Got correct CPU Kernel Interval value")
 			} else {
@@ -314,7 +312,7 @@ func TestCPUKernelMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Kernel().MinTime().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Kernel().MinTime().State())
 			if cpuValue == uint64(0) || cpuValue > uint64(0) {
 				t.Logf("Got correct CPU Kernel MinTime value")
 			} else {
@@ -328,7 +326,7 @@ func TestCPUKernelMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Kernel().MaxTime().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Kernel().MaxTime().State())
 			if cpuValue == uint64(0) || cpuValue > uint64(0) {
 				t.Logf("Got correct CPU Kernel Maxtime value")
 			} else {
@@ -343,7 +341,7 @@ func TestCPUNiceInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Nice().Instant().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Nice().Instant().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU Nice Instant value")
 			} else {
@@ -357,7 +355,7 @@ func TestCPUNiceAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Nice().Avg().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Nice().Avg().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU Nice Avg value")
 			} else {
@@ -371,7 +369,7 @@ func TestCPUNiceMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Nice().Min().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Nice().Min().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU Nice Min value")
 			} else {
@@ -385,7 +383,7 @@ func TestCPUNiceMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Nice().Max().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Nice().Max().State())
 			if cpuValue == uint8(0) || cpuValue > uint8(0) {
 				t.Logf("Got correct CPU Nice Max value")
 			} else {
@@ -399,7 +397,7 @@ func TestCPUNiceInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Nice().Interval().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Nice().Interval().State())
 			if cpuValue == uint64(0) || cpuValue > uint64(0) {
 				t.Logf("Got correct CPU Nice Interval value")
 			} else {
@@ -413,7 +411,7 @@ func TestCPUNiceMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Nice().MinTime().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Nice().MinTime().State())
 			if cpuValue == uint64(0) || cpuValue > uint64(0) {
 				t.Logf("Got correct CPU Nice MinTime value")
 			} else {
@@ -427,7 +425,7 @@ func TestCPUNiceMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Nice().MaxTime().State())
+			cpuValue := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Nice().MaxTime().State())
 			if cpuValue == uint64(0) || cpuValue > uint64(0) {
 				t.Logf("Got correct CPU Nice Maxtime value")
 			} else {
@@ -442,7 +440,7 @@ func TestCPUIdleInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Idle().Instant().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Idle().Instant().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU Idle Instant value")
 			} else {
@@ -456,7 +454,7 @@ func TestCPUIdleAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Idle().Avg().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Idle().Avg().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU Idle Avg value")
 			} else {
@@ -470,7 +468,7 @@ func TestCPUIdleMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Idle().Min().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Idle().Min().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU Idle Min value")
 			} else {
@@ -484,7 +482,7 @@ func TestCPUIdleMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Idle().Max().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Idle().Max().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU Idle Max value")
 			} else {
@@ -498,7 +496,7 @@ func TestCPUIdleInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Idle().Interval().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Idle().Interval().State())
 			if cpuIdle == uint64(0) || cpuIdle > uint64(0) {
 				t.Logf("Got correct CPU Idle Interval value")
 			} else {
@@ -512,7 +510,7 @@ func TestCPUIdleMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Idle().MinTime().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Idle().MinTime().State())
 			if cpuIdle == uint64(0) || cpuIdle > uint64(0) {
 				t.Logf("Got correct CPU Idle MinTime value")
 			} else {
@@ -526,7 +524,7 @@ func TestCPUIdleMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Idle().MaxTime().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Idle().MaxTime().State())
 			if cpuIdle == uint64(0) || cpuIdle > uint64(0) {
 				t.Logf("Got correct CPU Idle Maxtime value")
 			} else {
@@ -541,7 +539,7 @@ func TestCPUWaitInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Wait().Instant().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Wait().Instant().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU Wait Instant value")
 			} else {
@@ -555,7 +553,7 @@ func TestCPUWaitAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Wait().Avg().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Wait().Avg().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU Wait Avg value")
 			} else {
@@ -569,7 +567,7 @@ func TestCPUWaitMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Wait().Min().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Wait().Min().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU Wait Min value")
 			} else {
@@ -583,7 +581,7 @@ func TestCPUWaitMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Wait().Max().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Wait().Max().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU Wait Max value")
 			} else {
@@ -597,7 +595,7 @@ func TestCPUWaitInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Wait().Interval().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Wait().Interval().State())
 			if cpuIdle == uint64(0) || cpuIdle > uint64(0) {
 				t.Logf("Got correct CPU Wait Interval value")
 			} else {
@@ -611,7 +609,7 @@ func TestCPUWaitMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Wait().MinTime().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Wait().MinTime().State())
 			if cpuIdle == uint64(0) || cpuIdle > uint64(0) {
 				t.Logf("Got correct CPU Wait MinTime value")
 			} else {
@@ -625,7 +623,7 @@ func TestCPUWaitMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).Wait().MaxTime().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).Wait().MaxTime().State())
 			if cpuIdle == uint64(0) || cpuIdle > uint64(0) {
 				t.Logf("Got correct CPU Wait Maxtime value")
 			} else {
@@ -640,7 +638,7 @@ func TestCPUHardwareInterruptInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).HardwareInterrupt().Instant().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).HardwareInterrupt().Instant().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU HardwareInterrupt Instant value")
 			} else {
@@ -654,7 +652,7 @@ func TestCPUHardwareInterruptAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).HardwareInterrupt().Avg().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).HardwareInterrupt().Avg().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU HardwareInterrupt Avg value")
 			} else {
@@ -668,7 +666,7 @@ func TestCPUHardwareInterruptMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).HardwareInterrupt().Min().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).HardwareInterrupt().Min().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU HardwareInterrupt Min value")
 			} else {
@@ -682,7 +680,7 @@ func TestCPUHardwareInterruptMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).HardwareInterrupt().Max().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).HardwareInterrupt().Max().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU HardwareInterrupt Max value")
 			} else {
@@ -696,7 +694,7 @@ func TestCPUHardwareInterruptInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).HardwareInterrupt().Interval().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).HardwareInterrupt().Interval().State())
 			if cpuIdle == uint64(0) || cpuIdle > uint64(0) {
 				t.Logf("Got correct CPU WHardwareInterruptait Interval value")
 			} else {
@@ -710,7 +708,7 @@ func TestCPUHardwareInterruptMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).HardwareInterrupt().MinTime().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).HardwareInterrupt().MinTime().State())
 			if cpuIdle == uint64(0) || cpuIdle > uint64(0) {
 				t.Logf("Got correct CPU HardwareInterrupt MinTime value")
 			} else {
@@ -724,7 +722,7 @@ func TestCPUHardwareInterruptMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).HardwareInterrupt().MaxTime().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).HardwareInterrupt().MaxTime().State())
 			if cpuIdle == uint64(0) || cpuIdle > uint64(0) {
 				t.Logf("Got correct CPU HardwareInterrupt Maxtime value")
 			} else {
@@ -739,7 +737,7 @@ func TestCPUSoftwareInterruptInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).SoftwareInterrupt().Instant().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).SoftwareInterrupt().Instant().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU SoftwareInterrupt Instant value")
 			} else {
@@ -753,7 +751,7 @@ func TestCPUSoftwareInterruptAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).SoftwareInterrupt().Avg().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).SoftwareInterrupt().Avg().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU SoftwareInterrupt Avg value")
 			} else {
@@ -767,7 +765,7 @@ func TestCPUSoftwareInterruptMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).SoftwareInterrupt().Min().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).SoftwareInterrupt().Min().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU SoftwareInterrupt Min value")
 			} else {
@@ -781,7 +779,7 @@ func TestCPUSoftwareInterruptMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).SoftwareInterrupt().Max().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).SoftwareInterrupt().Max().State())
 			if cpuIdle == uint8(0) || cpuIdle > uint8(0) {
 				t.Logf("Got correct CPU SoftwareInterrupt Max value")
 			} else {
@@ -795,7 +793,7 @@ func TestCPUSoftwareInterruptInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).SoftwareInterrupt().Interval().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).SoftwareInterrupt().Interval().State())
 			if cpuIdle == uint64(0) || cpuIdle > uint64(0) {
 				t.Logf("Got correct CPU SoftwareInterrupt Interval value")
 			} else {
@@ -809,7 +807,7 @@ func TestCPUSoftwareInterruptMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).SoftwareInterrupt().MinTime().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).SoftwareInterrupt().MinTime().State())
 			if cpuIdle == uint64(0) || cpuIdle > uint64(0) {
 				t.Logf("Got correct CPU SoftwareInterrupt MinTime value")
 			} else {
@@ -823,7 +821,7 @@ func TestCPUSoftwareInterruptMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_Enum_ALL).SoftwareInterrupt().MaxTime().State())
+			cpuIdle := gnmi.Get(t, dut, gnmi.OC().System().Cpu(oc.Cpu_Index_ALL).SoftwareInterrupt().MaxTime().State())
 			if cpuIdle == uint64(0) || cpuIdle > uint64(0) {
 				t.Logf("Got correct CPU SoftwareInterrupt Maxtime value")
 			} else {

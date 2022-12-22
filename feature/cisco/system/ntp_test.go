@@ -6,8 +6,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -41,7 +39,7 @@ func TestNTPEnableState(t *testing.T) {
 	telemetry := gnmi.OC().System().Ntp().Enabled()
 	t.Run("Subscribe//system/ntp/config/enabled", func(t *testing.T) {
 		defer observer.RecordYgot(t, "SUBSCRIBE", config)
-		enabled := gnmi.Get(t, dut, oc.State())
+		enabled := gnmi.Get(t, dut, telemetry.State())
 		if enabled != true {
 			t.Errorf("Ntp Enabled: got %t, want %t", enabled, true)
 		}

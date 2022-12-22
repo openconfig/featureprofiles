@@ -22,8 +22,6 @@ import (
 
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // TestHostname verifies that the hostname configuration paths can be read,
@@ -58,7 +56,8 @@ func TestHostname(t *testing.T) {
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				stateGot := gnmi.Await(t, dut, state.State(), 35*time.Second, testCase.hostname)
 				time.Sleep(35 * time.Second)
-				if stateGot.Val(t) != testCase.hostname {
+				value, _ := stateGot.Val()
+				if value != testCase.hostname {
 					t.Errorf("Telemetry hostname: got %v, want %s", stateGot, testCase.hostname)
 				}
 			})

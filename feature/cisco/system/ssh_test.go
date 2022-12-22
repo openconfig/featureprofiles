@@ -5,8 +5,6 @@ import (
 
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestSSHServerEnableConfig(t *testing.T) {
@@ -45,7 +43,7 @@ func TestSSHEnableState(t *testing.T) {
 	telemetry := gnmi.OC().System().SshServer().Enable()
 	t.Run("Subscribe//system/ssh-server/config/enable", func(t *testing.T) {
 		defer observer.RecordYgot(t, "SUBSCRIBE", config)
-		enabled := gnmi.Get(t, dut, oc.State())
+		enabled := gnmi.Get(t, dut, telemetry.State())
 		if enabled != true {
 			t.Errorf("SSH not Enabled: got %t, want %t", enabled, true)
 		}

@@ -8,8 +8,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestSysGrpcState(t *testing.T) {
