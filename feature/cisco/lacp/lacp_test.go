@@ -8,8 +8,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestLacpCfgs(t *testing.T) {
@@ -271,7 +269,8 @@ func TestLacpTelemetry(t *testing.T) {
 		if len(got) < expectedEntries {
 			t.Errorf("Did not receive enough entries from subscription of system-id-mac: got %d, want %d", len(got), expectedEntries)
 		}
-		if !reflect.DeepEqual(got[len(got)-1].Val(t), systemIDMac2) {
+		value, _ := got[len(got)-1].Val()
+		if !reflect.DeepEqual(value, systemIDMac2) {
 			t.Errorf("SystemIdMac change event was not recorded")
 		}
 	})
@@ -296,7 +295,8 @@ func TestLacpTelemetry(t *testing.T) {
 		if len(got) < expectedEntries {
 			t.Errorf("Did not receive enough entries from subscription of system-priority: got %d, want %d", len(got), expectedEntries)
 		}
-		if !reflect.DeepEqual(got[len(got)-1].Val(t), systemPriority2) {
+		value, _ := got[len(got)-1].Val()
+		if !reflect.DeepEqual(value, systemPriority2) {
 			t.Errorf("SystemPriority change event was not recorded")
 		}
 
