@@ -456,8 +456,9 @@ func TestSubComponentSwmoduleStream(t *testing.T) {
 		time.Sleep(35 * time.Second)
 		t.Logf("Collected samples: %v", got)
 		gotEntries := len(got)
-		if got[gotEntries-1].Val(t) != oc.PlatformSoftware_SOFTWARE_MODULE_TYPE_USERSPACE_PACKAGE {
-			t.Errorf("Platform ModuleType: got %s, want %s", got[gotEntries-1].Val(t), oc.PlatformSoftware_SOFTWARE_MODULE_TYPE_USERSPACE_PACKAGE)
+		value, _ := got[gotEntries-1].Val()
+		if value != oc.PlatformSoftware_SOFTWARE_MODULE_TYPE_USERSPACE_PACKAGE {
+			t.Errorf("Platform ModuleType: got %s, want %s", value, oc.PlatformSoftware_SOFTWARE_MODULE_TYPE_USERSPACE_PACKAGE)
 		}
 	})
 }

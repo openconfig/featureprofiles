@@ -21,8 +21,6 @@ import (
 
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -71,12 +69,12 @@ func testReconfigureP4RTWithPacketIOSessionOn(t *testing.T, args *testArgs) {
 		t.Fatalf("Interface port-id: want 1, got %v", got)
 	}
 
-	config = args.dut.Config().Interface(p2.Name()).Id()
+	config = gnmi.OC().Interface(p2.Name()).Id()
 	defer observer.RecordYgot(t, "REPLACE", config)
 
 	gnmi.Replace(t, args.dut, config.Config(), 2)
 
-	state1 = args.dut.Telemetry().Interface(p2.Name()).Id()
+	state1 = gnmi.OC().Interface(p2.Name()).Id()
 	defer observer.RecordYgot(t, "GET", state1)
 
 	if got := gnmi.Get(t, args.dut, state1.State()); got != 2 {
@@ -107,11 +105,11 @@ func testConfigDeviceIDPortIDWithInterfaceDown(t *testing.T, args *testArgs) {
 	gnmi.Replace(t, args.dut, gnmi.OC().Interface(p2.Name()).Enabled().Config(), false)
 	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(p2.Name()).Enabled().Config(), true)
 
-	config = args.dut.Config().Interface(p2.Name()).Id()
+	config = gnmi.OC().Interface(p2.Name()).Id()
 	defer observer.RecordYgot(t, "REPLACE", config)
 	gnmi.Replace(t, args.dut, config.Config(), 2)
 
-	state = args.dut.Telemetry().Interface(p2.Name()).Id()
+	state = gnmi.OC().Interface(p2.Name()).Id()
 	defer observer.RecordYgot(t, "GET", state)
 
 	if got := gnmi.Get(t, args.dut, state.State()); got != 2 {
@@ -154,11 +152,11 @@ func testP4RTConfigurationWithBundleInterface(t *testing.T, args *testArgs) {
 		t.Fatalf("Interface port-id: want %v, got %v", int1ID, got)
 	}
 
-	config = args.dut.Config().Interface(int2).Id()
+	config = gnmi.OC().Interface(int2).Id()
 	defer observer.RecordYgot(t, "REPLACE", config)
 	gnmi.Replace(t, args.dut, config.Config(), uint32(int2ID))
 
-	state1 = args.dut.Telemetry().Interface(int2).Id()
+	state1 = gnmi.OC().Interface(int2).Id()
 	defer observer.RecordYgot(t, "GET", state1)
 
 	if got := gnmi.Get(t, args.dut, state1.State()); got != uint32(int2ID) {
@@ -183,11 +181,11 @@ func testP4RTConfigurationUsingGNMIUpdate(t *testing.T, args *testArgs) {
 
 	p2 := args.dut.Port(t, "port2")
 
-	config = args.dut.Config().Interface(p2.Name()).Id()
+	config = gnmi.OC().Interface(p2.Name()).Id()
 	defer observer.RecordYgot(t, "UPDATE", config)
 	gnmi.Update(t, args.dut, config.Config(), 2)
 
-	state = args.dut.Telemetry().Interface(p2.Name()).Id()
+	state = gnmi.OC().Interface(p2.Name()).Id()
 	defer observer.RecordYgot(t, "GET", state)
 
 	if got := gnmi.Get(t, args.dut, state.State()); got != 2 {

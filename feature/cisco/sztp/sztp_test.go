@@ -13,12 +13,10 @@ import (
 
 	"crypto/tls"
 	"crypto/x509"
+
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	scp "github.com/povsister/scp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
