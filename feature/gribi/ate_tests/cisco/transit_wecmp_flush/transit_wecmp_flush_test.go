@@ -30,7 +30,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -1434,7 +1433,7 @@ func testSetISISOverloadBit(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Configure ISIS overload bit
-	config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+	config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
 	gnmi.Update(t, args.dut, config.Config(), true)
 	defer gnmi.Delete(t, args.dut, config.Config())
 

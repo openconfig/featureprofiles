@@ -130,7 +130,7 @@ func testTrafficsreaming(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, 
 
 	time.Sleep(60 * time.Second)
 	threshold := 0.90
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
 	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
 
 	if trafficPass == expectPass {
@@ -162,7 +162,7 @@ func testTrafficipv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top 
 	ate.Traffic().Start(t, ondatraFlowList...)
 	time.Sleep(60 * time.Second)
 	threshold := 0.90
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
 	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
 
 	if trafficPass == expectPass {

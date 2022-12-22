@@ -259,19 +259,6 @@ func TestP4RTPacketIO(t *testing.T) {
 	if *ciscoFlags.LLDPTests {
 		args.packetIO = getLLDPParameter(t)
 
-<<<<<<< HEAD
-	for _, tt := range LLDPEndabledTestcases {
-		gnmi.Update(t, dut, gnmi.OC().Lldp().Enabled().Config(), *ygot.Bool(true))
-		// Each case will run with its own gRIBI fluent client.
-		t.Run(tt.name, func(t *testing.T) {
-			t.Logf("Name: %s", tt.name)
-			t.Logf("Description: %s", tt.desc)
-
-			tt.fn(ctx, t, args)
-		})
-		gnmi.Update(t, dut, gnmi.OC().Lldp().Enabled().Config(), *ygot.Bool(false))
-	}
-=======
 		for _, tt := range PublicLLDPDisableTestcases {
 			t.Run(tt.name, func(t *testing.T) {
 				t.Logf("Name: %s", tt.name)
@@ -288,10 +275,9 @@ func TestP4RTPacketIO(t *testing.T) {
 				tt.fn(ctx, t, args)
 			})
 		}
->>>>>>> master
 
 		for _, tt := range LLDPEndabledTestcases {
-			dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(true))
+			gnmi.Update(t, dut, gnmi.OC().Lldp().Enabled().Config(), *ygot.Bool(true))
 			// Each case will run with its own gRIBI fluent client.
 			t.Run(tt.name, func(t *testing.T) {
 				t.Logf("Name: %s", tt.name)
@@ -299,7 +285,7 @@ func TestP4RTPacketIO(t *testing.T) {
 
 				tt.fn(ctx, t, args)
 			})
-			dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(false))
+			gnmi.Update(t, dut, gnmi.OC().Lldp().Enabled().Config(), *ygot.Bool(false))
 		}
 	}
 	if *ciscoFlags.TTLTests {
