@@ -172,7 +172,7 @@ func replaceOnlySrcIp(t *testing.T, dut *ondatra.DUTDevice, policyName string, s
 func replaceOnlyProtocol(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
 	t.Helper()
 	seq_id := uint32(SeqID)
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Rule(seq_id).Ipv4().Protocol().Config(), oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
+	gnmi.Replace[oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4_Protocol_Union](t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Rule(seq_id).Ipv4().Protocol().Config(), oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
 }
 func replaceSrcIpRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string, SeqID uint32) {
 
@@ -957,7 +957,7 @@ func testModifyMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Modify match field for protocol IPinIP class
 	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(1).Config())
-	gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().Protocol().Config(), oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
+	gnmi.Replace[oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4_Protocol_Union](t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().Protocol().Config(), oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
 
 	// Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -1006,7 +1006,7 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 	})
 
 	t.Run("Add protocol", func(t *testing.T) {
-		gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().Protocol().Config(), oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
+		gnmi.Replace[oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4_Protocol_Union](t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(2).Ipv4().Protocol().Config(), oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
 		defer configBasePBR(t, args.dut)
 
 		// Create Traffic and check traffic
