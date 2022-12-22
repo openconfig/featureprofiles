@@ -60,17 +60,18 @@ var (
 	FrameSize = pflag.Uint32("frame_size", 1024, "The traffic flow frame size")
 
 	// flags to selectively run a set of P4RT PacketIO tests
-	GDPTests          = flag.Bool("run_gdp_tests", false, "Run only GDP tests")
-	LLDPTests         = flag.Bool("run_lldp_tests", false, "Run only LLDP tests")
-	TTLTests          = flag.Bool("run_ttl_tests", false, "Run only TTL tests")
-	TTL1v4            = flag.Bool("run_ttl_1_v4_tests", true, "Run only IPv4 TTL 1 tests") // default run TTL1 V4
-	TTL1v6            = flag.Bool("run_ttl_1_v6_tests", false, "Run only IPv6 TTL 1 tests")
-	TTL1n2v4          = flag.Bool("run_ttl_1n2_v4_tests", false, "Run only IPv4 TTL 1, 2 tests")
-	TTL1n2v6          = flag.Bool("run_ttl_1n2_v6_tests", false, "Run only IPv6 TTL 1, 2 tests")
-	TTL1v4n6          = flag.Bool("run_ttl_1_v4n6_tests", false, "Run IPv4 and IPv6 TTL 1 tests")
-	TTL1n2v4n6        = flag.Bool("run_ttl_1n2_v4n6_tests", false, "Run IPv4 and IPv6 TTL 1, 2 tests")
-	ScaleTests        = flag.Bool("skip_scale_tests", true, "Run only scale tests") // skip scale tests
-	PbrPrecommitTests = flag.Bool("skip_hw_module", true, "Run only hw-module")
+	GDPTests   = flag.Bool("run_gdp_tests", false, "Run only GDP tests")
+	LLDPTests  = flag.Bool("run_lldp_tests", false, "Run only LLDP tests")
+	TTLTests   = flag.Bool("run_ttl_tests", false, "Run only TTL tests")
+	TTL1v4     = flag.Bool("run_ttl_1_v4_tests", true, "Run only IPv4 TTL 1 tests") // default run TTL1 V4
+	TTL1v6     = flag.Bool("run_ttl_1_v6_tests", false, "Run only IPv6 TTL 1 tests")
+	TTL1n2v4   = flag.Bool("run_ttl_1n2_v4_tests", false, "Run only IPv4 TTL 1, 2 tests")
+	TTL1n2v6   = flag.Bool("run_ttl_1n2_v6_tests", false, "Run only IPv6 TTL 1, 2 tests")
+	TTL1v4n6   = flag.Bool("run_ttl_1_v4n6_tests", false, "Run IPv4 and IPv6 TTL 1 tests")
+	TTL1n2v4n6 = flag.Bool("run_ttl_1n2_v4n6_tests", false, "Run IPv4 and IPv6 TTL 1, 2 tests")
+	ScaleTests = flag.Bool("skip_scale_tests", true, "Run only scale tests") // skip scale tests
+
+	PbrPrecommitTests = flag.Bool("skip_hw_module", true, "Run only hw-module") // Pbr
 )
 
 // GRIBICheck struct
