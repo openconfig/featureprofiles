@@ -7,6 +7,7 @@ import (
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
@@ -43,7 +44,7 @@ func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDev
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
 	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
 		t.Errorf("Flow %s is not working as expected", flow.Name())
 	}
@@ -91,7 +92,7 @@ func testTrafficSrc(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
 
 	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
 		t.Fatalf("Flow %s is not working as expected", flow.Name())
@@ -131,7 +132,7 @@ func testTrafficSrcV6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
 
 	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
 		t.Fatalf("Flow %s is not working as expected", flow.Name())
@@ -172,7 +173,7 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
 	if got := util.CheckTrafficPassViaPortPktCounter(stats); got != expectPass {
 		t.Fatalf("Flow %s is not working as expected", flow.Name())
 	}
@@ -273,9 +274,9 @@ func testTrafficForFlows(t *testing.T, ate *ondatra.ATEDevice, topology *ondatra
 	time.Sleep(60 * time.Second)
 	ate.Traffic().Stop(t)
 
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	t.Log("Packets transmitted by ports: ", ate.Telemetry().InterfaceAny().Counters().OutPkts().Get(t))
-	t.Log("Packets received by ports: ", ate.Telemetry().InterfaceAny().Counters().InPkts().Get(t))
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
+	t.Log("Packets transmitted by ports: ", gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().OutPkts().State()))
+	t.Log("Packets received by ports: ", gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().InPkts().State()))
 	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
 
 	if trafficPass == expectPass {

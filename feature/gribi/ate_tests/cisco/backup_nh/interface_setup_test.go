@@ -283,7 +283,7 @@ func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	intf := isis.GetOrCreateInterface(ifaceName)
-	intf.CircuitType = oc.IsisTypes_CircuitType_POINT_TO_POINT
+	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
 	intf.HelloPadding = 1
 	intf.Passive = ygot.Bool(false)
