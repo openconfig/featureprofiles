@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 // TestBootTime verifies the timestamp that the system was last restarted can
@@ -30,7 +31,7 @@ func TestBootTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	defer observer.RecordYgot(t, "SUBSCRIBE", dut.Telemetry().System().BootTime())
 	t.Run("Subscribe//system/state/boot-time", func(t *testing.T) {
-		bt := dut.Telemetry().System().BootTime().Get(t)
+		bt := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 		if bt < 1640131200000000000 {
 			t.Errorf("Unexpected boot timestamp: got %d; check clock", bt)
 		}

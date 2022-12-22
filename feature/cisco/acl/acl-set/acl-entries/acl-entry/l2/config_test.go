@@ -7,7 +7,8 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func TestMain(m *testing.M) {
@@ -26,12 +27,12 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	bcAclSetAclEntry.Actions.LogAction = oc.E_Acl_LOG_ACTION(0)
 	bcAclSetAclEntryL2 := bcAclSetAclEntry.L2
 	setup.ResetStruct(bcAclSetAclEntryL2, []string{})
-	dut.Config().Acl().Replace(t, bc)
+	gnmi.Replace(t, dut, gnmi.OC().Acl().Config(), bc)
 	return bc
 }
 
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
-	dut.Config().Acl().Delete(t)
+	gnmi.Delete(t, dut, gnmi.OC().Acl().Config())
 }
 func TestDestinationMacMask(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -50,15 +51,15 @@ func TestDestinationMacMask(t *testing.T) {
 			baseConfigAclSetAclEntryL2 := baseConfigAclSetAclEntry.L2
 			*baseConfigAclSetAclEntryL2.DestinationMacMask = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
+			config := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
+			state := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryL2)
+				gnmi.Replace(t, dut, config.Config(), baseConfigAclSetAclEntryL2)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.DestinationMacMask != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac-mask: got %v, want %v", configGot, input)
 					}
@@ -66,16 +67,16 @@ func TestDestinationMacMask(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.DestinationMacMask != input {
 						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac-mask: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).DestinationMacMask != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.DestinationMacMask != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac-mask fail: got %v", qs)
 					}
 				}
@@ -101,15 +102,15 @@ func TestEthertype(t *testing.T) {
 			baseConfigAclSetAclEntryL2 := baseConfigAclSetAclEntry.L2
 			baseConfigAclSetAclEntryL2.Ethertype = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
+			config := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
+			state := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryL2)
+				gnmi.Replace(t, dut, config.Config(), baseConfigAclSetAclEntryL2)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if configGot.Ethertype != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype: got %v, want %v", configGot, input)
 					}
@@ -117,16 +118,16 @@ func TestEthertype(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if stateGot.Ethertype != input {
 						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).Ethertype != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Ethertype != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype fail: got %v", qs)
 					}
 				}
@@ -151,15 +152,15 @@ func TestDestinationMac(t *testing.T) {
 			baseConfigAclSetAclEntryL2 := baseConfigAclSetAclEntry.L2
 			*baseConfigAclSetAclEntryL2.DestinationMac = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
+			config := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
+			state := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryL2)
+				gnmi.Replace(t, dut, config.Config(), baseConfigAclSetAclEntryL2)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.DestinationMac != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac: got %v, want %v", configGot, input)
 					}
@@ -167,16 +168,16 @@ func TestDestinationMac(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.DestinationMac != input {
 						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).DestinationMac != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.DestinationMac != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac fail: got %v", qs)
 					}
 				}
@@ -201,15 +202,15 @@ func TestSourceMac(t *testing.T) {
 			baseConfigAclSetAclEntryL2 := baseConfigAclSetAclEntry.L2
 			*baseConfigAclSetAclEntryL2.SourceMac = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
+			config := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
+			state := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryL2)
+				gnmi.Replace(t, dut, config.Config(), baseConfigAclSetAclEntryL2)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.SourceMac != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/source-mac: got %v, want %v", configGot, input)
 					}
@@ -217,16 +218,16 @@ func TestSourceMac(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.SourceMac != input {
 						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/source-mac: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).SourceMac != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.SourceMac != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/source-mac fail: got %v", qs)
 					}
 				}
@@ -251,15 +252,15 @@ func TestSourceMacMask(t *testing.T) {
 			baseConfigAclSetAclEntryL2 := baseConfigAclSetAclEntry.L2
 			*baseConfigAclSetAclEntryL2.SourceMacMask = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
+			config := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
+			state := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).L2()
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryL2)
+				gnmi.Replace(t, dut, config.Config(), baseConfigAclSetAclEntryL2)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.SourceMacMask != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/source-mac-mask: got %v, want %v", configGot, input)
 					}
@@ -267,16 +268,16 @@ func TestSourceMacMask(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.SourceMacMask != input {
 						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/source-mac-mask: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).SourceMacMask != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.SourceMacMask != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/source-mac-mask fail: got %v", qs)
 					}
 				}

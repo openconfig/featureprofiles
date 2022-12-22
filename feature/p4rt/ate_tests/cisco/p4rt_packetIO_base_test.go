@@ -13,6 +13,7 @@ import (
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -276,7 +277,7 @@ func TestP4RTPacketIO(t *testing.T) {
 		}
 
 		for _, tt := range LLDPEndabledTestcases {
-			dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(true))
+			gnmi.Update(t, dut, gnmi.OC().Lldp().Enabled().Config(), *ygot.Bool(true))
 			// Each case will run with its own gRIBI fluent client.
 			t.Run(tt.name, func(t *testing.T) {
 				t.Logf("Name: %s", tt.name)
@@ -284,7 +285,7 @@ func TestP4RTPacketIO(t *testing.T) {
 
 				tt.fn(ctx, t, args)
 			})
-			dut.Config().Lldp().Enabled().Update(t, *ygot.Bool(false))
+			gnmi.Update(t, dut, gnmi.OC().Lldp().Enabled().Config(), *ygot.Bool(false))
 		}
 	}
 	if *ciscoFlags.TTLTests {

@@ -10,7 +10,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 )
 
@@ -29,14 +30,14 @@ func TestInterfaceIdAtContainer(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 			*baseConfigInterface.InterfaceId = input
 
-			config := dut.Config().Qos().Interface(*baseConfigInterface.InterfaceId)
+			config := gnmi.OC().Qos().Interface(*baseConfigInterface.InterfaceId)
 
 			t.Run("Replace container", func(t *testing.T) {
-				config.Update(t, baseConfigInterface)
+				gnmi.Update(t, dut, config.Config(), baseConfigInterface)
 				// config.Replace(t, baseConfigInterface)
 			})
 			t.Run("Get container", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigInterface); diff != "" {
 					t.Errorf("Config /qos/interfaces/interface/config/interface-id: got %v", diff)
 				}
@@ -55,8 +56,8 @@ func TestDeleteClassifier(t *testing.T) {
 
 	t.Run("Delete a Classifier Policy attached to an interface", func(t *testing.T) {
 		if got := testt.ExpectFatal(t, func(t testing.TB) {
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name)
-			config.Delete(t)
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name)
+			gnmi.Delete(t, dut, config.Config())
 		}); got == "" {
 			t.Errorf("Delete did not fail fatally as expected")
 		}
@@ -79,13 +80,13 @@ func TestDeleteLastClassMap(t *testing.T) {
 		return keys
 	}()
 	for _, termId := range termIds[1:] {
-		config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(termId)
-		config.Delete(t)
+		config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(termId)
+		gnmi.Delete(t, dut, config.Config())
 	}
 	t.Run("Delete the last class-map from pmap attached to interface", func(t *testing.T) {
 		if got := testt.ExpectFatal(t, func(t testing.TB) {
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(termIds[0])
-			config.Delete(t)
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(termIds[0])
+			gnmi.Delete(t, dut, config.Config())
 		}); got == "" {
 			t.Errorf("Delete did not fail fatally as expected")
 		}
@@ -102,18 +103,18 @@ func TestDeleteOneQueue(t *testing.T) {
 	baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 	baseConfigSchedulerPolicyScheduler := setup.GetAnyValue(baseConfigSchedulerPolicy.Scheduler)
 	baseConfigSchedulerPolicySchedulerInput := baseConfigSchedulerPolicyScheduler.Input[queuNameInput]
-	config := dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).Input(*baseConfigSchedulerPolicySchedulerInput.Id)
+	config := gnmi.OC().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Scheduler(*baseConfigSchedulerPolicyScheduler.Sequence).Input(*baseConfigSchedulerPolicySchedulerInput.Id)
 
 	t.Run(fmt.Sprintf("Delete Queue %s", queuNameInput), func(t *testing.T) {
-		config.Delete(t)
+		gnmi.Delete(t, dut, config.Config())
 		// Lookup is not working after Delete - guess Nishant opened a bug for this
 		// if configGot := config.Lookup(t); configGot != nil {
 		// 	t.Errorf("Delete fail: got %+v", configGot)
 		// }
 	})
 	t.Run(fmt.Sprintf("Add back Queue %s", queuNameInput), func(t *testing.T) {
-		config.Update(t, baseConfigSchedulerPolicySchedulerInput)
-		configGot := config.Get(t)
+		gnmi.Update(t, dut, config.Config(), baseConfigSchedulerPolicySchedulerInput)
+		configGot := gnmi.GetConfig(t, dut, config.Config())
 		if diff := cmp.Diff(configGot, baseConfigSchedulerPolicySchedulerInput); diff != "" {
 			t.Errorf("Get Config BaseConfig SchedulerPolicy Scheduler Input: %+v", diff)
 		}
@@ -122,7 +123,7 @@ func TestDeleteOneQueue(t *testing.T) {
 	// pull stats and verify
 	baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 	t.Run(fmt.Sprintf("Get Interface Output Queue Telemetry %s %s", *baseConfigInterface.InterfaceId, queuNameInput), func(t *testing.T) {
-		got := dut.Telemetry().Qos().Interface(*baseConfigInterface.InterfaceId).Output().Queue(queuNameInput).Get(t)
+		got := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(*baseConfigInterface.InterfaceId).Output().Queue(queuNameInput).State())
 		t.Run("Verify Transmit-Octets", func(t *testing.T) {
 			if !(*got.TransmitOctets == 0) {
 				t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
@@ -152,16 +153,16 @@ func TestDeleteClassifierScheduler(t *testing.T) {
 
 	t.Run("Delete a Classifier Policy attached to an interface", func(t *testing.T) {
 		if got := testt.ExpectFatal(t, func(t testing.TB) {
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name)
-			config.Delete(t)
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name)
+			gnmi.Delete(t, dut, config.Config())
 		}); got == "" {
 			t.Errorf("Delete did not fail fatally as expected")
 		}
 	})
 	t.Run("Delete a Scheduler Policy attached to an interface", func(t *testing.T) {
 		if got := testt.ExpectFatal(t, func(t testing.TB) {
-			config := dut.Config().Qos().Classifier(*baseConfigSchedulerPolicy.Name)
-			config.Delete(t)
+			config := gnmi.OC().Qos().Classifier(*baseConfigSchedulerPolicy.Name)
+			gnmi.Delete(t, dut, config.Config())
 		}); got == "" {
 			t.Errorf("Delete did not fail fatally as expected")
 		}
@@ -192,12 +193,12 @@ func TestDeleteSharedQueues(t *testing.T) {
 		baseConfigSchedulerPolicy = setup.GetAnyValue(baseConfig.SchedulerPolicy)
 		*baseConfigSchedulerPolicy.Name = intfsch.schedulerPolicyName
 		baseConfig.SchedulerPolicy[*baseConfigSchedulerPolicy.Name] = baseConfigSchedulerPolicy
-		dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Update(t, baseConfigSchedulerPolicy)
+		gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Config(), baseConfigSchedulerPolicy)
 		var baseConfigInterface = new(oc.Qos_Interface)
 		baseConfigInterface = setup.GetAnyValue(baseConfig.Interface)
 		*baseConfigInterface.InterfaceId = intfsch.interfaceId
 		baseConfig.Interface[*baseConfigInterface.InterfaceId] = baseConfigInterface
-		dut.Config().Qos().Interface(*baseConfigInterface.InterfaceId).Update(t, baseConfigInterface)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Interface(*baseConfigInterface.InterfaceId).Config(), baseConfigInterface)
 	}
 
 	testqueuNameInput := []string{"tc1", "tc2", "tc3"}
@@ -239,10 +240,10 @@ func TestDetachSchedulerPolicy(t *testing.T) {
 	for _, intfsch := range InterfaceSchedulerPolicyInfo {
 		baseConfigSchedulerPolicy := setup.GetAnyValue(baseConfig.SchedulerPolicy)
 		*baseConfigSchedulerPolicy.Name = intfsch.schedulerPolicyName
-		dut.Config().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Update(t, baseConfigSchedulerPolicy)
+		gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*baseConfigSchedulerPolicy.Name).Config(), baseConfigSchedulerPolicy)
 		baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 		*baseConfigInterface.InterfaceId = intfsch.interfaceId
-		dut.Config().Qos().Interface(*baseConfigInterface.InterfaceId).Update(t, baseConfigInterface)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Interface(*baseConfigInterface.InterfaceId).Config(), baseConfigInterface)
 	}
 
 	t.Run("Detaching Scheduler Policies", func(t *testing.T) {

@@ -8,7 +8,8 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func TestMain(m *testing.M) {
@@ -28,16 +29,16 @@ func TestTargetGroupAtContainer(t *testing.T) {
 			baseConfigClassifierTermActions := baseConfigClassifierTerm.Actions
 			// *baseConfigClassifierTermActions.TargetGroup = input
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Actions()
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Actions()
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Actions()
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Actions()
 
 			// "error-message": "Edit/Update request should have Conditions/Classifier_config_type"
 			t.Run("Replace container", func(t *testing.T) {
 				t.Skip()
-				config.Replace(t, baseConfigClassifierTermActions)
+				gnmi.Replace(t, dut, config.Config(), baseConfigClassifierTermActions)
 			})
 			t.Run("Get container", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTermActions); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/config/target-group: %v", diff)
 				}
@@ -45,7 +46,7 @@ func TestTargetGroupAtContainer(t *testing.T) {
 			// No sysdb paths found for yang path qos/classifiers/classifier/terms/term/actions
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if diff := cmp.Diff(*stateGot, *baseConfigClassifierTermActions); diff != "" {
 						t.Errorf("State /qos/classifiers/classifier/terms/term/actions/config/target-group: %v", diff)
 					}
@@ -54,8 +55,8 @@ func TestTargetGroupAtContainer(t *testing.T) {
 			// "error-message": "Edit/Update request should have Conditions/Classifier_config_type"
 			t.Run("Delete container", func(t *testing.T) {
 				t.Skip()
-				config.Delete(t)
-				if qs := config.Lookup(t); qs != nil {
+				gnmi.Delete(t, dut, config.Config())
+				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs != nil {
 					t.Errorf("Delete /qos/classifiers/classifier/terms/term/actions/config/target-group fail: got %v", qs)
 				}
 			})
@@ -74,16 +75,16 @@ func TestTargetGroupAtLeaf(t *testing.T) {
 			baseConfigClassifierTerm := setup.GetAnyValue(baseConfigClassifier.Term)
 			// *baseConfigClassifierTerm.Actions.TargetGroup = input
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Actions().TargetGroup()
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Actions().TargetGroup()
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Actions().TargetGroup()
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Actions().TargetGroup()
 
 			// "error-message": "Edit/Update request should have Conditions/Classifier_config_type"
 			t.Run("Replace leaf", func(t *testing.T) {
 				t.Skip()
-				config.Replace(t, input)
+				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			t.Run("Get leaf", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if configGot != *baseConfigClassifierTerm.Actions.TargetGroup {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/config/target-group: got %v, want %v", configGot, input)
 				}
@@ -91,7 +92,7 @@ func TestTargetGroupAtLeaf(t *testing.T) {
 			// No sysdb paths found for yang path qos/classifiers/classifier/terms/term/actions/state/target-group
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if stateGot != input {
 						t.Errorf("State /qos/classifiers/classifier/terms/term/actions/state/target-group: got %v, want %v", stateGot, input)
 					}
@@ -100,8 +101,8 @@ func TestTargetGroupAtLeaf(t *testing.T) {
 			// "error-message": "Edit/Update request should have Conditions/Classifier_config_type"
 			t.Run("Delete leaf", func(t *testing.T) {
 				t.Skip()
-				config.Delete(t)
-				if qs := config.Lookup(t); qs != nil {
+				gnmi.Delete(t, dut, config.Config())
+				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs != nil {
 					t.Errorf("Delete /qos/classifiers/classifier/terms/term/actions/config/target-group fail: got %v", qs)
 				}
 			})

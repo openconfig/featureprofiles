@@ -23,7 +23,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gribigo/server"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -104,13 +105,13 @@ func testAddEntriesAcrossMultipleVrfs(t *testing.T, args *testArgs) {
 func TestGRIBIAPI(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(*ciscoFlags.NonDefaultNetworkInstance)
-	ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default")
-	dut.Config().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Replace(t, ni1)
+	ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default")
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Config(), ni1)
 	ni2 := d.GetOrCreateNetworkInstance(*ciscoFlags.NonDefaultNetworkInstance)
-	ni2.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default")
-	dut.Config().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Replace(t, ni2)
+	ni2.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default")
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Config(), ni2)
 	ciscoFlags.GRIBIFIBCheck = ygot.Bool(true)
 	//scale := uint(20000)
 	//ciscoFlags.GRIBIScale = & scale

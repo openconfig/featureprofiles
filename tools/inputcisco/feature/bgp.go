@@ -9,7 +9,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 // ConfigBGP Configures BGP as per input file
@@ -23,7 +24,7 @@ func ConfigBGP(dev *ondatra.DUTDevice, t *testing.T, bgp *proto.Input_BGP, input
 			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 		}: model,
 	}
-	dev.Config().NetworkInstance(bgp.Vrf).Update(t, &request)
+	gnmi.Update(t, dev, gnmi.OC().NetworkInstance(bgp.Vrf).Config(), &request)
 	return nil
 
 }
@@ -33,7 +34,7 @@ func UnConfigBGP(dev *ondatra.DUTDevice, t *testing.T, bgp *proto.Input_BGP) err
 	if bgp.Vrf == "" {
 		bgp.Vrf = "default"
 	}
-	dev.Config().NetworkInstance(bgp.Vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Delete(t)
+	gnmi.Delete(t, dev, gnmi.OC().NetworkInstance(bgp.Vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Config())
 	return nil
 
 }

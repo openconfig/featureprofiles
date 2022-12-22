@@ -9,7 +9,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -20,20 +21,20 @@ func TestMain(m *testing.M) {
 
 func TestSchedReplaceSched(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	//Replace at /qos/schedulerpolicy/scheduler(seq)
 	schedqueues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 
 	var ind uint64
 	ind = 0
@@ -44,13 +45,13 @@ func TestSchedReplaceSched(t *testing.T) {
 		input.Queue = ygot.String(schedqueue)
 		ind += 1
 	}
-	Config := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
-	Config.Replace(t, schedule)
-	ConfigGot := Config.Get(t)
+	Config := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
+	gnmi.Replace(t, dut, Config.Config(), schedule)
+	ConfigGot := gnmi.GetConfig(t, dut, Config.Config())
 	if diff := cmp.Diff(*ConfigGot, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
-	ConfigGotQos := dut.Config().Qos().Get(t)
+	ConfigGotQos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
 	if diff := cmp.Diff(*ConfigGotQos, *qos); diff != "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
@@ -60,20 +61,20 @@ func TestSchedReplaceSched(t *testing.T) {
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	configIntf := dut.Config().Qos().Interface(*schedinterface.InterfaceId)
-	configIntf.Update(t, schedinterface)
-	configGet := configIntf.Get(t)
+	configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
+	gnmi.Update(t, dut, configIntf.Config(), schedinterface)
+	configGet := gnmi.GetConfig(t, dut, configIntf.Config())
 	if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	ConfigGotQosRep := dut.Config().Qos().Get(t)
+	ConfigGotQosRep := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
 	if diff := cmp.Diff(*ConfigGotQosRep, *qos); diff != "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
 	schedqueuesrep := []string{"tc7", "tc6", "tc5", "tc4", "tc3"}
 	schedulerpolrep := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedulerep := schedulerpolrep.GetOrCreateScheduler(1)
-	schedulerep.Priority = telemetry.Scheduler_Priority_STRICT
+	schedulerep.Priority = oc.Scheduler_Priority_STRICT
 
 	var indrep uint64
 	indrep = 0
@@ -84,9 +85,9 @@ func TestSchedReplaceSched(t *testing.T) {
 		input.Queue = ygot.String(schedqueuerep)
 		indrep += 1
 	}
-	ConfigRep := dut.Config().Qos().SchedulerPolicy(*schedulerpolrep.Name).Scheduler(1)
-	ConfigRep.Replace(t, schedulerep)
-	ConfigRepGet := ConfigRep.Get(t)
+	ConfigRep := gnmi.OC().Qos().SchedulerPolicy(*schedulerpolrep.Name).Scheduler(1)
+	gnmi.Replace(t, dut, ConfigRep.Config(), schedulerep)
+	ConfigRepGet := gnmi.GetConfig(t, dut, ConfigRep.Config())
 	if diff := cmp.Diff(*ConfigRepGet, *schedulerep); diff != "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
@@ -95,19 +96,19 @@ func TestSchedReplaceSched(t *testing.T) {
 
 func TestSchedSchedReplaceSchedPolDelQueue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	schedqueues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	//schedule.Priority = telemetry.E_Scheduler_Priority(*ygot.Int64(1))
 
 	var ind uint64
@@ -119,9 +120,9 @@ func TestSchedSchedReplaceSchedPolDelQueue(t *testing.T) {
 		input.Queue = ygot.String(schedqueue)
 		ind += 1
 	}
-	configsched := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name)
-	configsched.Replace(t, schedulerpol)
-	configGotsched := configsched.Get(t)
+	configsched := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
+	gnmi.Replace(t, dut, configsched.Config(), schedulerpol)
+	configGotsched := gnmi.GetConfig(t, dut, configsched.Config())
 	if diff := cmp.Diff(*configGotsched, *schedulerpol); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -133,16 +134,16 @@ func TestSchedSchedReplaceSchedPolDelQueue(t *testing.T) {
 	//schedinterface.Output.SchedulerPolicy.Name = ygot.String("eg_policy1111")
 	//dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name().Update(t, "eg_policy1111")
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	configIntf := dut.Config().Qos().Interface(*schedinterface.InterfaceId)
-	configIntf.Update(t, schedinterface)
-	configGet := configIntf.Get(t)
+	configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
+	gnmi.Update(t, dut, configIntf.Config(), schedinterface)
+	configGet := gnmi.GetConfig(t, dut, configIntf.Config())
 	if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	config := dut.Config().Qos().SchedulerPolicy("eg_policy1111").Scheduler(1).Input("tc5")
+	config := gnmi.OC().Qos().SchedulerPolicy("eg_policy1111").Scheduler(1).Input("tc5")
 	t.Run(" Delete the queue from Input queue", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			config.Delete(t) //catch the error  as it is expected and absorb the panic.
+			gnmi.Delete(t, dut, config.Config()) //catch the error  as it is expected and absorb the panic.
 		}); errMsg != nil {
 			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 		} else {
@@ -155,19 +156,19 @@ func TestSchedSchedReplaceSchedPolDelQueue(t *testing.T) {
 func TestSchedUpdate(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	schedqueues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	//schedule.Priority = telemetry.E_Scheduler_Priority(*ygot.Int64(1))
 
 	var ind uint64
@@ -179,9 +180,9 @@ func TestSchedUpdate(t *testing.T) {
 		input.Queue = ygot.String(schedqueue)
 		ind += 1
 	}
-	configsched := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
-	configsched.Update(t, schedule)
-	configGotsched := configsched.Get(t)
+	configsched := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
+	gnmi.Update(t, dut, configsched.Config(), schedule)
+	configGotsched := gnmi.GetConfig(t, dut, configsched.Config())
 	if diff := cmp.Diff(*configGotsched, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -193,9 +194,9 @@ func TestSchedUpdate(t *testing.T) {
 	//schedinterface.Output.SchedulerPolicy.Name = ygot.String("eg_policy1111")
 	//dut.Config().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name().Update(t, "eg_policy1111")
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	configIntf := dut.Config().Qos().Interface(*schedinterface.InterfaceId)
-	configIntf.Update(t, schedinterface)
-	configGet := configIntf.Get(t)
+	configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
+	gnmi.Update(t, dut, configIntf.Config(), schedinterface)
+	configGet := gnmi.GetConfig(t, dut, configIntf.Config())
 	if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 		t.Errorf("Config Interface fail: \n%v", diff)
 	}
@@ -205,19 +206,19 @@ func TestSchedUpdate(t *testing.T) {
 func TestMultipeSchedUpdateInput(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -228,9 +229,9 @@ func TestMultipeSchedUpdateInput(t *testing.T) {
 		ind += 1
 
 	}
-	configprior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
-	configprior.Update(t, schedule)
-	configGotprior := configprior.Get(t)
+	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
+	gnmi.Update(t, dut, configprior.Config(), schedule)
+	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -238,11 +239,11 @@ func TestMultipeSchedUpdateInput(t *testing.T) {
 	inputupd.Id = ygot.String("tc5")
 	inputupd.Weight = ygot.Uint64(5)
 	inputupd.Queue = ygot.String("tc5")
-	dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input("tc5").Update(t, inputupd)
+	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input("tc5").Config(), inputupd)
 
 	nonpriorqueues := []string{"tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -251,17 +252,17 @@ func TestMultipeSchedUpdateInput(t *testing.T) {
 		inputwrr.Queue = ygot.String(wrrqueue)
 		inputwrr.Weight = ygot.Uint64(60 - weight)
 		weight += 10
-		configInputwrr := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
-		configInputwrr.Update(t, inputwrr)
-		configGotwrr := configInputwrr.Get(t)
+		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
+		gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
+		configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
 		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
 
 	}
-	confignonprior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
+	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	// confignonprior.Update(t, schedulenonprior)
-	configGotnonprior := confignonprior.Get(t)
+	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -270,9 +271,9 @@ func TestMultipeSchedUpdateInput(t *testing.T) {
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	configIntf := dut.Config().Qos().Interface(*schedinterface.InterfaceId)
-	configIntf.Update(t, schedinterface)
-	configGet := configIntf.Get(t)
+	configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
+	gnmi.Update(t, dut, configIntf.Config(), schedinterface)
+	configGet := gnmi.GetConfig(t, dut, configIntf.Config())
 	if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 		t.Errorf("Config Interface fail: \n%v", diff)
 	}
@@ -281,14 +282,14 @@ func TestMultipeSchedUpdateInput(t *testing.T) {
 
 func TestMultipeSchedReplaceSchuduler(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	//Replace with multiple sequence number at /qos/schedulerpol/schduler(seq)
 
@@ -296,7 +297,7 @@ func TestMultipeSchedReplaceSchuduler(t *testing.T) {
 		priorqueues := []string{"tc7", "tc6"}
 		schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 		schedule := schedulerpol.GetOrCreateScheduler(1)
-		schedule.Priority = telemetry.Scheduler_Priority_STRICT
+		schedule.Priority = oc.Scheduler_Priority_STRICT
 		var ind uint64
 		ind = 0
 		for _, schedqueue := range priorqueues {
@@ -308,17 +309,17 @@ func TestMultipeSchedReplaceSchuduler(t *testing.T) {
 			ind += 1
 
 		}
-		ConfigSchedule := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
+		ConfigSchedule := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
 		t.Logf("Configuring schduler with sequence one")
-		ConfigSchedule.Replace(t, schedule)
-		ConfigGetSchedule := ConfigSchedule.Get(t)
+		gnmi.Replace(t, dut, ConfigSchedule.Config(), schedule)
+		ConfigGetSchedule := gnmi.GetConfig(t, dut, ConfigSchedule.Config())
 		if diff := cmp.Diff(*ConfigGetSchedule, *schedule); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
 
 		nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 		schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-		schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+		schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 		var weight uint64
 		weight = 0
 		for _, wrrqueue := range nonpriorqueues {
@@ -329,10 +330,10 @@ func TestMultipeSchedReplaceSchuduler(t *testing.T) {
 			weight += 10
 
 		}
-		configScheNonPrior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
+		configScheNonPrior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 		t.Logf("Configuring schduler with sequence two")
-		configScheNonPrior.Replace(t, schedulenonprior)
-		configGotNonprior := configScheNonPrior.Get(t)
+		gnmi.Replace(t, dut, configScheNonPrior.Config(), schedulenonprior)
+		configGotNonprior := gnmi.GetConfig(t, dut, configScheNonPrior.Config())
 		if diff := cmp.Diff(*configGotNonprior, *schedulenonprior); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -346,25 +347,25 @@ func TestMultipeSchedReplaceSchuduler(t *testing.T) {
 		schedinterfaceout := schedinterface.GetOrCreateOutput()
 		scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 		scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-		configIntf := dut.Config().Qos().Interface(*schedinterface.InterfaceId)
-		configIntf.Update(t, schedinterface)
-		configGet := configIntf.Get(t)
+		configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
+		gnmi.Update(t, dut, configIntf.Config(), schedinterface)
+		configGet := gnmi.GetConfig(t, dut, configIntf.Config())
 		if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 			t.Errorf("Config Interface fail: \n%v", diff)
 		}
-		ConfigGotQos := dut.Config().Qos().Get(t)
+		ConfigGotQos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
 		if diff := cmp.Diff(*ConfigGotQos, *qos); diff != "" {
 			t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 		}
 	})
 	t.Run("Config/Replace existing Configs at scheduler sequence", func(t *testing.T) {
 		dut1 := ondatra.DUT(t, "dut")
-		d1 := &telemetry.Device{}
+		d1 := &oc.Root{}
 		qosrep := d1.GetOrCreateQos()
 		schedulerpolred := qosrep.GetOrCreateSchedulerPolicy("eg_policy1111")
 		nonpriorqueuesrep := []string{"tc4", "tc3", "tc2"}
 		schedulenonpriorrep := schedulerpolred.GetOrCreateScheduler(2)
-		schedulenonpriorrep.Priority = telemetry.Scheduler_Priority_UNSET
+		schedulenonpriorrep.Priority = oc.Scheduler_Priority_UNSET
 		var weightrep uint64
 		weightrep = 0
 		for _, wrrqueuered := range nonpriorqueuesrep {
@@ -375,13 +376,13 @@ func TestMultipeSchedReplaceSchuduler(t *testing.T) {
 			weightrep += 10
 
 		}
-		configScheNonPriorRep := dut1.Config().Qos().SchedulerPolicy("eg_policy1111").Scheduler(2)
-		configScheNonPriorRep.Replace(t, schedulenonpriorrep)
-		configGotNonpriorRep := configScheNonPriorRep.Get(t)
+		configScheNonPriorRep := gnmi.OC().Qos().SchedulerPolicy("eg_policy1111").Scheduler(2)
+		gnmi.Replace(t, dut1, configScheNonPriorRep.Config(), schedulenonpriorrep)
+		configGotNonpriorRep := gnmi.GetConfig(t, dut1, configScheNonPriorRep.Config())
 		if diff := cmp.Diff(*configGotNonpriorRep, *schedulenonpriorrep); diff != "" {
 			t.Errorf("Config Schedule fail after replace: \n%v", diff)
 		}
-		ConfigGotQosRep := dut.Config().Qos().Get(t)
+		ConfigGotQosRep := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
 		if diff := cmp.Diff(*ConfigGotQosRep, *qos); diff == "" {
 			t.Errorf("Replace with config at scheduler not working as expected \n%v", diff)
 		}
@@ -389,14 +390,14 @@ func TestMultipeSchedReplaceSchuduler(t *testing.T) {
 }
 func TestMultipeSchedDelSeqtwo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	//Replace with multiple sequence number at /qos/schedulerpol/schduler(seq)
 
@@ -404,7 +405,7 @@ func TestMultipeSchedDelSeqtwo(t *testing.T) {
 		priorqueues := []string{"tc7", "tc6"}
 		schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 		schedule := schedulerpol.GetOrCreateScheduler(1)
-		schedule.Priority = telemetry.Scheduler_Priority_STRICT
+		schedule.Priority = oc.Scheduler_Priority_STRICT
 		var ind uint64
 		ind = 0
 		for _, schedqueue := range priorqueues {
@@ -416,17 +417,17 @@ func TestMultipeSchedDelSeqtwo(t *testing.T) {
 			ind += 1
 
 		}
-		ConfigSchedule := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
+		ConfigSchedule := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
 		t.Logf("Configuring schduler with sequence one")
-		ConfigSchedule.Replace(t, schedule)
-		ConfigGetSchedule := ConfigSchedule.Get(t)
+		gnmi.Replace(t, dut, ConfigSchedule.Config(), schedule)
+		ConfigGetSchedule := gnmi.GetConfig(t, dut, ConfigSchedule.Config())
 		if diff := cmp.Diff(*ConfigGetSchedule, *schedule); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
 
 		nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 		schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-		schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+		schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 		var weight uint64
 		weight = 0
 		for _, wrrqueue := range nonpriorqueues {
@@ -437,10 +438,10 @@ func TestMultipeSchedDelSeqtwo(t *testing.T) {
 			weight += 10
 
 		}
-		configScheNonPrior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
+		configScheNonPrior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 		t.Logf("Configuring schduler with sequence two")
-		configScheNonPrior.Replace(t, schedulenonprior)
-		configGotNonprior := configScheNonPrior.Get(t)
+		gnmi.Replace(t, dut, configScheNonPrior.Config(), schedulenonprior)
+		configGotNonprior := gnmi.GetConfig(t, dut, configScheNonPrior.Config())
 		if diff := cmp.Diff(*configGotNonprior, *schedulenonprior); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -449,23 +450,23 @@ func TestMultipeSchedDelSeqtwo(t *testing.T) {
 		schedinterfaceout := schedinterface.GetOrCreateOutput()
 		scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 		scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-		configIntf := dut.Config().Qos().Interface(*schedinterface.InterfaceId)
-		configIntf.Update(t, schedinterface)
-		configGet := configIntf.Get(t)
+		configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
+		gnmi.Update(t, dut, configIntf.Config(), schedinterface)
+		configGet := gnmi.GetConfig(t, dut, configIntf.Config())
 		if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 			t.Errorf("Config Interface fail: \n%v", diff)
 		}
-		ConfigGotQos := dut.Config().Qos().Get(t)
+		ConfigGotQos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
 		if diff := cmp.Diff(*ConfigGotQos, *qos); diff != "" {
 			t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 		}
 		t.Logf("Deleting Sequence number 2")
-		configScheNonPrior.Delete(t)
-		ConfigGotQosAfterDel := dut.Config().Qos().Get(t)
+		gnmi.Delete(t, dut, configScheNonPrior.Config())
+		ConfigGotQosAfterDel := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
 		if diff := cmp.Diff(*ConfigGotQosAfterDel, *qos); diff == "" {
 			t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 		}
-		configScheNonPrior.Update(t, schedulenonprior)
+		gnmi.Update(t, dut, configScheNonPrior.Config(), schedulenonprior)
 		if diff := cmp.Diff(*ConfigGotQos, *qos); diff != "" {
 			t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 		}
@@ -475,20 +476,20 @@ func TestMultipeSchedDelSeqtwo(t *testing.T) {
 }
 func TestMultipeSchedDelSeqone(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -500,16 +501,16 @@ func TestMultipeSchedDelSeqone(t *testing.T) {
 		ind += 1
 
 	}
-	ConfigSchedule := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
+	ConfigSchedule := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
 	t.Logf("Configuring schduler with sequence one")
-	ConfigSchedule.Replace(t, schedule)
-	ConfigGetSchedule := ConfigSchedule.Get(t)
+	gnmi.Replace(t, dut, ConfigSchedule.Config(), schedule)
+	ConfigGetSchedule := gnmi.GetConfig(t, dut, ConfigSchedule.Config())
 	if diff := cmp.Diff(*ConfigGetSchedule, *schedule); diff != "" {
 		t.Errorf("Config Input fail: \n%v", diff)
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -520,20 +521,20 @@ func TestMultipeSchedDelSeqone(t *testing.T) {
 		weight += 10
 
 	}
-	configScheNonPrior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
+	configScheNonPrior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	t.Logf("Configuring schduler with sequence two")
-	configScheNonPrior.Replace(t, schedulenonprior)
-	configGotNonprior := configScheNonPrior.Get(t)
+	gnmi.Replace(t, dut, configScheNonPrior.Config(), schedulenonprior)
+	configGotNonprior := gnmi.GetConfig(t, dut, configScheNonPrior.Config())
 	if diff := cmp.Diff(*configGotNonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	ConfigGotQos := dut.Config().Qos().Get(t)
+	ConfigGotQos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
 	if diff := cmp.Diff(*ConfigGotQos, *qos); diff != "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
 	t.Logf("Deleting Sequence number 1")
-	ConfigSchedule.Delete(t)
-	ConfigGotQosAfterDel := dut.Config().Qos().Get(t)
+	gnmi.Delete(t, dut, ConfigSchedule.Config())
+	ConfigGotQosAfterDel := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
 	if diff := cmp.Diff(*ConfigGotQosAfterDel, *qos); diff == "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
@@ -542,17 +543,17 @@ func TestMultipeSchedDelSeqone(t *testing.T) {
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	configIntf := dut.Config().Qos().Interface(*schedinterface.InterfaceId)
+	configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 	ExpectedErrMsg := "does not have traffic-class 7 set to priority 1"
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		configIntf.Update(t, schedinterface) //catch the error  as it is expected and absorb the panic.
+		gnmi.Update(t, dut, configIntf.Config(), schedinterface) //catch the error  as it is expected and absorb the panic.
 	}); errMsg != nil && strings.Contains(*errMsg, ExpectedErrMsg) {
 		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 	} else {
 		t.Errorf("This update should have failed ")
 	}
 
-	ConfigSchedule.Update(t, schedule)
+	gnmi.Update(t, dut, ConfigSchedule.Config(), schedule)
 	if diff := cmp.Diff(*ConfigGetSchedule, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
@@ -561,19 +562,19 @@ func TestMultipeSchedDelSeqone(t *testing.T) {
 
 func TestMultipeSchedPolDelete(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -586,7 +587,7 @@ func TestMultipeSchedPolDelete(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -597,9 +598,9 @@ func TestMultipeSchedPolDelete(t *testing.T) {
 		weight += 10
 
 	}
-	configprior := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name)
-	configprior.Update(t, schedulerpol)
-	configGotprior := configprior.Get(t)
+	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
+	gnmi.Update(t, dut, configprior.Config(), schedulerpol)
+	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedulerpol); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -608,16 +609,16 @@ func TestMultipeSchedPolDelete(t *testing.T) {
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	configIntf := dut.Config().Qos().Interface(*schedinterface.InterfaceId)
-	configIntf.Update(t, schedinterface)
-	configGet := configIntf.Get(t)
+	configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
+	gnmi.Update(t, dut, configIntf.Config(), schedinterface)
+	configGet := gnmi.GetConfig(t, dut, configIntf.Config())
 	if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 		t.Errorf("Config Interface fail: \n%v", diff)
 	}
 	t.Run("Delete the queue 5 ", func(t *testing.T) {
-		dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input("tc5").Delete(t)
+		gnmi.Delete(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input("tc5").Config())
 	})
-	configGotpriorafterDel := configprior.Get(t)
+	configGotpriorafterDel := gnmi.GetConfig(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotpriorafterDel, *schedulerpol); diff == "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -626,31 +627,31 @@ func TestMultipeSchedPolDelete(t *testing.T) {
 		inputafdel.Id = ygot.String("tc5")
 		inputafdel.Queue = ygot.String("tc5")
 		inputafdel.Weight = ygot.Uint64(61)
-		dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input("tc5").Replace(t, inputafdel)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input("tc5").Config(), inputafdel)
 
 	})
 	t.Run("Re add queue  5 ", func(t *testing.T) {
-		dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input("tc4").Weight().Update(t, 55)
+		gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input("tc4").Weight().Config(), 55)
 	})
 
 }
 
 func TestMultipeSchedReplaceSchedPol(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	t.Run("Config/Replace and get  queues at schduler sequences", func(t *testing.T) {
 		priorqueues := []string{"tc7", "tc6"}
 		schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 		schedule := schedulerpol.GetOrCreateScheduler(1)
-		schedule.Priority = telemetry.Scheduler_Priority_STRICT
+		schedule.Priority = oc.Scheduler_Priority_STRICT
 		var ind uint64
 		ind = 0
 		for _, schedqueue := range priorqueues {
@@ -662,7 +663,7 @@ func TestMultipeSchedReplaceSchedPol(t *testing.T) {
 		}
 		nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 		schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-		schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+		schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 		var weight uint64
 		weight = 0
 		for _, wrrqueue := range nonpriorqueues {
@@ -674,26 +675,26 @@ func TestMultipeSchedReplaceSchedPol(t *testing.T) {
 			//configInputwrr := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
 			//configInputwrr.Update(t, inputwrr)
 		}
-		ConfigSchedPol := dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name)
-		ConfigSchedPol.Replace(t, schedulerpol)
-		ConfigSchedPolGet := ConfigSchedPol.Get(t)
+		ConfigSchedPol := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
+		gnmi.Replace(t, dut, ConfigSchedPol.Config(), schedulerpol)
+		ConfigSchedPolGet := gnmi.GetConfig(t, dut, ConfigSchedPol.Config())
 		if diff := cmp.Diff(*ConfigSchedPolGet, *schedulerpol); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 
-		ConfigGotQosRep := dut.Config().Qos().Get(t)
+		ConfigGotQosRep := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
 		if diff := cmp.Diff(*ConfigGotQosRep, *qos); diff != "" {
 			t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 		}
 	})
 	t.Run("Replace the scheduler policy", func(t *testing.T) {
 		dut1 := ondatra.DUT(t, "dut")
-		d1 := &telemetry.Device{}
+		d1 := &oc.Root{}
 		qosrep := d1.GetOrCreateQos()
 		schedulerpolred := qosrep.GetOrCreateSchedulerPolicy("eg_policy1111")
 		nonpriorqueuesrep := []string{"tc4", "tc3", "tc2"}
 		schedulenonpriorrep := schedulerpolred.GetOrCreateScheduler(2)
-		schedulenonpriorrep.Priority = telemetry.Scheduler_Priority_UNSET
+		schedulenonpriorrep.Priority = oc.Scheduler_Priority_UNSET
 		var weightrep uint64
 		weightrep = 0
 		for _, wrrqueuered := range nonpriorqueuesrep {
@@ -704,9 +705,9 @@ func TestMultipeSchedReplaceSchedPol(t *testing.T) {
 			weightrep += 10
 
 		}
-		configScheNonPriorRep := dut1.Config().Qos().SchedulerPolicy("eg_policy1111")
-		configScheNonPriorRep.Replace(t, schedulerpolred)
-		configGotNonpriorRep := configScheNonPriorRep.Get(t)
+		configScheNonPriorRep := gnmi.OC().Qos().SchedulerPolicy("eg_policy1111")
+		gnmi.Replace(t, dut1, configScheNonPriorRep.Config(), schedulerpolred)
+		configGotNonpriorRep := gnmi.GetConfig(t, dut1, configScheNonPriorRep.Config())
 		if diff := cmp.Diff(*configGotNonpriorRep, *schedulerpolred); diff != "" {
 			t.Errorf("Config Schedule fail after replace: \n%v", diff)
 		}
@@ -718,17 +719,17 @@ func TestMultipeSchedReplaceSchedPol(t *testing.T) {
 			schedinterfaceout := schedinterface.GetOrCreateOutput()
 			scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 			scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-			configIntf := dut1.Config().Qos().Interface(*schedinterface.InterfaceId)
+			configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 			ExpectedErrMsg := "does not have traffic-class 7 set to priority 1"
 			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				configIntf.Update(t, schedinterface) //catch the error  as it is expected and absorb the panic.
+				gnmi.Update(t, dut1, configIntf.Config(), schedinterface) //catch the error  as it is expected and absorb the panic.
 			}); errMsg != nil && strings.Contains(*errMsg, ExpectedErrMsg) {
 				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 			} else {
 				t.Errorf("This update should have failed ")
 			}
 
-			ConfigGotQos := dut.Config().Qos().Get(t)
+			ConfigGotQos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
 			if diff := cmp.Diff(*ConfigGotQos, *qos); diff == "" {
 				t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 			}
@@ -742,19 +743,19 @@ func TestMultipeSchedReplaceSchedPol(t *testing.T) {
 
 func TestMultipeSchedDeleteShedPol(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		dut.Config().Qos().Queue(*q1.Name).Update(t, q1)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = telemetry.Scheduler_Priority_STRICT
+	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
@@ -767,7 +768,7 @@ func TestMultipeSchedDeleteShedPol(t *testing.T) {
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
-	schedulenonprior.Priority = telemetry.Scheduler_Priority_UNSET
+	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
@@ -778,18 +779,18 @@ func TestMultipeSchedDeleteShedPol(t *testing.T) {
 		weight += 10
 
 	}
-	configprior := dut.Config().Qos()
-	configprior.Update(t, qos)
-	configGotprior := configprior.Get(t)
+	configprior := gnmi.OC().Qos()
+	gnmi.Update(t, dut, configprior.Config(), qos)
+	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Delete(t)
-	configGotpriorAfterDel := configprior.Get(t)
+	gnmi.Delete(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Config())
+	configGotpriorAfterDel := gnmi.GetConfig(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotpriorAfterDel, *qos); diff == "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Update(t, schedulerpol)
+	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Config(), schedulerpol)
 	if diff := cmp.Diff(*configGotprior, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -804,9 +805,9 @@ func TestMultipeSchedDeleteShedPol(t *testing.T) {
 		schedinterfaceout := schedinterface.GetOrCreateOutput()
 		scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 		scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-		configIntf := dut.Config().Qos().Interface(*schedinterface.InterfaceId)
-		configIntf.Update(t, schedinterface)
-		configGet := configIntf.Get(t)
+		configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
+		gnmi.Update(t, dut, configIntf.Config(), schedinterface)
+		configGet := gnmi.GetConfig(t, dut, configIntf.Config())
 		if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 			t.Errorf("Config Interface fail: \n%v", diff)
 		}

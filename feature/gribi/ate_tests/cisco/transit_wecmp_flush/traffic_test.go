@@ -23,6 +23,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 var (
@@ -158,7 +159,7 @@ func performATEAction(t *testing.T, ateName string, scale int, expectPass bool, 
 	ate.Traffic().Start(t, scaleflow)
 	defer ate.Traffic().Stop(t)
 	time.Sleep(60 * time.Second)
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
 	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold...)
 	if trafficPass == expectPass {
 		t.Log("Traffic works as expected")
@@ -175,9 +176,9 @@ func performATEActionForMultipleFlows(t *testing.T, ateName string, expectPass b
 	ate.Traffic().Start(t, flow...)
 	defer ate.Traffic().Stop(t)
 	time.Sleep(60 * time.Second)
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	t.Log("Packets transmitted by ports: ", ate.Telemetry().InterfaceAny().Counters().OutPkts().Get(t))
-	t.Log("Packets received by ports: ", ate.Telemetry().InterfaceAny().Counters().InPkts().Get(t))
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
+	t.Log("Packets transmitted by ports: ", gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().OutPkts().State()))
+	t.Log("Packets received by ports: ", gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().InPkts().State()))
 	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
 	if trafficPass == expectPass {
 		t.Log("Traffic works as expected")
@@ -210,7 +211,7 @@ func checkTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, flowDuration time.D
 	ate.Traffic().Start(t, flow...)
 	defer ate.Traffic().Stop(t)
 	time.Sleep(flowDuration * time.Second)
-	stats := ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Error("There is stream failing:", strings.Join(lossStream, ","))
@@ -234,7 +235,7 @@ func checkTraffic(t *testing.T, protocl string, ate *ondatra.ATEDevice, expectFa
 	defer ate.Traffic().Stop(t)
 
 	time.Sleep(45 * time.Second)
-	stats := ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 
 	if expectFailure {

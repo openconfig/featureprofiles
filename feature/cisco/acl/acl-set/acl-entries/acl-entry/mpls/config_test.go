@@ -7,7 +7,8 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func TestMain(m *testing.M) {
@@ -50,15 +51,15 @@ func TestStartLabelValue(t *testing.T) {
 			baseConfigAclSetAclEntryMpls := baseConfigAclSetAclEntry.Mpls
 			baseConfigAclSetAclEntryMpls.StartLabelValue = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
+			config := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
+			state := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryMpls)
+				gnmi.Replace(t, dut, config.Config(), baseConfigAclSetAclEntryMpls)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if configGot.StartLabelValue != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/start-label-value: got %v, want %v", configGot, input)
 					}
@@ -66,16 +67,16 @@ func TestStartLabelValue(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if stateGot.StartLabelValue != input {
 						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/start-label-value: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).StartLabelValue != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.StartLabelValue != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/start-label-value fail: got %v", qs)
 					}
 				}
@@ -101,15 +102,15 @@ func TestTrafficClass(t *testing.T) {
 			baseConfigAclSetAclEntryMpls := baseConfigAclSetAclEntry.Mpls
 			*baseConfigAclSetAclEntryMpls.TrafficClass = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
+			config := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
+			state := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryMpls)
+				gnmi.Replace(t, dut, config.Config(), baseConfigAclSetAclEntryMpls)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.TrafficClass != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class: got %v, want %v", configGot, input)
 					}
@@ -117,16 +118,16 @@ func TestTrafficClass(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.TrafficClass != input {
 						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).TrafficClass != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.TrafficClass != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class fail: got %v", qs)
 					}
 				}
@@ -152,15 +153,15 @@ func TestEndLabelValue(t *testing.T) {
 			baseConfigAclSetAclEntryMpls := baseConfigAclSetAclEntry.Mpls
 			baseConfigAclSetAclEntryMpls.EndLabelValue = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
+			config := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
+			state := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryMpls)
+				gnmi.Replace(t, dut, config.Config(), baseConfigAclSetAclEntryMpls)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if configGot.EndLabelValue != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/end-label-value: got %v, want %v", configGot, input)
 					}
@@ -168,16 +169,16 @@ func TestEndLabelValue(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if stateGot.EndLabelValue != input {
 						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/end-label-value: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).EndLabelValue != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.EndLabelValue != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/end-label-value fail: got %v", qs)
 					}
 				}
@@ -203,15 +204,15 @@ func TestTtlValue(t *testing.T) {
 			baseConfigAclSetAclEntryMpls := baseConfigAclSetAclEntry.Mpls
 			*baseConfigAclSetAclEntryMpls.TtlValue = input
 
-			config := dut.Config().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
-			state := dut.Telemetry().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
+			config := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
+			state := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Mpls()
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigAclSetAclEntryMpls)
+				gnmi.Replace(t, dut, config.Config(), baseConfigAclSetAclEntryMpls)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.TtlValue != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value: got %v, want %v", configGot, input)
 					}
@@ -219,16 +220,16 @@ func TestTtlValue(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.TtlValue != input {
 						t.Errorf("State /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).TtlValue != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.TtlValue != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value fail: got %v", qs)
 					}
 				}

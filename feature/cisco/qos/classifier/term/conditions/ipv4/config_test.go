@@ -8,7 +8,8 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -37,11 +38,11 @@ func TestDscpAtContainer(t *testing.T) {
 			}
 			*baseConfigClassifierTermConditionsIpv4.Dscp = input
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4()
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4()
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4()
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4()
 
 			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigClassifierTermConditionsIpv4)
+				gnmi.Replace(t, dut, config.Config(), baseConfigClassifierTermConditionsIpv4)
 			})
 			// 	telemetry.Qos_Classifier_Term_Conditions_Ipv4{
 			//         DestinationAddress: nil,
@@ -54,7 +55,7 @@ func TestDscpAtContainer(t *testing.T) {
 			//         SourceAddress:      nil,
 			//   }
 			t.Run("Get container", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTermConditionsIpv4); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp: %v", diff)
 				}
@@ -62,7 +63,7 @@ func TestDscpAtContainer(t *testing.T) {
 			// No sysdb paths found for yang path qos/classifiers/classifier/terms/term/conditions/ipv4\x00"} (*gnmi.SubscribeResponse_Error)
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if diff := cmp.Diff(*stateGot, *baseConfigClassifierTermConditionsIpv4); diff != "" {
 						t.Errorf("State /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp: %v", diff)
 					}
@@ -70,9 +71,9 @@ func TestDscpAtContainer(t *testing.T) {
 			}
 			// Delete request goes through fine but nothing is getting deleted actually.
 			t.Run("Delete container", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).Dscp != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Dscp != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp fail: got %v", qs)
 					}
 				}
@@ -97,17 +98,17 @@ func TestDscpAtLeaf(t *testing.T) {
 				baseConfigClassifierTermConditionsIpv4.DscpSet = nil
 			}
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4().Dscp()
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4().Dscp()
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4().Dscp()
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4().Dscp()
 
 			t.Run("Replace leaf", func(t *testing.T) {
-				config.Replace(t, input)
+				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			// dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4().Dscp() return nil
 			// dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4().DscpSet() returns a list
 			t.Run("Get leaf", func(t *testing.T) {
 				t.Skip()
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if configGot != input {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp: got %v, want %v", configGot, input)
 				}
@@ -115,7 +116,7 @@ func TestDscpAtLeaf(t *testing.T) {
 			// ERR:No sysdb paths found for yang path qos/classifiers/classifier/terms/term/conditions/ipv4/state/dscp\x00"} (*gnmi.SubscribeResponse_Error)
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if stateGot != input {
 						t.Errorf("State /qos/classifiers/classifier/terms/term/conditions/ipv4/state/dscp: got %v, want %v", stateGot, input)
 					}
@@ -123,9 +124,9 @@ func TestDscpAtLeaf(t *testing.T) {
 			}
 			// Delete request goes through fine but nothing is getting deleted actually.
 			t.Run("Delete leaf", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs != nil {
+					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp fail: got %v", qs)
 					}
 				}
@@ -154,11 +155,11 @@ func TestDscpSetAtContainer(t *testing.T) {
 			}
 			baseConfigClassifierTermConditionsIpv4.DscpSet = input
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4()
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4()
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4()
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4()
 
 			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigClassifierTermConditionsIpv4)
+				gnmi.Replace(t, dut, config.Config(), baseConfigClassifierTermConditionsIpv4)
 			})
 			// 	telemetry.Qos_Classifier_Term_Conditions_Ipv4{
 			//         DestinationAddress: nil,
@@ -173,7 +174,7 @@ func TestDscpSetAtContainer(t *testing.T) {
 			//         SourceAddress: nil,
 			//   }
 			t.Run("Get container", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTermConditionsIpv4); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set: %v", diff)
 				}
@@ -181,7 +182,7 @@ func TestDscpSetAtContainer(t *testing.T) {
 			// No sysdb paths found for yang path qos/classifiers/classifier/terms/term/conditions/ipv4\x00"} (*gnmi.SubscribeResponse_Error)
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					for i, sg := range stateGot.DscpSet {
 						if sg != input[i] {
 							t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set: got %v, want %v", sg, input[i])
@@ -191,9 +192,9 @@ func TestDscpSetAtContainer(t *testing.T) {
 			}
 			// Delete request goes through fine but nothing is getting deleted actually.
 			t.Run("Delete container", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).DscpSet != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.DscpSet != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set fail: got %v", qs)
 					}
 				}
@@ -217,14 +218,14 @@ func TestDscpSetAtLeaf(t *testing.T) {
 				baseConfigClassifierTermConditionsIpv4.Dscp = nil
 			}
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4().DscpSet()
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4().DscpSet()
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4().DscpSet()
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4().DscpSet()
 
 			t.Run("Replace leaf", func(t *testing.T) {
-				config.Replace(t, input)
+				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			t.Run("Get leaf", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				for i, cg := range configGot {
 					if cg != input[i] {
 						t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set: got %v, want %v", cg, input[i])
@@ -234,7 +235,7 @@ func TestDscpSetAtLeaf(t *testing.T) {
 			// ERR:No sysdb paths found for yang path qos/classifiers/classifier/terms/term/conditions/ipv4/state/dscp-set\x00"} (*gnmi.SubscribeResponse_Error)
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					for i, sg := range stateGot {
 						if sg != input[i] {
 							t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv4/state/dscp-set: got %v, want %v", sg, input[i])
@@ -244,9 +245,9 @@ func TestDscpSetAtLeaf(t *testing.T) {
 			}
 			// Delete request goes through fine but nothing is getting deleted actually.
 			t.Run("Delete leaf", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs != nil {
+					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set fail: got %v", qs)
 					}
 				}

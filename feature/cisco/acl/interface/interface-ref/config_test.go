@@ -7,7 +7,8 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func TestMain(m *testing.M) {
@@ -26,12 +27,12 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	setup.ResetStruct(bcInterface, []string{"InterfaceRef"})
 	bcInterfaceInterfaceRef := bcInterface.InterfaceRef
 	setup.ResetStruct(bcInterfaceInterfaceRef, []string{})
-	dut.Config().Acl().Replace(t, bc)
+	gnmi.Replace(t, dut, gnmi.OC().Acl().Config(), bc)
 	return bc
 }
 
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
-	dut.Config().Acl().Delete(t)
+	gnmi.Delete(t, dut, gnmi.OC().Acl().Config())
 }
 func TestSubinterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -49,15 +50,15 @@ func TestSubinterface(t *testing.T) {
 			baseConfigInterfaceInterfaceRef := baseConfigInterface.InterfaceRef
 			*baseConfigInterfaceInterfaceRef.Subinterface = input
 
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id).InterfaceRef()
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id).InterfaceRef()
+			config := gnmi.OC().Acl().Interface(*baseConfigInterface.Id).InterfaceRef()
+			state := gnmi.OC().Acl().Interface(*baseConfigInterface.Id).InterfaceRef()
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigInterfaceInterfaceRef)
+				gnmi.Replace(t, dut, config.Config(), baseConfigInterfaceInterfaceRef)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.Subinterface != input {
 						t.Errorf("Config /acl/interfaces/interface/interface-ref/config/subinterface: got %v, want %v", configGot, input)
 					}
@@ -65,16 +66,16 @@ func TestSubinterface(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.Subinterface != input {
 						t.Errorf("State /acl/interfaces/interface/interface-ref/config/subinterface: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).Subinterface != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Subinterface != nil {
 						t.Errorf("Delete /acl/interfaces/interface/interface-ref/config/subinterface fail: got %v", qs)
 					}
 				}
@@ -98,15 +99,15 @@ func TestInterface(t *testing.T) {
 			baseConfigInterfaceInterfaceRef := baseConfigInterface.InterfaceRef
 			*baseConfigInterfaceInterfaceRef.Interface = input
 
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id).InterfaceRef()
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id).InterfaceRef()
+			config := gnmi.OC().Acl().Interface(*baseConfigInterface.Id).InterfaceRef()
+			state := gnmi.OC().Acl().Interface(*baseConfigInterface.Id).InterfaceRef()
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigInterfaceInterfaceRef)
+				gnmi.Replace(t, dut, config.Config(), baseConfigInterfaceInterfaceRef)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.Interface != input {
 						t.Errorf("Config /acl/interfaces/interface/interface-ref/config/interface: got %v, want %v", configGot, input)
 					}
@@ -114,16 +115,16 @@ func TestInterface(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.Interface != input {
 						t.Errorf("State /acl/interfaces/interface/interface-ref/config/interface: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).Interface != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Interface != nil {
 						t.Errorf("Delete /acl/interfaces/interface/interface-ref/config/interface fail: got %v", qs)
 					}
 				}

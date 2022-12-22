@@ -9,6 +9,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
@@ -250,8 +251,8 @@ func (lldp *LLDPPacketIO) GetTableEntry(t *testing.T, delete bool) []*wbb.ACLWbb
 
 func (lldp *LLDPPacketIO) ApplyConfig(t *testing.T, dut *ondatra.DUTDevice, delete bool) {
 	if *lldp.NeedConfig {
-		config := dut.Config().Lldp().Enabled()
-		config.Replace(t, !delete)
+		config := gnmi.OC().Lldp().Enabled()
+		gnmi.Replace(t, dut, config.Config(), !delete)
 	}
 }
 

@@ -23,7 +23,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -285,9 +286,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 // getNPUs returns all the available NPUs on the router, ignoring fabric npus.
 func getNPUs(t *testing.T, dut *ondatra.DUTDevice) []string {
 	var npus []string
-	l := dut.Telemetry().ComponentAny().Get(t)
+	l := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
 	for _, each := range l {
-		if each.Type == telemetry.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
+		if each.Type == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
 			if name := each.GetName(); !strings.Contains(name, "FC") {
 				npus = append(npus, name)
 			}
@@ -317,28 +318,28 @@ func contains(s []string, e string) bool {
 }
 
 // configureP4RTIntf enables port-id on a specified interface
-func configureP4RTIntf(t *testing.T, dut *ondatra.DUTDevice, intf string, id uint32, intfType telemetry.E_IETFInterfaces_InterfaceType) {
-	i := &telemetry.Interface{
+func configureP4RTIntf(t *testing.T, dut *ondatra.DUTDevice, intf string, id uint32, intfType oc.E_IETFInterfaces_InterfaceType) {
+	i := &oc.Interface{
 		Type: intfType,
 		Id:   ygot.Uint32(id),
 		Name: ygot.String(intf),
 	}
-	dut.Config().Interface(intf).Replace(t, i)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(intf).Config(), i)
 }
 
 // configureP4RTDevice configures device-id for a specified npu instance
 func configureP4RTDevice(t *testing.T, dut *ondatra.DUTDevice, npu string, nodeid uint64) {
-	ic := &telemetry.Component_IntegratedCircuit{}
+	ic := &oc.Component_IntegratedCircuit{}
 	ic.NodeId = ygot.Uint64(nodeid)
 
-	config := dut.Config().Component(npu).IntegratedCircuit()
+	config := gnmi.OC().Component(npu).IntegratedCircuit()
 	defer observer.RecordYgot(t, "REPLACE", config)
-	config.Replace(t, ic)
+	gnmi.Replace(t, dut, config.Config(), ic)
 }
 
 // getSubInterface returns a subinterface configuration populated with IP addresses and VLAN ID.
-func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *telemetry.Interface_Subinterface {
-	s := &telemetry.Interface_Subinterface{}
+func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc.Interface_Subinterface {
+	s := &oc.Interface_Subinterface{}
 	//unshut sub/interface
 	if *deviations.InterfaceEnabled {
 		s.Enabled = ygot.Bool(true)
@@ -356,9 +357,9 @@ func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *te
 }
 
 // configInterfaceDUT configures bundle interface with the Addrs.
-func configInterfaceDUT(i *telemetry.Interface, dutPort *attrs.Attributes) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(dutPort.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ieee8023adLag
+	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	i.AppendSubinterface(getSubInterface(dutPort, 0, 0))
 	return i
 }
@@ -366,65 +367,65 @@ func configInterfaceDUT(i *telemetry.Interface, dutPort *attrs.Attributes) *tele
 // configureDUT configures DUT interfaces and enables p4rt feature
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
-	d := dut.Config()
+	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String("Bundle-Ether120")}
-	d.Interface(*i1.Name).Replace(t, configInterfaceDUT(i1, &dutPort1))
+	i1 := &oc.Interface{Name: ygot.String("Bundle-Ether120")}
+	gnmi.Replace(t, dut, d.Interface(*i1.Name).Config(), configInterfaceDUT(i1, &dutPort1))
 	BE120 := generateBundleMemberInterfaceConfig(t, p1.Name(), *i1.Name)
-	d.Interface(p1.Name()).Replace(t, BE120)
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), BE120)
 
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String("Bundle-Ether121")}
-	d.Interface(*i2.Name).Replace(t, configInterfaceDUT(i2, &dutPort2))
+	i2 := &oc.Interface{Name: ygot.String("Bundle-Ether121")}
+	gnmi.Replace(t, dut, d.Interface(*i2.Name).Config(), configInterfaceDUT(i2, &dutPort2))
 	BE121 := generateBundleMemberInterfaceConfig(t, p2.Name(), *i2.Name)
-	d.Interface(p2.Name()).Replace(t, BE121)
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), BE121)
 
 	p3 := dut.Port(t, "port3")
-	i3 := &telemetry.Interface{Name: ygot.String("Bundle-Ether122")}
-	d.Interface(*i3.Name).Replace(t, configInterfaceDUT(i3, &dutPort3))
+	i3 := &oc.Interface{Name: ygot.String("Bundle-Ether122")}
+	gnmi.Replace(t, dut, d.Interface(*i3.Name).Config(), configInterfaceDUT(i3, &dutPort3))
 	BE122 := generateBundleMemberInterfaceConfig(t, p3.Name(), *i3.Name)
-	d.Interface(p3.Name()).Replace(t, BE122)
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), BE122)
 
 	p4 := dut.Port(t, "port4")
-	i4 := &telemetry.Interface{Name: ygot.String("Bundle-Ether123")}
-	d.Interface(*i4.Name).Replace(t, configInterfaceDUT(i4, &dutPort4))
+	i4 := &oc.Interface{Name: ygot.String("Bundle-Ether123")}
+	gnmi.Replace(t, dut, d.Interface(*i4.Name).Config(), configInterfaceDUT(i4, &dutPort4))
 	BE123 := generateBundleMemberInterfaceConfig(t, p4.Name(), *i4.Name)
-	d.Interface(p4.Name()).Replace(t, BE123)
+	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), BE123)
 
 	p5 := dut.Port(t, "port5")
-	i5 := &telemetry.Interface{Name: ygot.String("Bundle-Ether124")}
-	d.Interface(*i5.Name).Replace(t, configInterfaceDUT(i5, &dutPort5))
+	i5 := &oc.Interface{Name: ygot.String("Bundle-Ether124")}
+	gnmi.Replace(t, dut, d.Interface(*i5.Name).Config(), configInterfaceDUT(i5, &dutPort5))
 	BE124 := generateBundleMemberInterfaceConfig(t, p5.Name(), *i5.Name)
-	d.Interface(p5.Name()).Replace(t, BE124)
+	gnmi.Replace(t, dut, d.Interface(p5.Name()).Config(), BE124)
 
 	p6 := dut.Port(t, "port6")
-	i6 := &telemetry.Interface{Name: ygot.String("Bundle-Ether125")}
-	d.Interface(*i6.Name).Replace(t, configInterfaceDUT(i6, &dutPort6))
+	i6 := &oc.Interface{Name: ygot.String("Bundle-Ether125")}
+	gnmi.Replace(t, dut, d.Interface(*i6.Name).Config(), configInterfaceDUT(i6, &dutPort6))
 	BE125 := generateBundleMemberInterfaceConfig(t, p6.Name(), *i6.Name)
-	d.Interface(p6.Name()).Replace(t, BE125)
+	gnmi.Replace(t, dut, d.Interface(p6.Name()).Config(), BE125)
 
 	p7 := dut.Port(t, "port7")
-	i7 := &telemetry.Interface{Name: ygot.String("Bundle-Ether126")}
-	d.Interface(*i7.Name).Replace(t, configInterfaceDUT(i7, &dutPort7))
+	i7 := &oc.Interface{Name: ygot.String("Bundle-Ether126")}
+	gnmi.Replace(t, dut, d.Interface(*i7.Name).Config(), configInterfaceDUT(i7, &dutPort7))
 	BE126 := generateBundleMemberInterfaceConfig(t, p7.Name(), *i7.Name)
-	d.Interface(p7.Name()).Replace(t, BE126)
+	gnmi.Replace(t, dut, d.Interface(p7.Name()).Config(), BE126)
 
 	p8 := dut.Port(t, "port8")
-	i8 := &telemetry.Interface{Name: ygot.String("Bundle-Ether127")}
-	d.Interface(*i8.Name).Replace(t, configInterfaceDUT(i8, &dutPort8))
+	i8 := &oc.Interface{Name: ygot.String("Bundle-Ether127")}
+	gnmi.Replace(t, dut, d.Interface(*i8.Name).Config(), configInterfaceDUT(i8, &dutPort8))
 	BE127 := generateBundleMemberInterfaceConfig(t, p8.Name(), *i8.Name)
-	d.Interface(p8.Name()).Replace(t, BE127)
+	gnmi.Replace(t, dut, d.Interface(p8.Name()).Config(), BE127)
 
 	//P4RT config
 	configureP4RTDevice(t, dut, npu0, npu0NodeID)
-	d.Interface(p1.Name()).Id().Replace(t, 1)
-	d.Interface(p2.Name()).Id().Replace(t, 2)
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Id().Config(), 1)
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Id().Config(), 2)
 }
 
 // generateBundleMemberInterfaceConfig returns interface configuration populated with bundle info
-func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *telemetry.Interface {
-	i := &telemetry.Interface{Name: ygot.String(name)}
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(name)}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	e := i.GetOrCreateEthernet()
 	e.AutoNegotiate = ygot.Bool(false)
 	e.AggregateId = ygot.String(bundleID)

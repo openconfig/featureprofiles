@@ -7,7 +7,8 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/acl/setup"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func TestMain(m *testing.M) {
@@ -24,12 +25,12 @@ func setupAcl(t *testing.T, dut *ondatra.DUTDevice) *oc.Acl {
 	setup.ResetStruct(bcAclSetAclEntry, []string{"Actions"})
 	bcInterface := setup.GetAnyValue(bc.Interface)
 	setup.ResetStruct(bcInterface, []string{"Id", "InterfaceRef", "IngressAclSet"})
-	dut.Config().Acl().Replace(t, bc)
+	gnmi.Replace(t, dut, gnmi.OC().Acl().Config(), bc)
 	return bc
 }
 
 func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
-	dut.Config().Acl().Delete(t)
+	gnmi.Delete(t, dut, gnmi.OC().Acl().Config())
 }
 func TestId(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -46,15 +47,15 @@ func TestId(t *testing.T) {
 			baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 			*baseConfigInterface.Id = input
 
-			config := dut.Config().Acl().Interface(*baseConfigInterface.Id)
-			state := dut.Telemetry().Acl().Interface(*baseConfigInterface.Id)
+			config := gnmi.OC().Acl().Interface(*baseConfigInterface.Id)
+			state := gnmi.OC().Acl().Interface(*baseConfigInterface.Id)
 
 			t.Run("Replace", func(t *testing.T) {
-				config.Replace(t, baseConfigInterface)
+				gnmi.Replace(t, dut, config.Config(), baseConfigInterface)
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := config.Get(t)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
 					if *configGot.Id != input {
 						t.Errorf("Config /acl/interfaces/interface/config/id: got %v, want %v", configGot, input)
 					}
@@ -62,16 +63,16 @@ func TestId(t *testing.T) {
 			}
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.Id != input {
 						t.Errorf("State /acl/interfaces/interface/config/id: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).Id != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Id != nil {
 						t.Errorf("Delete /acl/interfaces/interface/config/id fail: got %v", qs)
 					}
 				}

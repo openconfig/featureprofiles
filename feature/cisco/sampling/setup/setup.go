@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strings"
 
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 var (

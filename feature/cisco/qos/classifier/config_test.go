@@ -8,7 +8,8 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func TestMain(m *testing.M) {
@@ -25,17 +26,17 @@ func TestNameAtContainer(t *testing.T) {
 			baseConfigClassifier := setup.GetAnyValue(baseConfig.Classifier)
 			*baseConfigClassifier.Name = input
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name)
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name)
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name)
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name)
 
 			t.Run("Replace container", func(t *testing.T) {
-				config.Update(t, baseConfigClassifier)
+				gnmi.Update(t, dut, config.Config(), baseConfigClassifier)
 				// config.Replace(t, baseConfigClassifier)
 			})
 			// dscp and dscp-set causing error
 			t.Run("Get container", func(t *testing.T) {
 				t.Skip()
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifier); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/config/name: %v", diff)
 				}
@@ -43,15 +44,15 @@ func TestNameAtContainer(t *testing.T) {
 			// ERR:No sysdb paths found for yang path qos/classifiers/classifier\x00"} (*gnmi.SubscribeResponse_Error)
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if diff := cmp.Diff(*stateGot, *baseConfigClassifier); diff != "" {
 						t.Errorf("State /qos/classifiers/classifier/config/name: %v", diff)
 					}
 				})
 			}
 			t.Run("Delete container", func(t *testing.T) {
-				config.Delete(t)
-				if qs := config.Lookup(t); qs != nil {
+				gnmi.Delete(t, dut, config.Config())
+				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs != nil {
 					t.Errorf("Delete /qos/classifiers/classifier/config/name: got %v", qs)
 				}
 			})
@@ -67,11 +68,11 @@ func TestNameAtLeaf(t *testing.T) {
 	t.Run("Testing /qos/classifiers/classifier/config/name", func(t *testing.T) {
 		baseConfigClassifier := setup.GetAnyValue(baseConfig.Classifier)
 
-		config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Name()
-		state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Name()
+		config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Name()
+		state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Name()
 
 		t.Run("Get container", func(t *testing.T) {
-			configGot := config.Get(t)
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 			if configGot != *baseConfigClassifier.Name {
 				t.Errorf("Config /qos/classifiers/classifier/config/name: want %s got %s", *baseConfigClassifier.Name, configGot)
 			}
@@ -79,7 +80,7 @@ func TestNameAtLeaf(t *testing.T) {
 		// ERR:No sysdb paths found for yang path qos/classifiers/classifier\x00"} (*gnmi.SubscribeResponse_Error)
 		if !setup.SkipSubscribe() {
 			t.Run("Subscribe container", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != *baseConfigClassifier.Name {
 					t.Errorf("Config /qos/classifiers/classifier/state/name: want %s got %s", *baseConfigClassifier.Name, stateGot)
 				}
@@ -102,14 +103,14 @@ func TestTypeAtLeaf(t *testing.T) {
 			t.Skip()
 			baseConfigClassifier := setup.GetAnyValue(baseConfig.Classifier)
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Type()
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Type()
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Type()
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Type()
 
 			t.Run("Replace leaf", func(t *testing.T) {
-				config.Replace(t, input)
+				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			t.Run("Get leaf", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if configGot != input {
 					t.Errorf("Config /qos/classifiers/classifier/config/type: got %v, want %v", configGot, input)
 				}
@@ -117,7 +118,7 @@ func TestTypeAtLeaf(t *testing.T) {
 			// ERR:No sysdb paths found for yang path qos/classifiers/classifier/state/type\x00"} (*gnmi.SubscribeResponse_Error)
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if stateGot != input {
 						t.Errorf("State /qos/classifiers/classifier/state/type: got %v, want %v", stateGot, input)
 					}

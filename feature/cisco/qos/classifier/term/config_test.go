@@ -8,7 +8,8 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -26,11 +27,11 @@ func TestIdAtLeaf(t *testing.T) {
 		baseConfigClassifier := setup.GetAnyValue(baseConfig.Classifier)
 		baseConfigClassifierTerm := setup.GetAnyValue(baseConfigClassifier.Term)
 
-		config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Id()
-		state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Id()
+		config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Id()
+		state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Id()
 
 		t.Run("Get container", func(t *testing.T) {
-			configGot := config.Get(t)
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 			if configGot != *baseConfigClassifierTerm.Id {
 				t.Errorf("Config /qos/classifiers/classifier/terms/term/config/id: want %s got %s", *baseConfigClassifierTerm.Id, configGot)
 			}
@@ -38,7 +39,7 @@ func TestIdAtLeaf(t *testing.T) {
 		// No sysdb paths found for yang path qos/classifiers/classifier/terms/term/state/id
 		if !setup.SkipSubscribe() {
 			t.Run("Subscribe container", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != *baseConfigClassifierTerm.Id {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/state/id: want %s got %s", *baseConfigClassifierTerm.Id, stateGot)
 				}
@@ -64,31 +65,31 @@ func TestTerm(t *testing.T) {
 			newTermId := fmt.Sprintf("%s_new", termId)
 			baseConfigTerm.Id = ygot.String(newTermId)
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigTerm.Id)
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigTerm.Id)
 
 			t.Run(fmt.Sprintf("Create class-map %s", *baseConfigTerm.Id), func(t *testing.T) {
-				config.Update(t, baseConfigTerm)
+				gnmi.Update(t, dut, config.Config(), baseConfigTerm)
 				// config.Replace(t, baseConfigTerm)
 			})
 			t.Run(fmt.Sprintf("Get class-map %s", *baseConfigTerm.Id), func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigTerm); diff != "" {
 					t.Errorf("Config class-map fail: \n%v", diff)
 				}
 			})
 			t.Run(fmt.Sprintf("Delete class-map %s", *baseConfigTerm.Id), func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				// Lookup not working
 				// if qs := config.Lookup(t); qs != nil {
 				// 	t.Errorf("Delete class map fail: got %v", qs)
 				// }
 			})
 			t.Run(fmt.Sprintf("Re create class-map %s", *baseConfigTerm.Id), func(t *testing.T) {
-				config.Update(t, baseConfigTerm)
+				gnmi.Update(t, dut, config.Config(), baseConfigTerm)
 				// config.Replace(t, baseConfigTerm)
 			})
 			t.Run(fmt.Sprintf("Get class-map %s", *baseConfigTerm.Id), func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigTerm); diff != "" {
 					t.Errorf("Config class-map fail: \n%v", diff)
 				}
@@ -106,13 +107,13 @@ func TestDeleteAllClassMaps(t *testing.T) {
 
 	t.Run(fmt.Sprintf("Delete class-maps one-by-one from %s", *baseConfigClassifier.Name), func(t *testing.T) {
 		for termId := range baseConfigClassifier.Term {
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(termId)
-			config.Delete(t)
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(termId)
+			gnmi.Delete(t, dut, config.Config())
 		}
 	})
 	t.Run(fmt.Sprintf("Verify whether %s is deleted or not", *baseConfigClassifier.Name), func(t *testing.T) {
-		config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name)
-		if qs := config.Lookup(t); qs.IsPresent() == true {
+		config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name)
+		if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
 			t.Errorf("%s is not deleted: got %v", *baseConfigClassifier.Name, qs)
 		}
 	})
@@ -130,21 +131,21 @@ func TestSetDscp(t *testing.T) {
 			baseConfigClassifierTerm := setup.GetAnyValue(baseConfigClassifier.Term)
 			baseConfigClassifierTerm.Actions.Remark.SetDscp = ygot.Uint8(input)
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id)
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id)
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id)
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id)
 
 			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigClassifierTerm)
+				gnmi.Replace(t, dut, config.Config(), baseConfigClassifierTerm)
 			})
 			t.Run("Get container", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTerm); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/remark/config/set-dscp fail:\n%v", diff)
 				}
 			})
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if diff := cmp.Diff(*stateGot, *baseConfigClassifierTerm); diff != "" {
 						t.Errorf("State /qos/classifiers/classifier/terms/term/actions/remark/state/set-dscp fail:\n%v", diff)
 					}
@@ -165,21 +166,21 @@ func TestSetMplsTc(t *testing.T) {
 			baseConfigClassifierTerm := setup.GetAnyValue(baseConfigClassifier.Term)
 			baseConfigClassifierTerm.Actions.Remark.SetMplsTc = ygot.Uint8(input)
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id)
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id)
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id)
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id)
 
 			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigClassifierTerm)
+				gnmi.Replace(t, dut, config.Config(), baseConfigClassifierTerm)
 			})
 			t.Run("Get container", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTerm); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/remark/config/set-mpls-tc fail:\n%v", diff)
 				}
 			})
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if diff := cmp.Diff(*stateGot, *baseConfigClassifierTerm); diff != "" {
 						t.Errorf("State /qos/classifiers/classifier/terms/term/actions/remark/state/set-mpls-tc fail:\n%v", diff)
 					}

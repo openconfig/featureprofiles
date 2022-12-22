@@ -9,7 +9,9 @@ import (
 	// "github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -31,7 +33,7 @@ func ConfigRPL(dev *ondatra.DUTDevice, t *testing.T, policy *proto.Input_RoutePo
 	}
 
 	updatePolicy(statement, policy.Policy)
-	dev.Config().RoutingPolicy().Update(t, rpl)
+	gnmi.Update(t, dev, gnmi.OC().RoutingPolicy().Config(), rpl)
 	return nil
 }
 
@@ -53,7 +55,7 @@ func ReplaceRPL(dev *ondatra.DUTDevice, t *testing.T, policy *proto.Input_RouteP
 	}
 
 	updatePolicy(statement, policy.Policy)
-	dev.Config().RoutingPolicy().Replace(t, rpl)
+	gnmi.Replace(t, dev, gnmi.OC().RoutingPolicy().Config(), rpl)
 	return nil
 }
 
@@ -62,7 +64,7 @@ func UnConfigRPL(dev *ondatra.DUTDevice, t *testing.T, policy *proto.Input_Route
 	if policy.Name == "" {
 		return errors.Errorf("Cannot configure rouite-policy without name %v", policy)
 	}
-	dev.Config().RoutingPolicy().PolicyDefinition(policy.Name).Delete(t)
+	gnmi.Delete(t, dev, gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Config())
 	return nil
 }
 

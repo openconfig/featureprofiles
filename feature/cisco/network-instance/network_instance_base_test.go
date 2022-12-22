@@ -5,6 +5,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 var (
@@ -38,33 +39,33 @@ type NetworkInstance struct {
 
 func verifyUpdateDescription(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, instance := range instances {
-		path := dut.Config().NetworkInstance(instance.name).Description()
+		path := gnmi.OC().NetworkInstance(instance.name).Description()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, instance.description+"Updated")
+		gnmi.Update(t, dut, path.Config(), instance.description+"Updated")
 	}
 
 }
 func verifyReplaceDescription(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, instance := range instances {
-		path := dut.Config().NetworkInstance(instance.name).Description()
+		path := gnmi.OC().NetworkInstance(instance.name).Description()
 		defer observer.RecordYgot(t, "REPLACE", path)
-		path.Update(t, instance.description+"REPLACE")
+		gnmi.Update(t, dut, path.Config(), instance.description+"REPLACE")
 	}
 
 }
 func verifyDeleteDescription(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, instance := range instances {
-		path := dut.Config().NetworkInstance(instance.name).Description()
+		path := gnmi.OC().NetworkInstance(instance.name).Description()
 		defer observer.RecordYgot(t, "DELETE", path)
-		path.Delete(t)
+		gnmi.Delete(t, dut, path.Config())
 	}
 
 }
 func deleteNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, instance := range instances {
-		path := dut.Config().NetworkInstance(instance.name)
+		path := gnmi.OC().NetworkInstance(instance.name)
 		defer observer.RecordYgot(t, "DELETE", path)
-		path.Delete(t)
+		gnmi.Delete(t, dut, path.Config())
 	}
 
 }

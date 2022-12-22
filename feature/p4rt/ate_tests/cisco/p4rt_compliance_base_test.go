@@ -17,16 +17,17 @@ import (
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func getComponentID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) string {
-	resp := dut.Telemetry().ComponentAny().Get(t)
-	component := telemetry.Component{}
-	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
+	resp := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	component := oc.Component{}
+	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 	names := []string{}
 	pattern, _ := regexp.Compile(`.*-NPU\d+`)
 	for _, c := range resp {
@@ -42,9 +43,9 @@ func getComponentID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) s
 }
 
 func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	resp := dut.Telemetry().ComponentAny().Get(t)
-	component := telemetry.Component{}
-	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
+	resp := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	component := oc.Component{}
+	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 	pattern, _ := regexp.Compile(`.*-NPU\d+`)
 
 	i := uint64(0)
@@ -63,7 +64,7 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 		if match := pattern.MatchString(name); match && !strings.Contains(name, "FC") {
 			component.Name = ygot.String(name)
 			component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID + i)
-			dut.Config().Component(name).Update(t, &component)
+			gnmi.Update(t, dut, gnmi.OC().Component(name).Config(), &component)
 			i += 1
 		}
 	}
@@ -73,14 +74,15 @@ func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) 
 	ports := sortPorts(dut.Ports())
 	for index, port := range ports {
 		// dut.Config().Interface(port.Name()).Id().Update(t, uint32(index)+portID)
-		conf := &telemetry.Interface{
+		conf := &oc.Interface{
 			Name: ygot.String(port.Name()),
 			Id:   ygot.Uint32(uint32(index) + portID),
 		}
 		if strings.Contains(port.Name(), "Bundle") {
-			conf.Type = telemetry.IETFInterfaces_InterfaceType_ieee8023adLag
+			conf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 		}
-		dut.Config().Interface(port.Name()).Update(t, conf)
+		gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Config(), conf)
+		// dut.Config().Interface(port.Name()).Update(t, conf)
 	}
 }
 

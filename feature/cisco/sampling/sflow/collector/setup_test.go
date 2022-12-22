@@ -6,7 +6,8 @@ import (
 
 	"github.com/openconfig/featureprofiles/feature/cisco/sampling/setup"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 var (
@@ -31,10 +32,10 @@ func setupSampling(t *testing.T, dut *ondatra.DUTDevice) *oc.Sampling {
 	bcSflowCollector := setup.GetAnyValue(bcSflow.Collector)
 	setup.ResetStruct(bcSflowCollector, []string{})
 
-	dut.Config().Sampling().Replace(t, bc)
+	gnmi.Replace(t, dut, gnmi.OC().Sampling().Config(), bc)
 	return bc
 }
 
 func teardownSampling(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Sampling) {
-	dut.Config().Sampling().Delete(t)
+	gnmi.Delete(t, dut, gnmi.OC().Sampling().Config())
 }

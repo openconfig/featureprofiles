@@ -28,29 +28,30 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
-func (c *Client) getOrCreateAft(instance string) *telemetry.NetworkInstance_Afts {
+func (c *Client) getOrCreateAft(instance string) *oc.NetworkInstance_Afts {
 	if len(c.afts) == 0 {
-		c.afts = append(c.afts, map[string]*telemetry.NetworkInstance_Afts{})
+		c.afts = append(c.afts, map[string]*oc.NetworkInstance_Afts{})
 	}
 
 	if _, ok := c.getCurrentAftConfig()[instance]; !ok {
-		c.getCurrentAftConfig()[instance] = &telemetry.NetworkInstance_Afts{}
+		c.getCurrentAftConfig()[instance] = &oc.NetworkInstance_Afts{}
 	}
 	return c.getCurrentAftConfig()[instance]
 }
 
-func (c *Client) getAft(instance string) *telemetry.NetworkInstance_Afts {
+func (c *Client) getAft(instance string) *oc.NetworkInstance_Afts {
 	return c.getCurrentAftConfig()[instance]
 }
 
 func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInstance, interfaceRef string) {
 	t.Helper()
 	time.Sleep(time.Duration(*ciscoFlags.GRIBINHTimer) * time.Second)
-	aftNHs := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopAny().Get(t)
+	aftNHs := gnmi.GetAll(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHopAny().State())
 	found := false
 	for _, nh := range aftNHs {
 		if nh.GetIpAddress() == address {
@@ -86,12 +87,12 @@ func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInst
 func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance string, nhWeights map[uint64]uint64, opts ...*NHGOptions) {
 	t.Helper()
 	time.Sleep(time.Duration(*ciscoFlags.GRIBINHGTimer) * time.Second)
-	aftNHGs := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroupAny().Get(t)
+	aftNHGs := gnmi.GetAll(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHopGroupAny().State())
 	found := false
 	for _, nhg := range aftNHGs {
 		if nhg.GetProgrammedId() == nhgIndex {
 			if nhg.GetBackupNextHopGroup() != 0 {
-				pid := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(nhg.GetBackupNextHopGroup()).ProgrammedId().Get(t)
+				pid := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nhg.GetBackupNextHopGroup()).ProgrammedId().State())
 				if pid != bkhgIndex {
 					t.Fatalf("AFT Check failed for aft/next-hop-group/state/backup-next-hop-group got %d, want %d", nhg.GetBackupNextHopGroup(), bkhgIndex)
 				}
@@ -99,7 +100,7 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 			if len(nhg.NextHop) != 1 {
 				for nhIndex, nh := range nhg.NextHop {
 					// can be avoided by caching indices in client 'c'
-					nhPIndex := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).ProgrammedIndex().Get(t)
+					nhPIndex := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHop(nhIndex).ProgrammedIndex().State())
 
 					if weight, ok := nhWeights[nhPIndex]; ok {
 						if weight != nh.GetWeight() {
@@ -140,7 +141,7 @@ func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instan
 		// setting nhginstance to empty as there is no nhgInstance value set
 		nhgInstance = ""
 	}
-	aftIPv4e := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Get(t)
+	aftIPv4e := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix).State())
 	if aftIPv4e.GetPrefix() != prefix {
 		t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", aftIPv4e.GetPrefix(), prefix)
 	}
@@ -152,7 +153,7 @@ func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instan
 	}
 
 	gotNhgIndex := aftIPv4e.GetNextHopGroup()
-	nhgPId := c.DUT.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts().NextHopGroup(gotNhgIndex).ProgrammedId().Get(t)
+	nhgPId := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts().NextHopGroup(gotNhgIndex).ProgrammedId().State())
 	if nhgPId != nhgIndex {
 		t.Fatalf("AFT Check failed for ipv4-entry/state/next-hop-group/state/programmed-id got %d, want %d", nhgPId, nhgIndex)
 	}
@@ -162,10 +163,10 @@ func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instan
 func (c *Client) CheckAftNH(t testing.TB, instance string, programmedIndex, index uint64) {
 	time.Sleep(time.Duration(*ciscoFlags.GRIBIAFTChainCheckWait) * time.Second)
 	want := c.getAft(instance).NextHop[programmedIndex]
-	got := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(index).Get(t)
+	got := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHop(index).State())
 
 	diff := cmp.Diff(want, got,
-		cmpopts.IgnoreFields(telemetry.NetworkInstance_Afts_NextHop{}, []string{
+		cmpopts.IgnoreFields(oc.NetworkInstance_Afts_NextHop{}, []string{
 			"Index", "ProgrammedIndex", "InterfaceRef",
 		}...))
 	if len(diff) > 0 {
@@ -190,10 +191,10 @@ func (c *Client) CheckAftNH(t testing.TB, instance string, programmedIndex, inde
 func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uint64) {
 	time.Sleep(time.Duration(*ciscoFlags.GRIBIAFTChainCheckWait) * time.Second)
 	want := c.getAft(instance).NextHopGroup[programmedID]
-	got := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHopGroup(id).Get(t)
+	got := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(id).State())
 
 	diff := cmp.Diff(want, got,
-		cmpopts.IgnoreFields(telemetry.NetworkInstance_Afts_NextHopGroup{}, []string{
+		cmpopts.IgnoreFields(oc.NetworkInstance_Afts_NextHopGroup{}, []string{
 			"Id", "ProgrammedId", "NextHop", "BackupNextHopGroup",
 		}...))
 	if len(diff) > 0 {
@@ -204,7 +205,7 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uin
 		found := false
 
 		for gotIdx, gotNh := range got.NextHop {
-			nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(gotIdx).Get(t)
+			nh := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHop(gotIdx).State())
 			if *nh.ProgrammedIndex == wantIdx {
 				found = true
 
@@ -232,10 +233,10 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uin
 func (c *Client) CheckAftIPv4(t testing.TB, instance, prefix string) {
 	time.Sleep(time.Duration(*ciscoFlags.GRIBIAFTChainCheckWait) * time.Second)
 	want := c.getAft(instance).Ipv4Entry[prefix]
-	got := c.DUT.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(prefix).Get(t)
+	got := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix).State())
 
 	diff := cmp.Diff(want, got,
-		cmpopts.IgnoreFields(telemetry.NetworkInstance_Afts_Ipv4Entry{}, []string{
+		cmpopts.IgnoreFields(oc.NetworkInstance_Afts_Ipv4Entry{}, []string{
 			"NextHopGroup", "NextHopGroupNetworkInstance",
 		}...))
 	if len(diff) > 0 {
@@ -263,10 +264,10 @@ func (c *Client) CheckAft(t testing.TB) {
 // AftPushConfig creates and activates a copy of the current afts cached configuration
 func (c *Client) AftPushConfig(t testing.TB) {
 	t.Helper()
-	afts := make(map[string]*telemetry.NetworkInstance_Afts, len(c.getCurrentAftConfig()))
+	afts := make(map[string]*oc.NetworkInstance_Afts, len(c.getCurrentAftConfig()))
 	for k, aft := range c.getCurrentAftConfig() {
 		if copy, err := ygot.DeepCopy(aft); err == nil {
-			afts[k] = copy.(*telemetry.NetworkInstance_Afts)
+			afts[k] = copy.(*oc.NetworkInstance_Afts)
 		} else {
 			t.Fatalf("Error copying aft: %v", err)
 		}
@@ -284,7 +285,7 @@ func (c *Client) AftPopConfig(t testing.TB) {
 	c.afts = c.afts[0 : len(c.afts)-1]
 }
 
-func (c *Client) getCurrentAftConfig() map[string]*telemetry.NetworkInstance_Afts {
+func (c *Client) getCurrentAftConfig() map[string]*oc.NetworkInstance_Afts {
 	return c.afts[len(c.afts)-1]
 }
 

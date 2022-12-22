@@ -9,6 +9,7 @@ import (
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/google/gopacket/layers"
+	"github.com/openconfig/ondatra/gnmi"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
@@ -161,7 +162,7 @@ func testPublicPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Run(test.desc, func(t *testing.T) {
 			// Check initial packet counters
 			port := sortPorts(args.dut.Ports())[0].Name()
-			counter_0 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+			counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 			packet := args.packetIO.GetPacketOut(t, portID, false)
 
@@ -183,7 +184,7 @@ func testPublicPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 			// Check packet counters after packet out
 			// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
-			counter_1 := args.dut.Telemetry().Interface(port).Counters().OutPkts().Get(t)
+			counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 			// Verify InPkts stats to check P4RT stream
 			// fmt.Println(counter_0)

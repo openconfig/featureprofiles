@@ -29,7 +29,8 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 const (
@@ -63,7 +64,7 @@ type Client struct {
 
 	// Unexport fields below.
 	fluentC *fluent.GRIBIClient
-	afts    []map[string]*telemetry.NetworkInstance_Afts
+	afts    []map[string]*oc.NetworkInstance_Afts
 }
 
 const responseTimeThreshold = 10000000 // nanosecond (10 ML)
@@ -85,7 +86,7 @@ func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
 func (c *Client) Start(t testing.TB) error {
 	t.Helper()
 	t.Logf("Starting GRIBI connection for dut: %s", c.DUT.Name())
-	c.afts = []map[string]*telemetry.NetworkInstance_Afts{
+	c.afts = []map[string]*oc.NetworkInstance_Afts{
 		{},
 	}
 
@@ -235,7 +236,7 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 
 	if address == DECAP {
 		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
-		aftNh.DecapsulateHeader = telemetry.AftTypes_EncapsulationHeaderType_IPV4
+		aftNh.DecapsulateHeader = oc.Aft_EncapsulationHeaderType_IPV4
 	} else if address != "" {
 		NH = NH.WithIPAddress(address)
 		aftNh.IpAddress = &address
@@ -247,7 +248,7 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 	}
 	if interfaceRef != "" {
 		NH = NH.WithInterfaceRef(interfaceRef)
-		aftNh.InterfaceRef = &telemetry.NetworkInstance_Afts_NextHop_InterfaceRef{Interface: &interfaceRef}
+		aftNh.InterfaceRef = &oc.NetworkInstance_Afts_NextHop_InterfaceRef{Interface: &interfaceRef}
 	}
 	c.fluentC.Modify().AddEntry(t, NH)
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
@@ -346,7 +347,7 @@ func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance strin
 
 	if address == DECAP {
 		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
-		aftNh.DecapsulateHeader = telemetry.AftTypes_EncapsulationHeaderType_IPV4
+		aftNh.DecapsulateHeader = oc.Aft_EncapsulationHeaderType_IPV4
 	} else if address != "" {
 		NH = NH.WithIPAddress(address)
 		aftNh.IpAddress = &address
@@ -357,7 +358,7 @@ func (c *Client) ReplaceNH(t testing.TB, nhIndex uint64, address, instance strin
 	}
 	if interfaceRef != "" {
 		NH = NH.WithInterfaceRef(interfaceRef)
-		aftNh.InterfaceRef = &telemetry.NetworkInstance_Afts_NextHop_InterfaceRef{Interface: &interfaceRef}
+		aftNh.InterfaceRef = &oc.NetworkInstance_Afts_NextHop_InterfaceRef{Interface: &interfaceRef}
 	}
 	c.fluentC.Modify().ReplaceEntry(t, NH)
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
@@ -508,7 +509,7 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, nhgIndex uint64, instan
 // FlushServer flushes all the gribi entries
 func (c *Client) FlushServer(t testing.TB) {
 	t.Logf("Flush Entries in All Network Instances.")
-	c.afts = []map[string]*telemetry.NetworkInstance_Afts{
+	c.afts = []map[string]*oc.NetworkInstance_Afts{
 		{},
 	}
 
@@ -554,7 +555,7 @@ func (c *Client) AddNHWithIPinIP(t testing.TB, nhIndex uint64, address, instance
 		}
 	}
 	if check.AFTCheck {
-		nh := c.DUT.Telemetry().NetworkInstance(instance).Afts().NextHop(nhIndex).Get(t)
+		nh := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHop(nhIndex).State())
 		if (*nh.Index != nhIndex) || (*nh.IpAddress != address) {
 			t.Fatalf("AFT Check failed for aft/nexthop-entry got ip %s, want ip %s; got index %d , want index %d", *nh.IpAddress, address, *nh.Index, nhIndex)
 		}

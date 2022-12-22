@@ -28,7 +28,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gribigo/server"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -116,7 +117,7 @@ func testAddIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
 	// traffic verification
 	time.Sleep(60 * time.Second)
 
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -150,7 +151,7 @@ func testReplaceIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
 	// traffic verification
 	time.Sleep(60 * time.Second)
 
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -184,7 +185,7 @@ func testAddNHGTrafficCheck(t *testing.T, args *testArgs) {
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -215,7 +216,7 @@ func testReplaceNHGTrafficCheck(t *testing.T, args *testArgs) {
 	args.c2.ReplaceNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -249,7 +250,7 @@ func testAddNHTrafficCheck(t *testing.T, args *testArgs) {
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -282,7 +283,7 @@ func testReplaceNHTrafficCheck(t *testing.T, args *testArgs) {
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -1005,7 +1006,7 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -1077,7 +1078,7 @@ func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -1114,7 +1115,7 @@ func testReplaceSinglePathtoECMP(t *testing.T, args *testArgs) {
 	args.c1.AddNHG(t, 11, 0, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().InterfaceAny().Counters().State())
 	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats)
 	if trafficPass == true {
 		t.Log("Traffic works as expected")
@@ -1432,9 +1433,9 @@ func testSetISISOverloadBit(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Configure ISIS overload bit
-	config := args.dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
-	config.Update(t, true)
-	defer config.Delete(t)
+	config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+	gnmi.Update(t, args.dut, config.Config(), true)
+	defer gnmi.Delete(t, args.dut, config.Config())
 
 	performATEAction(t, "ate", 100, true)
 }
@@ -1603,14 +1604,15 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "transit_wecmp_isis_2", "dscpTtlFlow", 16, 100)
 	//add acl with dscp=48, ttl=99. Transit traffic will have ttl decremented by 1
 	aclName := "ttl_dscp"
-	aclConfig := util.GetIpv4Acl(aclName, 10, 16, 99, telemetry.Acl_FORWARDING_ACTION_ACCEPT)
-	args.dut.Config().Acl().Update(t, aclConfig)
+	aclConfig := util.GetIpv4Acl(aclName, 10, 16, 99, oc.Acl_FORWARDING_ACTION_ACCEPT)
+	gnmi.Update(t, args.dut, gnmi.OC().Acl().Config(), aclConfig)
+
 	//delete acl
-	defer args.dut.Config().Acl().AclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
+	defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config())
 	//apply egress acl on all interfaces of interest
 	interfaceNames := []string{"Bundle-Ether120", "Bundle-Ether121"}
 	for _, interfaceName := range interfaceNames {
-		args.dut.Config().Acl().Interface(interfaceName).EgressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).SetName().Update(t, aclName)
+		gnmi.Update(t, args.dut, gnmi.OC().Acl().Interface(interfaceName).EgressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), aclName)
 	}
 
 	// Verify traffic passes through ACL - allowing same DSCP and TTL decremented by 1
@@ -1618,7 +1620,7 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 
 	//remove acl from interfaces
 	for _, interfaceName := range interfaceNames {
-		args.dut.Config().Acl().Interface(interfaceName).EgressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
+		gnmi.Delete(t, args.dut, gnmi.OC().Acl().Interface(interfaceName).EgressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config())
 	}
 }
 
@@ -1731,7 +1733,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	for _, interfaceName := range interfaceNames {
 		ipPrefix := util.GetIPPrefix(initialIP, counter, "24")
 		initialIP = strings.Split(ipPrefix, "/")[0]
-		args.dut.Config().Interface(interfaceName).Subinterface(0).Replace(t, util.GetSubInterface(initialIP, 24, 0))
+		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Subinterface(0).Config(), util.GetSubInterface(initialIP, 24, 0))
 		t.Logf("Changed configuration of interface %s", interfaceName)
 		counter = counter + 256
 
@@ -1740,7 +1742,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	for _, interfaceName := range interfaceNames {
 		osi := originalInterfaces[interfaceName]
 		osi.Index = ygot.Uint32(0)
-		args.dut.Config().Interface(interfaceName).Subinterface(0).Replace(t, osi)
+		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Subinterface(0).Config(), osi)
 		t.Logf("Restored configuration of interface %s", interfaceName)
 	}
 	//Config change end
@@ -1807,7 +1809,7 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 	defer args.ate.Traffic().Stop(t)
 
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	t.Log("slept and now need to collect stats")
 	lossStream := util.CheckTrafficPassViaRate(stats)
 
@@ -1823,7 +1825,7 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.3  0000.0012.0011 arpa")
 
-	statsb := args.ate.Telemetry().FlowAny().Get(t)
+	statsb := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStreamb := util.CheckTrafficPassViaRate(statsb)
 
 	if len(lossStreamb) > 0 {
@@ -1872,7 +1874,7 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 	defer args.ate.Traffic().Stop(t)
 
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 
 	if len(lossStream) > 0 {
@@ -1895,7 +1897,7 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.2  0000.0012.0011 arpa")
 
-	statsb := args.ate.Telemetry().FlowAny().Get(t)
+	statsb := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStreamb := util.CheckTrafficPassViaRate(statsb)
 
 	if len(lossStreamb) > 0 {

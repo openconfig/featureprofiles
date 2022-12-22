@@ -24,7 +24,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -108,17 +110,17 @@ func TestResetGRIBIServerFP(t *testing.T) {
 	nhg.Lookup(t)*/
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
-	ipv4Path := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	ipv4Path.Lookup(t)
+	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	gnmi.Lookup(t, dut, ipv4Path.State())
 
-	ipv4Path.Watch(t, 33*time.Second, func(val *telemetry.QualifiedNetworkInstance_Afts_Ipv4Entry) bool {
-		// Do nothing in this matching function, as we already filter on the prefix.
+	gnmi.Watch(t, dut, ipv4Path.State(), 33*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+
 		return true
 	}).Await(t)
 
-	ipv4Path.Prefix().Lookup(t)
-	ipv4Path.Prefix().Watch(t, 33*time.Second, func(val *telemetry.QualifiedString) bool {
-		// Do nothing in this matching function, as we already filter on the prefix.
+	gnmi.Lookup(t, dut, ipv4Path.Prefix().State())
+	gnmi.Watch(t, dut, ipv4Path.Prefix().State(), 33*time.Second, func(val *ygnmi.Value[string]) bool {
+
 		return true
 	}).Await(t)
 
