@@ -60,6 +60,7 @@ var (
 	FrameSize = pflag.Uint32("frame_size", 1024, "The traffic flow frame size")
 
 	// flags to selectively run a set of P4RT PacketIO tests
+
 	GDPTests        = flag.Bool("run_gdp_tests", false, "Run only GDP tests")
 	LLDPTests       = flag.Bool("run_lldp_tests", false, "Run only LLDP tests")
 	TTLTests        = flag.Bool("run_ttl_tests", false, "Run only TTL tests")
@@ -73,6 +74,9 @@ var (
 	HATests         = flag.Bool("run_ha_tests", false, "Run only HA tests")
 	ComplianceTests = flag.Bool("run_compliance_tests", false, "Run only Compliance tests")
 	PacketIOTests   = flag.Bool("run_packetio_tests", false, "Run only PacketIO tests")
+
+	PbrPrecommitTests = flag.Bool("skip_hw_module", true, "Run only hw-module") // Pbr
+
 )
 
 // GRIBICheck struct
