@@ -678,7 +678,7 @@ func TestApplyPolicyImportPolicy(t *testing.T) {
 		},
 	})
 	time.Sleep(configApplyTime)
-	batchDelete := gnmi.SetBatch{}
+	batchDelete := &gnmi.SetBatch{}
 	gnmi.BatchDelete(batchDelete, bgpConfig.Config())
 	dut.Config().RoutingPolicy().PolicyDefinition("TEST_ACCEPT").BatchDelete(t, batchDelete)
 	dut.Config().RoutingPolicy().PolicyDefinition("TEST_REJECT").BatchDelete(t, batchDelete)

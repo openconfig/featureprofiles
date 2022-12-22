@@ -8,6 +8,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 type trafficData struct {
@@ -59,7 +60,7 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 	ate.Traffic().Start(t, ondatraFlowList...)
 	time.Sleep(60 * time.Second)
 	threshold := 0.90
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
 	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
 
 	if trafficPass == expectPass {
