@@ -92,9 +92,7 @@ func testGNMISet(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsu
 	if err := oc.Unmarshal([]byte(generatedConf), configRoot); err != nil {
 		t.Fatalf(err.Error())
 	}
-	args.DUT[0].Config().Replace(t, configRoot)
-	//gnmi.Replace(t, args.DUT[0], configRoot, configRoot)
-
+	gnmi.Replace(t, args.DUT[0], gnmi.OC().Config(), configRoot)
 }
 
 func testPing(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsumer) {

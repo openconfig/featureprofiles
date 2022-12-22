@@ -67,8 +67,7 @@ func TestRPLConfig(t *testing.T) {
 			t.Run("Replace//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/config/set-med", func(t *testing.T) {
 				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetMed()
 				defer observer.RecordYgot(t, "REPLACE", path)
-				gnmi.Replace(t, dut, path.Config(), oc.UnionString("3"))
-
+				gnmi.Replace[oc.RoutingPolicy_PolicyDefinition_Statement_Actions_BgpActions_SetMed_Union](t, dut, path.Config(), oc.UnionString("3"))
 			})
 
 			t.Run("Replace//routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref", func(t *testing.T) {
@@ -111,8 +110,7 @@ func TestRPLConfig(t *testing.T) {
 			t.Run("Replace//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/config/set-med", func(t *testing.T) {
 				path := gnmi.OC().RoutingPolicy().PolicyDefinition(policy.Name).Statement("id-1").Actions().BgpActions().SetMed()
 				defer observer.RecordYgot(t, "UPDATE", path)
-				gnmi.Update(t, dut, path.Config(), oc.UnionString("3"))
-
+				gnmi.Update[oc.RoutingPolicy_PolicyDefinition_Statement_Actions_BgpActions_SetMed_Union](t, dut, path.Config(), oc.UnionString("3"))
 			})
 
 			t.Run("Update//routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref", func(t *testing.T) {
