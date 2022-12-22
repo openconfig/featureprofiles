@@ -7,8 +7,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	oc "github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestLldpCfgs(t *testing.T) {
@@ -109,8 +107,8 @@ func TestLldpState(t *testing.T) {
 		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).ChassisIdType()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
-		if val != oc.LldpTypes_ChassisIdType_MAC_ADDRESS {
-			t.Errorf("Lldp chassis type: got %v, want %v", val, oc.LldpTypes_ChassisIdType_MAC_ADDRESS)
+		if val != oc.Lldp_ChassisIdType_MAC_ADDRESS {
+			t.Errorf("Lldp chassis type: got %v, want %v", val, oc.Lldp_ChassisIdType_MAC_ADDRESS)
 
 		}
 
@@ -129,8 +127,8 @@ func TestLldpState(t *testing.T) {
 		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).PortIdType()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
-		if val != oc.LldpTypes_PortIdType_INTERFACE_NAME {
-			t.Errorf("Lacp portIdType: got %v, want %v", val, oc.LldpTypes_PortIdType_INTERFACE_NAME)
+		if val != oc.Lldp_PortIdType_INTERFACE_NAME {
+			t.Errorf("Lacp portIdType: got %v, want %v", val, oc.Lldp_PortIdType_INTERFACE_NAME)
 
 		}
 
