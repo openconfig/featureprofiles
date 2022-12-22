@@ -24,8 +24,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ondatra/telemetry"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -95,6 +93,7 @@ func testGNMISet(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsu
 		t.Fatalf(err.Error())
 	}
 	args.DUT[0].Config().Replace(t, configRoot)
+	//gnmi.Replace(t, args.DUT[0], configRoot, configRoot)
 
 }
 

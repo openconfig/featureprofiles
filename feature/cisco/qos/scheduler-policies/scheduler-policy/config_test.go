@@ -8,8 +8,6 @@ import (
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -65,7 +63,8 @@ func TestQueueSchedule(t *testing.T) {
 	if !setup.SkipSubscribe() {
 		t.Run("Get interface queue Telemetry", func(t *testing.T) {
 			stateGot := gnmi.Lookup(t, dut, state2.State())
-			if diff := cmp.Diff(*stateGot.Val(t), *baseConfigInterfaceOutputQueue); diff == "" {
+			value, _ := stateGot.Val()
+			if diff := cmp.Diff(*value, *baseConfigInterfaceOutputQueue); diff == "" {
 				t.Errorf("Telemetry interface subscribe  fail: \n%v", diff)
 			}
 		})
