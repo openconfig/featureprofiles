@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	ethernetCsmacd         = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ethernetCsmacd         = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	transceiverType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
 	sleepDuration          = time.Minute
 	minOpticsPower         = -30.0
