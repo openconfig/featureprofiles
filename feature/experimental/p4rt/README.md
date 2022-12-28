@@ -13,5 +13,9 @@ This document specifies the requirements for p4rt test implementation.
 3.  The client should make use of Ondatra Raw API
     `dut.RawAPIs().P4RT().Default(t)`
 
-4.  Tests should use `p4rtutils.P4RTNodesByPort()` to get the p4rt node name
-    instead of passing the node names through flags.
+4.  Tests should get the P4RT Node Name by walking the Components OC tree.
+    Components of type `INTEGRATED_CIRCUIT` should have child Components of type
+    `PORT`. These PORT Components can be mapped to currently reserved Interfaces
+    using the `hardware-port` leaf in the Interfaces tree. Such an
+    implementation already exists in `p4rtutils` library:
+    `p4rtutils.P4RTNodesByPort()`.
