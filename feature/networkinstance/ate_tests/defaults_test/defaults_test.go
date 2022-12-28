@@ -20,13 +20,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/ygot/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
 	"github.com/openconfig/ondatra/gnmi/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc/oc"
 	"github.com/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
