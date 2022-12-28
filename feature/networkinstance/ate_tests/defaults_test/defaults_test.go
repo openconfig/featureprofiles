@@ -14,19 +14,19 @@
  limitations under the License.
 */
 
-package interface_assignments_test
+package ni_address_families_test
 
 import (
 	"testing"
 	"time"
 
-	"google3/third_party/golang/ygot/ygot/ygot"
-	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/ondatra"
+	"github.com/golang/ygot/ygot/ygot"
+	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
+	"github.com/openconfig/ondatra/gnmi/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc/oc"
+	"github.com/openconfig/ondatra/ondatra"
 )
 
 func TestMain(m *testing.M) {
@@ -39,7 +39,6 @@ func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attribut
 	if niName != *deviations.DefaultNetworkInstance {
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	}
-	// ni.EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4, oc.Types_ADDRESS_FAMILY_IPV6}
 	if niName != *deviations.DefaultNetworkInstance || *deviations.ExplicitInterfaceInDefaultVRF {
 		niIntf := ni.GetOrCreateInterface(intf)
 		niIntf.Interface = ygot.String(intf)
