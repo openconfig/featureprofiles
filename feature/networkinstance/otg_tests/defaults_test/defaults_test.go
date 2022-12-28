@@ -21,15 +21,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
+	"google3/third_party/golang/ygot/ygot/ygot"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -38,7 +38,16 @@ func TestMain(m *testing.M) {
 
 func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attributes) {
 	t.Helper()
-	d.GetOrCreateNetworkInstance(niName)
+	ni := d.GetOrCreateNetworkInstance(niName)
+	if niName != *deviations.DefaultNetworkInstance {
+		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	}
+	// ni.EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4, oc.Types_ADDRESS_FAMILY_IPV6}
+	if niName != *deviations.DefaultNetworkInstance || *deviations.ExplicitInterfaceInDefaultVRF {
+		niIntf := ni.GetOrCreateInterface(intf)
+		niIntf.Interface = ygot.String(intf)
+		niIntf.Subinterface = ygot.Uint32(0)
+	}
 
 	ocInt := a.ConfigOCInterface(&oc.Interface{})
 	ocInt.Name = ygot.String(intf)
@@ -83,23 +92,6 @@ var (
 // configuration within a network instance. It does so by validating that simple IPv4 and IPv6 flows do not experience
 // loss.
 func TestDefaultAddressFamilies(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-
-	d := &oc.Root{}
-	d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
-
-	// Assign two ports into the default network instance.
-	assignPort(t, d, dut.Port(t, "port1").Name(), *deviations.DefaultNetworkInstance, dutPort1)
-	assignPort(t, d, dut.Port(t, "port2").Name(), *deviations.DefaultNetworkInstance, dutPort2)
-
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port1").Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port2").Name(), *deviations.DefaultNetworkInstance, 0)
-	}
-
-	fptest.LogQuery(t, "test configuration", gnmi.OC().Config(), d)
-	gnmi.Update(t, dut, gnmi.OC().Config(), d)
-
 	ate := ondatra.ATE(t, "ate")
 	top := ate.OTG().NewConfig(t)
 
@@ -129,33 +121,63 @@ func TestDefaultAddressFamilies(t *testing.T) {
 	v6.Dst().SetValue(atePort2.IPv6)
 
 	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
 
-	// TODO(robjs): check with Octavian why this is required.
-	time.Sleep(10 * time.Second)
-	for _, i := range []string{atePort1.Name, atePort2.Name} {
-		t.Logf("checking for ARP on %s", i)
-		gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(i+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-			return val.IsPresent()
-		}).Await(t)
+	cases := []struct {
+		desc   string
+		niName string
+	}{
+		{
+			desc:   "Default network instance",
+			niName: *deviations.DefaultNetworkInstance,
+		},
+		{
+			desc:   "Non default network instance",
+			niName: "xyz",
+		},
 	}
+	dut := ondatra.DUT(t, "dut")
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			// Reset DUT config.
+			dut.Config().New().WithText("").Push(t)
+			d := &oc.Root{}
+			// Assign two ports into the network instance.
+			assignPort(t, d, dut.Port(t, "port1").Name(), tc.niName, dutPort1)
+			assignPort(t, d, dut.Port(t, "port2").Name(), tc.niName, dutPort2)
 
-	ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
-	ate.OTG().StopTraffic(t)
+			fptest.LogQuery(t, "test configuration", gnmi.OC().Config(), d)
+			gnmi.Update(t, dut, gnmi.OC().Config(), d)
 
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	otgutils.LogPortMetrics(t, ate.OTG(), top)
+			ate.OTG().StartProtocols(t)
 
-	// Check that we did not lose any packets for the IPv4 and IPv6 flows.
-	for _, flow := range []string{"ipv4", "ipv6"} {
-		m := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
-		tx := m.GetCounters().GetOutPkts()
-		rx := m.GetCounters().GetInPkts()
-		loss := tx - rx
-		lossPct := loss * 100 / tx
-		if got := lossPct; got > 0 {
-			t.Errorf("LossPct for flow %s: got %v, want 0", flow, got)
-		}
+			// TODO(robjs): check with Octavian why this is required.
+			time.Sleep(10 * time.Second)
+			for _, i := range []string{atePort1.Name, atePort2.Name} {
+				t.Logf("checking for ARP on %s", i)
+				gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(i+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+					return val.IsPresent()
+				}).Await(t)
+			}
+
+			ate.OTG().StartTraffic(t)
+			time.Sleep(15 * time.Second)
+			ate.OTG().StopTraffic(t)
+
+			otgutils.LogFlowMetrics(t, ate.OTG(), top)
+			otgutils.LogPortMetrics(t, ate.OTG(), top)
+
+			// Check that we did not lose any packets for the IPv4 and IPv6 flows.
+			for _, flow := range []string{"ipv4", "ipv6"} {
+				m := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
+				tx := m.GetCounters().GetOutPkts()
+				rx := m.GetCounters().GetInPkts()
+				loss := tx - rx
+				lossPct := loss * 100 / tx
+				if got := lossPct; got > 0 {
+					t.Errorf("LossPct for flow %s: got %v, want 0", flow, got)
+				}
+			}
+			ate.OTG().StopProtocols(t)
+		})
 	}
 }
