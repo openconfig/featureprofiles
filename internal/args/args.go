@@ -24,5 +24,6 @@ import (
 
 // Global test flags.
 var (
-	NumSupervisors = flag.Int("arg_num_supervisors", -1, "The expected number of RP/SUPs. Some devices with a single supervisor report 0, which is a valid expected value. Expectation is not checked for values < 0.")
+	NumControllerCards = flag.Int("arg_num_controller_cards", -1, "The expected number of controller cards. Some devices with a single controller report 0, which is a valid expected value. Expectation is not checked for values < 0.")
+	NumLinecards       = flag.Int("arg_num_linecards", -1, "The expected number of linecards. Some devices with a single linecard report 0, which is a valid expected value. Expectation is not checked for values < 0.")
 )
