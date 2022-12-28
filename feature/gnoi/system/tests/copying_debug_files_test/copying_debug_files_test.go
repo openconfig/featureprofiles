@@ -15,16 +15,14 @@ package copying_debug_files_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"
-
 	hpb "github.com/openconfig/gnoi/healthz"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
+	"github.com/openconfig/ondatra"
 )
 
 const (
@@ -57,42 +55,33 @@ func TestCopyingDebugFiles(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	gnoiClient := dut.RawAPIs().GNOI().New(t)
 
-	// construct struct with values for killProcessRequest
 	killProcessRequest := &spb.KillProcessRequest{
 		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
 		Name:    process,
 		Restart: true,
 	}
-	start := time.Now()
 	processKillResponse, err := gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
 	if err != nil {
 		t.Fatalf("Failed to restart process %v with unexpected err: %v", process, err)
 	}
 
-	// Sleep for 60 seconds after process kill
 	t.Logf("gnoiClient.System().KillProcess() response: %v, err: %v", processKillResponse, err)
-	t.Logf("Time elapsed after process restart: %v", time.Since(start))
 	t.Logf("Wait 60 seconds for process to restart ...")
 	time.Sleep(60 * time.Second)
 
-	// construct struct with values for GetRequest for healthz call
-	pathElems := []*tpb.PathElem{
-		{Name: "openconfig-platform"},
-	}
-	path := &tpb.Path{
-		Origin: "openconfig",
-		Elem:   pathElems,
-	}
 	req := &hpb.GetRequest{
-		Path: path,
+		Path: &tpb.Path{
+			Elem: []*tpb.PathElem{
+				{
+					Name: "components/component/chassis",
+				},
+			},
+		},
 	}
 	validResponse, err := gnoiClient.Healthz().Get(context.Background(), req)
-	fmt.Println(err)
-	fmt.Println(validResponse)
+	t.Logf("Error: %v", err)
+	t.Logf("Response: %v", (validResponse))
 	if err != nil {
 		t.Fatalf("Unexpected error on healthz get response after restart of %v: %v", process, err)
 	}
-	fmt.Println(validResponse.Component.GetPath())
-	fmt.Println(validResponse.Component.GetStatus())
-
 }
