@@ -337,8 +337,7 @@ func inCounters(tic *oc.Interface_Counters) *counters {
 		broadcast: tic.GetInBroadcastPkts()}
 }
 
-// inEthCounters is used to oversize frames count in case of packet
-// larger than mtu size.
+// inEthCounters is used to get oversize frames count
 func inEthCounters(tic *oc.Interface_Ethernet_Counters) *counters {
 	return &counters{unicast: tic.GetInOversizeFrames()}
 }
