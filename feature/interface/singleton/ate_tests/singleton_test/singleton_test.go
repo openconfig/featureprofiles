@@ -237,6 +237,9 @@ func (tc *testCase) verifyInterfaceDUT(
 	// According to IEEE Std 802.3-2012 section 22.2.4.1.4, if PHY does not support
 	// auto-negotiation, then trying to enable it should be ignored.
 	di.GetOrCreateEthernet().AutoNegotiate = wantdi.GetOrCreateEthernet().AutoNegotiate
+	// Mac address value is still not populated in di. Hence getting using gnmi get method
+	diMacAddress := gnmi.Get(t, tc.dut, dip.Ethernet().MacAddress().State())
+	di.GetOrCreateEthernet().MacAddress = &diMacAddress
 
 	confirm.State(t, wantdi, di)
 
@@ -334,6 +337,12 @@ func inCounters(tic *oc.Interface_Counters) *counters {
 		broadcast: tic.GetInBroadcastPkts()}
 }
 
+// inEthCounters is used to oversize frames count in case of packet
+// larger than mtu size.
+func inEthCounters(tic *oc.Interface_Ethernet_Counters) *counters {
+	return &counters{unicast: tic.GetInOversizeFrames()}
+}
+
 func outCounters(tic *oc.Interface_Counters) *counters {
 	return &counters{unicast: tic.GetOutUnicastPkts(),
 		multicast: tic.GetOutMulticastPkts(), broadcast: tic.GetOutBroadcastPkts()}
@@ -352,11 +361,14 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 	i2 := tc.top.Interfaces()[ateDst.Name]
 	p1 := tc.dut.Port(t, "port1")
 	p2 := tc.dut.Port(t, "port2")
+
 	p1Counter := gnmi.OC().Interface(p1.Name()).Counters()
 	p2Counter := gnmi.OC().Interface(p2.Name()).Counters()
+	p1EthCounter := gnmi.OC().Interface(p1.Name()).Ethernet().Counters()
 
 	// Before Traffic Unicast, Multicast, Broadcast Counter
 	p1InBefore := inCounters(gnmi.Get(t, tc.dut, p1Counter.State()))
+	p1InEthBefore := inEthCounters(gnmi.Get(t, tc.dut, p1EthCounter.State()))
 	p2OutBefore := outCounters(gnmi.Get(t, tc.dut, p2Counter.State()))
 
 	ethHeader := ondatra.NewEthernetHeader()
@@ -383,9 +395,11 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 
 	// After Traffic Unicast, Multicast, Broadcast Counter
 	p1InAfter := inCounters(gnmi.Get(t, tc.dut, p1Counter.State()))
+	p1InEthAfter := inEthCounters(gnmi.Get(t, tc.dut, p1EthCounter.State()))
 	p2OutAfter := outCounters(gnmi.Get(t, tc.dut, p2Counter.State()))
 	p1InDiff := diffCounters(p1InBefore, p1InAfter)
 	p2OutDiff := diffCounters(p2OutBefore, p2OutAfter)
+	p1InEthDiff := diffCounters(p1InEthBefore, p1InEthAfter)
 
 	if p1InDiff.multicast > 100 {
 		t.Errorf("Large number of inbound Multicast packets %d, want <= 100)", p1InDiff.multicast)
@@ -417,17 +431,24 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 	} else if avg := octets / outPkts; avg > uint64(tc.mtu) {
 		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
 	}
-	if p1InDiff.unicast < outPkts {
-		t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
-	}
 
 	if inPkts == 0 {
 		// The PacketLargerThanMTU cases do not expect to receive packets,
-		// so this is not an error.
+		// so this is not an error. Ethernet counters will be incremented
+		// in case of Packets which larger than MTU
 		t.Log("Flow did not receive any packet")
-	} else if avg := octets / inPkts; avg > uint64(tc.mtu) {
-		t.Errorf("Flow destination packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
+		if p1InEthDiff.unicast < outPkts {
+			t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InEthDiff.unicast, outPkts)
+		}
+	} else {
+		if p1InDiff.unicast < outPkts {
+			t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
+		}
+		if avg := octets / inPkts; avg > uint64(tc.mtu) {
+			t.Errorf("Flow destination packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
+		}
 	}
+
 	if inPkts < p2OutDiff.unicast {
 		t.Errorf("ATE received too few destination packets: got %d, want >= %d", inPkts, p2OutDiff.unicast)
 	}
