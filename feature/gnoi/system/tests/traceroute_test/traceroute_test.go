@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	minTraceroutePktSize     = 60
+	minTraceroutePktSize     = 56
 	minTracerouteHops        = 1
 	minTracerouteRTT         = 1
 	maxDefaultTracerouteHops = 30
