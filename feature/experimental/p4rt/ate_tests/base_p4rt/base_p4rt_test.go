@@ -392,6 +392,7 @@ func TestP4rtConnect(t *testing.T) {
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
+				Priority:      1,
 			},
 		})
 
@@ -406,6 +407,7 @@ func TestP4rtConnect(t *testing.T) {
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x88cc,
 				EtherTypeMask: 0xFFFF,
+				Priority:      1,
 			},
 		})
 		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
@@ -416,10 +418,11 @@ func TestP4rtConnect(t *testing.T) {
 		// Construct expected table for traceroute to match with received table entry
 		expected_update = p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
 			{
-				Type:    p4_v1.Update_INSERT,
-				IsIpv4:  0x1,
-				TTL:     0x1,
-				TTLMask: 0xFF,
+				Type:     p4_v1.Update_INSERT,
+				IsIpv4:   0x1,
+				TTL:      0x1,
+				TTLMask:  0xFF,
+				Priority: 1,
 			},
 		})
 		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
