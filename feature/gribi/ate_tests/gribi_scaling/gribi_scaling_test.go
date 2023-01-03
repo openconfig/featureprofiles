@@ -304,7 +304,6 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) 
 		} else if vrf == *deviations.DefaultNetworkInstance {
 			i := d.GetOrCreateNetworkInstance(vrf)
 			i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
-			i.Enabled = ygot.Bool(true)
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 		}
 	}
