@@ -297,7 +297,6 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) 
 		if vrf != *deviations.DefaultNetworkInstance {
 			i := d.GetOrCreateNetworkInstance(vrf)
 			i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-			i.Enabled = ygot.Bool(true)
 			i.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 			nip := gnmi.OC().NetworkInstance(vrf)
