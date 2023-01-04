@@ -17,18 +17,15 @@
 package ni_address_families_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -92,34 +89,33 @@ var (
 // loss.
 func TestDefaultAddressFamilies(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
-	top := ate.OTG().NewConfig(t)
+	top := ate.Topology().New()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
 
-	atePort1.AddToOTG(top, p1, dutPort1)
-	atePort2.AddToOTG(top, p2, dutPort2)
+	i1 := atePort1.AddToATE(top, p1, dutPort1)
+	i2 := atePort2.AddToATE(top, p2, dutPort2)
 	// Create an IPv4 flow between ATE port 1 and ATE port 2.
-	v4Flow := top.Flows().Add().SetName("ipv4")
-	v4Flow.Metrics().SetEnable(true)
-	e1 := v4Flow.Packet().Add().Ethernet()
-	e1.Src().SetValue(atePort1.MAC)
-	v4Flow.TxRx().Device().SetTxNames([]string{fmt.Sprintf("%s.IPv4", atePort1.Name)}).SetRxNames([]string{fmt.Sprintf("%s.IPv4", atePort2.Name)})
-	v4 := v4Flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().SetValue(atePort2.IPv4)
+	ipHeader := ondatra.NewIPv4Header().
+		WithSrcAddress(atePort1.IPv4).
+		WithDstAddress(atePort2.IPv4)
+	v4Flow := ate.Traffic().NewFlow("ipv4").
+		WithSrcEndpoints(i1).
+		WithDstEndpoints(i2).
+		WithHeaders(ondatra.NewEthernetHeader().WithSrcAddress(atePort1.MAC), ipHeader)
 
 	// Create an IPv6 flow between ATE port 1 and ATE port 2.
-	v6Flow := top.Flows().Add().SetName("ipv6")
-	v6Flow.Metrics().SetEnable(true)
-	e2 := v6Flow.Packet().Add().Ethernet()
-	e2.Src().SetValue(atePort1.MAC)
-	v6Flow.TxRx().Device().SetTxNames([]string{fmt.Sprintf("%s.IPv6", atePort1.Name)}).SetRxNames([]string{fmt.Sprintf("%s.IPv6", atePort2.Name)})
-	v6 := v6Flow.Packet().Add().Ipv6()
-	v6.Src().SetValue(atePort1.IPv6)
-	v6.Dst().SetValue(atePort2.IPv6)
+	ip6Header := ondatra.NewIPv6Header().
+		WithSrcAddress(atePort1.IPv6).
+		WithDstAddress(atePort2.IPv6)
+	v6Flow := ate.Traffic().NewFlow("ipv6").
+		WithSrcEndpoints(i1).
+		WithDstEndpoints(i2).
+		WithHeaders(ondatra.NewEthernetHeader().WithSrcAddress(atePort1.MAC), ip6Header)
 
-	ate.OTG().PushConfig(t, top)
+	// Push ATE config.
+	top.Push(t)
 
 	cases := []struct {
 		desc   string
@@ -147,27 +143,16 @@ func TestDefaultAddressFamilies(t *testing.T) {
 			fptest.LogQuery(t, "test configuration", gnmi.OC().Config(), d)
 			gnmi.Update(t, dut, gnmi.OC().Config(), d)
 
-			ate.OTG().StartProtocols(t)
-
-			// TODO(robjs): check with Octavian why this is required.
+			top.StartProtocols(t)
 			time.Sleep(10 * time.Second)
-			for _, i := range []string{atePort1.Name, atePort2.Name} {
-				t.Logf("checking for ARP on %s", i)
-				gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(i+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-					return val.IsPresent()
-				}).Await(t)
-			}
 
-			ate.OTG().StartTraffic(t)
+			ate.Traffic().Start(t, v4Flow, v6Flow)
 			time.Sleep(15 * time.Second)
-			ate.OTG().StopTraffic(t)
-
-			otgutils.LogFlowMetrics(t, ate.OTG(), top)
-			otgutils.LogPortMetrics(t, ate.OTG(), top)
+			ate.Traffic().Stop(t)
 
 			// Check that we did not lose any packets for the IPv4 and IPv6 flows.
 			for _, flow := range []string{"ipv4", "ipv6"} {
-				m := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
+				m := gnmi.Get(t, ate, gnmi.OC().Flow(flow).State())
 				tx := m.GetCounters().GetOutPkts()
 				rx := m.GetCounters().GetInPkts()
 				loss := tx - rx
@@ -176,7 +161,7 @@ func TestDefaultAddressFamilies(t *testing.T) {
 					t.Errorf("LossPct for flow %s: got %v, want 0", flow, got)
 				}
 			}
-			ate.OTG().StopProtocols(t)
+			top.StopProtocols(t)
 		})
 	}
 }
