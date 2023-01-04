@@ -302,8 +302,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	vrf := &oc.NetworkInstance{
-		Name:    ygot.String(vrfName),
-		Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+		Name: ygot.String(vrfName),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 	}
 	if !*deviations.VRFSelectionPolicyRequired {
 		vrfIntf := vrf.GetOrCreateInterface(p1.Name())
