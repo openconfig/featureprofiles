@@ -303,11 +303,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	vrf := &oc.NetworkInstance{
 		Name:    ygot.String(vrfName),
-		Enabled: ygot.Bool(true),
 		Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
-		EnabledAddressFamilies: []oc.E_Types_ADDRESS_FAMILY{
-			oc.Types_ADDRESS_FAMILY_IPV4,
-		},
 	}
 	if !*deviations.VRFSelectionPolicyRequired {
 		vrfIntf := vrf.GetOrCreateInterface(p1.Name())
