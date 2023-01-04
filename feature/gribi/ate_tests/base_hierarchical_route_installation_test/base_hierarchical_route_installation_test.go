@@ -306,8 +306,12 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 			t.Errorf("next-hop index is incorrect: got %v, want %v", got, want)
 		}
 		nh := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(nhIndexInst).State())
-		if got, want := nh.GetIpAddress(), ateIndirectNH; got != want {
-			t.Errorf("next-hop is incorrect: got %v, want %v", got, want)
+		// for devices that return  the nexthop with resolving it recursively, e.g., for a->b->c the device returns c
+		if got, want := nh.GetIpAddress(), atePort2.IPv4; got != want {
+			// for devices that return the next hop without resolving it recursively e.g., for a->b->c the device returns b
+			if got, want := nh.GetIpAddress(), ateIndirectNH; got != want {
+				t.Errorf("next-hop is incorrect: got %v, want %v", got, want)
+			}
 		}
 		if nh.GetInterfaceRef().GetInterface() == "" {
 			t.Errorf("next-hop interface-ref/interface not found")
