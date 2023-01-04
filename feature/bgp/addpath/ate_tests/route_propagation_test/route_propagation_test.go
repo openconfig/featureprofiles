@@ -16,7 +16,6 @@
 package route_propagation_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -300,11 +299,8 @@ func TestBGP(t *testing.T) {
 
 			for _, prefix := range tc.wantPrefixes {
 				rib := gnmi.OC().NetworkInstance("port2").
-					Protocol(
-						oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-						fmt.Sprintf("%d", ateAS2),
-					).Bgp().
-					Rib()
+					Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "0").
+					Bgp().Rib()
 				// Don't care about the value, but I can only fetch leaves from ATE telemetry. This
 				// should fail in the Get(t) method if the Route is missing.
 				if prefix.v4 != "" {
