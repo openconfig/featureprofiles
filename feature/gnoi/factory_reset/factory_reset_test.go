@@ -1,4 +1,4 @@
-package factory_reset
+package factoryreset
 
 import (
 	"context"
@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	frpb "github.com/openconfig/gnoi/factory_reset"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
+	frpb "github.com/openconfig/gnoi/factory_reset"
 )
 
 var (
@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 }
 
 type encryptionCommands struct {
-	EncrytionStatus      string
+	EncryptionStatus     string
 	EncryptionActivate   string
 	EncryptionDeactivate string
 	DevicePaths          []string
@@ -64,14 +64,14 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 
 		filesCreated = append(filesCreated, fPath)
 	}
-	for _, fP := range filesCreated {
-		resp, err := cli.SendCommand(context.Background(), fmt.Sprintf(checkFileExists, fP))
+	for _, f := range filesCreated {
+		resp, err := cli.SendCommand(context.Background(), fmt.Sprintf(checkFileExists, f))
 		if err != nil {
-			t.Fatalf("Failed to send command %s on the device, Error: %v", fmt.Sprintf(checkFileExists, fP), err)
+			t.Fatalf("Failed to send command %s on the device, Error: %v", fmt.Sprintf(checkFileExists, f), err)
 		}
 		t.Logf("%v", resp)
 		if !strings.Contains(resp, fileExists) {
-			t.Fatalf("Unable to Create a file object %s in device %s", fP, dut.Name())
+			t.Fatalf("Unable to Create a file object %s in device %s", f, dut.Name())
 		}
 	}
 
@@ -138,7 +138,7 @@ func TestFactoryReset(t *testing.T) {
 
 	switch dut.Vendor() {
 	case ondatra.CISCO:
-		enCiscoCommands = encryptionCommands{EncrytionStatus: "show disk-encryption status", EncryptionActivate: "disk-encryption activate", EncryptionDeactivate: "disk-encryption deactivate", DevicePaths: []string{"/misc/disk1"}}
+		enCiscoCommands = encryptionCommands{EncryptionStatus: "show disk-encryption status", EncryptionActivate: "disk-encryption activate", EncryptionDeactivate: "disk-encryption deactivate", DevicePaths: []string{"/misc/disk1"}}
 		t.Logf("Cisco commands for disk encryption %v ", enCiscoCommands)
 	default:
 		t.Fatalf("Disk Encryption commands is missing for %v ", dut.Vendor().String())
@@ -146,9 +146,9 @@ func TestFactoryReset(t *testing.T) {
 
 	cli := dut.RawAPIs().CLI(t)
 
-	showDiskEncryptionStatus, err := cli.SendCommand(context.Background(), enCiscoCommands.EncrytionStatus)
+	showDiskEncryptionStatus, err := cli.SendCommand(context.Background(), enCiscoCommands.EncryptionStatus)
 	if err != nil {
-		t.Fatalf("Failed to send command %v on the device, Error: %v ", enCiscoCommands.EncrytionStatus, err)
+		t.Fatalf("Failed to send command %v on the device, Error: %v ", enCiscoCommands.EncryptionStatus, err)
 	}
 	t.Logf("Disk encryption status %v", showDiskEncryptionStatus)
 
@@ -167,13 +167,13 @@ func TestFactoryReset(t *testing.T) {
 		}
 		t.Logf("Device encryption acrivare: %v", encrypt)
 		deviceBootStatus(t, dut)
-		encrypt, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), enCiscoCommands.EncrytionStatus)
+		encrypt, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), enCiscoCommands.EncryptionStatus)
 		if err != nil {
-			t.Fatalf("Failed to send command %v on the router, Error : %v ", enCiscoCommands.EncrytionStatus, err)
+			t.Fatalf("Failed to send command %v on the router, Error : %v ", enCiscoCommands.EncryptionStatus, err)
 
 		}
 		t.Logf("Show device encryption status: %v", encrypt)
-		t.Log("Wait for the system to stabalise\n")
+		t.Log("Wait for the system to stabilize\n")
 		time.Sleep(5 * time.Minute)
 		factoryReset(t, dut, enCiscoCommands.DevicePaths)
 	} else {
@@ -191,16 +191,15 @@ func TestFactoryReset(t *testing.T) {
 		t.Logf("Sleep for 5 mins after disk-encryption deactivate")
 		time.Sleep(5 * time.Minute)
 		deviceBootStatus(t, dut)
-		encrypt, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), enCiscoCommands.EncrytionStatus)
+		encrypt, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), enCiscoCommands.EncryptionStatus)
 		if err != nil {
-			t.Fatalf("Failed to send command %v on the router, Error : %v ", enCiscoCommands.EncrytionStatus, err)
+			t.Fatalf("Failed to send command %v on the router, Error : %v ", enCiscoCommands.EncryptionStatus, err)
 
 		}
 		t.Logf("Show device encrytion status: %v", encrypt)
-		t.Logf("Wait for the system to stabalise\n")
+		t.Logf("Wait for the system to stabilize\n")
 		time.Sleep(5 * time.Minute)
 		factoryReset(t, dut, enCiscoCommands.DevicePaths)
 	}
 
 }
-
