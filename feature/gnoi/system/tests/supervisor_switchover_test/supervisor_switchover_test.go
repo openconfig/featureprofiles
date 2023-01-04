@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -72,14 +73,18 @@ func TestMain(m *testing.M) {
 func TestSupervisorSwitchover(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	supervisors := components.FindComponentsByType(t, dut, controlcardType)
-	t.Logf("Found supervisor list: %v", supervisors)
-	// Only perform the switchover for the chassis with dual RPs/Supervisors.
-	if got, want := len(supervisors), 2; got != want {
-		t.Skipf("Dual RP/SUP is required on %v: got %v, want %v", dut.Model(), got, want)
+	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
+	t.Logf("Found controller card list: %v", controllerCards)
+
+	if *args.NumControllerCards >= 0 && len(controllerCards) != *args.NumControllerCards {
+		t.Errorf("Incorrect number of controller cards: got %v, want exactly %v (specified by flag)", len(controllerCards), *args.NumControllerCards)
 	}
 
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, supervisors)
+	if got, want := len(controllerCards), 2; got < want {
+		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
+	}
+
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
 	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
@@ -139,7 +144,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := findStandbyRP(t, dut, supervisors)
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := findStandbyRP(t, dut, controllerCards)
 	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
 
 	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {

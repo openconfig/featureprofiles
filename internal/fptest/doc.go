@@ -14,3 +14,9 @@
 
 // Package fptest provides helper functions for organizing tests and reporting results.
 package fptest
+
+// Import packages for test flags so that the presence of unused flags won't break tests.
+import (
+	_ "github.com/openconfig/featureprofiles/internal/args"       // keep
+	_ "github.com/openconfig/featureprofiles/internal/deviations" // keep
+)
