@@ -100,9 +100,7 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
 		Subcomponents: []*tpb.Path{
-			{
-				Elem: []*tpb.PathElem{{Name: rpStandby}},
-			},
+			components.GetSubcomponentPath(rpStandby),
 		},
 	}
 
@@ -161,9 +159,7 @@ func TestLinecardReboot(t *testing.T) {
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
 		Subcomponents: []*tpb.Path{
-			{
-				Elem: []*tpb.PathElem{{Name: removableLinecard}},
-			},
+			components.GetSubcomponentPath(removableLinecard),
 		},
 	}
 
