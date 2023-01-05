@@ -152,14 +152,14 @@ func TestAuthentication(t *testing.T) {
 				}
 			}
 			t.Log("Trying credentials with GNMI Set")
-			json_config, _ := json.Marshal(*deviations.BannerDelimiter + "message of the day" + *deviations.BannerDelimiter)
+			jsonConfig, _ := json.Marshal(*deviations.BannerDelimiter + "message of the day" + *deviations.BannerDelimiter)
 			_, err = gnmi.Set(ctx, &gpb.SetRequest{
 				Replace: []*gpb.Update{{
 					Path: &gpb.Path{
 						Elem: []*gpb.PathElem{
 							{Name: "system"}, {Name: "config"}, {Name: "motd-banner"}},
 					},
-					Val: &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: json_config}},
+					Val: &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: jsonConfig}},
 				}},
 			})
 			if tc.wantErr != (err != nil) {
