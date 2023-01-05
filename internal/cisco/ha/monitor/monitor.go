@@ -1,7 +1,6 @@
 // Package monitor contains utolity api for monitoring telemetry paths in background while running tests
 // A monitor pushes all event to the an event consumer that should provide process method.
 // A monitor can monitor multipe paths, however provided paths should be disjoint.
-
 package monitor
 
 import (
