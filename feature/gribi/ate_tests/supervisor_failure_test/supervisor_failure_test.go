@@ -57,7 +57,7 @@ const (
 	controlcardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	primaryController   = oc.Platform_ComponentRedundantRole_PRIMARY
 	secondaryController = oc.Platform_ComponentRedundantRole_SECONDARY
-	switchTrigger       = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_SYSTEM_INITIATED
+	switchTrigger       = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED
 	maxSwitchoverTime   = 900
 )
 
@@ -242,7 +242,7 @@ func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch 
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
 	if gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger() != switchTrigger {
-		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want SYSTEM_INITIATED.",
+		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want USER_INITIATED.",
 			gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger().String())
 	}
 
