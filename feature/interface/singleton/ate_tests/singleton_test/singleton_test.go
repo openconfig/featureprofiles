@@ -102,12 +102,6 @@ type testCase struct {
 	duti1, duti2 *oc.Interface
 }
 
-var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
-	ondatra.Speed10Gb:  oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
-	ondatra.Speed100Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-	ondatra.Speed400Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB,
-}
-
 // configInterfaceDUT configures an oc Interface with the desired MTU.
 func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *attrs.Attributes) {
 	a.ConfigOCInterface(i)
