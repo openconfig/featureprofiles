@@ -13,6 +13,7 @@ import (
 	"github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/protobuf/encoding/prototext"
 )
@@ -199,7 +200,7 @@ func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 }
 
 // GNMICommitReplaceWithOC apply the oc config and text config on the device. The result expected to be the merge of both configuations
-func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, pathStruct ygot.PathStruct, ocVal interface{}) *gnmi.SetResponse {
+func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, pathStruct ygnmi.PathStruct, ocVal interface{}) *gnmi.SetResponse {
 	t.Helper()
 	gnmiC := dut.RawAPIs().GNMI().New(t)
 	textReplaceReq := &gnmi.Update{
@@ -210,7 +211,7 @@ func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUT
 			},
 		},
 	}
-	path, _, errs := ygot.ResolvePath(pathStruct)
+	path, _, errs := ygnmi.ResolvePath(pathStruct)
 	if errs != nil {
 		t.Fatalf("Could not resolve the path; %v", errs)
 	}
@@ -286,7 +287,7 @@ func (batch *BatchSetRequest) Reset(t *testing.T) {
 }
 
 // Append add a GNMI Update/Delete/Replace request to a batch request
-func (batch *BatchSetRequest) Append(ctx context.Context, t *testing.T, pathStruct ygot.PathStruct, val interface{}, op setOperation) {
+func (batch *BatchSetRequest) Append(ctx context.Context, t *testing.T, pathStruct ygnmi.PathStruct, val interface{}, op setOperation) {
 	t.Helper()
 	if op != DeleteOC && val == nil {
 		t.Fatalf("Cannot append a nil value to the batch set request")
@@ -294,7 +295,7 @@ func (batch *BatchSetRequest) Append(ctx context.Context, t *testing.T, pathStru
 
 	switch op {
 	case DeleteOC:
-		path, _, errs := ygot.ResolvePath(pathStruct)
+		path, _, errs := ygnmi.ResolvePath(pathStruct)
 		if errs != nil {
 			t.Fatalf("Could not resolve the path; %v", errs)
 		}
@@ -320,7 +321,7 @@ func (batch *BatchSetRequest) Append(ctx context.Context, t *testing.T, pathStru
 			batch.req.Update = append(batch.req.Update, textReplaceReq)
 		}
 	case ReplaceOC, UpdateOC:
-		path, _, errs := ygot.ResolvePath(pathStruct)
+		path, _, errs := ygnmi.ResolvePath(pathStruct)
 		path.Origin = "openconfig"
 		if errs != nil {
 			t.Fatalf("Could not resolve the path; %v", errs)

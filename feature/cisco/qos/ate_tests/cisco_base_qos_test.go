@@ -11,6 +11,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 // Testcase defines testcase structure
@@ -241,8 +242,8 @@ func TestScheduler(t *testing.T) {
 
 	//Configure IPv6 addresses and VLANS on DUT
 	configureIpv6AndVlans(t, dut)
-	dut.Config().Interface(inint1).Ethernet().MacAddress().Update(t, mac1)
-	dut.Config().Interface(inint2).Ethernet().MacAddress().Update(t, mac2)
+	gnmi.Update(t, dut, gnmi.OC().Interface(inint1).Ethernet().MacAddress().Config(), mac1)
+	gnmi.Update(t, dut, gnmi.OC().Interface(inint2).Ethernet().MacAddress().Config(), mac2)
 
 	// Disable Flowspec and Enable PBR
 
