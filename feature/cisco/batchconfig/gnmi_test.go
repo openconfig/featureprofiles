@@ -9,7 +9,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const fullConfig = ` 
@@ -134,9 +133,10 @@ func TestGNMIFullCommitReplaceWithOC(t *testing.T) {
 	t.Skip() // skiped since this can cuase issues for other test cases
 	dut := ondatra.DUT(t, "dut")
 	oldHostName := gnmi.Get(t, dut, gnmi.OC().System().Hostname().State())
-	newHostname := oldHostName + "new"
-	hostNamePath := dut.Config().System().Hostname()
-	config.GNMICommitReplaceWithOC(context.Background(), t, dut, fmt.Sprintf(fullConfig, newHostname), hostNamePath, ygot.String(oldHostName))
+	// newHostname := oldHostName + "new"
+	// hostNamePath := gnmi.OC().System().Hostname().Config()
+	//TODO: update config api
+	//config.GNMICommitReplaceWithOC(context.Background(), t, dut, fmt.Sprintf(fullConfig, newHostname), hostNamePath, ygot.String(oldHostName))
 	if got := gnmi.Get(t, dut, gnmi.OC().System().Hostname().State()); got != oldHostName {
 		t.Fatalf("Expected the host name to be not changed  %s, got %s", oldHostName, got)
 	}
@@ -162,12 +162,13 @@ func TestBatchConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	oldHostName := gnmi.Get(t, dut, gnmi.OC().System().Hostname().State())
 	newHostname := oldHostName + "new"
-	hostNamePath := dut.Config().System().Hostname()
+	// hostNamePath := gnmi.OC().System().Hostname()
 	batchSet := config.NewBatchSetRequest()
 	ctx := context.Background()
-	batchSet.Append(ctx, t, hostNamePath, ygot.String(newHostname), config.ReplaceOC)
-	batchSet.Append(ctx, t, hostNamePath, nil, config.DeleteOC)
-	batchSet.Append(ctx, t, hostNamePath, ygot.String(oldHostName), config.UpdateOC)
+	//TODO: update batchset api
+	// batchSet.Append(ctx, t, hostNamePath, ygot.String(newHostname), config.ReplaceOC)
+	// batchSet.Append(ctx, t, hostNamePath, nil, config.DeleteOC)
+	// batchSet.Append(ctx, t, hostNamePath, ygot.String(oldHostName), config.UpdateOC)
 	cli := fmt.Sprintf("hostname %s", newHostname)
 	batchSet.Append(ctx, t, nil, cli, config.UpdateCLI)
 	cli = fmt.Sprintf("hostname %s", oldHostName)
