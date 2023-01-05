@@ -266,12 +266,12 @@ github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 h1:t6SvvdfWC
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70/go.mod h1:OmTWe7RyZj2CIzIgy4ovEBzCLBJzRvWSZmn7u02U9gU=
 github.com/openconfig/kne v0.1.6 h1:NcuRPSuvcbKHB+mWxztlQ8nuZRScMRsOX5T7s//jLXM=
 github.com/openconfig/kne v0.1.6/go.mod h1:Ua3W+2CbNsf8zk3v8KiFk7XUUN2ISYhvwjFXNqOpE2Y=
-github.com/openconfig/ondatra v0.0.0-20221212200636-7d597f5e3308 h1:+l0O5HLlMGgzNBDUhgIsfZ/G3wlAhZ5kfsL9Z3gJ6sE=
-github.com/openconfig/ondatra v0.0.0-20221212200636-7d597f5e3308/go.mod h1:nX1ZURboNdswNc/AjyeKLjEJoWJ0nRgq9xH7Qm4P4ys=
+github.com/openconfig/ondatra v0.0.0-20221222161349-d76ac82a8db0 h1:6EVdnGXtQWDWtWNBj3Y+FCoWtzbQ92XpogDdha4WuXA=
+github.com/openconfig/ondatra v0.0.0-20221222161349-d76ac82a8db0/go.mod h1:vkRyiKgPpbnhihTE3Q+ZBHDkD9ZpO2ezyQXbOc+/qOo=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
-github.com/openconfig/ygnmi v0.7.1 h1:dXeEzOrFT0I013ahal9HUqKvSHnyBpnD9e3PFJDqUQE=
-github.com/openconfig/ygnmi v0.7.1/go.mod h1:97MOiiH2jetEdRd9tlkyQKMiHcxu8WaI/plq8eyRhoE=
+github.com/openconfig/ygnmi v0.7.3 h1:oHtv37SEmX/Hrd4Sef6LPfJwHlAu+NGNGGc+ydkRnvs=
+github.com/openconfig/ygnmi v0.7.3/go.mod h1:97MOiiH2jetEdRd9tlkyQKMiHcxu8WaI/plq8eyRhoE=
 github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=
 github.com/openconfig/ygot v0.10.4/go.mod h1:oCQNdXnv7dWc8scTDgoFkauv1wwplJn5HspHcjlxSAQ=
 github.com/openconfig/ygot v0.13.2/go.mod h1:kJN0yCXIH07dOXvNBEFm3XxXdnDD5NI6K99tnD5x49c=
