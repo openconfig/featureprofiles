@@ -39,8 +39,8 @@ type dutInfo struct {
 
 // setFromComponentChassis sets dutInfo from the first component of type CHASSIS.
 //
-//   - vendor from mfg-name (Arista, Cisco).
-//   - model from either description (Cisco, Juniper) or part-no (Arista).
+//   - vendor from mfg-name (Arista, Cisco, newer Nokia).
+//   - model from either description (Cisco, Juniper, newer Nokia) or part-no (Arista).
 //   - osver from software-version (Juniper).
 func (di *dutInfo) setFromComponentChassis(ctx context.Context, y components.Y) {
 	if di.vendor != "" && di.model != "" && di.osver != "" {
@@ -66,7 +66,7 @@ func (di *dutInfo) setFromComponentChassis(ctx context.Context, y components.Y) 
 
 	if glog.V(2) {
 		if out, err := json.MarshalIndent(component, "", "  "); err == nil {
-			glog.Info(string(out))
+			glog.Infof("Chassis component: %s", string(out))
 		}
 	}
 
@@ -81,8 +81,13 @@ func (di *dutInfo) setFromComponentChassis(ctx context.Context, y components.Y) 
 	}
 
 	if desc := component.Description; desc != nil {
-		if di.model == "" || strings.HasPrefix(*desc, "Cisco ") {
-			di.model = *component.Description
+		switch {
+		case strings.HasPrefix(di.vendor, "Cisco"):
+			fallthrough
+		case strings.HasPrefix(di.vendor, "Nokia"):
+			fallthrough
+		case di.model == "":
+			di.model = *desc
 			glog.V(2).Infof("Setting model from chassis description: %s", di.model)
 		}
 	}
@@ -120,11 +125,11 @@ func (di *dutInfo) setFromComponentOS(ctx context.Context, y components.Y) {
 	}
 }
 
-// setFromLLDP sets dutInfo vendor from LLDP system-description (Juniper).  This is less
-// reliable because LLDP config can be changed.
+// setFromLLDP sets dutInfo vendor (Juniper, older Nokia) and osver (older Nokia) from
+// LLDP system-description.  This is less reliable because LLDP config can be changed.
 func (di *dutInfo) setFromLLDP(ctx context.Context, y components.Y) {
-	if di.vendor != "" {
-		return // No-op is vendor is already set.
+	if di.vendor != "" && di.osver != "" {
+		return // No-op if vendor and osver are already set.
 	}
 
 	lldpPath := ocpath.Root().Lldp().SystemDescription()
@@ -132,10 +137,24 @@ func (di *dutInfo) setFromLLDP(ctx context.Context, y components.Y) {
 	if err != nil {
 		glog.Errorf("Could not get LLDP: %v", err)
 	}
-	const candidate = "Juniper Networks, Inc."
-	if strings.Contains(lldp, candidate) {
-		di.vendor = candidate
-		glog.Errorf("Setting vendor from lldp system-description: %s", di.vendor)
+	glog.V(2).Infof("LLDP system-description: %s", lldp)
+
+	if juniper := "Juniper Networks, Inc."; strings.Contains(lldp, juniper) {
+		di.vendor = juniper
+		glog.Infof("Setting vendor from lldp system-description: %s", di.vendor)
+	}
+
+	if srlinux := "SRLinux-v"; strings.HasPrefix(lldp, srlinux) {
+		if di.vendor == "" {
+			di.vendor = "Nokia"
+			glog.Infof("Setting vendor from lldp system-description: %s", di.vendor)
+		}
+
+		if di.osver == "" {
+			parts := strings.Split(lldp, " ")
+			di.osver = parts[0][len(srlinux):]
+			glog.Infof("Setting osver from lldp system-description: %s", di.osver)
+		}
 	}
 }
 
@@ -143,20 +162,10 @@ func (di *dutInfo) setFromLLDP(ctx context.Context, y components.Y) {
 //
 // This is the new OpenConfig mechanism.
 func (di *dutInfo) setFromSystem(ctx context.Context, y components.Y) {
-	//lint:ignore U1000 Uncomment this once Ondatra updates the ygnmi generated package.
-	const notSupported = `
-	if di.model != "" {
-		modelPath := ocpath.Root().System().Model()
-		model, err := ygnmi.Get(ctx, y.Client, modelPath.State())
-		if err != nil {
-			glog.Errorf("Missing system model: %v", err)
-		} else {
-			di.model = model
-			glog.V(2).Infof("Setting model from system model: %s", di.model)
-		}
-	}
+	// Do not fetch ocpath.Root().System().State() because it contains large
+	// subtrees such as /system/aaa.
 
-	if di.osver != "" {
+	if di.osver == "" {
 		softVerPath := ocpath.Root().System().SoftwareVersion()
 		softVer, err := ygnmi.Get(ctx, y.Client, softVerPath.State())
 		if err != nil {
@@ -164,6 +173,19 @@ func (di *dutInfo) setFromSystem(ctx context.Context, y components.Y) {
 		} else {
 			di.osver = softVer
 			glog.V(2).Infof("Setting osver from system software-version: %s", di.osver)
+		}
+	}
+
+	//lint:ignore U1000 Uncomment this once "model" is defined.
+	const notSupported = `
+	if di.model == "" {
+		modelPath := ocpath.Root().System().Model()
+		model, err := ygnmi.Get(ctx, y.Client, modelPath.State())
+		if err != nil {
+			glog.Errorf("Missing system model: %v", err)
+		} else {
+			di.model = model
+			glog.V(2).Infof("Setting model from system model: %s", di.model)
 		}
 	}
 `
