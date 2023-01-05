@@ -118,7 +118,7 @@ tests:
       path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-3.6 (ACK in the Presence of Other Routes) 
   path: feature/gribi/ate_tests/ack_in_presence_other_routes
-  patch: exec/firex/plugins/fp_patch/route_ack_test.patch
+  #patch: exec/firex/plugins/fp_patch/route_ack_test.patch
   skip: false
   owner: mananpat@cisco.com
   priority: 3
@@ -156,7 +156,7 @@ tests:
       path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-11.1 (Backup NHG Single NH) 
   path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
-  patch: exec/firex/plugins/fp_patch/backup_nhg_test.patch
+  #patch: exec/firex/plugins/fp_patch/backup_nhg_test.patch
   owner: mananpat@cisco.com
   mustpass: true
   priority: 3
@@ -309,7 +309,7 @@ tests:
   skip: false
 - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace) 
   path: feature/system/gnmi/metadata/tests/annotation_test
-  patch: exec/firex/plugins/fp_patch/annotation_test.patch
+  #patch: exec/firex/plugins/fp_patch/annotation_test.patch
   owner: kjahed@cisco.com
   mustpass: true
   skip: false
@@ -333,7 +333,7 @@ tests:
   priority: 42
 - name: SEC-3.1 (Authentication) 
   path: feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test
-  patch: exec/firex/plugins/fp_patch/tls_authentication_over_grpc_test.patch
+  #patch: exec/firex/plugins/fp_patch/tls_authentication_over_grpc_test.patch
   owner: agvarghe@cisco.com
   mustpass: true
   skip: false
@@ -428,7 +428,7 @@ tests:
   timeout: 7200
 - name: gNOI-3.3 (Supervisor Switchover) 
   path: feature/gnoi/system/tests/supervisor_switchover_test
-  patch: exec/firex/plugins/fp_patch/supervisor_switchover_test.patch
+  #patch: exec/firex/plugins/fp_patch/supervisor_switchover_test.patch
   owner: arvbaska@cisco.com
   mustpass: true
   skip: false
@@ -436,7 +436,7 @@ tests:
   timeout: 7200
 - name: gNOI-3.2 (Per-Component Reboot) 
   path: feature/gnoi/system/tests/per_component_reboot_test
-  patch: exec/firex/plugins/fp_patch/per_component_reboot_test.patch
+  #patch: exec/firex/plugins/fp_patch/per_component_reboot_test.patch
   owner: arvbaska@cisco.com
   mustpass: true
   skip: false
@@ -445,7 +445,7 @@ tests:
 - name: TE-8.2 (Supervisor Failure)
   path: feature/gribi/ate_tests/supervisor_failure_test
   owner: mananpat@cisco.com
-  patch: exec/firex/plugins/fp_patch/supervisor_failure_test.patch
+  #patch: exec/firex/plugins/fp_patch/supervisor_failure_test.patch
   skip: false
   mustpass: true
   timeout: 7200
