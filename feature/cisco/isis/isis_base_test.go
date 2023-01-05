@@ -7,6 +7,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -27,8 +28,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 func flapInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, flapDuration time.Duration) {
-
-	initialState := dut.Telemetry().Interface(interfaceName).Get(t).GetEnabled()
+	initialState := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).Enabled().State())
 	transientState := !initialState
 	setInterfaceState(t, dut, interfaceName, transientState)
 	time.Sleep(flapDuration * time.Second)
@@ -40,9 +40,9 @@ func setInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interfaceName strin
 		Enabled: ygot.Bool(adminState),
 		Name:    ygot.String(interfaceName),
 	}
-	updateResponse := dut.Config().Interface(interfaceName).Update(t, i)
+	updateResponse := gnmi.Update(t, dut, gnmi.OC().Interface(interfaceName).Config(), i)
 	t.Logf("Update response : %v", updateResponse)
-	currEnabledState := dut.Telemetry().Interface(interfaceName).Get(t).GetEnabled()
+	currEnabledState := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).Enabled().State())
 	if currEnabledState != adminState {
 		t.Fatalf("Failed to set interface adminState to :%v", adminState)
 	} else {
