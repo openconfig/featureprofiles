@@ -1019,8 +1019,8 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 	// Removing policy for the tc
-	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Delete(t)
-	defer args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config())
+	defer gnmi.Update(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
 
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
