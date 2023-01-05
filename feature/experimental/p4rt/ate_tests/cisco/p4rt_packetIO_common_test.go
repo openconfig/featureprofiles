@@ -12,7 +12,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
+	wbb "github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	spb "github.com/openconfig/gnoi/system"

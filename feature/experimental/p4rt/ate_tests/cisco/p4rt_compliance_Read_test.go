@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
+	wbb "github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 )
 
 var (
