@@ -7,8 +7,11 @@ require (
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/golang/glog v1.0.0
+	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.9
+	github.com/google/go-jsonnet v0.19.1
 	github.com/google/gopacket v1.1.19
+	github.com/ogier/pflag v0.0.1
 	github.com/open-traffic-generator/snappi/gosnappi v0.9.8
 	github.com/openconfig/gnmi v0.0.0-20220920173703-480bf53a74d2
 	github.com/openconfig/gnoi v0.0.0-20221111175026-79709cdf28e1
@@ -21,12 +24,18 @@ require (
 	github.com/openconfig/ygnmi v0.5.0
 	github.com/openconfig/ygot v0.25.2
 	github.com/p4lang/p4runtime v1.3.0
+	github.com/patrickmn/go-cache v2.1.0+incompatible
+	github.com/pkg/errors v0.9.1
+	github.com/povsister/scp v0.0.0-20210427074412-33febfd9f13e
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	github.com/yuin/goldmark v1.4.13
 	golang.org/x/crypto v0.1.0
+	golang.org/x/net v0.2.0
 	golang.org/x/tools v0.2.0
 	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
+	gopkg.in/yaml.v3 v3.0.1
+	sigs.k8s.io/yaml v1.3.0
 )
 
 require (
@@ -38,8 +47,6 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/go-jsonnet v0.19.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
@@ -52,15 +59,11 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	github.com/ogier/pflag v0.0.1 // indirect
 	github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 // indirect
 	github.com/openconfig/kne v0.1.6 // indirect
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
-	github.com/povsister/scp v0.0.0-20210427074412-33febfd9f13e // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/spf13/afero v1.9.3 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
@@ -72,14 +75,11 @@ require (
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/mod v0.6.0 // indirect
-	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/sys v0.2.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20221116193143-41c2ba794472 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/uint128 v1.1.1 // indirect
-	sigs.k8s.io/yaml v1.3.0 // indirect
 )
