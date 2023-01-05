@@ -66,10 +66,6 @@ tests:
       path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-3.7 (Base Hierarchical NHG Update) 
   path: feature/gribi/ate_tests/base_hierarchical_nhg_update
-  #args:
-  #    - '-deviation_interface_enabled="true"'
-  #    - '-deviation_ipv4_missing_enabled="true"'
-  # patch: exec/firex/plugins/fp_patch/base_hierarchical_nhg_update_test.patch
   owner: mananpat@cisco.com
   mustpass: true
   priority: 3
@@ -79,9 +75,6 @@ tests:
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
   patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
-  #args:
-  #    - '-traffic_duration="20s"'
-  #    - '-traffic_pause="2s"'
   mustpass: true
   priority: 3
   pretests:
@@ -94,25 +87,16 @@ tests:
   skip: false
   mustpass: false
   priority: 3
-  pretests:
-    - name: pre_fp_gribi_flush
-      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-6.1 (Route Removal via Flush) 
   path: feature/gribi/ate_tests/route_removal_via_flush_test
   owner: mananpat@cisco.com
   mustpass: true
   priority: 3
-  pretests:
-    - name: pre_fp_gribi_flush
-      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-6.2 (Route Removal In Non Default VRF) 
   path: feature/gribi/ate_tests/route_removal_non_default_vrf_test
   owner: mananpat@cisco.com
   mustpass: true
   priority: 3
-  pretests:
-    - name: pre_fp_gribi_flush
-      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-3.6 (ACK in the Presence of Other Routes) 
   path: feature/gribi/ate_tests/ack_in_presence_other_routes
   patch: exec/firex/plugins/fp_patch/route_ack_test.patch
@@ -120,9 +104,6 @@ tests:
   owner: mananpat@cisco.com
   priority: 3
   mustpass: true
-  pretests:
-    - name: pre_fp_gribi_flush
-      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-3.1 (Base Hierarchical Route Installation) 
   path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
   patch: exec/firex/plugins/fp_patch/base_hierarchical_route_installation_test.patch
@@ -132,34 +113,22 @@ tests:
   owner: mananpat@cisco.com
   mustpass: true
   priority: 3
-  pretests:
-    - name: pre_fp_gribi_flush
-      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-11.2 (Backup NHG Multiple NH)
   path: feature/gribi/ate_tests/backup_nhg_multiple_nh_test
   owner: mananpat@cisco.com
   mustpass: true
   priority: 3
-  pretests:
-    - name: pre_fp_gribi_flush
-      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-8.1 (DUT Daemon Failure)
   path: feature/experimental/gribi/ate_tests/dut_daemon_failure
   owner: mananpat@cisco.com
   mustpass: true
   priority: 8
-  pretests:
-    - name: pre_fp_gribi_flush
-      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-11.1 (Backup NHG Single NH) 
   path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
   patch: exec/firex/plugins/fp_patch/backup_nhg_test.patch
   owner: mananpat@cisco.com
   mustpass: true
   priority: 3
-  pretests:
-    - name: pre_fp_gribi_flush
-      path: topologies/cisco/pretests/gribi_flush_test
 - name: TE-14.1 (gRIBI Scaling)
   path: feature/gribi/ate_tests/gribi_scaling
   # patch: exec/firex/plugins/fp_patch/gribi_scaling_test.patch
@@ -167,9 +136,6 @@ tests:
   owner: mananpat@cisco.com
   mustpass: true
   priority: 3
-  pretests:
-    - name: pre_fp_gribi_flush
-      path: topologies/cisco/pretests/gribi_flush_test
 - name: gNOI-4.1 (Software Upgrade) 
   path: feature/gnoi/os/tests/osinstall
   patch: exec/firex/plugins/fp_patch/osinstall_test.patch
@@ -297,7 +263,6 @@ tests:
   skip: false
 - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace) 
   path: feature/system/gnmi/metadata/tests/annotation_test
-  patch: exec/firex/plugins/fp_patch/annotation_test.patch
   owner: kjahed@cisco.com
   mustpass: true
   skip: false
@@ -321,7 +286,6 @@ tests:
   priority: 42
 - name: SEC-3.1 (Authentication) 
   path: feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test
-  patch: exec/firex/plugins/fp_patch/tls_authentication_over_grpc_test.patch
   owner: agvarghe@cisco.com
   mustpass: true
   skip: false
@@ -341,7 +305,6 @@ tests:
   priority: 45
 - name: FP_GNMI_System
   path: feature/system/tests
-  patch: exec/firex/plugins/fp_patch/system_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
   priority: 46
