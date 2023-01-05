@@ -21,12 +21,12 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
 
 	spb "github.com/openconfig/gnoi/system"
-	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -102,9 +102,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 
 	gnoiClient := dut.RawAPIs().GNOI().New(t)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: &tpb.Path{
-			Elem: []*tpb.PathElem{{Name: rpStandbyBeforeSwitch}},
-		},
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
@@ -114,7 +112,13 @@ func TestSupervisorSwitchover(t *testing.T) {
 	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
 
 	want := rpStandbyBeforeSwitch
-	if got := switchoverResponse.GetControlProcessor().GetElem()[0].GetName(); got != want {
+	got := ""
+	if *deviations.GNOISubcomponentPath {
+		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
+	} else {
+		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
+	}
+	if got != want {
 		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
 	}
 	if got, want := switchoverResponse.GetVersion(), ""; got == want {

@@ -109,7 +109,6 @@ func TestGNMIMetadataAnnotation(t *testing.T) {
 		accompaniedPath := gnmi.OC().System().Hostname().Config().PathStruct()
 		accompaniedUpdateVal := gnmi.Get[string](t, dut, gnmi.OC().System().Hostname().Config())
 		gpbSetRequest.Update = append(gpbSetRequest.Update, buildGNMIUpdate(t, accompaniedPath, &accompaniedUpdateVal))
-		
 
 		t.Log("gnmiClient Set metadata annotation")
 		if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
