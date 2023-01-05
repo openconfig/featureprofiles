@@ -29,7 +29,7 @@ import (
 // telemetry_path:/system/state/boot-time
 func TestBootTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	defer observer.RecordYgot(t, "SUBSCRIBE", dut.Telemetry().System().BootTime())
+	defer observer.RecordYgot(t, "SUBSCRIBE", gnmi.OC().System().BootTime())
 	t.Run("Subscribe//system/state/boot-time", func(t *testing.T) {
 		bt := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 		if bt < 1640131200000000000 {
