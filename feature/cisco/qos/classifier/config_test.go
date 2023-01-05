@@ -10,6 +10,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 )
 
 func TestMain(m *testing.M) {
@@ -52,9 +53,14 @@ func TestNameAtContainer(t *testing.T) {
 			}
 			t.Run("Delete container", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
-				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs != nil {
-					t.Errorf("Delete /qos/classifiers/classifier/config/name: got %v", qs)
+				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+					gnmi.GetConfig(t, dut, config.Config()) //catch the error  as it is expected and absorb the panic.
+				}); errMsg != nil {
+					t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+				} else {
+					t.Errorf("This update should have failed ")
 				}
+
 			})
 		})
 	}
