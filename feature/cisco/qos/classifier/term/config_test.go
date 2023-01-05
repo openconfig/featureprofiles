@@ -10,6 +10,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -113,8 +114,12 @@ func TestDeleteAllClassMaps(t *testing.T) {
 	})
 	t.Run(fmt.Sprintf("Verify whether %s is deleted or not", *baseConfigClassifier.Name), func(t *testing.T) {
 		config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name)
-		if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-			t.Errorf("%s is not deleted: got %v", *baseConfigClassifier.Name, qs)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.GetConfig(t, dut, config.Config()) //catch the error  as it is expected and absorb the panic.
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This update should have failed ")
 		}
 	})
 }
