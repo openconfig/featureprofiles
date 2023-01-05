@@ -13,6 +13,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/gnmiutil"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/patrickmn/go-cache"
 )
@@ -36,7 +37,7 @@ import (
 // monitor.Start(ctx, t, true, gpb.SubscriptionList_STREAM)
 // start tests
 type GNMIMonior struct {
-	Paths    []ygot.PathStruct
+	Paths    []ygnmi.PathStruct
 	Consumer gnmiutil.Consumer
 	DUT      *ondatra.DUTDevice
 }
@@ -53,7 +54,7 @@ func (monitor *GNMIMonior) Start(context context.Context, t *testing.T, shareStu
 	t.Helper()
 	for _, ygotPath := range monitor.Paths {
 		{
-			path, _, err := gnmiutil.ResolvePath(ygotPath)
+			path, _, err := ygnmi.ResolvePath(ygotPath)
 			if err != nil {
 				t.Fatalf("Could not start the monitor for path %v", ygotPath)
 			}

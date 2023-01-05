@@ -30,6 +30,7 @@ import (
 	log "github.com/golang/glog"
 	closer "github.com/openconfig/gocloser"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/util"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
@@ -164,8 +165,8 @@ func pathToString(path *gpb.Path) string {
 // PathStructToString returns a string representing the path struct.
 // Note: the output may contain an error message or invalid path;
 // do not use this func outside of the generated code.
-func PathStructToString(ps ygot.PathStruct) string {
-	p, _, err := ygot.ResolvePath(ps)
+func PathStructToString(ps ygnmi.PathStruct) string {
+	p, _, err := ygnmi.ResolvePath(ps)
 	if err != nil {
 		return fmt.Sprintf("unknown path: %v", err)
 	}
@@ -218,7 +219,7 @@ type QualifiedValue interface {
 // Watch starts a gNMI subscription for the provided duration. Specifying subPaths is optional, if unset will subscribe to the path at n.
 // Note: For leaves the converter and predicate are evaluated once per DataPoint. For non-leaves, they are evaluated once per notification,
 // after the first sync is received.
-func Watch(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, n ygot.PathStruct, paths []*gpb.Path, isLeaf bool, consumer Consumer, mode gpb.SubscriptionList_Mode) (_ *Watcher, _ *gpb.Path, rerr error) {
+func Watch(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, n ygnmi.PathStruct, paths []*gpb.Path, isLeaf bool, consumer Consumer, mode gpb.SubscriptionList_Mode) (_ *Watcher, _ *gpb.Path, rerr error) {
 	//cancel := func() {}
 	//mode := gpb.SubscriptionList_ONCE
 	/*collectEnd := time.Now().Add(duration)
@@ -344,9 +345,9 @@ func resolveBatch(ctx context.Context, customData map[string]interface{}) (*requ
 }
 
 // ResolvePath resolves a path struct to a path and request options.
-func ResolvePath(n ygot.PathStruct) (*gpb.Path, map[string]interface{}, error) {
-	path, customData, errs := ygot.ResolvePath(n)
-	if len(errs) > 0 {
+func ResolvePath(n ygnmi.PathStruct) (*gpb.Path, map[string]interface{}, error) {
+	path, customData, errs := ygnmi.ResolvePath(n)
+	if errs != nil {
 		return nil, nil, fmt.Errorf("errors resolving path struct %v: %v", n, errs)
 	}
 	// All paths that don't start with "meta" must be OC paths.
@@ -358,7 +359,7 @@ func ResolvePath(n ygot.PathStruct) (*gpb.Path, map[string]interface{}, error) {
 
 // resolve resolves a path struct to a path, device, and request options.
 // The returned requestOpts contains the gnmi Client to use.
-func resolve(ctx context.Context, n ygot.PathStruct) (*gpb.Path, *requestOpts, error) {
+func resolve(ctx context.Context, n ygnmi.PathStruct) (*gpb.Path, *requestOpts, error) {
 	path, customData, err := ResolvePath(n)
 	if err != nil {
 		return nil, nil, err
@@ -479,7 +480,7 @@ func (gs *getSubscriber) CloseSend() error {
 }
 
 // subscribe create a gNMI SubscribeClient. Specifying subPaths is optional, if unset will subscribe to the path at n.
-func subscribe(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, n ygot.PathStruct, subPaths []*gpb.Path, mode gpb.SubscriptionList_Mode) (_ gpb.GNMI_SubscribeClient, _ *gpb.Path, rerr error) {
+func subscribe(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, n ygnmi.PathStruct, subPaths []*gpb.Path, mode gpb.SubscriptionList_Mode) (_ gpb.GNMI_SubscribeClient, _ *gpb.Path, rerr error) {
 	path, opts, err := resolve(ctx, n)
 	if err != nil {
 		return nil, path, err
