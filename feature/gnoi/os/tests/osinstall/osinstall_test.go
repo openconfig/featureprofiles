@@ -237,7 +237,7 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 			t.Fatalf("OS.Verify request failed: %v", err)
 		}
 		// when noreboot is set to false, the device returns "in-progress" before initiating the reboot
-		if got, want := r.GetActivationFailMessage(), "in-progress"; got == want {
+		if r.GetActivationFailMessage() == "in-progress" {
 			time.Sleep(time.Minute)
 			continue
 		}
