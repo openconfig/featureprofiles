@@ -168,7 +168,7 @@ func dutInterface(p *ondatra.Port) *oc.Interface {
 }
 
 // configureDUT configures all the interfaces on the DUT.
-func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
 
 	// We add a discard route so that when the nexthop interface goes
@@ -191,6 +191,11 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 			gnmi.Replace(t, dut, dc.Interface(dp.Name()).Config(), i)
 		} else {
 			t.Fatalf("No address found for port %v", dp)
+		}
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		for _, dp := range dut.Ports() {
+			fptest.AssignToNetworkInstance(t, dut, dp.Name(), *deviations.DefaultNetworkInstance, 0)
 		}
 	}
 }
