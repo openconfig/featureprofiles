@@ -195,6 +195,7 @@ func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string,
 	// create vrf and apply on subinterface
 	v := &oc.NetworkInstance{
 		Name: ygot.String(vrfname),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 	}
 	vi := v.GetOrCreateInterface(intfname + "." + strconv.Itoa(int(subint)))
 	vi.Subinterface = ygot.Uint32(subint)
