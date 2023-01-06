@@ -59,26 +59,28 @@ func TestBasic(t *testing.T) {
 	}
 	isisRoot := session.ISISPath()
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
-	// if err := check.Equal(isisRoot.Global().Instance().State(), session.ISISName).AwaitFor(20*time.Second, ts.DUTClient); err != nil {
-	// 	t.Fatalf("IS-IS failed to configure: %v", err)
-	// }
 	// There might be lag between when the instance name is set and when the
 	// other parameters are set; we expect the total lag to be under 5s
 	deadline := time.Now().Add(time.Second * 5)
 
 	t.Run("read_config", func(t *testing.T) {
-		for _, vd := range []check.Validator{
+
+		data := []check.Validator{
 			check.Equal(isisRoot.Global().Net().State(), []string{"49.0001.1920.0000.2001.00"}),
 			EqualToDefault(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_1_2),
-			// enabled leaf issue
-			// check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
-			// check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
-			// check.Equal(isisRoot.Level(2).Enabled().State(), true),
 			check.Equal(port1ISIS.Enabled().State(), true),
 			check.Equal(port1ISIS.CircuitType().State(), oc.Isis_CircuitType_POINT_TO_POINT),
-		} {
+		}
+
+		if !*deviations.IsisEnabled {
+			data = append(data,
+				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
+				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
+				check.Equal(isisRoot.Level(2).Enabled().State(), true))
+		}
+
+		for _, vd := range data {
 			t.Run(vd.RelPath(isisRoot), func(t *testing.T) {
-				time.Sleep(5 * time.Second)
 				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 					t.Error(err)
 				}
@@ -129,13 +131,12 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(pCounts.Lsp().Received().State(), uint32(0)),
 				EqualToDefault(pCounts.Lsp().Sent().State(), uint32(0)),
 				EqualToDefault(pCounts.Iih().Dropped().State(), uint32(0)),
-				// EqualToDefault(pCounts.Iih().Processed().State(), uint32(0)),
-				// EqualToDefault(pCounts.Iih().Received().State(), uint32(0)),
+				check.NotEqual(pCounts.Iih().Processed().State(), uint32(0)),
+				check.NotEqual(pCounts.Iih().Received().State(), uint32(0)),
 				// Don't check IIH sent - the device can send hellos even if the other
 				// end is offline.
 			} {
 				t.Run(vd.RelPath(pCounts), func(t *testing.T) {
-					time.Sleep(5 * time.Second)
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 						t.Error(err)
 					}
@@ -156,7 +157,6 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(cCounts.RejectedAdj().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(cCounts), func(t *testing.T) {
-					time.Sleep(5 * time.Second)
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 						t.Error(err)
 					}
@@ -169,7 +169,7 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
-				// EqualToDefault(sysCounts.DatabaseOverloads().State(), uint32(0)),
+				check.NotEqual(sysCounts.DatabaseOverloads().State(), uint32(0)),
 				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
 				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
@@ -202,13 +202,13 @@ func TestBasic(t *testing.T) {
 			check.Equal(adj.AdjacencyState().State(), oc.Isis_IsisInterfaceAdjState_UP),
 			check.Equal(adj.SystemId().State(), systemID),
 			check.Equal(adj.AreaAddress().State(), []string{session.ATEAreaAddress, session.DUTAreaAddress}),
-			// check.Equal(adj.DisSystemId().State(), "0000.0000.0000"),
+			check.Equal(adj.DisSystemId().State(), "0000.0000.0000"),
 			check.NotEqual(adj.LocalExtendedCircuitId().State(), uint32(0)),
 			check.Equal(adj.MultiTopology().State(), false),
 			check.Equal(adj.NeighborCircuitType().State(), oc.Isis_LevelType_LEVEL_2),
 			check.NotEqual(adj.NeighborExtendedCircuitId().State(), uint32(0)),
 			check.Equal(adj.NeighborIpv4Address().State(), session.ATEISISAttrs.IPv4),
-			// check.Equal(adj.NeighborSnpa().State(), "00:00:00:00:00:00"),
+			check.Equal(adj.NeighborSnpa().State(), "00:00:00:00:00:00"),
 			check.Equal(adj.Nlpid().State(), []oc.E_Adjacency_Nlpid{oc.Adjacency_Nlpid_IPV4, oc.Adjacency_Nlpid_IPV6}),
 			check.Predicate(adj.NeighborIpv6Address().State(), "want a valid IPv6 address", func(got string) bool {
 				ip := net.ParseIP(got)
@@ -220,7 +220,6 @@ func TestBasic(t *testing.T) {
 			check.Present[bool](adj.RestartSuppress().State()),
 		} {
 			t.Run(vd.RelPath(adj), func(t *testing.T) {
-				time.Sleep(5 * time.Second)
 				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 					t.Error(err)
 				}
@@ -244,7 +243,6 @@ func TestBasic(t *testing.T) {
 			check.NotEqual(pCounts.Psnp().Processed().State(), uint32(0)),
 		} {
 			t.Run(vd.RelPath(pCounts), func(t *testing.T) {
-				time.Sleep(5 * time.Second)
 				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 					t.Fatalf("No messages in active adjacency after 5s: %v", err)
 				}
@@ -265,7 +263,7 @@ func TestBasic(t *testing.T) {
 				check.NotEqual(pCounts.Lsp().Sent().State(), uint32(0)),
 				check.NotEqual(pCounts.Iih().Processed().State(), uint32(0)),
 				check.NotEqual(pCounts.Iih().Received().State(), uint32(0)),
-				// check.NotEqual(pCounts.Iih().Sent().State(), uint32(0)),
+				check.Equal(pCounts.Iih().Sent().State(), uint32(0)),
 				// No dropped messages
 				check.Equal(pCounts.Csnp().Dropped().State(), uint32(0)),
 				check.Equal(pCounts.Psnp().Dropped().State(), uint32(0)),
@@ -273,7 +271,6 @@ func TestBasic(t *testing.T) {
 				check.Equal(pCounts.Iih().Dropped().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(pCounts), func(t *testing.T) {
-					time.Sleep(5 * time.Second)
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 						t.Error(err)
 					}
@@ -295,7 +292,6 @@ func TestBasic(t *testing.T) {
 				check.Equal(cCounts.RejectedAdj().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(cCounts), func(t *testing.T) {
-					time.Sleep(5 * time.Second)
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 						t.Error(err)
 					}
@@ -310,7 +306,7 @@ func TestBasic(t *testing.T) {
 				check.Equal(sysCounts.AuthFails().State(), uint32(0)),
 				check.Equal(sysCounts.AuthTypeFails().State(), uint32(0)),
 				check.Equal(sysCounts.CorruptedLsps().State(), uint32(0)),
-				// check.Equal(sysCounts.DatabaseOverloads().State(), uint32(0)),
+				check.NotEqual(sysCounts.DatabaseOverloads().State(), uint32(0)),
 				check.Equal(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				check.Equal(sysCounts.IdLenMismatch().State(), uint32(0)),
 				check.Equal(sysCounts.LspErrors().State(), uint32(0)),
@@ -322,7 +318,6 @@ func TestBasic(t *testing.T) {
 				}),
 			} {
 				t.Run(vd.RelPath(sysCounts), func(t *testing.T) {
-					time.Sleep(5 * time.Second)
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 						t.Error(err)
 					}
@@ -348,8 +343,6 @@ func TestHelloPadding(t *testing.T) {
 		}, {
 			name: "adaptive",
 			mode: oc.Isis_HelloPaddingType_ADAPTIVE,
-			// CSCwd56142 OC: Adaptive hello-padding mode is not supported for ISIS
-			skip: "Unsupported",
 		}, {
 			name: "loose",
 			mode: oc.Isis_HelloPaddingType_LOOSE,
@@ -358,6 +351,9 @@ func TestHelloPadding(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			if *deviations.IsisHelloPaddingModeNotSupported && tc.name == "adaptive" {
+				tc.skip = "Unsupported"
+			}
 			if tc.skip != "" {
 				t.Skip(tc.skip)
 			}
@@ -459,9 +455,11 @@ func TestTraffic(t *testing.T) {
 
 	ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
 		// disable global hello padding on the DUT
-		isis.GetOrCreateGlobal()
-		// global := isis.GetOrCreateGlobal()
-		// global.HelloPadding = oc.Isis_HelloPaddingType_DISABLE
+		global := isis.GetOrCreateGlobal()
+		global.HelloPadding = oc.Isis_HelloPaddingType_DISABLE
+		afv6 := global.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
+		afv6.GetOrCreateMultiTopology().SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
 	}, func(isis *ixnet.ISIS) {
 		// disable global hello padding on the ATE
 		isis.WithHelloPaddingEnabled(false)
@@ -471,13 +469,12 @@ func TestTraffic(t *testing.T) {
 	// We generate traffic entering along port2 and destined for port1
 	srcIntf := ts.MustATEInterface(t, "port2")
 	dstIntf := ts.MustATEInterface(t, "port1")
+	dstIntf.ISIS().WithNetworkTypePointToPoint().WithMetric(10).WithWideMetricEnabled(true).WithLevelL2()
 	// net is a simulated network containing the addresses specified by targetNetwork
 	net := dstIntf.AddNetwork("net")
-	net.ISIS().WithIPReachabilityMetric(10)
 	net.IPv4().WithAddress(targetNetwork.IPv4CIDR()).WithCount(1)
 	net.IPv6().WithAddress(targetNetwork.IPv6CIDR()).WithCount(1)
-	dstIntf.ISIS().WithNetworkTypePointToPoint().WithMetric(10).WithWideMetricEnabled(true).WithLevelL2()
-	// net.ISIS().WithIPReachabilityExternal().WithIPReachabilityMetric(10)
+	net.ISIS().WithIPReachabilityExternal().WithIPReachabilityMetric(10)
 	t.Logf("Starting protocols on ATE...")
 	ts.PushAndStart(t)
 	defer ts.ATETop.StopProtocols(t)
@@ -507,14 +504,14 @@ func TestTraffic(t *testing.T) {
 	t.Logf("Checking telemetry...")
 	telem := ate.Telemetry()
 	v4Loss := telem.Flow(v4Flow.Name()).LossPct().Get(t)
-	// v6Loss := telem.Flow(v6Flow.Name()).LossPct().Get(t)
+	v6Loss := telem.Flow(v6Flow.Name()).LossPct().Get(t)
 	deadLoss := telem.Flow(deadFlow.Name()).LossPct().Get(t)
 	if v4Loss > 1 {
 		t.Errorf("Got %v%% IPv4 packet loss; expected < 1%%", v4Loss)
 	}
-	// if v6Loss > 1 {
-	// 	t.Errorf("Got %v%% IPv6 packet loss; expected < 1%%", v6Loss)
-	// }
+	if v6Loss > 1 {
+		t.Errorf("Got %v%% IPv6 packet loss; expected < 1%%", v6Loss)
+	}
 	if deadLoss != 100 {
 		t.Errorf("Got %v%% invalid packet loss; expected 100%%", deadLoss)
 	}

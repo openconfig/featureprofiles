@@ -99,4 +99,13 @@ var (
 	StaticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
 
 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
+
+	IsisHelloPaddingModeNotSupported = flag.Bool("deviation_isis_hello_padding_mode_not_supported", true,
+		"Skip if isis hello padding mode not supported on the device is set true, Default value is false")
+
+	IsisMultiTopology = flag.Bool("deviation_isis_multi_topology", true,
+		"Set isis multi topology flag on the device if value is true, Default value is false")
+
+	IsisEnabled = flag.Bool("deviation_isis_enabled", true,
+		"Skip isis enabled flag on the device if value is true, Default value is false")
 )
