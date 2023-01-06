@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -114,9 +115,9 @@ func testPing(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsumer
 		}
 	}
 	lbIntf := netutil.LoopbackInterface(t, args.DUT[0], 0)
-	lo0 := args.DUT[0].Telemetry().Interface(lbIntf).Subinterface(0)
-	ipv4Addrs := lo0.Ipv4().AddressAny().Get(t)
-	ipv6Addrs := lo0.Ipv6().AddressAny().Get(t)
+	lo0 := gnmi.OC().Interface(lbIntf).Subinterface(0)
+	ipv4Addrs := gnmi.GetAll(t, args.DUT[0], lo0.Ipv4().AddressAny().State())
+	ipv6Addrs := gnmi.GetAll(t, args.DUT[0], lo0.Ipv6().AddressAny().State())
 	if len(ipv4Addrs) == 0 {
 		t.Fatalf("Failed to get a valid IPv4 loopback address: %+v", ipv4Addrs)
 	}
@@ -199,7 +200,7 @@ func testBatchADDReplaceDeleteIPV4(t *testing.T, args *runner.TestArgs, events *
 out:
 	for {
 		for _, prefix := range prefixes {
-			path := args.DUT[0].Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
+			path := gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
 			strpath := gnmiutil.PathStructToString(path)
 			_, found := events.Cache.Get(strpath)
 			if found {
@@ -214,7 +215,7 @@ out:
 	}
 	// check to make sure we have update for all prefixes
 	for _, prefix := range prefixes {
-		path := args.DUT[0].Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
+		path := gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
 		strpath := gnmiutil.PathStructToString(path)
 		for {
 			_, found := events.Cache.Get(strpath)
@@ -256,9 +257,9 @@ func TestLoad(t *testing.T) {
 	eventConsumer := monitor.NewCachedConsumer(5*time.Minute, /*expiration time for events in the cache*/
 		10 /*number of events for keep for each leaf*/)
 	monitor := monitor.GNMIMonior{
-		Paths: []ygot.PathStruct{
-			dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
-			dut.Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts(),
+		Paths: []ygnmi.PathStruct{
+			gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
+			gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts(),
 			// other paths can be added here
 		},
 		Consumer: eventConsumer,

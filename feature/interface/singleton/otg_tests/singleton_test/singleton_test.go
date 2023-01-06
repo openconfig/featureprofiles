@@ -515,7 +515,7 @@ func TestSingleton(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	// These are the L3 MTUs, i.e. the payload portion of an Ethernet frame.
-	mtus := []uint16{1500, 5000, 9212}
+	mtus := []uint16{1500, 5000, 9236}
 
 	for _, mtu := range mtus {
 		top := ate.OTG().NewConfig(t)
