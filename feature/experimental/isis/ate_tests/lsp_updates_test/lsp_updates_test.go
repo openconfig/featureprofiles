@@ -17,7 +17,6 @@ package lsp_updates_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -25,7 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -40,7 +39,7 @@ func TestOverloadBit(t *testing.T) {
 	isisPath := session.ISISPath()
 	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
 	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(time.Minute)
 	checkSetBit := check.Equal(setBit.State(), false)
 	if *deviations.MissingValueForDefaults {
 		checkSetBit = check.EqualOrNil(setBit.State(), false)
@@ -63,10 +62,10 @@ func TestOverloadBit(t *testing.T) {
 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
 	ts.PushDUT(context.Background())
 	// TODO: Verify the link state database once device support is added.
-	if err := check.Equal[uint32](overloads.State(), 1).AwaitFor(10*time.Second, ts.DUTClient); err != nil {
+	if err := check.Equal[uint32](overloads.State(), 1).AwaitFor(time.Minute, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
-	if err := check.Equal(setBit.State(), true).AwaitFor(10*time.Second, ts.DUTClient); err != nil {
+	if err := check.Equal(setBit.State(), true).AwaitFor(time.Minute, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
 	// TODO: Verify the link state database on the ATE once the ATE reports this properly
@@ -89,7 +88,6 @@ func TestMetric(t *testing.T) {
 
 	metric := session.ISISPath().Interface(ts.DUTPort1.Name()).Level(2).
 		Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric()
-	time.Sleep(40 * time.Second)
 	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
@@ -97,5 +95,4 @@ func TestMetric(t *testing.T) {
 	// ateTelemPth := ts.ATEISISTelemetry(t)
 	// ateDB := ateTelemPth.Level(2).LspAny()
 	// for _, nbr := range ateDB.Tlv(telemetry.IsisLsdbTypes_ISIS_TLV_TYPE_IS_NEIGHBOR_ATTRIBUTE).IsisNeighborAttribute().NeighborAny().Get(t) {
-	}
 }
