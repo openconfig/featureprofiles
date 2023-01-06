@@ -75,6 +75,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
 	i1 := dutAttrs.NewOCInterface(dut.Port(t, "port1").Name())
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // verifyPortsUp asserts that each port on the device is operating.

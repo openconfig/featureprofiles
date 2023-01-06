@@ -121,6 +121,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i2 := dutDst.NewOCInterface(p2)
 	gnmi.Replace(t, dut, dc.Interface(p2).Config(), i2)
 
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1, *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2, *deviations.DefaultNetworkInstance, 0)
+	}
+
 	dutConfPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	dutConf := createBGPNeighbor(dutAS, ateAS, prefixLimit, grRestartTime)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
