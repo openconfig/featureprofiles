@@ -351,7 +351,7 @@ func TestTimersHoldTime(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.String() == "180" {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time fail: got %v", qs)
 				}
 			})
@@ -402,7 +402,7 @@ func TestTimersKeepaliveInterval(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.String() == "60" {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval fail: got %v", qs)
 				}
 			})
@@ -445,7 +445,7 @@ func TestTimersMinimumAdvertisementInterval(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.String() == "30" {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/minimum-advertisement-interval fail: got %v", qs)
 				}
 			})
