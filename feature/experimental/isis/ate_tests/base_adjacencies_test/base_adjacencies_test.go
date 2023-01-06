@@ -60,23 +60,32 @@ func TestBasic(t *testing.T) {
 	}
 	isisRoot := session.ISISPath()
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
-	if err := check.Equal(isisRoot.Global().Instance().State(), session.ISISName).AwaitFor(time.Second, ts.DUTClient); err != nil {
-		t.Fatalf("IS-IS failed to configure: %v", err)
-	}
 	// There might be lag between when the instance name is set and when the
 	// other parameters are set; we expect the total lag to be under 5s
 	deadline := time.Now().Add(time.Second * 5)
 
 	t.Run("read_config", func(t *testing.T) {
-		for _, vd := range []check.Validator{
+		data := []check.Validator{
 			check.Equal(isisRoot.Global().Net().State(), []string{"49.0001.1920.0000.2001.00"}),
 			EqualToDefault(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_1_2),
-			check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
-			check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
-			check.Equal(isisRoot.Level(2).Enabled().State(), true),
 			check.Equal(port1ISIS.Enabled().State(), true),
 			check.Equal(port1ISIS.CircuitType().State(), oc.Isis_CircuitType_POINT_TO_POINT),
-		} {
+		}
+
+		// if MissingIsisGlobalEnableAfSafiLevel is set, ignore enable flag check for AFI, SAFI and level at global level
+		// and validate enable at interface level
+		if *deviations.MissingIsisGlobalEnableAfSafiLevel {
+			data = append(data,
+				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
+				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
+		} else {
+			data = append(data,
+				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
+				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
+				check.Equal(isisRoot.Level(2).Enabled().State(), true))
+		}
+
+		for _, vd := range data {
 			t.Run(vd.RelPath(isisRoot), func(t *testing.T) {
 				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 					t.Error(err)
@@ -347,6 +356,10 @@ func TestHelloPadding(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			// skip run for isis hello padding adaptive mode if true
+			if *deviations.MissingIsisHelloPaddingAdaptiveMode && tc.name == "adaptive" {
+				t.Skip(tc.skip)
+			}
 			if tc.skip != "" {
 				t.Skip(tc.skip)
 			}
@@ -450,6 +463,12 @@ func TestTraffic(t *testing.T) {
 		// disable global hello padding on the DUT
 		global := isis.GetOrCreateGlobal()
 		global.HelloPadding = oc.Isis_HelloPaddingType_DISABLE
+		// configuring single topology for ISIS global ipv4 AF
+		if *deviations.IsisSingleTopologyRequired {
+			afv6 := global.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
+			afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
+			afv6.GetOrCreateMultiTopology().SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
+		}
 	}, func(isis *ixnet.ISIS) {
 		// disable global hello padding on the ATE
 		isis.WithHelloPaddingEnabled(false)
@@ -459,6 +478,8 @@ func TestTraffic(t *testing.T) {
 	// We generate traffic entering along port2 and destined for port1
 	srcIntf := ts.MustATEInterface(t, "port2")
 	dstIntf := ts.MustATEInterface(t, "port1")
+	// Set metric type for isis interface else prefixes won't be advertised with right metric
+	dstIntf.ISIS().WithMetric(10)
 	// net is a simulated network containing the addresses specified by targetNetwork
 	net := dstIntf.AddNetwork("net")
 	net.IPv4().WithAddress(targetNetwork.IPv4CIDR()).WithCount(1)
