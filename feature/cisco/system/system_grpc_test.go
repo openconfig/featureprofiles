@@ -7,6 +7,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 func TestSysGrpcState(t *testing.T) {
@@ -14,7 +15,7 @@ func TestSysGrpcState(t *testing.T) {
 
 	t.Run("Subscribe /system/grpc-servers/grpc-server/state/port", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			portNum := dut.Telemetry().System().GrpcServer("DEFAULT").Port().Get(t)
+			portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
 			if portNum == uint16(0) || portNum > uint16(0) {
 				t.Logf("Got the expected port number")
 
@@ -25,7 +26,7 @@ func TestSysGrpcState(t *testing.T) {
 	})
 	t.Run("Subscribe /system/grpc-servers/grpc-server/state/name", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			grpcName := dut.Telemetry().System().GrpcServer("DEFAULT").Name().Get(t)
+			grpcName := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Name().State())
 			if grpcName == "DEFAULT" {
 				t.Logf("Got the expected grpc Name")
 
@@ -36,7 +37,7 @@ func TestSysGrpcState(t *testing.T) {
 	})
 	t.Run("Subscribe /system/grpc-servers/grpc-server/state/enable", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			grpcEn := dut.Telemetry().System().GrpcServer("DEFAULT").Enable().Get(t)
+			grpcEn := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Enable().State())
 			if grpcEn == true {
 				t.Logf("Got the expected grpc Enable")
 
@@ -47,7 +48,7 @@ func TestSysGrpcState(t *testing.T) {
 	})
 	t.Run("Subscribe /system/grpc-servers/grpc-server/state/transport-security", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			grpcTs := dut.Telemetry().System().GrpcServer("DEFAULT").TransportSecurity().Get(t)
+			grpcTs := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").TransportSecurity().State())
 			if grpcTs == true {
 				t.Logf("Got the expected grpc transport security")
 
@@ -59,7 +60,7 @@ func TestSysGrpcState(t *testing.T) {
 
 	t.Run("Subscribe /system/", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			sysData := dut.Telemetry().System().Get(t)
+			sysData := gnmi.Get(t, dut, gnmi.OC().System().State())
 			grpcPort := *sysData.GrpcServer["DEFAULT"].Port
 			grpcName := *sysData.GrpcServer["DEFAULT"].Name
 			grpcEn := *sysData.GrpcServer["DEFAULT"].Enable
@@ -69,7 +70,7 @@ func TestSysGrpcState(t *testing.T) {
 	})
 	t.Run("Subscribe /system/grpc-servers/grpc-server['DEFAULT']", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			sysGrpc := dut.Telemetry().System().GrpcServer("DEFAULT").Get(t)
+			sysGrpc := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").State())
 			grpcPort := *sysGrpc.Port
 			grpcName := *sysGrpc.Name
 			grpcEn := *sysGrpc.Enable
@@ -79,7 +80,7 @@ func TestSysGrpcState(t *testing.T) {
 	})
 	t.Run("Subscribe /system/grpc-servers", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
-			sysGrpcCont := dut.Telemetry().System().GrpcServerAny().Get(t)
+			sysGrpcCont := gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().State())
 			grpcPort := *sysGrpcCont[0].Port
 			grpcName := *sysGrpcCont[0].Name
 			grpcEn := *sysGrpcCont[0].Enable
@@ -97,69 +98,69 @@ func TestSysGrpcConfig(t *testing.T) {
 	defer config.TextWithSSH(context.Background(), t, dut, "configure \n  no grpc name DEFAULT\n commit \n", 10*time.Second)
 
 	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
-		path := dut.Config().System().GrpcServer("DEFAULT").Name()
+		path := gnmi.OC().System().GrpcServer("DEFAULT").Name()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, "DEFAULT")
+		gnmi.Update(t, dut, path.Config(), "DEFAULT")
 
 	})
 
 	t.Run("Replace //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
-		path := dut.Config().System().GrpcServer("DEFAULT").Name()
+		path := gnmi.OC().System().GrpcServer("DEFAULT").Name()
 		defer observer.RecordYgot(t, "REPLACE", path)
-		path.Replace(t, "DEFAULT")
+		gnmi.Replace(t, dut, path.Config(), "DEFAULT")
 
 	})
 
 	t.Run("Update //system/grpc-servers/grpc-server/config/port", func(t *testing.T) {
-		path := dut.Config().System().GrpcServer("DEFAULT").Port()
+		path := gnmi.OC().System().GrpcServer("DEFAULT").Port()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, 57777)
+		gnmi.Update(t, dut, path.Config(), 57777)
 
 	})
 	t.Run("Replace //system/grpc-servers/grpc-server/config/port", func(t *testing.T) {
-		path := dut.Config().System().GrpcServer("DEFAULT").Port()
+		path := gnmi.OC().System().GrpcServer("DEFAULT").Port()
 		defer observer.RecordYgot(t, "REPLACE", path)
-		path.Replace(t, 57777)
+		gnmi.Replace(t, dut, path.Config(), 57777)
 
 	})
 	t.Run("Update //system/grpc-servers/grpc-server/config/enable", func(t *testing.T) {
-		path := dut.Config().System().GrpcServer("DEFAULT").Enable()
+		path := gnmi.OC().System().GrpcServer("DEFAULT").Enable()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, true)
+		gnmi.Update(t, dut, path.Config(), true)
 
 	})
 	t.Run("Replace //system/grpc-servers/grpc-server/config/enable", func(t *testing.T) {
-		path := dut.Config().System().GrpcServer("DEFAULT").Enable()
+		path := gnmi.OC().System().GrpcServer("DEFAULT").Enable()
 		defer observer.RecordYgot(t, "REPLACE", path)
-		path.Replace(t, true)
+		gnmi.Replace(t, dut, path.Config(), true)
 
 	})
 	t.Run("Update //system/grpc-servers/grpc-server/config/transport-security", func(t *testing.T) {
-		path := dut.Config().System().GrpcServer("DEFAULT").TransportSecurity()
+		path := gnmi.OC().System().GrpcServer("DEFAULT").TransportSecurity()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, false)
+		gnmi.Update(t, dut, path.Config(), false)
 
 	})
 	t.Run("Replace //system/grpc-servers/grpc-server/config/transport-security", func(t *testing.T) {
-		path := dut.Config().System().GrpcServer("DEFAULT").TransportSecurity()
+		path := gnmi.OC().System().GrpcServer("DEFAULT").TransportSecurity()
 		defer observer.RecordYgot(t, "REPLACE", path)
-		path.Replace(t, false)
+		gnmi.Replace(t, dut, path.Config(), false)
 
 	})
 	//set non-default name
 	config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc name TEST\n commit \n", 10*time.Second)
 	defer config.TextWithSSH(context.Background(), t, dut, "configure \n  no grpc name TEST\n commit \n", 10*time.Second)
 	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
-		path := dut.Config().System().GrpcServer("TEST").Name()
+		path := gnmi.OC().System().GrpcServer("TEST").Name()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, "TEST")
+		gnmi.Update(t, dut, path.Config(), "TEST")
 
 	})
 
 	t.Run("Replace //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
-		path := dut.Config().System().GrpcServer("TEST").Name()
+		path := gnmi.OC().System().GrpcServer("TEST").Name()
 		defer observer.RecordYgot(t, "REPLACE", path)
-		path.Replace(t, "TEST")
+		gnmi.Replace(t, dut, path.Config(), "TEST")
 
 	})
 

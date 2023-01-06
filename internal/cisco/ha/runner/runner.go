@@ -3,13 +3,14 @@ package runner
 
 import (
 	"context"
-	"github.com/openconfig/featureprofiles/internal/cisco/config"
-	"github.com/openconfig/featureprofiles/internal/cisco/ha/monitor"
-	"github.com/openconfig/ondatra"
 	"regexp"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	"github.com/openconfig/featureprofiles/internal/cisco/ha/monitor"
+	"github.com/openconfig/ondatra"
 )
 
 // TestArgs defines the arguments that test in background will receveis.

@@ -8,14 +8,20 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
 	//"github.com/google/go-cmp/cmp"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
+
+	if !*ciscoFlags.PbrPrecommitTests {
+		t.Skip()
+	}
 	t.Helper()
 	defer flushServer(t, args)
 
@@ -129,87 +135,86 @@ func testRemAddPBRWithGNMIReplace(ctx context.Context, t *testing.T, args *testA
 	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }
 
-func getBasePBROCConfig(t *testing.T, args *testArgs) (ygot.PathStruct, interface{}) {
-	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+func getBasePBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, interface{}) {
+	r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r1.SequenceId = ygot.Uint32(1)
-	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+	r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		Protocol: oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 	}
-	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
-	r2 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r2.SequenceId = ygot.Uint32(2)
-	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+	r2.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(16)},
 	}
-	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r2.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
-	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r3 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r3.SequenceId = ygot.Uint32(3)
-	r3.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+	r3.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(18)},
 	}
-	r3.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("VRF1")}
+	r3.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("VRF1")}
 
-	r4 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r4 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r4.SequenceId = ygot.Uint32(4)
-	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+	r4.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(48)},
 	}
-	r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r4.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
-	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
+	p := oc.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
-	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
-	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2, 3: &r3, 4: &r4}
+	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+	p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2, 3: &r3, 4: &r4}
 
-	policy := telemetry.NetworkInstance_PolicyForwarding{}
-	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+	policy := oc.NetworkInstance_PolicyForwarding{}
+	policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
-	return args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding(), &policy
-
+	return gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding(), &policy
 }
 
-func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygot.PathStruct, interface{}) {
-	r1 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, interface{}) {
+	r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r1.SequenceId = ygot.Uint32(1)
-	r1.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		Protocol: telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+	r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		Protocol: oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
 	}
-	r1.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
-	r2 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r2.SequenceId = ygot.Uint32(2)
-	r2.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+	r2.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		//DscpSet: []uint8{*ygot.Uint8(14)}, // wrong value
 		DscpSet: []uint8{*ygot.Uint8(17)}, // wrong value
 	}
-	r2.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	r2.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
-	r3 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r3 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r3.SequenceId = ygot.Uint32(3)
-	r3.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+	r3.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		//DscpSet: []uint8{*ygot.Uint8(15)}, //wrong value
 		DscpSet: []uint8{*ygot.Uint8(19)}, //wrong value
 	}
-	r3.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("VRF1")}
+	r3.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("VRF1")}
 
-	r4 := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r4 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r4.SequenceId = ygot.Uint32(4)
-	r4.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+	r4.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(49)}, // wrong value
 	}
-	//r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+	//r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
-	p := telemetry.NetworkInstance_PolicyForwarding_Policy{}
+	p := oc.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
-	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
-	p.Rule = map[uint32]*telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2, 3: &r3, 4: &r4}
+	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+	p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2, 3: &r3, 4: &r4}
 
-	policy := telemetry.NetworkInstance_PolicyForwarding{}
-	policy.Policy = map[string]*telemetry.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+	policy := oc.NetworkInstance_PolicyForwarding{}
+	policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
-	return args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding(), &policy
+	return gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding(), &policy
 
 }
 
@@ -278,6 +283,9 @@ func removeConfHeader(baseConf string) string {
 }
 func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, args *testArgs) {
 
+	if !*ciscoFlags.PbrPrecommitTests {
+		t.Skip()
+	}
 	defer flushServer(t, args)
 	baseConfig := removeConfHeader(config.CMDViaGNMI(ctx, t, args.dut, "show running-config"))
 	defer config.GNMICommitReplace(context.Background(), t, args.dut, baseConfig)
@@ -305,7 +313,7 @@ func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, 
 	path, basePolicy := getBasePBROCConfig(t, args)
 	config.GNMICommitReplaceWithOC(context.Background(), t, args.dut, baseConfigWithoutPBR, path, basePolicy)
 	t.Log("Add HWModule and set PBR to the right config, reload the router and check the traffic")
-	/*result := args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Get(t)
+	/*result := gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Get(t)
 	if cmp.Diff(result,basePolicy)!="" {
 		fmt.Println(cmp.Diff(result,basePolicy))
 		// TODO: make the test case fail

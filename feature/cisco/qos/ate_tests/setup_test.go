@@ -10,7 +10,8 @@ import (
 
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 )
 
@@ -106,16 +107,15 @@ func setupQos(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bc := BaseConfig()
 	setup.ResetStruct(bc, []string{"Interface", "Classifier", "ForwardingGroup"})
 
-	dut.Config().Qos().Update(t, bc)
+	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), bc)
 	return bc
-
 }
 
 func setupQosIpv6(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bc := BaseConfigipv6()
 	setup.ResetStruct(bc, []string{"Interface", "Classifier", "ForwardingGroup"})
 
-	dut.Config().Qos().Update(t, bc)
+	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), bc)
 	return bc
 
 }
@@ -124,7 +124,7 @@ func setupQosSche(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bc := BaseConfigSche()
 	setup.ResetStruct(bc, []string{"Interface", "Classifier", "ForwardingGroup"})
 
-	dut.Config().Qos().Update(t, bc)
+	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), bc)
 	return bc
 
 }
@@ -148,15 +148,15 @@ func setupQosEgress(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 
 	for _, k := range keys {
 		fmt.Println("KEY: ", k, "VAL: ", bce.Queue[k])
-		dut.Config().Qos().Queue(k).Update(t, bce.Queue[k])
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(k).Config(), bce.Queue[k])
 	}
 	setup.ResetStruct(bce, []string{"SchedulerPolicy"})
 	bcSchedulerPolicy := setup.GetAnyValue(bce.SchedulerPolicy)
-	dut.Config().Qos().SchedulerPolicy(*bcSchedulerPolicy.Name).Update(t, bcSchedulerPolicy)
+	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*bcSchedulerPolicy.Name).Config(), bcSchedulerPolicy)
 	bcee := BaseConfigEgress()
 	for inter, value := range bcee.Interface {
 		fmt.Printf("key :%+v and val:%+v", inter, *(value.Output.SchedulerPolicy))
-		dut.Config().Qos().Interface(inter).Update(t, value)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Interface(inter).Config(), value)
 	}
 	return bce
 
@@ -174,15 +174,15 @@ func setupQosEgressSche(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 
 	for _, k := range keys {
 		fmt.Println("KEY: ", k, "VAL: ", bce.Queue[k])
-		dut.Config().Qos().Queue(k).Update(t, bce.Queue[k])
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(k).Config(), bce.Queue[k])
 	}
 	setup.ResetStruct(bce, []string{"SchedulerPolicy"})
 	bcSchedulerPolicy := setup.GetAnyValue(bce.SchedulerPolicy)
-	dut.Config().Qos().SchedulerPolicy(*bcSchedulerPolicy.Name).Update(t, bcSchedulerPolicy)
+	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*bcSchedulerPolicy.Name).Config(), bcSchedulerPolicy)
 	bcee := BaseConfigEgress()
 	for inter, value := range bcee.Interface {
 		fmt.Printf("key :%+v and val:%+v", inter, *(value.Output.SchedulerPolicy))
-		dut.Config().Qos().Interface(inter).Update(t, value)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Interface(inter).Config(), value)
 	}
 	return bce
 
@@ -196,7 +196,7 @@ func teardownQos(t *testing.T, dut *ondatra.DUTDevice) {
 	var err *string
 	for attempt := 1; attempt <= 2; attempt++ {
 		err = testt.CaptureFatal(t, func(t testing.TB) {
-			dut.Config().Qos().Delete(t)
+			gnmi.Delete(t, dut, gnmi.OC().Qos().Config())
 		})
 		if err == nil {
 			break

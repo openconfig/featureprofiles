@@ -1,14 +1,86 @@
 diff --git a/feature/experimental/backup_nhg/ate_tests/backup_nhg_test/backup_nhg_test.go b/feature/experimental/backup_nhg/ate_tests/backup_nhg_test/backup_nhg_test.go
-index 480f4010..6484cb23 100644
+index 55cf0806..5414183d 100644
 --- a/feature/experimental/backup_nhg/ate_tests/backup_nhg_test/backup_nhg_test.go
 +++ b/feature/experimental/backup_nhg/ate_tests/backup_nhg_test/backup_nhg_test.go
-@@ -404,7 +404,8 @@ func (a *testArgs) createFlow(name string, dst *attrs.Attributes) *ondatra.Flow
+@@ -26,6 +26,7 @@ import (
+ 	"github.com/openconfig/featureprofiles/internal/attrs"
+ 	"github.com/openconfig/featureprofiles/internal/deviations"
+ 	"github.com/openconfig/featureprofiles/internal/fptest"
++	"github.com/openconfig/featureprofiles/internal/gribi"
+ 	"github.com/openconfig/ondatra/gnmi"
+ 	"github.com/openconfig/ondatra/gnmi/oc"
+ 	"github.com/openconfig/ygnmi/ygnmi"
+@@ -120,17 +121,33 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
+ 	ateTop := configureATE(t, ate)
  
- func (a *testArgs) validateAftTelemetry(t *testing.T) {
- 	aftPfxNHG := a.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(dstPfx).NextHopGroup()
--	aftPfxNHGVal, found := aftPfxNHG.Watch(t, 10*time.Second, func(val *telemetry.QualifiedUint64) bool {
-+	// CSCwc69142(CSC.ena,Update,cms)AFT shall use ON_CHANGE for TARGET_DEFINED mode
-+	aftPfxNHGVal, found := aftPfxNHG.Watch(t, 60*time.Second, func(val *telemetry.QualifiedUint64) bool {
- 		// Do nothing in this matching function, as we already filter on the prefix.
- 		return true
- 	}).Await(t)
+ 	gribic := dut.RawAPIs().GRIBI().Default(t)
++	// Configure the gRIBI client.
+ 	c := fluent.NewClient()
+-	c.Connection().WithStub(gribic).
+-		WithPersistence().
++	c.Connection().
++		WithStub(gribic).
+ 		WithRedundancyMode(fluent.ElectedPrimaryClient).
+-		WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
++		WithInitialElectionID(1 /* low */, 0 /* hi */). // ID must be > 0.
++		WithPersistence()
+ 	c.Start(ctx, t)
+ 	defer c.Stop(t)
++
++	defer func() {
++		// Flush all entries after test.
++		if err := gribi.FlushAll(c); err != nil {
++			t.Errorf("Cannot flush: %v", err)
++		}
++	}()
++
+ 	c.StartSending(ctx, t)
+ 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+ 		t.Fatalf("Await got error during session negotiation: %v", err)
+ 	}
++	gribi.BecomeLeader(t, c)
++
++	// Flush all entries before test.
++	if err := gribi.FlushAll(c); err != nil {
++		t.Errorf("Cannot flush: %v", err)
++	}
+ 
+ 	tcArgs := &testArgs{
+ 		ate:    ate,
+@@ -227,17 +244,33 @@ func TestIndirectBackupNexthopGroup(t *testing.T) {
+ 	ateTop := configureATE(t, ate)
+ 
+ 	gribic := dut.RawAPIs().GRIBI().Default(t)
++	// Configure the gRIBI client.
+ 	c := fluent.NewClient()
+-	c.Connection().WithStub(gribic).
+-		WithPersistence().
++	c.Connection().
++		WithStub(gribic).
+ 		WithRedundancyMode(fluent.ElectedPrimaryClient).
+-		WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
++		WithInitialElectionID(1 /* low */, 0 /* hi */). // ID must be > 0.
++		WithPersistence()
+ 	c.Start(ctx, t)
+ 	defer c.Stop(t)
++
++	defer func() {
++		// Flush all entries after test.
++		if err := gribi.FlushAll(c); err != nil {
++			t.Errorf("Cannot flush: %v", err)
++		}
++	}()
++
+ 	c.StartSending(ctx, t)
+ 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+ 		t.Fatalf("Await got error during session negotiation: %v", err)
+ 	}
++	gribi.BecomeLeader(t, c)
++
++	// Flush all entries before test.
++	if err := gribi.FlushAll(c); err != nil {
++		t.Errorf("Cannot flush: %v", err)
++	}
+ 
+ 	tcArgs := &testArgs{
+ 		ate:    ate,

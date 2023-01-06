@@ -28,7 +28,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gribigo/server"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -46,13 +47,13 @@ func TestMain(m *testing.M) {
 }
 
 // Transit-83 DELETE FlowSPEC and ADD PBR config
-func testChangeFlowSpecToPBR(t *testing.T, args *testArgs) {
-	t.Log("Remove flow spec config and apply pbr config")
-	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
-	config.Reload(args.ctx, t, args.dut, configToChange, "", 6*time.Minute)
-	configbasePBR(t, args.dut)
-	args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
-}
+// func testChangeFlowSpecToPBR(t *testing.T, args *testArgs) {
+// 	t.Log("Remove flow spec config and apply pbr config")
+// 	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
+// 	config.Reload(args.ctx, t, args.dut, configToChange, "", 15*time.Minute)
+//  configbasePBR(t, args.dut)
+//  args.dut.Config().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Update(t, pbrName)
+// }
 
 func testCD2ConnectedNHIP(t *testing.T, args *testArgs) {
 	args.c1.BecomeLeader(t)
@@ -116,7 +117,7 @@ func testAddIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
 	// traffic verification
 	time.Sleep(60 * time.Second)
 
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -150,7 +151,7 @@ func testReplaceIPv4EntryTrafficCheck(t *testing.T, args *testArgs) {
 	// traffic verification
 	time.Sleep(60 * time.Second)
 
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -184,7 +185,7 @@ func testAddNHGTrafficCheck(t *testing.T, args *testArgs) {
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -215,7 +216,7 @@ func testReplaceNHGTrafficCheck(t *testing.T, args *testArgs) {
 	args.c2.ReplaceNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -249,7 +250,7 @@ func testAddNHTrafficCheck(t *testing.T, args *testArgs) {
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -282,7 +283,7 @@ func testReplaceNHTrafficCheck(t *testing.T, args *testArgs) {
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -450,7 +451,8 @@ func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) 
 	args.c1.AddNHG(t, 14, 11, weights2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "12.11.11.12/32", 14, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.c1.AddNHG(t, 11, 14, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	// not suported as confirmed by DE, in CD2 we had addnhg call, which was over writing the existing one which failed
+	// args.c1.ReplaceNHG(t, 11, 14, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	portMaps := args.topology.Interfaces()
 
@@ -1004,7 +1006,7 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -1015,6 +1017,11 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 // Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf
 func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
+
+	// Removing policy for the tc
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config())
+	defer gnmi.Update(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
+
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
 
@@ -1071,7 +1078,7 @@ func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Fatal("There is stream failing:", strings.Join(lossStream, ","))
@@ -1108,7 +1115,7 @@ func testReplaceSinglePathtoECMP(t *testing.T, args *testArgs) {
 	args.c1.AddNHG(t, 11, 0, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// traffic verification
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().InterfaceAny().Counters().State())
 	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats)
 	if trafficPass == true {
 		t.Log("Traffic works as expected")
@@ -1153,6 +1160,8 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 	prefixes := []string{}
 	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
 		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
+		prefixes = append(prefixes, util.GetIPPrefix("121.1.1.1", i, "32"))
+		prefixes = append(prefixes, util.GetIPPrefix("131.1.1.1", i, "32"))
 	}
 	weights3 := map[uint64]uint64{
 		10: 85,
@@ -1164,8 +1173,8 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//Generate flows over ISIS and BGP sessions.
-	isisFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "isis_network1", "isis_network2", "isis", 16)
-	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "bgp_network", "bgp_network", "bgp", 16)
+	isisFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "transit_wecmp_isis_1", "transit_wecmp_isis_2", "isis", 16)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 16)
 	scaleFlow := getScaleFlow(t, args.topology.Interfaces(), args.ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.90, isisFlow, bgpFlow, scaleFlow)
@@ -1209,7 +1218,7 @@ func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 
 	//Configure BGP on TGN
 	//Generate DSCP48 flow
-	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "bgp_transit_network", "bgp_transit_network", "bgp", 48)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 48)
 
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.99, bgpFlow)
@@ -1249,8 +1258,8 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 
 	// 11.11.11.0/32
 	prefixes := []string{}
-	for i := 8; i <= 32; i++ {
-		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.1", i, "32"))
+	for i := 0; i <= int(*ciscoFlags.GRIBIScale); i++ {
+		prefixes = append(prefixes, util.GetIPPrefix("11.11.11.0", i, "32"))
 	}
 	weights3 := map[uint64]uint64{
 		10: 85,
@@ -1424,9 +1433,9 @@ func testSetISISOverloadBit(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Configure ISIS overload bit
-	config := args.dut.Config().NetworkInstance("default").Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
-	config.Update(t, true)
-	defer config.Delete(t)
+	config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+	gnmi.Update(t, args.dut, config.Config(), true)
+	defer gnmi.Delete(t, args.dut, config.Config())
 
 	performATEAction(t, "ate", 100, true)
 }
@@ -1592,17 +1601,18 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 
 	//Outer header TTL decrements by 1, DSCP stays same over gRIBI forwarding entry.
 	//flow with dscp=48, ttl=100
-	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "network102", "dscpTtlFlow", 48, 100)
+	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "transit_wecmp_isis_2", "dscpTtlFlow", 16, 100)
 	//add acl with dscp=48, ttl=99. Transit traffic will have ttl decremented by 1
 	aclName := "ttl_dscp"
-	aclConfig := util.GetIpv4Acl(aclName, 10, 48, 99, telemetry.Acl_FORWARDING_ACTION_ACCEPT)
-	args.dut.Config().Acl().Update(t, aclConfig)
+	aclConfig := util.GetIpv4Acl(aclName, 10, 16, 99, oc.Acl_FORWARDING_ACTION_ACCEPT)
+	gnmi.Update(t, args.dut, gnmi.OC().Acl().Config(), aclConfig)
+
 	//delete acl
-	defer args.dut.Config().Acl().AclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
+	defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config())
 	//apply egress acl on all interfaces of interest
 	interfaceNames := []string{"Bundle-Ether120", "Bundle-Ether121"}
 	for _, interfaceName := range interfaceNames {
-		args.dut.Config().Acl().Interface(interfaceName).EgressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).SetName().Update(t, aclName)
+		gnmi.Update(t, args.dut, gnmi.OC().Acl().Interface(interfaceName).EgressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), aclName)
 	}
 
 	// Verify traffic passes through ACL - allowing same DSCP and TTL decremented by 1
@@ -1610,7 +1620,7 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 
 	//remove acl from interfaces
 	for _, interfaceName := range interfaceNames {
-		args.dut.Config().Acl().Interface(interfaceName).EgressAclSet(aclName, telemetry.Acl_ACL_TYPE_ACL_IPV4).Delete(t)
+		gnmi.Delete(t, args.dut, gnmi.OC().Acl().Interface(interfaceName).EgressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config())
 	}
 }
 
@@ -1723,7 +1733,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	for _, interfaceName := range interfaceNames {
 		ipPrefix := util.GetIPPrefix(initialIP, counter, "24")
 		initialIP = strings.Split(ipPrefix, "/")[0]
-		args.dut.Config().Interface(interfaceName).Subinterface(0).Replace(t, util.GetSubInterface(initialIP, 24, 0))
+		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Subinterface(0).Config(), util.GetSubInterface(initialIP, 24, 0))
 		t.Logf("Changed configuration of interface %s", interfaceName)
 		counter = counter + 256
 
@@ -1732,7 +1742,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	for _, interfaceName := range interfaceNames {
 		osi := originalInterfaces[interfaceName]
 		osi.Index = ygot.Uint32(0)
-		args.dut.Config().Interface(interfaceName).Subinterface(0).Replace(t, osi)
+		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Subinterface(0).Config(), osi)
 		t.Logf("Restored configuration of interface %s", interfaceName)
 	}
 	//Config change end
@@ -1799,7 +1809,7 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 	defer args.ate.Traffic().Stop(t)
 
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	t.Log("slept and now need to collect stats")
 	lossStream := util.CheckTrafficPassViaRate(stats)
 
@@ -1815,7 +1825,7 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.3  0000.0012.0011 arpa")
 
-	statsb := args.ate.Telemetry().FlowAny().Get(t)
+	statsb := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStreamb := util.CheckTrafficPassViaRate(statsb)
 
 	if len(lossStreamb) > 0 {
@@ -1864,7 +1874,7 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 	defer args.ate.Traffic().Stop(t)
 
 	time.Sleep(60 * time.Second)
-	stats := args.ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 
 	if len(lossStream) > 0 {
@@ -1887,7 +1897,7 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 
 	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.2  0000.0012.0011 arpa")
 
-	statsb := args.ate.Telemetry().FlowAny().Get(t)
+	statsb := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStreamb := util.CheckTrafficPassViaRate(statsb)
 
 	if len(lossStreamb) > 0 {
@@ -1983,7 +1993,7 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 	time.Sleep(10 * time.Second)
 
 	if *ciscoFlags.GRIBITrafficCheck {
-		checkTraffic(t, "IPinIP", args.ate, false, "default")
+		checkTraffic(t, "IPinIP", args.ate, false)
 	}
 
 	// dut1.Telemetry().NetworkInstance().Afts().Ipv4Entry().Get(t)
@@ -2000,11 +2010,12 @@ func TestTransitWECMPFlush(t *testing.T) {
 		desc string
 		fn   func(t *testing.T, args *testArgs)
 	}{
-		{
-			name: "TestAddPBR",
-			desc: "ADD PBR", // make sure that PBR is added and no flowspec config is not in router
-			fn:   testChangeFlowSpecToPBR,
-		},
+		// Deactivated tc as PBR config is flawed and there is missing ondatra support, handling the PBR config in base config
+		// {
+		// 	name: "TestAddPBR",
+		// 	desc: "ADD PBR", // make sure that PBR is added and no flowspec config is not in router
+		// 	fn:   testChangeFlowSpecToPBR,
+		// },
 		{
 			name: "CD2ConnectedNHIP",
 			desc: "Transit Connected nexthop",

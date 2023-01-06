@@ -44,7 +44,7 @@ options {
 
 duts {
   id: "dut"
-  name: "SF-D"  # Change this to the device hostname.
+  name: "R4_churchill"  # Change this to the device hostname.
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
@@ -178,4 +178,4 @@ ates {
     id: "port9"
     name: "10/24"  # Change this to the actual port name.
   }  
-} 
+}

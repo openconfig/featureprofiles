@@ -23,6 +23,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 var (
@@ -76,17 +77,17 @@ func addNetworkAndProtocolsToAte(t *testing.T, ate *ondatra.ATEDevice, topo *ond
 	util.AddIpv4Network(t, topo, sortedAtePorts[0], "network101", "101.1.1.1/32", scale)
 	util.AddIpv4Network(t, topo, sortedAtePorts[1], "network102", "102.1.1.1/32", scale)
 	//Configure ISIS, BGP on TGN
-	util.AddAteISISL2(t, topo, sortedAtePorts[0], "490001", "isis_network1", 20, "120.1.1.1/32", scale)
-	util.AddAteISISL2(t, topo, sortedAtePorts[1], "490002", "isis_network2", 20, "121.1.1.1/32", scale)
-	util.AddAteEBGPPeer(t, topo, sortedAtePorts[0], "100.120.1.1", 64001, "bgp_network", "100.120.0.2", "130.1.1.1/32", scale, false)
-	util.AddAteEBGPPeer(t, topo, sortedAtePorts[1], "100.121.1.1", 64001, "bgp_network", "100.121.0.2", "131.1.1.1/32", scale, false)
-	//Configure loopbacks for BGP to use as source addresses
-	util.AddLoopback(t, topo, sortedAtePorts[0], "11.11.11.1/32")
-	util.AddLoopback(t, topo, sortedAtePorts[1], "12.12.12.1/32")
-	//BGP instance for traffic over gRIBI transit forwarding entries
-	//BGP uses DSCP48 for control traffic. Router needs to be configured to handle DSCP48 accordingly.
-	util.AddAteEBGPPeer(t, topo, sortedAtePorts[0], "12.12.12.1", 64001, "bgp_transit_network", "100.121.0.2", "11.11.11.1/32", 1, true)
-	util.AddAteEBGPPeer(t, topo, sortedAtePorts[1], "11.11.11.1", 64002, "bgp_transit_network", "100.122.0.2", "12.12.12.1/32", 1, true)
+	util.AddAteISISL2(t, topo, sortedAtePorts[0], "490001", "transit_wecmp_isis_1", 20, "120.1.1.1/32", scale)
+	util.AddAteISISL2(t, topo, sortedAtePorts[1], "490002", "transit_wecmp_isis_2", 20, "121.1.1.1/32", scale)
+	// util.AddAteEBGPPeer(t, topo, sortedAtePorts[0], "100.120.1.1", 64001, "bgp_network_1", "100.120.1.2", "130.1.1.1/32", scale, false)
+	util.AddAteEBGPPeer(t, topo, sortedAtePorts[1], "100.121.1.1", 64001, "bgp_network_2", "100.121.1.2", "131.1.1.1/32", scale, false)
+	// //Configure loopbacks for BGP to use as source addresses
+	// util.AddLoopback(t, topo, sortedAtePorts[0], "11.11.11.1/32")
+	// util.AddLoopback(t, topo, sortedAtePorts[1], "12.12.12.1/32")
+	// //BGP instance for traffic over gRIBI transit forwarding entries
+	// //BGP uses DSCP48 for control traffic. Router needs to be configured to handle DSCP48 accordingly.
+	// util.AddAteEBGPPeer(t, topo, sortedAtePorts[0], "100.120.1.1", 64001, "bgp_transit_network_1", "100.120.1.2", "11.11.11.1/32", 1, true)
+	// util.AddAteEBGPPeer(t, topo, sortedAtePorts[1], "100.121.1.1", 64001, "bgp_transit_network_2", "100.121.1.2", "12.12.12.1/32", 1, true)
 }
 
 func getBaseFlow(t *testing.T, atePorts map[string]*ondatra.Interface, ate *ondatra.ATEDevice, flowName string, vrf ...string) *ondatra.Flow {
@@ -158,7 +159,7 @@ func performATEAction(t *testing.T, ateName string, scale int, expectPass bool, 
 	ate.Traffic().Start(t, scaleflow)
 	defer ate.Traffic().Stop(t)
 	time.Sleep(60 * time.Second)
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
 	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold...)
 	if trafficPass == expectPass {
 		t.Log("Traffic works as expected")
@@ -175,9 +176,9 @@ func performATEActionForMultipleFlows(t *testing.T, ateName string, expectPass b
 	ate.Traffic().Start(t, flow...)
 	defer ate.Traffic().Stop(t)
 	time.Sleep(60 * time.Second)
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
-	t.Log("Packets transmitted by ports: ", ate.Telemetry().InterfaceAny().Counters().OutPkts().Get(t))
-	t.Log("Packets received by ports: ", ate.Telemetry().InterfaceAny().Counters().InPkts().Get(t))
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
+	t.Log("Packets transmitted by ports: ", gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().OutPkts().State()))
+	t.Log("Packets received by ports: ", gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().InPkts().State()))
 	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
 	if trafficPass == expectPass {
 		t.Log("Traffic works as expected")
@@ -210,7 +211,7 @@ func checkTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, flowDuration time.D
 	ate.Traffic().Start(t, flow...)
 	defer ate.Traffic().Stop(t)
 	time.Sleep(flowDuration * time.Second)
-	stats := ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 	if len(lossStream) > 0 {
 		t.Error("There is stream failing:", strings.Join(lossStream, ","))
@@ -234,7 +235,7 @@ func checkTraffic(t *testing.T, protocl string, ate *ondatra.ATEDevice, expectFa
 	defer ate.Traffic().Stop(t)
 
 	time.Sleep(45 * time.Second)
-	stats := ate.Telemetry().FlowAny().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().FlowAny().State())
 	lossStream := util.CheckTrafficPassViaRate(stats)
 
 	if expectFailure {

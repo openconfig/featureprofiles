@@ -20,6 +20,7 @@ import (
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -200,15 +201,15 @@ func (a *testArgs) allFlows() []*ondatra.Flow {
 
 // validateTrafficFlows validates traffic loss on tgn side and DUT incoming and outgoing counters
 func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, drop bool, d_port []string) {
-	src_port := a.dut.Telemetry().Interface("Bundle-Ether120")
+	src_port := gnmi.OC().Interface("Bundle-Ether120")
 	subintf1 := src_port.Subinterface(0)
-	dutOutPktsBeforeTraffic := map[string]uint64{"ipv4": subintf1.Ipv4().Counters().InPkts().Get(t)}
+	dutOutPktsBeforeTraffic := map[string]uint64{"ipv4": gnmi.Get(t, a.dut, subintf1.Ipv4().Counters().InPkts().State())}
 
 	dutInPktsBeforeTraffic := make(map[string][]uint64)
 	for _, dp := range d_port {
-		dst_port := a.dut.Telemetry().Interface(dp)
+		dst_port := gnmi.OC().Interface(dp)
 		subintf2 := dst_port.Subinterface(0)
-		dutInPktsBeforeTraffic["ipv4"] = append(dutInPktsBeforeTraffic["ipv4"], subintf2.Ipv4().Counters().OutPkts().Get(t))
+		dutInPktsBeforeTraffic["ipv4"] = append(dutInPktsBeforeTraffic["ipv4"], gnmi.Get(t, a.dut, subintf2.Ipv4().Counters().OutPkts().State()))
 	}
 	//aggregriate dst_port counter
 	totalInPktsBeforeTraffic := map[string]uint64{"ipv4": 0}
@@ -224,11 +225,11 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 	time.Sleep(20 * time.Second)
 
 	for _, f := range flows {
-		ateTxPkts := map[string]uint64{"ipv4": a.ate.Telemetry().Flow(f.Name()).Counters().OutPkts().Get(t)}
-		ateRxPkts := map[string]uint64{"ipv4": a.ate.Telemetry().Flow(f.Name()).Counters().InPkts().Get(t)}
+		ateTxPkts := map[string]uint64{"ipv4": gnmi.Get(t, a.ate, gnmi.OC().Flow(f.Name()).Counters().OutPkts().State())}
+		ateRxPkts := map[string]uint64{"ipv4": gnmi.Get(t, a.ate, gnmi.OC().Flow(f.Name()).Counters().InPkts().State())}
 
-		flowPath := a.ate.Telemetry().Flow(f.Name())
-		got := flowPath.LossPct().Get(t)
+		flowPath := gnmi.OC().Flow(f.Name())
+		got := gnmi.Get(t, a.ate, flowPath.LossPct().State())
 		if drop {
 			if got != 100 {
 				t.Errorf("Traffic passing for flow %s got %g, want 100 percent loss", f.Name(), got)
@@ -240,12 +241,12 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 		}
 
 		if !drop {
-			dutOutPktsAfterTraffic := map[string]uint64{"ipv4": subintf1.Ipv4().Counters().InPkts().Get(t)}
+			dutOutPktsAfterTraffic := map[string]uint64{"ipv4": gnmi.Get(t, a.dut, subintf1.Ipv4().Counters().InPkts().State())}
 			dutInPktsAfterTraffic := make(map[string][]uint64)
 			for _, dp := range d_port {
-				dst_port := a.dut.Telemetry().Interface(dp)
+				dst_port := gnmi.OC().Interface(dp)
 				subintf2 := dst_port.Subinterface(0)
-				dutInPktsAfterTraffic["ipv4"] = append(dutInPktsAfterTraffic["ipv4"], subintf2.Ipv4().Counters().OutPkts().Get(t))
+				dutInPktsAfterTraffic["ipv4"] = append(dutInPktsAfterTraffic["ipv4"], gnmi.Get(t, a.dut, subintf2.Ipv4().Counters().OutPkts().State()))
 			}
 
 			//aggregriate dst_port counter

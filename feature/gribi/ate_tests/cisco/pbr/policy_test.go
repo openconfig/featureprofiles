@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/ondatra"
@@ -329,6 +330,31 @@ var (
 			fn:   testDettachAndAttachWrongSrcIp,
 		},
 		{
+			name: "Test Replace Policies",
+			desc: "Test Replace Policies, it is skipped for now",
+			fn:   testPolicesReplace,
+		},
+		{
+			name: "Test Replace Policy",
+			desc: "Test Replace Policy, it is skipped for now",
+			fn:   testPolicyReplace,
+		},
+		{
+			name: "Commit replace with PBR config changes",
+			desc: "Unconfig/config with PBR and verify traffic fails/passes",
+			fn:   testRemAddPBRWithGNMIReplace,
+		},
+		{
+			name: "Commit replace with HW config along with OC via GNMI",
+			desc: "Unconfig/config  PBR using oc and HWModule using text in the same GNMI replace  and verify traffic fails/passes",
+			fn:   testRemAddHWWithGNMIReplaceAndPBRwithOC,
+		},
+		{
+			name: "Add remove hw-module CLI",
+			desc: "remove/add the pbr policy using hw-module and verify traffic fails/passes",
+			fn:   testRemAddHWModule,
+		},
+		{
 			name: "Test Update SrcIp",
 			desc: "Verify PBR policy after Updating SrcIp and action VRF redirect",
 			fn:   testUpdateSrcIp,
@@ -393,31 +419,6 @@ var (
 			desc: "Verify Src-ip with prtotvol 41 and then replace with protocl 4",
 			fn:   testProtocolV6replaceV4,
 		},
-		{
-			name: "Test Replace Policies",
-			desc: "Test Replace Policies, it is skipped for now",
-			fn:   testPolicesReplace,
-		},
-		{
-			name: "Test Replace Policy",
-			desc: "Test Replace Policy, it is skipped for now",
-			fn:   testPolicyReplace,
-		},
-		{
-			name: "Commit replace with PBR config changes",
-			desc: "Unconfig/config with PBR and verify traffic fails/passes",
-			fn:   testRemAddPBRWithGNMIReplace,
-		},
-		{
-			name: "Commit replace with HW config along with OC via GNMI",
-			desc: "Unconfig/config  PBR using oc and HWModule using text in the same GNMI replace  and verify traffic fails/passes",
-			fn:   testRemAddHWWithGNMIReplaceAndPBRwithOC,
-		},
-		{
-			name: "Add remove hw-module CLI",
-			desc: "remove/add the pbr policy using hw-module and verify traffic fails/passes",
-			fn:   testRemAddHWModule,
-		},
 	}
 )
 
@@ -445,10 +446,9 @@ func TestCD5PBR(t *testing.T) {
 			t.Logf("Description: %s", tt.desc)
 
 			clientA := gribi.Client{
-				DUT:                  ondatra.DUT(t, "dut"),
-				FibACK:               false,
-				Persistence:          true,
-				InitialElectionIDLow: 10,
+				DUT:         ondatra.DUT(t, "dut"),
+				FIBACK:      false,
+				Persistence: true,
 			}
 			defer clientA.Close(t)
 			if err := clientA.Start(t); err != nil {
@@ -477,7 +477,7 @@ func TestCD5PBR(t *testing.T) {
 				prefix: &gribiPrefix{
 					scale:           1,
 					host:            "11.11.11.0",
-					vrfName:         "TE",
+					vrfName:         *ciscoFlags.NonDefaultNetworkInstance,
 					vipPrefixLength: "32",
 
 					vip1Ip: "192.0.2.40",

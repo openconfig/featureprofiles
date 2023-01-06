@@ -8,6 +8,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -120,11 +121,11 @@ func TestMain(m *testing.M) {
 func TestGNMIFullCommitReplace(t *testing.T) {
 	t.Skip() // skipped since the commit replace  can cause issue for other test cases
 	dut := ondatra.DUT(t, "dut")
-	oldHostName := dut.Telemetry().System().Hostname().Get(t)
+	oldHostName := gnmi.Get(t, dut, gnmi.OC().System().Hostname().State())
 	newHostname := oldHostName + "new"
 	config.GNMICommitReplace(context.Background(), t, dut, fmt.Sprintf(fullConfig, newHostname))
 	defer config.GNMICommitReplace(context.Background(), t, dut, fmt.Sprintf(fullConfig, oldHostName))
-	if got := dut.Telemetry().System().Hostname().Get(t); got != newHostname {
+	if got := gnmi.Get(t, dut, gnmi.OC().System().Hostname().State()); got != newHostname {
 		t.Fatalf("Expected the host name to be %s, got %s", newHostname, got)
 	}
 }
@@ -132,11 +133,11 @@ func TestGNMIFullCommitReplace(t *testing.T) {
 func TestGNMIFullCommitReplaceWithOC(t *testing.T) {
 	t.Skip() // skiped since this can cuase issues for other test cases
 	dut := ondatra.DUT(t, "dut")
-	oldHostName := dut.Telemetry().System().Hostname().Get(t)
+	oldHostName := gnmi.Get(t, dut, gnmi.OC().System().Hostname().State())
 	newHostname := oldHostName + "new"
-	hostNamePath := dut.Config().System().Hostname()
+	hostNamePath := gnmi.OC().System().Hostname()
 	config.GNMICommitReplaceWithOC(context.Background(), t, dut, fmt.Sprintf(fullConfig, newHostname), hostNamePath, ygot.String(oldHostName))
-	if got := dut.Telemetry().System().Hostname().Get(t); got != oldHostName {
+	if got := gnmi.Get(t, dut, gnmi.OC().System().Hostname().State()); got != oldHostName {
 		t.Fatalf("Expected the host name to be not changed  %s, got %s", oldHostName, got)
 	}
 
@@ -146,11 +147,11 @@ func TestTextConfigWithGNMI(t *testing.T) {
 	// skipped since the commit replace  can cause issue for other test cases
 	t.Skip()
 	dut := ondatra.DUT(t, "dut")
-	oldHostName := dut.Telemetry().System().Hostname().Get(t)
+	oldHostName := gnmi.Get(t, dut, gnmi.OC().System().Hostname().State())
 	newHostname := oldHostName + "new"
 	config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("hostname %s", newHostname))
 	defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("hostname %s", oldHostName))
-	if got := dut.Telemetry().System().Hostname().Get(t); got != newHostname {
+	if got := gnmi.Get(t, dut, gnmi.OC().System().Hostname().State()); got != newHostname {
 		t.Fatalf("Expected the host name to be %s, got %s", newHostname, got)
 	}
 }
@@ -159,9 +160,9 @@ func TestBatchConfig(t *testing.T) {
 	// skiped since this can cuase issues for other test cases
 	t.Skip()
 	dut := ondatra.DUT(t, "dut")
-	oldHostName := dut.Telemetry().System().Hostname().Get(t)
+	oldHostName := gnmi.Get(t, dut, gnmi.OC().System().Hostname().State())
 	newHostname := oldHostName + "new"
-	hostNamePath := dut.Config().System().Hostname()
+	hostNamePath := gnmi.OC().System().Hostname()
 	batchSet := config.NewBatchSetRequest()
 	ctx := context.Background()
 	batchSet.Append(ctx, t, hostNamePath, ygot.String(newHostname), config.ReplaceOC)

@@ -8,7 +8,8 @@ import (
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -37,30 +38,30 @@ func TestDscpAtContainer(t *testing.T) {
 			}
 			*baseConfigClassifierTermConditionsIpv6.Dscp = input
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6()
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6()
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6()
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6()
 
 			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigClassifierTermConditionsIpv6)
+				gnmi.Replace(t, dut, config.Config(), baseConfigClassifierTermConditionsIpv6)
 			})
 			t.Run("Get container", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTermConditionsIpv6); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp: %v", diff)
 				}
 			})
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.Dscp != input {
 						t.Errorf("State /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete container", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).Dscp != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.Dscp != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp fail: got %v", qs)
 					}
 				}
@@ -84,31 +85,31 @@ func TestDscpAtLeaf(t *testing.T) {
 				baseConfigClassifierTermConditionsIpv6.DscpSet = nil
 			}
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6().Dscp()
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6().Dscp()
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6().Dscp()
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6().Dscp()
 
 			t.Run("Replace leaf", func(t *testing.T) {
-				config.Replace(t, input)
+				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			t.Run("Get leaf", func(t *testing.T) {
 				t.Skip()
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if configGot != input {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp: got %v, want %v", configGot, input)
 				}
 			})
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					if stateGot != input {
 						t.Errorf("State /qos/classifiers/classifier/terms/term/conditions/ipv6/state/dscp: got %v, want %v", stateGot, input)
 					}
 				})
 			}
 			t.Run("Delete leaf", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs != nil {
+					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp fail: got %v", qs)
 					}
 				}
@@ -135,21 +136,21 @@ func TestDscpSetAtContainer(t *testing.T) {
 			}
 			baseConfigClassifierTermConditionsIpv6.DscpSet = input
 
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6()
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6()
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6()
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6()
 
 			t.Run("Replace container", func(t *testing.T) {
-				config.Replace(t, baseConfigClassifierTermConditionsIpv6)
+				gnmi.Replace(t, dut, config.Config(), baseConfigClassifierTermConditionsIpv6)
 			})
 			t.Run("Get container", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTermConditionsIpv6); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set: %v", diff)
 				}
 			})
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe container", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					for i, sg := range stateGot.DscpSet {
 						if sg != input[i] {
 							t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set: got %v, want %v", sg, input[i])
@@ -158,9 +159,9 @@ func TestDscpSetAtContainer(t *testing.T) {
 				})
 			}
 			t.Run("Delete container", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs.Val(t).DscpSet != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.DscpSet != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set fail: got %v", qs)
 					}
 				}
@@ -183,14 +184,14 @@ func TestDscpSetAtLeaf(t *testing.T) {
 				baseConfigClassifierTermConditionsIpv6.DscpSet = []uint8{}
 				baseConfigClassifierTermConditionsIpv6.Dscp = nil
 			}
-			config := dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6().DscpSet()
-			state := dut.Telemetry().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6().DscpSet()
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6().DscpSet()
+			state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv6().DscpSet()
 
 			t.Run("Replace leaf", func(t *testing.T) {
-				config.Replace(t, input)
+				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			t.Run("Get leaf", func(t *testing.T) {
-				configGot := config.Get(t)
+				configGot := gnmi.GetConfig(t, dut, config.Config())
 				for i, cg := range configGot {
 					if cg != input[i] {
 						t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set: got %v, want %v", cg, input[i])
@@ -199,7 +200,7 @@ func TestDscpSetAtLeaf(t *testing.T) {
 			})
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe leaf", func(t *testing.T) {
-					stateGot := state.Get(t)
+					stateGot := gnmi.Get(t, dut, state.State())
 					for i, sg := range stateGot {
 						if sg != input[i] {
 							t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv6/state/dscp-set: got %v, want %v", sg, input[i])
@@ -208,9 +209,9 @@ func TestDscpSetAtLeaf(t *testing.T) {
 				})
 			}
 			t.Run("Delete leaf", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := config.Lookup(t); qs != nil {
+					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs != nil {
 						t.Errorf("Delete /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set fail: got %v", qs)
 					}
 				}

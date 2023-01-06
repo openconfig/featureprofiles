@@ -13,8 +13,9 @@ import (
 	"github.com/openconfig/featureprofiles/tools/inputcisco/proto"
 	"github.com/openconfig/featureprofiles/tools/inputcisco/solver"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
 
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -64,7 +65,7 @@ func createInterface(t *testing.T, dut *ondatra.DUTDevice, intf *proto.Input_Int
 		intf.Name = intfname
 	}
 	config := buildInterface(intf, intftype)
-	dut.Config().Interface(intfname).Update(t, config)
+	gnmi.Update(t, dut, gnmi.OC().Interface(intfname).Config(), config)
 }
 func deleteInterface(t *testing.T, dut *ondatra.DUTDevice, intf *proto.Input_Interface, intftype oc.E_IETFInterfaces_InterfaceType) {
 	var intfname string
@@ -74,7 +75,7 @@ func deleteInterface(t *testing.T, dut *ondatra.DUTDevice, intf *proto.Input_Int
 		intfname = solver.Solver(t, dut, intf.Id)
 		intf.Name = intfname
 	}
-	dut.Config().Interface(intfname).Delete(t)
+	gnmi.Delete(t, dut, gnmi.OC().Interface(intfname).Config())
 }
 
 func buildInterface(intf *proto.Input_Interface, intftype oc.E_IETFInterfaces_InterfaceType) *oc.Interface {
@@ -115,12 +116,12 @@ func createBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName s
 			AggregateId: ygot.String(bundleName),
 		},
 	}
-	updateResponse := dut.Config().Interface(interfaceName).Update(t, member)
+	updateResponse := gnmi.Update(t, dut, gnmi.OC().Interface(interfaceName).Config(), member)
 	t.Logf("Update response : %v", updateResponse)
 }
 
 func deleteBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, bundleName string, intf *proto.Input_Interface) {
-	updateResponse := dut.Config().Interface(interfaceName).Delete(t)
+	updateResponse := gnmi.Delete(t, dut, gnmi.OC().Interface(interfaceName).Config())
 	t.Logf("Update response : %v", updateResponse)
 }
 
@@ -132,7 +133,7 @@ func createVlan(t *testing.T, dut *ondatra.DUTDevice, intf *proto.Input_Interfac
 		intfname = solver.Solver(t, dut, intf.Id)
 	}
 	config := getSubintfConfig(t, dut, intf, vlan, vlanid, encapid)
-	dut.Config().Interface(intfname).Update(t, config)
+	gnmi.Update(t, dut, gnmi.OC().Interface(intfname).Config(), config)
 
 }
 

@@ -5,28 +5,29 @@ import (
 	"time"
 
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func TestLldpCfgs(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 
 	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
-		path := dut.Config().Lldp().Enabled()
+		path := gnmi.OC().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, true)
+		gnmi.Update(t, dut, path.Config(), true)
 
 	})
 	t.Run("Replace//lldp/config/enabled", func(t *testing.T) {
-		path := dut.Config().Lldp().Enabled()
+		path := gnmi.OC().Lldp().Enabled()
 		defer observer.RecordYgot(t, "REPLACE", path)
-		path.Replace(t, true)
+		gnmi.Replace(t, dut, path.Config(), true)
 
 	})
 	t.Run("Delete//lldp/config/enabled", func(t *testing.T) {
-		path := dut.Config().Lldp().Enabled()
+		path := gnmi.OC().Lldp().Enabled()
 		defer observer.RecordYgot(t, "DELETE", path)
-		path.Delete(t)
+		gnmi.Delete(t, dut, path.Config())
 
 	})
 }
@@ -44,22 +45,22 @@ func TestLldpState(t *testing.T) {
 	iut := inputObj.Device(dut).GetInterface("$ports.peer_dut_1")
 	peerintf := inputObj.Device(peer).GetInterface("$ports.peer_dut_1")
 	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
-		path := peer.Config().Lldp().Enabled()
+		path := gnmi.OC().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, true)
+		gnmi.Update(t, peer, path.Config(), true)
 
 	})
 
 	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
-		path := dut.Config().Lldp().Enabled()
+		path := gnmi.OC().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, true)
+		gnmi.Update(t, dut, path.Config(), true)
 
 	})
 	t.Run("Subscribe//lldp/config/enabled", func(t *testing.T) {
-		state := dut.Telemetry().Lldp().Interface(iut.Name()).Enabled()
+		state := gnmi.OC().Lldp().Interface(iut.Name()).Enabled()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
+		val := gnmi.Get(t, dut, state.State())
 		if val != true {
 			t.Errorf("LLDP Enabled: got %t, want %t", val, true)
 
@@ -67,15 +68,15 @@ func TestLldpState(t *testing.T) {
 
 	})
 	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
-		path := dut.Config().Lldp().Enabled()
+		path := gnmi.OC().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, false)
+		gnmi.Update(t, dut, path.Config(), false)
 
 	})
 	t.Run("Subscribe//lldp/config/enabled", func(t *testing.T) {
-		state := dut.Telemetry().Lldp().Interface(iut.Name()).Enabled()
+		state := gnmi.OC().Lldp().Interface(iut.Name()).Enabled()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
+		val := gnmi.Get(t, dut, state.State())
 		if val != false {
 			t.Errorf("Lacp Enabled: got %t, want %t", val, false)
 
@@ -83,19 +84,19 @@ func TestLldpState(t *testing.T) {
 
 	})
 	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
-		path := dut.Config().Lldp().Enabled()
+		path := gnmi.OC().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
-		path.Update(t, true)
+		gnmi.Update(t, dut, path.Config(), true)
 
 	})
 
-	peerid := peer.Telemetry().System().Hostname().Get(t) + "#" + peerintf.Name()
-	peername := peer.Telemetry().System().Hostname().Get(t)
+	peerid := gnmi.Get(t, peer, gnmi.OC().System().Hostname().State()) + "#" + peerintf.Name()
+	peername := gnmi.Get(t, peer, gnmi.OC().System().Hostname().State())
 	time.Sleep(30 * time.Second)
 	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/system-name", func(t *testing.T) {
-		state := dut.Telemetry().Lldp().Interface(iut.Name()).Neighbor(peerid).SystemName()
+		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).SystemName()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
+		val := gnmi.Get(t, dut, state.State())
 		if val != peername {
 			t.Errorf("Lacp SystemName: got %s, want %s", val, peername)
 
@@ -103,19 +104,19 @@ func TestLldpState(t *testing.T) {
 
 	})
 	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-type", func(t *testing.T) {
-		state := dut.Telemetry().Lldp().Interface(iut.Name()).Neighbor(peerid).ChassisIdType()
+		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).ChassisIdType()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
-		if val != oc.LldpTypes_ChassisIdType_MAC_ADDRESS {
-			t.Errorf("Lldp chassis type: got %v, want %v", val, oc.LldpTypes_ChassisIdType_MAC_ADDRESS)
+		val := gnmi.Get(t, dut, state.State())
+		if val != oc.Lldp_ChassisIdType_MAC_ADDRESS {
+			t.Errorf("Lldp chassis type: got %v, want %v", val, oc.Lldp_ChassisIdType_MAC_ADDRESS)
 
 		}
 
 	})
 	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/port-id", func(t *testing.T) {
-		state := dut.Telemetry().Lldp().Interface(iut.Name()).Neighbor(peerid).PortId()
+		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).PortId()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
+		val := gnmi.Get(t, dut, state.State())
 		if val == "" {
 			t.Errorf("Lldp portid: got %s, want !=%s", val, "''")
 
@@ -123,19 +124,19 @@ func TestLldpState(t *testing.T) {
 
 	})
 	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/port-id-type", func(t *testing.T) {
-		state := dut.Telemetry().Lldp().Interface(iut.Name()).Neighbor(peerid).PortIdType()
+		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).PortIdType()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
-		if val != oc.LldpTypes_PortIdType_INTERFACE_NAME {
-			t.Errorf("Lacp portIdType: got %v, want %v", val, oc.LldpTypes_PortIdType_INTERFACE_NAME)
+		val := gnmi.Get(t, dut, state.State())
+		if val != oc.Lldp_PortIdType_INTERFACE_NAME {
+			t.Errorf("Lacp portIdType: got %v, want %v", val, oc.Lldp_PortIdType_INTERFACE_NAME)
 
 		}
 
 	})
 	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/system-description", func(t *testing.T) {
-		state := dut.Telemetry().Lldp().Interface(iut.Name()).Neighbor(peerid).SystemDescription()
+		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).SystemDescription()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
+		val := gnmi.Get(t, dut, state.State())
 		if val == "" {
 			t.Errorf("Lldp System Description: got %s, want !=%s", val, "''")
 
@@ -143,9 +144,9 @@ func TestLldpState(t *testing.T) {
 
 	})
 	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/chassis-id", func(t *testing.T) {
-		state := dut.Telemetry().Lldp().Interface(iut.Name()).Neighbor(peerid).ChassisId()
+		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).ChassisId()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := state.Get(t)
+		val := gnmi.Get(t, dut, state.State())
 		if val == "" {
 			t.Errorf("Lldp ChassisId: got %s, want !=%s", val, "''")
 

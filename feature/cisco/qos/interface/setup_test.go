@@ -6,7 +6,8 @@ import (
 
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	//	"github.com/openconfig/testt"
 )
 
@@ -27,17 +28,17 @@ func setupQosFull(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(keys)))
 	for _, k := range keys {
-		dut.Config().Qos().Queue(k).Update(t, bc.Queue[k])
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(k).Config(), bc.Queue[k])
 	}
 	for bcSchedulerPolicyName, bcSchedulerPolicy := range bc.SchedulerPolicy {
-		dut.Config().Qos().SchedulerPolicy(bcSchedulerPolicyName).Update(t, bcSchedulerPolicy)
+		gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(bcSchedulerPolicyName).Config(), bcSchedulerPolicy)
 	}
 	var bci = new(oc.Qos)
 	bci.ForwardingGroup = bc.ForwardingGroup
 	bci.Classifier = bc.Classifier
-	dut.Config().Qos().Update(t, bci)
+	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), bci)
 	for bcInterfaceId, bcInterface := range bc.Interface {
-		dut.Config().Qos().Interface(bcInterfaceId).Update(t, bcInterface)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Interface(bcInterfaceId).Config(), bcInterface)
 	}
 	return bc
 }
@@ -45,7 +46,7 @@ func setupQosFull(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *
 func setupQosIngress(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string) *oc.Qos {
 	bc := setup.BaseConfig(baseConfigFile)
 	setup.ResetStruct(bc, []string{"Interface", "Classifier", "ForwardingGroup", "Queue"})
-	dut.Config().Qos().Replace(t, bc)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), bc)
 	return bc
 }
 
@@ -58,16 +59,16 @@ func setupQosEgress(t *testing.T, dut *ondatra.DUTDevice, baseConfigFile string)
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(keys)))
 	for _, k := range keys {
-		dut.Config().Qos().Queue(k).Update(t, bc.Queue[k])
+		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(k).Config(), bc.Queue[k])
 	}
 	for bcSchedulerPolicyName, bcSchedulerPolicy := range bc.SchedulerPolicy {
-		dut.Config().Qos().SchedulerPolicy(bcSchedulerPolicyName).Update(t, bcSchedulerPolicy)
+		gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(bcSchedulerPolicyName).Config(), bcSchedulerPolicy)
 	}
 	for bcInterfaceId, bcInterface := range bc.Interface {
-		dut.Config().Qos().Interface(bcInterfaceId).Update(t, bcInterface)
+		gnmi.Update(t, dut, gnmi.OC().Qos().Interface(bcInterfaceId).Config(), bcInterface)
 	}
 	return bc
 }
 func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
-	dut.Config().Qos().Delete(t)
+	gnmi.Delete(t, dut, gnmi.OC().Qos().Config())
 }

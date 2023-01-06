@@ -8,6 +8,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 type trafficData struct {
@@ -59,7 +60,7 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 	ate.Traffic().Start(t, ondatraFlowList...)
 	time.Sleep(60 * time.Second)
 	threshold := 0.90
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
 	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
 
 	if trafficPass == expectPass {
@@ -89,6 +90,56 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 	//       fmt.Println("number of out packets in flow is",*s.OutPkts)
 
 }
+func testTrafficsreaming(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
+	dscpList := []uint8{1, 9, 17, 25, 33, 41, 49}
+	ondatraFlowList := []*ondatra.Flow{}
+	for _, dscp := range dscpList {
+
+		ethHeader := ondatra.NewEthernetHeader()
+		ethHeader.WithSrcAddress("00:11:01:00:00:01")
+		ethHeader.WithDstAddress("00:01:00:02:00:00")
+
+		ipv4Header := ondatra.NewIPv4Header()
+		ipv4Header.SrcAddressRange().
+			WithMin("198.51.100.0").
+			WithMax("198.51.100.254").
+			WithCount(250)
+		ipv4Header.WithDSCP(dscp)
+		ipv4Header.DstAddressRange().WithMin(hostIP).WithCount(uint32(scale)).WithStep("0.0.0.1")
+
+		innerIpv4Header := ondatra.NewIPv4Header()
+		innerIpv4Header.WithSrcAddress("200.1.0.2")
+		innerIpv4Header.DstAddressRange().WithMin("201.1.0.2").WithCount(10000).WithStep("0.0.0.1")
+		dstEndPoint := []ondatra.Endpoint{}
+
+		for _, v := range allPorts {
+			if *v != *srcEndPoint {
+				dstEndPoint = append(dstEndPoint, v)
+			}
+		}
+
+		flow := ate.Traffic().NewFlow("Flow").
+			WithSrcEndpoints(srcEndPoint).
+			WithDstEndpoints(dstEndPoint...)
+
+		flow.WithFrameSize(300).WithFrameRateFPS(1000).WithHeaders(ethHeader, ipv4Header, innerIpv4Header)
+		ondatraFlowList = append(ondatraFlowList, flow)
+	}
+
+	ate.Traffic().Start(t, ondatraFlowList...)
+
+	time.Sleep(60 * time.Second)
+	threshold := 0.90
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
+	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
+
+	if trafficPass == expectPass {
+		t.Log("Traffic works as expected")
+	} else {
+		t.Error("Traffic doesn't work as expected")
+	}
+
+}
 func testTrafficipv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, dstEndPoint *ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8) {
 	dscpList := []uint8{1, 9, 17, 25, 33, 41, 49}
 	ondatraFlowList := []*ondatra.Flow{}
@@ -111,7 +162,7 @@ func testTrafficipv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top 
 	ate.Traffic().Start(t, ondatraFlowList...)
 	time.Sleep(60 * time.Second)
 	threshold := 0.90
-	stats := ate.Telemetry().InterfaceAny().Counters().Get(t)
+	stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
 	trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
 
 	if trafficPass == expectPass {
@@ -178,7 +229,7 @@ func testTrafficqos(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *
 	time.Sleep(60 * time.Second)
 	tc7flows := []string{"flow1-tc7", "flow2-tc7"}
 	for _, tc7flow := range tc7flows {
-		lossPct := ate.Telemetry().Flow(tc7flow).LossPct().Get(t)
+		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(tc7flow).LossPct().State())
 		if lossPct >= 1 {
 			t.Errorf("Get(traffic loss for queue tc7): got %v, want < 1", lossPct)
 		}
@@ -247,7 +298,7 @@ func testTrafficqos2(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top 
 	time.Sleep(60 * time.Second)
 	tc7flows := []string{"flow1-tc6", "flow2-tc6"}
 	for _, tc7flow := range tc7flows {
-		lossPct := ate.Telemetry().Flow(tc7flow).LossPct().Get(t)
+		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(tc7flow).LossPct().State())
 		if lossPct >= 1 {
 			t.Errorf("Get(traffic loss for queue tc7): got %v, want < 1", lossPct)
 		}
@@ -351,4 +402,110 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 		WithDefaultGateway(dutPort2Vlan30.IPv6)
 
 	return top
+}
+func testTrafficqoswrr(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoints []*ondatra.Interface, dstEndPoint *ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
+	ondatraFlowList := []*ondatra.Flow{}
+	dstmacaddress := []string{"00:01:00:03:00:00", "00:01:00:04:00:00"}
+	srcmacaddress := []string{"00:16:01:00:00:01", "00:17:01:00:00:01"}
+	trafficFlows := map[string]*trafficData{
+
+		"flow1-tc7": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "tc7", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow1-tc6": {frameSize: 1000, trafficRate: 1, dscp: 48, queue: "tc6", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow1-tc5": {frameSize: 1000, trafficRate: 18, dscp: 33, queue: "tc5", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow1-tc4": {frameSize: 1000, trafficRate: 18, dscp: 25, queue: "tc4", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow1-tc3": {frameSize: 1000, trafficRate: 18, dscp: 17, queue: "tc3", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow1-tc2": {frameSize: 1000, trafficRate: 18, dscp: 9, queue: "tc2", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow1-tc1": {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "tc1", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow2-tc7": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "tc7", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-tc6": {frameSize: 1000, trafficRate: 1, dscp: 48, queue: "tc6", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-tc5": {frameSize: 1000, trafficRate: 18, dscp: 33, queue: "tc5", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-tc4": {frameSize: 1000, trafficRate: 18, dscp: 25, queue: "tc4", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-tc3": {frameSize: 1000, trafficRate: 18, dscp: 17, queue: "tc3", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-tc2": {frameSize: 1000, trafficRate: 18, dscp: 9, queue: "tc2", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-tc1": {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "tc1", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+	}
+	for trafficID, data := range trafficFlows {
+
+		ethHeader := ondatra.NewEthernetHeader()
+		ethHeader.WithSrcAddress(data.srcmac)
+		ethHeader.WithDstAddress(data.dstmac)
+
+		ipv4Header := ondatra.NewIPv4Header()
+		ipv4Header.SrcAddressRange().
+			WithMin("198.51.100.0").
+			WithMax("198.51.100.254").
+			WithCount(250)
+		ipv4Header.WithDSCP(data.dscp)
+		ipv4Header.WithECN(1)
+		ipv4Header.DstAddressRange().WithMin(hostIP).WithCount(uint32(scale)).WithStep("0.0.0.1")
+
+		innerIpv4Header := ondatra.NewIPv4Header()
+		innerIpv4Header.WithSrcAddress("200.1.0.2")
+		innerIpv4Header.DstAddressRange().WithMin("201.1.0.2").WithCount(10000).WithStep("0.0.0.1")
+
+		flow := ate.Traffic().NewFlow(trafficID).
+			WithSrcEndpoints(data.srcendpoint).
+			WithDstEndpoints(dstEndPoint)
+
+		flow.WithFrameSize(300).WithFrameRatePct(data.trafficRate).WithHeaders(ethHeader, ipv4Header, innerIpv4Header)
+		ondatraFlowList = append(ondatraFlowList, flow)
+	}
+
+	ate.Traffic().Start(t, ondatraFlowList...)
+	time.Sleep(5 * time.Minute)
+	type flow struct {
+		flow7 []string
+		flow6 []string
+		flow5 []string
+		flow1 []string
+	}
+	ixiaflows := flow{
+		[]string{"flow1-tc7", "flow2-tc7"},
+		[]string{"flow1-tc6", "flow2-tc6"},
+		[]string{"flow1-tc5", "flow2-tc5"},
+		[]string{"flow1-tc1", "flow2-tc1"},
+	}
+
+	for _, tc7flow := range ixiaflows.flow7 {
+		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(tc7flow).LossPct().State())
+		if lossPct >= 1 {
+			t.Errorf("Get(traffic loss for queue tc7): got %v, want < 1", lossPct)
+		}
+	}
+	for _, tc6flow := range ixiaflows.flow6 {
+		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(tc6flow).LossPct().State())
+		if lossPct >= 1 {
+			t.Errorf("Get(traffic loss for queue tc7): got %v, want < 1", lossPct)
+		}
+	}
+	ate.Traffic().Stop(t)
+
+	time.Sleep(2 * time.Minute)
+
+	var TotalInPktstc5 uint64
+	var TotalInOctstc5 uint64
+	var TotalInPktstc1 uint64
+	var TotalInOctstc1 uint64
+	for _, tc5flow := range ixiaflows.flow5 {
+		flowcounterstc5 := gnmi.Get(t, ate, gnmi.OC().Flow(tc5flow).Counters().State())
+		TotalInPktstc5 += *flowcounterstc5.InPkts
+		TotalInOctstc5 += *flowcounterstc5.InOctets
+	}
+	for _, tc1flow := range ixiaflows.flow1 {
+		flowcounterstc1 := gnmi.Get(t, ate, gnmi.OC().Flow(tc1flow).Counters().State())
+		TotalInPktstc1 += *flowcounterstc1.InPkts
+		TotalInOctstc1 += *flowcounterstc1.InOctets
+	}
+
+	mul := 2.9
+
+	if float64(TotalInPktstc5)/float64(TotalInPktstc1) < mul {
+		t.Errorf(" ERROR the flows not honoring configured Bandwidth remaining ratio")
+	} else {
+		t.Logf("flows are honoring the configured BRR")
+	}
+
+	//time.Sleep(6 * time.Hour)
+
+	//lossPct := ate.Telemetry().Flow("flow1-tc5").InRate().Get(t)
 }

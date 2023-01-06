@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,9 +29,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gribi/v1/proto/service"
+	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 )
 
 func TestMain(m *testing.M) {
@@ -68,6 +71,10 @@ const (
 	innerdstPfxCount_bgp  = 10
 	innerdstPfxMin_isis   = "201.1.0.1"
 	innerdstPfxCount_isis = 10
+	bundleEther121        = "Bundle-Ether121"
+	bundleEther122        = "Bundle-Ether122"
+	bundleEther123        = "Bundle-Ether123"
+	bundleEther124        = "Bundle-Ether124"
 )
 
 // testArgs holds the objects needed by a test case.
@@ -2305,6 +2312,156 @@ func testNonrecursiveToRecursive(ctx context.Context, t *testing.T, args *testAr
 		}
 	}
 }
+func fimBase(ctx context.Context, t *testing.T, args *testArgs, nhg string, ipv4add string, ipv4del string, nhgfault bool, ipv4fault bool) {
+	// Elect client as leader and flush all the past entries
+	t.Logf("an IPv4Entry for %s pointing via gRIBI-A", dstPfx)
+	args.client.BecomeLeader(t)
+	args.client.FlushServer(t)
+	args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther122, false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther123, false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, 1300, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther124, false, ciscoFlags.GRIBIChecks)
+	if nhg == "nhgconfig" {
+		if nhgfault == true {
+
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, true, ciscoFlags.GRIBIChecks) //catch the error as it is expected and aborb the panic
+			}); strings.Contains(*errMsg, "Add NHG ID: 1000>, Status: FIB_FAILED") {
+				t.Logf("Got the expected error on injecting fault, testt.CaptureFatal errMsg: %s", *errMsg)
+			} else {
+				t.Fatalf("FIB FAILED not caused by the injected fault, %v", *errMsg)
+			}
+		} else {
+			args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		}
+	}
+	if ipv4add == "ipv4add" {
+		if ipv4fault == true {
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks) //catch the error as it is expected and aborb the panic
+			}); strings.Contains(*errMsg, "IPv4: 192.0.2.40/32>, Status: FIB_FAILED") {
+				t.Logf("Got the expected error on injecting fault, testt.CaptureFatal errMsg: %s", *errMsg)
+			} else {
+				t.Fatalf("FIB FAILED not caused by the injected fault")
+			}
+		} else {
+
+			args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		}
+	}
+	if ipv4del == "ipv4del" {
+		if ipv4fault == true {
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", true, ciscoFlags.GRIBIChecks) //catch the error as it is expected and aborb the panic
+			}); strings.Contains(*errMsg, "IPv4: 192.0.2.40/32>, Status: FIB_FAILED") {
+				t.Logf("Got the expected error on injecting fault, testt.CaptureFatal errMsg: %s", *errMsg)
+			} else {
+				t.Fatalf("FIB FAILED not caused by the injected fault")
+			}
+		} else {
+
+			args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		}
+	}
+
+}
+
+func testFaultInjectNHG(ctx context.Context, t *testing.T, args *testArgs) {
+
+	//Activating faults to test failure for NHG : FP - 33:3482356236 NHGROUP_HANDLE_PROTGRP_RDESC_OOR: Retry will occur only once Green Notification is sent
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", true)
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", true)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", false)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", false)
+	fimBase(ctx, t, args, "nhgconfig", "", "", true, false)
+
+}
+func testFaultInjectAddIPv4(ctx context.Context, t *testing.T, args *testArgs) {
+
+	//Activating faults to test failure for AddIPv4 : FP - 3:3482356236 IPV4_ROUTE_RDESC_OOR:Route programming failure
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", true)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", false)
+	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "", false, true)
+
+}
+func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs) {
+
+	//Activating faults to test failure for DeleteIPv4 : FP - 5:-1 IPV4_ROUTE_DELETE_FAIL:Delete fails,Default ASYNC msg sent to PI.
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", true)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", false)
+	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "ipv4del", false, true)
+
+}
+
+func testFaultInjectUpdateNHG(ctx context.Context, t *testing.T, args *testArgs) {
+
+	//Activating faults to test failure for UpdateNHG : FP - 27:24 NHGROUP_CREATE_STAGE2_MBR_ECMP_OOR: Update on NHG fails
+	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "", false, false)
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "27", "24", true)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "27", "24", false)
+	//New NHG id pointing to the old NH
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		args.client.AddNHG(t, 60, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, true, ciscoFlags.GRIBIChecks)
+	}); strings.Contains(*errMsg, "Add NHG ID: 60>, Status: FIB_FAILED") {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This update should have failed ")
+	}
+
+}
+func nhBulkConfig(ctx context.Context, t *testing.T, args *testArgs) {
+	args.client.BecomeLeader(t)
+	args.client.FlushServer(t)
+	nh1 := fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		WithIndex(1000).WithIPAddress(atePort2.IPv4).WithInterfaceRef(bundleEther121).WithNextHopNetworkInstance("")
+	nh2 := fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		WithIndex(1100).WithIPAddress(atePort3.IPv4).WithInterfaceRef(bundleEther122).WithNextHopNetworkInstance("")
+	nh3 := fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		WithIndex(1200).WithIPAddress(atePort4.IPv4).WithInterfaceRef(bundleEther123).WithNextHopNetworkInstance("")
+	nh4 := fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		WithIndex(1300).WithIPAddress(atePort5.IPv4).WithInterfaceRef(bundleEther124).WithNextHopNetworkInstance("")
+	nhg1 := fluent.NextHopGroupEntry().AddNextHop(1000, 50).WithID(40).WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+
+	nhg2 := fluent.NextHopGroupEntry().AddNextHop(1100, 30).WithID(40).WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+
+	nhg3 := fluent.NextHopGroupEntry().AddNextHop(1200, 15).WithID(40).WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	nhg4 := fluent.NextHopGroupEntry().AddNextHop(1300, 5).WithID(40).WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	addipv4 := fluent.IPv4Entry().WithNextHopGroup(40).WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithPrefix("192.0.2.40/32")
+	elecLow, _ := args.client.LearnElectionID(t)
+
+	ops := []func(){
+		func() {
+			args.client.Fluent(t).Modify().AddEntry(t, nh1, nhg1, nh2, nh4, nhg2, nh3, nhg3, nhg4, addipv4)
+			if err := args.client.AwaitTimeout(args.ctx, t, time.Minute); err != nil {
+				t.Fatalf("Await got error for entries: %v", err)
+			}
+		},
+	}
+	res := util.DoModifyOps(args.client.Fluent(t), t, ops, fluent.InstalledInRIB, false, elecLow+1)
+	for i := uint64(1); i < 6; i++ {
+		chk.HasResult(t, res, fluent.OperationResult().
+			WithOperationID(i).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			AsResult(),
+		)
+	}
+}
+func testFaultInjectTimingAddNHG(ctx context.Context, t *testing.T, args *testArgs) {
+
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", true)
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", true)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", false)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", false)
+	nhBulkConfig(ctx, t, args)
+
+}
+func testFaultInjectTimingAddIpv4(ctx context.Context, t *testing.T, args *testArgs) {
+
+	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", true)
+	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", false)
+	nhBulkConfig(ctx, t, args)
+
+}
 
 func TestBackUp(t *testing.T) {
 	t.Log("Name: BackUp")
@@ -2317,7 +2474,7 @@ func TestBackUp(t *testing.T) {
 
 	// Configure the DUT
 	configureDUT(t, dut)
-	configbasePBR(t, dut, "TE", "ipv4", 1, telemetry.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
 	defer unconfigbasePBR(t, dut)
 	// configure route-policy
 	configRP(t, dut)
@@ -2462,6 +2619,36 @@ func TestBackUp(t *testing.T) {
 			name: "NonrecursiveToRecursive",
 			desc: "change from nonrecursive to recursive path",
 			fn:   testNonrecursiveToRecursive,
+		},
+		{
+			name: "FaultInjectNHG",
+			desc: "Inject relevent faults NHG ",
+			fn:   testFaultInjectNHG,
+		},
+		{
+			name: "FaultInjectAddIPv4",
+			desc: "Inject relevent faults for Add IPV4 ",
+			fn:   testFaultInjectAddIPv4,
+		},
+		{
+			name: "FaultInjectDeleteIPv4",
+			desc: "Inject relevent faults for Delete IPv4",
+			fn:   testFaultInjectDeleteIPv4,
+		},
+		{
+			name: "FaultInjectUpdateNHG",
+			desc: "Inject relevent faults for Update NHG pointing to the old NH ",
+			fn:   testFaultInjectUpdateNHG,
+		},
+		{
+			name: "FaultInjectTimingAddNHG",
+			desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD fails in FIB ",
+			fn:   testFaultInjectTimingAddNHG,
+		},
+		{
+			name: "FaultInjectTimingAddIpv4",
+			desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD suceeds  in FIB but IP entry ADD fails",
+			fn:   testFaultInjectTimingAddIpv4,
 		},
 	}
 	for _, tt := range test {

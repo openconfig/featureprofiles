@@ -19,7 +19,8 @@ import (
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -28,41 +29,41 @@ const (
 )
 
 // configbasePBR, creates class map, policy and configures under source interface
-func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, protocol telemetry.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
-	pfpath := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
+func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
+	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
 
-	r := telemetry.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r.SequenceId = ygot.Uint32(index)
-	r.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
+	r.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
 	if iptype == "ipv4" {
-		r.Ipv4 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		r.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 			Protocol: protocol,
 		}
 		if len(dscpset) > 0 {
 			r.Ipv4.DscpSet = dscpset
 		}
 	} else if iptype == "ipv6" {
-		r.Ipv6 = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv6{
+		r.Ipv6 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv6{
 			Protocol: protocol,
 		}
 		if len(dscpset) > 0 {
 			r.Ipv6.DscpSet = dscpset
 		}
 	}
-	pf := telemetry.NetworkInstance_PolicyForwarding{}
+	pf := oc.NetworkInstance_PolicyForwarding{}
 	p := pf.GetOrCreatePolicy(pbrName)
-	p.Type = telemetry.Policy_Type_VRF_SELECTION_POLICY
+	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
 	p.AppendRule(&r)
-	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Replace(t, &pf)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
 
 	//configure PBR on ingress port
-	pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Replace(t, pbrName)
+	gnmi.Replace(t, dut, pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
 }
 
 // unconfigbasePBR, creates class map, policy and configures under source interface
 func unconfigbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
-	pfpath := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
-	pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Delete(t)
-	pfpath.Policy(pbrName).Delete(t)
-	pfpath.Delete(t)
+	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
+	gnmi.Delete(t, dut, pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config())
+	gnmi.Delete(t, dut, pfpath.Policy(pbrName).Config())
+	gnmi.Delete(t, dut, pfpath.Config())
 }

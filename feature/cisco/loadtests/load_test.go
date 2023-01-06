@@ -21,8 +21,10 @@ import (
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -87,12 +89,11 @@ func testGNMISet(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsu
 		},
 	}
 	generatedConf := confgen.GenerateConfig(bundles, *configFilePath)
-	configRoot := &telemetry.Device{}
-	if err := telemetry.Unmarshal([]byte(generatedConf), configRoot); err != nil {
+	configRoot := &oc.Root{}
+	if err := oc.Unmarshal([]byte(generatedConf), configRoot); err != nil {
 		t.Fatalf(err.Error())
 	}
-	args.DUT[0].Config().Replace(t, configRoot)
-
+	gnmi.Replace(t, args.DUT[0], gnmi.OC().Config(), configRoot)
 }
 
 func testPing(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsumer) {
@@ -114,9 +115,9 @@ func testPing(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsumer
 		}
 	}
 	lbIntf := netutil.LoopbackInterface(t, args.DUT[0], 0)
-	lo0 := args.DUT[0].Telemetry().Interface(lbIntf).Subinterface(0)
-	ipv4Addrs := lo0.Ipv4().AddressAny().Get(t)
-	ipv6Addrs := lo0.Ipv6().AddressAny().Get(t)
+	lo0 := gnmi.OC().Interface(lbIntf).Subinterface(0)
+	ipv4Addrs := gnmi.GetAll(t, args.DUT[0], lo0.Ipv4().AddressAny().State())
+	ipv6Addrs := gnmi.GetAll(t, args.DUT[0], lo0.Ipv6().AddressAny().State())
 	if len(ipv4Addrs) == 0 {
 		t.Fatalf("Failed to get a valid IPv4 loopback address: %+v", ipv4Addrs)
 	}
@@ -199,7 +200,7 @@ func testBatchADDReplaceDeleteIPV4(t *testing.T, args *runner.TestArgs, events *
 out:
 	for {
 		for _, prefix := range prefixes {
-			path := args.DUT[0].Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
+			path := gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
 			strpath := gnmiutil.PathStructToString(path)
 			_, found := events.Cache.Get(strpath)
 			if found {
@@ -214,7 +215,7 @@ out:
 	}
 	// check to make sure we have update for all prefixes
 	for _, prefix := range prefixes {
-		path := args.DUT[0].Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
+		path := gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
 		strpath := gnmiutil.PathStructToString(path)
 		for {
 			_, found := events.Cache.Get(strpath)
@@ -233,13 +234,13 @@ out:
 }
 
 func configVRFS(t *testing.T, dut *ondatra.DUTDevice) {
-	d := &telemetry.Device{}
+	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(*ciscoFlags.NonDefaultNetworkInstance)
-	ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default")
-	dut.Config().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Replace(t, ni1)
+	ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default")
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Config(), ni1)
 	ni2 := d.GetOrCreateNetworkInstance(*ciscoFlags.NonDefaultNetworkInstance)
-	ni2.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default")
-	dut.Config().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Replace(t, ni2)
+	ni2.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "default")
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Config(), ni2)
 }
 
 func TestLoad(t *testing.T) {
@@ -256,9 +257,9 @@ func TestLoad(t *testing.T) {
 	eventConsumer := monitor.NewCachedConsumer(5*time.Minute, /*expiration time for events in the cache*/
 		10 /*number of events for keep for each leaf*/)
 	monitor := monitor.GNMIMonior{
-		Paths: []ygot.PathStruct{
-			dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
-			dut.Telemetry().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts(),
+		Paths: []ygnmi.PathStruct{
+			gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
+			gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts(),
 			// other paths can be added here
 		},
 		Consumer: eventConsumer,

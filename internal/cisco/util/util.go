@@ -4,10 +4,12 @@ package util
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"math/rand"
 	"net"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,14 +18,15 @@ import (
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
 // FlapInterface flaps Interface and check State
 func FlapInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, flapDuration time.Duration) {
 
-	initialState := dut.Telemetry().Interface(interfaceName).Get(t).GetEnabled()
+	initialState := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).State()).GetEnabled()
 	transientState := !initialState
 	SetInterfaceState(t, dut, interfaceName, transientState)
 	time.Sleep(flapDuration * time.Second)
@@ -33,13 +36,13 @@ func FlapInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, f
 // SetInterfaceState sets interface adminState
 func SetInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, adminState bool) {
 
-	i := &telemetry.Interface{
+	i := &oc.Interface{
 		Enabled: ygot.Bool(adminState),
 		Name:    ygot.String(interfaceName),
 	}
-	updateResponse := dut.Config().Interface(interfaceName).Update(t, i)
+	updateResponse := gnmi.Update(t, dut, gnmi.OC().Interface(interfaceName).Config(), i)
 	t.Logf("Update response : %v", updateResponse)
-	currEnabledState := dut.Telemetry().Interface(interfaceName).Get(t).GetEnabled()
+	currEnabledState := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).State()).GetEnabled()
 	if currEnabledState != adminState {
 		t.Fatalf("Failed to set interface adminState to :%v", adminState)
 	} else {
@@ -58,7 +61,7 @@ func GetIPPrefix(IPAddr string, i int, prefixLen string) string {
 }
 
 // CheckTrafficPassViaPortPktCounter checks traffic stats via port statistics
-func CheckTrafficPassViaPortPktCounter(pktCounters []*telemetry.Interface_Counters, threshold ...float64) bool {
+func CheckTrafficPassViaPortPktCounter(pktCounters []*oc.Interface_Counters, threshold ...float64) bool {
 	thresholdValue := float64(0.99)
 	if len(threshold) > 0 {
 		thresholdValue = threshold[0]
@@ -74,7 +77,7 @@ func CheckTrafficPassViaPortPktCounter(pktCounters []*telemetry.Interface_Counte
 }
 
 // CheckTrafficPassViaRate checks traffic stats via Rate statistics
-func CheckTrafficPassViaRate(stats []*telemetry.Flow) []string {
+func CheckTrafficPassViaRate(stats []*oc.Flow) []string {
 	lossFlow := []string{}
 	for _, flow := range stats {
 		// Tx Rate
@@ -186,19 +189,19 @@ func GetIpv4Net(prefix string, maskLength int) string {
 // CreateBundleInterface creates bundle interface
 func CreateBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, bundleName string) {
 
-	member := &telemetry.Interface{
-		Ethernet: &telemetry.Interface_Ethernet{
+	member := &oc.Interface{
+		Ethernet: &oc.Interface_Ethernet{
 			AggregateId: ygot.String(bundleName),
 		},
 	}
-	updateResponse := dut.Config().Interface(interfaceName).Update(t, member)
+	updateResponse := gnmi.Update(t, dut, gnmi.OC().Interface(interfaceName).Config(), member)
 	t.Logf("Update response : %v", updateResponse)
 	SetInterfaceState(t, dut, bundleName, true)
 }
 
 // GetSubInterface returns subinterface
-func GetSubInterface(ipv4 string, prefixlen uint8, index uint32) *telemetry.Interface_Subinterface {
-	s := &telemetry.Interface_Subinterface{}
+func GetSubInterface(ipv4 string, prefixlen uint8, index uint32) *oc.Interface_Subinterface {
+	s := &oc.Interface_Subinterface{}
 	s.Index = ygot.Uint32(index)
 	s4 := s.GetOrCreateIpv4()
 	a := s4.GetOrCreateAddress(ipv4)
@@ -207,11 +210,11 @@ func GetSubInterface(ipv4 string, prefixlen uint8, index uint32) *telemetry.Inte
 }
 
 // GetCopyOfIpv4SubInterfaces returns subinterface ipv4 address
-func GetCopyOfIpv4SubInterfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceNames []string, index uint32) map[string]*telemetry.Interface_Subinterface {
-	copiedSubInterfaces := make(map[string]*telemetry.Interface_Subinterface)
+func GetCopyOfIpv4SubInterfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceNames []string, index uint32) map[string]*oc.Interface_Subinterface {
+	copiedSubInterfaces := make(map[string]*oc.Interface_Subinterface)
 	for _, interfaceName := range interfaceNames {
-		a := dut.Telemetry().Interface(interfaceName).Subinterface(index).Ipv4().Get(t)
-		copiedSubInterfaces[interfaceName] = &telemetry.Interface_Subinterface{}
+		a := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).Subinterface(index).Ipv4().State())
+		copiedSubInterfaces[interfaceName] = &oc.Interface_Subinterface{}
 		ipv4 := copiedSubInterfaces[interfaceName].GetOrCreateIpv4()
 		for _, ipval := range a.Address {
 			t.Logf("*** Copying address: %v/%v for interface %s", ipval.GetIp(), ipval.GetPrefixLength(), interfaceName)
@@ -308,10 +311,10 @@ func GetBoundedFlow(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopol
 }
 
 // GetIpv4Acl returns Ipv4 ACL
-func GetIpv4Acl(name string, sequenceID uint32, dscp, hopLimit uint8, action telemetry.E_Acl_FORWARDING_ACTION) *telemetry.Acl {
+func GetIpv4Acl(name string, sequenceID uint32, dscp, hopLimit uint8, action oc.E_Acl_FORWARDING_ACTION) *oc.Acl {
 
-	acl := (&telemetry.Device{}).GetOrCreateAcl()
-	aclSet := acl.GetOrCreateAclSet(name, telemetry.Acl_ACL_TYPE_ACL_IPV4)
+	acl := (&oc.Root{}).GetOrCreateAcl()
+	aclSet := acl.GetOrCreateAclSet(name, oc.Acl_ACL_TYPE_ACL_IPV4)
 	aclEntry := aclSet.GetOrCreateAclEntry(sequenceID)
 	aclEntryIpv4 := aclEntry.GetOrCreateIpv4()
 	aclEntryIpv4.Dscp = ygot.Uint8(dscp)
@@ -322,11 +325,53 @@ func GetIpv4Acl(name string, sequenceID uint32, dscp, hopLimit uint8, action tel
 }
 
 // AddIpv6Address adds ipv6 address
-func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *telemetry.Interface_Subinterface {
-	s := &telemetry.Interface_Subinterface{}
+func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *oc.Interface_Subinterface {
+	s := &oc.Interface_Subinterface{}
 	s.Index = ygot.Uint32(index)
 	s4 := s.GetOrCreateIpv6()
 	a := s4.GetOrCreateAddress(ipv6)
 	a.PrefixLength = ygot.Uint8(prefixlen)
 	return s
+}
+
+// FaultInjectionMechanism injects faults on a line card for a given component name and fault-point number
+// lcnumber takes linecard numbers to be given as a list []string{"0", "1"}
+// componentName specifies the component on which the fault point is injected eg : ofa_la_srv
+// faultPointNumber speicifes the fault point eg : 3 indicates IPV4_ROUTE_RDESC_OOR
+// returnValue specifies perticluar error to simulate eg : 3482356236 indicates Route programming failure
+// to activate fault point use true and to deactivate use false
+func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []string, componentName string, faultPointNumber string, returnValue string, activate bool) {
+	for _, lineCard := range lcNumber {
+		var fimActivate string
+		var fimDeactivate string
+		if activate {
+			fimActivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -a %s:%s", lineCard, componentName, faultPointNumber, returnValue)
+			t.Logf("The fim activate string %v", fimActivate)
+			fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fimActivate)
+			if strings.Contains(fimRes, fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
+				t.Logf("Successfull Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
+			} else {
+				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not enabled", componentName, faultPointNumber)
+			}
+			if err != nil {
+				t.Fatalf("Error while sending enable fault point %v", err)
+			}
+			t.Logf("The fim actvate result %v", fimRes)
+		} else {
+			fimDeactivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -r %s:%s", lineCard, componentName, faultPointNumber, returnValue)
+			t.Logf("The fim deactivate string %v", fimDeactivate)
+			fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fimDeactivate)
+			if strings.Contains(fimRes, fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
+				t.Logf("Successfull Disabled Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
+			} else {
+				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not disabled", componentName, faultPointNumber)
+			}
+			if err != nil {
+				t.Fatalf("Error while sending disable fault point %v", err)
+			}
+			t.Logf("The fim deactivate result %v", fimRes)
+		}
+
+	}
+
 }

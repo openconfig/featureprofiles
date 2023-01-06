@@ -16,32 +16,37 @@
 package components
 
 import (
+	"context"
+	"fmt"
 	"regexp"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // FindComponentsByType finds the list of components based on hardware type.
-func FindComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
-	components := dut.Telemetry().ComponentAny().Name().Get(t)
+func FindComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
+	components := gnmi.GetAll[*oc.Component](t, dut, gnmi.OC().ComponentAny().State())
 	var s []string
 	for _, c := range components {
-		lookupType := dut.Telemetry().Component(c).Type().Lookup(t)
-		if !lookupType.IsPresent() {
-			t.Logf("Component %s type is missing from telemetry", c)
+		if c.GetType() == nil {
+			t.Logf("Component %s type is missing from telemetry", c.GetName())
 			continue
 		}
-		componentType := lookupType.Val(t)
-		t.Logf("Component %s has type: %v", c, componentType)
-		switch v := componentType.(type) {
-		case telemetry.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
+		t.Logf("Component %s has type: %v", c.GetName(), c.GetType())
+		switch v := c.GetType().(type) {
+		case oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
 			if v == cType {
-				s = append(s, c)
+				s = append(s, c.GetName())
 			}
 		default:
-			t.Logf("Detected non-hardware component: (%T, %v)", componentType, componentType)
+			t.Logf("Detected non-hardware component: (%T, %v)", c.GetType(), c.GetType())
 		}
 	}
 	return s
@@ -56,4 +61,62 @@ func FindMatchingStrings(components []string, r *regexp.Regexp) []string {
 		}
 	}
 	return s
+}
+
+// GetSubcomponentPath creates a gNMI path based on the componnent name.
+func GetSubcomponentPath(name string) *tpb.Path {
+	if *deviations.GNOISubcomponentPath {
+		return &tpb.Path{
+			Elem: []*tpb.PathElem{{Name: name}},
+		}
+	}
+	return &tpb.Path{
+		Origin: "openconfig",
+		Elem: []*tpb.PathElem{
+			{Name: "components"},
+			{Name: "component", Key: map[string]string{"name": name}},
+		},
+	}
+}
+
+// Y provides the ygnmi based components helper.  A ygnmi.Client is tied to a specific
+// DUT.
+type Y struct {
+	*ygnmi.Client
+}
+
+// New creates a new ygnmi based helper from a *ondatra.DUTDevice.
+func New(t testing.TB, dut *ondatra.DUTDevice) Y {
+	gnmic := dut.RawAPIs().GNMI().Default(t)
+	yc, err := ygnmi.NewClient(gnmic)
+	if err != nil {
+		t.Fatalf("Could not create ygnmi.Client: %v", err)
+	}
+	return Y{yc}
+}
+
+// FindByType finds the list of components based on component type.
+func (y Y) FindByType(ctx context.Context, want oc.Component_Type_Union) ([]string, error) {
+	var names []string
+
+	anyTypePath := ocpath.Root().ComponentAny().Type()
+	values, err := ygnmi.LookupAll(ctx, y.Client, anyTypePath.State())
+	if err != nil {
+		return nil, err
+	}
+
+	for _, value := range values {
+		if got, ok := value.Val(); ok {
+			if got != want {
+				continue
+			}
+			name := value.Path.GetElem()[1].GetKey()["name"]
+			names = append(names, name)
+		}
+	}
+
+	if len(names) < 1 {
+		return nil, fmt.Errorf("none of the %d components match %v", len(values), want)
+	}
+	return names, nil
 }

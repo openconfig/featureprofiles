@@ -8,7 +8,9 @@ import (
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -47,7 +49,7 @@ func baseBgpPeerGroupConfig(bgpAs uint32) *oc.NetworkInstance_Protocol_Bgp {
 }
 
 func cleanup(t *testing.T, dut *ondatra.DUTDevice, bgpInst string) {
-	dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp().Delete(t)
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp().Config())
 	time.Sleep(configDeleteTime)
 }
 
@@ -62,11 +64,11 @@ func TestPeerGroupName(t *testing.T) {
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 
 	// Base config for BGP instance. Only run once.
-	bgpConfig.Global().As().Update(t, bgp_as)
+	gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgp_as)
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -75,20 +77,20 @@ func TestPeerGroupName(t *testing.T) {
 			config := bgpConfig.PeerGroup(input).PeerGroupName()
 			state := bgpState.PeerGroup(input).PeerGroupName()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-group-name: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				bgpConfig.PeerGroup(input).Delete(t)
+				gnmi.Delete(t, dut, bgpConfig.PeerGroup(input).Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedString) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[string]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name fail: got %v", qs)
 				}
 			})
@@ -107,11 +109,11 @@ func TestPeerAs(t *testing.T) {
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 
 	// Base config for BGP instance. Only run once.
-	bgpConfig.Update(t, baseBgpPeerGroupConfig(bgp_as))
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -120,20 +122,20 @@ func TestPeerAs(t *testing.T) {
 			config := bgpConfig.PeerGroup(peerGroup).PeerAs()
 			state := bgpState.PeerGroup(peerGroup).PeerAs()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-as: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint32) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint32]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as fail: got %v", qs)
 				}
 			})
@@ -153,11 +155,11 @@ func TestLocalAs(t *testing.T) {
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 
 	// BGP Base config
-	bgpConfig.Update(t, baseBgpPeerGroupConfig(bgp_as))
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -166,20 +168,20 @@ func TestLocalAs(t *testing.T) {
 			config := bgpConfig.PeerGroup(peerGroup).LocalAs()
 			state := bgpState.PeerGroup(peerGroup).LocalAs()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/local-as: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint32) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint32]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/local-as fail: got %v", qs)
 				}
 			})
@@ -194,17 +196,17 @@ func TestRemovePrivateAs(t *testing.T) {
 
 	dut := ondatra.DUT(t, dutName)
 
-	inputs := []oc.E_BgpTypes_RemovePrivateAsOption{
-		oc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL,
-		oc.BgpTypes_RemovePrivateAsOption_PRIVATE_AS_REPLACE_ALL,
+	inputs := []oc.E_Bgp_RemovePrivateAsOption{
+		oc.Bgp_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL,
+		oc.Bgp_RemovePrivateAsOption_PRIVATE_AS_REPLACE_ALL,
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 
 	// BGP Base config
-	bgpConfig.Update(t, baseBgpPeerGroupConfig(bgp_as))
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -212,20 +214,20 @@ func TestRemovePrivateAs(t *testing.T) {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/remove-private-as using value %v", input), func(t *testing.T) {
 			config := bgpConfig.PeerGroup(peerGroup).RemovePrivateAs()
 			state := bgpState.PeerGroup(peerGroup).RemovePrivateAs()
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/remove-private-as: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedE_BgpTypes_RemovePrivateAsOption) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[oc.E_Bgp_RemovePrivateAsOption]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/remove-private-as fail: got %v", qs)
 				}
 			})
@@ -247,9 +249,9 @@ func TestTimersConnectRetry(t *testing.T) {
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpConfig.Update(t, baseBgpPeerGroupConfig(bgp_as))
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -258,20 +260,20 @@ func TestTimersConnectRetry(t *testing.T) {
 			config := bgpConfig.PeerGroup(peerGroup).Timers().ConnectRetry()
 			state := bgpState.PeerGroup(peerGroup).Timers().ConnectRetry()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/connect-retry: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 30 {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/connect-retry fail: got %v", qs)
 				}
 			})
@@ -285,36 +287,43 @@ func TestTimersHoldTime(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []uint16{
-		40,
-		41,
+		60,
+		360,
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpConfig.Update(t, baseBgpPeerGroupConfig(bgp_as))
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/hold-time using value %v", input), func(t *testing.T) {
-			config := bgpConfig.PeerGroup(peerGroup).Timers().HoldTime()
+			// holdTime Should be 3x keepAlive, see RFC 4271 - A Border Gateway Protocol 4, Sec. 10
+			holdTime := input
+			keepAlive := holdTime / 3
+			Timers := &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
+				HoldTime:          ygot.Uint16(holdTime),
+				KeepaliveInterval: ygot.Uint16(keepAlive),
+			}
+			config := bgpConfig.PeerGroup(peerGroup).Timers()
 			state := bgpState.PeerGroup(peerGroup).Timers().HoldTime()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), Timers) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/hold-time: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 90 {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/hold-time fail: got %v", qs)
 				}
 			})
@@ -328,36 +337,43 @@ func TestTimersKeepaliveInterval(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []uint16{
-		20,
-		21,
+		60,
+		360,
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpConfig.Update(t, baseBgpPeerGroupConfig(bgp_as))
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/keepalive-interval using value %v", input), func(t *testing.T) {
-			config := bgpConfig.PeerGroup(peerGroup).Timers().KeepaliveInterval()
+			// holdTime Should be 3x keepAlive, see RFC 4271 - A Border Gateway Protocol 4, Sec. 10
+			holdTime := input
+			keepAlive := holdTime / 3
+			Timers := &oc.NetworkInstance_Protocol_Bgp_PeerGroup_Timers{
+				HoldTime:          ygot.Uint16(holdTime),
+				KeepaliveInterval: ygot.Uint16(keepAlive),
+			}
+			config := bgpConfig.PeerGroup(peerGroup).Timers()
 			state := bgpState.PeerGroup(peerGroup).Timers().KeepaliveInterval()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), Timers) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
-				if stateGot != input {
-					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/keepalive-interval: got %v, want %v", stateGot, input)
+				stateGot := gnmi.Get(t, dut, state.State())
+				if stateGot != keepAlive {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/keepalive-interval: got %v, want %v", stateGot, keepAlive)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 30 {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/keepalive-interval fail: got %v", qs)
 				}
 			})
@@ -376,9 +392,9 @@ func TestTimersMinimumAdvertisementInterval(t *testing.T) {
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpConfig.Update(t, baseBgpPeerGroupConfig(bgp_as))
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -387,20 +403,20 @@ func TestTimersMinimumAdvertisementInterval(t *testing.T) {
 			config := bgpConfig.PeerGroup(peerGroup).Timers().MinimumAdvertisementInterval()
 			state := bgpState.PeerGroup(peerGroup).Timers().MinimumAdvertisementInterval()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/minimum-advertisement-interval: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() && qs.Val(t) != 30 {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/minimum-advertisement-interval fail: got %v", qs)
 				}
 			})
@@ -419,9 +435,9 @@ func TestTransportLocalAddress(t *testing.T) {
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpConfig.Update(t, baseBgpPeerGroupConfig(bgp_as))
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -430,20 +446,20 @@ func TestTransportLocalAddress(t *testing.T) {
 			config := bgpConfig.PeerGroup(peerGroup).Transport().LocalAddress()
 			state := bgpState.PeerGroup(peerGroup).Transport().LocalAddress()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/local-address: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedString) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[string]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/local-address fail: got %v", qs)
 				}
 			})
@@ -464,9 +480,9 @@ func TestGracefulRestartEnabled(t *testing.T) {
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpConfig.Update(t, baseBgpPeerGroupConfig(bgp_as))
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -475,20 +491,20 @@ func TestGracefulRestartEnabled(t *testing.T) {
 			config := bgpConfig.PeerGroup(peerGroup).GracefulRestart().Enabled()
 			state := bgpState.PeerGroup(peerGroup).GracefulRestart().Enabled()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/state/enabled: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedBool) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[bool]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/enabled fail: got %v", qs)
 				}
 			})
@@ -507,9 +523,9 @@ func TestGracefulRestartRestartTime(t *testing.T) {
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpConfig.Update(t, baseBgpPeerGroupConfig(bgp_as))
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -518,19 +534,19 @@ func TestGracefulRestartRestartTime(t *testing.T) {
 			config := bgpConfig.PeerGroup(peerGroup).GracefulRestart().RestartTime()
 			state := bgpState.PeerGroup(peerGroup).GracefulRestart().RestartTime()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/state/restart-time: got %v, want %v", stateGot, input)
 				}
 			})
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/restart-time fail: got %v", qs)
 				}
 			})
@@ -549,9 +565,9 @@ func TestGracefulRestartStaleRoutesTime(t *testing.T) {
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpConfig.Update(t, baseBgpPeerGroupConfig(bgp_as))
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -560,20 +576,20 @@ func TestGracefulRestartStaleRoutesTime(t *testing.T) {
 			config := bgpConfig.PeerGroup(peerGroup).GracefulRestart().StaleRoutesTime()
 			state := bgpState.PeerGroup(peerGroup).GracefulRestart().StaleRoutesTime()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/stale-routes-time: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedUint16) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/stale-routes-time fail: got %v", qs)
 				}
 			})
@@ -594,9 +610,9 @@ func TestGracefulRestartHelperOnly(t *testing.T) {
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpConfig.Update(t, baseBgpPeerGroupConfig(bgp_as))
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -605,20 +621,20 @@ func TestGracefulRestartHelperOnly(t *testing.T) {
 			config := bgpConfig.PeerGroup(peerGroup).GracefulRestart().HelperOnly()
 			state := bgpState.PeerGroup(peerGroup).GracefulRestart().HelperOnly()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/state/helper-only: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedBool) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[bool]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/helper-only fail: got %v", qs)
 				}
 			})
@@ -637,11 +653,11 @@ func TestAfiSafiEnabled(t *testing.T) {
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	baseConfig := baseBgpPeerGroupConfig(bgp_as)
 	baseConfig.PeerGroup[peerGroup].GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	bgpConfig.Update(t, baseConfig)
+	gnmi.Update(t, dut, bgpConfig.Config(), baseConfig)
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -650,11 +666,11 @@ func TestAfiSafiEnabled(t *testing.T) {
 			config := bgpConfig.PeerGroup(peerGroup).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
 			state := bgpState.PeerGroup(peerGroup).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/state/enabled: got %v, want %v", stateGot, input)
 				}
@@ -675,11 +691,11 @@ func TestAfiSafiMaxPrefixes(t *testing.T) {
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	baseConfig := baseBgpPeerGroupConfig(bgp_as)
 	baseConfig.PeerGroup[peerGroup].GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	bgpConfig.Update(t, baseConfig)
+	gnmi.Update(t, dut, bgpConfig.Config(), baseConfig)
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -688,20 +704,20 @@ func TestAfiSafiMaxPrefixes(t *testing.T) {
 			config := bgpConfig.PeerGroup(peerGroup).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().PrefixLimit().MaxPrefixes()
 			state := bgpState.PeerGroup(peerGroup).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().PrefixLimit().MaxPrefixes()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/max-prefixes: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs := state.Lookup(t); qs.IsPresent() == true {
+				if qs := gnmi.Lookup(t, dut, state.State()); qs.IsPresent() == true {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes fail: got %v", qs)
 				}
 			})
@@ -722,9 +738,9 @@ func TestRouteReflectorClient(t *testing.T) {
 	}
 
 	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := dut.Config().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := dut.Telemetry().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpConfig.Update(t, baseBgpPeerGroupConfig(bgp_as))
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
 
@@ -733,20 +749,20 @@ func TestRouteReflectorClient(t *testing.T) {
 			config := bgpConfig.PeerGroup(peerGroup).RouteReflector().RouteReflectorClient()
 			state := bgpState.PeerGroup(peerGroup).RouteReflector().RouteReflectorClient()
 
-			t.Run("Update", func(t *testing.T) { config.Update(t, input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := state.Get(t)
+				stateGot := gnmi.Get(t, dut, state.State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/route-reflector/state/route-reflector-client: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				config.Delete(t)
+				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := state.Watch(t, telemetryTimeout, func(val *oc.QualifiedBool) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[bool]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/route-reflector/config/route-reflector-client fail: got %v", qs)
 				}
 			})

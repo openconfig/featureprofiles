@@ -1,0 +1,13 @@
+diff --git a/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go b/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go
+index 6cdca308..1ed83b07 100644
+--- a/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go
++++ b/feature/gribi/ate_tests/ack_in_presence_other_routes/route_ack_test.go
+@@ -210,7 +210,7 @@ func configureNetworkInstance(t *testing.T) {
+ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
+ 	ni1 := gnmi.GetConfig(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Config())
+ 	static := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+-	static.Enabled = ygot.Bool(true)
++	//static.Enabled = ygot.Bool(true)
+ 	sr := static.GetOrCreateStatic(prefix)
+ 	nh := sr.GetOrCreateNextHop("0")
+ 	nh.NextHop = oc.UnionString(nexthop)

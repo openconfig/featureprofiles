@@ -1,10 +1,16 @@
-from collections import namedtuple
+import argparse
 import json
 import os
+
 from subprocess import check_output
 
-lineup = 'xr-dev'
-nightly_label = '*NIGHTLY*'
+parser = argparse.ArgumentParser(description='Find latest pims image')
+parser.add_argument('--lineup', default='xr-dev', help="image lineup")
+parser.add_argument('--label', default='*NIGHTLY*', help="image label")
+args = parser.parse_args()
+
+lineup = args.lineup
+nightly_label = args.label
 image_subpaths = ['8000/8000-x64.iso', 'img-8000/8000-x64.iso']
 
 candidates = []
@@ -27,6 +33,8 @@ for l in pims_output.splitlines():
 candidates.sort(reverse=True)
 
 image_path = None
+image_label = None
+
 for label in candidates:
     js = json.loads(check_output([
         '/usr/cisco/bin/pims',
@@ -48,6 +56,7 @@ for label in candidates:
                 location = os.path.join(image_dir, subpath)
                 if os.path.exists(location):
                     image_path = location
+                    image_label = label
                     break
             if image_path:
                 break
@@ -62,4 +71,4 @@ if image_path:
             encoding='utf-8'
         ).strip()
 
-    print(f'{image_path},{image_version}')
+    print(f'{image_path},{image_version},{image_label}')
