@@ -64,7 +64,6 @@ func TestBasic(t *testing.T) {
 	deadline := time.Now().Add(time.Second * 5)
 
 	t.Run("read_config", func(t *testing.T) {
-
 		data := []check.Validator{
 			check.Equal(isisRoot.Global().Net().State(), []string{"49.0001.1920.0000.2001.00"}),
 			EqualToDefault(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_1_2),
@@ -72,7 +71,13 @@ func TestBasic(t *testing.T) {
 			check.Equal(port1ISIS.CircuitType().State(), oc.Isis_CircuitType_POINT_TO_POINT),
 		}
 
-		if !*deviations.IsisEnabled {
+		// if MissingIsisGlobalEnableAfSafiLevel is set, ignore enable flag check for AFI, SAFI and level at global level
+		// and validate enable at interface level
+		if *deviations.MissingIsisGlobalEnableAfSafiLevel {
+			data = append(data,
+				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
+				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
+		} else {
 			data = append(data,
 				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
@@ -131,8 +136,8 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(pCounts.Lsp().Received().State(), uint32(0)),
 				EqualToDefault(pCounts.Lsp().Sent().State(), uint32(0)),
 				EqualToDefault(pCounts.Iih().Dropped().State(), uint32(0)),
-				check.NotEqual(pCounts.Iih().Processed().State(), uint32(0)),
-				check.NotEqual(pCounts.Iih().Received().State(), uint32(0)),
+				EqualToDefault(pCounts.Iih().Processed().State(), uint32(0)),
+				EqualToDefault(pCounts.Iih().Received().State(), uint32(0)),
 				// Don't check IIH sent - the device can send hellos even if the other
 				// end is offline.
 			} {
@@ -169,7 +174,7 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
-				check.NotEqual(sysCounts.DatabaseOverloads().State(), uint32(0)),
+				EqualToDefault(sysCounts.DatabaseOverloads().State(), uint32(0)),
 				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
 				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
@@ -262,7 +267,7 @@ func TestBasic(t *testing.T) {
 				check.NotEqual(pCounts.Lsp().Sent().State(), uint32(0)),
 				check.NotEqual(pCounts.Iih().Processed().State(), uint32(0)),
 				check.NotEqual(pCounts.Iih().Received().State(), uint32(0)),
-				check.Equal(pCounts.Iih().Sent().State(), uint32(0)),
+				check.NotEqual(pCounts.Iih().Sent().State(), uint32(0)),
 				// No dropped messages
 				check.Equal(pCounts.Csnp().Dropped().State(), uint32(0)),
 				check.Equal(pCounts.Psnp().Dropped().State(), uint32(0)),
@@ -305,7 +310,7 @@ func TestBasic(t *testing.T) {
 				check.Equal(sysCounts.AuthFails().State(), uint32(0)),
 				check.Equal(sysCounts.AuthTypeFails().State(), uint32(0)),
 				check.Equal(sysCounts.CorruptedLsps().State(), uint32(0)),
-				check.NotEqual(sysCounts.DatabaseOverloads().State(), uint32(0)),
+				check.Equal(sysCounts.DatabaseOverloads().State(), uint32(0)),
 				check.Equal(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				check.Equal(sysCounts.IdLenMismatch().State(), uint32(0)),
 				check.Equal(sysCounts.LspErrors().State(), uint32(0)),
@@ -350,7 +355,8 @@ func TestHelloPadding(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if *deviations.IsisHelloPaddingModeNotSupported && tc.name == "adaptive" {
+			// skip run for isis hello padding adaptive mode if true
+			if *deviations.MissingIsisHelloPaddingAdaptiveMode && tc.name == "adaptive" {
 				tc.skip = "Unsupported"
 			}
 			if tc.skip != "" {
@@ -456,9 +462,12 @@ func TestTraffic(t *testing.T) {
 		// disable global hello padding on the DUT
 		global := isis.GetOrCreateGlobal()
 		global.HelloPadding = oc.Isis_HelloPaddingType_DISABLE
-		afv6 := global.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
-		afv6.GetOrCreateMultiTopology().SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
+		// configuring single topology for ISIS global ipv4 AF
+		if *deviations.MissingIsisMultiTopology {
+			afv6 := global.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
+			afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
+			afv6.GetOrCreateMultiTopology().SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
+		}
 	}, func(isis *ixnet.ISIS) {
 		// disable global hello padding on the ATE
 		isis.WithHelloPaddingEnabled(false)
@@ -468,7 +477,8 @@ func TestTraffic(t *testing.T) {
 	// We generate traffic entering along port2 and destined for port1
 	srcIntf := ts.MustATEInterface(t, "port2")
 	dstIntf := ts.MustATEInterface(t, "port1")
-	dstIntf.ISIS().WithNetworkTypePointToPoint().WithMetric(10).WithWideMetricEnabled(true).WithLevelL2()
+	// Set metric type for isis interface else prefixes won't be advertised with right metric
+	dstIntf.ISIS().WithMetric(10)
 	// net is a simulated network containing the addresses specified by targetNetwork
 	net := dstIntf.AddNetwork("net")
 	net.IPv4().WithAddress(targetNetwork.IPv4CIDR()).WithCount(1)

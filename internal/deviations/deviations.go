@@ -100,12 +100,18 @@ var (
 
 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
-	IsisHelloPaddingModeNotSupported = flag.Bool("deviation_isis_hello_padding_mode_not_supported", true,
-		"Skip if isis hello padding mode not supported on the device is set true, Default value is false")
+	MissingIsisInterfaceLevel = flag.Bool("deviation_missing_isis_interface_level", true,
+		"Set isis level at global mode instead of interface level on the device if value is true, Default value is false")
 
-	IsisMultiTopology = flag.Bool("deviation_isis_multi_topology", true,
-		"Set isis multi topology flag on the device if value is true, Default value is false")
+	MissingIsisInterfaceEnable = flag.Bool("deviation_missing_isis_interface_enable", true,
+		"Set isis interface enable on the device if value is true, Default value is false")
 
-	IsisEnabled = flag.Bool("deviation_isis_enabled", true,
-		"Skip isis enabled flag on the device if value is true, Default value is false")
+	MissingIsisHelloPaddingAdaptiveMode = flag.Bool("deviation_missing_isis_hello_padding_adaptive_mode", true,
+		"Skip isis hello padding adaptive mode on the device if value is true, Default value is false")
+
+	MissingIsisMultiTopology = flag.Bool("deviation_missing_isis_multi_topology", true,
+		"Set isis af ipv6 single topology on the device if value is true, Default value is false")
+
+	MissingIsisGlobalEnableAfSafiLevel = flag.Bool("deviation_missing_isis_global_enable_af_safi_level", true,
+		"Skip isis enabled flag check at global AF, SAFI, Level on the device if value is true, Default value is false")
 )
