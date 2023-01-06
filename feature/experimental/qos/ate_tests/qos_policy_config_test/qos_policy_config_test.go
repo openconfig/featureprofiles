@@ -296,8 +296,8 @@ func TestQoSForwadingGroupsConfig(t *testing.T) {
 			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
 			fwdGroup.SetName(tc.targetGrpoup)
 			fwdGroup.SetOutputQueue(tc.queueName)
-			// queue := q.GetOrCreateQueue(tc.queueName)
-			// queue.SetName(tc.queueName)
+			queue := q.GetOrCreateQueue(tc.queueName)
+			queue.SetName(tc.queueName)
 		})
 	}
 

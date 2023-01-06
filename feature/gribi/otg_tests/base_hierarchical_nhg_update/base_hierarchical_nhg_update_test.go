@@ -251,13 +251,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p3 := dut.Port(t, "port3")
 
 	vrf := &oc.NetworkInstance{
-		Name:    ygot.String(vrfName),
-		Enabled: ygot.Bool(true),
-		Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
-		EnabledAddressFamilies: []oc.E_Types_ADDRESS_FAMILY{
-			oc.Types_ADDRESS_FAMILY_IPV4,
-			oc.Types_ADDRESS_FAMILY_IPV6,
-		},
+		Name: ygot.String(vrfName),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 	}
 
 	p1VRF := vrf.GetOrCreateInterface(p1.Name())
