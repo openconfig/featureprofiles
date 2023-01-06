@@ -265,7 +265,6 @@ func (s *TestSession) PushAndStartATE(t testing.TB) {
 // link has formed any IS-IS adjacency, returning the adjacency ID or an error
 // if one doesn't form.
 func (s *TestSession) AwaitAdjacency() (string, error) {
-	time.Sleep(40 * time.Second)
 	intf := ISISPath().Interface(s.DUTPort1.Name())
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
