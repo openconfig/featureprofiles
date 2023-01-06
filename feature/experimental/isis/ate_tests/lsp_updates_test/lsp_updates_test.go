@@ -95,4 +95,5 @@ func TestMetric(t *testing.T) {
 	// ateTelemPth := ts.ATEISISTelemetry(t)
 	// ateDB := ateTelemPth.Level(2).LspAny()
 	// for _, nbr := range ateDB.Tlv(telemetry.IsisLsdbTypes_ISIS_TLV_TYPE_IS_NEIGHBOR_ATTRIBUTE).IsisNeighborAttribute().NeighborAny().Get(t) {
+	// }
 }
