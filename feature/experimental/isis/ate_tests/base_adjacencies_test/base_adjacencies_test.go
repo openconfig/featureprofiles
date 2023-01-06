@@ -178,7 +178,6 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(sysCounts.SeqNumSkips().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(sysCounts), func(t *testing.T) {
-					time.Sleep(5 * time.Second)
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 						t.Error(err)
 					}
