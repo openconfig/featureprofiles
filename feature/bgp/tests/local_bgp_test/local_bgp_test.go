@@ -74,6 +74,10 @@ func TestEstablish(t *testing.T) {
 	intf2 := ateAttrs.NewOCInterface(atePortName)
 	gnmi.Replace(t, ate, gnmi.OC().Interface(intf2.GetName()).Config(), intf2)
 
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
+	}
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, dutPortName, *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, ate, atePortName, *deviations.DefaultNetworkInstance, 0)
