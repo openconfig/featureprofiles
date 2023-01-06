@@ -114,7 +114,7 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
 	// Configure ISIS level at global mode if true else at interface mode
-	if *deviations.MissingIsisInterfaceLevel {
+	if *deviations.ISISGlobalLevelRequired {
 		level := isis.GetOrCreateLevel(2)
 		level.MetricStyle = 2
 	} else {
@@ -262,6 +262,7 @@ func (s *TestSession) PushAndStartATE(t testing.TB) {
 // link has formed any IS-IS adjacency, returning the adjacency ID or an error
 // if one doesn't form.
 func (s *TestSession) AwaitAdjacency() (string, error) {
+	time.Sleep(40 * time.Second)
 	intf := ISISPath().Interface(s.DUTPort1.Name())
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)

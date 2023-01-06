@@ -357,7 +357,7 @@ func TestHelloPadding(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// skip run for isis hello padding adaptive mode if true
 			if *deviations.MissingIsisHelloPaddingAdaptiveMode && tc.name == "adaptive" {
-				tc.skip = "Unsupported"
+				t.Skip(tc.skip)
 			}
 			if tc.skip != "" {
 				t.Skip(tc.skip)
@@ -463,7 +463,7 @@ func TestTraffic(t *testing.T) {
 		global := isis.GetOrCreateGlobal()
 		global.HelloPadding = oc.Isis_HelloPaddingType_DISABLE
 		// configuring single topology for ISIS global ipv4 AF
-		if *deviations.MissingIsisMultiTopology {
+		if *deviations.IsisMultiTopologyRequired {
 			afv6 := global.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
 			afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
 			afv6.GetOrCreateMultiTopology().SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
