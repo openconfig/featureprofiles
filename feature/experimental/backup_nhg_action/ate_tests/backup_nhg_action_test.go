@@ -159,8 +159,8 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	ni := c.GetOrCreateNetworkInstance(vrfName)
 	ni.Description = ygot.String("Non Default routing instance created for testing")
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	ni.Enabled = ygot.Bool(true)
-	ni.EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4, oc.Types_ADDRESS_FAMILY_IPV6}
+	//ni.Enabled = ygot.Bool(true)
+	//ni.EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4, oc.Types_ADDRESS_FAMILY_IPV6}
 	p1 := dut.Port(t, "port1")
 	niIntf := ni.GetOrCreateInterface(p1.Name())
 	niIntf.Subinterface = ygot.Uint32(0)
@@ -336,10 +336,10 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good *ondatra.Fl
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
-	if got := ate.Telemetry().Flow(good.Name()).LossPct().Get(t); got > 0 {
+	if got := gnmi.Get(t, ate, gnmi.OC().Flow(good.Name()).LossPct().State()); got > 0 {
 		t.Fatalf("LossPct for flow %s: got %g, want 0", good.Name(), got)
 	}
-	if got := ate.Telemetry().Flow(bad.Name()).LossPct().Get(t); got < 100 {
+	if got := gnmi.Get(t, ate, gnmi.OC().Flow(bad.Name()).LossPct().State()); got < 100 {
 		t.Fatalf("LossPct for flow %s: got %g, want 100", bad.Name(), got)
 	}
 }

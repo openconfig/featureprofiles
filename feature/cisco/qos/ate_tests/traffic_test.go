@@ -229,7 +229,7 @@ func testTrafficqos(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *
 	time.Sleep(60 * time.Second)
 	tc7flows := []string{"flow1-tc7", "flow2-tc7"}
 	for _, tc7flow := range tc7flows {
-		lossPct := ate.Telemetry().Flow(tc7flow).LossPct().Get(t)
+		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(tc7flow).LossPct().State())
 		if lossPct >= 1 {
 			t.Errorf("Get(traffic loss for queue tc7): got %v, want < 1", lossPct)
 		}
@@ -298,7 +298,7 @@ func testTrafficqos2(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top 
 	time.Sleep(60 * time.Second)
 	tc7flows := []string{"flow1-tc6", "flow2-tc6"}
 	for _, tc7flow := range tc7flows {
-		lossPct := ate.Telemetry().Flow(tc7flow).LossPct().Get(t)
+		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(tc7flow).LossPct().State())
 		if lossPct >= 1 {
 			t.Errorf("Get(traffic loss for queue tc7): got %v, want < 1", lossPct)
 		}
@@ -467,13 +467,13 @@ func testTrafficqoswrr(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, to
 	}
 
 	for _, tc7flow := range ixiaflows.flow7 {
-		lossPct := ate.Telemetry().Flow(tc7flow).LossPct().Get(t)
+		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(tc7flow).LossPct().State())
 		if lossPct >= 1 {
 			t.Errorf("Get(traffic loss for queue tc7): got %v, want < 1", lossPct)
 		}
 	}
 	for _, tc6flow := range ixiaflows.flow6 {
-		lossPct := ate.Telemetry().Flow(tc6flow).LossPct().Get(t)
+		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(tc6flow).LossPct().State())
 		if lossPct >= 1 {
 			t.Errorf("Get(traffic loss for queue tc7): got %v, want < 1", lossPct)
 		}
@@ -487,12 +487,12 @@ func testTrafficqoswrr(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, to
 	var TotalInPktstc1 uint64
 	var TotalInOctstc1 uint64
 	for _, tc5flow := range ixiaflows.flow5 {
-		flowcounterstc5 := ate.Telemetry().Flow(tc5flow).Counters().Get(t)
+		flowcounterstc5 := gnmi.Get(t, ate, gnmi.OC().Flow(tc5flow).Counters().State())
 		TotalInPktstc5 += *flowcounterstc5.InPkts
 		TotalInOctstc5 += *flowcounterstc5.InOctets
 	}
 	for _, tc1flow := range ixiaflows.flow1 {
-		flowcounterstc1 := ate.Telemetry().Flow(tc1flow).Counters().Get(t)
+		flowcounterstc1 := gnmi.Get(t, ate, gnmi.OC().Flow(tc1flow).Counters().State())
 		TotalInPktstc1 += *flowcounterstc1.InPkts
 		TotalInOctstc1 += *flowcounterstc1.InOctets
 	}

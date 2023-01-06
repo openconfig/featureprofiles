@@ -135,7 +135,7 @@ func TestGNMIFullCommitReplaceWithOC(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	oldHostName := gnmi.Get(t, dut, gnmi.OC().System().Hostname().State())
 	newHostname := oldHostName + "new"
-	hostNamePath := dut.Config().System().Hostname()
+	hostNamePath := gnmi.OC().System().Hostname()
 	config.GNMICommitReplaceWithOC(context.Background(), t, dut, fmt.Sprintf(fullConfig, newHostname), hostNamePath, ygot.String(oldHostName))
 	if got := gnmi.Get(t, dut, gnmi.OC().System().Hostname().State()); got != oldHostName {
 		t.Fatalf("Expected the host name to be not changed  %s, got %s", oldHostName, got)
@@ -162,7 +162,7 @@ func TestBatchConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	oldHostName := gnmi.Get(t, dut, gnmi.OC().System().Hostname().State())
 	newHostname := oldHostName + "new"
-	hostNamePath := dut.Config().System().Hostname()
+	hostNamePath := gnmi.OC().System().Hostname()
 	batchSet := config.NewBatchSetRequest()
 	ctx := context.Background()
 	batchSet.Append(ctx, t, hostNamePath, ygot.String(newHostname), config.ReplaceOC)

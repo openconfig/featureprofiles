@@ -210,7 +210,7 @@ func TestDeleteSharedQueues(t *testing.T) {
 				tmpSchedulerPolicy := baseConfig.SchedulerPolicy[intfsch.schedulerPolicyName]
 				tmpSchedulerPolicyScheduler := setup.GetAnyValue(tmpSchedulerPolicy.Scheduler)
 				tmpSchedulerPolicySchedulerInput := tmpSchedulerPolicyScheduler.Input[qName]
-				queuePath := dut.Config().Qos().SchedulerPolicy(intfsch.schedulerPolicyName).Scheduler(*tmpSchedulerPolicyScheduler.Sequence).Input(*tmpSchedulerPolicySchedulerInput.Id)
+				queuePath := gnmi.OC().Qos().SchedulerPolicy(intfsch.schedulerPolicyName).Scheduler(*tmpSchedulerPolicyScheduler.Sequence).Input(*tmpSchedulerPolicySchedulerInput.Id)
 				batchSet.Append(ctx, t, queuePath, nil, config.DeleteOC)
 			}
 		}
@@ -250,7 +250,7 @@ func TestDetachSchedulerPolicy(t *testing.T) {
 		batchSet := config.NewBatchSetRequest()
 		ctx := context.Background()
 		for _, intfsch := range InterfaceSchedulerPolicyInfo {
-			intfschPath := dut.Config().Qos().Interface(intfsch.interfaceId).Output().SchedulerPolicy()
+			intfschPath := gnmi.OC().Qos().Interface(intfsch.interfaceId).Output().SchedulerPolicy()
 			batchSet.Append(ctx, t, intfschPath, nil, config.DeleteOC)
 		}
 		batchSet.Send(ctx, t, dut)

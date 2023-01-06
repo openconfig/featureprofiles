@@ -68,10 +68,10 @@ whitelist_arguments([
 @returns('ondatra_binding_path', 'ondatra_testbed_path', 'exec_repo_dir', 'fp_repo_dir')
 def BringupTestbed(self, ws, images = None,  
                         ondatra_repo_branch='main',
-                        ondatra_repo_rev='7d597f5e3308250778e90ff06cc866245e277f6b',
+                        ondatra_repo_rev=None, # '7d597f5e3308250778e90ff06cc866245e277f6b'
                         fp_repo_url=FP_REPO_CLONE_INFO.url,
                         fp_repo_branch='main',  
-                        fp_repo_rev='1b33f9a62ad14c4f20efe0ff47cc3be0048c21f1',
+                        fp_repo_rev=None, # '1b33f9a62ad14c4f20efe0ff47cc3be0048c21f1'
                         topo_file=None,                      
                         ondatra_testbed_path=None,
                         ondatra_binding_path=None,
@@ -144,6 +144,8 @@ def BringupTestbed(self, ws, images = None,
         with open(os.path.join(fp_repo_dir, 'go.mod'), "a") as fp:
             fp.write("replace github.com/openconfig/ondatra => ../ondatra")
 
+        #check_output(f'{GO_BIN} mod tidy', cwd=fp_repo_dir)
+        
         fp_repo = git.Repo(fp_repo_dir)
         fp_repo.config_writer().set_value("name", "email", "gob4").release()
         fp_repo.config_writer().set_value("name", "email", "gob4@cisco.com").release()
@@ -168,29 +170,6 @@ def BringupTestbed(self, ws, images = None,
 
         ondatra_repo.git.add(update=True)
         ondatra_repo.git.commit('-m', 'patched for testing')
-
-    if (not topo_file or len(topo_file) == 0) and not skip_install:
-        images = images[0]
-        image_version = check_output(
-            f"/usr/bin/isoinfo -i {images} -x '/MDATA/BUILD_IN.TXT;1' " \
-                f"| tail -n1 | cut -d'=' -f2 | cut -d'-' -f1", 
-            shell=True
-        ).strip()
-        logger.print(f'Image version: {image_version}')
-
-        install_cmd = f'{GO_BIN} test -v ' \
-            f'./exec/utils/osinstall ' \
-            f'-timeout 0 ' \
-            f'-args ' \
-            f'-testbed {ondatra_testbed_path} ' \
-            f'-binding {ondatra_binding_path} ' \
-            f'-osfile {images} ' \
-            f'-osver {image_version} ' \
-            f'-v 5 ' \
-            f'-alsologtostderr'
-
-        logger.print(f'Executing osinstall command:\n {install_cmd}')
-        logger.print(check_output(install_cmd, cwd=exec_repo_dir))
 
     testbed_info_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/testbed ' \

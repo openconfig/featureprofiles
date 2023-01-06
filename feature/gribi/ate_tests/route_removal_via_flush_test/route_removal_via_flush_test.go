@@ -27,7 +27,7 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/telemetry/ateflow"
+	"github.com/openconfig/ondatra/gnmi/oc/ateflow"
 )
 
 func TestMain(m *testing.M) {
@@ -163,7 +163,7 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, args
 	dstEndPoint := args.ateTop.Interfaces()[atePort2.Name]
 	// Test traffic between ATE port-1 and ATE port-2.
 	flowPath := testTraffic(t, args.ate, args.ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got > 0 {
+	if got := gnmi.Get(t, args.ate, flowPath.LossPct().State()); got > 0 {
 		t.Errorf("LossPct for flow got %g, want 0", got)
 	} else {
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
@@ -174,7 +174,7 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, args
 	}
 	// After flush, left entry should be 0, and packets can no longer be forwarded.
 	flowPath = testTraffic(t, args.ate, args.ateTop, srcEndPoint, dstEndPoint)
-	if got := flowPath.LossPct().Get(t); got == 0 {
+	if got := gnmi.Get(t, args.ate, flowPath.LossPct().State()); got == 0 {
 		t.Error("Traffic can still be forwarded between ATE port-1 and ATE port-2")
 	} else {
 		t.Log("Traffic can not be forwarded between ATE port-1 and ATE port-2")
@@ -216,8 +216,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
-
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // configureATE configures port1, port2 on the ATE.
@@ -316,7 +321,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 
 	time.Sleep(time.Minute)
 
-	flowPath := ate.Telemetry().Flow(flow.Name())
+	flowPath := gnmi.OC().Flow(flow.Name())
 	return flowPath
 }
 
