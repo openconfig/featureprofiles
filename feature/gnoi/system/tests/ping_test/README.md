@@ -9,7 +9,8 @@ ICMP, which is default.
 ## Topology
 
 *   DUT
-    * Note: The test may require the use of ATE for new tests in future.  
+    *   Note: The current test only pings its looplack address to exercise the
+        gNOI API. The test may require the use of ATE for new tests in future.
 
 ## Procedure
 
