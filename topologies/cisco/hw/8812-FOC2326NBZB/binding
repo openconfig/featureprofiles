@@ -15,6 +15,10 @@ options {
 duts {
   id: "dut"
   name: "DUT"  # Change this to the device hostname.
+ config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
+
 #config:{
 #    gnmi_set_file: "/auto/tftp-access-ops/saarvind/qos-base-config.proto"
 #  }
