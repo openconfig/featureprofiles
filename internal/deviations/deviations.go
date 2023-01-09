@@ -117,18 +117,21 @@ var (
 
 	ExplicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
 
-	ISISGlobalLevelRequired = flag.Bool("deviation_isis_global_level_required", false,
-		"Set isis level at global mode instead of interface level on the device if value is true, Default value is false")
+	ISISGlobalLevelRequired = flag.Bool("deviation_isis_global_level_required", true,
+		"Set isis level at global mode on the device if value is true, Default value is false and sets level at interface level")
 
-	MissingIsisInterfaceEnable = flag.Bool("deviation_missing_isis_interface_enable", false,
+	MissingIsisInterfaceEnable = flag.Bool("deviation_missing_isis_interface_enable", true,
 		"Set isis interface enable on the device if value is true, Default value is false")
 
-	MissingIsisHelloPaddingAdaptiveMode = flag.Bool("deviation_missing_isis_hello_padding_adaptive_mode", false,
-		"Skip isis hello padding adaptive mode on the device if value is true, Default value is false")
+	MissingIsisHelloPaddingAdaptiveMode = flag.Bool("deviation_missing_isis_hello_padding_adaptive_mode", true,
+		"Skip isis hello padding adaptive mode TC if value is true, Default value is false")
 
-	IsisMultiTopologyRequired = flag.Bool("deviation_isis_multi_topology_required", false,
-		"Set isis af ipv6 single topology on the device if value is true, Default value is false")
+	IsisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", true,
+		"Set isis af ipv6 single topology on the device if value is true, Default value is false and sets multi topology for isis af ipv6")
 
-	MissingIsisGlobalEnableAfSafiLevel = flag.Bool("deviation_missing_isis_global_enable_af_safi_level", false,
+	ISISprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", true,
+		"Don't set isis protocol enable flag on the device if value is true, Default value is false and protocol is enabled")
+
+	MissingIsisGlobalEnableAfSafiLevel = flag.Bool("deviation_missing_isis_global_enable_af_safi_level", true,
 		"Skip isis enabled flag check at global AF, SAFI, Level on the device if value is true, Default value is false")
 )

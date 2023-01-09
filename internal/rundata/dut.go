@@ -257,17 +257,17 @@ func newDUTInfo(ctx context.Context, y components.Y) *dutInfo {
 
 // dutsInfo populates the DUT properties for all DUTs in the reservation.
 func dutsInfo(ctx context.Context, m map[string]string, resv *binding.Reservation) {
-	for id, dut := range resv.DUTs {
-		gnmic, err := dut.DialGNMI(ctx)
-		if err != nil {
-			glog.Errorf("Could not dial GNMI to dut %s: %v", dut.Name(), err)
-			continue
-		}
-		yc, err := ygnmi.NewClient(gnmic)
-		if err != nil {
-			glog.Errorf("Could not create ygnmi.Client for dut %s: %v", dut.Name(), err)
-			continue
-		}
-		newDUTInfo(ctx, components.Y{Client: yc}).put(m, id)
-	}
+	// for id, dut := range resv.DUTs {
+	// 	gnmic, err := dut.DialGNMI(ctx)
+	// 	if err != nil {
+	// 		glog.Errorf("Could not dial GNMI to dut %s: %v", dut.Name(), err)
+	// 		continue
+	// 	}
+	// 	yc, err := ygnmi.NewClient(gnmic)
+	// 	if err != nil {
+	// 		glog.Errorf("Could not create ygnmi.Client for dut %s: %v", dut.Name(), err)
+	// 		continue
+	// 	}
+	// 	newDUTInfo(ctx, components.Y{Client: yc}).put(m, id)
+	// }
 }

@@ -105,7 +105,9 @@ func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
 func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
-	prot.Enabled = ygot.Bool(true)
+	if !*deviations.ISISprotocolEnabledNotRequired {
+		prot.Enabled = ygot.Bool(true)
+	}
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
@@ -263,6 +265,7 @@ func (s *TestSession) PushAndStartATE(t testing.TB) {
 // link has formed any IS-IS adjacency, returning the adjacency ID or an error
 // if one doesn't form.
 func (s *TestSession) AwaitAdjacency() (string, error) {
+	time.Sleep(40 * time.Second)
 	intf := ISISPath().Interface(s.DUTPort1.Name())
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
