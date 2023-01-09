@@ -199,6 +199,11 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	gnmi.Replace(t, dut, dutBGP.Config(), d.bgpOC)
 
+	if *deviations.ExplicitPortSpeed {
+		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
+			fptest.SetPortSpeed(t, dut.Port(t, a.Name))
+		}
+	}
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 			ocName := dut.Port(t, a.Name).Name()
