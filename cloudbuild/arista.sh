@@ -28,6 +28,6 @@ password: admin
 topology: ${PWD}/topologies/kne/arista_ceos.textproto
 cli: ${HOME}/go/bin/kne_cli
 EOF
-go test -v feature/system/tests/*.go -kne-config "$PWD"/topologies/kne/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
-go test -v feature/system/ntp/tests/*.go -kne-config "$PWD"/topologies/kne/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
+go test -v ./feature/system/tests/... -kne-config "$PWD"/topologies/kne/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
+go test -v ./feature/system/ntp/tests/... -kne-config "$PWD"/topologies/kne/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
 popd
