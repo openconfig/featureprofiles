@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	tpb "github.com/openconfig/gnoi/types"
@@ -28,6 +29,11 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
 	"github.com/openconfig/ygnmi/ygnmi"
+)
+
+const (
+	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
+	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 )
 
 // FindComponentsByType finds the list of components based on hardware type.
@@ -119,4 +125,32 @@ func (y Y) FindByType(ctx context.Context, want oc.Component_Type_Union) ([]stri
 		return nil, fmt.Errorf("none of the %d components match %v", len(values), want)
 	}
 	return names, nil
+}
+
+// FindStandbyRP gets a list of two components and finds out the active and standby rp.
+func FindStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
+	var activeRP, standbyRP string
+	for _, supervisor := range supervisors {
+		watch := gnmi.Watch(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+			return val.IsPresent()
+		})
+		if val, ok := watch.Await(t); !ok {
+			t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+		}
+		role := gnmi.Get(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State())
+		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
+		if role == standbyController {
+			standbyRP = supervisor
+		} else if role == activeController {
+			activeRP = supervisor
+		} else {
+			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
+		}
+	}
+	if standbyRP == "" || activeRP == "" {
+		t.Fatalf("Expected non-empty activeRP and standbyRP, got activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+	}
+	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+
+	return standbyRP, activeRP
 }
