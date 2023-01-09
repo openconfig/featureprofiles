@@ -924,7 +924,7 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
 	gnmi.Replace(t, dut, configprior.Config(), schedule)
-	configGotprior := gnmi.Get(t, dut, configprior.State())
+	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -941,7 +941,7 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		weight += 10
 		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
 		gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
-		configGotwrr := gnmi.Get(t, dut, configInputwrr.State())
+		configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
 		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
@@ -949,7 +949,7 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	// confignonprior.Update(t, schedulenonprior)
-	configGotnonprior := gnmi.Get(t, dut, confignonprior.State())
+	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -967,7 +967,7 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 
 		ConfigIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 		gnmi.Update(t, dut, ConfigIntf.Config(), schedinterface)
-		ConfigGotIntf := gnmi.Get(t, dut, ConfigIntf.State())
+		ConfigGotIntf := gnmi.GetConfig(t, dut, ConfigIntf.Config())
 		if diff := cmp.Diff(*ConfigGotIntf, *schedinterface); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -1024,7 +1024,7 @@ func ConfigureDelAddSeq(t *testing.T, dut *ondatra.DUTDevice) {
 		weight += 10
 		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
 		gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
-		configGotwrr := gnmi.Get(t, dut, configInputwrr.State())
+		configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
 		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
@@ -1108,7 +1108,7 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	ConfigQos := gnmi.OC().Qos()
 	gnmi.Update(t, dut, ConfigQos.Config(), qos)
-	ConfigQosGet := gnmi.Get(t, dut, ConfigQos.State())
+	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
