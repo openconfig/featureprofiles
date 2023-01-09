@@ -74,7 +74,7 @@ func TestMain(m *testing.M) {
 //     - std_dev: Standard deviation in round trip time.
 //
 // Topology:
-//   dut:port1 <--> ate:port1
+//   dut
 //
 // Test notes:
 //  - Only the destination fields is required.
