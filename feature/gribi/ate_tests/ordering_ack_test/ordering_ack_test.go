@@ -243,7 +243,7 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 	t.Run("Telemetry", func(t *testing.T) {
 		got := aftNextHopWeights(t, args.dut, nhgIndex, *deviations.DefaultNetworkInstance)
 		want := []uint64{nhWeight}
-		// when a next hop group (nhg) has only one next hop, most FIB implemenation map the nhg to a single path and ignore the weight.
+		// when a next hop group (nhg) has only one next hop, some FIB implemenation map the nhg to a single path and ignore the weight.
 		// In this case, AFT may returns no value or zero as weight, so validate weights only for nhg with more than one nh.
 		if len(want) > 1 {
 			ok := cmp.Equal(want, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
@@ -343,7 +343,6 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 				t.Errorf("next-hop-group/next-hop/state/weight got %v, want %v", got, want)
 			}
 		}
-		
 		ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
 		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
