@@ -33,6 +33,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 )
 
 type testArgs struct {
@@ -90,6 +91,13 @@ var (
 		IPv4Len: 30,
 	}
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-11.1"
+	rundata.TestDescription = "Backup NHG: Single NH"
+	rundata.TestUUID = "9ee0cad2-aeac-41ea-99fc-7f662de4e6c0"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

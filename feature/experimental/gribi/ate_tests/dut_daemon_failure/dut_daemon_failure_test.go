@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	gnps "github.com/openconfig/gnoi/system"
 	grps "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
@@ -32,6 +33,13 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-8.1"
+	rundata.TestDescription = "DUT Daemon Failure"
+	rundata.TestUUID = "eeee8b0a-7272-4392-8f0a-3a398a9f081c"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

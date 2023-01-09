@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -120,6 +121,13 @@ var (
 		IPv6Len: ipv6PrefixLen,
 	}
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-11.2"
+	rundata.TestDescription = "Backup NHG: Multiple NH"
+	rundata.TestUUID = "7a53960d-ea1d-4454-b76c-8fe6e455161a"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

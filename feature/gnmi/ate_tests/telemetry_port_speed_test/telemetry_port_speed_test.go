@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -32,6 +33,13 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNMI-1.5"
+	rundata.TestDescription = "Telemetry: Port Speed Test"
+	rundata.TestUUID = "d2f790ad-637e-4a3a-bd99-df2ac2d79ef5"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
@@ -101,6 +102,13 @@ var (
 		IPv4Len: 30,
 	}
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-3.7"
+	rundata.TestDescription = "Base Hierarchical NHG Update"
+	rundata.TestUUID = "a8860046-d508-47b4-8b4c-aaa169c8d774"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

@@ -24,6 +24,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -44,6 +45,13 @@ const (
 	sshPort  = 22
 	gnmiPort = 6030
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "SEC-3.1"
+	rundata.TestDescription = "Authentication"
+	rundata.TestUUID = "d3dece32-61a2-4e96-a426-e644e27777cd"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

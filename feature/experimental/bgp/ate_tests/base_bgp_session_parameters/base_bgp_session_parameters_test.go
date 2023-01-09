@@ -22,6 +22,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/confirm"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -30,6 +31,13 @@ import (
 )
 
 // The testbed consists of ate:port1 -> dut:port1.
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "RT-1.1"
+	rundata.TestDescription = "Base BGP Session Parameters"
+	rundata.TestUUID = "46d91823-db5a-4c3e-8ed5-0c643a3f3e89"
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }

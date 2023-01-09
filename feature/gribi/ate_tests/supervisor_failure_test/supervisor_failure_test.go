@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
@@ -34,6 +35,13 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-8.2"
+	rundata.TestDescription = "Supervisor Failure"
+	rundata.TestUUID = "a51790d4-d182-49f9-9e52-b6178f67c1f6"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

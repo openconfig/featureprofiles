@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -31,6 +32,13 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "RT-2.2"
+	rundata.TestDescription = "IS-IS LSP Updates"
+	rundata.TestUUID = "45856daf-81d4-4da7-990d-0093ad1a4eb6"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

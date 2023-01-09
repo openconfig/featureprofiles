@@ -20,7 +20,15 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "OC-1.1"
+	rundata.TestDescription = "System Configuration"
+	rundata.TestUUID = "a35c4cc3-805e-4681-973b-2ff06cf889de"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

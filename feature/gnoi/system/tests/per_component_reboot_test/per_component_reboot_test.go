@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -40,6 +41,13 @@ const (
 	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
 	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNOI-3.2"
+	rundata.TestDescription = "Per-Component Reboot"
+	rundata.TestUUID = "845544a3-84a1-4872-8cc1-ad502b2ff0a7"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

@@ -21,6 +21,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
@@ -31,6 +32,13 @@ const (
 	oneMinuteInNanoSecond = 6e10
 	rebootDelay           = 120
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNOI-3.4"
+	rundata.TestDescription = "Chassis Reboot Status and Reboot Cancellation"
+	rundata.TestUUID = "497044b4-52ec-4662-b96d-be86ca1a5fb7"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

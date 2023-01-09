@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -189,6 +190,13 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			}
 		})
 	}
+}
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "P4RT-3.2"
+	rundata.TestDescription = "Google Discovery Protocol: PacketOut"
+	rundata.TestUUID = "05db7858-344a-44f9-b599-af079c5d9ad9"
 }
 
 func TestMain(m *testing.M) {

@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -127,6 +128,13 @@ var (
 		IPv6Len: ipv6PrefixLen,
 	}
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "RT-3.2"
+	rundata.TestDescription = "Multiple <Protocol, DSCP> Rules for VRF Selection"
+	rundata.TestUUID = "adcd2496-a132-460a-99b5-5cdbd7a390de"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

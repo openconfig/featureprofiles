@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/ondatra"
@@ -30,6 +31,13 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-1.1"
+	rundata.TestDescription = "Static ARP"
+	rundata.TestUUID = "ee5bfa2f-a7d5-4e03-bf3c-741c2fe4812b"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -250,6 +251,13 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 			}
 		})
 	}
+}
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "P4RT-3.1"
+	rundata.TestDescription = "Google Discovery Protocol: PacketIn"
+	rundata.TestUUID = "e9551188-13c0-47fb-aa28-617c035ef31a"
 }
 
 func TestMain(m *testing.M) {

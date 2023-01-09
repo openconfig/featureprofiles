@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -36,6 +37,13 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-14.1"
+	rundata.TestDescription = "gRIBI Scaling"
+	rundata.TestUUID = "74eecf74-a3f0-4d4b-976a-bb7a0dd1c93e"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
@@ -34,6 +35,13 @@ import (
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNMI-1.9"
+	rundata.TestDescription = "Get requests"
+	rundata.TestUUID = "6f9ca6f2-49e9-40d5-9745-8fda20ee0623"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

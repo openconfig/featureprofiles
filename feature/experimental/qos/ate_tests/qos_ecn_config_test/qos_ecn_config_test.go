@@ -18,10 +18,18 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "DP-1.3"
+	rundata.TestDescription = "QoS ECN feature config"
+	rundata.TestUUID = "1a6873f4-3d0a-4b5c-8a2e-a86c903d147d"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

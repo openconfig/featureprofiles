@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc/ateflow"
@@ -37,6 +38,13 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-6.2"
+	rundata.TestDescription = "Route Removal In Non Default VRF"
+	rundata.TestUUID = "6875054e-3332-41a6-9cb3-6c487f8c342e"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

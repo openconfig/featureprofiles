@@ -23,12 +23,20 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc/ateflow"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-6.1"
+	rundata.TestDescription = "Route Removal via Flush"
+	rundata.TestUUID = "c19fbef8-7e3b-4b54-9c77-89d3fda7f35c"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

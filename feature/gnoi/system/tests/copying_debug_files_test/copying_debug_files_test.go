@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	hpb "github.com/openconfig/gnoi/healthz"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -28,6 +29,13 @@ import (
 const (
 	process = "bgp"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNOI-3.5"
+	rundata.TestDescription = "Copying Debug Files"
+	rundata.TestUUID = "8202bed8-3d1f-4105-832a-7ebe02c39fe4"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

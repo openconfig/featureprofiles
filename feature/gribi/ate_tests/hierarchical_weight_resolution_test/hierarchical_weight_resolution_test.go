@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -116,6 +117,13 @@ var (
 		3: cidr(nhEntryIP2, 32),
 	}
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-3.3"
+	rundata.TestDescription = "Hierarchical weight resolution"
+	rundata.TestUUID = "003039d4-5b3c-4e89-8834-a88439e9e2b3"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

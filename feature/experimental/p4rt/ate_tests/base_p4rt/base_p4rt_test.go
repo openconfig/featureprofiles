@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -44,6 +45,13 @@ type testArgs struct {
 	dut     *ondatra.DUTDevice
 	ate     *ondatra.ATEDevice
 	top     *ondatra.ATETopology
+}
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "P4RT-1.1"
+	rundata.TestDescription = "Base P4RT Functionality"
+	rundata.TestUUID = "6813305c-5128-4609-bdbc-0e584e245b37"
 }
 
 func TestMain(m *testing.M) {

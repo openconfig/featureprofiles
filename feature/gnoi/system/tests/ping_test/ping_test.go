@@ -21,6 +21,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
@@ -46,6 +47,13 @@ const (
 	//StdDeviation would be 0 if we only send 1 ping.
 	minimumStdDev = 1
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNOI-5.1"
+	rundata.TestDescription = "Ping Test"
+	rundata.TestUUID = "8345c9ac-f9c0-401b-ba89-e6e81acf5945"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -56,6 +57,13 @@ var (
 	trafficDuration = flag.Duration("traffic_duration", 5*time.Second,
 		"Duration for sending traffic.")
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-3.2"
+	rundata.TestDescription = "Traffic Balancing According to Weights"
+	rundata.TestUUID = "2c1579e7-3c5e-4d6f-ba68-c4afab7845e5"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

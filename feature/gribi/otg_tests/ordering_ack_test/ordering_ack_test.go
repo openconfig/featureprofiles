@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -43,6 +44,13 @@ var (
 	// should be set to the more strict setting.
 	checkTelemetry = flag.Bool("telemetry", false /* TODO: set to true */, "Check AFT telemetry.")
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-3.5"
+	rundata.TestDescription = "Ordering: ACK Received"
+	rundata.TestUUID = "e52cf2b3-dfc5-41f1-ae1a-c88b94f0951c"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

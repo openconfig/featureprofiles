@@ -21,12 +21,20 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNMI-1.1"
+	rundata.TestDescription = "cli Origin"
+	rundata.TestUUID = "f277aceb-3cbe-4978-9884-765c2405331a"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

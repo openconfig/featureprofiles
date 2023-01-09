@@ -23,11 +23,19 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "OC-1.2"
+	rundata.TestDescription = "Default Address Families"
+	rundata.TestUUID = "8318b2bd-794f-4376-bb0d-4b3eb3ca01bd"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

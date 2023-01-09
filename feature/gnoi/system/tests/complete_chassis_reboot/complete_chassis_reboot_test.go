@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -37,6 +38,13 @@ const (
 	// Maximum wait time for all components to be in responsive state
 	maxCompWaitTime = 600
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNOI-3.1"
+	rundata.TestDescription = "Complete Chassis Reboot"
+	rundata.TestUUID = "3a8e47e3-96ff-43c9-8ff0-0340de016221"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

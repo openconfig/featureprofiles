@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 )
@@ -62,6 +63,13 @@ type properties struct {
 	operStatus            string
 	parent                string
 	pType                 string
+}
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNMI-1.4"
+	rundata.TestDescription = "Telemetry: Inventory"
+	rundata.TestUUID = "b878bf5d-8286-4660-8781-07ffc2fa039b"
 }
 
 func TestMain(m *testing.M) {

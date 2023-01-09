@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/gribigo/compliance"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -72,6 +73,13 @@ var (
 		IPv4Len: 31,
 	}
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-15.1"
+	rundata.TestDescription = "gRIBI Compliance"
+	rundata.TestUUID = "6008102b-591d-43e1-b480-43e034100ee8"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

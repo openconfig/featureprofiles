@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
@@ -89,6 +90,13 @@ var (
 		IPv4Len: 30,
 	}
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "TE-2.1"
+	rundata.TestDescription = "gRIBI IPv4 Entry"
+	rundata.TestUUID = "7116c059-7155-40a5-9052-f8b541dc2983"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

@@ -20,6 +20,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/confirm"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -30,6 +31,13 @@ import (
 const (
 	portName = "port1"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "RT-6.1"
+	rundata.TestDescription = "Core LLDP TLV Population"
+	rundata.TestUUID = "49a26763-6583-479b-a3cf-3f514c6bcb11"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

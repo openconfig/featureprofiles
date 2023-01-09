@@ -22,6 +22,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -337,6 +338,13 @@ func TestBGP(t *testing.T) {
 			}
 		})
 	}
+}
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "RT-1.3"
+	rundata.TestDescription = "BGP Route Propagation"
+	rundata.TestUUID = "13f162f1-73fc-43c7-9006-593e46d757b2"
 }
 
 func TestMain(m *testing.M) {

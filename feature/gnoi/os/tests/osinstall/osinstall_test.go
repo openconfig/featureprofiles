@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	closer "github.com/openconfig/gocloser"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
@@ -59,6 +60,13 @@ type testCase struct {
 
 	osc ospb.OSClient
 	sc  spb.SystemClient
+}
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNOI-4.1"
+	rundata.TestDescription = "Software Upgrade"
+	rundata.TestUUID = "3274f0a8-169c-4c79-89af-d8d823560669"
 }
 
 func TestMain(m *testing.M) {

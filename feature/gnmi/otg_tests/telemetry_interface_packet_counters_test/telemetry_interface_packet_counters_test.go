@@ -20,6 +20,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -27,6 +28,13 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNMI-1.11"
+	rundata.TestDescription = "Telemetry: Interface Packet Counters"
+	rundata.TestUUID = "06eaef2d-116d-4ec7-8997-af973b7ef2d8"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

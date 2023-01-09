@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -87,6 +88,13 @@ var (
 		IPv6Len: ipv6PrefixLen,
 	}
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "P4RT-5.1"
+	rundata.TestDescription = "Traceroute: PacketIn"
+	rundata.TestUUID = "7424b5ab-c1b5-436d-bc11-449d3e4ce661"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

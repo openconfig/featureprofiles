@@ -21,12 +21,20 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNMI-1.12"
+	rundata.TestDescription = "Mixed OpenConfig/CLI Origin"
+	rundata.TestUUID = "3d733274-8f74-44ff-ab58-0e49c04c6ea6"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

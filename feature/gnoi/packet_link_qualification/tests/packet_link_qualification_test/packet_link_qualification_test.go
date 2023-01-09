@@ -20,11 +20,19 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/raw"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNOI-2.1"
+	rundata.TestDescription = "Packet-based Link Qualification"
+	rundata.TestUUID = "b5c555f7-fe9e-4f3e-a057-35db02332077"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

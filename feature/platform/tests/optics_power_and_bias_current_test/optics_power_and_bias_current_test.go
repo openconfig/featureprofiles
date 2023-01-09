@@ -22,6 +22,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -36,6 +37,13 @@ const (
 	minOpticsHighThreshold = 1.0
 	maxOpticsLowThreshold  = -1.0
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNMI-1.13"
+	rundata.TestDescription = "Telemetry: Optics Power and Bias Current"
+	rundata.TestUUID = "65e9b068-e121-44f9-b4f3-b17c42d26d4d"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

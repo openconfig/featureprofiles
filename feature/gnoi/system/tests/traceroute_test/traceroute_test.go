@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
@@ -33,6 +34,13 @@ const (
 	minTracerouteRTT         = 1
 	maxDefaultTracerouteHops = 30
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNOI-5.2"
+	rundata.TestDescription = "Traceroute Test"
+	rundata.TestUUID = "3b928531-88f4-42e2-bf2c-a0649ed6471e"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

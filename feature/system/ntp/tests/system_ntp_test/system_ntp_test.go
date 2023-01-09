@@ -18,9 +18,17 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "OC-26.1"
+	rundata.TestDescription = "NTP in Management Network Instance"
+	rundata.TestUUID = "8f00a43d-f98d-4a03-b69d-1e216f27b9cf"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

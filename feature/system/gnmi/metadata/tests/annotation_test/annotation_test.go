@@ -29,6 +29,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/util"
 	"github.com/openconfig/ygot/ygot"
@@ -36,6 +37,13 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNMI-1.8"
+	rundata.TestDescription = "Configuration Metadata-only Retrieve and Replace"
+	rundata.TestUUID = "92f15ff3-461c-4f16-b1fa-eb3453ef0f98"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

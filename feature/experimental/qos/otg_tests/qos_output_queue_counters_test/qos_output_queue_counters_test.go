@@ -21,6 +21,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -45,6 +46,13 @@ const (
 	ateDstGateway = "198.51.100.2"
 	prefixLen     = 31
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "dp-1.4"
+	rundata.TestDescription = "QoS Interface Output Queue Counters"
+	rundata.TestUUID = "13925aa8-1573-4e31-9ac7-781e921e2614"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
 
@@ -38,6 +39,13 @@ const (
 	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
 	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "gNOI-3.3"
+	rundata.TestDescription = "Supervisor Switchover"
+	rundata.TestUUID = "b9f8e74f-5fad-4f86-9686-d9169d02312b"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

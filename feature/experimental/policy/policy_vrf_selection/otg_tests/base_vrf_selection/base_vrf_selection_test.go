@@ -21,11 +21,19 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "RT-3.1"
+	rundata.TestDescription = "Policy based VRF selection"
+	rundata.TestUUID = "e520c5bd-7e91-4fe3-849b-4f4cd46df119"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

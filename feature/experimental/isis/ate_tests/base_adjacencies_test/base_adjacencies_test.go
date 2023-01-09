@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -33,6 +34,13 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
+
+// init rundata is maintained by tools/addrundata.  DO NOT EDIT.
+func init() {
+	rundata.TestPlanID = "RT-2.1"
+	rundata.TestDescription = "Base IS-IS Process and Adjacencies"
+	rundata.TestUUID = "b8698a10-f5b9-40bd-b72a-d1996c05a0b2"
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
