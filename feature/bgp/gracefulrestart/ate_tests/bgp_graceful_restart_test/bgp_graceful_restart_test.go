@@ -462,7 +462,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		}
 	})
 
-	t.Log("Wait till LLGR/Stale timer expires to delete long live routes.....")
+	t.Log("Wait till LLGR/Stale timer expires to delete long live routes....")
 	time.Sleep(time.Second * grRestartTime)
 	time.Sleep(time.Second * grStaleRouteTime)
 
