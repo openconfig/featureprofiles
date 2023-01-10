@@ -1,0 +1,559 @@
+# Arvindan  SFD testbed
+# testbed: topologies/cisco/hw/8808_FOX2506P2QT/testbed
+# binding: topologies/cisco/hw/8808_FOX2506P2QT/binding
+# baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig.proto
+
+# Vibov 	  SFD testbed
+# binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+# testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+# baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+
+# Moji's 	  SFF testbed
+# testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
+# binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
+# baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
+
+# MANAN 	  SFD testbed
+# binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
+# testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
+# baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+
+# Wanmanthy SFD testbed
+# testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+# binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+# baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+
+name: fp_public_parallel
+owner: mbagherz@cisco.com
+priority: 1
+# default arvindan
+testbed: topologies/cisco/hw/8808_FOX2506P2QT/testbed
+binding: topologies/cisco/hw/8808_FOX2506P2QT/binding
+baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig.proto
+
+tests:
+#arvindan's testbed
+- name: gNOI-3.1 (Complete Chassis Reboot) 
+  path: feature/gnoi/system/tests/complete_chassis_reboot
+  owner: arvbaska@cisco.com
+  priority: 1
+  mustpass: true
+- name: TE-15.1 (gRIBI Compliance) 
+  path: feature/gribi/ate_tests/gribigo_compliance_test
+  priority: 2
+  owner: mananpat@cisco.com
+  mustpass: true
+- name: TE-2.1 (gRIBI IPv4 Entry) 
+  path: feature/gribi/ate_tests/ipv4_entry_test
+  args:
+      - '-deviation_gribi_preserve_only="true"'
+  owner: mananpat@cisco.com
+  mustpass: true
+  priority: 3
+- name: TE-14.1 (gRIBI Scaling)
+  path: feature/gribi/ate_tests/gribi_scaling
+  timeout: 7200
+  owner: mananpat@cisco.com
+  mustpass: true
+  priority: 3
+- name: P4RT-1.1 (Base P4RT Functionality)
+  path: feature/experimental/p4rt/ate_tests/base_p4rt
+  args:
+    - '-p4rt_node_name1="0/0/CPU0-NPU0"'
+    - '-p4rt_node_name2="0/0/CPU0-NPU1"'
+  owner: sprem@cisco.com
+  priority: 5
+  mustpass: true
+- name: P4RT-3.2 (Google Discovery Protocol PacketOut)
+  path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
+  args:
+    - '-p4rt_node_name="0/0/CPU0-NPU0"'
+  owner: sprem@cisco.com
+  priority: 5
+  mustpass: true
+- name: P4RT-3.1 (Google Discovery Protocol PacketIn)
+  path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetin_test
+  args:
+    - '-p4rt_node_name="0/0/CPU0-NPU0"'
+  owner: sprem@cisco.com
+  priority: 5
+  mustpass: true
+- name: RT-5.3 (Aggregate Balancing) 
+  path: feature/interface/aggregate/ate_tests/balancing_test
+  owner: agvarghe@cisco.com
+  mustpass: true
+  priority: 38
+- name: RT-5.2 (Aggregate Interfaces) 
+  path: feature/interface/aggregate/ate_tests/aggregate_test
+  args: 
+      - '-deviation_interface_operstatus="true"'
+  owner: agvarghe@cisco.com
+  mustpass: true
+  priority: 39
+- name: gNMI-1.11 (Telemetry Interface Packet Counters) 
+  path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
+  args:
+      - '-deviation_interface_counters_from_container="true"'
+      - '-deviation_interface_enabled="true"'
+      - '-deviation_ipv4_missing_enabled="true"'
+      - '-deviation_subinterface_packet_counters_missing="true"'
+  owner: agvarghe@cisco.com
+  priority: 35
+  mustpass: true
+- name: gNMI-1.5 (Telemetry Port Speed Test) 
+  path: feature/gnmi/ate_tests/telemetry_port_speed_test
+  owner: agvarghe@cisco.com
+  mustpass: true
+  priority: 33
+- name: gNMI-1.1 (cli Origin) 
+  path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
+  owner: agvarghe@cisco.com
+  mustpass: true
+  priority: 6
+- name: gNMI-1.12 (Mixed OpenConfig or CLI Origin) 
+  path: feature/system/gnmi/cliorigin/ate_tests/mixed_oc_cli_origin_support_test
+  owner: agvarghe@cisco.com
+  mustpass: true
+  priority: 6
+- name: SEC-3.1 (Authentication) 
+  path: feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test
+  patch: exec/firex/plugins/fp_patch/tls_authentication_over_grpc_test.patch
+  owner: agvarghe@cisco.com
+  mustpass: true
+  skip: false
+  priority: 43
+- name: gNOI-5.1 (Ping Test) 
+  path: feature/gnoi/system/tests/ping_test
+  owner: arvbaska@cisco.com
+  priority: 5
+  mustpass: true
+- name: TE-8.1 (DUT Daemon Failure)
+  path: feature/experimental/gribi/ate_tests/dut_daemon_failure
+  owner: mananpat@cisco.com
+  mustpass: true
+  priority: 8
+- name: gNMI-1.9
+  path: feature/system/gnmi/get/tests/system_gnmi_get_test
+  patch: exec/firex/plugins/fp_patch/get_test.patch
+  owner: agvarghe@cisco.com
+  mustpass: true
+  priority: 44
+- name: RT-3.2 (Multiple Protocol-DSCP Rules for VRF Selection) 
+  path: feature/experimental/policy/policy_vrf_selection/ate_tests/protocol_dscp_rules_for_vrf_selection_test
+  owner: sprem@cisco.com
+  mustpass: true
+  priority: 30
+#vibov's testbed
+- name: TE-4.1 (Base Leader Election) 
+  path: feature/gribi/ate_tests/base_leader_election_test
+  owner: mananpat@cisco.com
+  mustpass: true
+  priority: 3   
+  binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+  testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+  baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+- name: TE-4.2 (Leader Failover) 
+  path: feature/gribi/ate_tests/leader_failover_test
+  patch: exec/firex/plugins/fp_patch/leader_failover_test.patch
+  args:
+      - '-deviation_gribi_preserve_only="true"'
+  priority: 4
+  owner: mananpat@cisco.com
+  mustpass: true
+  binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+  testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+  baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+- name: TE-5.1 (gRIBI Get RPC) 
+  path: feature/gribi/ate_tests/get_rpc_test
+  owner: mananpat@cisco.com
+  mustpass: true
+  priority: 3
+  binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+  testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+  baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+- name: TE-3.5 (Ordering ACK Received) 
+  path: feature/gribi/ate_tests/ordering_ack_test
+  patch: exec/firex/plugins/fp_patch/ordering_ack_test.patch
+  args:
+        - '-deviation_gribi_preserve_only="true"'
+  owner: mananpat@cisco.com
+  mustpass: true
+  priority: 3
+  binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+  testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+  baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+- name: TE-3.6 (ACK in the Presence of Other Routes) 
+  path: feature/gribi/ate_tests/ack_in_presence_other_routes
+  skip: false
+  owner: mananpat@cisco.com
+  priority: 3
+  mustpass: true
+  binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+  testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+  baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+- name: TE-3.7 (Base Hierarchical NHG Update) 
+  path: feature/gribi/ate_tests/base_hierarchical_nhg_update
+  owner: mananpat@cisco.com
+  mustpass: true
+  priority: 3
+  binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+  testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+  baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+- name: TE-11.2 (Backup NHG Multiple NH)
+  path: feature/gribi/ate_tests/backup_nhg_multiple_nh_test
+  owner: mananpat@cisco.com
+  mustpass: true
+  priority: 3
+  binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+  testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+  baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+- name: TE-3.1 (Base Hierarchical Route Installation) 
+  path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
+  args:
+      - '-deviation_gribi_preserve_only="true"'
+  timeout: 4200
+  owner: mananpat@cisco.com
+  mustpass: true
+  priority: 3
+  binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+  testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+  baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+- name: gNOI-3.3 (Supervisor Switchover) 
+  path: feature/gnoi/system/tests/supervisor_switchover_test
+  owner: arvbaska@cisco.com
+  mustpass: true
+  skip: false
+  priority: 7
+  timeout: 7200
+  binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+  testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+  baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+- name: TE-8.2 (Supervisor Failure)
+  path: feature/gribi/ate_tests/supervisor_failure_test
+  owner: mananpat@cisco.com
+  skip: false
+  mustpass: true
+  timeout: 7200
+  priority: 4
+  binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+  testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+  baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+- name: RT-1.2 (BGP Policy and Route Installation) 
+  path: feature/bgp/policybase/ate_tests/route_installation_test
+  patch: exec/firex/plugins/fp_patch/route_installation_test.patch
+  owner: sprem@cisco.com
+  args:
+     - '-deviation_rpl_under_peergroup=true'
+     - '-deviation_prepolicy_received_routes=true'
+  mustpass: true
+  skip: false
+  priority: 6
+  binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+  testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+  baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+- name: RT-1.5 (BGP Prefix Limit) 
+  path: feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test
+  patch: exec/firex/plugins/fp_patch/bgp_prefix_limit_test.patch
+  owner: sprem@cisco.com
+  mustpass: true
+  priority: 53
+  skip: false
+  binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+  testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+  baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+- name: gNMI-1.14 (Telemetry Optics Thresholds) 
+  path: feature/experimental/platform/tests/optics_thresholds_test
+  owner: agvarghe@cisco.com
+  mustpass: true
+  priority: 32
+  binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
+  testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+  baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
+#manan's testbed
+- name: gNOI-3.4 (Chassis Reboot Status and Reboot Cancellation) 
+  path: feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
+  owner: arvbaska@cisco.com
+  mustpass: true
+  priority: 42
+  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
+  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+- name: TE-3.2 (Traffic Balancing According to Weights) 
+  path: feature/gribi/ate_tests/weighted_balancing_test
+  patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
+  mustpass: true
+  priority: 3
+  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
+  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+- name: TE-6.1 (Route Removal via Flush) 
+  path: feature/gribi/ate_tests/route_removal_via_flush_test
+  owner: mananpat@cisco.com
+  mustpass: true
+  priority: 3
+  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
+  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+- name: TE-6.2 (Route Removal In Non Default VRF) 
+  path: feature/gribi/ate_tests/route_removal_non_default_vrf_test
+  owner: mananpat@cisco.com
+  mustpass: true
+  priority: 3
+  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
+  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+- name: TE-11.1 (Backup NHG Single NH) 
+  path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
+  owner: mananpat@cisco.com
+  mustpass: true
+  priority: 3
+  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
+  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+- name: TE-1.1 (Static ARP) 
+  path: feature/interface/staticarp/ate_tests/static_arp_test
+  owner: mbagherz@cisco.com
+  mustpass: true
+  priority: 50
+  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
+  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+- name: RT-5.1 (Singleton Interface) 
+  path: feature/interface/singleton/ate_tests/singleton_test
+  timeout: 7200
+  patch: exec/firex/plugins/fp_patch/singleton_test.patch
+  owner: agvarghe@cisco.com
+  mustpass: true
+  priority: 31
+  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
+  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+- name: OC-1.1
+  path: feature/system/tests/system_base_test
+  patch: exec/firex/plugins/fp_patch/system_test.patch
+  owner: agvarghe@cisco.com
+  mustpass: false
+  priority: 46
+  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
+  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+- name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace) 
+  path: feature/system/gnmi/metadata/tests/annotation_test
+  owner: kjahed@cisco.com
+  mustpass: true
+  skip: false
+  priority: 38
+  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
+  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+- name: dp-1.4 (QoS Interface Output Queue Counters)
+  path: experimental/qos/otg_tests/qos_output_queue_counters_test
+  owner: arvbaska@cisco.com
+  mustpass: true
+  priority: 802
+  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
+  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+#wanmathy's testbed
+- name: gNOI-3.2 (Per-Component Reboot) 
+  path: feature/gnoi/system/tests/per_component_reboot_test
+  owner: arvbaska@cisco.com
+  mustpass: true
+  skip: false
+  priority: 55
+  timeout: 7200
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: DP-1.2 (QoS policy feature config)
+  path: experimental/qos/ate_tests/qos_policy_config_test
+  owner: arvbaska@cisco.com
+  mustpass: true
+  priority: 802
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: DP-1.3 (QoS ECN feature config) 
+  path: experimental/qos/ate_tests/qos_ecn_config_test
+  owner: arvbaska@cisco.com
+  mustpass: true
+  priority: 802
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: OC-26.1
+  path: feature/system/ntp/tests/system_ntp_test
+  owner: agvarghe@cisco.com
+  args:
+       - '-deviation_ntp_association_type_required="true"'
+  mustpass: true
+  priority: 45
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: RT-2.1 (Base IS-IS Process and Adjacencies) 
+  path: feature/experimental/isis/ate_tests/base_adjacencies_test
+  #patch: exec/firex/plugins/fp_patch/base_adjacencies_test.patch
+  owner: mananpat@cisco.com
+  mustpass: false
+  priority: 49
+  skip: false
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: RT-2.2 (IS-IS LSP Updates) 
+  path: feature/experimental/isis/ate_tests/lsp_updates_test
+  patch: exec/firex/plugins/fp_patch/lsp_updates_test.patch
+  owner: mananpat@cisco.com
+  mustpass: false
+  priority: 48
+  skip: false
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: RT-6.1 (Core LLDP TLV Population) 
+  path: feature/lldp/tests/core_lldp_tlv_population_test
+  patch: exec/firex/plugins/fp_patch/core_lldp_tlv_population_test.patch
+  owner: agvarghe@cisco.com
+  mustpass: false 
+  priority: 51
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: RT-1.3 (BGP Route Propagation) 
+  path: feature/bgp/addpath/ate_tests/route_propagation_test
+  owner: sprem@cisco.com
+  mustpass: false
+  priority: 52
+  skip: false
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: gNMI-1.4 (Telemetry Inventory) 
+  path: feature/platform/ate_tests/telemetry_inventory_test
+  patch: exec/firex/plugins/fp_patch/telemetry_inventory_test.patch
+  owner: agvarghe@cisco.com
+  mustpass: false
+  priority: 80
+  timeout: 7200
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: gNOI-5.2 (Traceroute Test) 
+  path: feature/gnoi/system/tests/traceroute_test
+  owner: agvarghe@cisco.com
+  mustpass: false
+  priority: 41
+  skip: false
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: gNOI-3.3 Copying Debug Files
+  path: feature/experimental/gnoi/copying_debug_files_test/
+  owner: agvarghe@cisco.com
+  mustpass: false
+  priority: 41
+  skip: false
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: RT-1.1 (Base BGP Session Parameters) 
+  path: feature/experimental/bgp/ate_tests/base_bgp_session_parameters
+  owner: sprem@cisco.com
+  mustpass: false
+  priority: 47
+  skip: false
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: RT-1.4 (BGP Graceful Restart) 
+  path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
+  owner: sprem@cisco.com
+  mustpass: false
+  priority: 54
+  skip: false
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: RT-1.7 (Local BGP Test) 
+  path: feature/bgp/tests/local_bgp_test
+  #patch: exec/firex/plugins/fp_patch/local_bgp_test.patch
+  owner: sprem@cisco.com
+  mustpass: false
+  priority: 55
+  skip: false
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: RT-3.1 Policy based VRF selection
+  path: feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection
+  owner: sprem@cisco.com
+  mustpass: false
+  priority: 30
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: gNMI-1.13 (Telemetry Optics Power and Bias Current) 
+  path: feature/platform/tests/optics_power_and_bias_current_test
+  owner: agvarghe@cisco.com
+  mustpass: false
+  priority: 37
+  skip: false
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: TE-3.3 (Hierarchical weight resolution)
+  path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
+  patch: exec/firex/plugins/fp_patch/hierarchical_weight_resolution_test.patch
+  owner: mananpat@cisco.com
+  skip: false
+  mustpass: false
+  priority: 3
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: P4RT-7.2 (LLDP PacketOut)
+  path: feature/experimental/p4rt/ate_tests/lldp_packetout_test
+  args:
+    - '-p4rt_node_name="0/0/CPU0-NPU0"'
+  owner: sprem@cisco.com
+  priority: 10
+  mustpass: false
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: P4RT-5.2 (Traceroute Packetout)
+  path: feature/experimental/p4rt/ate_tests/traceroute_packetout_test
+  args:
+    - '-p4rt_node_name="0/0/CPU0-NPU0"'
+  owner: sprem@cisco.com
+  priority: 5
+  mustpass: false
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: gNOI-4.1 (Software Upgrade) 
+  path: feature/gnoi/os/tests/osinstall
+  patch: exec/firex/plugins/fp_patch/osinstall_test.patch
+  args:
+     - '-deviation_no_osinstall_for_standby_rp="true"'
+  owner: agvarghe@cisco.com
+  priority: 300
+  mustpass: true
+  skip: true
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: gNMI-1.10 (Telemetry Basic Check) 
+  path: feature/gnmi/ate_tests/telemetry_basic_check_test
+  args:
+      - '-deviation_interface_counters_from_container="true"'
+      - '-deviation_ipv4_missing_enabled="true"'
+      - '-deviation_subinterface_packet_counters_missing="true"'
+  #patch: exec/firex/plugins/fp_patch/telemetry_basic_check_test.patch
+  owner: agvarghe@cisco.com
+  mustpass: false
+  priority: 34
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto

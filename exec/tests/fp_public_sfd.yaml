@@ -276,20 +276,20 @@ tests:
   skip: false
   priority: 43
 - name: gNMI-1.9
-  path: feature/system/gnmi/get/tests
+  path: feature/system/gnmi/get/tests/system_gnmi_get_test
   patch: exec/firex/plugins/fp_patch/get_test.patch
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 44
 - name: OC-26.1
-  path: feature/system/ntp/tests
+  path: feature/system/ntp/tests/system_ntp_test
   owner: agvarghe@cisco.com
   args:
        - '-deviation_ntp_association_type_required="true"'
   mustpass: true
   priority: 45
 - name: OC-1.1
-  path: feature/system/tests
+  path: feature/system/tests/system_base_test
   patch: exec/firex/plugins/fp_patch/system_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
