@@ -236,7 +236,7 @@ func StreamTermErr(ste chan *p4rt_client.P4RTStreamTermErr) error {
 	select {
 	case e := <-ste:
 		return e.StreamErr
-	case <-time.After(1 * time.Second):
+	case <-time.After(5 * time.Second):
 		return nil
 	}
 }
