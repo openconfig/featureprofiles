@@ -20,9 +20,11 @@ import (
 	"testing"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	otg "github.com/openconfig/ondatra/otg"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygot/ygot"
+
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 )
 
 // LogFlowMetrics displays the otg flow statistics.
@@ -34,7 +36,7 @@ func LogFlowMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	out.WriteString("\n")
 	fmt.Fprintf(&out, "%-25v%-15v%-15v%-15v%-15v\n", "Name", "Frames Tx", "Frames Rx", "FPS Tx", "FPS Rx")
 	for _, f := range c.Flows().Items() {
-		flowMetrics := otg.Telemetry().Flow(f.Name()).Get(t)
+		flowMetrics := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
 		rxPkts := flowMetrics.GetCounters().GetInPkts()
 		txPkts := flowMetrics.GetCounters().GetOutPkts()
 		rxRate := ygot.BinaryToFloat32(flowMetrics.GetInFrameRate())
@@ -58,7 +60,7 @@ func LogPortMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 		"%-25s%-15s%-15s%-15s%-15s%-15s%-15s%-15s\n",
 		"Name", "Frames Tx", "Frames Rx", "Bytes Tx", "Bytes Rx", "FPS Tx", "FPS Rx", "Link")
 	for _, p := range c.Ports().Items() {
-		portMetrics := otg.Telemetry().Port(p.Name()).Get(t)
+		portMetrics := gnmi.Get(t, otg, gnmi.OTG().Port(p.Name()).State())
 		rxFrames := portMetrics.GetCounters().GetInFrames()
 		txFrames := portMetrics.GetCounters().GetOutFrames()
 		rxRate := ygot.BinaryToFloat32(portMetrics.GetInRate())
@@ -90,7 +92,7 @@ func LogLAGMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 		"%-25s%-15s%-15s%-15s%-20s\n",
 		"Name", "Oper Status", "Frames Tx", "Frames Rx", "Member Ports UP")
 	for _, lag := range c.Lags().Items() {
-		lagMetrics := otg.Telemetry().Lag(lag.Name()).Get(t)
+		lagMetrics := gnmi.Get(t, otg, gnmi.OTG().Lag(lag.Name()).State())
 		operStatus := lagMetrics.GetOperStatus().String()
 		memberPortsUP := lagMetrics.GetCounters().GetMemberPortsUp()
 		framesTx := lagMetrics.GetCounters().GetOutFrames()
@@ -125,7 +127,7 @@ func LogLACPMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	for _, lag := range c.Lags().Items() {
 		lagPorts := lag.Ports().Items()
 		for _, lagPort := range lagPorts {
-			lacpMetric := otg.Telemetry().Lacp().LagMember(lagPort.PortName()).Get(t)
+			lacpMetric := gnmi.Get(t, otg, gnmi.OTG().Lacp().LagMember(lagPort.PortName()).State())
 			synchronization := lacpMetric.GetSynchronization().String()
 			collecting := lacpMetric.GetCollecting()
 			distributing := lacpMetric.GetDistributing()

@@ -19,18 +19,20 @@ import (
 	"io"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/netutil"
 )
 
 const (
-	minimumPingRequestSize        = 64
+	minimumPingRequestSize        = 56
 	maximumDefaultPingRequestSize = 1512
 	maximumPingRequestSize        = 9202
-	minimumPingReplySize          = 64
+	minimumPingReplySize          = 56
 	icmpHeaderSize                = 20
 	// Set Minimum value to 1 to verify the field is not empty.
 	minimumPingReplyTTL      = 1
@@ -72,7 +74,7 @@ func TestMain(m *testing.M) {
 //     - std_dev: Standard deviation in round trip time.
 //
 // Topology:
-//   dut:port1 <--> ate:port1
+//   dut
 //
 // Test notes:
 //  - Only the destination fields is required.
@@ -98,9 +100,9 @@ func TestGNOIPing(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	lbIntf := netutil.LoopbackInterface(t, dut, 0)
-	lo0 := dut.Telemetry().Interface(lbIntf).Subinterface(0)
-	ipv4Addrs := lo0.Ipv4().AddressAny().Get(t)
-	ipv6Addrs := lo0.Ipv6().AddressAny().Get(t)
+	lo0 := gnmi.OC().Interface(lbIntf).Subinterface(0)
+	ipv4Addrs := gnmi.GetAll(t, dut, lo0.Ipv4().AddressAny().State())
+	ipv6Addrs := gnmi.GetAll(t, dut, lo0.Ipv6().AddressAny().State())
 	t.Logf("Got DUT %s IPv4 loopback address: %+v", dut.Name(), ipv4Addrs)
 	t.Logf("Got DUT %s IPv6 loopback address: %+v", dut.Name(), ipv6Addrs)
 	if len(ipv4Addrs) == 0 {
@@ -109,7 +111,9 @@ func TestGNOIPing(t *testing.T) {
 	if len(ipv6Addrs) == 0 {
 		t.Fatalf("Failed to get a valid IPv6 loopback address: %+v", ipv6Addrs)
 	}
-
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, lbIntf, *deviations.DefaultNetworkInstance, 0)
+	}
 	commonExpectedIPv4Reply := &spb.PingResponse{
 		Source:   ipv4Addrs[0].GetIp(),
 		Time:     minimumPingTime,
