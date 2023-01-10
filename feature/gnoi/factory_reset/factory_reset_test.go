@@ -79,15 +79,15 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 
 // checkFiles check if the files created are deleted from the device after factory reset
 func checkFiles(t *testing.T, dut *ondatra.DUTDevice) {
-	for _, fP := range filesCreated {
+	for _, f := range filesCreated {
 
-		resp, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf(checkFileExists, fP))
+		resp, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf(checkFileExists, f))
 		if err != nil {
-			t.Fatalf("Failed to send command %s on the device, Error: %v", fmt.Sprintf(checkFileExists, fP), err)
+			t.Fatalf("Failed to send command %s on the device, Error: %v", fmt.Sprintf(checkFileExists, f), err)
 		}
 		t.Logf(resp)
 		if strings.Contains(resp, fileExists) == true {
-			t.Fatalf("File %s not cleared by system Reset, in device %s", fP, dut.Name())
+			t.Fatalf("File %s not cleared by system Reset, in device %s", f, dut.Name())
 		}
 
 	}
