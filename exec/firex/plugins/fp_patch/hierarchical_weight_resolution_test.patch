@@ -1,25 +1,23 @@
 diff --git a/feature/gribi/ate_tests/hierarchical_weight_resolution_test/hierarchical_weight_resolution_test.go b/feature/gribi/ate_tests/hierarchical_weight_resolution_test/hierarchical_weight_resolution_test.go
-index 6f85ead7..81f7b9bc 100644
+index dd4cba40..ee0c03f9 100644
 --- a/feature/gribi/ate_tests/hierarchical_weight_resolution_test/hierarchical_weight_resolution_test.go
 +++ b/feature/gribi/ate_tests/hierarchical_weight_resolution_test/hierarchical_weight_resolution_test.go
-@@ -61,7 +61,8 @@ const (
+@@ -60,7 +60,7 @@ const (
  	nonDefaultVRF   = "VRF-1"
  	// 'deviation' is the maximum difference that is allowed between the observed
  	// traffic distribution and the required traffic distribution.
 -	deviation = 0.5
-+	// will open pull for this
 +	deviation = 1
  )
  
  var (
-@@ -286,13 +287,14 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
+@@ -285,12 +285,13 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
  		gnmi.Replace(t, d, dni.Config(), ni)
  		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
  	} else {
 -		dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 +		/*dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
- 		gnmi.Replace(t, d, dni.EnabledAddressFamilies().Config(), addressFamilies)
-+		commented to accout for this bug https://cdetsng.cisco.com/webui/#view=CSCwd49006
++		//commented to accout for this bug https://cdetsng.cisco.com/webui/#view=CSCwd49006
  		gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
  			Id:           ygot.String(p.Name()),
  			Interface:    ygot.String(p.Name()),
@@ -29,13 +27,11 @@ index 6f85ead7..81f7b9bc 100644
  	}
  }
  
-@@ -301,8 +303,10 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
+@@ -299,8 +300,8 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
  func (a *attributes) configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
  	t.Helper()
  	p := dut.Port(t, a.Name)
 -	a.configureNetworkInstance(t, dut, p)
-+	// opened a bug to track this issue, replacing interface after adding them in vrf removes them from vrf
-+	// https://cdetsng.cisco.com/webui/#view=CSCwd49056
  	a.configInterfaceDUT(t, dut, p)
 +	a.configureNetworkInstance(t, dut, p)
  }

@@ -1,16 +1,8 @@
 diff --git a/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go b/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go
-index 2e8bac12..30c57e70 100644
+index 468f8c1f..902f7548 100644
 --- a/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go
 +++ b/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go
-@@ -21,6 +21,7 @@ import (
- 	"time"
- 
- 	"github.com/google/go-cmp/cmp"
-+	"github.com/openconfig/featureprofiles/internal/gribi"
- 	"github.com/openconfig/gribigo/chk"
- 	"github.com/openconfig/gribigo/fluent"
- 	"github.com/openconfig/ondatra"
-@@ -116,19 +117,24 @@ func TestPortFlap(t *testing.T) {
+@@ -117,6 +117,12 @@ func TestPortFlap(t *testing.T) {
  		WithPersistence()
  	c.Start(ctx, t)
  	defer c.Stop(t)
@@ -23,40 +15,20 @@ index 2e8bac12..30c57e70 100644
  	c.StartSending(ctx, t)
  	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
  		t.Fatalf("Await got error during session negotiation: %v", err)
- 	}
- 
--	_, err := c.Flush().
--		WithElectionOverride().
--		WithAllNetworkInstances().
--		Send()
--	if err != nil {
-+	gribi.BecomeLeader(t, c)
-+
-+	// Flush all entries before test.
-+	if err := gribi.FlushAll(c); err != nil {
- 		t.Errorf("Cannot flush: %v", err)
- 	}
--
-+	
- 	ents, wants := buildNextHops(t, nexthops, 1)
- 
- 	c.Modify().AddEntry(t, ents...)
 diff --git a/feature/gribi/ate_tests/weighted_balancing_test/setup_test.go b/feature/gribi/ate_tests/weighted_balancing_test/setup_test.go
-index 47001584..c478b615 100644
+index 9709573b..d2efca3e 100644
 --- a/feature/gribi/ate_tests/weighted_balancing_test/setup_test.go
 +++ b/feature/gribi/ate_tests/weighted_balancing_test/setup_test.go
-@@ -175,7 +175,9 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
+@@ -175,7 +175,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
  	// down, the device does not attempt to route packets through the
  	// default gateway 0.0.0.0/0.  Packets destined to the more specific
  	// next hop CIDRs will be routed.
 -	static := &oc.NetworkInstance_Protocol_Static{
-+	// XR use recursive for null route that cuases issues for trafic
-+	// need to discuss with google about this
 +	/*static := &oc.NetworkInstance_Protocol_Static{
  		Prefix: ygot.String(discardCIDR),
  	}
  	static.GetOrCreateNextHop("AUTO_drop_2").
-@@ -184,7 +186,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
+@@ -184,7 +184,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
  		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
  		Static(discardCIDR)
  	fptest.LogQuery(t, "discard route", staticp.Config(), static)
