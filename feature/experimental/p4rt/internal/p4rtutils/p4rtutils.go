@@ -21,7 +21,11 @@
 package p4rtutils
 
 import (
+	"testing"
+
 	"github.com/golang/glog"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
@@ -166,4 +170,24 @@ func ACLWbbIngressTableEntryGet(infoList []*ACLWbbIngressTableEntryInfo) []*p4_v
 	}
 
 	return updates
+}
+
+// P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
+// ports using the component and the interface OC tree.
+func P4RTNodesByPort(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
+	ports := make(map[string]string)
+	for _, p := range dut.Ports() {
+		hp := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
+		ports[hp] = p.ID()
+	}
+	nodes := make(map[string]string)
+	for hp := range ports {
+		p4Node := gnmi.Get(t, dut, gnmi.OC().Component(hp).Parent().State())
+		nodes[hp] = p4Node
+	}
+	res := make(map[string]string)
+	for k, v := range nodes {
+		res[ports[k]] = v
+	}
+	return res
 }

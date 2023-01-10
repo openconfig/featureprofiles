@@ -46,7 +46,7 @@ EOF
 Testing
 
 ```
-go test feature/system/tests/*.go -kne-config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
+go test ./feature/system/tests/... -kne-config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
 ```
 
 Cleanup
@@ -78,7 +78,7 @@ EOF
 Testing
 
 ```
-go test feature/system/tests/*.go -kne-config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
+go test ./feature/system/tests/... -kne-config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
 ```
 
 Cleanup

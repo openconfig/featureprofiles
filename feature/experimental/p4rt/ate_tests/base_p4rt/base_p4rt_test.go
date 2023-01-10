@@ -159,6 +159,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // ATE configuration with IP address
@@ -392,6 +401,7 @@ func TestP4rtConnect(t *testing.T) {
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x6007,
 				EtherTypeMask: 0xFFFF,
+				Priority:      1,
 			},
 		})
 
@@ -406,6 +416,7 @@ func TestP4rtConnect(t *testing.T) {
 				Type:          p4_v1.Update_INSERT,
 				EtherType:     0x88cc,
 				EtherTypeMask: 0xFFFF,
+				Priority:      1,
 			},
 		})
 		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
@@ -416,10 +427,11 @@ func TestP4rtConnect(t *testing.T) {
 		// Construct expected table for traceroute to match with received table entry
 		expected_update = p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
 			{
-				Type:    p4_v1.Update_INSERT,
-				IsIpv4:  0x1,
-				TTL:     0x1,
-				TTLMask: 0xFF,
+				Type:     p4_v1.Update_INSERT,
+				IsIpv4:   0x1,
+				TTL:      0x1,
+				TTLMask:  0xFF,
+				Priority: 1,
 			},
 		})
 		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
