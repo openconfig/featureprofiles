@@ -15,9 +15,13 @@ options {
 duts {
   id: "dut"
   name: "DUT"  # Change this to the device hostname.
-  config:{
+ config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
+
+#config:{
+#    gnmi_set_file: "/auto/tftp-access-ops/saarvind/qos-base-config.proto"
+#  }
 
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
@@ -27,21 +31,19 @@ duts {
     username: "cafyauto"
     password: "cisco123"
   }
-  # telnet RP0: 172.21.178.22 2012 
-  #   # Mgmt RP0: 6.1.2.41 
-  # eec-server : sj6-pxe-05
-  # pxe-path : /nobackup/html/sj6-aa-17-21/spitfire-foundation2.iso 
+
+  # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.105.227.156:57780"
+    target: "10.106.211.41:57780"
   }
   gnmi {
-    target: "10.105.227.156:57780"
+    target: "10.106.211.41:57780"
   }
   gribi{
-    target: "10.105.227.156:57780"
+    target: "10.106.211.41:57780"
   }
   ssh{
-    target: "10.105.227.156:62635"
+    target: "10.106.211.41:62636"
   }
 
   # Before this binding can be used with a topology, add ports mapping
