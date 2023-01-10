@@ -191,7 +191,7 @@ def CleanupTestbed(self, uid, ws):
     pass
 
 def testbed_uniqueness_args():
-    return ["ondatra_binding_path", "base_conf_path", "topo_file"]
+    return ["ondatra_binding_path"]
  
 @register_test_framework_provider('b4_fp')
 def b4_fp_chain_provider(ws,
