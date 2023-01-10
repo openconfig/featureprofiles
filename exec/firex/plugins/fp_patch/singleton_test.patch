@@ -1,65 +1,56 @@
 diff --git a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
-index c3bb9931..3131eb4b 100644
+index 46cc2d5..7304f4b 100644
 --- a/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
 +++ b/feature/interface/singleton/ate_tests/singleton_test/singleton_test.go
-@@ -15,6 +15,7 @@
+@@ -15,7 +15,10 @@
  package singleton_test
  
  import (
-+	"flag"
++	"context"
  	"fmt"
++	"strconv"
++	"strings"
  	"testing"
  	"time"
-@@ -55,6 +56,12 @@ const (
- 	plen6 = 126
- )
  
-+var (
-+	SubinterfaceOriginCheck = flag.Bool("subinterface_origin_check", false, "Skip telemetry on subinterfaces/subinterface/neighbors/neighbors/state/origin till CSCwc63655 is fixed")
+@@ -145,6 +148,31 @@ func (tc *testCase) configureDUTBreakout(t *testing.T) *oc.Component_Port_Breako
+ 
+ }
+ 
++func (tc *testCase) getControlPacket(t *testing.T) int64 {
++	t.Helper()
++	ctx := context.Background()
++	ixNetwork := tc.ate.RawAPIs().IxNetwork(t)
++	portname := strings.Split(tc.ate.Port(t, "port2").Name(), "/")
++	args := struct {
++		AbsPath  string
++		PortName string
++		Stats    string
++	}{
++		AbsPath:  ixNetwork.AbsPath("statistics/view/8"),
++		PortName: fmt.Sprintf("%s/Card0%s/Port%s", tc.ate.Name(), portname[0], portname[1]),
++		Stats:    "Control Packet Tx.",
++	}
 +
-+	PortSpeedEnabled = flag.Bool("port_speed_enabled", false, "SKIP since XR does not support three of the leafs (DuplexMode and AutoNegotiate and PortSpeed)")
-+)
++	var rsp string
++	err := ixNetwork.Post(ctx, "statistics/view/operations/getvalue", args, &rsp)
++	if err != nil {
++		t.Fatalf("Error in getting Control Packet Tx: %v\n", err)
++	}
 +
- var (
- 	dutSrc = attrs.Attributes{
- 		Desc:    "DUT to ATE source",
-@@ -124,16 +131,19 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
- func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *attrs.Attributes) {
- 	a.ConfigOCInterface(i)
++	controlPkts, _ := strconv.ParseInt(rsp, 10, 64)
++	return controlPkts
++}
++
+ func (tc *testCase) configureDUT(t *testing.T) {
+ 	d := gnmi.OC()
  
--	e := i.GetOrCreateEthernet()
--	if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
--		e.AutoNegotiate = ygot.Bool(true)
--	} else {
--		e.AutoNegotiate = ygot.Bool(false)
--	}
--	if tc.auto == forcedNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
--		if speed, ok := portSpeed[dp.Speed()]; ok {
--			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
--			e.PortSpeed = speed
-+	// XR does not support DuplexMode, AutoNegotiate and PortSpeed, Skipping now
-+	if *PortSpeedEnabled {
-+		e := i.GetOrCreateEthernet()
-+		if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
-+			e.AutoNegotiate = ygot.Bool(true)
-+		} else {
-+			e.AutoNegotiate = ygot.Bool(false)
-+		}
-+		if tc.auto == forcedNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
-+			if speed, ok := portSpeed[dp.Speed()]; ok {
-+				e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-+				e.PortSpeed = speed
-+			}
- 		}
- 	}
- 
-@@ -264,18 +274,21 @@ func (tc *testCase) verifyInterfaceDUT(
- 		}
+@@ -217,18 +245,20 @@ func (tc *testCase) verifyInterfaceDUT(
+ 		t.Errorf("%s oper-status got %v, want %v", dp, got, opUp)
  	}
  
 -	disp := dip.Subinterface(0)
-+	// XR does not support neighbor/origin leaf. Tracked via bug CSCwc63655
-+	if *SubinterfaceOriginCheck {
++	if *deviations.SubinterfaceOriginCheck {
 +		disp := dip.Subinterface(0)
  
 -	// IPv4 neighbor discovered by ARP.
@@ -85,97 +76,34 @@ index c3bb9931..3131eb4b 100644
  	}
  }
  
-@@ -325,29 +338,31 @@ func (tc *testCase) verifyATE(t *testing.T) {
- }
+@@ -321,6 +351,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
+ 	tc.ate.Traffic().Start(t, flow)
+ 	time.Sleep(15 * time.Second)
+ 	tc.ate.Traffic().Stop(t)
++	time.Sleep(120 * time.Second)
  
- type counters struct {
--	unicast, multicast, broadcast uint64
-+	unicast, multicast, broadcast, drop uint64
- }
- 
- func inCounters(tic *oc.Interface_Counters) *counters {
- 	return &counters{unicast: tic.GetInUnicastPkts(),
- 		multicast: tic.GetInMulticastPkts(),
--		broadcast: tic.GetInBroadcastPkts()}
-+		broadcast: tic.GetInBroadcastPkts(),
-+		drop:      tic.GetInDiscards()}
- }
- 
- func outCounters(tic *oc.Interface_Counters) *counters {
- 	return &counters{unicast: tic.GetOutUnicastPkts(),
--		multicast: tic.GetOutMulticastPkts(), broadcast: tic.GetOutBroadcastPkts()}
-+		multicast: tic.GetOutMulticastPkts(), broadcast: tic.GetOutBroadcastPkts(), drop: tic.GetInDiscards()}
- }
- 
- func diffCounters(before, after *counters) *counters {
- 	return &counters{unicast: after.unicast - before.unicast,
- 		multicast: after.multicast - before.multicast,
--		broadcast: after.broadcast - before.broadcast}
-+		broadcast: after.broadcast - before.broadcast,
-+		drop:      after.drop - before.drop}
- }
- 
- // testFlow returns whether the traffic flow from ATE port1 to ATE
- // port2 has been successfully detected.
--func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.Header) bool {
-+func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.Header, pktlmtu bool) bool {
- 	i1 := tc.top.Interfaces()[ateSrc.Name]
- 	i2 := tc.top.Interfaces()[ateDst.Name]
- 	p1 := tc.dut.Port(t, "port1")
-@@ -417,8 +432,14 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
- 	} else if avg := octets / outPkts; avg > uint64(tc.mtu) {
- 		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
- 	}
--	if p1InDiff.unicast < outPkts {
--		t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
-+	if pktlmtu {
-+		if p1InDiff.drop < outPkts {
-+			t.Errorf("DUT dropped too few source packets: got %d, want >= %d", p1InDiff.drop, outPkts)
-+		}
-+	} else {
-+		if p1InDiff.unicast < outPkts {
-+			t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
-+		}
- 	}
- 
- 	if inPkts == 0 {
-@@ -428,7 +449,8 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
+ 	// Counters from ATE interface telemetry may be inaccurate.  Only
+ 	// showing them for diagnostics only.  Use flow telemetry counters
+@@ -381,7 +412,10 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
  	} else if avg := octets / inPkts; avg > uint64(tc.mtu) {
  		t.Errorf("Flow destination packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
  	}
 -	if inPkts < p2OutDiff.unicast {
-+	// Tolerance added for ipv6 control packets
-+	if inPkts+5 < p2OutDiff.unicast {
++
++	controlPkts := tc.getControlPacket(t)
++	t.Logf("Control Packet Tx : %d\n", controlPkts)
++	if inPkts < p2OutDiff.unicast-uint64(controlPkts) {
  		t.Errorf("ATE received too few destination packets: got %d, want >= %d", inPkts, p2OutDiff.unicast)
  	}
  	t.Logf("flow loss-pct %f", gnmi.Get(t, tc.ate, fp.LossPct().State()))
-@@ -457,17 +479,17 @@ func (tc *testCase) testMTU(t *testing.T) {
- 				if c.shouldFrag {
- 					t.Skip("Packet fragmentation is not expected at line rate.")
- 				}
--				if got := tc.testFlow(t, tc.mtu+64, c.ipHeader); got {
-+				if got := tc.testFlow(t, tc.mtu+64, c.ipHeader, true); got {
- 					t.Errorf("Traffic flow got %v, want false", got)
- 				}
- 			})
- 			t.Run("PacketExactlyMTU", func(t *testing.T) {
--				if got := tc.testFlow(t, tc.mtu, c.ipHeader); !got {
-+				if got := tc.testFlow(t, tc.mtu, c.ipHeader, false); !got {
- 					t.Errorf("Traffic flow got %v, want true", got)
- 				}
- 			})
- 			t.Run("PacketSmallerThanMTU", func(t *testing.T) {
--				if got := tc.testFlow(t, tc.mtu-64, c.ipHeader); !got {
-+				if got := tc.testFlow(t, tc.mtu-64, c.ipHeader, false); !got {
- 					t.Errorf("Traffic flow got %v, want true", got)
- 				}
- 			})
-@@ -527,7 +549,7 @@ func TestNegotiate(t *testing.T) {
- 			t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t, breakoutGroup) })
- 			t.Run("VerifyATE", func(t *testing.T) { tc.verifyATE(t) })
- 			t.Run("Traffic", func(t *testing.T) {
--				if got := tc.testFlow(t, tc.mtu, ondatra.NewIPv6Header()); !got {
-+				if got := tc.testFlow(t, tc.mtu, ondatra.NewIPv6Header(), false); !got {
- 					t.Errorf("Traffic flow got %v, want true", got)
- 				}
- 			})
+diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
+index a485775..8b9d2d8 100644
+--- a/internal/deviations/deviations.go
++++ b/internal/deviations/deviations.go
+@@ -116,4 +116,6 @@ var (
+ 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
+ 
+ 	ExplicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
++
++	SubinterfaceOriginCheck = flag.Bool("subinterface_origin_check", false, "Skip telemetry on subinterfaces/subinterface/neighbors/neighbors/state/origin till CSCwc63655 is fixed")
+ )
