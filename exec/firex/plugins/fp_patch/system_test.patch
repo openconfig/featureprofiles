@@ -1,9 +1,9 @@
-diff --git a/feature/system/tests/banner_test.go b/feature/system/tests/banner_test.go
+diff --git a/feature/system/tests/system_base_test/banner_test.go b/feature/system/tests/system_base_test/banner_test.go
 old mode 100644
 new mode 100755
 index 4bc94830..00f04694
---- a/feature/system/tests/banner_test.go
-+++ b/feature/system/tests/banner_test.go
+--- a/feature/system/tests/system_base_test/banner_test.go
++++ b/feature/system/tests/system_base_test/banner_test.go
 @@ -29,16 +29,18 @@ import (
  // config_path:/system/config/motd-banner
  // telemetry_path:/system/state/motd-banner
@@ -80,12 +80,12 @@ index 4bc94830..00f04694
  		})
  	}
  }
-diff --git a/feature/system/tests/hostname_test.go b/feature/system/tests/hostname_test.go
+diff --git a/feature/system/tests/system_base_test/hostname_test.go b/feature/system/tests/system_base_test/hostname_test.go
 old mode 100644
 new mode 100755
 index d537708e..d369344c
---- a/feature/system/tests/hostname_test.go
-+++ b/feature/system/tests/hostname_test.go
+--- a/feature/system/tests/system_base_test/hostname_test.go
++++ b/feature/system/tests/system_base_test/hostname_test.go
 @@ -58,7 +58,7 @@ func TestHostname(t *testing.T) {
  			})
  
@@ -132,15 +132,15 @@ index d537708e..d369344c
  			})
  		})
  	}
-diff --git a/feature/system/tests/system_base_test.go b/feature/system/tests/system_base_test.go
+diff --git a/feature/system/tests/system_base_test/system_base_test.go b/feature/system/tests/system_base_test/system_base_test.go
 old mode 100644
 new mode 100755
-diff --git a/feature/system/tests/time_test.go b/feature/system/tests/time_test.go
+diff --git a/feature/system/tests/system_base_test/time_test.go b/feature/system/tests/system_base_test/time_test.go
 old mode 100644
 new mode 100755
 index 0c7e9dca..1aa4fc81
---- a/feature/system/tests/time_test.go
-+++ b/feature/system/tests/time_test.go
+--- a/feature/system/tests/system_base_test/time_test.go
++++ b/feature/system/tests/system_base_test/time_test.go
 @@ -29,7 +29,7 @@ import (
  //
  // telemetry_path:/system/state/current-datetime

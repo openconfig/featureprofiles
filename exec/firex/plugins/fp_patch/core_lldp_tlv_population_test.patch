@@ -1,17 +1,9 @@
 diff --git a/feature/lldp/tests/core_lldp_tlv_population_test/core_lldp_tlv_population_test.go b/feature/lldp/tests/core_lldp_tlv_population_test/core_lldp_tlv_population_test.go
-index c9d29393..99bfc84b
+index 339bd0d8..c2684449 100644
 --- a/feature/lldp/tests/core_lldp_tlv_population_test/core_lldp_tlv_population_test.go
 +++ b/feature/lldp/tests/core_lldp_tlv_population_test/core_lldp_tlv_population_test.go
-@@ -135,6 +135,7 @@ func verifyNodeTelemetry(t *testing.T, node, peer gnmi.DeviceOrOpts, nodePort, p
- 	// Ensure that DUT does not generate any LLDP messages irrespective of the
- 	// configuration of lldp/interfaces/interface/config/enabled (TRUE or FALSE)
- 	// on any interface.
-+	// interfaces config override global config for XR
- 	var gotLen int
- 	if !lldpEnabled {
- 		if _, ok := gnmi.Watch(t, node, interfacePath.State(), time.Minute, func(val *ygnmi.Value[*oc.Lldp_Interface]) bool {
-@@ -143,9 +144,9 @@ func verifyNodeTelemetry(t *testing.T, node, peer gnmi.DeviceOrOpts, nodePort, p
- 				return false
+@@ -143,9 +143,9 @@ func verifyNodeTelemetry(t *testing.T, node, peer gnmi.DeviceOrOpts, nodePort, p
+ 				return true
  			}
  			gotLen = len(intf.Neighbor)
 -			return gotLen == 0
