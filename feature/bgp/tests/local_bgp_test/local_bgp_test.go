@@ -91,10 +91,9 @@ func TestEstablish(t *testing.T) {
 	intf2 := ateAttrs.NewOCInterface(atePortName)
 	gnmi.Replace(t, ate, gnmi.OC().Interface(intf2.GetName()).Config(), intf2)
 
-
 	// Configure Network instance type, it has to be configured explicitly by user.
 	configureNIType(t)
-  
+
 	if *deviations.ExplicitPortSpeed {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
 		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
