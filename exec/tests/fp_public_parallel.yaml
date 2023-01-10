@@ -269,55 +269,55 @@ tests:
   binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-linux-ixia
   testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
   baseconf: topologies/cisco/hw/8808-FOX2508P0JU/basecfgfp-ottawa-lab2-r4.proto
-#manan's testbed
+#manan's testbed (tmp, wanmathy)
 - name: gNOI-3.4 (Chassis Reboot Status and Reboot Cancellation) 
   path: feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
   owner: arvbaska@cisco.com
   mustpass: true
   priority: 42
-  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
-  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
-  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
   patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
   mustpass: true
   priority: 3
-  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
-  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
-  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
 - name: TE-6.1 (Route Removal via Flush) 
   path: feature/gribi/ate_tests/route_removal_via_flush_test
   owner: mananpat@cisco.com
   mustpass: true
   priority: 3
-  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
-  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
-  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
 - name: TE-6.2 (Route Removal In Non Default VRF) 
   path: feature/gribi/ate_tests/route_removal_non_default_vrf_test
   owner: mananpat@cisco.com
   mustpass: true
   priority: 3
-  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
-  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
-  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
 - name: TE-11.1 (Backup NHG Single NH) 
   path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
   owner: mananpat@cisco.com
   mustpass: true
   priority: 3
-  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
-  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
-  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
 - name: TE-1.1 (Static ARP) 
   path: feature/interface/staticarp/ate_tests/static_arp_test
   owner: mbagherz@cisco.com
   mustpass: true
   priority: 50
-  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
-  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
-  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
 - name: RT-5.1 (Singleton Interface) 
   path: feature/interface/singleton/ate_tests/singleton_test
   timeout: 7200
@@ -325,35 +325,35 @@ tests:
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 31
-  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
-  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
-  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
 - name: OC-1.1
   path: feature/system/tests/system_base_test
   patch: exec/firex/plugins/fp_patch/system_test.patch
   owner: agvarghe@cisco.com
   mustpass: false
   priority: 46
-  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
-  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
-  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
 - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace) 
   path: feature/system/gnmi/metadata/tests/annotation_test
   owner: kjahed@cisco.com
   mustpass: true
   skip: false
   priority: 38
-  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
-  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
-  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
-- name: dp-1.4 (QoS Interface Output Queue Counters)
-  path: experimental/qos/otg_tests/qos_output_queue_counters_test
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+- name: DP-1.4 (QoS Interface Output Queue Counters)
+  path: feature/experimental/qos/ate_tests/qos_output_queue_counters_test
   owner: arvbaska@cisco.com
   mustpass: true
   priority: 802
-  binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
-  testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
-  baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+  testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+  binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+  baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
 #wanmathy's testbed
 - name: gNOI-3.2 (Per-Component Reboot) 
   path: feature/gnoi/system/tests/per_component_reboot_test
@@ -366,7 +366,7 @@ tests:
   binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
   baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
 - name: DP-1.2 (QoS policy feature config)
-  path: experimental/qos/ate_tests/qos_policy_config_test
+  path: feature/experimental/qos/ate_tests/qos_policy_config_test
   owner: arvbaska@cisco.com
   mustpass: true
   priority: 802
@@ -374,7 +374,7 @@ tests:
   binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
   baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
 - name: DP-1.3 (QoS ECN feature config) 
-  path: experimental/qos/ate_tests/qos_ecn_config_test
+  path: feature/experimental/qos/ate_tests/qos_ecn_config_test
   owner: arvbaska@cisco.com
   mustpass: true
   priority: 802

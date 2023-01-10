@@ -394,18 +394,18 @@ tests:
   owner: mbagherz@cisco.com
   mustpass: true
   priority: 801
-- name: dp-1.4 (QoS Interface Output Queue Counters)
-  path: experimental/qos/otg_tests/qos_output_queue_counters_test
+- name: DP-1.4 (QoS Interface Output Queue Counters)
+  path: feature/experimental/qos/ate_tests/qos_output_queue_counters_test
   owner: arvbaska@cisco.com
   mustpass: true
   priority: 802
 - name: DP-1.2 (QoS policy feature config)
-  path: experimental/qos/ate_tests/qos_policy_config_test
+  path: feature/experimental/qos/ate_tests/qos_policy_config_test
   owner: arvbaska@cisco.com
   mustpass: true
   priority: 802
 - name: DP-1.3 (QoS ECN feature config) 
-  path: experimental/qos/ate_tests/qos_ecn_config_test
+  path: feature/experimental/qos/ate_tests/qos_ecn_config_test
   owner: arvbaska@cisco.com
   mustpass: true
   priority: 802
