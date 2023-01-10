@@ -60,10 +60,6 @@ var (
 	streamName1 = "p4rt1"
 	streamName2 = "p4rt2"
 
-	//Enter Component name used as string type
-	comp1name = flag.String("p4rt_node_name1", "FPC0:NPU0", "component name for P4RT Node1")
-	comp2name = flag.String("p4rt_node_name2", "FPC1:NPU0", "component name for P4RT Node2")
-
 	electionId = uint64(100)
 	//Enter the P4RT openconfig node-id and P4RT port-id to be configured in DUT and for client connection
 	deviceId1 = uint64(100)
@@ -115,14 +111,21 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	return i
 }
 
-// configureDeviceId configures p4rt device-id on the DUT.
-func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, components []string, deviceids []uint64) {
-	for i, comp := range components {
-		component := oc.Component{}
-		component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-		component.Name = ygot.String(comp)
-		component.IntegratedCircuit.NodeId = ygot.Uint64(deviceids[i])
-		gnmi.Replace(t, dut, gnmi.OC().Component(comp).Config(), &component)
+// configureDeviceIDs configures p4rt device-id on the DUT.
+func configureDeviceIDs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	deviceIDs := []uint64{deviceId1, deviceId2}
+
+	for idx, p := range []string{"port1", "port2"} {
+		if _, ok := nodes[p]; !ok {
+			t.Fatalf("Couldn't find P4RT Node for port: %s", p)
+		}
+		t.Logf("Configuring P4RT Node: %s", nodes[p])
+		c := oc.Component{}
+		c.Name = ygot.String(nodes[p])
+		c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+		c.IntegratedCircuit.NodeId = ygot.Uint64(deviceIDs[idx])
+		gnmi.Replace(t, dut, gnmi.OC().Component(nodes[p]).Config(), &c)
 	}
 }
 
@@ -225,6 +228,9 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 			}); err != nil {
 				return errors.New("Errors seen when sending ClientArbitration message.")
 			}
+			if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
+				return err
+			}
 			if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamlist[index].Name, 1); arbErr != nil {
 				return errors.New("Errors seen in ClientArbitration response.")
 			}
@@ -305,26 +311,26 @@ func TestP4rtConnect(t *testing.T) {
 
 	// configure DUT with P4RT node-id and ids on different FAPs
 	configureDUT(t, dut)
-	configureDeviceId(ctx, t, dut, []string{*comp1name, *comp2name}, []uint64{deviceId1, deviceId2})
+	configureDeviceIDs(ctx, t, dut)
 
 	configurePortId(ctx, t, dut)
 	top := configureATE(t, ate)
 
 	// Setup two different clients for different FAPs
-	client1 := p4rt_client.P4RTClient{}
+	client1 := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := client1.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
-	client2 := p4rt_client.P4RTClient{}
+	client2 := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := client2.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	args := &testArgs{
 		ctx:     ctx,
-		client1: &client1,
-		client2: &client2,
+		client1: client1,
+		client2: client2,
 		dut:     dut,
 		ate:     ate,
 		top:     top,
