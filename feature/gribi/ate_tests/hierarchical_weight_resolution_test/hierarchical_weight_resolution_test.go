@@ -261,6 +261,9 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 	a.configSubinterfaceDUT(t, i)
 	intfPath := gnmi.OC().Interface(p.Name())
 	gnmi.Replace(t, d, intfPath.Config(), i)
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p)
+	}
 	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
 }
 
