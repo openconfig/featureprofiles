@@ -10,10 +10,9 @@ This document specifies the requirements for p4rt test implementation.
     1.  WBB P4 Protobuf file:
         https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/p4rt/wbb.p4info.pb.txt
 
-3.  Tests should create new P4RT clients using the
-    `p4rt_client.NewP4RTClient()` function, which sets up the
-    `StreamTermErr` channel required to check errors when the p4rt stream
-    terminates.
+3.  Tests should create new P4RT clients using the `p4rt_client.NewP4RTClient()`
+    function, which sets up the `StreamTermErr` channel required to check errors
+    when the p4rt stream terminates.
 
 4.  Tests should make use of Ondatra Raw API `dut.RawAPIs().P4RT().Default(t)`
     during client instantiation.
@@ -23,7 +22,13 @@ This document specifies the requirements for p4rt test implementation.
     `p4rtutils.StreamTermErr()` function which returns an Error if the p4rt
     stream has been terminated.
 
-    * The test blocks indefinitely because `client.StreamChannelGetArbitrationResp()` internally calls `stream.GetArbitration(minSeqNum)`. If `minSeqNum` is non zero, the process blocks (using `sync.Cond.Wait()`) until atleast `minSeqNum` number of Arbitration responses are received. This method doesn't take into account a scenario where the device terminates the `stream` and would never send an Arbitration response.
+    *   The test blocks indefinitely because
+        `client.StreamChannelGetArbitrationResp()` internally calls
+        `stream.GetArbitration(minSeqNum)`. If `minSeqNum` is non zero, the
+        process blocks (using `sync.Cond.Wait()`) until atleast `minSeqNum`
+        number of Arbitration responses are received. This method doesn't take
+        into account a scenario where the device terminates the `stream` and
+        would never send an Arbitration response.
 
     ```go
     func (p *P4RTClientStream) GetArbitration(minSeqNum uint64) (uint64, *P4RTArbInfo) {
@@ -49,7 +54,11 @@ This document specifies the requirements for p4rt test implementation.
     }
     ```
 
-    * As a workaround, we need to call `p4rtutils.StreamTermErr()` after `StreamChannelCreate()` and before `StreamChannelGetArbitrationResp()`. This workaround however doesn't fix the underlying issue with the client. A proper fix would be to replace the `Cond.Wait()` with a timeout.
+    *   As a workaround, we need to call `p4rtutils.StreamTermErr()` after
+        `StreamChannelCreate()` and before `StreamChannelGetArbitrationResp()`.
+        This workaround however doesn't fix the underlying issue with the
+        client. A proper fix would be to replace the `Cond.Wait()` with a
+        timeout.
 
     ```go
     client.StreamChannelCreate(&streamParameter)
