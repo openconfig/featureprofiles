@@ -60,6 +60,165 @@ func TestMain(m *testing.M) {
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
 
+func TestQoSForwadingGroupsConfig(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	d := &oc.Root{}
+	q := d.GetOrCreateQos()
+
+	cases := []struct {
+		desc         string
+		queueName    string
+		targetGrpoup string
+	}{{
+		desc:         "forwarding-group-BE1",
+		queueName:    "0",
+		targetGrpoup: "target-group-BE1",
+	}, {
+		desc:         "forwarding-group-AF1",
+		queueName:    "4",
+		targetGrpoup: "target-group-AF1",
+	}, {
+		desc:         "forwarding-group-AF2",
+		queueName:    "1",
+		targetGrpoup: "target-group-AF2",
+	}, {
+		desc:         "forwarding-group-AF3",
+		queueName:    "5",
+		targetGrpoup: "target-group-AF3",
+	}, {
+		desc:         "forwarding-group-AF4",
+		queueName:    "2",
+		targetGrpoup: "target-group-AF4",
+	}, {
+		desc:         "forwarding-group-NC1",
+		queueName:    "3",
+		targetGrpoup: "target-group-NC1",
+	}}
+
+	t.Logf("qos forwarding groups config cases: %v", cases)
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
+			fwdGroup.SetName(tc.targetGrpoup)
+			fwdGroup.SetOutputQueue(tc.queueName)
+		})
+	}
+
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+}
+
+func TestQoSClassifierConfig(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	d := &oc.Root{}
+	q := d.GetOrCreateQos()
+
+	cases := []struct {
+		desc         string
+		name         string
+		classType    oc.E_Qos_Classifier_Type
+		termID       string
+		targetGrpoup string
+		dscpSet      []uint8
+	}{{
+		desc:         "classifier_ipv4_be1",
+		name:         "dscp_based_classifier_ipv4",
+		classType:    oc.Qos_Classifier_Type_IPV4,
+		termID:       "0",
+		targetGrpoup: "target-group-BE1",
+		dscpSet:      []uint8{0},
+	}, {
+		desc:         "classifier_ipv4_af1",
+		name:         "dscp_based_classifier_ipv4",
+		classType:    oc.Qos_Classifier_Type_IPV4,
+		termID:       "1",
+		targetGrpoup: "target-group-AF1",
+		dscpSet:      []uint8{8},
+	}, {
+		desc:         "classifier_ipv4_af2",
+		name:         "dscp_based_classifier_ipv4",
+		classType:    oc.Qos_Classifier_Type_IPV4,
+		termID:       "2",
+		targetGrpoup: "target-group-AF2",
+		dscpSet:      []uint8{16},
+	}, {
+		desc:         "classifier_ipv4_af3",
+		name:         "dscp_based_classifier_ipv4",
+		classType:    oc.Qos_Classifier_Type_IPV4,
+		termID:       "3",
+		targetGrpoup: "target-group-AF3",
+		dscpSet:      []uint8{24},
+	}, {
+		desc:         "classifier_ipv4_af4",
+		name:         "dscp_based_classifier_ipv4",
+		classType:    oc.Qos_Classifier_Type_IPV4,
+		termID:       "4",
+		targetGrpoup: "target-group-AF4",
+		dscpSet:      []uint8{32},
+	}, {
+		desc:         "classifier_ipv4_nc1",
+		name:         "dscp_based_classifier_ipv4",
+		classType:    oc.Qos_Classifier_Type_IPV4,
+		termID:       "5",
+		targetGrpoup: "target-group-NC1",
+		dscpSet:      []uint8{56},
+	}}
+
+	t.Logf("qos Classifiers config cases: %v", cases)
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			classifier := q.GetOrCreateClassifier(tc.name)
+			classifier.SetName(tc.name)
+			classifier.SetType(tc.classType)
+			term, err := classifier.NewTerm(tc.termID)
+			if err != nil {
+				t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
+			}
+
+			term.SetId(tc.termID)
+			action := term.GetOrCreateActions()
+			action.SetTargetGroup(tc.targetGrpoup)
+
+			condition := term.GetOrCreateConditions()
+			condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
+		})
+	}
+
+	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), q)
+}
+
+func TestQoSInputIntfClassifierConfig(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	dp := dut.Port(t, "port1")
+
+	cases := []struct {
+		desc                string
+		inputClassifierType oc.E_Input_Classifier_Type
+		classifier          string
+	}{{
+		desc:                "Input Classifier Type IPV4",
+		inputClassifierType: oc.Input_Classifier_Type_IPV4,
+		classifier:          "dscp_based_classifier_ipv4",
+	}}
+
+	d := &oc.Root{}
+	q := d.GetOrCreateQos()
+	i := q.GetOrCreateInterface(dp.Name())
+	i.SetInterfaceId(dp.Name())
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
+	i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+
+	t.Logf("qos input classifier config cases: %v", cases)
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
+			c.SetType(tc.inputClassifierType)
+			c.SetName(tc.classifier)
+		})
+	}
+	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), q)
+
+}
+
 func TestQoSCounters(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
