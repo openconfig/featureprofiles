@@ -37,6 +37,7 @@ var (
 )
 
 const (
+	ethernetCsmacd  = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	adminStatusUp   = oc.Interface_AdminStatus_UP
 	adminStatusDown = oc.Interface_AdminStatus_DOWN
 	operStatusUp    = oc.Interface_OperStatus_UP
@@ -172,6 +173,7 @@ func TestInterfaceStatusChange(t *testing.T) {
 		intUpdateTime := 2 * time.Minute
 		t.Run(tc.desc, func(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
+			i.Type = ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedOperStatus)
@@ -918,7 +920,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled {
+		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 			s.Enabled = ygot.Bool(true)
 		}
 		a := s.GetOrCreateAddress(intf.ipAddr)

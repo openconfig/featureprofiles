@@ -198,6 +198,18 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	dutBGP := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	gnmi.Replace(t, dut, dutBGP.Config(), d.bgpOC)
+
+	if *deviations.ExplicitPortSpeed {
+		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
+			fptest.SetPortSpeed(t, dut.Port(t, a.Name))
+		}
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
+			ocName := dut.Port(t, a.Name).Name()
+			fptest.AssignToNetworkInstance(t, dut, ocName, *deviations.DefaultNetworkInstance, 0)
+		}
+	}
 }
 
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
@@ -206,7 +218,7 @@ func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 			Bgp().
 			Neighbor(neighbor).
-			SessionState().State(), time.Second*15, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+			SessionState().State(), time.Second*20, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
 	t.Log("BGP sessions established")
 }

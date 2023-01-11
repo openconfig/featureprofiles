@@ -16,7 +16,6 @@
 package route_propagation_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -131,6 +130,18 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	dutBGP := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	gnmi.Replace(t, dut, dutBGP.Config(), d.bgpOC)
+
+	if *deviations.ExplicitPortSpeed {
+		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
+			fptest.SetPortSpeed(t, dut.Port(t, a.Name))
+		}
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
+			ocName := dut.Port(t, a.Name).Name()
+			fptest.AssignToNetworkInstance(t, dut, ocName, *deviations.DefaultNetworkInstance, 0)
+		}
+	}
 }
 
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
@@ -300,11 +311,8 @@ func TestBGP(t *testing.T) {
 
 			for _, prefix := range tc.wantPrefixes {
 				rib := gnmi.OC().NetworkInstance("port2").
-					Protocol(
-						oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-						fmt.Sprintf("%d", ateAS2),
-					).Bgp().
-					Rib()
+					Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "0").
+					Bgp().Rib()
 				// Don't care about the value, but I can only fetch leaves from ATE telemetry. This
 				// should fail in the Get(t) method if the Route is missing.
 				if prefix.v4 != "" {
