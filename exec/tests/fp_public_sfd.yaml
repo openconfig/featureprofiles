@@ -174,7 +174,7 @@ tests:
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 6
-- name: dp-1.4 (QoS Interface Output Queue Counters) 
+- name: DP-1.4 (QoS Interface Output Queue Counters) 
   path: feature/experimental/qos/ate_tests/qos_output_queue_counters_test
   patch: exec/firex/plugins/fp_patch/qos_output_queue_counters_test.patch
   owner: arvbaska@cisco.com
@@ -393,11 +393,6 @@ tests:
   owner: mbagherz@cisco.com
   mustpass: true
   priority: 801
-- name: DP-1.4 (QoS Interface Output Queue Counters)
-  path: feature/experimental/qos/ate_tests/qos_output_queue_counters_test
-  owner: arvbaska@cisco.com
-  mustpass: true
-  priority: 802
 - name: DP-1.2 (QoS policy feature config)
   path: feature/experimental/qos/ate_tests/qos_policy_config_test
   owner: arvbaska@cisco.com
