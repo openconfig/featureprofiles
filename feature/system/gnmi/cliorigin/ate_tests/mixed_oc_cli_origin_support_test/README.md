@@ -5,7 +5,7 @@
 Ensure that both CLI and OC configuration can be pushed to the device at the
 same time.
 
-## Procedure
+## Common Case
 
 Note: this test is intended to cover only the case of pushing some configuration
 along with OC paths - since it is unknown what CLI configuration would be
@@ -55,3 +55,15 @@ required in the emergency case that is covered by this requirement.
         ```
 
 *   Validate that DUT port-1 description is `"from cli"`.
+
+## Interdependent Case
+
+There latter two test cases cover setting interdependent CLI and OC configuration in the same request (OC requires CLI to be applied first in order to make sense).
+
+* First, we provide CLI update + OC update (in this order) in the same Set() request.
+
+* Second, we provide OC update + CLI update (in this order) in the same Set() request.
+
+In both cases, CLI is ARISTA-specific and a test will skip if the DUT is from another vendor.
+
+The second case is not a requirement at this point and will skip if failed. However, DUTs from ARISTA are known to pass it.
