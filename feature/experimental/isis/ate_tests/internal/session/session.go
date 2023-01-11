@@ -210,7 +210,7 @@ func (s *TestSession) ConfigISIS(ocFn func(*oc.NetworkInstance_Protocol_Isis), a
 
 // PushAndStart calls PushDUT and PushAndStartATE to send config to both
 // devices.
-func (s *TestSession) PushAndStart(t *testing.T) error {
+func (s *TestSession) PushAndStart(t testing.TB) error {
 	t.Helper()
 	if err := s.PushDUT(context.Background()); err != nil {
 		return err

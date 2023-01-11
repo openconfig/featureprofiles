@@ -168,7 +168,7 @@ func dutInterface(p *ondatra.Port) *oc.Interface {
 }
 
 // configureDUT configures all the interfaces on the DUT.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
 
 	// We add a discard route so that when the nexthop interface goes
