@@ -230,7 +230,6 @@ tests:
   path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
   args:
       - '-deviation_interface_counters_from_container="true"'
-      - '-deviation_interface_enabled="true"'
       - '-deviation_ipv4_missing_enabled="true"'
       - '-deviation_subinterface_packet_counters_missing="true"'
   owner: agvarghe@cisco.com
