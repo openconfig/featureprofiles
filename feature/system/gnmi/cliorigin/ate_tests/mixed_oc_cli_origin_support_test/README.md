@@ -39,7 +39,7 @@ required in the emergency case that is covered by this requirement.
     *   `origin: ""` (openconfig, default origin) setting the DUT port-1 string
         value at `/interfaces/interface/config/description` to `"from oc"`.
 
-*   Validate that DUT port-1 description is `"from oc"`.
+*   Validate that DUT port-1 description is `"from cli"` as CLI value should take precendence over OpenConfig as per [Mixing Schemas in gNMI](https://github.com/openconfig/reference/blob/master/rpc/gnmi/mixed-schema.md).
 
 *   Push overlapping mixed SetRequest specifying OpenConfig before CLI for
     DUT port-1.
