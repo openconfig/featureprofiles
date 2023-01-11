@@ -71,6 +71,9 @@ duts {
    p4rt{
      target: "10.85.84.159:57900"
    }
+   ssh{
+     target: "10.85.84.159:57902"
+   }
    # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
