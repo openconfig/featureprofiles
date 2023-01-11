@@ -1,8 +1,16 @@
 diff --git a/feature/gribi/ate_tests/hierarchical_weight_resolution_test/hierarchical_weight_resolution_test.go b/feature/gribi/ate_tests/hierarchical_weight_resolution_test/hierarchical_weight_resolution_test.go
-index dd4cba40..ee0c03f9 100644
+index dd4cba4..cf581e9 100644
 --- a/feature/gribi/ate_tests/hierarchical_weight_resolution_test/hierarchical_weight_resolution_test.go
 +++ b/feature/gribi/ate_tests/hierarchical_weight_resolution_test/hierarchical_weight_resolution_test.go
-@@ -60,7 +60,7 @@ const (
+@@ -34,6 +34,7 @@ import (
+ 	"github.com/openconfig/ondatra"
+ 	"github.com/openconfig/ondatra/gnmi"
+ 	"github.com/openconfig/ondatra/gnmi/oc"
++	"github.com/openconfig/ygnmi/ygnmi"
+ 	"github.com/openconfig/ygot/ygot"
+ )
+ 
+@@ -60,7 +61,7 @@ const (
  	nonDefaultVRF   = "VRF-1"
  	// 'deviation' is the maximum difference that is allowed between the observed
  	// traffic distribution and the required traffic distribution.
@@ -11,23 +19,31 @@ index dd4cba40..ee0c03f9 100644
  )
  
  var (
-@@ -285,12 +285,13 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
+@@ -283,14 +284,16 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
+ 
+ 		dni := gnmi.OC().NetworkInstance(a.networkInstance)
  		gnmi.Replace(t, d, dni.Config(), ni)
- 		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
+-		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
++		//fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
  	} else {
 -		dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
-+		/*dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
-+		//commented to accout for this bug https://cdetsng.cisco.com/webui/#view=CSCwd49006
- 		gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
- 			Id:           ygot.String(p.Name()),
- 			Interface:    ygot.String(p.Name()),
- 			Subinterface: ygot.Uint32(0),
+-		gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
+-			Id:           ygot.String(p.Name()),
+-			Interface:    ygot.String(p.Name()),
+-			Subinterface: ygot.Uint32(0),
 -		})
-+		})*/
++		if *deviations.ExplicitInterfaceInDefaultVRF {
++			dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
++			gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
++				Id:           ygot.String(p.Name()),
++				Interface:    ygot.String(p.Name()),
++				Subinterface: ygot.Uint32(0),
++			})
++		}
  	}
  }
  
-@@ -299,8 +300,8 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
+@@ -299,8 +302,8 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
  func (a *attributes) configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
  	t.Helper()
  	p := dut.Port(t, a.Name)
@@ -37,3 +53,79 @@ index dd4cba40..ee0c03f9 100644
  }
  
  // ConfigureATE configures Ethernet + IPv4 on the ATE. If the number of
+@@ -385,27 +388,30 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
+ 	return results
+ }
+ 
+-// aftNextHopWeights queries AFT telemetry using Get() and returns
+-// the weights. If not-found, an empty list is returned.
+-func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, networkInstance string) []uint64 {
+-	aft := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(networkInstance).Afts().State())
+-	var nhgD *oc.NetworkInstance_Afts_NextHopGroup
+-	for _, nhgData := range aft.NextHopGroup {
+-		if nhgData.GetProgrammedId() == nhg {
+-			nhgD = nhgData
+-			break
++// checkAftNextHopWeights queries AFT telemetry using GNMI streaming and verifies
++// if a next-hop group with certain weights is programmed correctly.  
++func checkAftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhgProgID uint64, weights []uint64, networkInstance string) bool {
++	_, found := gnmi.WatchAll(t, dut, gnmi.OC().NetworkInstance(networkInstance).Afts().NextHopGroupAny().State(), time.Minute, func(y *ygnmi.Value[*oc.NetworkInstance_Afts_NextHopGroup]) bool {
++		nhg, ok := y.Val()
++		if !ok {
++			return false
+ 		}
+-	}
+-	if nhgD == nil {
+-		return []uint64{}
+-	}
+-
+-	got := []uint64{}
+-	for _, nhD := range nhgD.NextHop {
+-		got = append(got, nhD.GetWeight())
+-	}
++		if nhg.GetProgrammedId() != nhgProgID {
++			return false
++		}
++		got := []uint64{}
++		for _, nhD := range nhg.NextHop {
++			got = append(got, nhD.GetWeight())
++		}
++		if !cmp.Equal(weights, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b })) {
++			t.Logf("Unexpected weights for NI: %s, NHG: %d, got: %v, want: %v", networkInstance, nhgProgID, got, weights)
++			return false
++		} else {
++			return true
++		}
++	}).Await(t)
+ 
+-	return got
++	return found
+ }
+ 
+ // testBasicHierarchicalWeight tests and validates traffic through 4 Vlans.
+@@ -472,10 +478,8 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
+ 			2: {1, 3},
+ 			3: {2, 3},
+ 		} {
+-			got := aftNextHopWeights(t, dut, nhg, defaultVRF)
+-			ok := cmp.Equal(weights, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
+-			if !ok {
+-				t.Errorf("Valid weights not present for NI: %s, NHG: %d, got: %v, want: %v", defaultVRF, nhg, got, weights)
++			if !checkAftNextHopWeights(t, dut, nhg, weights, defaultVRF) {
++				t.Errorf("Valid weights not present for NI: %s, NHG: %v, want: %v", defaultVRF, nhg, weights)
+ 			}
+ 		}
+ 	})
+@@ -559,10 +563,8 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
+ 			2: {2, 3},
+ 			3: {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+ 		} {
+-			got := aftNextHopWeights(t, dut, nhg, defaultVRF)
+-			ok := cmp.Equal(weights, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
+-			if !ok {
+-				t.Errorf("Valid weights not present for NI: %s, NHG: %d, got: %v, want: %v", defaultVRF, nhg, got, weights)
++			if !checkAftNextHopWeights(t, dut, nhg, weights, defaultVRF) {
++				t.Errorf("Valid weights not present for NI: %s, NHG: %v, want: %v", defaultVRF, nhg, weights)
+ 			}
+ 		}
+ 	})
