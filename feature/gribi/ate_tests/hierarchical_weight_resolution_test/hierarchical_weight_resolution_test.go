@@ -299,8 +299,8 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
 func (a *attributes) configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	p := dut.Port(t, a.Name)
-	a.configureNetworkInstance(t, dut, p)
 	a.configInterfaceDUT(t, dut, p)
+	a.configureNetworkInstance(t, dut, p)
 }
 
 // ConfigureATE configures Ethernet + IPv4 on the ATE. If the number of
@@ -396,10 +396,6 @@ func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, network
 			break
 		}
 	}
-	if nhgD == nil {
-		return []uint64{}
-	}
-
 	got := []uint64{}
 	for _, nhD := range nhgD.NextHop {
 		got = append(got, nhD.GetWeight())
