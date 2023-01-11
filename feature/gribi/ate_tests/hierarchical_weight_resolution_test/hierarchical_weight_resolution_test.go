@@ -60,7 +60,7 @@ const (
 	nonDefaultVRF   = "VRF-1"
 	// 'deviation' is the maximum difference that is allowed between the observed
 	// traffic distribution and the required traffic distribution.
-	deviation = 1
+	deviation = 0.5
 )
 
 var (
@@ -396,6 +396,11 @@ func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, network
 			break
 		}
 	}
+
+	if nhgD == nil {
+		return []uint64{}
+	}
+
 	got := []uint64{}
 	for _, nhD := range nhgD.NextHop {
 		got = append(got, nhD.GetWeight())
