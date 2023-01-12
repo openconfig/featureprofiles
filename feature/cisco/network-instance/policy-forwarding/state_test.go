@@ -18,36 +18,36 @@ const (
 func Test_State_Interface(t *testing.T) {
 
     dut := ondatra.DUT(t, "dut")
-	ctx := context.Background()
-	util.GNMIWithText(ctx, t, dut, "\n")
+    ctx := context.Background()
+    util.GNMIWithText(ctx, t, dut, "\n")
 
     t.Log("Testing openconfig-network-instance:network-instances/network-instance/policy-forwarding/interfaces/interface \n")
 
-	t.Run("Test", func(t *testing.T) {
-		r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
-		r1.SequenceId = ygot.Uint32(1)
-		r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
-		r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+    t.Run("Test", func(t *testing.T) {
+        r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+        r1.SequenceId = ygot.Uint32(1)
+        r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
+        r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
             SourceAddress: ygot.String("1.1.1.1/32"),
-		}
+        }
 
-		p := oc.NetworkInstance_PolicyForwarding_Policy{}
-		p.PolicyId = ygot.String(pbrName)
-		p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
-		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
+        p := oc.NetworkInstance_PolicyForwarding_Policy{}
+        p.PolicyId = ygot.String(pbrName)
+        p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+        p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 
         r2 := oc.NetworkInstance_PolicyForwarding_Interface{}
         r2.InterfaceId = ygot.String(InterfaceName)
 
-		policy := oc.NetworkInstance_PolicyForwarding{}
-		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+        policy := oc.NetworkInstance_PolicyForwarding{}
+        policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
         policy.Interface = map[string]*oc.NetworkInstance_PolicyForwarding_Interface{"id1": &r2}
 
         t.Run("Update", func(t *testing.T) {
-			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Config(), &policy)
+            gnmi.Update(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Config(), &policy)
 
             gnmi.Update(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Interface(InterfaceName).ApplyVrfSelectionPolicy().Config(), pbrName)
-		})
+        })
 
         t.Run("Get-State", func(t *testing.T) {
             state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Interface(InterfaceName)
