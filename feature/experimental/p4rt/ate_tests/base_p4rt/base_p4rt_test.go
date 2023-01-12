@@ -16,7 +16,6 @@ package base_p4rt_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -244,7 +243,6 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	if err != nil {
 		return errors.New("Errors seen when loading p4info file.")
 	}
-	setp4Info, _ := json.Marshal(p4Info)
 
 	// Send SetForwardingPipelineConfig for p4rt leader client.
 	fmt.Println("Sending SetForwardingPipelineConfig for both clients")
@@ -275,12 +273,8 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 			return errors.New("Errors seen when sending SetForwardingPipelineConfig.")
 		}
 		// Compare P4Info from GetForwardingPipelineConfig and SetForwardingPipelineConfig
-		getp4Info, _ := json.Marshal(resp.Config.P4Info)
-		if cmp.Equal(string(setp4Info), string(getp4Info)) {
-			fmt.Println("P4info matches fine for client", index)
-		} else {
-			err := fmt.Errorf("P4info does not match for client %d", index)
-			fmt.Println(err.Error())
+		if diff := cmp.Diff(p4Info, *resp.Config.P4Info, protocmp.Transform()); diff != "" {
+			return fmt.Errorf("P4info diff (-want +got): \n%s", diff)
 		}
 	}
 	return nil
