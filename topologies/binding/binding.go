@@ -346,8 +346,8 @@ func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
 	return &binding.Dims{
 		Name:            bd.Name,
 		Vendor:          td.Vendor,
-		HardwareModel:   td.HardwareModel,
-		SoftwareVersion: td.SoftwareVersion,
+		HardwareModel:   td.GetHardwareModel(),
+		SoftwareVersion: td.GetSoftwareVersion(),
 		Ports:           portmap,
 	}, nil
 }
