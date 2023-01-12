@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -58,6 +59,16 @@ var (
 		ondatra.CISCO:   6,
 		ondatra.JUNIPER: 6,
 	}
+)
+
+const (
+	supervisorType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	linecardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
+	powerSupplyType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY
+	fabricType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
+	fabricChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FRU
+	switchChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
+	cpuType         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU
 )
 
 var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
@@ -324,6 +335,7 @@ func TestQoSCounters(t *testing.T) {
 
 func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	vendor := dut.Vendor()
 	var componentParent = map[ondatra.Vendor]map[string]string{
 		ondatra.CISCO: {
 			"Fabric":      "Rack",
@@ -342,68 +354,41 @@ func TestComponentParent(t *testing.T) {
 			"SwitchChip":  "Linecard",
 		},
 	}
-	vendor := dut.Vendor()
-	vendorComponentMapping := map[ondatra.Vendor]map[string]string{
-		ondatra.CISCO: {
-			"Fabric":       "^Rack [0-9]-Fabric Card Slot [0-9]$",
-			"FabricChip":   "^[0-9]/FC[0-9]$",
-			"Linecard":     "^[0-9]/[0-9]/CPU[0-9]$",
-			"Power supply": "^Rack [0-9]-[PSU|Power].*Slot [0-9]$",
-			"Supervisor":   "^[0-9]/RP[0-9]/CPU[0-9]$",
-			"SwitchChip":   "^[0-9]/[0-9]/CPU[0-9]-LC-SW.*Switch$",
-		},
-		ondatra.ARISTA: {
-			"Fabric":       "^Fabric[0-9]",
-			"FabricChip":   "^FabricChip",
-			"Linecard":     "^Linecard[0-9]",
-			"Power supply": "^PowerSupply[0-9]",
-			"Supervisor":   "^Supervisor[0-9]$",
-			"SwitchChip":   "^SwitchChip",
-		},
-	}
 
 	cases := []struct {
 		desc          string
-		regexpPattern string
+		componentType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT
 		parent        string
 	}{{
 		desc:          "Fabric",
-		regexpPattern: vendorComponentMapping[vendor]["Fabric"],
+		componentType: fabricType,
 		parent:        componentParent[vendor]["Fabric"],
 	}, {
 		desc:          "FabricChip",
-		regexpPattern: vendorComponentMapping[vendor]["FabricChip"],
+		componentType: fabricChipType,
 		parent:        componentParent[vendor]["FabricChip"],
 	}, {
 		desc:          "Linecard",
-		regexpPattern: vendorComponentMapping[vendor]["Linecard"],
+		componentType: linecardType,
 		parent:        componentParent[vendor]["Linecard"],
 	}, {
 		desc:          "Power supply",
-		regexpPattern: vendorComponentMapping[vendor]["Power supply"],
+		componentType: powerSupplyType,
 		parent:        componentParent[vendor]["Power supply"],
 	}, {
 		desc:          "Supervisor",
-		regexpPattern: vendorComponentMapping[vendor]["Supervisor"],
+		componentType: supervisorType,
 		parent:        componentParent[vendor]["Supervisor"],
 	}, {
 		desc:          "SwitchChip",
-		regexpPattern: vendorComponentMapping[vendor]["SwitchChip"],
+		componentType: switchChipType,
 		parent:        componentParent[vendor]["SwitchChip"],
 	}}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			r, err := regexp.Compile(tc.regexpPattern)
-			if err != nil {
-				t.Fatalf("Cannot compile regular expression: %v", err)
-			}
-			cards := findMatchedComponents(t, dut, r)
-			t.Logf("Found card list for %v: %v", tc.desc, cards)
-
-			if len(cards) == 0 {
-				t.Errorf("Get card list for %q on %v: got 0, want > 0", tc.desc, dut.Model())
-			}
+			cards := components.FindComponentsByType(t, dut, tc.componentType)
+			t.Logf("Found card list: %v", cards)
 			for _, card := range cards {
 				t.Logf("Validate card %s", card)
 				parent := gnmi.Lookup(t, dut, gnmi.OC().Component(card).Parent().State())
@@ -423,21 +408,9 @@ func TestComponentParent(t *testing.T) {
 
 func TestSoftwareVersion(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	cardMap := map[ondatra.Vendor]string{
-		ondatra.ARISTA: "^Supervisor[0-9]",
-		ondatra.CISCO:  "^[0-9]/RP[0-9]/CPU[0-9]-.*$",
-	}
-	regexpPattern := cardMap[dut.Vendor()]
 
-	r, err := regexp.Compile(regexpPattern)
-	if err != nil {
-		t.Fatalf("Cannot compile regular expression: %v", err)
-	}
-	cards := findMatchedComponents(t, dut, r)
-	t.Logf("Found card list for %v: %v", regexpPattern, cards)
-	if len(cards) == 0 {
-		t.Errorf("Get card list for %q on %v: got 0, want > 0", regexpPattern, dut.Model())
-	}
+	cards := components.FindComponentsByType(t, dut, cpuType)
+	t.Logf("Found card list: %v", cards)
 
 	// Validate Supervisor components include software version.
 	swVersionFound := false
@@ -478,17 +451,8 @@ func TestSoftwareVersion(t *testing.T) {
 func TestCPU(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	supervisorMap := map[ondatra.Vendor]string{
-		ondatra.ARISTA: "^Supervisor[0-9]",
-		ondatra.CISCO:  "^[0-9]/RP[0-9]/CPU[0-9]$",
-	}
-	regexpPattern := supervisorMap[dut.Vendor()]
-	r := regexp.MustCompile(regexpPattern)
-	cpus := findMatchedComponents(t, dut, r)
-	t.Logf("Found CPU list: %v", cpus)
-	if len(cpus) == 0 {
-		t.Fatalf("Get CPU list for %q: got 0, want > 0", dut.Model())
-	}
+	cpus := components.FindComponentsByType(t, dut, cpuType)
+	t.Logf("Found card list: %v", cpus)
 
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
@@ -509,17 +473,9 @@ func TestCPU(t *testing.T) {
 
 func TestSupervisorLastRebootInfo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	regexpPattern := "^Supervisor[0-9]"
 
-	r, err := regexp.Compile(regexpPattern)
-	if err != nil {
-		t.Fatalf("Cannot compile regular expression: %v", err)
-	}
-	cards := findMatchedComponents(t, dut, r)
-	t.Logf("Found card list for %v: %v", regexpPattern, cards)
-	if len(cards) == 0 {
-		t.Errorf("Get card list for %q on %v: got 0, want > 0", regexpPattern, dut.Model())
-	}
+	cards := components.FindComponentsByType(t, dut, supervisorType)
+	t.Logf("Found card list: %v", cards)
 
 	rebootTimeFound := false
 	rebootReasonFound := false
@@ -544,17 +500,6 @@ func TestSupervisorLastRebootInfo(t *testing.T) {
 	if !rebootReasonFound {
 		t.Errorf("rebootReason.Lookup(t).IsPresent(): got %v, want %v", rebootReasonFound, !rebootReasonFound)
 	}
-}
-
-func findMatchedComponents(t *testing.T, dut *ondatra.DUTDevice, r *regexp.Regexp) []string {
-	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().Name().State())
-	var s []string
-	for _, c := range components {
-		if len(r.FindString(c)) > 0 {
-			s = append(s, c)
-		}
-	}
-	return s
 }
 
 func TestAFT(t *testing.T) {
