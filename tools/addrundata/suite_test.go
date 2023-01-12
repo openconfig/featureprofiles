@@ -274,17 +274,17 @@ func checkMarkdowns(t testing.TB, featuredir string, ts testsuite, markdowns map
 
 func TestSuite_ReadFixWriteReadCheck(t *testing.T) {
 	markdowns := map[string]*parsedData{
-		"foo/bar/ate_tests/qux_test": &parsedData{
+		"foo/bar/ate_tests/qux_test": {
 			testPlanID:      "XX-2.1",
 			testDescription: "Qux Functional Test",
 			hasData:         true,
 		},
-		"foo/bar/otg_tests/qux_test": &parsedData{
+		"foo/bar/otg_tests/qux_test": {
 			testPlanID:      "XX-2.1",
 			testDescription: "Qux Functional Test",
 			hasData:         true,
 		},
-		"foo/bar/tests/quuz_test": &parsedData{
+		"foo/bar/tests/quuz_test": {
 			testPlanID:      "XX-2.2",
 			testDescription: "Quuz Functional Test",
 			hasData:         true,
