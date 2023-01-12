@@ -285,12 +285,14 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
 		gnmi.Replace(t, d, dni.Config(), ni)
 		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
 	} else {
-		dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
-		gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
-			Id:           ygot.String(p.Name()),
-			Interface:    ygot.String(p.Name()),
-			Subinterface: ygot.Uint32(0),
-		})
+		if *deviations.ExplicitInterfaceInDefaultVRF {
+			dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+			gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
+				Id:           ygot.String(p.Name()),
+				Interface:    ygot.String(p.Name()),
+				Subinterface: ygot.Uint32(0),
+			})
+		}
 	}
 }
 
