@@ -17,48 +17,9 @@ This document specifies the requirements for p4rt test implementation.
 4.  Tests should make use of Ondatra Raw API `dut.RawAPIs().P4RT().Default(t)`
     during client instantiation.
 
-5.  To avoid indefinite blocking during Get response
-    `client.StreamChannelGetArbitrationResp()`, tests should make use of
-    `p4rtutils.StreamTermErr()` function which returns an Error if the p4rt
-    stream has been terminated.
-
-    *   The test blocks indefinitely because
-        `client.StreamChannelGetArbitrationResp()` internally calls
-        `stream.GetArbitration(minSeqNum)`. If `minSeqNum` is non zero, the
-        process blocks (using `sync.Cond.Wait()`) until atleast `minSeqNum`
-        number of Arbitration responses are received. This method doesn't take
-        into account a scenario where the device terminates the `stream` and
-        would never send an Arbitration response.
-
-    ```go
-    func (p *P4RTClientStream) GetArbitration(minSeqNum uint64) (uint64, *P4RTArbInfo) {
-        p.arb_mu.Lock()
-        defer p.arb_mu.Unlock()
-
-        for p.arbCounters.RxArbCntr < minSeqNum {
-            if glog.V(2) {
-                glog.Infof("'%s' Waiting on Arbitration message (%d/%d)\n",
-                    p, p.arbCounters.RxArbCntr, minSeqNum)
-            }
-            p.arbCond.Wait() // Blocks indefinitely here if (p *P4RTClientStream) has been terminated by the device.
-        }
-
-        if len(p.arbQ) == 0 {
-            return p.arbCounters.RxArbCntr, nil
-        }
-
-        arbInfo := p.arbQ[0]
-        p.arbQ = p.arbQ[1:]
-
-        return p.arbCounters.RxArbCntr, arbInfo
-    }
-    ```
-
-    *   As a workaround, we need to call `p4rtutils.StreamTermErr()` after
-        `StreamChannelCreate()` and before `StreamChannelGetArbitrationResp()`.
-        This workaround however doesn't fix the underlying issue with the
-        client. A proper fix would be to replace the `Cond.Wait()` with a
-        timeout.
+5.  Tests should log Stream Termination errors populated in the
+    `client.StreamTermErr` channel using the `p4rtutils.StreamTermErr()` helper
+    if there are errors in GetArbitration response or GetPacket response.
 
     ```go
     client.StreamChannelCreate(&streamParameter)
@@ -68,19 +29,19 @@ This document specifies the requirements for p4rt test implementation.
                 DeviceId: streamParameter.DeviceId,
                 ElectionId: &p4_v1.Uint128{
                     High: streamParameter.ElectionIdH,
-                    Low:  streamParameter.ElectionIdL,
+                    Low:  streamParameter.ElectionIdL - uint64(index),
                 },
             },
         },
     }); err != nil {
-        return errors.New("Errors seen when sending ClientArbitration message.")
-    }
-    if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
-        return err
+        return errors.New(fmt.Sprintf("errors seen when sending ClientArbitration message: %v", err))
     }
     if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
-        return errors.New("Errors seen in ClientArbitration response.")
-    }
+        if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
+            return err
+        }
+        return errors.New(fmt.Sprintf("errors seen in ClientArbitration response: %v", arbErr))
+            }
     ```
 
 6.  Tests should get the P4RT Node Name by walking the Components OC tree.
