@@ -68,12 +68,17 @@ func TestCopyingDebugFiles(t *testing.T) {
 	t.Logf("gnoiClient.System().KillProcess() response: %v, err: %v", processKillResponse, err)
 	t.Logf("Wait 60 seconds for process to restart ...")
 	time.Sleep(60 * time.Second)
-
+	
+	componentName := map[string]string{"name": "Chassis"}
 	req := &hpb.GetRequest{
 		Path: &tpb.Path{
 			Elem: []*tpb.PathElem{
 				{
-					Name: "components/component/chassis",
+					Name: "components",
+				},
+				{
+					Name: "component",
+					Key:  componentName,
 				},
 			},
 		},
