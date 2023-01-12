@@ -53,8 +53,9 @@ func Test_State_Interface(t *testing.T) {
             state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Interface(InterfaceName)
             stateGot := gnmi.Get(t, dut, state.State())
 
-            if *stateGot.InterfaceId != *r2.InterfaceId {
-               t.Errorf("Failed: Fetching state leaf for interface-id, got %v, want %v", *stateGot.InterfaceId, *r2.InterfaceId)
+            if *stateGot.InterfaceId != InterfaceName {
+               t.Errorf("Failed: Fetching state leaf for interface-id, got %v, want %v",
+                        *stateGot.InterfaceId, InterfaceName)
             } else {
                t.Logf("Passed: Configured interface-id = %v", *stateGot.InterfaceId)
             }
@@ -63,14 +64,26 @@ func Test_State_Interface(t *testing.T) {
                t.Errorf("Failed: Fetching state leaf for apply-vrf-selection-policy, got %v, want %v",
                         *stateGot.ApplyVrfSelectionPolicy, pbrName)
             } else {
-               t.Logf("Passed: Configured apply-vrf-selection-policy = %v", *stateGot.ApplyVrfSelectionPolicy)
+               t.Logf("Passed: Configured apply-vrf-selection-policy = %v",
+                      *stateGot.ApplyVrfSelectionPolicy)
+            }
+
+            intfRef := state.InterfaceRef()
+            intfRefStateGot := gnmi.Get(t, dut, intfRef.State())
+            if *intfRefStateGot.Interface != InterfaceName {
+               t.Errorf("Failed: Fetching state leaf for interface-ref, got %v, want %v",
+                        *intfRefStateGot.Interface, InterfaceName)
+            } else {
+               t.Logf("Passed: Configured interface-ref interface = %v",
+                      *intfRefStateGot.Interface)
             }
         })
 
-		t.Run("Delete", func(t *testing.T) {
+        t.Run("Delete", func(t *testing.T) {
             gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Interface(InterfaceName).Config())
 
             gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Config())
-		})
-	})
+
+        })
+    })
 }
