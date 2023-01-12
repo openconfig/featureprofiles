@@ -1033,3 +1033,63 @@ func TestRouteReflectorClient(t *testing.T) {
 		})
 	}
 }
+
+// State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/local-restarting
+// State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/peer-restarting
+// State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/mode
+// State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/peer-restart-time
+func TestGracefulRestartState(t *testing.T) {
+	dut := ondatra.DUT(t, dutName)
+
+	mode := []bool{
+		true,
+		false,
+	}
+
+	bgp_instance, bgp_as := getNextBgpInstance()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgp_as)
+	time.Sleep(configApplyTime)
+	gnmi.Update(t, dut, bgpConfig.Global().GracefulRestart().Enabled().Config(), true)
+	time.Sleep(configApplyTime)
+	config := bgpConfig.Neighbor(neighbor_address).PeerAs()
+	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), 34) })
+	time.Sleep(configApplyTime)
+	defer cleanup(t, dut, bgp_instance)
+
+	for _, input := range mode {
+		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state leafs using helper-only value %v", input), func(t *testing.T) {
+			if input {
+				gnmi.Update(t, dut, bgpConfig.Global().GracefulRestart().HelperOnly().Config(), true)
+				time.Sleep(configApplyTime)
+			}
+			state := bgpState.Neighbor(neighbor_address).GracefulRestart()
+			t.Run("Get state: local-restarting", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.LocalRestarting().State())
+				if stateGot != false {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/local-restarting: got %v, want false", stateGot)
+				}
+			})
+			t.Run("Get state: peer-restarting", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.PeerRestarting().State())
+				if stateGot != false {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/peer-restarting: got %v, want false", stateGot)
+				}
+			})
+			t.Run("Get state: peer-restart-time", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.PeerRestartTime().State())
+				if stateGot != 0 {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/peer-restart-time: got %v, want ", stateGot)
+				}
+			})
+			t.Run("Get state: mode", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.Mode().State())
+				if input && stateGot != oc.GracefulRestart_Mode_HELPER_ONLY {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/mode: got %v, want %v", stateGot, input)
+				}
+			})
+
+		})
+	}
+}
