@@ -35,7 +35,9 @@ func (tc *testcase) read(testdir string) error {
 		if err := readFile(testpath, tc.readPackage); err != nil {
 			return fmt.Errorf("could not detect test package: %w", err)
 		}
-		break
+		if tc.pkg != "" {
+			break
+		}
 	}
 	if err := readFile(filepath.Join(testdir, "rundata_test.go"), tc.existing.fromCode); err != nil {
 		if errors.Is(err, os.ErrNotExist) {

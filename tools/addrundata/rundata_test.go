@@ -3,15 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
-
-func readString(data string, fn func(io.Reader) error) error {
-	return fn(bytes.NewReader([]byte(data)))
-}
 
 var pdopt = cmp.AllowUnexported(parsedData{})
 
