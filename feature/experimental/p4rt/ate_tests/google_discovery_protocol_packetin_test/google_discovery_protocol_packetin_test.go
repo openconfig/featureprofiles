@@ -379,13 +379,13 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 					},
 				},
 			}); err != nil {
-				return errors.New(fmt.Sprintf("errors seen when sending ClientArbitration message: %v", err))
+				return fmt.Errorf("errors seen when sending ClientArbitration message: %v", err)
 			}
 			if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
 				if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
 					return err
 				}
-				return errors.New(fmt.Sprintf("errors seen in ClientArbitration response: %v", arbErr))
+				return fmt.Errorf("errors seen in ClientArbitration response: %v", arbErr)
 			}
 		}
 	}
