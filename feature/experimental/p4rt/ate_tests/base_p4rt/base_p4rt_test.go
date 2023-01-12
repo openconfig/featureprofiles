@@ -25,6 +25,7 @@ import (
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
+	"github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -35,6 +36,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 type testArgs struct {
@@ -226,13 +228,13 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 					},
 				},
 			}); err != nil {
-				return errors.New("Errors seen when sending ClientArbitration message.")
-			}
-			if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
-				return err
+				return errors.New(fmt.Sprintf("errors seen when sending ClientArbitration message: %v", err))
 			}
 			if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamlist[index].Name, 1); arbErr != nil {
-				return errors.New("Errors seen in ClientArbitration response.")
+				if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
+					return err
+				}
+				return errors.New(fmt.Sprintf("errors seen in ClientArbitration response: %v", arbErr))
 			}
 		}
 	}
@@ -289,11 +291,11 @@ func verifyReadReceiveMatch(expected_update []*p4_v1.Update, received_entry *p4_
 
 	matches := 0
 	for _, table := range received_entry.Entities {
-		if cmp.Equal(table.Entity, expected_update[0].Entity.Entity) {
-			fmt.Println("Table match succesful")
-			matches += 1
-			break
+		if diff := cmp.Diff(expected_update[0].Entity.Entity, table.Entity, protocmp.Transform()); diff != "" {
+			glog.Errorf("Table entry diff (-want +got): \n%s", diff)
+			continue
 		}
+		matches++
 	}
 	if matches == 0 {
 		return errors.New("match unsuccesful")

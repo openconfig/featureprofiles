@@ -22,7 +22,6 @@ package p4rtutils
 
 import (
 	"testing"
-	"time"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/golang/glog"
@@ -236,7 +235,7 @@ func StreamTermErr(ste chan *p4rt_client.P4RTStreamTermErr) error {
 	select {
 	case e := <-ste:
 		return e.StreamErr
-	case <-time.After(5 * time.Second):
+	default:
 		return nil
 	}
 }
