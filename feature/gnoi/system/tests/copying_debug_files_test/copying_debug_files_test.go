@@ -69,7 +69,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 	t.Logf("Wait 60 seconds for process to restart ...")
 	time.Sleep(60 * time.Second)
 	
-	chassisMap := map[string]string{"name": "Chassis"}
+	componentName := map[string]string{"name": "Chassis"}
 	req := &hpb.GetRequest{
 		Path: &tpb.Path{
 			Elem: []*tpb.PathElem{
@@ -78,7 +78,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 				},
 				{
 					Name: "component",
-					Key:  chassisMap,
+					Key:  componentName,
 				},
 			},
 		},
