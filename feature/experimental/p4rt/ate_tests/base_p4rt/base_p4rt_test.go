@@ -35,6 +35,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -273,8 +274,8 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 			return errors.New("Errors seen when sending SetForwardingPipelineConfig.")
 		}
 		// Compare P4Info from GetForwardingPipelineConfig and SetForwardingPipelineConfig
-		if diff := cmp.Diff(p4Info, *resp.Config.P4Info, protocmp.Transform()); diff != "" {
-			return fmt.Errorf("P4info diff (-want +got): \n%s", diff)
+		if !cmp.Equal(p4Info, *resp.Config.P4Info, cmp.Comparer(proto.Equal)) {
+			return fmt.Errorf("P4info does not match for client %d", index)
 		}
 	}
 	return nil
