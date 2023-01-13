@@ -17,6 +17,7 @@ package rundata
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -27,22 +28,39 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
 	"github.com/openconfig/ygnmi/ygnmi"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
-// dutInfo retrieves the vendor, model, and OS version from the device from various
+// DUTInfo retrieves the vendor, model, and OS version from the device from various
 // OpenConfig paths.
-type dutInfo struct {
+type DUTInfo struct {
 	vendor string
 	model  string
 	osver  string
 }
 
-// setFromComponentChassis sets dutInfo from the first component of type CHASSIS.
+// GetVendor returns the dut vendor.
+func (di *DUTInfo) GetVendor() string {
+	return di.vendor
+}
+
+// GetModel returns the dut model.
+func (di *DUTInfo) GetModel() string {
+	return di.model
+}
+
+// GetOsver returns the dut os version
+func (di *DUTInfo) GetOsver() string {
+	return di.osver
+}
+
+// setFromComponentChassis sets DUTInfo from the first component of type CHASSIS.
 //
 //   - vendor from mfg-name (Arista, Cisco, newer Nokia).
 //   - model from either description (Cisco, Juniper, newer Nokia) or part-no (Arista).
 //   - osver from software-version (Juniper).
-func (di *dutInfo) setFromComponentChassis(ctx context.Context, y components.Y) {
+func (di *DUTInfo) setFromComponentChassis(ctx context.Context, y components.Y) {
 	if di.vendor != "" && di.model != "" && di.osver != "" {
 		return // No-op if nothing needs to be set.
 	}
@@ -98,9 +116,9 @@ func (di *dutInfo) setFromComponentChassis(ctx context.Context, y components.Y) 
 	}
 }
 
-// setFromComponentOS sets dutInfo from the first component of type OPERATING_SYSTEM, osver from
+// setFromComponentOS sets DUTInfo from the first component of type OPERATING_SYSTEM, osver from
 // software-version (Arista, Cisco).
-func (di *dutInfo) setFromComponentOS(ctx context.Context, y components.Y) {
+func (di *DUTInfo) setFromComponentOS(ctx context.Context, y components.Y) {
 	if di.osver != "" {
 		return // No-op if osver is already set.
 	}
@@ -125,9 +143,9 @@ func (di *dutInfo) setFromComponentOS(ctx context.Context, y components.Y) {
 	}
 }
 
-// setFromLLDP sets dutInfo vendor (Juniper, older Nokia) and osver (older Nokia) from
+// setFromLLDP sets DUTInfo vendor (Juniper, older Nokia) and osver (older Nokia) from
 // LLDP system-description.  This is less reliable because LLDP config can be changed.
-func (di *dutInfo) setFromLLDP(ctx context.Context, y components.Y) {
+func (di *DUTInfo) setFromLLDP(ctx context.Context, y components.Y) {
 	if di.vendor != "" && di.osver != "" {
 		return // No-op if vendor and osver are already set.
 	}
@@ -158,10 +176,10 @@ func (di *dutInfo) setFromLLDP(ctx context.Context, y components.Y) {
 	}
 }
 
-// setFromSystem sets dutInfo from /system/state/software-version for osver.
+// setFromSystem sets DUTInfo from /system/state/software-version for osver.
 //
 // This is the new OpenConfig mechanism.
-func (di *dutInfo) setFromSystem(ctx context.Context, y components.Y) {
+func (di *DUTInfo) setFromSystem(ctx context.Context, y components.Y) {
 	// Do not fetch ocpath.Root().System().State() because it contains large
 	// subtrees such as /system/aaa.
 
@@ -192,7 +210,7 @@ func (di *dutInfo) setFromSystem(ctx context.Context, y components.Y) {
 }
 
 // shortVendor canonicalizes full vendor string in short uppercase form, if possible.
-func (di *dutInfo) shortVendor() string {
+func (di *DUTInfo) shortVendor() string {
 	if di.vendor == "" {
 		return ""
 	}
@@ -220,7 +238,7 @@ var ciscoRE = regexp.MustCompile(`Cisco (.*?) .*`)
 var jnpRE = regexp.MustCompile(`JNP.* \[(.*)\]`)
 
 // shortModel canonicalizes full model to short form.
-func (di *dutInfo) shortModel() string {
+func (di *DUTInfo) shortModel() string {
 	if matches := ciscoRE.FindStringSubmatch(di.model); len(matches) >= 2 {
 		return matches[1]
 	}
@@ -230,8 +248,8 @@ func (di *dutInfo) shortModel() string {
 	return di.model
 }
 
-// put exports the dutInfo to a map with the given dut ID.
-func (di *dutInfo) put(m map[string]string, id string) {
+// put exports the DUTInfo to a map with the given dut ID.
+func (di *DUTInfo) put(m map[string]string, id string) {
 	if di.vendor != "" {
 		m[id+".vendor.full"] = di.vendor
 		m[id+".vendor"] = di.shortVendor()
@@ -245,14 +263,19 @@ func (di *dutInfo) put(m map[string]string, id string) {
 	}
 }
 
-// newDUTInfo creates a newly populated dutInfo.
-func newDUTInfo(ctx context.Context, y components.Y) *dutInfo {
-	di := &dutInfo{}
+// NewDUTInfo creates a newly populated DUTInfo.
+func NewDUTInfo(ctx context.Context, gnmic gpb.GNMIClient) (*DUTInfo, error) {
+	yc, err := ygnmi.NewClient(gnmic)
+	if err != nil {
+		return nil, fmt.Errorf("Could not create ygnmiClient for dut: %v", err)
+	}
+	y := components.Y{Client: yc}
+	di := &DUTInfo{}
 	di.setFromSystem(ctx, y)
 	di.setFromComponentChassis(ctx, y)
 	di.setFromComponentOS(ctx, y)
 	di.setFromLLDP(ctx, y)
-	return di
+	return di, err
 }
 
 // dutsInfo populates the DUT properties for all DUTs in the reservation.
@@ -263,11 +286,11 @@ func dutsInfo(ctx context.Context, m map[string]string, resv *binding.Reservatio
 			glog.Errorf("Could not dial GNMI to dut %s: %v", dut.Name(), err)
 			continue
 		}
-		yc, err := ygnmi.NewClient(gnmic)
+		dInfo, err := NewDUTInfo(ctx, gnmic)
 		if err != nil {
-			glog.Errorf("Could not create ygnmi.Client for dut %s: %v", dut.Name(), err)
+			glog.Errorf("Could not get DUTInfo for dut %v: %v", dut.Name(), err)
 			continue
 		}
-		newDUTInfo(ctx, components.Y{Client: yc}).put(m, id)
+		dInfo.put(m, id)
 	}
 }

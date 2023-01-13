@@ -32,7 +32,7 @@ func TestDUTShortVendor(t *testing.T) {
 		{"Yoyodyne Systems", "YOYODYNE"},         // Not a recognized enum.
 	}
 	for _, c := range cases {
-		di := &dutInfo{vendor: c.vendor}
+		di := &DUTInfo{vendor: c.vendor}
 		got := di.shortVendor()
 		if got != c.want {
 			t.Errorf("Case %q got %q, want %q", c.vendor, got, c.want)
@@ -50,7 +50,7 @@ func TestDUTShortModel(t *testing.T) {
 		{"JNP10001 [PTX10001]", "PTX10001"},
 	}
 	for _, c := range cases {
-		di := &dutInfo{model: c.model}
+		di := &DUTInfo{model: c.model}
 		got := di.shortModel()
 		if got != c.want {
 			t.Errorf("Case %q got %q, want %q", c.model, got, c.want)
@@ -61,11 +61,11 @@ func TestDUTShortModel(t *testing.T) {
 func TestDUTPut(t *testing.T) {
 	cases := []struct {
 		name string
-		di   *dutInfo
+		di   *DUTInfo
 		want map[string]string
 	}{{
 		name: "Arista",
-		di: &dutInfo{
+		di: &DUTInfo{
 			vendor: "Arista Networks",
 			model:  "DCS-7280CR3K-32D4",
 			osver:  "4.29.0F",
@@ -79,7 +79,7 @@ func TestDUTPut(t *testing.T) {
 		},
 	}, {
 		name: "Cisco",
-		di: &dutInfo{
+		di: &DUTInfo{
 			vendor: "Cisco Systems, Inc.",
 			model:  "Cisco 9999 9-slot Chassis",
 			osver:  "7.7.1",
@@ -93,7 +93,7 @@ func TestDUTPut(t *testing.T) {
 		},
 	}, {
 		name: "Juniper",
-		di: &dutInfo{
+		di: &DUTInfo{
 			vendor: "Juniper Networks, Inc.",
 			model:  "JNP10001 [PTX10001]",
 			osver:  "21.42-S2-EVO",
@@ -107,7 +107,7 @@ func TestDUTPut(t *testing.T) {
 		},
 	}, {
 		name: "Yoyodyne",
-		di: &dutInfo{
+		di: &DUTInfo{
 			vendor: "Yoyodyne Systems",
 			model:  "YY1608",
 			osver:  "6.22",
