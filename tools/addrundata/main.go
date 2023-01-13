@@ -5,9 +5,8 @@
 // testkind is one of "ate_tests", "otg_tests", or simply "tests".  If an ATE test is
 // present, it should have the same rundata as the OTG test.
 //
-// If a test is split into multiple source files, only the source that contains TestMain()
-// will have the rundata.  The rundata initialization will be done in the init() function
-// right before TestMain().
+// The rundata is stored in the rundata_test.go file in the test package.  Other test
+// files are left unchanged.
 //
 // Test plan ID and the description are extracted from the README.md, whereas the UUID is
 // randomly assigned.  Existing UUID assignments are honored.  ATE and OTG versions of the
