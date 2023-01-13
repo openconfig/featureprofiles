@@ -260,7 +260,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 
 	a.configSubinterfaceDUT(t, i)
 	intfPath := gnmi.OC().Interface(p.Name())
-	gnmi.Replace(t, d, intfPath.Config(), i)
+	gnmi.Update(t, d, intfPath.Config(), i)
 	if *deviations.ExplicitPortSpeed {
 		fptest.SetPortSpeed(t, p)
 	}
@@ -301,8 +301,8 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
 func (a *attributes) configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	p := dut.Port(t, a.Name)
-	a.configInterfaceDUT(t, dut, p)
 	a.configureNetworkInstance(t, dut, p)
+	a.configInterfaceDUT(t, dut, p)
 }
 
 // ConfigureATE configures Ethernet + IPv4 on the ATE. If the number of
