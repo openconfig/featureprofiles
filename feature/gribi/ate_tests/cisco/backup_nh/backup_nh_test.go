@@ -2490,6 +2490,8 @@ func TestBackUp(t *testing.T) {
 		addPrototoAte(t, top)
 	}
 
+	// Connfigure vty-pool
+	config.TextWithGNMI(context.Background(), t, dut, "vty-pool default 0 99 line-template default")
 	test := []struct {
 		name string
 		desc string
