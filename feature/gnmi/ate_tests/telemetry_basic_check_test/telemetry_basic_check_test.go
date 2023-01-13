@@ -335,24 +335,26 @@ func TestQoSCounters(t *testing.T) {
 
 func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	vendor := dut.Vendor()
-	var componentParent = map[ondatra.Vendor]map[string]string{
-		ondatra.CISCO: {
+	var componentParent map[string]string
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		componentParent = map[string]string{
 			"Fabric":      "Rack",
 			"FabricChip":  "Rack",
 			"Linecard":    "Rack",
 			"PowerSupply": "Rack",
 			"Supervisor":  "Rack",
 			"SwitchChip":  "0/",
-		},
-		ondatra.ARISTA: {
+		}
+	default:
+		componentParent = map[string]string{
 			"Fabric":      "Chassis",
 			"FabricChip":  "Fabric",
 			"Linecard":    "Chassis",
 			"PowerSupply": "Chassis",
 			"Supervisor":  "Chassis",
 			"SwitchChip":  "Linecard",
-		},
+		}
 	}
 
 	cases := []struct {
@@ -362,27 +364,27 @@ func TestComponentParent(t *testing.T) {
 	}{{
 		desc:          "Fabric",
 		componentType: fabricType,
-		parent:        componentParent[vendor]["Fabric"],
+		parent:        componentParent["Fabric"],
 	}, {
 		desc:          "FabricChip",
 		componentType: fabricChipType,
-		parent:        componentParent[vendor]["FabricChip"],
+		parent:        componentParent["FabricChip"],
 	}, {
 		desc:          "Linecard",
 		componentType: linecardType,
-		parent:        componentParent[vendor]["Linecard"],
+		parent:        componentParent["Linecard"],
 	}, {
 		desc:          "Power supply",
 		componentType: powerSupplyType,
-		parent:        componentParent[vendor]["Power supply"],
+		parent:        componentParent["Power supply"],
 	}, {
 		desc:          "Supervisor",
 		componentType: supervisorType,
-		parent:        componentParent[vendor]["Supervisor"],
+		parent:        componentParent["Supervisor"],
 	}, {
 		desc:          "SwitchChip",
 		componentType: switchChipType,
-		parent:        componentParent[vendor]["SwitchChip"],
+		parent:        componentParent["SwitchChip"],
 	}}
 
 	for _, tc := range cases {
