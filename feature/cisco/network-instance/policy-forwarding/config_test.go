@@ -19,7 +19,7 @@ func TestMain(m *testing.M) {
 const (
 	pbrName       = "PBR"
 	InterfaceName = "Bundle-Ether1"
-    InterfaceId = "FourHundredGigE0/0/0/0"
+	InterfaceId   = "FourHundredGigE0/0/0/0"
 )
 
 func Test_Type(t *testing.T) {
@@ -52,7 +52,7 @@ func Test_Type(t *testing.T) {
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -187,12 +187,12 @@ func Test_Policy_Type_PBR_POLICY(t *testing.T) {
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Update", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Get", func(t *testing.T) {
-            config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Type()
-            configGot := oc.E_Policy_Type(gnmi.GetConfig(t, dut, config.Config()))
+			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Type()
+			configGot := oc.E_Policy_Type(gnmi.GetConfig(t, dut, config.Config()))
 
 			if configGot != oc.Policy_Type_PBR_POLICY {
 				t.Errorf("Failed: Fetching leaf for policy-type got %v, want %v", configGot, oc.Policy_Type_PBR_POLICY)
@@ -202,7 +202,7 @@ func Test_Policy_Type_PBR_POLICY(t *testing.T) {
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -335,11 +335,11 @@ func Test_Ipv4_Protocol_Ip_Gre(t *testing.T) {
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -370,7 +370,7 @@ func Test_Ipv4_Protocol_Ip_Udp(t *testing.T) {
 
 		t.Logf("Update policy with ipv4 protocol IP_UDP")
 		t.Run("Update", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Logf("Replace ipv4 protocol IP_UDP with IP_IN_IP")
@@ -381,7 +381,7 @@ func Test_Ipv4_Protocol_Ip_Udp(t *testing.T) {
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Logf("Replace ipv4 protocol IP_IN_IP with IP_UDP")
@@ -392,11 +392,11 @@ func Test_Ipv4_Protocol_Ip_Udp(t *testing.T) {
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -460,11 +460,11 @@ func Test_Ipv6_Protocol_Ip_Gre(t *testing.T) {
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -495,7 +495,7 @@ func Test_Ipv6_Protocol_Ip_Udp(t *testing.T) {
 
 		t.Logf("Update policy with ipv6 protocol IP_UDP")
 		t.Run("Update", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Logf("Replace ipv6 protocol IP_UDP with IP_IN_IP")
@@ -506,7 +506,7 @@ func Test_Ipv6_Protocol_Ip_Udp(t *testing.T) {
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Logf("Replace ipv6 protocol IP_IN_IP with IP_UDP")
@@ -517,11 +517,11 @@ func Test_Ipv6_Protocol_Ip_Udp(t *testing.T) {
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -593,7 +593,7 @@ func Test_Interface_ApplyVrfSelectionPolicy(t *testing.T) {
 
 		t.Run("Delete", func(t *testing.T) {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Interface(InterfaceName).Config())
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -639,7 +639,7 @@ func Test_Interface_InterfaceId(t *testing.T) {
 
 		t.Run("Delete", func(t *testing.T) {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Interface(InterfaceName).Config())
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 
 	})
@@ -670,10 +670,10 @@ func Test_Ipv4_Source_Addr(t *testing.T) {
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -702,13 +702,13 @@ func Test_Ipv4_Destination_Address(t *testing.T) {
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Log("Verify after update")
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Ipv4().DestinationAddress()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			ruleIpv4 := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{}
 			ruleIpv4.DestinationAddress = ygot.String("2.2.2.2/32")
@@ -722,7 +722,7 @@ func Test_Ipv4_Destination_Address(t *testing.T) {
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -751,13 +751,13 @@ func Test_Ipv6_Source_Addr(t *testing.T) {
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Log("Verify after update")
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Ipv6().SourceAddress()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			ruleIpv6 := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv6{}
 			ruleIpv6.SourceAddress = ygot.String("1000::1/128")
@@ -770,7 +770,7 @@ func Test_Ipv6_Source_Addr(t *testing.T) {
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -799,27 +799,27 @@ func Test_Ipv6_Destination_Address(t *testing.T) {
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Log("Verify after update")
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Ipv6().DestinationAddress()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			ruleIpv6 := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv6{}
 			ruleIpv6.DestinationAddress = ygot.String("2000::1/128")
 
 			if configGot != *ruleIpv6.DestinationAddress {
 				t.Errorf("Failed: Fetching leaf for ipv6 destination-address, got %v, want %v",
-                         configGot, *ruleIpv6.DestinationAddress)
+					configGot, *ruleIpv6.DestinationAddress)
 			} else {
 				t.Logf("Passed: Configured ipv6 destination-address = %v", configGot)
 			}
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -852,11 +852,11 @@ func Test_Source_Port(t *testing.T) {
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -889,11 +889,11 @@ func Test_Destination_Port(t *testing.T) {
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -922,12 +922,12 @@ func Test_Discard(t *testing.T) {
 
 		t.Logf("TC: Configuring discard to true")
 		t.Run("Update", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Action().Discard()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
 			action.Discard = ygot.Bool(true)
@@ -940,7 +940,7 @@ func Test_Discard(t *testing.T) {
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -965,9 +965,7 @@ func Test_IntfRef(t *testing.T) {
 		i := oc.NetworkInstance_PolicyForwarding_Interface{}
 		i.InterfaceId = ygot.String("FourHundredGigE0/0/0/0")
 		i.ApplyVrfSelectionPolicy = ygot.String(pbrName)
-		i.InterfaceRef = &oc.NetworkInstance_PolicyForwarding_Interface_InterfaceRef{Interface:
-                                    ygot.String("FourHundredGigE0/0/0/0")}
-
+		i.InterfaceRef = &oc.NetworkInstance_PolicyForwarding_Interface_InterfaceRef{Interface: ygot.String("FourHundredGigE0/0/0/0")}
 
 		p := oc.NetworkInstance_PolicyForwarding_Policy{}
 		p.PolicyId = ygot.String(pbrName)
@@ -976,16 +974,16 @@ func Test_IntfRef(t *testing.T) {
 
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-        policy.Interface = map[string]*oc.NetworkInstance_PolicyForwarding_Interface{InterfaceId: &i}
+		policy.Interface = map[string]*oc.NetworkInstance_PolicyForwarding_Interface{InterfaceId: &i}
 
 		t.Logf("TC: Configuring interface-ref-interface-id")
 		t.Run("Update", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Interface(InterfaceId).ApplyVrfSelectionPolicy()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			intf := oc.NetworkInstance_PolicyForwarding_Interface{}
 			intf.ApplyVrfSelectionPolicy = ygot.String(pbrName)
@@ -997,8 +995,8 @@ func Test_IntfRef(t *testing.T) {
 			}
 		})
 
-        t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Interface(InterfaceId).Config())
+		t.Run("Delete", func(t *testing.T) {
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Interface(InterfaceId).Config())
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
@@ -1028,12 +1026,12 @@ func Test_Decapgre(t *testing.T) {
 
 		t.Logf("TC: Configuring decapgre to true")
 		t.Run("Update", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Action().DecapsulateGre()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
 			action.DecapsulateGre = ygot.Bool(true)
@@ -1046,7 +1044,7 @@ func Test_Decapgre(t *testing.T) {
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
@@ -1075,13 +1073,13 @@ func Test_Nexthop_v4(t *testing.T) {
 
 		t.Logf("TC: Configuring nexthop to 192.168.1.1")
 		t.Run("Update", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().
-                          Policy(pbrName).Rule(uint32(1)).Action().NextHop()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+				Policy(pbrName).Rule(uint32(1)).Action().NextHop()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
 			action.NextHop = ygot.String("192.168.1.1")
@@ -1096,13 +1094,13 @@ func Test_Nexthop_v4(t *testing.T) {
 		t.Logf("TC: Modifying nexthop to 192.168.1.5")
 		r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NextHop: ygot.String("192.168.1.5")}
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Get-Config", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().
-                          Policy(pbrName).Rule(uint32(1)).Action().NextHop()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+				Policy(pbrName).Rule(uint32(1)).Action().NextHop()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
 			action.NextHop = ygot.String("192.168.1.5")
@@ -1115,7 +1113,7 @@ func Test_Nexthop_v4(t *testing.T) {
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 
 	})
@@ -1145,12 +1143,12 @@ func Test_Nexthop_v6(t *testing.T) {
 
 		t.Logf("TC: Configuring nexthop to 2003::21")
 		t.Run("Update", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Action().NextHop()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
 			action.NextHop = ygot.String("2003::21")
@@ -1165,12 +1163,12 @@ func Test_Nexthop_v6(t *testing.T) {
 		r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NextHop: ygot.String("2003::31")}
 		t.Logf("TC: Changing nexthop to 2003::31")
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Action().NextHop()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
 			action.NextHop = ygot.String("2003::31")
@@ -1183,14 +1181,14 @@ func Test_Nexthop_v6(t *testing.T) {
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 
 	})
 }
 
 func Test_Rule_L2_Source_Mac(t *testing.T) {
-    t.Skip() //L2 source mac is not supported currently by the platform
+	t.Skip() //L2 source mac is not supported currently by the platform
 	dut := ondatra.DUT(t, "dut")
 
 	t.Log("Remove Flowspec Config")
@@ -1217,13 +1215,13 @@ func Test_Rule_L2_Source_Mac(t *testing.T) {
 
 		t.Log("Update to value: 00:aa:00:bb:00:cc")
 		t.Run("Update", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Log("Verify after update")
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).L2().SourceMac()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			ruleL2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{}
 			ruleL2.SourceMac = ygot.String("00:aa:00:bb:00:cc")
@@ -1236,18 +1234,18 @@ func Test_Rule_L2_Source_Mac(t *testing.T) {
 		})
 
 		r1.L2 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
-            Ethertype: oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4,
+			Ethertype: oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4,
 			SourceMac: ygot.String("11:aa:11:bb:11:cc"),
 		}
 		t.Log("Replace at rule to value: 11:aa:11:bb:11:cc")
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Log("Verify after replace")
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).L2().SourceMac()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			ruleL2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{}
 			ruleL2.SourceMac = ygot.String("11:aa:11:bb:11:cc")
@@ -1260,18 +1258,18 @@ func Test_Rule_L2_Source_Mac(t *testing.T) {
 		})
 
 		t.Log("Replace at leaf to value: 22:aa:22:bb:22:cc")
-        r1.L2 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
-            Ethertype: oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4,
-            SourceMac: ygot.String("22:aa:22:bb:22:cc"),
-        }
+		r1.L2 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
+			Ethertype: oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4,
+			SourceMac: ygot.String("22:aa:22:bb:22:cc"),
+		}
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Log("Verify after replace")
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).L2().SourceMac()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			ruleL2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{}
 			ruleL2.SourceMac = ygot.String("22:aa:22:bb:22:cc")
@@ -1284,13 +1282,13 @@ func Test_Rule_L2_Source_Mac(t *testing.T) {
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
 
 func Test_Rule_L2_Destination_Mac(t *testing.T) {
-    t.Skip() //L2 destination mac is not supported currently by the platform
+	t.Skip() //L2 destination mac is not supported currently by the platform
 	dut := ondatra.DUT(t, "dut")
 
 	t.Log("Remove Flowspec Config")
@@ -1317,13 +1315,13 @@ func Test_Rule_L2_Destination_Mac(t *testing.T) {
 
 		t.Log("Update to value: 00:dd:00:ee:00:ff")
 		t.Run("Update", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Log("Verify after update")
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).L2().DestinationMac()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			ruleL2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{}
 			ruleL2.DestinationMac = ygot.String("00:dd:00:ee:00:ff")
@@ -1336,19 +1334,19 @@ func Test_Rule_L2_Destination_Mac(t *testing.T) {
 		})
 
 		t.Log("Replace at leaf to value: 11:dd:11:ee:11:ff")
-        r1.L2 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
-            Ethertype: oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4,
-            DestinationMac: ygot.String("11:dd:11:ee:11:ff"),
-        }
+		r1.L2 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
+			Ethertype:      oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4,
+			DestinationMac: ygot.String("11:dd:11:ee:11:ff"),
+		}
 
 		t.Run("Replace", func(t *testing.T) {
-            gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
 		t.Log("Verify after replace")
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).L2().DestinationMac()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			ruleL2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{}
 			ruleL2.DestinationMac = ygot.String("11:dd:11:ee:11:ff")
@@ -1361,7 +1359,7 @@ func Test_Rule_L2_Destination_Mac(t *testing.T) {
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-            gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
 }
