@@ -35,24 +35,9 @@ import (
 // DUTInfo retrieves the vendor, model, and OS version from the device from various
 // OpenConfig paths.
 type DUTInfo struct {
-	vendor string
-	model  string
-	osver  string
-}
-
-// GetVendor returns the dut vendor.
-func (di *DUTInfo) GetVendor() string {
-	return di.vendor
-}
-
-// GetModel returns the dut model.
-func (di *DUTInfo) GetModel() string {
-	return di.model
-}
-
-// GetOsver returns the dut os version
-func (di *DUTInfo) GetOsver() string {
-	return di.osver
+	Vendor string
+	Model  string
+	OSVer  string
 }
 
 // setFromComponentChassis sets DUTInfo from the first component of type CHASSIS.
