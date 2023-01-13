@@ -23,9 +23,13 @@ package p4rtutils
 import (
 	"testing"
 
+	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/golang/glog"
+	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
@@ -153,7 +157,13 @@ func aclWbbIngressTableEntryGet(info *ACLWbbIngressTableEntryInfo) *p4_v1.Update
 							},
 						},
 					},
-					Priority: int32(info.Priority),
+					Priority: func() int32 {
+						// Add Priority by default if not provided but required.
+						if info.Priority == 0 && len(matchFields) > 0 {
+							return 1
+						}
+						return int32(info.Priority)
+					}(),
 				},
 			},
 		},
@@ -172,22 +182,60 @@ func ACLWbbIngressTableEntryGet(infoList []*ACLWbbIngressTableEntryInfo) []*p4_v
 	return updates
 }
 
+func explicitP4RTNodes() map[string]string {
+	return map[string]string{
+		"port1": *args.P4RTNodeName1,
+		"port2": *args.P4RTNodeName2,
+	}
+}
+
 // P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
 // ports using the component and the interface OC tree.
 func P4RTNodesByPort(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
-	ports := make(map[string]string)
+	t.Helper()
+	if *deviations.ExplicitP4RTNodeComponent {
+		return explicitP4RTNodes()
+	}
+
+	ports := make(map[string]string) // <hardware-port>:<portID>
 	for _, p := range dut.Ports() {
-		hp := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-		ports[hp] = p.ID()
+		hp := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
+		if v, ok := hp.Val(); ok {
+			ports[v] = p.ID()
+		}
 	}
-	nodes := make(map[string]string)
+	nodes := make(map[string]string) // <hardware-port>:<p4rtComponentName>
 	for hp := range ports {
-		p4Node := gnmi.Get(t, dut, gnmi.OC().Component(hp).Parent().State())
-		nodes[hp] = p4Node
+		p4Node := gnmi.Lookup(t, dut, gnmi.OC().Component(hp).Parent().State())
+		if v, ok := p4Node.Val(); ok {
+			nodes[hp] = v
+		}
 	}
-	res := make(map[string]string)
+	res := make(map[string]string) // <portID>:<P4RTNodeName>
 	for k, v := range nodes {
+		cType := gnmi.Lookup(t, dut, gnmi.OC().Component(v).Type().State())
+		ct, ok := cType.Val()
+		if !ok {
+			continue
+		}
+		if ct != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
+			continue
+		}
 		res[ports[k]] = v
 	}
 	return res
+}
+
+// StreamTermErr returns any error (if present), in the P4RTStreamTermErr channel.
+// Function blocks for 10 seconds if no error in channel.
+func StreamTermErr(ste chan *p4rt_client.P4RTStreamTermErr) error {
+	if ste == nil {
+		return nil
+	}
+	select {
+	case e := <-ste:
+		return e.StreamErr
+	default:
+		return nil
+	}
 }
