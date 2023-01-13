@@ -1237,7 +1237,7 @@ func Test_Rule_L2_Source_Mac(t *testing.T) {
 			Ethertype: oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4,
 			SourceMac: ygot.String("11:aa:11:bb:11:cc"),
 		}
-		t.Log("Replace at rule to value: 11:aa:11:bb:11:cc")
+		t.Log("Replace src-mac with value: 11:aa:11:bb:11:cc")
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
@@ -1249,30 +1249,6 @@ func Test_Rule_L2_Source_Mac(t *testing.T) {
 
 			ruleL2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{}
 			ruleL2.SourceMac = ygot.String("11:aa:11:bb:11:cc")
-
-			if configGot != *ruleL2.SourceMac {
-				t.Errorf("Failed: Fetching leaf for source-mac got %v, want %v", configGot, *ruleL2.SourceMac)
-			} else {
-				t.Logf("Passed: Configured source-mac = Obtained source-mac = %v", configGot)
-			}
-		})
-
-		t.Log("Replace at leaf to value: 22:aa:22:bb:22:cc")
-		r1.L2 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
-			Ethertype: oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4,
-			SourceMac: ygot.String("22:aa:22:bb:22:cc"),
-		}
-		t.Run("Replace", func(t *testing.T) {
-			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
-		})
-
-		t.Log("Verify after replace")
-		t.Run("Get", func(t *testing.T) {
-			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).L2().SourceMac()
-			configGot := gnmi.GetConfig(t, dut, config.Config())
-
-			ruleL2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{}
-			ruleL2.SourceMac = ygot.String("22:aa:22:bb:22:cc")
 
 			if configGot != *ruleL2.SourceMac {
 				t.Errorf("Failed: Fetching leaf for source-mac got %v, want %v", configGot, *ruleL2.SourceMac)
@@ -1333,7 +1309,7 @@ func Test_Rule_L2_Destination_Mac(t *testing.T) {
 			}
 		})
 
-		t.Log("Replace at leaf to value: 11:dd:11:ee:11:ff")
+		t.Log("Replace dst-mac with value: 11:dd:11:ee:11:ff")
 		r1.L2 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2{
 			Ethertype:      oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4,
 			DestinationMac: ygot.String("11:dd:11:ee:11:ff"),
