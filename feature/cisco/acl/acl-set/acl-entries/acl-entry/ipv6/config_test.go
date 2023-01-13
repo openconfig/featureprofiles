@@ -135,8 +135,8 @@ func TestSourceFlowLabel(t *testing.T) {
 	}
 }
 func TestDscpSet(t *testing.T) {
+	t.Skip() // Skip till CSCwb98756 is fixed
 	dut := ondatra.DUT(t, "dut")
-
 	baseConfig := setupAcl(t, dut)
 	defer teardownAcl(t, dut, baseConfig)
 

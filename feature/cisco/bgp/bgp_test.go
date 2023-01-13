@@ -8,12 +8,9 @@ import (
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	ft "github.com/openconfig/featureprofiles/tools/inputcisco/feature"
-
-	//oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-
-	"github.com/openconfig/ondatra"
 )
 
 func TestBGPState(t *testing.T) {
@@ -33,6 +30,7 @@ func TestBGPState(t *testing.T) {
 	time.Sleep(30 * time.Second)
 	for _, bgp := range inputObj.Device(dut).Features().Bgp {
 		for _, neighbor := range bgp.Neighbors {
+
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/description", func(t *testing.T) {
 				state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Description()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -129,6 +127,7 @@ func TestBGPState(t *testing.T) {
 					t.Errorf("BGP Neighbor remote-port: got %d, want !=%d", val, 0)
 				}
 			})
+
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/transport/mtu-discovery", func(t *testing.T) {
 				state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().MtuDiscovery()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -137,6 +136,7 @@ func TestBGPState(t *testing.T) {
 					t.Errorf("BGP Neighbor mtu-discovery: got %v, want %v", val, false)
 				}
 			})
+
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/transport/passive-mode", func(t *testing.T) {
 				state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().PassiveMode()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
