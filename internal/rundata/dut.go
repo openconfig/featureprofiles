@@ -252,7 +252,7 @@ func (di *DUTInfo) put(m map[string]string, id string) {
 func NewDUTInfo(ctx context.Context, gnmic gpb.GNMIClient) (*DUTInfo, error) {
 	yc, err := ygnmi.NewClient(gnmic)
 	if err != nil {
-		return nil, fmt.Errorf("Could not create ygnmiClient for dut: %v", err)
+		return nil, fmt.Errorf("could not create ygnmiClient for dut: %v", err)
 	}
 	y := components.Y{Client: yc}
 	di := &DUTInfo{}
