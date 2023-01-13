@@ -5,12 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"text/template"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -97,6 +99,10 @@ var (
 		"must_pass_only", false, "include only mustpass test",
 	)
 
+	randomizeFlag = flag.Bool(
+		"randomize", false, "randomize tests order",
+	)
+
 	testDescFiles  []string
 	testNames      []string
 	extraPlugins   []string
@@ -108,6 +114,7 @@ var (
 	patchedOnly    bool
 	mustPassOnly   bool
 	excludePatched bool
+	randomize      bool
 )
 
 var (
@@ -212,6 +219,7 @@ func init() {
 	mustPassOnly = *mustPassOnlyFlag
 	patchedOnly = *patchedOnlyFlag
 	excludePatched = *excludePatchedFlag
+	randomize = *randomizeFlag
 }
 
 func main() {
@@ -329,16 +337,28 @@ func main() {
 		}
 	}
 
-	// sort by priority
-	for _, suite := range suite {
-		sort.Slice(suite.Tests, func(i, j int) bool {
-			return suite.Tests[i].Priority < suite.Tests[j].Priority
-		})
+	if randomize {
+		rand.Seed(time.Now().UnixNano())
 	}
 
-	sort.Slice(suite, func(i, j int) bool {
-		return suite[i].Priority < suite[j].Priority
-	})
+	// sort by priority
+	for _, suite := range suite {
+		if randomize {
+			rand.Shuffle(len(suite.Tests), func(i, j int) { suite.Tests[i], suite.Tests[j] = suite.Tests[j], suite.Tests[i] })
+		} else {
+			sort.Slice(suite.Tests, func(i, j int) bool {
+				return suite.Tests[i].Priority < suite.Tests[j].Priority
+			})
+		}
+	}
+
+	if randomize {
+		rand.Shuffle(len(suite), func(i, j int) { suite[i], suite[j] = suite[j], suite[i] })
+	} else {
+		sort.Slice(suite, func(i, j int) bool {
+			return suite[i].Priority < suite[j].Priority
+		})
+	}
 
 	// Assign ids to tests
 	numTestCases := 1
