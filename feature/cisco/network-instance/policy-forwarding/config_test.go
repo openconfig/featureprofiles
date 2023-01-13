@@ -19,7 +19,6 @@ func TestMain(m *testing.M) {
 const (
 	pbrName       = "PBR"
 	InterfaceName = "Bundle-Ether1"
-	InterfaceId   = "FourHundredGigE0/0/0/0"
 )
 
 func Test_Type(t *testing.T) {
@@ -963,9 +962,9 @@ func Test_IntfRef(t *testing.T) {
 		}
 
 		i := oc.NetworkInstance_PolicyForwarding_Interface{}
-		i.InterfaceId = ygot.String("FourHundredGigE0/0/0/0")
+		i.InterfaceId = ygot.String(InterfaceName)
 		i.ApplyVrfSelectionPolicy = ygot.String(pbrName)
-		i.InterfaceRef = &oc.NetworkInstance_PolicyForwarding_Interface_InterfaceRef{Interface: ygot.String("FourHundredGigE0/0/0/0")}
+		i.InterfaceRef = &oc.NetworkInstance_PolicyForwarding_Interface_InterfaceRef{Interface: ygot.String(InterfaceName)}
 
 		p := oc.NetworkInstance_PolicyForwarding_Policy{}
 		p.PolicyId = ygot.String(pbrName)
@@ -974,7 +973,7 @@ func Test_IntfRef(t *testing.T) {
 
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		policy.Interface = map[string]*oc.NetworkInstance_PolicyForwarding_Interface{InterfaceId: &i}
+		policy.Interface = map[string]*oc.NetworkInstance_PolicyForwarding_Interface{InterfaceName: &i}
 
 		t.Logf("TC: Configuring interface-ref-interface-id")
 		t.Run("Update", func(t *testing.T) {
@@ -982,7 +981,7 @@ func Test_IntfRef(t *testing.T) {
 		})
 
 		t.Run("Get", func(t *testing.T) {
-			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Interface(InterfaceId).ApplyVrfSelectionPolicy()
+			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Interface(InterfaceName).ApplyVrfSelectionPolicy()
 			configGot := gnmi.GetConfig(t, dut, config.Config())
 
 			intf := oc.NetworkInstance_PolicyForwarding_Interface{}
@@ -996,7 +995,7 @@ func Test_IntfRef(t *testing.T) {
 		})
 
 		t.Run("Delete", func(t *testing.T) {
-			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Interface(InterfaceId).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Interface(InterfaceName).Config())
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
 	})
