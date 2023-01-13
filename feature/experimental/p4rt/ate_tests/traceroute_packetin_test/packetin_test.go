@@ -58,7 +58,7 @@ type testArgs struct {
 // programmTableEntry programs or deletes p4rt table entry based on delete flag.
 func programmTableEntry(client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool, IsIpv4 bool) error {
 	err := client.Write(&p4_v1.WriteRequest{
-		DeviceId:   deviceId,
+		DeviceId:   deviceID,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete, IsIpv4),
