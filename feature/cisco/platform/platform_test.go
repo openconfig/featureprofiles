@@ -739,8 +739,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	}
 	groupContainer := &oc.Component_Port_BreakoutMode{Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{1: configContainer}}
 	breakoutContainer := &oc.Component_Port{BreakoutMode: groupContainer}
-	portContainer := &oc.Component{Port: breakoutContainer}
-
+	portContainer := &oc.Component{Port: breakoutContainer, Name: ygot.String(PlatformSF.Transceiver)}
 	t.Run("Update//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/config", func(t *testing.T) {
 		path := gnmi.OC().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1)
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -795,10 +794,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		path := gnmi.OC().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1)
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Delete(t, dut, path.Config())
-		got := gnmi.GetConfig(t, dut, gnmi.OC().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).Index().Config())
-		if got == *ygot.Uint8(1) {
-			t.Error("Delete has not been successfull on config container level")
-		}
+		verifyDelete(t, dut)
 	})
 
 	t.Run("Update//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]", func(t *testing.T) {
@@ -819,10 +815,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		path := gnmi.OC().Component(PlatformSF.Transceiver).Port().BreakoutMode()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Delete(t, dut, path.Config())
-		got := gnmi.GetConfig(t, dut, gnmi.OC().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).Index().Config())
-		if got == *ygot.Uint8(1) {
-			t.Error("Delete has not been successfull on group container level")
-		}
+		verifyDelete(t, dut)
 	})
 
 	t.Run("Update//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/", func(t *testing.T) {
@@ -845,10 +838,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		path := gnmi.OC().Component(PlatformSF.Transceiver).Port()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Delete(t, dut, path.Config())
-		got := gnmi.GetConfig(t, dut, gnmi.OC().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).Index().Config())
-		if got == *ygot.Uint8(1) {
-			t.Error("Delete has not been successfull on breakout-mode container level")
-		}
+		verifyDelete(t, dut)
 	})
 
 	t.Run("Update//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/", func(t *testing.T) {
@@ -856,6 +846,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), portContainer)
 	})
+
 	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config", func(t *testing.T) {
 		state := gnmi.OC().Component(PlatformSF.Transceiver)
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -864,15 +855,14 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		numBreakouts := *componentDetails.Port.BreakoutMode.Group[1].NumBreakouts
 		breakoutSpeed := componentDetails.Port.BreakoutMode.Group[1].BreakoutSpeed
 		verifyBreakout(index, numBreakouts, breakoutSpeed.String(), t)
+
 	})
+
 	t.Run("Delete//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/", func(t *testing.T) {
 		path := gnmi.OC().Component(PlatformSF.Transceiver)
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Delete(t, dut, path.Config())
-		got := gnmi.GetConfig(t, dut, gnmi.OC().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).Index().Config())
-		if got == *ygot.Uint8(1) {
-			t.Error("Delete has not been successfull on port container level")
-		}
+		verifyDelete(t, dut)
 	})
 
 }
