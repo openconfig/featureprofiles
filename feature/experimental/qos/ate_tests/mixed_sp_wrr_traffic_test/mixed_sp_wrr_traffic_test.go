@@ -48,9 +48,6 @@ func TestMain(m *testing.M) {
 //        |
 //       ATE port 2
 //
-// Test notes:
-//   - We may need to update the queue mapping after QoS feature implementation is finalized.
-//
 //  Sample CLI command to get telemetry using gmic:
 //   - gnmic -a ipaddr:10162 -u username -p password --skip-verify get \
 //      --path /components/component --format flat
