@@ -63,6 +63,10 @@ var (
 		"test_names", "", "comma separated list of tests to include",
 	)
 
+	exTestNamesFlag = flag.String(
+		"exclude_test_names", "", "comma separated list of tests to exclude",
+	)
+
 	pluginsFlag = flag.String(
 		"extra_plugins", "", "comma separated list of extra firex plugins",
 	)
@@ -103,18 +107,19 @@ var (
 		"randomize", false, "randomize tests order",
 	)
 
-	testDescFiles  []string
-	testNames      []string
-	extraPlugins   []string
-	topology       string
-	binding        string
-	testbed        string
-	baseconf       string
-	outDir         string
-	patchedOnly    bool
-	mustPassOnly   bool
-	excludePatched bool
-	randomize      bool
+	testDescFiles    []string
+	testNames        []string
+	excludeTestNames []string
+	extraPlugins     []string
+	topology         string
+	binding          string
+	testbed          string
+	baseconf         string
+	outDir           string
+	patchedOnly      bool
+	mustPassOnly     bool
+	excludePatched   bool
+	randomize        bool
 )
 
 var (
@@ -190,6 +195,10 @@ func init() {
 
 	if len(*testNamesFlag) > 0 {
 		testNames = strings.Split(*testNamesFlag, ",")
+	}
+
+	if len(*exTestNamesFlag) > 0 {
+		excludeTestNames = strings.Split(*exTestNamesFlag, ",")
 	}
 
 	if len(*pluginsFlag) > 0 {
@@ -290,6 +299,36 @@ func main() {
 			}
 		}
 		suite = kepSuite
+	}
+
+	if len(excludeTestNames) > 0 {
+		excludedTests := map[string]bool{}
+		res := []*regexp.Regexp{}
+		for _, t := range excludeTestNames {
+			if strings.HasPrefix(t, "r/") {
+				res = append(res, regexp.MustCompile(t[2:]))
+			} else {
+				excludedTests[strings.Split(t, " ")[0]] = true
+			}
+		}
+
+		for i := range suite {
+			keptTests := []GoTest{}
+			for j := range suite[i].Tests {
+				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
+				if _, found := excludedTests[prefix]; !found {
+					keptTests = append(keptTests, suite[i].Tests[j])
+				} else {
+					for _, re := range res {
+						if !re.MatchString(suite[i].Tests[j].Name) {
+							keptTests = append(keptTests, suite[i].Tests[j])
+							break
+						}
+					}
+				}
+			}
+			suite[i].Tests = keptTests
+		}
 	}
 
 	// adjust timeouts, priorities, & owners
