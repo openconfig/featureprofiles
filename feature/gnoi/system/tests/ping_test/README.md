@@ -6,6 +6,12 @@ Validate ping request and response work on the device, with parameters covering
 VRF, source-IP address and different packet sizes. L3 Protocol used will be
 ICMP, which is default.
 
+## Topology
+
+*   DUT
+    *   Note: The current test only pings its looplack address to exercise the
+        gNOI API. The test may require the use of ATE for new tests in future.
+
 ## Procedure
 
 *   Issue gnoi.system Ping command. Provide following parameters:
