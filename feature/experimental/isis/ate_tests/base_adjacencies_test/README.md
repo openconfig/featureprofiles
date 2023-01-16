@@ -23,6 +23,7 @@ Base IS-IS functionality and adjacency establishment.
         of hello padding (DISABLED, STRICT, etc.)
     *   Confirm in each case that that adjacency forms and the correct values
         are reported back by the device.
+    *   TODO: LOOSE padding test
 *   Authentication test
     *   Configure IS-IS between DUT:port1 and ATE:port1 With authentication
         disabled, then enabled in TEXT mode, then enabled in MD5 mode.
