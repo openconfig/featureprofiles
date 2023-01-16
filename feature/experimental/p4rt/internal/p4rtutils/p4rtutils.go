@@ -21,11 +21,17 @@
 package p4rtutils
 
 import (
+	"fmt"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -182,7 +188,40 @@ func ACLWbbIngressTableEntryGet(infoList []*ACLWbbIngressTableEntryInfo) []*p4_v
 	return updates
 }
 
-func explicitP4RTNodes() map[string]string {
+func explicitP4RTNodes(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
+	t.Helper()
+	if dut.Vendor() == ondatra.CISCO {
+		isDist := true
+		chassisIDs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS)
+		if len(chassisIDs) > 0 {
+			component := gnmi.Get(t, dut, gnmi.OC().Component(chassisIDs[0]).State())
+			if component != nil && component.Description != nil {
+				re := regexp.MustCompile(`Cisco (.*?) .*`)
+				if matches := re.FindStringSubmatch(*component.Description); len(matches) >= 2 {
+					isDist = strings.HasPrefix(matches[1], "88")
+				}
+			}
+		}
+
+		npus := []int{0, 1, 2}
+		pranges := []int{11, 23, 35}
+		res := make(map[string]string)
+		for _, p := range dut.Ports() {
+			if isDist {
+				parts := strings.Split(p.Name(), "/")
+				pnum, err := strconv.Atoi(parts[3])
+				if err != nil {
+					t.Fatalf("Error parsing port name: %v", err)
+				}
+				npu := npus[sort.SearchInts(pranges, pnum)]
+				res[p.ID()] = fmt.Sprintf("0/%s/CPU0-NPU%d", parts[1], npu)
+			} else {
+				res[p.ID()] = "0/RP0/CPU0/0"
+			}
+		}
+		return res
+	}
+
 	return map[string]string{
 		"port1": *args.P4RTNodeName1,
 		"port2": *args.P4RTNodeName2,
@@ -194,7 +233,7 @@ func explicitP4RTNodes() map[string]string {
 func P4RTNodesByPort(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
 	if *deviations.ExplicitP4RTNodeComponent {
-		return explicitP4RTNodes()
+		return explicitP4RTNodes(t, dut)
 	}
 
 	ports := make(map[string]string) // <hardware-port>:<portID>
