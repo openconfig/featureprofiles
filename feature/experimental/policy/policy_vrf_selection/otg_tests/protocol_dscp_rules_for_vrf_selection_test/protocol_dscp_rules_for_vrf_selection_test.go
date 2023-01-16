@@ -34,12 +34,8 @@ import (
 
 const (
 	trafficDuration = 1 * time.Minute
-	sleepOnChange   = 10 * time.Second
 	ipv4PrefixLen   = 30
 	ipv6PrefixLen   = 126
-	vlan10          = 10
-	vlan20          = 20
-	ipipProtocol    = 4
 )
 
 // testArgs holds the objects needed by a test case.
@@ -275,19 +271,10 @@ func getIPinIPFlow(args *testArgs, src attrs.Attributes, dst attrs.Attributes, f
 	flow.TxRx().Device().SetTxNames([]string{src.Name + "." + args.iptype}).SetRxNames([]string{dst.Name + "." + args.iptype})
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(src.MAC)
-	if args.iptype == "ipv4" {
-		outerIPHeader := flow.Packet().Add().Ipv4()
-		outerIPHeader.Src().SetValue(src.IPv4)
-		outerIPHeader.Dst().SetValue(dst.IPv4)
-		if dscp != 0 {
-			outerIPHeader.Priority().Dscp().Phb().SetValue(dscp)
-		}
-	}
-	if args.iptype == "ipv6" {
-		v6 := flow.Packet().Add().Ipv6()
-		v6.Src().SetValue(src.IPv6)
-		v6.Dst().SetValue(dst.IPv6)
-	}
+	outerIPHeader := flow.Packet().Add().Ipv4()
+	outerIPHeader.Src().SetValue(src.IPv4)
+	outerIPHeader.Dst().SetValue(dst.IPv4)
+	outerIPHeader.Priority().Dscp().Phb().SetValue(dscp)
 	innerIPHeader := flow.Packet().Add().Ipv4()
 	innerIPHeader.Src().SetValue("198.51.100.1")
 	innerIPHeader.Dst().SetValue("203.0.113.1")
@@ -321,8 +308,8 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 		t.Log("Expecting traffic to fail for the flows")
 	}
 
-	topology := args.ate.OTG().FetchConfig(t)
-	otgutils.LogFlowMetrics(t, args.ate.OTG(), topology)
+	top := args.ate.OTG().FetchConfig(t)
+	otgutils.LogFlowMetrics(t, args.ate.OTG(), top)
 	for _, flow := range flows {
 		t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
 		outPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
@@ -384,7 +371,6 @@ func getPBRPolicyForwarding(args *testArgs, rules ...*oc.NetworkInstance_PolicyF
 
 func TestPBR(t *testing.T) {
 	t.Logf("Description: Test RT3.2 with multiple DSCP, IPinIP protocol rule based VRF selection")
-	ondatra.DUT(t, "dut")
 	dut := ondatra.DUT(t, "dut")
 
 	// configure DUT
