@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	tpb "github.com/openconfig/gnoi/types"
@@ -30,24 +31,28 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
+const (
+	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
+	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
+)
+
 // FindComponentsByType finds the list of components based on hardware type.
 func FindComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
-	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().Name().State())
+	components := gnmi.GetAll[*oc.Component](t, dut, gnmi.OC().ComponentAny().State())
 	var s []string
 	for _, c := range components {
-		lookupType, present := gnmi.Lookup(t, dut, gnmi.OC().Component(c).Type().State()).Val()
-		if !present {
-			t.Logf("Component %s type is missing from telemetry", c)
+		if c.GetType() == nil {
+			t.Logf("Component %s type is missing from telemetry", c.GetName())
 			continue
 		}
-		t.Logf("Component %s has type: %v", c, lookupType)
-		switch v := lookupType.(type) {
+		t.Logf("Component %s has type: %v", c.GetName(), c.GetType())
+		switch v := c.GetType().(type) {
 		case oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
 			if v == cType {
-				s = append(s, c)
+				s = append(s, c.GetName())
 			}
 		default:
-			t.Logf("Detected non-hardware component: (%T, %v)", lookupType, lookupType)
+			t.Logf("Detected non-hardware component: (%T, %v)", c.GetType(), c.GetType())
 		}
 	}
 	return s
@@ -120,4 +125,32 @@ func (y Y) FindByType(ctx context.Context, want oc.Component_Type_Union) ([]stri
 		return nil, fmt.Errorf("none of the %d components match %v", len(values), want)
 	}
 	return names, nil
+}
+
+// FindStandbyRP gets a list of two components and finds out the active and standby rp.
+func FindStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
+	var activeRP, standbyRP string
+	for _, supervisor := range supervisors {
+		watch := gnmi.Watch(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+			return val.IsPresent()
+		})
+		if val, ok := watch.Await(t); !ok {
+			t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+		}
+		role := gnmi.Get(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State())
+		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
+		if role == standbyController {
+			standbyRP = supervisor
+		} else if role == activeController {
+			activeRP = supervisor
+		} else {
+			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
+		}
+	}
+	if standbyRP == "" || activeRP == "" {
+		t.Fatalf("Expected non-empty activeRP and standbyRP, got activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+	}
+	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+
+	return standbyRP, activeRP
 }
