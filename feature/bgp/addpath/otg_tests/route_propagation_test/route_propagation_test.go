@@ -190,26 +190,38 @@ type dutData struct {
 	bgpOC *oc.NetworkInstance_Protocol_Bgp
 }
 
+func configureRoutingPolicy(d *oc.Root) *oc.RoutingPolicy {
+	rp := d.GetOrCreateRoutingPolicy()
+	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
+	pdef.GetOrCreateStatement("20").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	return rp
+}
+
 func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 		ocName := dut.Port(t, a.Name).Name()
 		gnmi.Replace(t, dut, gnmi.OC().Interface(ocName).Config(), a.NewOCInterface(ocName))
 	}
-	dutBGP := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	gnmi.Replace(t, dut, dutBGP.Config(), d.bgpOC)
-
-	if *deviations.ExplicitPortSpeed {
-		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
-			fptest.SetPortSpeed(t, dut.Port(t, a.Name))
-		}
+	dutProto := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	key := oc.NetworkInstance_Protocol_Key{
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+		Name:       "BGP",
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
-			ocName := dut.Port(t, a.Name).Name()
-			fptest.AssignToNetworkInstance(t, dut, ocName, *deviations.DefaultNetworkInstance, 0)
-		}
+	niOC := &oc.NetworkInstance{
+		Name: deviations.DefaultNetworkInstance,
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+		Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
+			key: {
+				Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+				Name:       ygot.String("BGP"),
+				Bgp:        d.bgpOC,
+			},
+		},
 	}
+	rpl := configureRoutingPolicy(&oc.Root{})
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
+	gnmi.Replace(t, dut, dutProto.Config(), niOC.Protocol[key])
 }
 
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
@@ -218,7 +230,7 @@ func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 			Bgp().
 			Neighbor(neighbor).
-			SessionState().State(), time.Second*20, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+			SessionState().State(), time.Second*15, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
 	t.Log("BGP sessions established")
 }
@@ -340,9 +352,31 @@ func TestBGP(t *testing.T) {
 		desc:     "propagate IPv4 over IPv4",
 		fullDesc: "Advertise prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+				"BGP-PEER-GROUP1": {
+					PeerGroupName: ygot.String("BGP-PEER-GROUP1"),
+					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
+						ExportPolicy: []string{"PERMIT-ALL"},
+						ImportPolicy: []string{"PERMIT-ALL"},
+					},
+				},
+				"BGP-PEER-GROUP2": {
+					PeerGroupName: ygot.String("BGP-PEER-GROUP2"),
+					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
+						ExportPolicy: []string{"PERMIT-ALL"},
+						ImportPolicy: []string{"PERMIT-ALL"},
+					},
+				},
+			},
 			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
 				RouterId: ygot.String(dutPort2.IPv4),
+				AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+					oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+						AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+						Enabled:     ygot.Bool(true),
+					},
+				},
 			},
 			Neighbor: map[string]*oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				"192.0.2.2": {
@@ -375,9 +409,31 @@ func TestBGP(t *testing.T) {
 		desc:     "propagate IPv6 over IPv6",
 		fullDesc: "Advertise IPv6 prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+				"BGP-PEER-GROUP1": {
+					PeerGroupName: ygot.String("BGP-PEER-GROUP1"),
+					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
+						ExportPolicy: []string{"PERMIT-ALL"},
+						ImportPolicy: []string{"PERMIT-ALL"},
+					},
+				},
+				"BGP-PEER-GROUP2": {
+					PeerGroupName: ygot.String("BGP-PEER-GROUP2"),
+					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
+						ExportPolicy: []string{"PERMIT-ALL"},
+						ImportPolicy: []string{"PERMIT-ALL"},
+					},
+				},
+			},
 			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
 				RouterId: ygot.String(dutPort2.IPv4),
+				AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+					oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
+						AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+						Enabled:     ygot.Bool(true),
+					},
+				},
 			},
 			Neighbor: map[string]*oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				"2001:db8::2": {
@@ -423,8 +479,31 @@ func TestBGP(t *testing.T) {
 		skipReason: "TODO: RFC5549 needs to be enabled explicitly and OpenConfig does not currently provide a signal.",
 		fullDesc:   "IPv4 routes with an IPv6 next-hop when negotiating RFC5549 - validating that routes are accepted and advertised with the specified values.",
 		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
+			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
+				"BGP-PEER-GROUP1": {
+					PeerGroupName: ygot.String("BGP-PEER-GROUP1"),
+					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
+						ExportPolicy: []string{"PERMIT-ALL"},
+						ImportPolicy: []string{"PERMIT-ALL"},
+					},
+				},
+				"BGP-PEER-GROUP2": {
+					PeerGroupName: ygot.String("BGP-PEER-GROUP2"),
+					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
+						ExportPolicy: []string{"PERMIT-ALL"},
+						ImportPolicy: []string{"PERMIT-ALL"},
+					},
+				},
+			},
 			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
-				As: ygot.Uint32(dutAS),
+				As:       ygot.Uint32(dutAS),
+				RouterId: ygot.String(dutPort2.IPv4),
+				AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+					oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+						AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+						Enabled:     ygot.Bool(true),
+					},
+				},
 			},
 			Neighbor: map[string]*oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				"2001:db8::2": {
