@@ -256,29 +256,37 @@ func main() {
 
 	// Targeted mode: remove untargeted tests
 	if len(testNames) > 0 {
-		targetedTests := map[string]bool{}
+		targetedTests := []string{}
 		res := []*regexp.Regexp{}
 		for _, t := range testNames {
 			if strings.HasPrefix(t, "r/") {
 				res = append(res, regexp.MustCompile(t[2:]))
 			} else {
-				targetedTests[strings.Split(t, " ")[0]] = true
+				targetedTests = append(targetedTests, strings.Split(t, " ")[0])
 			}
 		}
 
 		for i := range suite {
 			keptTests := []GoTest{}
+
 			for j := range suite[i].Tests {
-				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
-				if _, found := targetedTests[prefix]; found {
-					keptTests = append(keptTests, suite[i].Tests[j])
-				} else {
+				found := false
+				for _, t := range targetedTests {
+					if strings.HasPrefix(suite[i].Tests[j].Name, t) {
+						found = true
+						break
+					}
+				}
+				if !found {
 					for _, re := range res {
 						if re.MatchString(suite[i].Tests[j].Name) {
-							keptTests = append(keptTests, suite[i].Tests[j])
+							found = true
 							break
 						}
 					}
+				}
+				if found {
+					keptTests = append(keptTests, suite[i].Tests[j])
 				}
 			}
 			suite[i].Tests = keptTests
