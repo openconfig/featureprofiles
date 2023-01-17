@@ -769,3 +769,50 @@ func TestRouteReflectorClient(t *testing.T) {
 		})
 	}
 }
+
+// Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/error-handling/config/treat-as-withdraw
+// State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/error-handling/state/treat-as-withdraw
+func TestErrHndlTreatasWDR(t *testing.T) {
+
+	dut := ondatra.DUT(t, dutName)
+
+	inputs := []bool{
+		true,
+		false,
+	}
+
+	bgp_instance, bgp_as := getNextBgpInstance()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
+	time.Sleep(configApplyTime)
+	defer cleanup(t, dut, bgp_instance)
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/error-handling/config/treat-as-withdraw using value %v", input), func(t *testing.T) {
+			config := bgpConfig.PeerGroup(peerGroup).ErrorHandling().TreatAsWithdraw()
+			state := bgpState.PeerGroup(peerGroup).ErrorHandling().TreatAsWithdraw()
+
+			t.Run("TreatasWDR_Config", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+			time.Sleep(configApplyTime)
+
+			t.Run("TreatasWDR_State", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.State())
+				fmt.Println("Check value stateGot", stateGot)
+				fmt.Println("Check value input", input)
+				if stateGot != input {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/error-handling/state/treat-as-withdraw: got %v, want %v", stateGot, input)
+				}
+			})
+
+			t.Run("TreatasWDR_Delete", func(t *testing.T) {
+				gnmi.Delete(t, dut, config.Config())
+				time.Sleep(configDeleteTime)
+				stateGot := gnmi.Get(t, dut, state.State())
+				if stateGot != false {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/error-handling/state/treat-as-withdraw: got %v, want %v", stateGot, false)
+				}
+			})
+		})
+	}
+}

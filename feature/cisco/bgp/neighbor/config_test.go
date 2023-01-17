@@ -1093,3 +1093,64 @@ func TestGracefulRestartState(t *testing.T) {
 		})
 	}
 }
+
+// Config: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/config/treat-as-withdraw
+// State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/state/treat-as-withdraw
+// State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/state/erroneous-update-messages
+func TestErrHndlTreatasWDR(t *testing.T) {
+
+	dut := ondatra.DUT(t, dutName)
+
+	inputs := []bool{
+		true,
+		false,
+	}
+
+	bgp_instance, bgp_as := getNextBgpInstance()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgp_as)
+	time.Sleep(configApplyTime)
+	defer cleanup(t, dut, bgp_instance)
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/config/treat-as-withdraw using value %v", input), func(t *testing.T) {
+			config := bgpConfig.Neighbor(neighbor_address).ErrorHandling().TreatAsWithdraw()
+			state := bgpState.Neighbor(neighbor_address).ErrorHandling().TreatAsWithdraw()
+			erroneous_state := bgpState.Neighbor(neighbor_address).ErrorHandling().ErroneousUpdateMessages()
+
+			t.Run("TreatasWDR_Config", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+			time.Sleep(configApplyTime)
+
+			t.Run("TreatasWDR_State", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.State())
+				fmt.Println("Check value stateGot", stateGot)
+				fmt.Println("Check value input", input)
+				if stateGot != input {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/state/treat-as-withdraw: got %v, want %v", stateGot, input)
+				}
+			})
+
+			t.Run("Erroneous_upd_msg_State", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, erroneous_state.State())
+				fmt.Println("Check value stateGot", stateGot)
+				if stateGot != 0 {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/state/erroneous-update-messages: got %v, want %v", stateGot, 0)
+				}
+			})
+
+			t.Run("TreatasWDR_Delete", func(t *testing.T) {
+				gnmi.Delete(t, dut, config.Config())
+				time.Sleep(configDeleteTime)
+				stateGot1 := gnmi.Get(t, dut, state.State())
+				stateGot2 := gnmi.Get(t, dut, erroneous_state.State())
+				if stateGot1 != false {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/state/treat-as-withdraw: got %v, want %v", stateGot1, false)
+				}
+				if stateGot2 != 0 {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/state/erroneous-update-messages: got %v, want %v", stateGot2, 0)
+				}
+			})
+		})
+	}
+}
