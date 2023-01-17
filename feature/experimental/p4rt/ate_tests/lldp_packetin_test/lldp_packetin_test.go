@@ -45,7 +45,6 @@ const (
 
 var (
 	p4InfoFile          = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	p4rtNodeName        = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
 	lldpSrcMAC          = flag.String("lldp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
 	streamName          = "p4rt"
 	lldpMAC             = "01:80:c2:00:00:0e"
@@ -317,11 +316,18 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 
 // configureDeviceID configures p4rt device-id on the DUT.
 func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	component := oc.Component{}
-	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-	component.Name = ygot.String(*p4rtNodeName)
-	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
-	gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).Config(), &component)
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	p4rtNode, ok := nodes["port1"]
+	if !ok {
+		t.Fatal("Couldn't find P4RT Node for port: port1")
+	}
+	t.Logf("Configuring P4RT Node: %s", p4rtNode)
+
+	c := oc.Component{}
+	c.Name = ygot.String(p4rtNode)
+	c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+	c.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
+	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
 }
 
 // configurePortID configures p4rt port-id on the DUT.
@@ -362,6 +368,9 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 				return errors.New("errors seen when sending ClientArbitration message")
 			}
 			if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
+				if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
+					return err
+				}
 				return errors.New("errors seen in ClientArbitration response")
 			}
 		}
@@ -420,20 +429,20 @@ func TestPacketIn(t *testing.T) {
 	t.Logf("Disable LLDP config")
 	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
 
-	leader := p4rt_client.P4RTClient{}
+	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
-	follower := p4rt_client.P4RTClient{}
+	follower := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	args := &testArgs{
 		ctx:      ctx,
-		leader:   &leader,
-		follower: &follower,
+		leader:   leader,
+		follower: follower,
 		dut:      dut,
 		ate:      ate,
 		top:      top,
