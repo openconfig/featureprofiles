@@ -266,30 +266,35 @@ func main() {
 			}
 		}
 
-		for i := range suite {
-			keptTests := []GoTest{}
-
-			for j := range suite[i].Tests {
-				found := false
-				for _, t := range targetedTests {
+		keptTests := map[string][]GoTest{}
+		for _, t := range targetedTests {
+			for i := range suite {
+				if _, ok := keptTests[suite[i].Name]; !ok {
+					keptTests[suite[i].Name] = []GoTest{}
+				}
+				for j := range suite[i].Tests {
 					if strings.HasPrefix(suite[i].Tests[j].Name, t) {
-						found = true
-						break
+						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
 					}
-				}
-				if !found {
-					for _, re := range res {
-						if re.MatchString(suite[i].Tests[j].Name) {
-							found = true
-							break
-						}
-					}
-				}
-				if found {
-					keptTests = append(keptTests, suite[i].Tests[j])
 				}
 			}
-			suite[i].Tests = keptTests
+		}
+
+		for i := range suite {
+			for j := range suite[i].Tests {
+				for _, re := range res {
+					if re.MatchString(suite[i].Tests[j].Name) {
+						if _, ok := keptTests[suite[i].Name]; !ok {
+							keptTests[suite[i].Name] = []GoTest{}
+						}
+						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
+					}
+				}
+			}
+		}
+
+		for i := range suite {
+			suite[i].Tests = keptTests[suite[i].Name]
 		}
 	} else {
 		// Normal mode: remove skipped tests
