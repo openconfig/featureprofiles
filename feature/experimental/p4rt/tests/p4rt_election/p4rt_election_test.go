@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -94,11 +95,11 @@ func configurePortId(t *testing.T, dut *ondatra.DUTDevice) {
 
 // Create client connection
 func clientConnection(t *testing.T, dut *ondatra.DUTDevice) *p4rt_client.P4RTClient {
-	clientHandle := p4rt_client.P4RTClient{}
+	clientHandle := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := clientHandle.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
-	return &clientHandle
+	return clientHandle
 }
 
 // Setup P4RT Arbitration Stream which will return a GRPC status code
@@ -111,7 +112,7 @@ func streamP4RTArb(args *testArgs) (int32, error) {
 		ElectionIdH: args.highID,
 		ElectionIdL: args.lowID,
 	}
-	// Send arb msg
+	// Send ClientArbitration message for a given handle.
 	if args.handle != nil {
 		args.handle.StreamChannelCreate(&streamParameter)
 		if err := args.handle.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
@@ -140,7 +141,13 @@ func getRespCode(args *testArgs) (int32, error) {
 		// Grab Arb Response to look at status code
 		_, arbResp, arbErr := handle.StreamChannelGetArbitrationResp(&streamName, 1)
 		if arbErr != nil {
-			return 0, errors.New("Errors seen in ClientArbitration response")
+			if err := p4rtutils.StreamTermErr(args.handle.StreamTermErr); err != nil {
+				if strings.Contains(err.Error(), "InvalidArgument") {
+					return 3, err
+				}
+				return 0, err
+			}
+			return 0, fmt.Errorf("Errors seen in ClientArbitration response: %v", arbErr)
 		}
 		// Handle exception when GetCode is empty.
 		respCode := arbResp.Arb.GetStatus().GetCode()
@@ -305,7 +312,7 @@ func TestZeroMaster(t *testing.T) {
 		handle:     clientConnection(t, dut),
 		deviceID:   deviceId,
 		wantFail:   true,
-		wantStatus: 0,
+		wantStatus: 3,
 	}
 	t.Run(test.desc, func(t *testing.T) {
 		resp, err := streamP4RTArb(&test)
@@ -320,7 +327,6 @@ func TestZeroMaster(t *testing.T) {
 			t.Errorf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 		}
 	})
-
 }
 
 // Test Primary Reconnect
@@ -451,7 +457,7 @@ func TestDuplicateElectionID(t *testing.T) {
 			handle:     clientConnection(t, dut),
 			deviceID:   deviceId,
 			wantFail:   true,
-			wantStatus: 0,
+			wantStatus: 3,
 		},
 	}
 	var p4Clients []*p4rt_client.P4RTClient
