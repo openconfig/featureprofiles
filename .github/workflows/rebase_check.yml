@@ -15,7 +15,7 @@ jobs:
         readonly -a CHECKED_FILES=(
           go.mod
           .github/CODEOWNERS
-          .github/workflows/pull_request.yml
+          .github/workflows/
         )
 
         # Notes:
