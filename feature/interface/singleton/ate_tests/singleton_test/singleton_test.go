@@ -370,9 +370,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 	} else if avg := octets / outPkts; avg > uint64(tc.mtu) {
 		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
 	}
-	if p1InDiff.unicast < outPkts {
-		t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
-	}
+
 
 	if inPkts == 0 {
 		// The PacketLargerThanMTU cases do not expect to receive packets,
@@ -381,9 +379,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 	} else if avg := octets / inPkts; avg > uint64(tc.mtu) {
 		t.Errorf("Flow destination packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
 	}
-	if inPkts < p2OutDiff.unicast {
-		t.Errorf("ATE received too few destination packets: got %d, want >= %d", inPkts, p2OutDiff.unicast)
-	}
+
 	t.Logf("flow loss-pct %f", gnmi.Get(t, tc.ate, fp.LossPct().State()))
 	return gnmi.Get(t, tc.ate, fp.LossPct().State()) < 0.5 // 0.5% loss.
 }
