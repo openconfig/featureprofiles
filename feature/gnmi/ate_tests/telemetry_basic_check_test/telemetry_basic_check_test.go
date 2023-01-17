@@ -391,6 +391,9 @@ func TestComponentParent(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			cards := components.FindComponentsByType(t, dut, tc.componentType)
 			t.Logf("Found card list: %v", cards)
+			if len(cards) == 0 {
+				t.Fatalf("Get Card list for %q: got 0, want > 0", dut.Model())
+			}
 			for _, card := range cards {
 				t.Logf("Validate card %s", card)
 				parent := gnmi.Lookup(t, dut, gnmi.OC().Component(card).Parent().State())
@@ -413,6 +416,9 @@ func TestSoftwareVersion(t *testing.T) {
 
 	cards := components.FindComponentsByType(t, dut, cpuType)
 	t.Logf("Found card list: %v", cards)
+	if len(cards) == 0 {
+		t.Fatalf("Get Card list for %q: got 0, want > 0", dut.Model())
+	}
 
 	// Validate Supervisor components include software version.
 	swVersionFound := false
@@ -454,7 +460,10 @@ func TestCPU(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	cpus := components.FindComponentsByType(t, dut, cpuType)
-	t.Logf("Found card list: %v", cpus)
+	t.Logf("Found CPU list: %v", cpus)
+	if len(cpus) == 0 {
+		t.Fatalf("Get CPU list for %q: got 0, want > 0", dut.Model())
+	}
 
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
@@ -478,6 +487,9 @@ func TestSupervisorLastRebootInfo(t *testing.T) {
 
 	cards := components.FindComponentsByType(t, dut, supervisorType)
 	t.Logf("Found card list: %v", cards)
+	if len(cards) == 0 {
+		t.Fatalf("Get Card list for %q: got 0, want > 0", dut.Model())
+	}
 
 	rebootTimeFound := false
 	rebootReasonFound := false
