@@ -107,6 +107,10 @@ var (
 		"randomize", false, "randomize tests order",
 	)
 
+	sortFlag = flag.Bool(
+		"sort", true, "sort tests by priority",
+	)
+
 	testDescFiles    []string
 	testNames        []string
 	excludeTestNames []string
@@ -120,6 +124,7 @@ var (
 	mustPassOnly     bool
 	excludePatched   bool
 	randomize        bool
+	sorted           bool
 )
 
 var (
@@ -229,6 +234,7 @@ func init() {
 	patchedOnly = *patchedOnlyFlag
 	excludePatched = *excludePatchedFlag
 	randomize = *randomizeFlag
+	sorted = *sortFlag
 }
 
 func main() {
@@ -250,32 +256,45 @@ func main() {
 
 	// Targeted mode: remove untargeted tests
 	if len(testNames) > 0 {
-		targetedTests := map[string]bool{}
+		targetedTests := []string{}
 		res := []*regexp.Regexp{}
 		for _, t := range testNames {
 			if strings.HasPrefix(t, "r/") {
 				res = append(res, regexp.MustCompile(t[2:]))
 			} else {
-				targetedTests[strings.Split(t, " ")[0]] = true
+				targetedTests = append(targetedTests, strings.Split(t, " ")[0])
+			}
+		}
+
+		keptTests := map[string][]GoTest{}
+		for _, t := range targetedTests {
+			for i := range suite {
+				if _, ok := keptTests[suite[i].Name]; !ok {
+					keptTests[suite[i].Name] = []GoTest{}
+				}
+				for j := range suite[i].Tests {
+					if strings.HasPrefix(suite[i].Tests[j].Name, t) {
+						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
+					}
+				}
 			}
 		}
 
 		for i := range suite {
-			keptTests := []GoTest{}
 			for j := range suite[i].Tests {
-				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
-				if _, found := targetedTests[prefix]; found {
-					keptTests = append(keptTests, suite[i].Tests[j])
-				} else {
-					for _, re := range res {
-						if re.MatchString(suite[i].Tests[j].Name) {
-							keptTests = append(keptTests, suite[i].Tests[j])
-							break
+				for _, re := range res {
+					if re.MatchString(suite[i].Tests[j].Name) {
+						if _, ok := keptTests[suite[i].Name]; !ok {
+							keptTests[suite[i].Name] = []GoTest{}
 						}
+						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
 					}
 				}
 			}
-			suite[i].Tests = keptTests
+		}
+
+		for i := range suite {
+			suite[i].Tests = keptTests[suite[i].Name]
 		}
 	} else {
 		// Normal mode: remove skipped tests
@@ -384,7 +403,7 @@ func main() {
 	for _, suite := range suite {
 		if randomize {
 			rand.Shuffle(len(suite.Tests), func(i, j int) { suite.Tests[i], suite.Tests[j] = suite.Tests[j], suite.Tests[i] })
-		} else {
+		} else if sorted {
 			sort.Slice(suite.Tests, func(i, j int) bool {
 				return suite.Tests[i].Priority < suite.Tests[j].Priority
 			})
@@ -393,7 +412,7 @@ func main() {
 
 	if randomize {
 		rand.Shuffle(len(suite), func(i, j int) { suite[i], suite[j] = suite[j], suite[i] })
-	} else {
+	} else if sorted {
 		sort.Slice(suite, func(i, j int) bool {
 			return suite[i].Priority < suite[j].Priority
 		})
