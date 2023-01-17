@@ -28,6 +28,7 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -41,14 +42,13 @@ import (
 const (
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
-	deviceId      = uint64(100)
+	deviceID      = uint64(100)
 	portId        = uint32(2100)
 	electionId    = uint64(100)
 )
 
 var (
 	p4InfoFile                                 = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	p4rtNodeName                               = flag.String("p4rt_node_name", "FPC0:NPU0", "component name for P4RT Node")
 	streamName                                 = "p4rt"
 	tracerouteipv4InLayers layers.EthernetType = 0x0800
 	checksum                                   = uint16(200)
@@ -139,15 +139,19 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// configureDeviceId configures p4rt device-id on the DUT.
-func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	component := oc.Component{
-		IntegratedCircuit: &oc.Component_IntegratedCircuit{
-			NodeId: ygot.Uint64(deviceId),
-		},
-		Name: ygot.String(*p4rtNodeName),
+// configureDeviceIDs configures p4rt device-id on the DUT.
+func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	p4rtNode, ok := nodes["port1"]
+	if !ok {
+		t.Fatal("Couldn't find P4RT Node for port: port1")
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).Config(), &component)
+	t.Logf("Configuring P4RT Node: %s", p4rtNode)
+	c := oc.Component{}
+	c.Name = ygot.String(p4rtNode)
+	c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+	c.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
+	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
 }
 
 // configurePortId configures p4rt port-id on the DUT.
@@ -164,7 +168,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	// Setup p4rt-client stream parameters
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
-		DeviceId:    deviceId,
+		DeviceId:    deviceID,
 		ElectionIdH: uint64(0),
 		ElectionIdL: electionId,
 	}
@@ -185,10 +189,13 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 				},
 			},
 		}); err != nil {
-			return errors.New("Errors seen when sending ClientArbitration message.")
+			return fmt.Errorf("errors seen when sending ClientArbitration message: %v", err)
 		}
 		if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
-			return errors.New("Errors seen in ClientArbitration response.")
+			if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
+				return err
+			}
+			return fmt.Errorf("errors seen in ClientArbitration response: %v", arbErr)
 		}
 	}
 	// Load p4info file.
@@ -198,7 +205,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	}
 	// Send SetForwardingPipelineConfig for p4rt leader client.
 	if err := args.leader.SetForwardingPipelineConfig(&p4v1.SetForwardingPipelineConfigRequest{
-		DeviceId:   deviceId,
+		DeviceId:   deviceID,
 		ElectionId: &p4v1.Uint128{High: uint64(0), Low: electionId},
 		Action:     p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4v1.ForwardingPipelineConfig{
@@ -230,17 +237,17 @@ func TestPacketOut(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	// Configure P4RT device-id and port-id on the DUT
-	configureDeviceId(ctx, t, dut)
+	configureDeviceID(ctx, t, dut)
 	configurePortId(ctx, t, dut)
 
-	leader := p4rt_client.P4RTClient{}
+	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	args := &testArgs{
 		ctx:    ctx,
-		leader: &leader,
+		leader: leader,
 		dut:    dut,
 		ate:    ate,
 		top:    top,

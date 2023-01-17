@@ -17,6 +17,7 @@ package rundata
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -27,23 +28,25 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
 	"github.com/openconfig/ygnmi/ygnmi"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
-// dutInfo retrieves the vendor, model, and OS version from the device from various
+// DUTInfo retrieves the vendor, model, and OS version from the device from various
 // OpenConfig paths.
-type dutInfo struct {
-	vendor string
-	model  string
-	osver  string
+type DUTInfo struct {
+	Vendor string
+	Model  string
+	OSVer  string
 }
 
-// setFromComponentChassis sets dutInfo from the first component of type CHASSIS.
+// setFromComponentChassis sets DUTInfo from the first component of type CHASSIS.
 //
 //   - vendor from mfg-name (Arista, Cisco, newer Nokia).
 //   - model from either description (Cisco, Juniper, newer Nokia) or part-no (Arista).
 //   - osver from software-version (Juniper).
-func (di *dutInfo) setFromComponentChassis(ctx context.Context, y components.Y) {
-	if di.vendor != "" && di.model != "" && di.osver != "" {
+func (di *DUTInfo) setFromComponentChassis(ctx context.Context, y components.Y) {
+	if di.Vendor != "" && di.Model != "" && di.OSVer != "" {
 		return // No-op if nothing needs to be set.
 	}
 
@@ -70,38 +73,38 @@ func (di *dutInfo) setFromComponentChassis(ctx context.Context, y components.Y) 
 		}
 	}
 
-	if di.vendor == "" && component.MfgName != nil {
-		di.vendor = *component.MfgName
-		glog.V(2).Infof("Setting vendor from chassis mfg-name: %s", di.vendor)
+	if di.Vendor == "" && component.MfgName != nil {
+		di.Vendor = *component.MfgName
+		glog.V(2).Infof("Setting vendor from chassis mfg-name: %s", di.Vendor)
 	}
 
-	if di.model == "" && component.PartNo != nil {
-		di.model = *component.PartNo
-		glog.V(2).Infof("Setting model from chassis part-no: %s", di.model)
+	if di.Model == "" && component.PartNo != nil {
+		di.Model = *component.PartNo
+		glog.V(2).Infof("Setting model from chassis part-no: %s", di.Model)
 	}
 
 	if desc := component.Description; desc != nil {
 		switch {
-		case strings.HasPrefix(di.vendor, "Cisco"):
+		case strings.HasPrefix(di.Vendor, "Cisco"):
 			fallthrough
-		case strings.HasPrefix(di.vendor, "Nokia"):
+		case strings.HasPrefix(di.Vendor, "Nokia"):
 			fallthrough
-		case di.model == "":
-			di.model = *desc
-			glog.V(2).Infof("Setting model from chassis description: %s", di.model)
+		case di.Model == "":
+			di.Model = *desc
+			glog.V(2).Infof("Setting model from chassis description: %s", di.Model)
 		}
 	}
 
-	if di.osver == "" && component.SoftwareVersion != nil {
-		di.osver = *component.SoftwareVersion
-		glog.V(2).Infof("Setting osver from chassis software-version: %s", di.osver)
+	if di.OSVer == "" && component.SoftwareVersion != nil {
+		di.OSVer = *component.SoftwareVersion
+		glog.V(2).Infof("Setting osver from chassis software-version: %s", di.OSVer)
 	}
 }
 
-// setFromComponentOS sets dutInfo from the first component of type OPERATING_SYSTEM, osver from
+// setFromComponentOS sets DUTInfo from the first component of type OPERATING_SYSTEM, osver from
 // software-version (Arista, Cisco).
-func (di *dutInfo) setFromComponentOS(ctx context.Context, y components.Y) {
-	if di.osver != "" {
+func (di *DUTInfo) setFromComponentOS(ctx context.Context, y components.Y) {
+	if di.OSVer != "" {
 		return // No-op if osver is already set.
 	}
 
@@ -120,15 +123,15 @@ func (di *dutInfo) setFromComponentOS(ctx context.Context, y components.Y) {
 	if err != nil {
 		glog.Errorf("Missing component software-version: %v", err)
 	} else {
-		di.osver = softVer
-		glog.V(2).Infof("Setting osver from operating-system software-version: %s", di.osver)
+		di.OSVer = softVer
+		glog.V(2).Infof("Setting osver from operating-system software-version: %s", di.OSVer)
 	}
 }
 
-// setFromLLDP sets dutInfo vendor (Juniper, older Nokia) and osver (older Nokia) from
+// setFromLLDP sets DUTInfo vendor (Juniper, older Nokia) and osver (older Nokia) from
 // LLDP system-description.  This is less reliable because LLDP config can be changed.
-func (di *dutInfo) setFromLLDP(ctx context.Context, y components.Y) {
-	if di.vendor != "" && di.osver != "" {
+func (di *DUTInfo) setFromLLDP(ctx context.Context, y components.Y) {
+	if di.Vendor != "" && di.OSVer != "" {
 		return // No-op if vendor and osver are already set.
 	}
 
@@ -140,39 +143,39 @@ func (di *dutInfo) setFromLLDP(ctx context.Context, y components.Y) {
 	glog.V(2).Infof("LLDP system-description: %s", lldp)
 
 	if juniper := "Juniper Networks, Inc."; strings.Contains(lldp, juniper) {
-		di.vendor = juniper
-		glog.Infof("Setting vendor from lldp system-description: %s", di.vendor)
+		di.Vendor = juniper
+		glog.Infof("Setting vendor from lldp system-description: %s", di.Vendor)
 	}
 
 	if srlinux := "SRLinux-v"; strings.HasPrefix(lldp, srlinux) {
-		if di.vendor == "" {
-			di.vendor = "Nokia"
-			glog.Infof("Setting vendor from lldp system-description: %s", di.vendor)
+		if di.Vendor == "" {
+			di.Vendor = "Nokia"
+			glog.Infof("Setting vendor from lldp system-description: %s", di.Vendor)
 		}
 
-		if di.osver == "" {
+		if di.OSVer == "" {
 			parts := strings.Split(lldp, " ")
-			di.osver = parts[0][len(srlinux):]
-			glog.Infof("Setting osver from lldp system-description: %s", di.osver)
+			di.OSVer = parts[0][len(srlinux):]
+			glog.Infof("Setting osver from lldp system-description: %s", di.OSVer)
 		}
 	}
 }
 
-// setFromSystem sets dutInfo from /system/state/software-version for osver.
+// setFromSystem sets DUTInfo from /system/state/software-version for osver.
 //
 // This is the new OpenConfig mechanism.
-func (di *dutInfo) setFromSystem(ctx context.Context, y components.Y) {
+func (di *DUTInfo) setFromSystem(ctx context.Context, y components.Y) {
 	// Do not fetch ocpath.Root().System().State() because it contains large
 	// subtrees such as /system/aaa.
 
-	if di.osver == "" {
+	if di.OSVer == "" {
 		softVerPath := ocpath.Root().System().SoftwareVersion()
 		softVer, err := ygnmi.Get(ctx, y.Client, softVerPath.State())
 		if err != nil {
 			glog.Errorf("Missing system software-version: %v", err)
 		} else {
-			di.osver = softVer
-			glog.V(2).Infof("Setting osver from system software-version: %s", di.osver)
+			di.OSVer = softVer
+			glog.V(2).Infof("Setting osver from system software-version: %s", di.OSVer)
 		}
 	}
 
@@ -192,15 +195,15 @@ func (di *dutInfo) setFromSystem(ctx context.Context, y components.Y) {
 }
 
 // shortVendor canonicalizes full vendor string in short uppercase form, if possible.
-func (di *dutInfo) shortVendor() string {
-	if di.vendor == "" {
+func (di *DUTInfo) shortVendor() string {
+	if di.Vendor == "" {
 		return ""
 	}
 	vendors := []ondatra.Vendor{
 		ondatra.ARISTA, ondatra.CISCO, ondatra.DELL, ondatra.JUNIPER, ondatra.IXIA, ondatra.CIENA,
 		ondatra.PALOALTO, ondatra.ZPE, ondatra.NOKIA,
 	}
-	fullUpper := strings.ToUpper(di.vendor)
+	fullUpper := strings.ToUpper(di.Vendor)
 	for _, vendor := range vendors {
 		shortUpper := strings.ToUpper(vendor.String())
 		if strings.Contains(fullUpper, shortUpper) {
@@ -220,39 +223,44 @@ var ciscoRE = regexp.MustCompile(`Cisco (.*?) .*`)
 var jnpRE = regexp.MustCompile(`JNP.* \[(.*)\]`)
 
 // shortModel canonicalizes full model to short form.
-func (di *dutInfo) shortModel() string {
-	if matches := ciscoRE.FindStringSubmatch(di.model); len(matches) >= 2 {
+func (di *DUTInfo) shortModel() string {
+	if matches := ciscoRE.FindStringSubmatch(di.Model); len(matches) >= 2 {
 		return matches[1]
 	}
-	if matches := jnpRE.FindStringSubmatch(di.model); len(matches) >= 2 {
+	if matches := jnpRE.FindStringSubmatch(di.Model); len(matches) >= 2 {
 		return matches[1]
 	}
-	return di.model
+	return di.Model
 }
 
-// put exports the dutInfo to a map with the given dut ID.
-func (di *dutInfo) put(m map[string]string, id string) {
-	if di.vendor != "" {
-		m[id+".vendor.full"] = di.vendor
+// put exports the DUTInfo to a map with the given dut ID.
+func (di *DUTInfo) put(m map[string]string, id string) {
+	if di.Vendor != "" {
+		m[id+".vendor.full"] = di.Vendor
 		m[id+".vendor"] = di.shortVendor()
 	}
-	if di.model != "" {
-		m[id+".model.full"] = di.model
+	if di.Model != "" {
+		m[id+".model.full"] = di.Model
 		m[id+".model"] = di.shortModel()
 	}
-	if di.osver != "" {
-		m[id+".os_version"] = di.osver
+	if di.OSVer != "" {
+		m[id+".os_version"] = di.OSVer
 	}
 }
 
-// newDUTInfo creates a newly populated dutInfo.
-func newDUTInfo(ctx context.Context, y components.Y) *dutInfo {
-	di := &dutInfo{}
+// NewDUTInfo creates a newly populated DUTInfo.
+func NewDUTInfo(ctx context.Context, gnmic gpb.GNMIClient) (*DUTInfo, error) {
+	yc, err := ygnmi.NewClient(gnmic)
+	if err != nil {
+		return nil, fmt.Errorf("could not create ygnmiClient for dut: %v", err)
+	}
+	y := components.Y{Client: yc}
+	di := &DUTInfo{}
 	di.setFromSystem(ctx, y)
 	di.setFromComponentChassis(ctx, y)
 	di.setFromComponentOS(ctx, y)
 	di.setFromLLDP(ctx, y)
-	return di
+	return di, err
 }
 
 // dutsInfo populates the DUT properties for all DUTs in the reservation.
@@ -263,11 +271,11 @@ func dutsInfo(ctx context.Context, m map[string]string, resv *binding.Reservatio
 			glog.Errorf("Could not dial GNMI to dut %s: %v", dut.Name(), err)
 			continue
 		}
-		yc, err := ygnmi.NewClient(gnmic)
+		dInfo, err := NewDUTInfo(ctx, gnmic)
 		if err != nil {
-			glog.Errorf("Could not create ygnmi.Client for dut %s: %v", dut.Name(), err)
+			glog.Errorf("Could not get DUTInfo for dut %v: %v", dut.Name(), err)
 			continue
 		}
-		newDUTInfo(ctx, components.Y{Client: yc}).put(m, id)
+		dInfo.put(m, id)
 	}
 }
