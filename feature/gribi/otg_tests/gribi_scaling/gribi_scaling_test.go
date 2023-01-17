@@ -293,7 +293,6 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) 
 		// entire VRF tree so the instance is created.
 		i := d.GetOrCreateNetworkInstance(vrf)
 		i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		i.Enabled = ygot.Bool(true)
 		i.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 		nip := gnmi.OC().NetworkInstance(vrf)
@@ -309,6 +308,13 @@ func pushConfig(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d *
 	iname := dutPort.Name()
 	i := d.GetOrCreateInterface(iname)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(iname).Config(), i)
+
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dutPort)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, i.GetName(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // configureInterfaceDUT configures a single DUT layer 2 port.

@@ -261,6 +261,9 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 	a.configSubinterfaceDUT(t, i)
 	intfPath := gnmi.OC().Interface(p.Name())
 	gnmi.Replace(t, d, intfPath.Config(), i)
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p)
+	}
 	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
 }
 
@@ -271,9 +274,8 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
 	// Use default NI if not provided
 	if a.networkInstance != "" {
 		ni := &oc.NetworkInstance{
-			Name:    ygot.String(a.networkInstance),
-			Enabled: ygot.Bool(true),
-			Type:    oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+			Name: ygot.String(a.networkInstance),
+			Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 		}
 		i := ni.GetOrCreateInterface(p.Name())
 		i.Interface = ygot.String(p.Name())
