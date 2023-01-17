@@ -107,6 +107,10 @@ var (
 		"randomize", false, "randomize tests order",
 	)
 
+	sortFlag = flag.Bool(
+		"sort", true, "sort tests by priority",
+	)
+
 	testDescFiles    []string
 	testNames        []string
 	excludeTestNames []string
@@ -120,6 +124,7 @@ var (
 	mustPassOnly     bool
 	excludePatched   bool
 	randomize        bool
+	sorted           bool
 )
 
 var (
@@ -229,6 +234,7 @@ func init() {
 	patchedOnly = *patchedOnlyFlag
 	excludePatched = *excludePatchedFlag
 	randomize = *randomizeFlag
+	sorted = *sortFlag
 }
 
 func main() {
@@ -384,7 +390,7 @@ func main() {
 	for _, suite := range suite {
 		if randomize {
 			rand.Shuffle(len(suite.Tests), func(i, j int) { suite.Tests[i], suite.Tests[j] = suite.Tests[j], suite.Tests[i] })
-		} else {
+		} else if sorted {
 			sort.Slice(suite.Tests, func(i, j int) bool {
 				return suite.Tests[i].Priority < suite.Tests[j].Priority
 			})
@@ -393,7 +399,7 @@ func main() {
 
 	if randomize {
 		rand.Shuffle(len(suite), func(i, j int) { suite[i], suite[j] = suite[j], suite[i] })
-	} else {
+	} else if sorted {
 		sort.Slice(suite, func(i, j int) bool {
 			return suite[i].Priority < suite[j].Priority
 		})
