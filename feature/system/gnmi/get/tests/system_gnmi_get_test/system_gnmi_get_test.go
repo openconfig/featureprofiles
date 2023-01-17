@@ -66,6 +66,7 @@ func TestGNMIGet(t *testing.T) {
 			Path: []*gpb.Path{{
 				// empty path indicates the root.
 			}},
+			Type:     gpb.GetRequest_CONFIG,
 			Encoding: gpb.Encoding_JSON_IETF,
 		},
 		wantGetResponse: &gpb.GetResponse{
@@ -85,6 +86,7 @@ func TestGNMIGet(t *testing.T) {
 				Origin: "openconfig",
 			},
 			Path:     []*gpb.Path{{}},
+			Type:     gpb.GetRequest_CONFIG,
 			Encoding: gpb.Encoding_JSON_IETF,
 		},
 		wantGetResponse: &gpb.GetResponse{
