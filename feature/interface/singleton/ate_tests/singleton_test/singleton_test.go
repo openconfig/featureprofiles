@@ -390,11 +390,11 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, ipHeader ondatra.H
 		// in case of Packets which larger than MTU
 		t.Log("Flow did not receive any packet")
 		if p1InEthDiff.unicast < outPkts {
-			t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InEthDiff.unicast, outPkts)
+			t.Errorf("Get Oversized Frames: DUT received too few source packets: got %d, want >= %d", p1InEthDiff.unicast, outPkts)
 		}
 	} else {
 		if p1InDiff.unicast < outPkts {
-			t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
+			t.Errorf("Get InPacket count: DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
 		}
 		if avg := octets / inPkts; avg > uint64(tc.mtu) {
 			t.Errorf("Flow destination packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
