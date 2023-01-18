@@ -216,8 +216,8 @@ func TestQoSClassifierConfig(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
-		// TODO: Remove the following continue after the config verification code has been tested.
-		continue
+		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
+		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
 		classifier := gnmi.OC().Qos().Classifier(tc.name)
 		term := classifier.Term(tc.termID)
@@ -291,8 +291,8 @@ func TestQoSInputIntfClassifierConfig(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
-		// TODO: Remove the following continue after the config verification code has been tested.
-		continue
+		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
+		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
 		classifier := gnmi.OC().Qos().Interface(dp.Name()).Input().Classifier(tc.inputClassifierType)
 		if got, want := gnmi.Get(t, dut, classifier.Name().State()), tc.classifier; got != want {
@@ -354,8 +354,8 @@ func TestQoSForwadingGroupsConfig(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
-		// TODO: Remove the following continue after the config verification code has been tested.
-		continue
+		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
+		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
 		forwardingGroup := gnmi.OC().Qos().ForwardingGroup(tc.targetGrpoup)
 		if got, want := gnmi.Get(t, dut, forwardingGroup.Name().State()), tc.targetGrpoup; got != want {
@@ -462,8 +462,8 @@ func TestSchedulerPoliciesConfig(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
-		// TODO: Remove the following continue after the config verification code has been tested.
-		continue
+		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
+		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
 		scheduler := gnmi.OC().Qos().SchedulerPolicy("scheduler").Scheduler(tc.sequence)
 		input := scheduler.Input(tc.inputID)
@@ -611,8 +611,8 @@ func TestQoSOutputIntfConfig(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
-		// TODO: Remove the following continue after the config verification code has been tested.
-		continue
+		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
+		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
 		policy := gnmi.OC().Qos().Interface(dp.Name()).Output().SchedulerPolicy()
 		outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(tc.queueName)
