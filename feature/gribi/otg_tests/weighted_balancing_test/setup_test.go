@@ -206,6 +206,11 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 			t.Fatalf("No address found for port %v", dp)
 		}
 	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		for _, dp := range dut.Ports() {
+			fptest.AssignToNetworkInstance(t, dut, dp.Name(), *deviations.DefaultNetworkInstance, 0)
+		}
+	}
 }
 
 // setDUTInterfaceState sets the admin state on the dut interface
