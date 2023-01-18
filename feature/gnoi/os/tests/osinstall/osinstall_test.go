@@ -45,7 +45,8 @@ var (
 	osFile    = flag.String("osfile", "", "Path to the OS image for the install operation")
 	osVersion = flag.String("osver", "", "Version of the OS image for the install operation")
 
-	timeout = flag.Duration("timeout", time.Minute*30, "Time to wait for reboot to complete")
+	timeout    = flag.Duration("timeout", time.Minute*30, "Time to wait for reboot to complete")
+	OneMinWait = time.Minute
 )
 
 type testCase struct {
@@ -231,14 +232,15 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 		case codes.OK:
 		case codes.Unavailable:
 			t.Log("Reboot in progress.")
-			time.Sleep(time.Minute)
+			time.Sleep(OneMinWait)
 			continue
 		default:
 			t.Fatalf("OS.Verify request failed: %v", err)
 		}
 		// when noreboot is set to false, the device returns "in-progress" before initiating the reboot
 		if r.GetActivationFailMessage() == "in-progress" {
-			time.Sleep(time.Minute)
+			t.Logf("Waiting for reboot to initiate.")
+			time.Sleep(OneMinWait)
 			continue
 		}
 		if got, want := r.GetActivationFailMessage(), ""; got != want {
@@ -246,7 +248,7 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 		}
 		if got, want := r.GetVersion(), *osVersion; got != want {
 			t.Logf("Reboot has not finished with the right version: got %s , want: %s.", got, want)
-			time.Sleep(time.Minute)
+			time.Sleep(OneMinWait)
 			continue
 		}
 
@@ -257,7 +259,7 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 
 			if got, want := r.GetVerifyStandby().GetVerifyResponse().GetVersion(), *osVersion; got != want {
 				t.Log("Standby not ready.")
-				time.Sleep(time.Minute)
+				time.Sleep(OneMinWait)
 				continue
 			}
 		}
