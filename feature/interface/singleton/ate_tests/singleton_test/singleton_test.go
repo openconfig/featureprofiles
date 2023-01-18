@@ -217,10 +217,10 @@ func (tc *testCase) verifyInterfaceDUT(
 		t.Errorf("%s oper-status got %v, want %v", dp, got, opUp)
 	}
 
-	//disp := dip.Subinterface(0)
+	disp := dip.Subinterface(0)
 
 	// IPv4 neighbor discovered by ARP.
-	/*dis4np := disp.Ipv4().Neighbor(atea.IPv4)
+	dis4np := disp.Ipv4().Neighbor(atea.IPv4)
 	if got := gnmi.Get(t, tc.dut, dis4np.Origin().State()); got != dynamic {
 		t.Errorf("%s IPv4 neighbor %s origin got %v, want %v", dp, atea.IPv4, got, dynamic)
 	}
@@ -229,7 +229,7 @@ func (tc *testCase) verifyInterfaceDUT(
 	dis6np := disp.Ipv6().Neighbor(atea.IPv6)
 	if got := gnmi.Get(t, tc.dut, dis6np.Origin().State()); got != dynamic {
 		t.Errorf("%s IPv6 neighbor %s origin got %v, want %v", dp, atea.IPv6, got, dynamic)
-	}*/
+	}
 }
 
 // verifyDUT checks the telemetry against the parameters set by
