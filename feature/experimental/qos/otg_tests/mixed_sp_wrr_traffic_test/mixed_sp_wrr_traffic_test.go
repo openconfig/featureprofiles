@@ -30,7 +30,7 @@ import (
 
 var (
 	ate1 = attrs.Attributes{
-		Desc:    "ate1",
+		Name:    "ate1",
 		MAC:     "02:00:01:01:01:01",
 		IPv4:    "198.51.100.1",
 		IPv4Len: 31,
@@ -44,7 +44,7 @@ var (
 	}
 
 	ate3 = attrs.Attributes{
-		Desc:    "ate3",
+		Name:    "ate3",
 		MAC:     "02:00:01:01:01:03",
 		IPv4:    "198.51.100.5",
 		IPv4Len: 31,
@@ -112,22 +112,8 @@ func TestQoSCounters(t *testing.T) {
 
 	dev3 := top.Devices().Add().SetName(ate3.Name)
 	eth3 := dev3.Ethernets().Add().SetName(dev3.Name() + ".eth")
-	eth3.SetPortName(ap2.ID()).SetMac(ate3.MAC)
+	eth3.SetPortName(ap3.ID()).SetMac(ate3.MAC)
 	eth3.Ipv4Addresses().Add().SetName(dev3.Name() + ".ipv4").SetAddress(ate3.IPv4).SetGateway("198.51.100.4").SetPrefix(int32(ate3.IPv4Len))
-
-	// intf1 := top.AddInterface("intf1").WithPort(ap1)
-	// intf1.IPv4().
-	// 	WithAddress("198.51.100.1/31").
-	// 	WithDefaultGateway("198.51.100.0")
-	// intf2 := top.AddInterface("intf2").WithPort(ap2)
-	// intf2.IPv4().
-	// 	WithAddress("198.51.100.3/31").
-	// 	WithDefaultGateway("198.51.100.2")
-	// intf3 := top.AddInterface("intf3").WithPort(ap3)
-	// intf3.IPv4().
-	// 	WithAddress("198.51.100.5/31").
-	// 	WithDefaultGateway("198.51.100.4")
-	// top.Push(t).StartProtocols(t)
 
 	var trafficFlows map[string]*trafficData
 
@@ -201,13 +187,6 @@ func TestQoSCounters(t *testing.T) {
 		flow.Rate().SetPercentage(float32(data.trafficRate))
 		flow.Duration().FixedPackets().SetPackets(10000)
 
-		// flow := ate.Traffic().NewFlow(trafficID).
-		// 	WithSrcEndpoints(data.inputIntf).
-		// 	WithDstEndpoints(intf3).
-		// 	WithHeaders(ondatra.NewEthernetHeader(), ondatra.NewIPv4Header().WithDSCP(data.dscp)).
-		// 	WithFrameRatePct(data.trafficRate).
-		// 	WithFrameSize(data.frameSize)
-		// flows = append(flows, flow)
 	}
 
 	ateOutPkts := make(map[string]uint64)
