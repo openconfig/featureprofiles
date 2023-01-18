@@ -195,7 +195,7 @@ func explicitP4RTNodes() map[string]string {
 
 // inferP4RTNodesCisco infers the P4RT node name from the port name and device model
 // for Cisco devices.
-func inferP4RTNodesCisco(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
+func inferP4RTNodesCisco(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
 	npus := []int{0, 1, 2}
 	pranges := []int{11, 23, 35}
@@ -219,7 +219,7 @@ func inferP4RTNodesCisco(t *testing.T, dut *ondatra.DUTDevice) map[string]string
 
 // P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
 // ports using the component and the interface OC tree.
-func P4RTNodesByPort(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
+func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
 	if *deviations.ExplicitP4RTNodeComponent {
 		if dut.Vendor() == ondatra.CISCO {
