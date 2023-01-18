@@ -1,0 +1,69 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+
+# These options are inherited throughout the entire binding for both the
+# DUT and the ATE, unless overridden by a specific device or protocol.
+options {
+  username: "test"
+  password: "test"
+}
+
+duts {
+  id: "dut"
+  name: "dut-hostname"  # Change this to the device hostname.
+
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  options {
+    insecure: true
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnmi {
+    target: "dut-proxy-hostname:6030"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "Ethernet1/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "Ethernet2/1"  # Change this to the actual port name.
+  }
+}
+
+ates {
+  id: "ate"
+  name: "ixia-c-hostname"  # Change this to the Ixia-C-Controler hostname.
+
+  # This option specific to OTG over Ixia-HW. 
+  otg {
+    target: "ixia-c-hostname:40051" # Change this to the Ixia-c-grpc server endpoint.
+    insecure: true
+    timeout: 30
+  }
+
+  gnmi {
+    target: "ixia-c-hostname:50051"  # Change this to the Ixia-c-gnmi server endpoint.
+    skip_verify: true
+    timeout: 30
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "10.36.78.183/1"  # Change this to the ixia-c-hw port location.
+  }
+  ports {
+    id: "port2"
+    name: "10.36.78.183/2"  # Change this to the ixia-c-hw port location.
+  }
+}
