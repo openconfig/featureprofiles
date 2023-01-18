@@ -133,7 +133,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func (tc *testCase) verifyPortsUp(t *testing.T, dev *ondatra.Device) {
-	for _, p := range []*ondatra.Port{dev.Port(t, "port1"), dev.Port(t, "port2")} {
+	for _, p := range  dev.Ports(){
 		portStatus := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if want := oc.Interface_OperStatus_UP; portStatus != want {
 			t.Errorf("%s Status: got %v, want %v", p, portStatus, want)
