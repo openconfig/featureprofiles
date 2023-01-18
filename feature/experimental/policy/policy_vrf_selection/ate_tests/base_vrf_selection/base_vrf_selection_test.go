@@ -99,6 +99,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, &ateDst, 1, vlan10))
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst2, &ateDst2, 2, vlan20))
 
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
+
 	// Configure network instance
 	t.Logf("*** Configuring network instance on DUT ... ")
 	niConfPath := gnmi.OC().NetworkInstance("10")
@@ -154,11 +159,11 @@ func configNetworkInstance(name string, peer *attrs.Attributes) *oc.NetworkInsta
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(name)
 
-	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L2L3
-	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC")
-	ipv4Nh := static.GetOrCreateStatic("0.0.0.0/0").GetOrCreateNextHop(peer.IPv4)
+	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	ipv4Nh := static.GetOrCreateStatic("0.0.0.0/0").GetOrCreateNextHop("0")
 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(peer.IPv4)
-	ipv6Nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop(peer.IPv6)
+	ipv6Nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop("0")
 	ipv6Nh.NextHop, _ = ipv6Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(peer.IPv6)
 	ipv4Nh.Recurse = ygot.Bool(true)
 	ipv6Nh.Recurse = ygot.Bool(true)
