@@ -121,7 +121,7 @@ func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, peermac str
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a := s4.GetOrCreateAddress(me.IPv4)
@@ -153,6 +153,9 @@ func configureDUT(t *testing.T, peermac string) {
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+	}
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
@@ -160,6 +163,9 @@ func configureDUT(t *testing.T, peermac string) {
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p2)
+	}
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}

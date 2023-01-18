@@ -158,7 +158,7 @@ func dutInterface(p *ondatra.Port) *oc.Interface {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 
@@ -191,6 +191,11 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 			gnmi.Replace(t, dut, dc.Interface(dp.Name()).Config(), i)
 		} else {
 			t.Fatalf("No address found for port %v", dp)
+		}
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		for _, dp := range dut.Ports() {
+			fptest.AssignToNetworkInstance(t, dut, dp.Name(), *deviations.DefaultNetworkInstance, 0)
 		}
 	}
 }
