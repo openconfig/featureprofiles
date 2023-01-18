@@ -18,22 +18,20 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
 // AssignToNetworkInstance attaches a subinterface to a network instance.
-func AssignToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, i string, ni string, si uint32) {
+func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni string, si uint32) {
+	t.Helper()
 	if ni == "" {
 		t.Fatalf("Network instance not provided for interface assignment")
 	}
-	if ni == *deviations.DefaultNetworkInstance && !*deviations.ExplicitInterfaceInDefaultVRF {
-		return
-	}
-	netInst := &telemetry.NetworkInstance{Name: ygot.String(ni)}
-	intf := &telemetry.Interface{Name: ygot.String(i)}
+	netInst := &oc.NetworkInstance{Name: ygot.String(ni)}
+	intf := &oc.Interface{Name: ygot.String(i)}
 	netInstIntf, err := netInst.NewInterface(intf.GetName())
 	if err != nil {
 		t.Errorf("Error fetching NewInterface for %s", intf.GetName())
@@ -42,6 +40,6 @@ func AssignToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, i string, ni st
 	netInstIntf.Subinterface = ygot.Uint32(si)
 	netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
 	if intf.GetOrCreateSubinterface(si) != nil {
-		d.Config().NetworkInstance(ni).Update(t, netInst)
+		gnmi.Update(t, d, gnmi.OC().NetworkInstance(ni).Config(), netInst)
 	}
 }
