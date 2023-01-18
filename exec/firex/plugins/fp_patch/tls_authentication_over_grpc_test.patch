@@ -1,5 +1,5 @@
 diff --git a/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go b/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
-index afb62b81..260a4dea 100644
+index afb62b81..02c67be5 100644
 --- a/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
 +++ b/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
 @@ -20,6 +20,8 @@ import (
@@ -81,6 +81,15 @@ index afb62b81..260a4dea 100644
  	if *sshIP == "" {
  		t.Fatal("--ssh_ip flag must be set.")
  	}
+@@ -83,7 +114,7 @@ func TestAuthentication(t *testing.T) {
+ 		User("alice").Config(), &oc.System_Aaa_Authentication_User{
+ 		Username: ygot.String("alice"),
+ 		Password: ygot.String("password"),
+-		Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
++		Role:     oc.UnionString("root-lr"),
+ 	})
+ 
+ 	tests := []struct {
 @@ -108,7 +139,7 @@ func TestAuthentication(t *testing.T) {
  	for _, tc := range tests {
  		t.Run(tc.desc, func(t *testing.T) {
@@ -90,3 +99,16 @@ index afb62b81..260a4dea 100644
  				User: tc.user,
  				Auth: []ssh.AuthMethod{
  					ssh.KeyboardInteractive(keyboardInteraction(tc.pass)),
+diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
+index ad882ff5..7fb8d32b 100644
+--- a/internal/deviations/deviations.go
++++ b/internal/deviations/deviations.go
+@@ -69,7 +69,7 @@ import (
+ 
+ // Vendor deviation flags.
+ var (
+-	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
++	BannerDelimiter = flag.String("deviation_banner_delimiter", "c",
+ 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
+ 
+ 	NTPAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,

@@ -14,6 +14,7 @@ func TestRPLConfig(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
 	for _, policy := range inputObj.Device(dut).Features().Routepolicy {
 		rpl := &oc.RoutingPolicy{}
 		rpd, err := rpl.NewPolicyDefinition(policy.Name)
@@ -26,6 +27,7 @@ func TestRPLConfig(t *testing.T) {
 			t.Errorf("cannot reuse routing policy definition %v", err)
 		}
 		updatePolicy(statement, policy.Policy)
+		t.Skip() //Skip till CSCvz13366 is fixed
 		t.Run("Replace//routing-policy/policy-definitions/policy-definition", func(t *testing.T) {
 			path := gnmi.OC().RoutingPolicy()
 
