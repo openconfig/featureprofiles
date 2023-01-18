@@ -16,7 +16,6 @@ package singleton_test
 
 import (
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
