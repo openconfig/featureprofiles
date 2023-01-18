@@ -967,4 +967,3 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		})
 	}
 }
-
