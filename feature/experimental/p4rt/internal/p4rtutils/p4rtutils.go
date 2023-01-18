@@ -22,7 +22,6 @@ package p4rtutils
 
 import (
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -31,7 +30,6 @@ import (
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/args"
-	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -188,44 +186,35 @@ func ACLWbbIngressTableEntryGet(infoList []*ACLWbbIngressTableEntryInfo) []*p4_v
 	return updates
 }
 
-func explicitP4RTNodes(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
-	t.Helper()
-	if dut.Vendor() == ondatra.CISCO {
-		isDist := true
-		chassisIDs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS)
-		if len(chassisIDs) > 0 {
-			component := gnmi.Get(t, dut, gnmi.OC().Component(chassisIDs[0]).State())
-			if component != nil && component.Description != nil {
-				re := regexp.MustCompile(`Cisco (.*?) .*`)
-				if matches := re.FindStringSubmatch(*component.Description); len(matches) >= 2 {
-					isDist = strings.HasPrefix(matches[1], "88")
-				}
-			}
-		}
-
-		npus := []int{0, 1, 2}
-		pranges := []int{11, 23, 35}
-		res := make(map[string]string)
-		for _, p := range dut.Ports() {
-			if isDist {
-				parts := strings.Split(p.Name(), "/")
-				pnum, err := strconv.Atoi(parts[3])
-				if err != nil {
-					t.Fatalf("Error parsing port name: %v", err)
-				}
-				npu := npus[sort.SearchInts(pranges, pnum)]
-				res[p.ID()] = fmt.Sprintf("0/%s/CPU0-NPU%d", parts[1], npu)
-			} else {
-				res[p.ID()] = "0/RP0/CPU0/0"
-			}
-		}
-		return res
-	}
-
+func explicitP4RTNodes() map[string]string {
 	return map[string]string{
 		"port1": *args.P4RTNodeName1,
 		"port2": *args.P4RTNodeName2,
 	}
+}
+
+// inferP4RTNodesCisco infers the P4RT node name from the port name and device model
+// for Cisco devices.
+func inferP4RTNodesCisco(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
+	t.Helper()
+	npus := []int{0, 1, 2}
+	pranges := []int{11, 23, 35}
+	res := make(map[string]string)
+	dist := dut.Model() == "" || strings.HasPrefix(dut.Model(), "CISCO-88")
+	for _, p := range dut.Ports() {
+		if dist {
+			parts := strings.Split(p.Name(), "/")
+			pnum, err := strconv.Atoi(parts[3])
+			if err != nil {
+				t.Fatalf("Error parsing port name: %v", err)
+			}
+			npu := npus[sort.SearchInts(pranges, pnum)]
+			res[p.ID()] = fmt.Sprintf("0/%s/CPU0-NPU%d", parts[1], npu)
+		} else {
+			res[p.ID()] = "0/RP0/CPU0/0"
+		}
+	}
+	return res
 }
 
 // P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
@@ -233,7 +222,12 @@ func explicitP4RTNodes(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
 func P4RTNodesByPort(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
 	if *deviations.ExplicitP4RTNodeComponent {
-		return explicitP4RTNodes(t, dut)
+		fmt.Printf("dut.Vendor(): %v\n", dut.Vendor())
+		fmt.Printf("dut.Model(): %v\n", dut.Model())
+		if dut.Vendor() == ondatra.CISCO {
+			return inferP4RTNodesCisco(t, dut)
+		}
+		return explicitP4RTNodes()
 	}
 
 	ports := make(map[string]string) // <hardware-port>:<portID>
