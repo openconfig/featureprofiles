@@ -200,9 +200,9 @@ func inferP4RTNodesCisco(t *testing.T, dut *ondatra.DUTDevice) map[string]string
 	npus := []int{0, 1, 2}
 	pranges := []int{11, 23, 35}
 	res := make(map[string]string)
-	dist := dut.Model() == "" || strings.HasPrefix(dut.Model(), "CISCO-88")
+	isModular := dut.Model() == "" || strings.HasPrefix(dut.Model(), "CISCO-88")
 	for _, p := range dut.Ports() {
-		if dist {
+		if isModular {
 			parts := strings.Split(p.Name(), "/")
 			pnum, err := strconv.Atoi(parts[3])
 			if err != nil {
