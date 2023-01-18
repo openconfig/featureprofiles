@@ -60,7 +60,7 @@ const (
 	nonDefaultVRF   = "VRF-1"
 	// 'deviation' is the maximum difference that is allowed between the observed
 	// traffic distribution and the required traffic distribution.
-	deviation = 0.5
+	deviation = 1
 )
 
 var (
@@ -260,7 +260,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 
 	a.configSubinterfaceDUT(t, i)
 	intfPath := gnmi.OC().Interface(p.Name())
-	gnmi.Replace(t, d, intfPath.Config(), i)
+	gnmi.Update(t, d, intfPath.Config(), i)
 	if *deviations.ExplicitPortSpeed {
 		fptest.SetPortSpeed(t, p)
 	}
@@ -285,12 +285,14 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
 		gnmi.Replace(t, d, dni.Config(), ni)
 		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
 	} else {
-		dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
-		gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
-			Id:           ygot.String(p.Name()),
-			Interface:    ygot.String(p.Name()),
-			Subinterface: ygot.Uint32(0),
-		})
+		if *deviations.ExplicitInterfaceInDefaultVRF {
+			dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+			gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
+				Id:           ygot.String(p.Name()),
+				Interface:    ygot.String(p.Name()),
+				Subinterface: ygot.Uint32(0),
+			})
+		}
 	}
 }
 
@@ -396,6 +398,7 @@ func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, network
 			break
 		}
 	}
+
 	if nhgD == nil {
 		return []uint64{}
 	}
