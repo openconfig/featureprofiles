@@ -222,8 +222,6 @@ func inferP4RTNodesCisco(t *testing.T, dut *ondatra.DUTDevice) map[string]string
 func P4RTNodesByPort(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
 	if *deviations.ExplicitP4RTNodeComponent {
-		fmt.Printf("dut.Vendor(): %v\n", dut.Vendor())
-		fmt.Printf("dut.Model(): %v\n", dut.Model())
 		if dut.Vendor() == ondatra.CISCO {
 			return inferP4RTNodesCisco(t, dut)
 		}
