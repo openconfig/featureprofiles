@@ -25,7 +25,8 @@ import (
 )
 
 // AssignToNetworkInstance attaches a subinterface to a network instance.
-func AssignToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, i string, ni string, si uint32) {
+func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni string, si uint32) {
+	t.Helper()
 	if ni == "" {
 		t.Fatalf("Network instance not provided for interface assignment")
 	}
