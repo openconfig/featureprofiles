@@ -286,7 +286,7 @@ func getIPinIPFlow(args *testArgs, src attrs.Attributes, dst attrs.Attributes, f
 	outerIPHeader.Priority().Dscp().Phb().SetValue(dscp)
 	innerIPHeader := flow.Packet().Add().Ipv4()
 	innerIPHeader.Src().SetValue("198.51.100.1")
-	innerIPHeader.Dst().SetValue("203.0.113.1")
+	innerIPHeader.Dst().Increment().SetStart("203.0.113.1").SetStep("0.0.0.1").SetCount(10000)
 
 	flow.Size().SetFixed(1024)
 	flow.Rate().SetPps(100)
