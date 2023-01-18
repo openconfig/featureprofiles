@@ -27,7 +27,7 @@ import (
 
 var (
 	bgpProcName = map[ondatra.Vendor]string{
-		ondatra.NOKIA: "sr_bgp_mgr",
+		ondatra.NOKIA:  "sr_bgp_mgr",
 		ondatra.ARISTA: "bgp",
 	}
 )
