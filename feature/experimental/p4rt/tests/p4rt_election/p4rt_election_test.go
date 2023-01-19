@@ -21,8 +21,7 @@ import (
 
 // Flag variable definitions
 var (
-	p4InfoFile   = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	p4rtNodeName = flag.String("p4rt_node_name", "SwitchChip1/0", "component name for P4RT Node")
+	p4InfoFile = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 )
 
 // Variable definitions
@@ -80,11 +79,17 @@ type testArgs struct {
 
 // configureDeviceId configures p4rt device-id on the DUT.
 func configureDeviceId(t *testing.T, dut *ondatra.DUTDevice) {
-	component := &oc.Component{}
-	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-	component.Name = ygot.String(*p4rtNodeName)
-	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceId)
-	gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).Config(), component)
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	p4rtNode, ok := nodes["port1"]
+	if !ok {
+		t.Fatal("Couldn't find P4RT Node for port: port1")
+	}
+	t.Logf("Configuring P4RT Node: %s", p4rtNode)
+	c := oc.Component{}
+	c.Name = ygot.String(p4rtNode)
+	c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+	c.IntegratedCircuit.NodeId = ygot.Uint64(deviceId)
+	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
 }
 
 // configurePortId configures p4rt port-id on the DUT.
@@ -126,7 +131,7 @@ func streamP4RTArb(args *testArgs) (int32, error) {
 				},
 			},
 		}); err != nil {
-			return 0, errors.New("Errors seen when sending ClientArbitration message.")
+			return 0, fmt.Errorf("errors seen when sending ClientArbitration message: %v", err)
 		}
 		time.Sleep(1 * time.Second)
 		return getRespCode(args)
