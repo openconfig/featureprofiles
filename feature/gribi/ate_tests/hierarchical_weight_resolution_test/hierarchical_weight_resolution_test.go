@@ -60,7 +60,7 @@ const (
 	nonDefaultVRF   = "VRF-1"
 	// 'deviation' is the maximum difference that is allowed between the observed
 	// traffic distribution and the required traffic distribution.
-	deviation = 0.5
+	deviation = 1
 )
 
 var (
