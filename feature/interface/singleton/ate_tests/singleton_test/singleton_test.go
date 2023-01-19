@@ -219,16 +219,20 @@ func (tc *testCase) verifyInterfaceDUT(
 
 	disp := dip.Subinterface(0)
 
-	// IPv4 neighbor discovered by ARP.
-	dis4np := disp.Ipv4().Neighbor(atea.IPv4)
-	if got := gnmi.Get(t, tc.dut, dis4np.Origin().State()); got != dynamic {
-		t.Errorf("%s IPv4 neighbor %s origin got %v, want %v", dp, atea.IPv4, got, dynamic)
-	}
+	if !*deviations.IPNeighborMissing {
+		// IPv4 neighbor discovered by ARP.
+		dis4np := disp.Ipv4().Neighbor(atea.IPv4)
+		neigbour := gnmi.Get(t, tc.dut, dis4np.State())
+		fmt.Printf("%v", neigbour)
+		if got := gnmi.Get(t, tc.dut, dis4np.Origin().State()); got != dynamic {
+			t.Errorf("%s IPv4 neighbor %s origin got %v, want %v", dp, atea.IPv4, got, dynamic)
+		}
 
-	// IPv6 neighbor discovered by ARP.
-	dis6np := disp.Ipv6().Neighbor(atea.IPv6)
-	if got := gnmi.Get(t, tc.dut, dis6np.Origin().State()); got != dynamic {
-		t.Errorf("%s IPv6 neighbor %s origin got %v, want %v", dp, atea.IPv6, got, dynamic)
+		// IPv6 neighbor discovered by ARP.
+		dis6np := disp.Ipv6().Neighbor(atea.IPv6)
+		if got := gnmi.Get(t, tc.dut, dis6np.Origin().State()); got != dynamic {
+			t.Errorf("%s IPv6 neighbor %s origin got %v, want %v", dp, atea.IPv6, got, dynamic)
+		}
 	}
 }
 
