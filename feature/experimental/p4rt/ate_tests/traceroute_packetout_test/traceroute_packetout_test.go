@@ -48,10 +48,9 @@ const (
 )
 
 var (
-	p4InfoFile                                 = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	streamName                                 = "p4rt"
-	tracerouteipv4InLayers layers.EthernetType = 0x0800
-	checksum                                   = uint16(200)
+	p4InfoFile = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	streamName = "p4rt"
+	checksum   = uint16(200)
 )
 
 var (
