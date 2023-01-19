@@ -219,6 +219,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
 		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
+		// Verify the Classifier is applied by checking the telemetry path state values.
 		classifier := gnmi.OC().Qos().Classifier(tc.name)
 		term := classifier.Term(tc.termID)
 		action := term.Actions()
@@ -294,6 +295,7 @@ func TestQoSInputIntfClassifierConfig(t *testing.T) {
 		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
 		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
+		// Verify the Classifier is applied on interface by checking the telemetry path state values.
 		classifier := gnmi.OC().Qos().Interface(dp.Name()).Input().Classifier(tc.inputClassifierType)
 		if got, want := gnmi.Get(t, dut, classifier.Name().State()), tc.classifier; got != want {
 			t.Errorf("classifier.Name().State(): got %v, want %v", got, want)
@@ -357,6 +359,7 @@ func TestQoSForwadingGroupsConfig(t *testing.T) {
 		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
 		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
+		// Verify the ForwardingGroup is applied by checking the telemetry path state values.
 		forwardingGroup := gnmi.OC().Qos().ForwardingGroup(tc.targetGrpoup)
 		if got, want := gnmi.Get(t, dut, forwardingGroup.Name().State()), tc.targetGrpoup; got != want {
 			t.Errorf("forwardingGroup.Name().State(): got %v, want %v", got, want)
@@ -465,6 +468,7 @@ func TestSchedulerPoliciesConfig(t *testing.T) {
 		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
 		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
+		// Verify the SchedulerPolicy is applied by checking the telemetry path state values.
 		scheduler := gnmi.OC().Qos().SchedulerPolicy("scheduler").Scheduler(tc.sequence)
 		input := scheduler.Input(tc.inputID)
 
@@ -527,6 +531,8 @@ func TestECNConfig(t *testing.T) {
 
 	// TODO: Remove the following t.Skipf() after the config verification code has been tested.
 	t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
+
+	// Verify the QueueManagementProfile is applied by checking the telemetry path state values.
 	wredUniform := gnmi.OC().Qos().QueueManagementProfile("DropProfile").Wred().Uniform()
 	if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {
 		t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
@@ -614,6 +620,7 @@ func TestQoSOutputIntfConfig(t *testing.T) {
 		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
 		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
+		// Verify the policy is applied by checking the telemetry path state values.
 		policy := gnmi.OC().Qos().Interface(dp.Name()).Output().SchedulerPolicy()
 		outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(tc.queueName)
 		if got, want := gnmi.Get(t, dut, policy.Name().State()), tc.scheduler; got != want {
