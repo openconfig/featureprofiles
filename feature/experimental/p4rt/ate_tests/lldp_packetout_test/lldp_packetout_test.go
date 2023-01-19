@@ -36,7 +36,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
-	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 const (
@@ -81,7 +81,7 @@ var (
 
 type PacketIO interface {
 	GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo
-	GetPacketOut(portID uint32, submitIngress bool) []*p4v1.PacketOut
+	GetPacketOut(portID uint32, submitIngress bool) []*p4pb.PacketOut
 }
 
 type testArgs struct {
@@ -97,13 +97,13 @@ type testArgs struct {
 // programmTableEntry programs or deletes p4rt table entry based on delete flag.
 func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool) error {
 	t.Helper()
-	err := client.Write(&p4v1.WriteRequest{
+	err := client.Write(&p4pb.WriteRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4v1.Uint128{High: uint64(0), Low: electionID},
+		ElectionId: &p4pb.Uint128{High: uint64(0), Low: electionID},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete),
 		),
-		Atomicity: p4v1.WriteRequest_CONTINUE_ON_ERROR,
+		Atomicity: p4pb.WriteRequest_CONTINUE_ON_ERROR,
 	})
 	if err != nil {
 		return err
@@ -112,13 +112,13 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 }
 
 // sendPackets sends out packets via PacketOut message in StreamChannel.
-func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1.PacketOut, packetCount int) {
+func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4pb.PacketOut, packetCount int) {
 	count := packetCount / len(packets)
 	for _, packet := range packets {
 		for i := 0; i < count; i++ {
 			if err := client.StreamChannelSendMsg(
-				&streamName, &p4v1.StreamMessageRequest{
-					Update: &p4v1.StreamMessageRequest_Packet{
+				&streamName, &p4pb.StreamMessageRequest{
+					Update: &p4pb.StreamMessageRequest_Packet{
 						Packet: packet,
 					},
 				}); err != nil {
@@ -288,11 +288,11 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	for index, client := range clients {
 		if client != nil {
 			client.StreamChannelCreate(&streamParameter)
-			if err := client.StreamChannelSendMsg(&streamName, &p4v1.StreamMessageRequest{
-				Update: &p4v1.StreamMessageRequest_Arbitration{
-					Arbitration: &p4v1.MasterArbitrationUpdate{
+			if err := client.StreamChannelSendMsg(&streamName, &p4pb.StreamMessageRequest{
+				Update: &p4pb.StreamMessageRequest_Arbitration{
+					Arbitration: &p4pb.MasterArbitrationUpdate{
 						DeviceId: streamParameter.DeviceId,
-						ElectionId: &p4v1.Uint128{
+						ElectionId: &p4pb.Uint128{
 							High: streamParameter.ElectionIdH,
 							Low:  streamParameter.ElectionIdL - uint64(index),
 						},
@@ -317,13 +317,13 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	}
 
 	// Send SetForwardingPipelineConfig for p4rt leader client.
-	if err := args.leader.SetForwardingPipelineConfig(&p4v1.SetForwardingPipelineConfigRequest{
+	if err := args.leader.SetForwardingPipelineConfig(&p4pb.SetForwardingPipelineConfigRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4v1.Uint128{High: uint64(0), Low: electionID},
-		Action:     p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
-		Config: &p4v1.ForwardingPipelineConfig{
+		ElectionId: &p4pb.Uint128{High: uint64(0), Low: electionID},
+		Action:     p4pb.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
+		Config: &p4pb.ForwardingPipelineConfig{
 			P4Info: &p4Info,
-			Cookie: &p4v1.ForwardingPipelineConfig_Cookie{
+			Cookie: &p4pb.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
 		},
@@ -422,9 +422,9 @@ func packetLLDPRequestGet() []byte {
 
 // GetTableEntry creates wbb acl entry related to LLDP.
 func (lldp *LLDPPacketIO) GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
-	actionType := p4v1.Update_INSERT
+	actionType := p4pb.Update_INSERT
 	if delete {
-		actionType = p4v1.Update_DELETE
+		actionType = p4pb.Update_DELETE
 	}
 	return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
@@ -435,11 +435,11 @@ func (lldp *LLDPPacketIO) GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressT
 }
 
 // GetPacketOut generates PacketOut message with payload as LLDP.
-func (lldp *LLDPPacketIO) GetPacketOut(portID uint32, submitIngress bool) []*p4v1.PacketOut {
-	packets := []*p4v1.PacketOut{}
-	packet := &p4v1.PacketOut{
+func (lldp *LLDPPacketIO) GetPacketOut(portID uint32, submitIngress bool) []*p4pb.PacketOut {
+	packets := []*p4pb.PacketOut{}
+	packet := &p4pb.PacketOut{
 		Payload: packetLLDPRequestGet(),
-		Metadata: []*p4v1.PacketMetadata{
+		Metadata: []*p4pb.PacketMetadata{
 			{
 				MetadataId: uint32(1), // "egress_port"
 				Value:      []byte(fmt.Sprint(portID)),
@@ -448,7 +448,7 @@ func (lldp *LLDPPacketIO) GetPacketOut(portID uint32, submitIngress bool) []*p4v
 	}
 	if submitIngress {
 		packet.Metadata = append(packet.Metadata,
-			&p4v1.PacketMetadata{
+			&p4pb.PacketMetadata{
 				MetadataId: uint32(2), // "submit_to_ingress"
 				Value:      []byte{1},
 			})
