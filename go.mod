@@ -3,7 +3,7 @@ module github.com/openconfig/featureprofiles
 go 1.19
 
 require (
-	github.com/cisco-open/go-p4 v0.0.0-20230112214152-c0d31345dd63
+	github.com/cisco-open/go-p4 v0.0.0-20230117234941-7359c630de78
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/golang/glog v1.0.0
