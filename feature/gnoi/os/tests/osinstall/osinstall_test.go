@@ -45,8 +45,7 @@ var (
 	osFile    = flag.String("osfile", "", "Path to the OS image for the install operation")
 	osVersion = flag.String("osver", "", "Version of the OS image for the install operation")
 
-	timeout    = flag.Duration("timeout", time.Minute*30, "Time to wait for reboot to complete")
-	OneMinWait = time.Minute
+	timeout = flag.Duration("timeout", time.Minute*30, "Time to wait for reboot to complete")
 )
 
 type testCase struct {
@@ -225,6 +224,7 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) 
 // verifyInstall validates the OS.Verify RPC returns no failures and version numbers match the
 // newly requested software version.
 func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
+	rebootWait := time.Minute
 	deadline := time.Now().Add(*timeout)
 	for time.Now().Before(deadline) {
 		r, err := tc.osc.Verify(ctx, &ospb.VerifyRequest{})
@@ -232,7 +232,7 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 		case codes.OK:
 		case codes.Unavailable:
 			t.Log("Reboot in progress.")
-			time.Sleep(OneMinWait)
+			time.Sleep(rebootWait)
 			continue
 		default:
 			t.Fatalf("OS.Verify request failed: %v", err)
@@ -240,7 +240,7 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 		// when noreboot is set to false, the device returns "in-progress" before initiating the reboot
 		if r.GetActivationFailMessage() == "in-progress" {
 			t.Logf("Waiting for reboot to initiate.")
-			time.Sleep(OneMinWait)
+			time.Sleep(rebootWait)
 			continue
 		}
 		if got, want := r.GetActivationFailMessage(), ""; got != want {
@@ -248,7 +248,7 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 		}
 		if got, want := r.GetVersion(), *osVersion; got != want {
 			t.Logf("Reboot has not finished with the right version: got %s , want: %s.", got, want)
-			time.Sleep(OneMinWait)
+			time.Sleep(rebootWait)
 			continue
 		}
 
@@ -259,7 +259,7 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 
 			if got, want := r.GetVerifyStandby().GetVerifyResponse().GetVersion(), *osVersion; got != want {
 				t.Log("Standby not ready.")
-				time.Sleep(OneMinWait)
+				time.Sleep(rebootWait)
 				continue
 			}
 		}
