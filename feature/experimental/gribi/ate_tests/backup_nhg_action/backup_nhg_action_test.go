@@ -334,10 +334,10 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good *ondatra.Fl
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
-	if got := ate.Telemetry().Flow(good.Name()).LossPct().Get(t); got > 0 {
+	if got := gnmi.Get(t, ate, gnmi.OC().Flow(good.Name()).LossPct().State()); got > 0 {
 		t.Fatalf("LossPct for flow %s: got %g, want 0", good.Name(), got)
 	}
-	if got := ate.Telemetry().Flow(bad.Name()).LossPct().Get(t); got < 100 {
+	if got := gnmi.Get(t, ate, gnmi.OC().Flow(bad.Name()).LossPct().State()); got < 100 {
 		t.Fatalf("LossPct for flow %s: got %g, want 100", bad.Name(), got)
 	}
 }
