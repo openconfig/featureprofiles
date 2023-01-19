@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -29,8 +30,8 @@ import (
 )
 
 const (
-	minTracerouteHops        = 0
-	minTracerouteRTT         = 0
+	minTracerouteHops        = 1
+	minTracerouteRTT         = 0 // the device traceroute to its loopback, the RTT can be zero.
 	maxDefaultTracerouteHops = 30
 )
 
@@ -101,22 +102,25 @@ func TestGNOITraceroute(t *testing.T) {
 	cases := []struct {
 		desc         string
 		traceRequest *spb.TracerouteRequest
-		skip bool
+		defaultL4Protocol bool
 	}{
 		{
 			desc: "Check traceroute with IPv4 destination",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv4Addrs[0].GetIp(),
 				DoNotLookupAsn: true,
 			}},
 		{
 			desc: "Check traceroute with IPv6 destination",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv6Addrs[0].GetIp(),
 				DoNotLookupAsn: true,
 			}},
 		{
 			desc: "Check traceroute with IPv6 protocol",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv6Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV6,
@@ -124,6 +128,7 @@ func TestGNOITraceroute(t *testing.T) {
 			}},
 		{
 			desc: "Check traceroute with IPv4 DF bit",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv4Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV4,
@@ -132,6 +137,7 @@ func TestGNOITraceroute(t *testing.T) {
 			}},
 		{
 			desc: "Check traceroute with IPv4 do_not_resolve",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv4Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV4,
@@ -140,6 +146,7 @@ func TestGNOITraceroute(t *testing.T) {
 			}},
 		{
 			desc: "Check traceroute with IPv6 do_not_resolve",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv6Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV6,
@@ -148,6 +155,7 @@ func TestGNOITraceroute(t *testing.T) {
 			}},
 		{
 			desc: "Check traceroute with IPv4 wait",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv4Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV4,
@@ -156,6 +164,7 @@ func TestGNOITraceroute(t *testing.T) {
 			}},
 		{
 			desc: "Check traceroute with IPv6 wait",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv6Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV6,
@@ -164,6 +173,7 @@ func TestGNOITraceroute(t *testing.T) {
 			}},
 		{
 			desc: "Check traceroute with IPv4 TTL",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv4Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV4,
@@ -173,6 +183,7 @@ func TestGNOITraceroute(t *testing.T) {
 			}},
 		{
 			desc: "Check traceroute with IPv6 TTL",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv6Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV6,
@@ -181,6 +192,7 @@ func TestGNOITraceroute(t *testing.T) {
 			}},
 		{
 			desc: "Check traceroute with IPv4 L4protocol ICMP",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv4Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV4,
@@ -231,9 +243,18 @@ func TestGNOITraceroute(t *testing.T) {
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			if *deviations.TraceRouteL4ProtocolUDP {
+			time.Sleep(1*time.Second) // some device do not allow back to back traceroute to prevent trace flooding
+			if *deviations.TraceRouteOnlySupportsL4ProtocolUDP {
+				if tc.defaultL4Protocol  {
+					tc.traceRequest.L4Protocol = spb.TracerouteRequest_UDP
+				}
 				if tc.traceRequest.L4Protocol!= spb.TracerouteRequest_UDP{
-					t.Skipf("Test is skiped due to the TarceRouteL4ProtocolUDP deviatiopn")
+					t.Skip("Test is skiped due to the TraceRouteOnlySupportsL4ProtocolUDP deviatiopn")
+				}
+			}
+			if *deviations.TraceRouteFragmenation {
+				if tc.traceRequest.DoNotFragment{
+					t.Skip("Test is skiped due to the TraceRouteFragmenation deviatiopn")
 				}
 			}
 			t.Logf("Sent traceroute request: %v\n\n", tc.traceRequest)
@@ -254,11 +275,13 @@ func TestGNOITraceroute(t *testing.T) {
 			if resps[0].DestinationAddress != tc.traceRequest.Destination {
 				t.Errorf("Traceroute Destination: got %v, want %v", resps[0].DestinationAddress, tc.traceRequest.Destination)
 			}
-			/*if tc.traceRequest.MaxTtl > 0 && resps[0].Hops != tc.traceRequest.MaxTtl {
+			// if the device allows traceroute to its loopback then hops can be one most of the time.
+			// TODO: traceroute to loobback is not a reliable way to test traceroute. We need to use ATE.
+			if tc.traceRequest.MaxTtl > 0 && !(resps[0].Hops == tc.traceRequest.MaxTtl || resps[0].Hops == 1) {
 				t.Errorf("Traceroute reply hops: got %v, want %v", resps[0].Hops, tc.traceRequest.MaxTtl)
-			} else if tc.traceRequest.MaxTtl == 0 && resps[0].Hops != maxDefaultTracerouteHops {
+			} else if tc.traceRequest.MaxTtl == 0 && !(resps[0].Hops == maxDefaultTracerouteHops || resps[0].Hops == 1) {
 				t.Errorf("Traceroute reply hops: got %v, want %v", resps[0].Hops, maxDefaultTracerouteHops)
-			}*/
+			}
 
 			for i := 1; i < len(resps); i++ {
 				t.Logf("Check each traceroute reply %v out of %v:\n  %v\n", i, len(resps)-1, resps[i])
