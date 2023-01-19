@@ -64,7 +64,7 @@ func TestQoSCounters(t *testing.T) {
 
 	// Configure DUT interfaces and QoS.
 	ConfigureDUTIntf(t, dut)
-	// ConfigureQoS(t, dut)
+	ConfigureQoS(t, dut)
 
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
@@ -526,11 +526,11 @@ func TestQoSCounters(t *testing.T) {
 				dutQosPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
 				dutQosDroppedPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
 				t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
-				t.Logf("Get(out packets for flow %q): got %v, want nonzero", trafficID, ateOutPkts)
 
 				lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
-				if want, got := data.expectedThroughputPct, 100.0-lossPct-tolerance; got > want {
-					t.Errorf("Get(traffic throughput for queue %q): got %v, want > %v", data.queue, got, want)
+				t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
+				if got, want := 100.0-lossPct, data.expectedThroughputPct; got < want-tolerance || got > want+tolerance {
+					t.Errorf("Get(throughput for queue %q): got %.2f%%, want within [%.2f%%, %.2f%%]", data.queue, got, want-tolerance, want+tolerance)
 				}
 			}
 
@@ -543,12 +543,11 @@ func TestQoSCounters(t *testing.T) {
 			for _, data := range trafficFlows {
 				qosCounterDiff := dutQosPktsAfterTraffic[data.queue] - dutQosPktsBeforeTraffic[data.queue]
 				if qosCounterDiff < ateOutPkts[data.queue] {
-					t.Errorf("Get(telemetry packet update for queue %q): got %v, want >= %v", data.queue, qosCounterDiff, ateOutPkts[data.queue])
+					t.Errorf("Get telemetry packet update for queue %q: got %v, want >= %v", data.queue, qosCounterDiff, ateOutPkts[data.queue])
 				}
 			}
 		})
 	}
-
 }
 
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
