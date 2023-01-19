@@ -159,8 +159,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	ni := c.GetOrCreateNetworkInstance(vrfName)
 	ni.Description = ygot.String("Non Default routing instance created for testing")
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	ni.Enabled = ygot.Bool(true)
-	ni.EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4, oc.Types_ADDRESS_FAMILY_IPV6}
 	p1 := dut.Port(t, "port1")
 	niIntf := ni.GetOrCreateInterface(p1.Name())
 	niIntf.Subinterface = ygot.Uint32(0)
