@@ -36,7 +36,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
-	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 const (
@@ -108,13 +108,13 @@ type testArgs struct {
 // programmTableEntry programs or deletes p4rt table entry based on delete flag.
 func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool) error {
 	t.Helper()
-	err := client.Write(&p4v1.WriteRequest{
+	err := client.Write(&p4pb.WriteRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4v1.Uint128{High: uint64(0), Low: electionID},
+		ElectionId: &p4pb.Uint128{High: uint64(0), Low: electionID},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete),
 		),
-		Atomicity: p4v1.WriteRequest_CONTINUE_ON_ERROR,
+		Atomicity: p4pb.WriteRequest_CONTINUE_ON_ERROR,
 	})
 	if err != nil {
 		return err
@@ -362,11 +362,11 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	for index, client := range clients {
 		if client != nil {
 			client.StreamChannelCreate(&streamParameter)
-			if err := client.StreamChannelSendMsg(&streamName, &p4v1.StreamMessageRequest{
-				Update: &p4v1.StreamMessageRequest_Arbitration{
-					Arbitration: &p4v1.MasterArbitrationUpdate{
+			if err := client.StreamChannelSendMsg(&streamName, &p4pb.StreamMessageRequest{
+				Update: &p4pb.StreamMessageRequest_Arbitration{
+					Arbitration: &p4pb.MasterArbitrationUpdate{
 						DeviceId: streamParameter.DeviceId,
-						ElectionId: &p4v1.Uint128{
+						ElectionId: &p4pb.Uint128{
 							High: streamParameter.ElectionIdH,
 							Low:  streamParameter.ElectionIdL - uint64(index),
 						},
@@ -391,13 +391,13 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	}
 
 	// Send SetForwardingPipelineConfig for p4rt leader client.
-	if err := args.leader.SetForwardingPipelineConfig(&p4v1.SetForwardingPipelineConfigRequest{
+	if err := args.leader.SetForwardingPipelineConfig(&p4pb.SetForwardingPipelineConfigRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4v1.Uint128{High: uint64(0), Low: electionID},
-		Action:     p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
-		Config: &p4v1.ForwardingPipelineConfig{
+		ElectionId: &p4pb.Uint128{High: uint64(0), Low: electionID},
+		Action:     p4pb.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
+		Config: &p4pb.ForwardingPipelineConfig{
 			P4Info: &p4Info,
-			Cookie: &p4v1.ForwardingPipelineConfig_Cookie{
+			Cookie: &p4pb.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
 		},
@@ -471,9 +471,9 @@ type LLDPPacketIO struct {
 
 // GetTableEntry creates wbb acl entry related to LLDP.
 func (lldp *LLDPPacketIO) GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
-	actionType := p4v1.Update_INSERT
+	actionType := p4pb.Update_INSERT
 	if delete {
-		actionType = p4v1.Update_DELETE
+		actionType = p4pb.Update_DELETE
 	}
 	return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
