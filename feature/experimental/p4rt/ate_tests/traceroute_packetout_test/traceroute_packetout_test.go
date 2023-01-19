@@ -48,10 +48,9 @@ const (
 )
 
 var (
-	p4InfoFile                                 = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	streamName                                 = "p4rt"
-	tracerouteipv4InLayers layers.EthernetType = 0x0800
-	checksum                                   = uint16(200)
+	p4InfoFile = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	streamName = "p4rt"
+	checksum   = uint16(200)
 )
 
 var (
@@ -276,13 +275,6 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 	payload := []byte{}
 	payLoadLen := 64
 
-	pktEthipv4 := &layers.Ethernet{
-		EthernetType: tracerouteipv4InLayers,
-		SrcMAC:       net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
-		// traceroute MAC is 68:F3:8E:64:F3:FC
-		DstMAC: net.HardwareAddr{0x02, 0xF6, 0x65, 0x64, 0x00, 0x08},
-	}
-
 	pktICMP4 := &layers.ICMPv4{
 		TypeCode: layers.ICMPv4TypeTimeExceeded,
 		Checksum: checksum,
@@ -296,14 +288,6 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 		Protocol: layers.IPProtocolICMPv4,
 	}
 
-	//for ipv6
-	pktEthipv6 := &layers.Ethernet{
-		EthernetType: 0x86DD,
-		SrcMAC:       net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
-		// traceroute MAC is 68:F3:8E:64:F3:FC (HW)
-		//traceroute MAC is 02:f6:65:64:00:08 (Virtual)
-		DstMAC: net.HardwareAddr{0x68, 0xF3, 0x8E, 0x64, 0xF3, 0xFC},
-	}
 	pktIpv6 := &layers.IPv6{
 		Version:    6,
 		HopLimit:   ttl,
@@ -317,12 +301,12 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 	}
 	if isIPv4 {
 		gopacket.SerializeLayers(buf, opts,
-			pktEthipv4, pktIpv4, pktICMP4, gopacket.Payload(payload),
+			pktIpv4, pktICMP4, gopacket.Payload(payload),
 		)
 		return buf.Bytes()
 	} else {
 		gopacket.SerializeLayers(buf, opts,
-			pktEthipv6, pktIpv6, gopacket.Payload(payload),
+			pktIpv6, gopacket.Payload(payload),
 		)
 		return buf.Bytes()
 	}
@@ -336,7 +320,7 @@ func (traceroute *TraceroutePacketIO) GetPacketOut(portID uint32, isIPv4 bool, t
 		Payload: packetTracerouteRequestGet(isIPv4, ttl),
 		Metadata: []*p4v1.PacketMetadata{
 			{
-				MetadataId: uint32(2), // "egress_port"
+				MetadataId: uint32(2), // "submit_to_ingress"
 				Value:      []byte{1},
 			},
 		},
