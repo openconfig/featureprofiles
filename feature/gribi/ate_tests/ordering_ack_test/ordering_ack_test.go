@@ -241,14 +241,18 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 	)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		got := aftNextHopWeights(t, args.dut, nhgIndex, *deviations.DefaultNetworkInstance)
-		want := []uint64{nhWeight}
-		// when a next hop group (nhg) has only one next hop, some FIB implemenation map the nhg to a single path and ignore the weight.
-		// In this case, AFT may returns no value or zero as weight, so validate weights only for nhg with more than one nh.
-		if len(want) > 1 {
-			ok := cmp.Equal(want, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
-			if !ok {
-				t.Errorf("next-hop-group/next-hop/state/weight got %v, want %v", got, want)
+		got, err := aftNextHopWeights(t, args.dut, nhgIndex, *deviations.DefaultNetworkInstance)
+		if err != nil {
+			t.Errorf("Error getting weights for nhg %d : %v", nhIndex, err)
+		} else {
+			want := []uint64{nhWeight}
+			// when a next hop group (nhg) has only one next hop, some FIB implemenation map the nhg to a single path and ignore the weight.
+			// In this case, AFT may returns no value or zero as weight, so validate weights only for nhg with more than one nh.
+			if len(want) > 1 {
+				ok := cmp.Equal(want, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
+				if !ok {
+					t.Errorf("next-hop-group/next-hop/state/weight got %v, want %v", got, want)
+				}
 			}
 		}
 	})
@@ -333,19 +337,23 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 	)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		got := aftNextHopWeights(t, args.dut, nhgIndex, *deviations.DefaultNetworkInstance)
-		want := []uint64{nhWeight}
-		// if a next hop group (nhg) has only one next hop, most FIB implemenation map the nhg to a single path and ignore the weight.
-		// In this case, AFT may returns no value or zero as weight, so validate weights only for nhg with more than one nh.
-		if len(want) > 1 {
-			ok := cmp.Equal(want, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
-			if !ok {
-				t.Errorf("next-hop-group/next-hop/state/weight got %v, want %v", got, want)
+		got, err := aftNextHopWeights(t, args.dut, nhgIndex, *deviations.DefaultNetworkInstance)
+		if err != nil {
+			t.Errorf("Error getting weights for nhg %d : %v", nhIndex, err)
+		} else {
+			want := []uint64{nhWeight}
+			// if a next hop group (nhg) has only one next hop, most FIB implemenation map the nhg to a single path and ignore the weight.
+			// In this case, AFT may returns no value or zero as weight, so validate weights only for nhg with more than one nh.
+			if len(want) > 1 {
+				ok := cmp.Equal(want, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
+				if !ok {
+					t.Errorf("next-hop-group/next-hop/state/weight got %v, want %v", got, want)
+				}
 			}
-		}
-		ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
-			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+			ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+			if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
+				t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+			}
 		}
 	})
 
@@ -356,7 +364,7 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 
 // aftNextHopWeights queries AFT telemetry using Get() and returns
 // the weights. If not-found, an empty list is returned.
-func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, networkInstance string) []uint64 {
+func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, networkInstance string) ([]uint64, error) {
 	aft := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(networkInstance).Afts().State())
 	var nhgD *oc.NetworkInstance_Afts_NextHopGroup
 	for _, nhgData := range aft.NextHopGroup {
@@ -366,8 +374,7 @@ func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, network
 		}
 	}
 	if nhgD == nil {
-		t.Errorf("next-hop-group with programing id %d is not found in AFT response", nhg)
-		return []uint64{}
+		return []uint64{}, fmt.Errorf("next-hop-group with programing id %d is not found in AFT response", nhg)
 	}
 
 	got := []uint64{}
@@ -375,7 +382,7 @@ func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, network
 		got = append(got, nhD.GetWeight())
 	}
 
-	return got
+	return got, nil
 }
 
 // testModifyIPv4AddDelAdd configures a ModifyRequest with AFT operations to add, delete,
