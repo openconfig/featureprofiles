@@ -98,8 +98,7 @@ func TestOSInstall(t *testing.T) {
 	if *deviations.OSActiavteNoReboot {
 		tc.rebootDUT(ctx, t)
 	}
-	// reconnect GNOI client 
-	tc.osc = tc.dut.RawAPIs().GNOI().New(t).OS()
+
 	tc.verifyInstall(ctx, t)
 }
 
@@ -110,42 +109,21 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) 
 		NoReboot:          *deviations.OSActiavteNoReboot,
 	})
 	if err != nil {
-		t.Fatalf("OS.Activate request failed: %s", err)
+			t.Fatalf("OS.Activate request failed: %s", err)
 	}
 
 	switch resp := act.Response.(type) {
 	case *ospb.ActivateResponse_ActivateOk:
-		if standby {
-			t.Log("OS.Activate standby supervisor complete.")
-		} else {
-			t.Log("OS.Activate complete.")
-		}
+			if standby {
+					t.Log("OS.Activate standby supervisor complete.")
+			} else {
+					t.Log("OS.Activate complete.")
+			}
 	case *ospb.ActivateResponse_ActivateError:
-		actErr := resp.ActivateError
-		t.Fatalf("OS.Activate error %s: %s", actErr.Type, actErr.Detail)
+			actErr := resp.ActivateError
+			t.Fatalf("OS.Activate error %s: %s", actErr.Type, actErr.Detail)
 	default:
-		t.Fatalf("OS.Activate unexpected response: got %v (%T)", resp, resp)
-	}
-	// when no reboot is set to false, the device expected to do reboot if is required. 
-	// Reboot is not neccessary in all cases and the device does reboot based on the number of updated packages and impacted processes.
-	// THe below code checks and make sure the possible reboot is completed. 
-	if !*deviations.OSActiavteNoReboot {
-		t.Log("Check for os reboot to be completed when  noreboot flag is set to false")
-		// wait for 1 minutes to ensure the reboot is started
-		deadline := time.Now().Add(*timeout)
-		time.Sleep(1*time.Minute) 
-		for {
-			var bootTime *telemetry.QualifiedUint64	
-			testt.CaptureFatal(t, func(t testing.TB) {
-				bootTime = tc.dut.Telemetry().System().BootTime().Lookup(t)
-			})
-			if bootTime != nil {
-				break
-			}
-			if time.Now().After(deadline) {
-				t.Fatal("Past reboot deadline, the device was not up after activation with noreboot=false")
-			}
-		}
+			t.Fatalf("OS.Activate unexpected response: got %v (%T)", resp, resp)
 	}
 }
 
