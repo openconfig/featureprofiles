@@ -138,7 +138,7 @@ func (b *rundataBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wai
 	if err != nil {
 		return nil, err
 	}
-	b.afterReserve(ctx, resv)
+	b.addResvProperties(ctx, resv)
 	return resv, nil
 }
 
@@ -147,20 +147,18 @@ func (b *rundataBind) FetchReservation(ctx context.Context, id string) (*binding
 	if err != nil {
 		return nil, err
 	}
-	b.afterReserve(ctx, resv)
+	b.addResvProperties(ctx, resv)
 	return resv, nil
 }
 
-func (b *rundataBind) afterReserve(ctx context.Context, resv *binding.Reservation) {
-	m := rundata.Properties(ctx, resv)
-	for k, v := range m {
+func (b *rundataBind) addResvProperties(ctx context.Context, resv *binding.Reservation) {
+	for k, v := range rundata.Properties(ctx, resv) {
 		ondatra.Report().AddSuiteProperty(k, v)
 	}
 }
 
 func (b *rundataBind) Release(ctx context.Context) error {
-	m := rundata.Timing(ctx)
-	for k, v := range m {
+	for k, v := range rundata.Timing(ctx) {
 		ondatra.Report().AddSuiteProperty(k, v)
 	}
 	return b.Binding.Release(ctx)
