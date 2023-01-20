@@ -122,6 +122,7 @@ func TestChassisReboot(t *testing.T) {
 
 			t.Logf("Send reboot request: %v", tc.rebootRequest)
 			rebootResponse, err := gnoiClient.System().Reboot(context.Background(), tc.rebootRequest)
+			defer gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
 			t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
 			if err != nil {
 				t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
