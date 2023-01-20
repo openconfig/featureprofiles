@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	"google.golang.org/grpc/status"
 )
 
 // Flag variable definitions
@@ -147,8 +147,8 @@ func getRespCode(args *testArgs) (int32, error) {
 		_, arbResp, arbErr := handle.StreamChannelGetArbitrationResp(&streamName, 1)
 		if arbErr != nil {
 			if err := p4rtutils.StreamTermErr(args.handle.StreamTermErr); err != nil {
-				if strings.Contains(err.Error(), "InvalidArgument") {
-					return 3, err
+				if err != nil {
+					return int32(status.Code(err)), err
 				}
 				return 0, err
 			}
