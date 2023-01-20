@@ -40,7 +40,15 @@ func TestMain(m *testing.M) {
 }
 
 // Test cases:
-//  - https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/qos/ate_tests/mixed_sp_wrr_traffic_test/README.md
+//  1) Non-oversubscription traffic.
+//     - There should be no packet drop for all traffic classes.
+//  2) Oversubscription traffic case 1.
+//     - There should be no packet drop for strict priority traffic classes.
+//     - All WRR traffic should be droped.
+//  3) Oversubscription traffic case 2.
+//     - There should be no packet drop for strict priority traffic classes.
+//     - 50% of WRR traffic should be droped.
+//  Details: https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/mixed_sp_wrr_traffic_test/README.md
 //
 // Topology:
 //       ATE port 1
@@ -56,7 +64,7 @@ func TestMain(m *testing.M) {
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
 
-func TestQoSCounters(t *testing.T) {
+func TestMixedSPWrrTraffic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
@@ -127,6 +135,8 @@ func TestQoSCounters(t *testing.T) {
 		},
 	}
 
+	// Test case 1: Non-oversubscription traffic.
+	//   - There should be no packet drop for all traffic classes.
 	NonoversubscribedTrafficFlows := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             700,
@@ -242,6 +252,9 @@ func TestQoSCounters(t *testing.T) {
 		},
 	}
 
+	// Test case 2: Oversubscription traffic case
+	//   - There should be no packet drop for strict priority traffic classes.
+	//   - All WRR traffic should be droped.
 	oversubscribedTrafficFlows1 := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             700,
@@ -357,6 +370,9 @@ func TestQoSCounters(t *testing.T) {
 		},
 	}
 
+	// Test case 3: Oversubscription traffic case
+	//   - There should be no packet drop for strict priority traffic classes.
+	//   - 50% of WRR traffic should be droped.
 	oversubscribedTrafficFlows2 := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             700,
