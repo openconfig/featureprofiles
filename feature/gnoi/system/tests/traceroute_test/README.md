@@ -33,22 +33,8 @@ source, destination, max_ttl, do_not_fragment and L4Protocols.
         *   Set to 1
         *   TODO: Set to 255
     *   Do_not_fragment: Check the following cases when DF bit is:
-
-        *   Set: *Intermediate hop router should have link MTU set to less than
-            the traceroute packet size.
-
         *   TODO: Unset
-
-    *   Size:
-
-        *   Set to min packet size of 64, ethernet packet size of 1512, max mtu
-            of jumbo frame 9202, and value slightly bigger than the egress
-            interface MTU of a transit router to test do_not_fragment.
-        *   TODO: verify these for vlan tagged vs untagged packets. May need +4
-            bytes
-
     *   L4Protocol: set as:
-
         *   ICMP
         *   TCP
         *   UDP
