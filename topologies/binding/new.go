@@ -152,8 +152,7 @@ func (b *rundataBind) FetchReservation(ctx context.Context, id string) (*binding
 }
 
 func (b *rundataBind) addResvProperties(ctx context.Context, resv *binding.Reservation) {
-	m := rundata.Properties(ctx, resv)
-	for k, v := range m {
+	for k, v := range rundata.Properties(ctx, resv) {
 		ondatra.Report().AddSuiteProperty(k, v)
 	}
 }
