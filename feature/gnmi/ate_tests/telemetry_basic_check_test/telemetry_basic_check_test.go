@@ -66,7 +66,7 @@ const (
 	linecardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
 	powerSupplyType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY
 	fabricType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
-	fabricChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FRU
+	fabricChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
 	switchChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
 	cpuType         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU
 )
