@@ -24,7 +24,7 @@ const (
 	mask                 = "32"
 	primaryTunnelDstIP   = "203.0.113.1"
 	secondaryTunnelDstIP = "203.0.113.70"
-	secondaryTunnelSrcIP = "222.222.222.222"
+	secondaryTunnelSrcIP = "198.51.100.222"
 	vrfName              = "VRF-1"
 	NH1ID                = 1
 	NH2ID                = 2
