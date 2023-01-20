@@ -60,7 +60,7 @@ var (
 )
 
 const (
-	acceptPolicy = "PERMIT-ALL"
+	rplPermitAll = "PERMIT-ALL"
 )
 
 type ip struct {
@@ -123,7 +123,7 @@ type dutData struct {
 
 func configureRoutingPolicy(d *oc.Root) *oc.RoutingPolicy {
 	rp := d.GetOrCreateRoutingPolicy()
-	pdef := rp.GetOrCreatePolicyDefinition(acceptPolicy)
+	pdef := rp.GetOrCreatePolicyDefinition(rplPermitAll)
 	pdef.GetOrCreateStatement("20").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	return rp
 }
@@ -198,15 +198,15 @@ func TestBGP(t *testing.T) {
 				"BGP-PEER-GROUP1": {
 					PeerGroupName: ygot.String("BGP-PEER-GROUP1"),
 					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
-						ExportPolicy: []string{acceptPolicy},
-						ImportPolicy: []string{acceptPolicy},
+						ExportPolicy: []string{rplPermitAll},
+						ImportPolicy: []string{rplPermitAll},
 					},
 				},
 				"BGP-PEER-GROUP2": {
 					PeerGroupName: ygot.String("BGP-PEER-GROUP2"),
 					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
-						ExportPolicy: []string{acceptPolicy},
-						ImportPolicy: []string{acceptPolicy},
+						ExportPolicy: []string{rplPermitAll},
+						ImportPolicy: []string{rplPermitAll},
 					},
 				},
 			},
@@ -230,8 +230,8 @@ func TestBGP(t *testing.T) {
 							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
 							Enabled:     ygot.Bool(true),
 							ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{
-								ImportPolicy: []string{acceptPolicy},
-								ExportPolicy: []string{acceptPolicy},
+								ImportPolicy: []string{rplPermitAll},
+								ExportPolicy: []string{rplPermitAll},
 							},
 						},
 					},
@@ -245,8 +245,8 @@ func TestBGP(t *testing.T) {
 							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
 							Enabled:     ygot.Bool(true),
 							ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{
-								ImportPolicy: []string{acceptPolicy},
-								ExportPolicy: []string{acceptPolicy},
+								ImportPolicy: []string{rplPermitAll},
+								ExportPolicy: []string{rplPermitAll},
 							},
 						},
 					},
@@ -275,15 +275,15 @@ func TestBGP(t *testing.T) {
 				"BGP-PEER-GROUP1": {
 					PeerGroupName: ygot.String("BGP-PEER-GROUP1"),
 					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
-						ExportPolicy: []string{acceptPolicy},
-						ImportPolicy: []string{acceptPolicy},
+						ExportPolicy: []string{rplPermitAll},
+						ImportPolicy: []string{rplPermitAll},
 					},
 				},
 				"BGP-PEER-GROUP2": {
 					PeerGroupName: ygot.String("BGP-PEER-GROUP2"),
 					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
-						ExportPolicy: []string{acceptPolicy},
-						ImportPolicy: []string{acceptPolicy},
+						ExportPolicy: []string{rplPermitAll},
+						ImportPolicy: []string{rplPermitAll},
 					},
 				},
 			},
@@ -307,8 +307,8 @@ func TestBGP(t *testing.T) {
 							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
 							Enabled:     ygot.Bool(true),
 							ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{
-								ImportPolicy: []string{acceptPolicy},
-								ExportPolicy: []string{acceptPolicy},
+								ImportPolicy: []string{rplPermitAll},
+								ExportPolicy: []string{rplPermitAll},
 							},
 						},
 					},
@@ -322,8 +322,8 @@ func TestBGP(t *testing.T) {
 							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
 							Enabled:     ygot.Bool(true),
 							ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{
-								ImportPolicy: []string{acceptPolicy},
-								ExportPolicy: []string{acceptPolicy},
+								ImportPolicy: []string{rplPermitAll},
+								ExportPolicy: []string{rplPermitAll},
 							},
 						},
 					},
@@ -353,15 +353,15 @@ func TestBGP(t *testing.T) {
 				"BGP-PEER-GROUP1": {
 					PeerGroupName: ygot.String("BGP-PEER-GROUP1"),
 					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
-						ExportPolicy: []string{acceptPolicy},
-						ImportPolicy: []string{acceptPolicy},
+						ExportPolicy: []string{rplPermitAll},
+						ImportPolicy: []string{rplPermitAll},
 					},
 				},
 				"BGP-PEER-GROUP2": {
 					PeerGroupName: ygot.String("BGP-PEER-GROUP2"),
 					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
-						ExportPolicy: []string{acceptPolicy},
-						ImportPolicy: []string{acceptPolicy},
+						ExportPolicy: []string{rplPermitAll},
+						ImportPolicy: []string{rplPermitAll},
 					},
 				},
 			},
@@ -385,8 +385,8 @@ func TestBGP(t *testing.T) {
 							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
 							Enabled:     ygot.Bool(true),
 							ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{
-								ImportPolicy: []string{acceptPolicy},
-								ExportPolicy: []string{acceptPolicy},
+								ImportPolicy: []string{rplPermitAll},
+								ExportPolicy: []string{rplPermitAll},
 							},
 						},
 					},
@@ -396,12 +396,12 @@ func TestBGP(t *testing.T) {
 					PeerGroup:       ygot.String("BGP-PEER-GROUP2"),
 					NeighborAddress: ygot.String("192.0.2.6"),
 					AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-						oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: {
+						oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
 							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
 							Enabled:     ygot.Bool(true),
 							ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{
-								ImportPolicy: []string{acceptPolicy},
-								ExportPolicy: []string{acceptPolicy},
+								ImportPolicy: []string{rplPermitAll},
+								ExportPolicy: []string{rplPermitAll},
 							},
 						},
 					},
