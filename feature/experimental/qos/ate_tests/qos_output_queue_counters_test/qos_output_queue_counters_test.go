@@ -252,7 +252,6 @@ func ConfigureDutQos(t *testing.T, dut *ondatra.DUTDevice) {
 	schedinterface := qos.GetOrCreateInterface(dp2.Name())
 	schedinterface.InterfaceId = ygot.String(dp2.Name())
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name().Config(), "eg_policy1111")
-	//time.Sleep(30 * time.Second)
 	qosi := &oc.Qos{}
 	classifiers := qosi.GetOrCreateClassifier("pmap9")
 	classifiers.Name = ygot.String("pmap9")
@@ -283,6 +282,5 @@ func ConfigureDutQos(t *testing.T, dut *ondatra.DUTDevice) {
 	Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV4).Name = ygot.String("pmap9")
 	Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV6).Name = ygot.String("pmap9")
 	Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_MPLS).Name = ygot.String("pmap9")
-	//TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 }
