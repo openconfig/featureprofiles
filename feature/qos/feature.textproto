@@ -116,6 +116,108 @@ config_path {
 telemetry_path {
   path: "/qos/interfaces/interface/output/scheduler-policy/state/name"
 }
+telemetry_path {
+  path: "/qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-packets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/queues/queue/state/avg-queue-len"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/queues/queue/state/dropped-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/queues/queue/state/max-queue-len"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/queues/queue/state/transmit-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/queues/queue/state/transmit-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/avg-queue-len"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/max-queue-len"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/transmit-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/transmit-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/classifiers/classifier/terms/term/state/matched-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/classifiers/classifier/terms/term/state/matched-packets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/avg-queue-len"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/dropped-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/max-queue-len"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/transmit-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/transmit-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/schedulers/scheduler/state/conforming-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/schedulers/scheduler/state/conforming-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/schedulers/scheduler/state/exceeding-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/schedulers/scheduler/state/exceeding-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/schedulers/scheduler/state/violating-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/schedulers/scheduler/state/violating-pkts"
+}
 
 # Queues
 config_path {
