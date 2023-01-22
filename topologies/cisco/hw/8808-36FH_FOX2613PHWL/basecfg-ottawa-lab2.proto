@@ -13,6 +13,7 @@ replace: {
 "grpc\n"
 " port 57778\n"
 "!\n"
+<<<<<<< Updated upstream
 "line console\n"
 " exec-timeout 0 0\n"
 " absolute-timeout 0\n"
@@ -23,6 +24,13 @@ replace: {
 " absolute-timeout 0\n"
 " session-timeout 0\n"
 "!\n"
+=======
+"telemetry model-driven\n"
+" sensor-group test\n"
+"  sensor-path openconfig-network-instance:network-instances/network-instance/afts/ipv4-unicast\n"
+" !\n"
+"!\n" 
+>>>>>>> Stashed changes
 "call-home\n"
 " service active\n"
 " contact smart-licensing\n"
