@@ -16,7 +16,7 @@ replace: {
 " port 57777\n"
 "telemetry model-driven\n"
 " sensor-group test\n"
-"  sensor-path openconfig-network-instance:network-instances/network-instance/afts/ipv4-unicast\n"
+"  sensor-path openconfig-network-instance:network-instances/network-instance/afts\n"
 " !\n"
 "!\n" 
 "vrf TE\n"
