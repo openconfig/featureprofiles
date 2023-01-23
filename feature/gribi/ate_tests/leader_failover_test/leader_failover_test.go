@@ -90,7 +90,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -110,6 +110,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // configureATE configures port1 and port2 on the ATE.
@@ -254,8 +263,9 @@ func TestLeaderFailover(t *testing.T) {
 	}
 
 	t.Run("SINGLE_PRIMARY/PERSISTENCE=DELETE", func(t *testing.T) {
-		// This is an indicator test for gRIBI persistence DELETE, so we
-		// do not skip based on *deviations.GRIBIPreserveOnly.
+		if *deviations.GRIBIPreserveOnly {
+			t.Skip("Skipping due to --deviation_gribi_preserve_only, DELETE mode is not supported")
+		}
 
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to false.
@@ -293,8 +303,9 @@ func TestLeaderFailover(t *testing.T) {
 	})
 
 	t.Run("ShouldDelete", func(t *testing.T) {
-		// This is an indicator test for gRIBI persistence DELETE, so we
-		// do not skip based on *deviations.GRIBIPreserveOnly.
+		if *deviations.GRIBIPreserveOnly {
+			t.Skip("Skipping due to --deviation_gribi_preserve_only, DELETE mode is not supported")
+		}
 
 		t.Logf("Verify through Telemetry and Traffic that the route to %s has been deleted after gRIBI client disconnected", ateDstNetCIDR)
 

@@ -293,11 +293,6 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) 
 		// entire VRF tree so the instance is created.
 		i := d.GetOrCreateNetworkInstance(vrf)
 		i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		i.Enabled = ygot.Bool(true)
-		i.EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{
-			oc.Types_ADDRESS_FAMILY_IPV4,
-			oc.Types_ADDRESS_FAMILY_IPV6,
-		}
 		i.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 		nip := gnmi.OC().NetworkInstance(vrf)
@@ -313,6 +308,13 @@ func pushConfig(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d *
 	iname := dutPort.Name()
 	i := d.GetOrCreateInterface(iname)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(iname).Config(), i)
+
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dutPort)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, i.GetName(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // configureInterfaceDUT configures a single DUT layer 2 port.
@@ -356,7 +358,6 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 	if vrf != "" {
 		t.Logf("Put port %s into vrf %s", dutPort.Name(), vrf)
 		d.GetOrCreateNetworkInstance(vrf).GetOrCreateInterface(dutPort.Name())
-		d.GetOrCreateNetworkInstance(vrf).EnabledAddressFamilies = []oc.E_Types_ADDRESS_FAMILY{oc.Types_ADDRESS_FAMILY_IPV4}
 	}
 
 	i := d.GetOrCreateInterface(dutPort.Name())
@@ -367,7 +368,7 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 
 	sipv4 := s.GetOrCreateIpv4()
 
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		sipv4.Enabled = ygot.Bool(true)
 	}
 

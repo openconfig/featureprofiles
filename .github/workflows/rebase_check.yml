@@ -1,0 +1,49 @@
+name: Rebase Check
+on: [pull_request]
+
+jobs:
+  check_files:
+    name: Check for outdated files
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout PR
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Check if dependencies and checks are up to date.
+      run: |
+        readonly -a CHECKED_FILES=(
+          go.mod
+          .github/CODEOWNERS
+          .github/workflows/
+        )
+
+        # Notes:
+        #   * Do not use ${GITHUB_REF}, github.sha, or HEAD because they are
+        #     the merged commit of the pull request and main.  There are no
+        #     outdated files in the merged commit.
+        #   * refs/pull/${pr_number}/head is not available, so use
+        #     github.event.pull_request.head.sha which is the "head sha" of
+        #     the event that triggered the pull request.
+        #   * Do not use github.event.pull_request.base.sha because it is
+        #     the base when the pull request was created, not after a rebase.
+        #     Ask git merge-base to tell us a suitable base.
+        readonly HEAD="${{ github.event.pull_request.head.sha }}"
+        readonly BASE="$(git merge-base origin/main "${HEAD}")"
+
+        # Notes:
+        #   * Diff between "${BASE}" and origin/main detects outdated files.
+        #   * Diff between "${BASE}" and "${HEAD}" detects files changed by PR.
+        #   * Merge conflict between "${HEAD}" and main is not detected here,
+        #     but GitHub will prevent merging if that's the case.
+        #   * comm -23 SET1 SET2 shows what's in SET1 and not in SET2.
+        outdated_unchanged="$(
+          comm -23 \
+            <(git diff --name-only "${BASE}" origin/main -- "${CHECKED_FILES[@]}" | sort) \
+            <(git diff --name-only "${BASE}" "${HEAD}" -- "${CHECKED_FILES[@]}" | sort)
+        )"
+        if [ "${outdated_unchanged}" ]; then
+          echo "The following files are outdated: ${outdated_unchanged}"
+          echo "Please rebase your pull request to main and rerun checks."
+          exit 1
+        fi

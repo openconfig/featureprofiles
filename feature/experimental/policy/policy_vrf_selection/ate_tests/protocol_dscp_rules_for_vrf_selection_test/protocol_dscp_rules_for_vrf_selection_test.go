@@ -243,6 +243,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p2 := dut.Port(t, "port2")
 
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+
 	outpath := d.Interface(p2.Name())
 	// create VRFs and VRF enabled subinterfaces
 	configNetworkInstance(t, dut, "VRF10", p2.Name(), uint32(1), 10)
