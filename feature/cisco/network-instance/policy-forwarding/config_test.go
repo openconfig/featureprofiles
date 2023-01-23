@@ -1070,6 +1070,18 @@ func Test_Discard(t *testing.T) {
 			}
 		})
 
+        t.Run("Get-State", func(t *testing.T) {
+            state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(1)
+            stateGot := gnmi.Get(t, dut, state.State())
+            actionDiscard := true
+            if *(stateGot.Action.Discard) != actionDiscard {
+                t.Errorf("Failed: Fetching state leaf for Action Discard, got %v, want %v",
+                         *(stateGot.Action.Discard), actionDiscard)
+            } else {
+                t.Logf("Passed: Configured Action Discard = %v", *(stateGot.Action.Discard))
+            }
+        })
+
 		t.Run("Delete", func(t *testing.T) {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
@@ -1174,6 +1186,78 @@ func Test_Decapgre(t *testing.T) {
 			}
 		})
 
+        t.Run("Get-State", func(t *testing.T) {
+            state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(1)
+            stateGot := gnmi.Get(t, dut, state.State())
+            actionDecapsulateGre := true
+            if *(stateGot.Action.DecapsulateGre) != actionDecapsulateGre {
+                t.Errorf("Failed: Fetching state leaf for Action DecapsulateGre, got %v, want %v",
+                         *(stateGot.Action.DecapsulateGre), actionDecapsulateGre)
+            } else {
+                t.Logf("Passed: Configured Action DecapsulateGre = %v", *(stateGot.Action.DecapsulateGre))
+            }
+        })
+
+		t.Run("Delete", func(t *testing.T) {
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
+		})
+	})
+}
+
+func Test_Decapgue(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	t.Log("Remove Flowspec Config")
+	configToChange := "no flowspec \n"
+	ctx := context.Background()
+	util.GNMIWithText(ctx, t, dut, configToChange)
+	t.Run("Testing openconfig-network-instance:network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue", func(t *testing.T) {
+		r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+		r1.SequenceId = ygot.Uint32(1)
+		r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{DecapsulateGue: ygot.Bool(true)}
+		r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+			Protocol: oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+		}
+
+		p := oc.NetworkInstance_PolicyForwarding_Policy{}
+		p.PolicyId = ygot.String(pbrName)
+		p.Type = oc.Policy_Type_PBR_POLICY
+		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
+		policy := oc.NetworkInstance_PolicyForwarding{}
+		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+
+		t.Logf("TC: Configure decapgue to true")
+		t.Run("Update", func(t *testing.T) {
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
+		})
+
+		t.Run("Get", func(t *testing.T) {
+			config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Action().DecapsulateGue()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
+
+			//action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
+			actionDecapsulateGue := true
+
+			if configGot != actionDecapsulateGue {
+				t.Errorf("Failed : Fetching config leaf for decapgue, got %v, want %v",
+                         configGot, actionDecapsulateGue)
+			} else {
+				t.Logf("Passed: Configured decapgue = %v", actionDecapsulateGue)
+			}
+		})
+
+        t.Run("Get-State", func(t *testing.T) {
+            state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(1)
+            stateGot := gnmi.Get(t, dut, state.State())
+            actionDecapsulateGue := true
+            if *(stateGot.Action.DecapsulateGue) != actionDecapsulateGue {
+                t.Errorf("Failed: Fetching state leaf for Action DecapsulateGue, got %v, want %v",
+                         *(stateGot.Action.DecapsulateGue), actionDecapsulateGue)
+            } else {
+                t.Logf("Passed: Configured Action DecapsulateGue = %v", *(stateGot.Action.DecapsulateGue))
+            }
+        })
+
 		t.Run("Delete", func(t *testing.T) {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
@@ -1221,6 +1305,18 @@ func Test_Nexthop_v4(t *testing.T) {
 				t.Logf("Passed: Configured nexthop = %v, Obtained nexthop = %v", *action.NextHop, configGot)
 			}
 		})
+
+        t.Run("Get-State", func(t *testing.T) {
+            state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(1)
+            stateGot := gnmi.Get(t, dut, state.State())
+            actionNextHop := "192.168.1.1"
+            if *(stateGot.Action.NextHop) != actionNextHop {
+                t.Errorf("Failed: Fetching state leaf for Action NextHop, got %v, want %v",
+                         *(stateGot.Action.NextHop), actionNextHop)
+            } else {
+                t.Logf("Passed: Configured Action IPv4 NextHop = %v", *(stateGot.Action.NextHop))
+            }
+        })
 
 		t.Logf("TC: Modifying nexthop to 192.168.1.5")
 		r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NextHop: ygot.String("192.168.1.5")}
@@ -1290,6 +1386,18 @@ func Test_Nexthop_v6(t *testing.T) {
 				t.Logf("Passed: Configured nexthop = %v, Obtained nexthop = %v", *action.NextHop, configGot)
 			}
 		})
+
+        t.Run("Get-State", func(t *testing.T) {
+            state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(1)
+            stateGot := gnmi.Get(t, dut, state.State())
+            actionNextHop := "2003::21"
+            if *(stateGot.Action.NextHop) != actionNextHop {
+                t.Errorf("Failed: Fetching state leaf for Action NextHop, got %v, want %v",
+                         *(stateGot.Action.NextHop), actionNextHop)
+            } else {
+                t.Logf("Passed: Configured Action IPv6 NextHop = %v", *(stateGot.Action.NextHop))
+            }
+        })
 
 		r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NextHop: ygot.String("2003::31")}
 		t.Logf("TC: Changing nexthop to 2003::31")
