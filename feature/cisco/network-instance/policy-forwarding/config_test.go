@@ -50,6 +50,18 @@ func Test_Type(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
+        t.Run("Get-State", func(t *testing.T) {
+            state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName)
+            stateGot := gnmi.Get(t, dut, state.State())
+            policyType := oc.Policy_Type_VRF_SELECTION_POLICY
+            if stateGot.Type != oc.Policy_Type_VRF_SELECTION_POLICY {
+                t.Errorf("Failed: Fetching state leaf for Policy type, got %v, want %v",
+                         stateGot.Type, policyType)
+            } else {
+                t.Logf("Passed: Configured Policy type = %v", stateGot.Type)
+            }
+        })
+
 		t.Run("Delete", func(t *testing.T) {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
@@ -86,6 +98,17 @@ func Test_Policy_id(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
 
+        t.Run("Get-State", func(t *testing.T) {
+            state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName)
+            stateGot := gnmi.Get(t, dut, state.State())
+            if *(stateGot.PolicyId) != pbrName {
+                t.Errorf("Failed: Fetching state leaf for Policy ID, got %v, want %v",
+                         *(stateGot.PolicyId), pbrName)
+            } else {
+                t.Logf("Passed: Configured Policy ID = %v", *(stateGot.PolicyId))
+            }
+        })
+
 		t.Run("Delete", func(t *testing.T) {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Config())
 		})
@@ -121,6 +144,18 @@ func Test_Sequence_id(t *testing.T) {
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
+
+        t.Run("Get-State", func(t *testing.T) {
+            state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(1)
+            stateGot := gnmi.Get(t, dut, state.State())
+            var sequenceId uint32 = 1
+            if *(stateGot.SequenceId) != sequenceId {
+                t.Errorf("Failed: Fetching state leaf for Policy Sequence-ID, got %v, want %v",
+                         *(stateGot.SequenceId), sequenceId)
+            } else {
+                t.Logf("Passed: Configured Policy Sequence-ID = %v", *(stateGot.SequenceId))
+            }
+        })
 
 		t.Run("Delete", func(t *testing.T) {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
@@ -200,6 +235,18 @@ func Test_Policy_Type_PBR_POLICY(t *testing.T) {
 			}
 		})
 
+        t.Run("Get-State", func(t *testing.T) {
+            state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName)
+            stateGot := gnmi.Get(t, dut, state.State())
+            policyType := oc.Policy_Type_PBR_POLICY
+            if stateGot.Type != oc.Policy_Type_PBR_POLICY {
+                t.Errorf("Failed: Fetching state leaf for Policy type, got %v, want %v",
+                         stateGot.Type, policyType)
+            } else {
+                t.Logf("Passed: Configured Policy type = %v", stateGot.Type)
+            }
+        })
+
 		t.Run("Delete", func(t *testing.T) {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
@@ -233,6 +280,18 @@ func Test_Ipv4_Dscp_set(t *testing.T) {
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
+
+        t.Run("Get-State", func(t *testing.T) {
+            state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(1)
+            stateGot := gnmi.Get(t, dut, state.State())
+            var ipv4DscpSet uint8 = 16
+            if stateGot.Ipv4.DscpSet[0] != ipv4DscpSet {
+                t.Errorf("Failed: Fetching state leaf for IPv4 Dscp-Set, got %v, want %v",
+                         stateGot.Ipv4.DscpSet[0], ipv4DscpSet)
+            } else {
+                t.Logf("Passed: Configured IPv4 Dscp-Set = %v", stateGot.Ipv4.DscpSet[0])
+            }
+        })
 
 		t.Run("Delete", func(t *testing.T) {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(1)).Config())
@@ -268,6 +327,18 @@ func Test_Ipv6_Dscp_set(t *testing.T) {
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		})
+
+        t.Run("Get-State", func(t *testing.T) {
+            state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(1)
+            stateGot := gnmi.Get(t, dut, state.State())
+            var ipv6DscpSet uint8 = 16
+            if stateGot.Ipv6.DscpSet[0] != ipv6DscpSet {
+                t.Errorf("Failed: Fetching state leaf for IPv6 Dscp-Set, got %v, want %v",
+                         stateGot.Ipv6.DscpSet[0], ipv6DscpSet)
+            } else {
+                t.Logf("Passed: Configured IPv6 Dscp-Set = %v", stateGot.Ipv6.DscpSet[0])
+            }
+        })
 
 		t.Run("Delete", func(t *testing.T) {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
