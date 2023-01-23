@@ -9,10 +9,15 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+)
+
+const (
+	transceiverType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
 )
 
 func TestPlatformCPUState(t *testing.T) {
@@ -342,62 +347,56 @@ func TestSubComponent(t *testing.T) {
 
 func TestPlatformTransceiverState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	cliHandle := dut.RawAPIs().CLI(t)
-	resp, err := cliHandle.SendCommand(context.Background(), "show version")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
+	cards := components.FindComponentsByType(t, dut, transceiverType)
+	t.Logf("Found Card list: %v", cards)
+
+	for _, card := range cards {
+		t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
+			state := gnmi.OC().Component(card).SerialNo()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			val := gnmi.Get(t, dut, state.State())
+			if val == "" {
+				t.Errorf("Platform OpticsModule SerialNo: got %s, want != %s", val, "''")
+
+			}
+		})
+		t.Run("Subscribe//components/component/state/oper-status/hardware-version", func(t *testing.T) {
+			state := gnmi.OC().Component(card).HardwareVersion()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			val := gnmi.Get(t, dut, state.State())
+			if val == "" {
+				t.Errorf("Platform OpticsModule HardwareVersion: got %s, want != %s", val, "''")
+
+			}
+		})
+		t.Run("Subscribe//components/component/state/oper-status", func(t *testing.T) {
+			state := gnmi.OC().Component(card).OperStatus()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			val := gnmi.Get(t, dut, state.State())
+			if val != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
+				t.Errorf("Platform OpticsModule  OperStatus: got %s, want > %s", val, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
+
+			}
+		})
+		t.Run("Subscribe//components/component/state/description", func(t *testing.T) {
+			state := gnmi.OC().Component(card).Description()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			val := gnmi.Get(t, dut, state.State())
+			if !strings.Contains(val, "Optics") {
+				t.Errorf("Platform OpticsModule Description: got %s, should contain %s", val, "Optics")
+
+			}
+		})
+		t.Run("Subscribe//components/component/state/type", func(t *testing.T) {
+			state := gnmi.OC().Component(card).Type()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			val := gnmi.Get(t, dut, state.State())
+			if val != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER {
+				t.Errorf("Platform OpticsModule  OperStatus: got %s, want > %s", val, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER)
+
+			}
+		})
 	}
-	if strings.Contains(resp, "VXR") {
-		t.Logf("Skipping since platfrom is VXR")
-		t.Skip()
-	}
-
-	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
-		state := gnmi.OC().Component(Platform.OpticsModule).SerialNo()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := gnmi.Get(t, dut, state.State())
-		if val == "" {
-			t.Errorf("Platform OpticsModule SerialNo: got %s, want != %s", val, "''")
-
-		}
-	})
-	t.Run("Subscribe//components/component/state/oper-status/hardware-version", func(t *testing.T) {
-		state := gnmi.OC().Component(Platform.OpticsModule).HardwareVersion()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := gnmi.Get(t, dut, state.State())
-		if val == "" {
-			t.Errorf("Platform OpticsModule HardwareVersion: got %s, want != %s", val, "''")
-
-		}
-	})
-	t.Run("Subscribe//components/component/state/oper-status", func(t *testing.T) {
-		state := gnmi.OC().Component(Platform.OpticsModule).OperStatus()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := gnmi.Get(t, dut, state.State())
-		if val != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
-			t.Errorf("Platform OpticsModule  OperStatus: got %s, want > %s", val, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
-
-		}
-	})
-	t.Run("Subscribe//components/component/state/description", func(t *testing.T) {
-		state := gnmi.OC().Component(Platform.OpticsModule).Description()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := gnmi.Get(t, dut, state.State())
-		if !strings.Contains(val, "Optics") {
-			t.Errorf("Platform OpticsModule Description: got %s, should contain %s", val, "Optics")
-
-		}
-	})
-	t.Run("Subscribe//components/component/state/type", func(t *testing.T) {
-		state := gnmi.OC().Component(Platform.OpticsModule).Type()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		val := gnmi.Get(t, dut, state.State())
-		if val != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER {
-			t.Errorf("Platform OpticsModule  OperStatus: got %s, want > %s", val, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER)
-
-		}
-	})
 
 }
 
