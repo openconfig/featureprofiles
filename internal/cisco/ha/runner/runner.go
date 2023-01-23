@@ -13,21 +13,12 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-// TestArgs defines the arguments that test in background will receveis.
-// For simplicity we assume only one ATE is available and the test should use ATELock before using the ATE
-type TestArgs struct {
-	DUT []*ondatra.DUTDevice
-	// ATE lock should be aquired before using ATE. Only one test can use the ATE at a time.
-	ATELock sync.Mutex
-	ATE     *ondatra.ATEDevice
-}
-
 // BackgroundTest is the signature of a test function that can be run in background
-type BackgroundTest func(t *testing.T, args *TestArgs, events *monitor.CachedConsumer)
+type BackgroundTest func(t *testing.T, events *monitor.CachedConsumer, args ...interface{})
 
 // RunTestInBackground runs a testing function in the background. The period can be ticker or simple timer. With simple timer the function only run once
 // Eeven refers to gnmi evelenet collected with streaming telemtry.
-func RunTestInBackground(ctx context.Context, t *testing.T, period interface{}, args *TestArgs, events *monitor.CachedConsumer, function BackgroundTest, workGroup *sync.WaitGroup) {
+func RunTestInBackground(ctx context.Context, t *testing.T, period interface{}, workGroup *sync.WaitGroup, events *monitor.CachedConsumer, function BackgroundTest, args ...interface{}) {
 	t.Helper()
 	timer, ok := period.(*time.Timer)
 	if ok {
@@ -35,7 +26,7 @@ func RunTestInBackground(ctx context.Context, t *testing.T, period interface{}, 
 			<-timer.C
 			workGroup.Add(1)
 			defer workGroup.Done()
-			function(t, args, events)
+			function(t, events, args...)
 		}()
 	}
 	// TODO: Not tested
@@ -50,7 +41,7 @@ func RunTestInBackground(ctx context.Context, t *testing.T, period interface{}, 
 					go func() { // using goroutine to make sure the waitgroup can be done to prevent the whole test to be hanged when a test calls  Fatal
 						defer workGroup.Done()
 						defer localWG.Done()
-						function(t, args, events)
+						function(t, events, args...)
 					}()
 					localWG.Wait()
 				}
