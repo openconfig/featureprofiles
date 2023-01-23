@@ -128,7 +128,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// configureDUT configures port1, port2, port3 and port4 on the DUT.
+// configureDUT configures port1, port2, port3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
@@ -187,9 +187,9 @@ func TestBackupNHGAction(t *testing.T) {
 		fn   func(ctx context.Context, t *testing.T, args *testArgs)
 	}{
 		{
-			name: "testbackupDecap",
+			name: "testBackupDecap",
 			desc: "Usecase3 with 2 NHOP Groups - Backup Pointing to Decap",
-			fn:   testbackupDecap,
+			fn:   testBackupDecap,
 		},
 		{
 			name: "testDecapEncap",
@@ -197,7 +197,7 @@ func TestBackupNHGAction(t *testing.T) {
 			fn:   testDecapEncap,
 		},
 	}
-	// Configure the gRIBI client client
+	// Configure the gRIBI client
 	client := gribi.Client{
 		DUT:         dut,
 		FIBACK:      true,
@@ -228,9 +228,9 @@ func TestBackupNHGAction(t *testing.T) {
 }
 
 // TE11.3 - case 1: next-hop viability triggers decap in backup NHG.
-func testbackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
+func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 
-	t.Logf("Adding NH %d with ATE port-2 via gRIBI", NH1ID)
+	t.Logf("Adding NH %d with atePort2 via gRIBI", NH1ID)
 	args.client.AddNH(t, NH1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 	t.Logf("Adding NH %d as decap and NHGs %d, %d via gRIBI", NH2ID, NH1ID, NH2ID)
 	args.client.AddNH(t, NH2ID, "Decap", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
@@ -239,7 +239,7 @@ func testbackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Adding an IPv4Entry for %s with primary atePort2, backup as Decap via gRIBI", primaryTunnelDstIP)
 	args.client.AddIPv4(t, primaryTunnelDstIP+"/"+mask, NH1ID, vrfName, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
-	t.Logf("Create flow with dst %s", primaryTunnelDstIP)
+	t.Logf("Create flows with dst %s", primaryTunnelDstIP)
 	baselineFlow := createFlow(t, args.ate, args.top, "BaseFlow", primaryTunnelDstIP, &atePort2)
 	backupFlow := createFlow(t, args.ate, args.top, "BackupFlow", primaryTunnelDstIP, &atePort3)
 	t.Log("Validate traffic passes")
@@ -265,7 +265,7 @@ func testbackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 // TE11.3 - case 2: new tunnel viability triggers decap in the backup NHG.
 func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 
-	t.Logf("Adding NH %d with ATE port-2 via gRIBI", NH3ID)
+	t.Logf("Adding NH %d with atePort2 via gRIBI", NH3ID)
 	args.client.AddNH(t, NH3ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 	t.Logf("Adding NHG %d via gRIBI", NH3ID)
 	args.client.AddNHG(t, NH3ID, map[uint64]uint64{NH3ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
@@ -290,7 +290,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Errorf("Get(DUT port2 oper status): got %v, want %v", operStatus, want)
 	}
 
-	t.Logf("Create base flow with dst %s", primaryTunnelDstIP)
+	t.Logf("Create flows with dst %s", primaryTunnelDstIP)
 	baselineFlow := createFlow(t, args.ate, args.top, "BaseFlow", primaryTunnelDstIP, &atePort2)
 	backupFlow := createFlow(t, args.ate, args.top, "BackupFlow", primaryTunnelDstIP, &atePort3)
 	t.Logf("Validate traffic passes through port2")
@@ -328,7 +328,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, 
 	return flow
 }
 
-// validateTrafficFlows verifies that the flow on ATE good flow delivers traffic, bad flow doesnt.
+// validateTrafficFlows verifies that the flow on ATE, traffic should pass for good flow and fail for bad flow.
 func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good *ondatra.Flow, bad *ondatra.Flow) {
 	ate.Traffic().Start(t, good, bad)
 	time.Sleep(15 * time.Second)
