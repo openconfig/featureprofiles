@@ -16,16 +16,23 @@ package aft_test
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/google/go-cmp/cmp"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 )
 
 func TestMain(m *testing.M) {
@@ -49,6 +56,10 @@ const (
 	innerdstPfxCount_isis = 100
 )
 
+const (
+	linecardType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
+)
+
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	ctx    context.Context
@@ -56,6 +67,150 @@ type testArgs struct {
 	dut    *ondatra.DUTDevice
 	ate    *ondatra.ATEDevice
 	top    *ondatra.ATETopology
+}
+
+const (
+	oneMinuteInNanoSecond = 6e10
+	oneSecondInNanoSecond = 1e9
+	rebootDelay           = 120
+	// Maximum reboot time is 900 seconds (15 minutes).
+	maxRebootTime = 900
+	// Maximum wait time for all components to be in responsive state
+	maxCompWaitTime = 600
+)
+
+func chassisReboot(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	cases := []struct {
+		desc          string
+		rebootRequest *spb.RebootRequest
+	}{
+		{
+			desc: "without delay",
+			rebootRequest: &spb.RebootRequest{
+				Method:  spb.RebootMethod_COLD,
+				Delay:   0,
+				Message: "Reboot chassis without delay",
+				Force:   true,
+			}},
+	}
+
+	versions := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
+	expectedVersion := FetchUniqueItems(t, versions)
+	sort.Strings(expectedVersion)
+	t.Logf("DUT software version: %v", expectedVersion)
+
+	preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+	t.Logf("DUT components status pre reboot: %v", preRebootCompStatus)
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			gnoiClient := dut.RawAPIs().GNOI().New(t)
+			bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+			t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
+			prevTime, err := time.Parse(time.RFC3339, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
+			if err != nil {
+				t.Fatalf("Failed parsing current-datetime: %s", err)
+			}
+			start := time.Now()
+
+			t.Logf("Send reboot request: %v", tc.rebootRequest)
+			rebootResponse, err := gnoiClient.System().Reboot(context.Background(), tc.rebootRequest)
+			t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
+			if err != nil {
+				t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+			}
+
+			if tc.rebootRequest.GetDelay() > 1 {
+				t.Logf("Validating DUT remains reachable for at least %d seconds", rebootDelay)
+				for {
+					time.Sleep(10 * time.Second)
+					t.Logf("Time elapsed %.2f seconds since reboot was requested.", time.Since(start).Seconds())
+					if uint64(time.Since(start).Seconds()) > rebootDelay {
+						t.Logf("Time elapsed %.2f seconds > %d reboot delay", time.Since(start).Seconds(), rebootDelay)
+						break
+					}
+					latestTime, err := time.Parse(time.RFC3339, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
+					if err != nil {
+						t.Fatalf("Failed parsing current-datetime: %s", err)
+					}
+					if latestTime.Before(prevTime) || latestTime.Equal(prevTime) {
+						t.Errorf("Get latest system time: got %v, want newer time than %v", latestTime, prevTime)
+					}
+					prevTime = latestTime
+				}
+			}
+
+			startReboot := time.Now()
+			t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+			for {
+				var currentTime string
+				t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+				time.Sleep(30 * time.Second)
+				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+					currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+				}); errMsg != nil {
+					t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+				} else {
+					t.Logf("Device rebooted successfully with received time: %v", currentTime)
+					break
+				}
+
+				if uint64(time.Since(startReboot).Seconds()) > maxRebootTime {
+					t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+				}
+			}
+			t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
+
+			bootTimeAfterReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+			t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
+			if bootTimeAfterReboot <= bootTimeBeforeReboot {
+				t.Errorf("Get boot time: got %v, want > %v", bootTimeAfterReboot, bootTimeBeforeReboot)
+			}
+
+			startComp := time.Now()
+			t.Logf("Wait for all the components on DUT to come up")
+
+			for {
+				postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+
+				if len(preRebootCompStatus) == len(postRebootCompStatus) {
+					t.Logf("All components on the DUT are in responsive state")
+					time.Sleep(10 * time.Second)
+					break
+				}
+
+				if uint64(time.Since(startComp).Seconds()) > maxCompWaitTime {
+					t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
+					t.Fatalf("All the components are not in responsive state post reboot")
+				}
+				time.Sleep(10 * time.Second)
+			}
+
+			versions = gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
+			swVersion := FetchUniqueItems(t, versions)
+			sort.Strings(swVersion)
+			t.Logf("DUT software version after reboot: %v", swVersion)
+			if diff := cmp.Diff(expectedVersion, swVersion); diff != "" {
+				t.Errorf("Software version differed (-want +got):\n%v", diff)
+			}
+		})
+	}
+}
+
+func FetchUniqueItems(t *testing.T, s []string) []string {
+	itemExisted := make(map[string]bool)
+	var uniqueList []string
+	for _, item := range s {
+		if _, ok := itemExisted[item]; !ok {
+			itemExisted[item] = true
+			uniqueList = append(uniqueList, item)
+		} else {
+			t.Logf("Detected duplicated item: %v", item)
+		}
+	}
+	return uniqueList
 }
 
 func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
@@ -399,9 +554,28 @@ func TestOCAFT(t *testing.T) {
 	ctx := context.Background()
 
 	// Configure the DUT
+	t.Log("Remove Flowspec Config")
+	configToChange := "no flowspec \n"
+	util.GNMIWithText(ctx, t, dut, configToChange)
+	configToChange = "hw-module profile pbr vrf-redirect \n"
+	util.GNMIWithText(ctx, t, dut, configToChange)
+	lcs := components.FindComponentsByType(t, dut, linecardType)
+	t.Logf("Found linecard list: %v", lcs)
+
+	if got := len(lcs); got == 0 {
+		configToChange = "hw-module profile netflow sflow-enable location 0/RP0/CPU0 \n"
+		util.GNMIWithText(ctx, t, dut, configToChange)
+	} else {
+		for _, lc := range lcs {
+			configToChange = fmt.Sprintf("hw-module profile netflow sflow-enable location %s \n", lc)
+			util.GNMIWithText(ctx, t, dut, configToChange)
+		}
+	}
 	configureDUT(t, dut)
 	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
 	defer unconfigbasePBR(t, dut)
+
+	chassisReboot(t)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
