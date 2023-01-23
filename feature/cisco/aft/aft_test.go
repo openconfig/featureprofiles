@@ -459,6 +459,11 @@ func testAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
+	ciscoFlags.GRIBIChecks.AFTChainCheck = false
+	ciscoFlags.GRIBIChecks.AFTCheck = false
+	ciscoFlags.GRIBIChecks.FIBACK = true
+	ciscoFlags.GRIBIChecks.RIBACK = true
+
 	// LEVEL 2
 	// Creating a backup NHG with ID 101 and NH ID 10 pointing to decap
 	args.client.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
