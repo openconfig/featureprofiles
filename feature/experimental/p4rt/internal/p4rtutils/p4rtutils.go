@@ -21,6 +21,10 @@
 package p4rtutils
 
 import (
+	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
@@ -189,11 +193,38 @@ func explicitP4RTNodes() map[string]string {
 	}
 }
 
+// inferP4RTNodesCisco infers the P4RT node name from the port name and device model
+// for Cisco devices.
+func inferP4RTNodesCisco(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
+	t.Helper()
+	npus := []int{0, 1, 2}
+	pranges := []int{11, 23, 35}
+	res := make(map[string]string)
+	isModular := dut.Model() == "" || strings.HasPrefix(dut.Model(), "CISCO-88")
+	for _, p := range dut.Ports() {
+		if isModular {
+			parts := strings.Split(p.Name(), "/")
+			pnum, err := strconv.Atoi(parts[3])
+			if err != nil {
+				t.Fatalf("Error parsing port name: %v", err)
+			}
+			npu := npus[sort.SearchInts(pranges, pnum)]
+			res[p.ID()] = fmt.Sprintf("0/%s/CPU0-NPU%d", parts[1], npu)
+		} else {
+			res[p.ID()] = "0/RP0/CPU0/0"
+		}
+	}
+	return res
+}
+
 // P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
 // ports using the component and the interface OC tree.
-func P4RTNodesByPort(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
+func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
 	if *deviations.ExplicitP4RTNodeComponent {
+		if dut.Vendor() == ondatra.CISCO {
+			return inferP4RTNodesCisco(t, dut)
+		}
 		return explicitP4RTNodes()
 	}
 

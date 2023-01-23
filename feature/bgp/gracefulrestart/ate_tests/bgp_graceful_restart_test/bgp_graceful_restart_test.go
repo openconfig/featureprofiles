@@ -154,8 +154,12 @@ func buildNbrList(asN uint32) []*bgpNeighbor {
 	return []*bgpNeighbor{nbr1v4, nbr2v4, nbr1v6, nbr2v6}
 }
 
-func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol_Bgp {
-	bgp := &oc.NetworkInstance_Protocol_Bgp{}
+func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
+	d := &oc.Root{}
+	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := ni_proto.GetOrCreateBgp()
+
 	g := bgp.GetOrCreateGlobal()
 	g.As = ygot.Uint32(as)
 	g.RouterId = ygot.String(dutDst.IPv4)
@@ -184,7 +188,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol_Bgp
 			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 		}
 	}
-	return bgp
+	return ni_proto
 }
 
 func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
@@ -399,7 +403,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	// Configure BGP+Neighbors on the DUT
 	t.Run("configureBGP", func(t *testing.T) {
 		t.Log("Configure BGP with Graceful Restart option under Global Bgp")
-		dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+		dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 		gnmi.Delete(t, dut, dutConfPath.Config())
 		nbrList := buildNbrList(ateAS)
 		dutConf := bgpWithNbr(dutAS, nbrList)
@@ -451,7 +455,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
 	t.Run("VerifyBGPNOTEstablished", func(t *testing.T) {
-		t.Logf("Waiting for BGP neighbor to establish...")
+		t.Log("Waiting for BGP neighbor to go to CONNECT state after applying ACL DENY policy...")
 		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			currState, ok := val.Val()
 			return ok && currState == oc.Bgp_Neighbor_SessionState_CONNECT
@@ -461,6 +465,10 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 			t.Errorf("BGP session did not go Down as expected")
 		}
 	})
+
+	t.Log("Wait till LLGR/Stale timer expires to delete long live routes.....")
+	time.Sleep(time.Second * grRestartTime)
+	time.Sleep(time.Second * grStaleRouteTime)
 
 	t.Run("VerifyTrafficFailureAfterGRexpired", func(t *testing.T) {
 		t.Log("Send Traffic Again after GR timer has expired. This traffic should fail!")
