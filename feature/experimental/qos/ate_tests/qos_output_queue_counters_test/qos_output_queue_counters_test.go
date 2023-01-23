@@ -114,7 +114,15 @@ func TestQoSCounters(t *testing.T) {
 			"flow-af1": {frameSize: 1100, trafficRate: 2, dscp: 9, queue: "tc2"},
 			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 1, queue: "tc1"},
 		}
-		ConfigureDutQos(t, dut)
+
+		//sort.Sort(sort.Reverse(sort.IntSlice{}))
+
+		classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
+		dscps := []int{1, 9, 17, 25, 33, 41, 56}
+		queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
+		tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
+		ConfigureDutQos(t, dut, classmaps, dscps, queues, tclass)
+
 	default:
 		t.Fatalf("Output queue mapping is missing for %v", dut.Vendor().String())
 	}
@@ -222,45 +230,40 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 	}
 }
-func ConfigureDutQos(t *testing.T, dut *ondatra.DUTDevice) {
+func ConfigureDutQos(t *testing.T, dut *ondatra.DUTDevice, classmaps []string, dscps []int, queues []string, tclass []string) {
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
 
 	qos := &oc.Qos{}
-	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
+	//Step1: Configure Queues and it has to in order from tc7 to tc1
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
-	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
+	//Step2 Create scheduler policies
+	schedulerpol := qos.GetOrCreateSchedulerPolicy("egress_policy")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
 	schedule.Priority = oc.Scheduler_Priority_STRICT
 
-	var ind uint64
-	ind = 0
-
-	for _, schedqueue := range queues {
+	for ind, schedqueue := range queues {
 		input := schedule.GetOrCreateInput(schedqueue)
 		input.Id = ygot.String(schedqueue)
-		input.Weight = ygot.Uint64(7 - ind)
+		input.Weight = ygot.Uint64(7 - uint64(ind))
 		input.Queue = ygot.String(schedqueue)
 
 		ind += 1
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Qos().SchedulerPolicy("eg_policy1111").Config(), schedulerpol)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().SchedulerPolicy("egress_policy").Config(), schedulerpol)
 	schedinterface := qos.GetOrCreateInterface(dp2.Name())
 	schedinterface.InterfaceId = ygot.String(dp2.Name())
-	gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name().Config(), "eg_policy1111")
+	//Apply the egress policy-map t0 egress interface
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name().Config(), "egress_policy")
+	//This step creates an ingress policy-map with matching dscp and setting "target-group"
 	qosi := &oc.Qos{}
 	classifiers := qosi.GetOrCreateClassifier("pmap9")
 	classifiers.Name = ygot.String("pmap9")
 	classifiers.Type = oc.Qos_Classifier_Type_IPV4
-	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
-
-	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
-
-	dscps := []int{1, 9, 17, 25, 33, 41, 56}
 
 	for index, classmap := range classmaps {
 		terms := classifiers.GetOrCreateTerm(classmap)
@@ -276,11 +279,13 @@ func ConfigureDutQos(t *testing.T, dut *ondatra.DUTDevice) {
 		fwdgroups.OutputQueue = ygot.String(tclass[index])
 		gnmi.Update(t, dut, gnmi.OC().Qos().Config(), qosi)
 	}
+	//Configire ingress policy to ingress-interface
 	classinterface := qosi.GetOrCreateInterface(dp1.Name())
 	classinterface.InterfaceId = ygot.String(dp1.Name())
 	Inputs := classinterface.GetOrCreateInput()
 	Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV4).Name = ygot.String("pmap9")
 	Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV6).Name = ygot.String("pmap9")
 	Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_MPLS).Name = ygot.String("pmap9")
+
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 }
