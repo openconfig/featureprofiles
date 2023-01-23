@@ -22,12 +22,10 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"google.golang.org/grpc"
 
-	"github.com/openconfig/featureprofiles/internal/rundata"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	grpb "github.com/openconfig/gribi/v1/proto/service"
@@ -74,8 +72,10 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	resv.ID = resvID
 	b.resv = resv
 
-	if err := b.afterReserve(ctx); err != nil {
-		return nil, err
+	if b.pushConfig {
+		if err := b.reset(ctx); err != nil {
+			return nil, err
+		}
 	}
 	if err := b.reserveIxSessions(ctx); err != nil {
 		return nil, err
@@ -84,10 +84,6 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 }
 
 func (b *staticBind) Release(ctx context.Context) error {
-	m := rundata.Timing(ctx)
-	for k, v := range m {
-		ondatra.Report().AddSuiteProperty(k, v)
-	}
 	if b.resv == nil {
 		return errors.New("no reservation")
 	}
@@ -99,25 +95,7 @@ func (b *staticBind) Release(ctx context.Context) error {
 }
 
 func (b *staticBind) FetchReservation(ctx context.Context, id string) (*binding.Reservation, error) {
-	if b.resv == nil || id != resvID {
-		return nil, fmt.Errorf("reservation not found: %s", id)
-	}
-	if err := b.afterReserve(ctx); err != nil {
-		return nil, err
-	}
-	return b.resv, nil
-}
-
-func (b *staticBind) afterReserve(ctx context.Context) error {
-	m := rundata.Properties(ctx, b.resv)
-	for k, v := range m {
-		ondatra.Report().AddSuiteProperty(k, v)
-	}
-
-	if !b.pushConfig {
-		return nil
-	}
-	return b.reset(ctx)
+	return nil, errors.New("static binding does not support fetching an existing reservation")
 }
 
 func (b *staticBind) reset(ctx context.Context) error {
