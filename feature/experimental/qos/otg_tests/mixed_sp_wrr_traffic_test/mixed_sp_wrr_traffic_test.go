@@ -539,6 +539,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			trafficFlows := tc.trafficFlows
+			top.Flows().Clear()
 
 			for trafficID, data := range trafficFlows {
 				t.Logf("Configuring flow %s", trafficID)
