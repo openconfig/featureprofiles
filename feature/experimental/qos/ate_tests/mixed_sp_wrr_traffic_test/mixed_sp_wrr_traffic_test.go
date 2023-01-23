@@ -40,7 +40,15 @@ func TestMain(m *testing.M) {
 }
 
 // Test cases:
-//  - https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/qos/ate_tests/mixed_sp_wrr_traffic_test/README.md
+//  1) Non-oversubscription traffic.
+//     - There should be no packet drop for all traffic classes.
+//  2) Oversubscription traffic case 1.
+//     - There should be no packet drop for strict priority traffic classes.
+//     - All WRR traffic should be droped.
+//  3) Oversubscription traffic case 2.
+//     - There should be no packet drop for strict priority traffic classes.
+//     - 50% of WRR traffic should be droped.
+//  Details: https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/mixed_sp_wrr_traffic_test/README.md
 //
 // Topology:
 //       ATE port 1
@@ -56,7 +64,7 @@ func TestMain(m *testing.M) {
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
 
-func TestQoSCounters(t *testing.T) {
+func TestMixedSPWrrTraffic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
@@ -64,7 +72,7 @@ func TestQoSCounters(t *testing.T) {
 
 	// Configure DUT interfaces and QoS.
 	ConfigureDUTIntf(t, dut)
-	// ConfigureQoS(t, dut)
+	ConfigureQoS(t, dut)
 
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
@@ -127,6 +135,8 @@ func TestQoSCounters(t *testing.T) {
 		},
 	}
 
+	// Test case 1: Non-oversubscription traffic.
+	//   - There should be no packet drop for all traffic classes.
 	NonoversubscribedTrafficFlows := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             700,
@@ -242,6 +252,9 @@ func TestQoSCounters(t *testing.T) {
 		},
 	}
 
+	// Test case 2: Oversubscription traffic case
+	//   - There should be no packet drop for strict priority traffic classes.
+	//   - All WRR traffic should be droped.
 	oversubscribedTrafficFlows1 := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             700,
@@ -357,6 +370,9 @@ func TestQoSCounters(t *testing.T) {
 		},
 	}
 
+	// Test case 3: Oversubscription traffic case
+	//   - There should be no packet drop for strict priority traffic classes.
+	//   - 50% of WRR traffic should be droped.
 	oversubscribedTrafficFlows2 := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             700,
@@ -526,11 +542,11 @@ func TestQoSCounters(t *testing.T) {
 				dutQosPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
 				dutQosDroppedPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
 				t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
-				t.Logf("Get(out packets for flow %q): got %v, want nonzero", trafficID, ateOutPkts)
 
 				lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
-				if want, got := data.expectedThroughputPct, 100.0-lossPct-tolerance; got > want {
-					t.Errorf("Get(traffic throughput for queue %q): got %v, want > %v", data.queue, got, want)
+				t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
+				if got, want := 100.0-lossPct, data.expectedThroughputPct; got < want-tolerance || got > want+tolerance {
+					t.Errorf("Get(throughput for queue %q): got %.2f%%, want within [%.2f%%, %.2f%%]", data.queue, got, want-tolerance, want+tolerance)
 				}
 			}
 
@@ -543,12 +559,11 @@ func TestQoSCounters(t *testing.T) {
 			for _, data := range trafficFlows {
 				qosCounterDiff := dutQosPktsAfterTraffic[data.queue] - dutQosPktsBeforeTraffic[data.queue]
 				if qosCounterDiff < ateOutPkts[data.queue] {
-					t.Errorf("Get(telemetry packet update for queue %q): got %v, want >= %v", data.queue, qosCounterDiff, ateOutPkts[data.queue])
+					t.Errorf("Get telemetry packet update for queue %q: got %v, want >= %v", data.queue, qosCounterDiff, ateOutPkts[data.queue])
 				}
 			}
 		})
 	}
-
 }
 
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
