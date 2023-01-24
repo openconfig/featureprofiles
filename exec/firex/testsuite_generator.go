@@ -5,12 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"text/template"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -61,6 +63,10 @@ var (
 		"test_names", "", "comma separated list of tests to include",
 	)
 
+	exTestNamesFlag = flag.String(
+		"exclude_test_names", "", "comma separated list of tests to exclude",
+	)
+
 	pluginsFlag = flag.String(
 		"extra_plugins", "", "comma separated list of extra firex plugins",
 	)
@@ -97,17 +103,28 @@ var (
 		"must_pass_only", false, "include only mustpass test",
 	)
 
-	testDescFiles  []string
-	testNames      []string
-	extraPlugins   []string
-	topology       string
-	binding        string
-	testbed        string
-	baseconf       string
-	outDir         string
-	patchedOnly    bool
-	mustPassOnly   bool
-	excludePatched bool
+	randomizeFlag = flag.Bool(
+		"randomize", false, "randomize tests order",
+	)
+
+	sortFlag = flag.Bool(
+		"sort", true, "sort tests by priority",
+	)
+
+	testDescFiles    []string
+	testNames        []string
+	excludeTestNames []string
+	extraPlugins     []string
+	topology         string
+	binding          string
+	testbed          string
+	baseconf         string
+	outDir           string
+	patchedOnly      bool
+	mustPassOnly     bool
+	excludePatched   bool
+	randomize        bool
+	sorted           bool
 )
 
 var (
@@ -185,6 +202,10 @@ func init() {
 		testNames = strings.Split(*testNamesFlag, ",")
 	}
 
+	if len(*exTestNamesFlag) > 0 {
+		excludeTestNames = strings.Split(*exTestNamesFlag, ",")
+	}
+
 	if len(*pluginsFlag) > 0 {
 		extraPlugins = strings.Split(*pluginsFlag, ",")
 	}
@@ -212,6 +233,8 @@ func init() {
 	mustPassOnly = *mustPassOnlyFlag
 	patchedOnly = *patchedOnlyFlag
 	excludePatched = *excludePatchedFlag
+	randomize = *randomizeFlag
+	sorted = *sortFlag
 }
 
 func main() {
@@ -233,32 +256,45 @@ func main() {
 
 	// Targeted mode: remove untargeted tests
 	if len(testNames) > 0 {
-		targetedTests := map[string]bool{}
+		targetedTests := []string{}
 		res := []*regexp.Regexp{}
 		for _, t := range testNames {
 			if strings.HasPrefix(t, "r/") {
 				res = append(res, regexp.MustCompile(t[2:]))
 			} else {
-				targetedTests[strings.Split(t, " ")[0]] = true
+				targetedTests = append(targetedTests, strings.Split(t, " ")[0])
+			}
+		}
+
+		keptTests := map[string][]GoTest{}
+		for _, t := range targetedTests {
+			for i := range suite {
+				if _, ok := keptTests[suite[i].Name]; !ok {
+					keptTests[suite[i].Name] = []GoTest{}
+				}
+				for j := range suite[i].Tests {
+					if strings.HasPrefix(suite[i].Tests[j].Name, t) {
+						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
+					}
+				}
 			}
 		}
 
 		for i := range suite {
-			keptTests := []GoTest{}
 			for j := range suite[i].Tests {
-				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
-				if _, found := targetedTests[prefix]; found {
-					keptTests = append(keptTests, suite[i].Tests[j])
-				} else {
-					for _, re := range res {
-						if re.MatchString(suite[i].Tests[j].Name) {
-							keptTests = append(keptTests, suite[i].Tests[j])
-							break
+				for _, re := range res {
+					if re.MatchString(suite[i].Tests[j].Name) {
+						if _, ok := keptTests[suite[i].Name]; !ok {
+							keptTests[suite[i].Name] = []GoTest{}
 						}
+						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
 					}
 				}
 			}
-			suite[i].Tests = keptTests
+		}
+
+		for i := range suite {
+			suite[i].Tests = keptTests[suite[i].Name]
 		}
 	} else {
 		// Normal mode: remove skipped tests
@@ -282,6 +318,36 @@ func main() {
 			}
 		}
 		suite = kepSuite
+	}
+
+	if len(excludeTestNames) > 0 {
+		excludedTests := map[string]bool{}
+		res := []*regexp.Regexp{}
+		for _, t := range excludeTestNames {
+			if strings.HasPrefix(t, "r/") {
+				res = append(res, regexp.MustCompile(t[2:]))
+			} else {
+				excludedTests[strings.Split(t, " ")[0]] = true
+			}
+		}
+
+		for i := range suite {
+			keptTests := []GoTest{}
+			for j := range suite[i].Tests {
+				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
+				if _, found := excludedTests[prefix]; !found {
+					keptTests = append(keptTests, suite[i].Tests[j])
+				} else {
+					for _, re := range res {
+						if !re.MatchString(suite[i].Tests[j].Name) {
+							keptTests = append(keptTests, suite[i].Tests[j])
+							break
+						}
+					}
+				}
+			}
+			suite[i].Tests = keptTests
+		}
 	}
 
 	// adjust timeouts, priorities, & owners
@@ -329,16 +395,28 @@ func main() {
 		}
 	}
 
-	// sort by priority
-	for _, suite := range suite {
-		sort.Slice(suite.Tests, func(i, j int) bool {
-			return suite.Tests[i].Priority < suite.Tests[j].Priority
-		})
+	if randomize {
+		rand.Seed(time.Now().UnixNano())
 	}
 
-	sort.Slice(suite, func(i, j int) bool {
-		return suite[i].Priority < suite[j].Priority
-	})
+	// sort by priority
+	for _, suite := range suite {
+		if randomize {
+			rand.Shuffle(len(suite.Tests), func(i, j int) { suite.Tests[i], suite.Tests[j] = suite.Tests[j], suite.Tests[i] })
+		} else if sorted {
+			sort.Slice(suite.Tests, func(i, j int) bool {
+				return suite.Tests[i].Priority < suite.Tests[j].Priority
+			})
+		}
+	}
+
+	if randomize {
+		rand.Shuffle(len(suite), func(i, j int) { suite[i], suite[j] = suite[j], suite[i] })
+	} else if sorted {
+		sort.Slice(suite, func(i, j int) bool {
+			return suite[i].Priority < suite[j].Priority
+		})
+	}
 
 	// Assign ids to tests
 	numTestCases := 1

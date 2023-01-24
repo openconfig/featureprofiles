@@ -22,6 +22,7 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 	if !*ciscoFlags.PbrPrecommitTests {
 		t.Skip()
 	}
+
 	t.Helper()
 	defer flushServer(t, args)
 
@@ -286,6 +287,7 @@ func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, 
 	if !*ciscoFlags.PbrPrecommitTests {
 		t.Skip()
 	}
+	configBasePBR(t, args.dut)
 	defer flushServer(t, args)
 	baseConfig := removeConfHeader(config.CMDViaGNMI(ctx, t, args.dut, "show running-config"))
 	defer config.GNMICommitReplace(context.Background(), t, args.dut, baseConfig)
@@ -297,7 +299,7 @@ func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
-	// remove  HWModule and set PBR to wrong config,  reload the router and  expect the traffic to be failed even after adding gribi routes
+	//remove  HWModule and set PBR to wrong config,  reload the router and  expect the traffic to be failed even after adding gribi routes
 	t.Log("Remove  HWModule and set PBR to wrong config, reload the router and check the traffic")
 	path, wrongPolicy := getPartialPBROCConfig(t, args)
 	config.GNMICommitReplaceWithOC(context.Background(), t, args.dut, baseConfigWithoutHWModule, path, wrongPolicy)
@@ -311,6 +313,7 @@ func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, 
 
 	// add PBR with OC and HWModule with text, then reload and expect the traffic to be passed after adding gribi routes
 	path, basePolicy := getBasePBROCConfig(t, args)
+
 	config.GNMICommitReplaceWithOC(context.Background(), t, args.dut, baseConfigWithoutPBR, path, basePolicy)
 	t.Log("Add HWModule and set PBR to the right config, reload the router and check the traffic")
 	/*result := gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Get(t)
@@ -324,5 +327,6 @@ func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+
 	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 }

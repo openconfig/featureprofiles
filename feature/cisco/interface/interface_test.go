@@ -79,6 +79,7 @@ func TestInterfaceCfgs(t *testing.T) {
 
 	})
 
+	gnmi.Delete(t, dut, gnmi.OC().Interface(iute.Name()).Ethernet().AggregateId().Config())
 	member := iut.Members()[0]
 	macAdd := "78:2a:67:b6:a8:08"
 	t.Run("Replace//interfaces/interface/ethernet/config/mac-address", func(t *testing.T) {
@@ -624,6 +625,12 @@ func TestInterfaceState(t *testing.T) {
 			t.Errorf("Interface MacAddress: got %s, want !=%s", macadd, macAdd)
 
 		}
+	})
+	t.Run("Delete//interfaces/interface/ethernet/state/mac-address", func(t *testing.T) {
+		path := gnmi.OC().Interface(iute.Name()).Ethernet().MacAddress()
+		defer observer.RecordYgot(t, "UPDATE", path)
+		gnmi.Delete(t, dut, path.Config())
+
 	})
 	t.Run("Update//interfaces/interface/config/type", func(t *testing.T) {
 		path := gnmi.OC().Interface(iute.Name()).Type()
