@@ -2,7 +2,6 @@ package basetest
 
 import (
 	"flag"
-	"fmt"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -68,11 +67,11 @@ func portComponentName(t *testing.T, dut *ondatra.DUTDevice) {
 	lcs := components.FindComponentsByType(t, dut, linecardType)
 	if got := len(lcs); got == 0 {
 		componentName = "0/RP0/CPU0" + *qspfdString
-		fmt.Printf("The choosen component name: %v", componentName)
+		t.Logf("The choosen component name: %v", componentName)
 	} else {
 		for _, lc := range lcs {
 			componentName = lc + *qspfdString
-			fmt.Printf("The choosen component name: %v", componentName)
+			t.Logf("The choosen component name: %v", componentName)
 			break
 		}
 	}
