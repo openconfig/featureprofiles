@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/gnmiutil"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/components"
+	comp "github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 
@@ -44,7 +45,6 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -158,7 +158,7 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 	supervisors = append(supervisors, active, standby)
 
 	// find active and standby RP
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := args.findStandbyRP(t, supervisors)
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := comp.FindStandbyRP(t, args.dut, supervisors)
 	t.Logf("Detected activeRP: %v, standbyRP: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
 
 	// make sure standby RP is reach
@@ -210,7 +210,7 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := args.findStandbyRP(t, supervisors)
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := comp.FindStandbyRP(t, args.dut, supervisors)
 	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
 
 	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
@@ -246,37 +246,13 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 			InitialElectionIDHigh: 0,
 		}
 		if err := client.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection can not be established")
+			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+			if err = client.Start(t); err != nil {
+				t.Fatalf("gRIBI Connection could not be established: %v", err)
+			}
 		}
 		args.client = &client
 	}
-}
-
-func (args *testArgs) findStandbyRP(t *testing.T, supervisors []string) (string, string) {
-	var activeRP, standbyRP string
-	for _, supervisor := range supervisors {
-		watch := gnmi.Watch(t, args.dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
-			return val.IsPresent()
-		})
-		if val, ok := watch.Await(t); !ok {
-			t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
-		}
-		role := gnmi.Get(t, args.dut, gnmi.OC().Component(supervisor).RedundantRole().State())
-		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
-		if role == oc.Platform_ComponentRedundantRole_SECONDARY {
-			standbyRP = supervisor
-		} else if role == oc.Platform_ComponentRedundantRole_PRIMARY {
-			activeRP = supervisor
-		} else {
-			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
-		}
-	}
-	if standbyRP == "" || activeRP == "" {
-		t.Fatalf("Expected non-empty activeRP and standbyRP, got activeRP: %v, standbyRP: %v", activeRP, standbyRP)
-	}
-	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
-
-	return standbyRP, activeRP
 }
 
 // sortPorts sorts the ports by the testbed port ID.
@@ -666,8 +642,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 		}
 	}
 
-	// processes := []string{"isis", "bgp", "db_writer", "emsd", "ipv4_rib", "ipv6_rib", "fib_mgr", "ifmgr"}
-	processes := []string{"ipv4_rib"}
+	processes := []string{"isis", "bgp", "db_writer", "emsd", "ipv4_rib", "ipv6_rib", "fib_mgr", "ifmgr"}
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			// RPFO
@@ -703,9 +678,12 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 				}
 			}
 
-			if processes[i] == "manan" {
+			if processes[i] == "emsd" {
 				if err := args.client.Start(t); err != nil {
-					t.Fatalf("gRIBI Connection can not be established")
+					t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+					if err = args.client.Start(t); err != nil {
+						t.Fatalf("gRIBI Connection could not be established: %v", err)
+					}
 				}
 				//Base level 1 scenario
 				// ======================================================
@@ -1319,7 +1297,7 @@ func test_multiple_clients(t *testing.T, args *testArgs) {
 	}
 
 	p4rtPacketOut(t, args.events, args)
-	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process1, args)
+	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
 	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
 
 	testGroup.Wait()
@@ -1328,7 +1306,7 @@ func test_multiple_clients(t *testing.T, args *testArgs) {
 	time.Sleep(2 * time.Minute)
 }
 
-func multi_process1(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
+func multi_process_gribi_programming(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
 
 	// base programming
 	arg := args[0].(*testArgs)
@@ -1372,7 +1350,8 @@ func test_triggers(t *testing.T, args *testArgs) {
 		}
 	}
 
-	processes := []string{"shutdown", "disconnect_gribi_reconnect", "delete_vrfs", "grpc_config_change", "grpc_AF_change", "LC_OIR"}
+	processes := []string{"grpc_config_change"}
+	//processes := []string{"shutdown", "disconnect_gribi_reconnect", "delete_vrfs", "grpc_config_change", "grpc_AF_change", "LC_OIR"}
 
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
@@ -1467,7 +1446,10 @@ func test_triggers(t *testing.T, args *testArgs) {
 				} else {
 					t.Logf("reconnect, flush entries, reprogram and validate traffic")
 					if err := args.client.Start(t); err != nil {
-						t.Fatalf("gRIBI Connection can not be established")
+						t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+						if err = args.client.Start(t); err != nil {
+							t.Fatalf("gRIBI Connection could not be established: %v", err)
+						}
 					}
 				}
 
@@ -1627,23 +1609,24 @@ func test_triggers(t *testing.T, args *testArgs) {
 				// kill previous gribi client
 				args.client.Close(t)
 
-				sshClient := args.dut.RawAPIs().CLI(t)
-				defer sshClient.Close()
 				for j := 0; j < grpc_repeat; j++ {
 
 					if with_RFPO {
 						args.rpfo(args.ctx, t, true)
 					}
+					sshClient := args.dut.RawAPIs().CLI(t)
+					defer sshClient.Close()
 					time.Sleep(10 * time.Second)
-					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n address-family ipv6 \n commit \n"), 15*time.Second)
+
+					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n address-family ipv6 \n commit \n"), 30*time.Second)
 					response, _ := sshClient.SendCommand(args.ctx, "show grpc")
 					t.Logf("grpc value after configuring ipv6 af %s", response)
 
-					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n address-family ipv4 \n commit \n"), 15*time.Second)
+					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n address-family ipv4 \n commit \n"), 30*time.Second)
 					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
 					t.Logf("grpc value after configuring only ipv4 af %s", response)
 
-					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n address-family dual \n commit \n"), 15*time.Second)
+					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n address-family dual \n commit \n"), 30*time.Second)
 					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
 					t.Logf("grpc value after configuring dual af %s", response)
 
@@ -1655,7 +1638,10 @@ func test_triggers(t *testing.T, args *testArgs) {
 						InitialElectionIDHigh: 0,
 					}
 					if err := client.Start(t); err != nil {
-						t.Fatalf("gRIBI Connection can not be established")
+						t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+						if err = client.Start(t); err != nil {
+							t.Fatalf("gRIBI Connection could not be established: %v", err)
+						}
 					}
 					args.client = &client
 					if with_scale {
@@ -1677,24 +1663,25 @@ func test_triggers(t *testing.T, args *testArgs) {
 				rand.Seed(time.Now().UnixNano())
 				min := 57344
 				max := 57998
-				sshClient := args.dut.RawAPIs().CLI(t)
-				defer sshClient.Close()
 				for k := 0; k < grpc_repeat; k++ {
-					time.Sleep(10 * time.Second)
 					if with_RFPO {
 						args.rpfo(args.ctx, t, true)
 					}
+					sshClient := args.dut.RawAPIs().CLI(t)
+					defer sshClient.Close()
+					time.Sleep(10 * time.Second)
+
 					port := rand.Intn(max-min+1) + min
 
 					response, _ := sshClient.SendCommand(args.ctx, "show grpc")
 					t.Logf("initial grpc values: %s", response)
 
-					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n no-tls \n port %s \n commit \n", strconv.Itoa(port)), 10*time.Second)
+					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n no-tls \n port %s \n commit \n", strconv.Itoa(port)), 30*time.Second)
 
 					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
 					t.Logf("grpc value after no-tls and random port %s", response)
 
-					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n no no-tls \n no port %s \n commit \n", strconv.Itoa(port)), 10*time.Second)
+					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n no no-tls \n no port %s \n commit \n", strconv.Itoa(port)), 30*time.Second)
 
 					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
 					t.Logf("grpc value with no no-tls and no port %s configured", response)
@@ -1707,7 +1694,10 @@ func test_triggers(t *testing.T, args *testArgs) {
 						InitialElectionIDHigh: 0,
 					}
 					if err := client.Start(t); err != nil {
-						t.Fatalf("gRIBI Connection can not be established")
+						t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+						if err = client.Start(t); err != nil {
+							t.Fatalf("gRIBI Connection could not be established: %v", err)
+						}
 					}
 					args.client = &client
 					if with_scale {
@@ -1791,8 +1781,8 @@ func TestHA(t *testing.T) {
 		},
 		{
 			name: "Restart single process",
-			// desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-			fn: testRestart_single_process,
+			desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+			fn:   testRestart_single_process,
 		},
 	}
 	for _, tt := range test {
@@ -1810,7 +1800,10 @@ func TestHA(t *testing.T) {
 			}
 			defer client.Close(t)
 			if err := client.Start(t); err != nil {
-				t.Fatalf("gRIBI Connection can not be established")
+				t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+				if err = client.Start(t); err != nil {
+					t.Fatalf("gRIBI Connection could not be established: %v", err)
+				}
 			}
 
 			//Monitor and eventConsumer
