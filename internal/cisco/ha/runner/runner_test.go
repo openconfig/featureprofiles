@@ -11,6 +11,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/netutil"
 
 	"github.com/openconfig/ondatra"
@@ -77,9 +78,9 @@ func testPing(t *testing.T, event *monitor.CachedConsumer, args ...interface{}) 
 		}
 	}
 	lbIntf := netutil.LoopbackInterface(t, dut, 0)
-	lo0 := dut.Telemetry().Interface(lbIntf).Subinterface(0)
-	ipv4Addrs := lo0.Ipv4().AddressAny().Get(t)
-	ipv6Addrs := lo0.Ipv6().AddressAny().Get(t)
+	lo0 := gnmi.OC().Interface(lbIntf).Subinterface(0)
+	ipv4Addrs := gnmi.GetAll(t, dut, lo0.Ipv4().AddressAny().State())
+	ipv6Addrs := gnmi.GetAll(t, dut, lo0.Ipv6().AddressAny().State())
 	if len(ipv4Addrs) == 0 {
 		t.Fatalf("Failed to get a valid IPv4 loopback address: %+v", ipv4Addrs)
 	}
