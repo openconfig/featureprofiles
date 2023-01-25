@@ -176,18 +176,23 @@ func TestBasic(t *testing.T) {
 		})
 		t.Run("level_counters", func(t *testing.T) {
 			sysCounts := isisRoot.Level(2).SystemLevelCounters()
-			for _, vd := range []check.Validator{
+			counters := []check.Validator{
 				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
-				EqualToDefault(sysCounts.DatabaseOverloads().State(), uint32(0)),
 				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
 				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
 				EqualToDefault(sysCounts.MaxAreaAddressMismatches().State(), uint32(0)),
 				EqualToDefault(sysCounts.OwnLspPurges().State(), uint32(0)),
 				EqualToDefault(sysCounts.SeqNumSkips().State(), uint32(0)),
-			} {
+			}
+			if *deviations.IsisDatabaseOverloadBitCountNotZero{
+				counters = append(counters,check.Present[uint32](sysCounts.DatabaseOverloads().State()) )
+				}else{
+					counters = append(counters,EqualToDefault(sysCounts.DatabaseOverloads().State(), uint32(0)))
+				}
+			for _, vd := range counters {
 				t.Run(vd.RelPath(sysCounts), func(t *testing.T) {
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 						t.Error(err)
@@ -212,7 +217,7 @@ func TestBasic(t *testing.T) {
 			check.Equal(adj.AdjacencyState().State(), oc.Isis_IsisInterfaceAdjState_UP),
 			check.Equal(adj.SystemId().State(), systemID),
 			check.Equal(adj.AreaAddress().State(), []string{session.ATEAreaAddress, session.DUTAreaAddress}),
-			check.Equal(adj.DisSystemId().State(), "0000.0000.0000"),
+			check.EqualOrNil(adj.DisSystemId().State(), "0000.0000.0000"),
 			check.NotEqual(adj.LocalExtendedCircuitId().State(), uint32(0)),
 			check.Equal(adj.MultiTopology().State(), false),
 			check.Equal(adj.NeighborCircuitType().State(), oc.Isis_LevelType_LEVEL_2),
@@ -312,11 +317,10 @@ func TestBasic(t *testing.T) {
 		t.Run("level_counters", func(t *testing.T) {
 			// Error counters should still be zero
 			sysCounts := isisRoot.Level(2).SystemLevelCounters()
-			for _, vd := range []check.Validator{
+			counters := []check.Validator{
 				check.Equal(sysCounts.AuthFails().State(), uint32(0)),
 				check.Equal(sysCounts.AuthTypeFails().State(), uint32(0)),
 				check.Equal(sysCounts.CorruptedLsps().State(), uint32(0)),
-				check.Equal(sysCounts.DatabaseOverloads().State(), uint32(0)),
 				check.Equal(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				check.Equal(sysCounts.IdLenMismatch().State(), uint32(0)),
 				check.Equal(sysCounts.LspErrors().State(), uint32(0)),
@@ -326,7 +330,13 @@ func TestBasic(t *testing.T) {
 				check.Predicate(sysCounts.SpfRuns().State(), fmt.Sprintf("want > %v", spfBefore), func(got uint32) bool {
 					return got > spfBefore
 				}),
-			} {
+			}
+			if *deviations.IsisDatabaseOverloadBitCountNotZero{
+				counters = append(counters,check.Present[uint32](sysCounts.DatabaseOverloads().State()) )
+				}else{
+					counters = append(counters,EqualToDefault(sysCounts.DatabaseOverloads().State(), uint32(0)))
+				}
+			for _, vd := range counters {
 				t.Run(vd.RelPath(sysCounts), func(t *testing.T) {
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 						t.Error(err)

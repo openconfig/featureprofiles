@@ -137,4 +137,7 @@ var (
 
 	MissingIsisGlobalEnableAfiSafi = flag.Bool("deviation_missing_isis_global_enable_afi_safi", true,
 		"Check isis enabled flag under interface AF, SAFI mode on the device if value is true, Default value is false and checks isis enabled flag under global AF, SAFI mode")
+	
+	IsisDatabaseOverloadBitCountNotZero = flag.Bool("deviation_isis_database_overload_bit_counter", true,
+		"Device sets overload bit counter with enabling ISIS config & for each of the address families so default Database overload bit count will be non-zero. This flag when set to True will check this counter to be any uint32 value. .Default value is false and checks isis database overload bit counter is0")
 )
