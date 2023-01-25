@@ -333,6 +333,20 @@ func TestQoSCounters(t *testing.T) {
 	}
 }
 
+func getParentType(t *testing.T, dut *ondatra.DUTDevice, cards []string, parentType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
+	t.Helper()
+	var cardsValid []string
+	for _, card := range cards {
+		parent := gnmi.Lookup(t, dut, gnmi.OC().Component(card).Parent().State())
+		val, _ := parent.Val()
+		got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+		if got == parentType {
+			cardsValid = append(cardsValid, card)
+		}
+	}
+	return cardsValid
+}
+
 func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	var componentParent map[string]string
@@ -340,7 +354,7 @@ func TestComponentParent(t *testing.T) {
 	case ondatra.CISCO:
 		componentParent = map[string]string{
 			"Fabric":      "Rack",
-			"FabricChip":  "Rack",
+			"FabricChip":  "0/FC",
 			"Linecard":    "Rack",
 			"PowerSupply": "Rack",
 			"Supervisor":  "Rack",
@@ -394,6 +408,23 @@ func TestComponentParent(t *testing.T) {
 			if len(cards) == 0 {
 				t.Fatalf("Get Card list for %q: got 0, want > 0", dut.Model())
 			}
+			if tc.desc == "FabricChip" {
+				cardsFabricChipType := getParentType(t, dut, cards, fabricType)
+				t.Logf("Found cards of type FabricChip : %v", cardsFabricChipType)
+				if len(cardsFabricChipType) == 0 {
+					t.Fatalf("Get FabricChip Card list for %q: got 0, want > 0", dut.Model())
+				}
+				cards = cardsFabricChipType
+			}
+			if tc.desc == "SwitchChip" {
+				cardsSwitchChipType := getParentType(t, dut, cards, linecardType)
+				t.Logf("Found cards of type SwitchChip: %v", cardsSwitchChipType)
+				if len(cardsSwitchChipType) == 0 {
+					t.Fatalf("Get SwitchChip Card list for %q: got 0, want > 0", dut.Model())
+				}
+				cards = cardsSwitchChipType
+			}
+
 			for _, card := range cards {
 				t.Logf("Validate card %s", card)
 				parent := gnmi.Lookup(t, dut, gnmi.OC().Component(card).Parent().State())
