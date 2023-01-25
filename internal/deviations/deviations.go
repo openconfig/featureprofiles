@@ -117,8 +117,8 @@ var (
 
 	ExplicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
 
-	ISISInterfaceLevelAfRequired = flag.Bool("deviation_isis_interface_level_af_required", true,
-		"Set isis level at interface mode with metric value on the device if value is true, Default value is false")
+	ISISInterfaceLevel1DisableRequired = flag.Bool("deviation_isis_interface_level1_disable_required", true,
+		"Set isis level1 under interface mode to disable on the device if value is true, Default value is false")
 
 	IsisAfMetricStyleWideLevelRequired = flag.Bool("deviation_isis_af_metric_style_wide_level_required", true,
 		"Set isis address family metric style wide level <> on the device if value is true, Default value is false")
@@ -135,6 +135,6 @@ var (
 	ISISprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", true,
 		"Don't set isis protocol enable flag on the device if value is true, Default value is false and protocol is enabled")
 
-	MissingIsisGlobalEnableAfSafiLevel = flag.Bool("deviation_missing_isis_global_enable_af_safi_level", true,
-		"Skip isis enabled flag check at global AF, SAFI, Level on the device if value is true, Default value is false")
+	MissingIsisGlobalEnableAfiSafi = flag.Bool("deviation_missing_isis_global_enable_afi_safi", true,
+		"Check isis enabled flag under interface AF, SAFI mode on the device if value is true, Default value is false and checks isis enabled flag under global AF, SAFI mode")
 )

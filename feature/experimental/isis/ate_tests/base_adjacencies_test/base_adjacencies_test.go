@@ -74,18 +74,20 @@ func TestBasic(t *testing.T) {
 
 		// if MissingIsisGlobalEnableAfSafiLevel is set, ignore enable flag check for AFI, SAFI and level at global level
 		// and validate enable at interface level
-		if *deviations.MissingIsisGlobalEnableAfSafiLevel {
+		if *deviations.MissingIsisGlobalEnableAfiSafi {
 			data = append(data,
 				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
-				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
-				check.Equal(port1ISIS.Level(2).Enabled().State(), true),
-				check.Equal(port1ISIS.Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric().State(), uint32(10)),
-				check.Equal(port1ISIS.Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric().State(), uint32(10)))
+				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
 		} else {
 			data = append(data,
 				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
-				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
-				check.Equal(isisRoot.Level(2).Enabled().State(), true))
+				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
+		}
+
+		if *deviations.ISISInterfaceLevel1DisableRequired {
+			data = append(data, check.Equal(port1ISIS.Level(1).Enabled().State(), false))
+		} else {
+			data = append(data, check.Equal(isisRoot.Level(2).Enabled().State(), true))
 		}
 
 		for _, vd := range data {
