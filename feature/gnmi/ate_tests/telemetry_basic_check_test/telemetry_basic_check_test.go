@@ -45,13 +45,6 @@ const (
 	maxPortVal      = "FFFFFEFF" // Maximum Port Value : https://github.com/openconfig/public/blob/2049164a8bca4cc9f11ffb313ef25c0e87303a24/release/models/p4rt/openconfig-p4rt.yang#L63-L81
 )
 
-type trafficData struct {
-	trafficRate float64
-	frameSize   uint32
-	dscp        uint8
-	queue       string
-}
-
 var (
 	vendorQueueNo = map[ondatra.Vendor]int{
 		ondatra.ARISTA:  16,
