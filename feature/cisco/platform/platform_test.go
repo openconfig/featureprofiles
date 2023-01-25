@@ -781,7 +781,6 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		}
 	})
 
-
 	t.Run("Delete//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/config", func(t *testing.T) {
 		path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(1)
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -937,6 +936,5 @@ func TestPlatformBreakoutState(t *testing.T) {
 			t.Errorf("Breakout-Speed does not match configured value : got %v, want 10GB", breakoutSpeed)
 		}
 	})
-
 
 }
