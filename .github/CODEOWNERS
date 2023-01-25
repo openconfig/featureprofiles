@@ -10,7 +10,7 @@
 
 # reviewers for tests which are ported from ate-tests to 
 # otg-tests may be reviewed by this team
-**/otg-tests/**    @openconfig/featureprofiles-maintainers-otg
+**/otg_tests/**    @openconfig/featureprofiles-maintainers-otg
 
 # Order is important; the last matching pattern takes the most
 # precedence.
