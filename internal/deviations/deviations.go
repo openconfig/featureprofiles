@@ -117,8 +117,11 @@ var (
 
 	ExplicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
 
-	ISISGlobalLevelRequired = flag.Bool("deviation_isis_global_level_required", true,
-		"Set isis level at global mode on the device if value is true, Default value is false and sets level at interface level")
+	ISISInterfaceLevelAfRequired = flag.Bool("deviation_isis_interface_level_af_required", true,
+		"Set isis level at interface mode with metric value on the device if value is true, Default value is false")
+
+	IsisAfMetricStyleWideLevelRequired = flag.Bool("deviation_isis_af_metric_style_wide_level_required", true,
+		"Set isis address family metric style wide level <> on the device if value is true, Default value is false")
 
 	MissingIsisInterfaceEnable = flag.Bool("deviation_missing_isis_interface_enable", true,
 		"Set isis interface enable on the device if value is true, Default value is false")

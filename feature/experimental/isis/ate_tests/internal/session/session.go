@@ -113,13 +113,17 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	if *deviations.IsisAfMetricStyleWideLevelRequired {
+		level := isis.GetOrCreateLevel(2)
+		level.MetricStyle = 2
+	}
 	intf := isis.GetOrCreateInterface(ifaceName)
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
 	// Configure ISIS level at global mode if true else at interface mode
-	if *deviations.ISISGlobalLevelRequired {
-		level := isis.GetOrCreateLevel(2)
-		level.MetricStyle = 2
+	if *deviations.ISISInterfaceLevelAfRequired {
+		intf.GetOrCreateLevel(2).GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetMetric(10)
+		intf.GetOrCreateLevel(2).GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetMetric(10)
 	} else {
 		intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
 	}
