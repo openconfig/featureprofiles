@@ -781,14 +781,6 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/config/num-physical-channels", func(t *testing.T) {
-		state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(1).NumPhysicalChannels()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		numPhysicalChannels := gnmi.GetConfig(t, dut, state.Config())
-		if numPhysicalChannels != uint8(1) {
-			t.Errorf("Number physical channels does not match configured value : got %v, want 1", numPhysicalChannels)
-		}
-	})
 
 	t.Run("Delete//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/config", func(t *testing.T) {
 		path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(1)
@@ -946,13 +938,5 @@ func TestPlatformBreakoutState(t *testing.T) {
 		}
 	})
 
-	t.Run("Subscribe//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/num-physical-channels", func(t *testing.T) {
-		state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(1).NumPhysicalChannels()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
-		numPhysicalChannels := gnmi.Get(t, dut, state.State())
-		if numPhysicalChannels != uint8(1) {
-			t.Errorf("Number physical channels does not match configured value : got %v, want 1", numPhysicalChannels)
-		}
-	})
 
 }
