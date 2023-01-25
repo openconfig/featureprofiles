@@ -222,8 +222,6 @@ func (tc *testCase) verifyInterfaceDUT(
 	if !*deviations.IPNeighborMissing {
 		// IPv4 neighbor discovered by ARP.
 		dis4np := disp.Ipv4().Neighbor(atea.IPv4)
-		neigbour := gnmi.Get(t, tc.dut, dis4np.State())
-		fmt.Printf("%v", neigbour)
 		if got := gnmi.Get(t, tc.dut, dis4np.Origin().State()); got != dynamic {
 			t.Errorf("%s IPv4 neighbor %s origin got %v, want %v", dp, atea.IPv4, got, dynamic)
 		}
