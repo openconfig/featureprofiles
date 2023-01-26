@@ -35,11 +35,16 @@ func TestMain(m *testing.M) {
 
 func TestOverloadBit(t *testing.T) {
 	ts := session.MustNew(t).WithISIS()
-	ts.PushAndStart(t)
-	ts.MustAdjacency(t)
+	// Only push DUT config - no adjacency established yet
+	if err := ts.PushDUT(context.Background()); err != nil {
+		t.Fatalf("Unable to push initial DUT config: %v", err)
+	}
 	isisPath := session.ISISPath()
 	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
-	dbOLinit := gnmi.Get(t,ts.DUT,overloads.State())
+	//Get the value for 'database-overloads' leaf counter after config is pushed to DUT & before adjacency is formed
+	dbOLInitCount := gnmi.Get(t,ts.DUT,overloads.State())
+	ts.PushAndStartATE(t)
+	ts.MustAdjacency(t)
 	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
 	deadline := time.Now().Add(time.Minute)
 	checkSetBit := check.Equal(setBit.State(), false)
@@ -47,11 +52,10 @@ func TestOverloadBit(t *testing.T) {
 		checkSetBit = check.EqualOrNil(setBit.State(), false)
 	}
 
-	olvalidate := []check.Validator{checkSetBit}
-	if *deviations.IsisDatabaseOverloadBitCountNotZero{
-		olvalidate = append(olvalidate,check.Present[uint32](overloads.State()) )
-	}else{olvalidate = append(olvalidate,check.Equal(overloads.State(), uint32(0)))}
-	for _, vd := range olvalidate {
+	for _, vd := range []check.Validator{
+		checkSetBit,
+		check.Equal(overloads.State(), dbOLInitCount),
+	} {
 		if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 			t.Error(err)
 		}
@@ -65,7 +69,7 @@ func TestOverloadBit(t *testing.T) {
 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
 	ts.PushDUT(context.Background())
 	// TODO: Verify the link state database once device support is added.
-	if err := check.Equal(overloads.State(), uint32(dbOLinit+1)).AwaitFor(time.Minute, ts.DUTClient); err != nil {
+	if err := check.Equal(overloads.State(), uint32(dbOLInitCount+1)).AwaitFor(time.Minute, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
 	if err := check.Equal(setBit.State(), true).AwaitFor(time.Minute, ts.DUTClient); err != nil {
