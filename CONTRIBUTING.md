@@ -117,6 +117,12 @@ For example:
 Within each test directory, `README.md` should document the test plan. The test
 name directory and the `*.go` files should be named after the test name as shown
 in the [project](https://github.com/orgs/openconfig/projects/2/views/1) item.
+
+Each test must also be accompanied by a `rundata_test.go` file that is
+automatically generated using the command `go run ./tools/addrundata --fix`. The
+rundata is for tracking the test result. If the rundata is outdated, the
+"Rundata Check" in the pull request check will fail.
+
 For example:
 
 *   `feature/interface/singleton/ate_tests/singleton_test/README.md` - documents
@@ -124,11 +130,8 @@ For example:
     [RT-5.1 Singleton Interface](https://github.com/openconfig/featureprofiles/issues/111).
 *   `feature/interface/singleton/ate_tests/singleton_test/singleton_test.go`
     implements the issue.
-*   `feature/interface/aggregate/ate_tests/aggregate_test/README.md` - documents
-    the test plan for the issue
-    [RT-5.2 Aggregate Interface](https://github.com/openconfig/featureprofiles/issues/112).
-*   `feature/interface/aggregate/ate_tests/aggregate_test/aggregate_test.go`
-    implements the issue.
+*   `feature/interface/singleton/ate_tests/singleton_test/rundata_test.go`
+    contains the rundata.
 
 ## Code Should Follow The Test Plan
 
