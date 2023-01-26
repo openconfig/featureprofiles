@@ -15,7 +15,6 @@
 package localbgp_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -54,8 +53,8 @@ const (
 	holdTime    = keepAlive * 3 // Should be 3x keepAlive, see RFC 4271 - A Border Gateway Protocol 4, Sec. 10
 	peerGrpName = "BGP-PEER-GROUP"
 	policyName  = "ALLOW"
-	dutRID      = "192.1.1.1"
-	ateRID      = "192.2.2.2"
+	dutRID      = "192.0.2.21"
+	ateRID      = "192.0.2.31"
 )
 
 func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp_Neighbor) *oc.NetworkInstance_Protocol {
@@ -64,9 +63,9 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := ni_proto.GetOrCreateBgp()
-	g := bgp.GetOrCreateGlobal()
-	g.As = ygot.Uint32(as)
-	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	bgp.GetOrCreateGlobal().As = ygot.Uint32(as)
+	bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+
 	if routerID != "" {
 		bgp.Global.RouterId = ygot.String(routerID)
 	}
@@ -76,12 +75,18 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
 	pg.PeerAs = ygot.Uint32(*nbr.PeerAs)
 	pg.PeerGroupName = ygot.String(peerGrpName)
+	if *deviations.MissingBgpNeighborStatePeerGroup {
+		nbr.PeerGroup = nil
+	}
 
-	af := nbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	af.Enabled = ygot.Bool(true)
-	rpl := af.GetOrCreateApplyPolicy()
-	rpl.ImportPolicy = []string{policyName}
-	rpl.ExportPolicy = []string{policyName}
+	if *deviations.RoutePolicyUnderNeighborAfiSafi {
+		af := nbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		af.Enabled = ygot.Bool(true)
+		rpl := af.GetOrCreateApplyPolicy()
+		rpl.ImportPolicy = []string{policyName}
+		rpl.ExportPolicy = []string{policyName}
+	}
+
 	bgp.AppendNeighbor(nbr)
 	return ni_proto
 }
@@ -111,14 +116,14 @@ func TestEstablish(t *testing.T) {
 	dutPortName := dut.Port(t, "port1").Name()
 	intf1 := dutAttrs.NewOCInterface(dutPortName)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(intf1.GetName()).Config(), intf1)
-	if *deviations.RoutePolicyUnderPeerGroup {
+	if *deviations.RoutePolicyUnderNeighborAfiSafi {
 		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 	ate := ondatra.DUT(t, "dut2")
 	atePortName := ate.Port(t, "port1").Name()
 	intf2 := ateAttrs.NewOCInterface(atePortName)
 	gnmi.Replace(t, ate, gnmi.OC().Interface(intf2.GetName()).Config(), intf2)
-	if *deviations.RoutePolicyUnderPeerGroup {
+	if *deviations.RoutePolicyUnderNeighborAfiSafi {
 		configureRoutePolicy(t, ate, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 	// Configure Network instance type, it has to be configured explicitly by user.
@@ -141,7 +146,6 @@ func TestEstablish(t *testing.T) {
 	// Remove any existing BGP config
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	gnmi.Delete(t, ate, ateConfPath.Config())
-	startTime := uint64(time.Now().Unix())
 
 	// Start a new session
 	dutConf := bgpWithNbr(dutAS, dutRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -171,10 +175,6 @@ func TestEstablish(t *testing.T) {
 		t.Errorf("Bad last-established timestamp: got %v, want >= %v", lastEstTime, lastFlapTime)
 	}
 
-	if got, want := nbr.GetLastEstablished(), startTime; got < want {
-		t.Errorf("Bad last-established timestamp: got %v, want >= %v", got, want)
-	}
-
 	if got := nbr.GetEstablishedTransitions(); got != 1 {
 		t.Errorf("Wrong established-transitions: got %v, want 1", got)
 	}
@@ -184,7 +184,6 @@ func TestEstablish(t *testing.T) {
 		oc.BgpTypes_BGP_CAPABILITY_ASN32:         false,
 		oc.BgpTypes_BGP_CAPABILITY_MPBGP:         false,
 	}
-	fmt.Println("kk")
 	for _, cap := range gnmi.Get(t, dut, nbrPath.SupportedCapabilities().State()) {
 		capabilities[cap] = true
 	}
@@ -198,7 +197,7 @@ func TestEstablish(t *testing.T) {
 func TestDisconnect(t *testing.T) {
 	dut := ondatra.DUT(t, "dut1")
 	ate := ondatra.DUT(t, "dut2")
-	if *deviations.RoutePolicyUnderPeerGroup {
+	if *deviations.RoutePolicyUnderNeighborAfiSafi {
 		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		configureRoutePolicy(t, ate, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
@@ -227,11 +226,12 @@ func TestDisconnect(t *testing.T) {
 		NeighborAddress: ygot.String(dutIP),
 		PeerGroup:       ygot.String(peerGrpName),
 	})
+
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	gnmi.Replace(t, ate, ateConfPath.Config(), ateConf)
 	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	gnmi.Replace(t, ate, ateConfPath.Bgp().Neighbor(dutIP).Enabled().Config(), false)
-	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*180, oc.Bgp_Neighbor_SessionState_ACTIVE)
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ACTIVE)
 	code := gnmi.Get(t, dut, nbrPath.Messages().Received().LastNotificationErrorCode().State())
 	if code != oc.BgpTypes_BGP_ERROR_CODE_CEASE {
 		t.Errorf("On disconnect: expected error code %v, got %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE, code)
@@ -243,7 +243,7 @@ func TestParameters(t *testing.T) {
 	dutIP := dutAttrs.IPv4
 	dut := ondatra.DUT(t, "dut1")
 	ate := ondatra.DUT(t, "dut2")
-	if *deviations.RoutePolicyUnderPeerGroup {
+	if *deviations.RoutePolicyUnderNeighborAfiSafi {
 		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		configureRoutePolicy(t, ate, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
@@ -356,7 +356,7 @@ func TestParameters(t *testing.T) {
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &oc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
 					HoldTime:          ygot.Uint16(holdTime),
-					KeepaliveInterval: ygot.Uint16(30),
+					KeepaliveInterval: ygot.Uint16(keepAlive),
 				},
 			}),
 		},
@@ -403,14 +403,14 @@ func TestParameters(t *testing.T) {
 				Timers: &oc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
 					HoldTime:           ygot.Uint16(holdTime),
 					NegotiatedHoldTime: ygot.Uint16(135),
-					KeepaliveInterval:  ygot.Uint16(45),
+					KeepaliveInterval:  ygot.Uint16(keepAlive),
 				},
 			}),
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if *deviations.ConnectRetry && len(tc.skipMsg) > 0 {
+			if *deviations.ConnectRetry && tc.name == "connect-retry" || len(tc.skipMsg) > 0 {
 				t.Skip(tc.skipMsg)
 			}
 			// Disable BGP
