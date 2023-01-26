@@ -260,7 +260,6 @@ func (tc *testCase) verifyLAG(t *testing.T) {
 		t.Logf("Waiting LAG OTG ports to start collecting and distributing")
 		for _, p := range tc.atePorts[1:] {
 			_, ok := gnmi.Watch(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMember(p.ID()).Collecting().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
-				time.Sleep(1 * time.Second)
 				col, present := val.Val()
 				t.Logf("collecting for port %v is %v and present is %v", p.ID(), col, present)
 				return present && col
@@ -269,7 +268,6 @@ func (tc *testCase) verifyLAG(t *testing.T) {
 				t.Fatalf("OTG LAG port %v is not collecting", p)
 			}
 			_, ok = gnmi.Watch(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMember(p.ID()).Distributing().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
-				time.Sleep(1 * time.Second)
 				dist, present := val.Val()
 				t.Logf("distributing for port %v is %v and present is %v", p.ID(), dist, present)
 				return present && dist
