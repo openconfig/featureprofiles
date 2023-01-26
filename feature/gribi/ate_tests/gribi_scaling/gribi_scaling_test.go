@@ -49,11 +49,11 @@ func TestMain(m *testing.M) {
 //
 //   - ate:port1 -> dut:port1 subnet 192.0.2.0/30
 //   - ate:port2 -> dut:port2 64 Sub interfaces:
-//   - ate:port2.0 -> dut:port2.0 VLAN-ID: 0 subnet 198.51.100.0/30
-//   - ate:port2.1 -> dut:port2.1 VLAN-ID: 1 subnet 198.51.100.4/30
-//   - ate:port2.2 -> dut:port2.2 VLAN-ID: 2 subnet 198.51.100.8/30
+//   - ate:port2.1 -> dut:port2.1 VLAN-ID: 1 subnet 198.51.100.0/30
+//   - ate:port2.2 -> dut:port2.2 VLAN-ID: 2 subnet 198.51.100.4/30
+//   - ate:port2.3 -> dut:port2.3 VLAN-ID: 3 subnet 198.51.100.8/30
 //   - ate:port2.i -> dut:port2.i VLAN-ID i subnet 198.51.100.(4*i)/30
-//   - ate:port2.63 -> dut:port2.63 VLAN-ID 63 subnet 198.51.100.252/30
+//   - ate:port2.64 -> dut:port2.64 VLAN-ID 64 subnet 198.51.100.252/30
 const (
 	ipv4PrefixLen = 30 // ipv4PrefixLen is the ATE and DUT interface IP prefix length.
 	vrf1          = "vrf1"
@@ -328,7 +328,11 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	nextHops := []string{}
 	nextHopCount := 64 // nextHopCount specifies number of nextHop IPs needed.
 	configureInterfaceDUT(t, dut, dutPort, d, "dst")
+<<<<<<< HEAD
 	for i := 0; i <= nextHopCount; i++ {
+=======
+	for i := 1; i <= nextHopCount; i++ {
+>>>>>>> 1e3a281 (Update TE-14.1 ATE test to remove tagged/untagged subinterface mix from a single port and fix ExplicitInterfaceInDefaultVRF deviation handling)
 		vlanID := uint16(i)
 		// As per yang model, valid vlan range is 1-4094 - https://github.com/openconfig/public/blob/b34db05e8cf2efe69df3762d4bbd80665e1f9e79/release/models/vlan/openconfig-vlan-types.yang#L133
 		// Without below deviation, vlan-id 0 is being used for subinterface 0. The deviation is to start with valid vlan-id of 1 for subinterface 0.
@@ -336,10 +340,17 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 			vlanID = uint16(i) + 1
 		}
 		name := fmt.Sprintf(`dst%d`, i)
+<<<<<<< HEAD
 		Index := uint32(i)
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 2))
 		configureSubinterfaceDUT(t, d, dut, dutPort, Index, vlanID, dutIPv4, *deviations.DefaultNetworkInstance)
+=======
+		index := uint32(i)
+		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*(i-1))+1)
+		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*(i-1))+2)
+		configureSubinterfaceDUT(t, d, dut, dutPort, index, vlanID, dutIPv4, *deviations.DefaultNetworkInstance)
+>>>>>>> 1e3a281 (Update TE-14.1 ATE test to remove tagged/untagged subinterface mix from a single port and fix ExplicitInterfaceInDefaultVRF deviation handling)
 		configureATE(t, top, atePort, name, vlanID, dutIPv4, ateIPv4+"/30")
 		nextHops = append(nextHops, ateIPv4)
 	}
