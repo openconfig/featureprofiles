@@ -105,7 +105,7 @@ func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
 func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
-	if !*deviations.ISISprotocolEnabledNotRequired {
+	if *deviations.ISISprotocolEnabledNotRequired {
 		prot.Enabled = ygot.Bool(true)
 	}
 	isis := prot.GetOrCreateIsis()
@@ -127,7 +127,7 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 		intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
 	}
 	// Configure ISIS enable flag at interface level
-	if *deviations.MissingIsisInterfaceEnable {
+	if *deviations.MissingIsisInterfaceAfiSafiEnable {
 		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	}
@@ -268,7 +268,6 @@ func (s *TestSession) PushAndStartATE(t testing.TB) {
 // link has formed any IS-IS adjacency, returning the adjacency ID or an error
 // if one doesn't form.
 func (s *TestSession) AwaitAdjacency() (string, error) {
-	time.Sleep(40 * time.Second)
 	intf := ISISPath().Interface(s.DUTPort1.Name())
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)

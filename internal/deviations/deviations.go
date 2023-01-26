@@ -123,21 +123,18 @@ var (
 	IsisAfMetricStyleWideLevelRequired = flag.Bool("deviation_isis_af_metric_style_wide_level_required", true,
 		"Set isis address family metric style wide level <> on the device if value is true, Default value is false")
 
-	MissingIsisInterfaceEnable = flag.Bool("deviation_missing_isis_interface_enable", true,
-		"Set isis interface enable on the device if value is true, Default value is false")
+	MissingIsisInterfaceAfiSafiEnable = flag.Bool("deviation_missing_isis_interface_afi_safi_enable", true,
+		"Set isis interface address family enable on the device if value is true, Default value is false")
 
-	MissingIsisHelloPaddingAdaptiveMode = flag.Bool("deviation_missing_isis_hello_padding_adaptive_mode", true,
+	IsisHelloPaddingAdaptiveModeNotSupported = flag.Bool("deviation_isis_hello_padding_adaptive_mode_not_supported", true,
 		"Skip isis hello padding adaptive mode TC if value is true, Default value is false")
 
 	IsisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", true,
 		"Set isis af ipv6 single topology on the device if value is true, Default value is false and sets multi topology for isis af ipv6")
 
-	ISISprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", true,
-		"Don't set isis protocol enable flag on the device if value is true, Default value is false and protocol is enabled")
+	ISISprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
+		"Set isis protocol enable flag on the device if value is true, Default value is false and protocol enable flag is not set")
 
 	MissingIsisGlobalEnableAfiSafi = flag.Bool("deviation_missing_isis_global_enable_afi_safi", true,
 		"Check isis enabled flag under interface AF, SAFI mode on the device if value is true, Default value is false and checks isis enabled flag under global AF, SAFI mode")
-	
-	IsisDatabaseOverloadBitCountNotZero = flag.Bool("deviation_isis_database_overload_bit_counter", true,
-		"Device sets overload bit counter with enabling ISIS config & for each of the address families so default Database overload bit count will be non-zero. This flag when set to True will check this counter to be any uint32 value. .Default value is false and checks isis database overload bit counter is0")
 )
