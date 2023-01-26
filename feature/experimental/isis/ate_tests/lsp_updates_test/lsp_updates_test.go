@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -38,6 +39,7 @@ func TestOverloadBit(t *testing.T) {
 	ts.MustAdjacency(t)
 	isisPath := session.ISISPath()
 	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
+	dbOLinit := gnmi.Get(t,ts.DUT,overloads.State())
 	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
 	deadline := time.Now().Add(time.Minute)
 	checkSetBit := check.Equal(setBit.State(), false)
@@ -45,10 +47,11 @@ func TestOverloadBit(t *testing.T) {
 		checkSetBit = check.EqualOrNil(setBit.State(), false)
 	}
 
-	for _, vd := range []check.Validator{
-		checkSetBit,
-		check.Equal(overloads.State(), uint32(0)),
-	} {
+	olvalidate := []check.Validator{checkSetBit}
+	if *deviations.IsisDatabaseOverloadBitCountNotZero{
+		olvalidate = append(olvalidate,check.Present[uint32](overloads.State()) )
+	}else{olvalidate = append(olvalidate,check.Equal(overloads.State(), uint32(0)))}
+	for _, vd := range olvalidate {
 		if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 			t.Error(err)
 		}
@@ -62,7 +65,7 @@ func TestOverloadBit(t *testing.T) {
 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
 	ts.PushDUT(context.Background())
 	// TODO: Verify the link state database once device support is added.
-	if err := check.Equal[uint32](overloads.State(), 1).AwaitFor(time.Minute, ts.DUTClient); err != nil {
+	if err := check.Equal(overloads.State(), uint32(dbOLinit+1)).AwaitFor(time.Minute, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
 	if err := check.Equal(setBit.State(), true).AwaitFor(time.Minute, ts.DUTClient); err != nil {
