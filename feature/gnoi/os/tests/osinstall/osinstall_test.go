@@ -89,7 +89,7 @@ func TestOSInstall(t *testing.T) {
 	tc.transferOS(ctx, t, false)
 	tc.activateOS(ctx, t, false)
 
-	if !*deviations.NoOSInstallForStandbyRP && tc.dualSup {
+	if *deviations.InstallOSForStandbyRP && tc.dualSup {
 		// install and activate os on master RP
 		tc.transferOS(ctx, t, true)
 		tc.activateOS(ctx, t, true)
@@ -103,27 +103,33 @@ func TestOSInstall(t *testing.T) {
 }
 
 func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) {
+	t.Helper()
+	if standby {
+		t.Log("OS.Activate is started for standby RP.")
+	} else {
+		t.Log("OS.Activate is started for active RP.")
+	}
 	act, err := tc.osc.Activate(ctx, &ospb.ActivateRequest{
 		StandbySupervisor: standby,
 		Version:           *osVersion,
 		NoReboot:          *deviations.OSActiavteNoReboot,
 	})
 	if err != nil {
-			t.Fatalf("OS.Activate request failed: %s", err)
+		t.Fatalf("OS.Activate request failed: %s", err)
 	}
 
 	switch resp := act.Response.(type) {
 	case *ospb.ActivateResponse_ActivateOk:
-			if standby {
-					t.Log("OS.Activate standby supervisor complete.")
-			} else {
-					t.Log("OS.Activate complete.")
-			}
+		if standby {
+			t.Log("OS.Activate standby supervisor complete.")
+		} else {
+			t.Log("OS.Activate complete.")
+		}
 	case *ospb.ActivateResponse_ActivateError:
-			actErr := resp.ActivateError
-			t.Fatalf("OS.Activate error %s: %s", actErr.Type, actErr.Detail)
+		actErr := resp.ActivateError
+		t.Fatalf("OS.Activate error %s: %s", actErr.Type, actErr.Detail)
 	default:
-			t.Fatalf("OS.Activate unexpected response: got %v (%T)", resp, resp)
+		t.Fatalf("OS.Activate unexpected response: got %v (%T)", resp, resp)
 	}
 }
 
