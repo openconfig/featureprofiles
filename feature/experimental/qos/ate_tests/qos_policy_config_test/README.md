@@ -15,8 +15,8 @@ Verify QoS policy feature configuration.
 
         DSCP Range | Target group
         ---------- | ----------------
-        0-3        | target-group-BE0
-        4-7        | target-group-BE1
+        0-3        | target-group-BE1
+        4-7        | target-group-BE0
         8-11       | target-group-AF1
         16-19      | target-group-AF2
         24-27      | target-group-AF3
