@@ -26,4 +26,6 @@ import (
 var (
 	NumControllerCards = flag.Int("arg_num_controller_cards", -1, "The expected number of controller cards. Some devices with a single controller report 0, which is a valid expected value. Expectation is not checked for values < 0.")
 	NumLinecards       = flag.Int("arg_num_linecards", -1, "The expected number of linecards. Some devices with a single linecard report 0, which is a valid expected value. Expectation is not checked for values < 0.")
+	P4RTNodeName1      = flag.String("arg_p4rt_node_name_1", "", "The P4RT Node Name for the first FAP. Test that reserves ports in the same FAP should configure this P4RT Node. The value will only be used if deviation ExplicitP4RTNodeComponent is applied.")
+	P4RTNodeName2      = flag.String("arg_p4rt_node_name_2", "", "The P4RT Node Name for the second FAP. Test that reserves ports in two different FAPs should configure this P4RT Node in addition to the Node defined in P4RTNodeName1. The value will only be used if deviation ExplicitP4RTNodeComponent is applied.")
 )

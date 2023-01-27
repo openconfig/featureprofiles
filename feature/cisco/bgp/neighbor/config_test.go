@@ -1,10 +1,12 @@
 package bgp_neighbor_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -892,6 +894,9 @@ func TestAfiSafiEnabled(t *testing.T) {
 		true,
 	}
 
+	// Remove any existing BGP config
+	config.TextWithGNMI(context.Background(), t, dut, "no router bgp 65000")
+
 	bgp_instance, bgp_as := getNextBgpInstance()
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
@@ -934,6 +939,9 @@ func TestAfiSafiMaxPrefixes(t *testing.T) {
 		// 1000,
 		234567,
 	}
+
+	// Remove any existing BGP config
+	config.TextWithGNMI(context.Background(), t, dut, "no router bgp 65000")
 
 	bgp_instance, bgp_as := getNextBgpInstance()
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()

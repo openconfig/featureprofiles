@@ -1,25 +1,17 @@
 diff --git a/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go b/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
-index 581e0771..8fa41953 100644
+index afb62b81..02c67be5 100644
 --- a/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
 +++ b/feature/experimental/security/aaa/kne_tests/tls_authentication_over_grpc_test/tls_authentication_over_grpc_test.go
-@@ -15,32 +15,32 @@
- package tls_authentication_over_grpc_test
- 
- import (
-+	"bytes"
- 	"context"
- 	"crypto/tls"
-+	"encoding/json"
+@@ -20,6 +20,8 @@ import (
+ 	"encoding/json"
  	"flag"
  	"fmt"
 +	"os"
 +	"strings"
  	"testing"
  
- 	"github.com/openconfig/featureprofiles/internal/fptest"
- 	"github.com/openconfig/ondatra"
--	"github.com/openconfig/ygot/ygot"
- 	"golang.org/x/crypto/ssh"
+ 	"github.com/openconfig/featureprofiles/internal/deviations"
+@@ -32,17 +34,16 @@ import (
  	"google.golang.org/grpc"
  	"google.golang.org/grpc/credentials"
  	"google.golang.org/grpc/metadata"
@@ -27,8 +19,6 @@ index 581e0771..8fa41953 100644
  
 +	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
  	gpb "github.com/openconfig/gnmi/proto/gnmi"
--	"github.com/openconfig/ondatra/gnmi"
--	"github.com/openconfig/ondatra/gnmi/oc"
  )
  
  var (
@@ -44,7 +34,7 @@ index 581e0771..8fa41953 100644
  )
  
  func TestMain(m *testing.M) {
-@@ -59,7 +59,7 @@ func keyboardInteraction(password string) ssh.KeyboardInteractiveChallenge {
+@@ -61,7 +62,7 @@ func keyboardInteraction(password string) ssh.KeyboardInteractiveChallenge {
  func gnmiClient(ctx context.Context) (gpb.GNMIClient, error) {
  	conn, err := grpc.DialContext(
  		ctx,
@@ -53,7 +43,7 @@ index 581e0771..8fa41953 100644
  		grpc.WithTransportCredentials(
  			credentials.NewTLS(&tls.Config{
  				InsecureSkipVerify: true, // NOLINT
-@@ -71,18 +71,93 @@ func gnmiClient(ctx context.Context) (gpb.GNMIClient, error) {
+@@ -73,7 +74,37 @@ func gnmiClient(ctx context.Context) (gpb.GNMIClient, error) {
  	return gpb.NewGNMIClient(conn), nil
  }
  
@@ -91,70 +81,16 @@ index 581e0771..8fa41953 100644
  	if *sshIP == "" {
  		t.Fatal("--ssh_ip flag must be set.")
  	}
--
- 	dut := ondatra.DUT(t, "dut")
--	gnmi.Replace(t, dut, gnmi.OC().System().Aaa().Authentication().
--		User("alice").Config(), &oc.System_Aaa_Authentication_User{
--		Username: ygot.String("alice"),
--		Password: ygot.String("password"),
+@@ -83,7 +114,7 @@ func TestAuthentication(t *testing.T) {
+ 		User("alice").Config(), &oc.System_Aaa_Authentication_User{
+ 		Username: ygot.String("alice"),
+ 		Password: ygot.String("password"),
 -		Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
--	})
-+	// https://github.com/openconfig/ondatra/issues/50
-+	rawData := fmt.Sprintf(`{
-+		"openconfig-system:system": {
-+		 "aaa": {
-+		  "authentication": {
-+		   "users": {
-+			"user": [
-+			 {
-+			  "username": "alice",
-+			  "config": {
-+			   "username": "alice",
-+			   "role": "root-lr",
-+			   "password": "password"
-+			  }
-+			 }
-+			]
-+		   }
-+		  }
-+		 }
-+		}
-+	  }`)
-+	f, err := os.Create("user.json")
-+	if err != nil {
-+		t.Error("Error occcured while creating the file ", err)
-+	}
-+	defer f.Close()
-+	defer os.Remove("user.json")
-+	_, err2 := f.WriteString(rawData)
-+	if err2 != nil {
-+		t.Error("Error occcured while writing to file ", err2)
-+	}
-+	client := dut.RawAPIs().GNMI().New(t)
-+	data, _ := os.ReadFile("user.json")
-+	rawjson := string(bytes.TrimRight(data, "\n"))
-+	setreq := &gpb.SetRequest{
-+		Update: []*gpb.Update{{
-+			Path: &gpb.Path{
-+				Origin: "openconfig",
-+				Elem:   []*gpb.PathElem{},
-+			},
-+			Val: &gpb.TypedValue{
-+				Value: &gpb.TypedValue_JsonIetfVal{
-+					JsonIetfVal: []byte(rawjson),
-+				},
-+			},
-+		}},
-+	}
-+	response, err := client.Set(context.Background(), setreq)
-+	if err != nil {
-+		t.Log(response)
-+		t.Error(err)
-+	}
++		Role:     oc.UnionString("root-lr"),
+ 	})
  
  	tests := []struct {
- 		desc       string
-@@ -106,7 +181,7 @@ func TestAuthentication(t *testing.T) {
+@@ -108,7 +139,7 @@ func TestAuthentication(t *testing.T) {
  	for _, tc := range tests {
  		t.Run(tc.desc, func(t *testing.T) {
  			t.Log("Trying SSH credentials")
@@ -163,32 +99,16 @@ index 581e0771..8fa41953 100644
  				User: tc.user,
  				Auth: []ssh.AuthMethod{
  					ssh.KeyboardInteractive(keyboardInteraction(tc.pass)),
-@@ -139,7 +214,8 @@ func TestAuthentication(t *testing.T) {
- 					Elem: []*gpb.PathElem{
- 						{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
- 				},
--				Type: gpb.GetRequest_CONFIG,
-+				Type:     gpb.GetRequest_CONFIG,
-+				Encoding: gpb.Encoding_JSON_IETF,
- 			})
- 			if tc.wantErr != (err != nil) {
- 				if tc.wantErr {
-@@ -149,15 +225,15 @@ func TestAuthentication(t *testing.T) {
- 				}
- 			}
- 			t.Log("Trying credentials with GNMI Set")
-+			// Limitation due to CSCwd49452
-+			json_config, _ := json.Marshal("cmessage of the dayc")
- 			_, err = gnmi.Set(ctx, &gpb.SetRequest{
- 				Replace: []*gpb.Update{{
- 					Path: &gpb.Path{
- 						Elem: []*gpb.PathElem{
- 							{Name: "system"}, {Name: "config"}, {Name: "motd-banner"}},
- 					},
--					Val: &gpb.TypedValue{
--						Value: &gpb.TypedValue_StringVal{StringVal: "message of the day"},
--					},
-+					Val: &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: json_config}},
- 				}},
- 			})
- 			if tc.wantErr != (err != nil) {
+diff --git a/internal/deviations/deviations.go b/internal/deviations/deviations.go
+index ad882ff5..7fb8d32b 100644
+--- a/internal/deviations/deviations.go
++++ b/internal/deviations/deviations.go
+@@ -69,7 +69,7 @@ import (
+ 
+ // Vendor deviation flags.
+ var (
+-	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
++	BannerDelimiter = flag.String("deviation_banner_delimiter", "c",
+ 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
+ 
+ 	NTPAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,

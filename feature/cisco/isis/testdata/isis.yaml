@@ -18,7 +18,7 @@ feature:
         areaid: 490001
         scale: 10
         prefixmetric: 20
-        iprmetric: 21
+        iprmetric: 20
         v4prefix: 120.1.1.1/32
         connectedv4prefix: 100.120.1.0/24
         connectedv6prefix: 2000::100:120:1:0/126
@@ -30,7 +30,7 @@ feature:
         areaid: 490002
         scale: 10
         prefixmetric: 20
-        iprmetric: 21
+        iprmetric: 20
         v4prefix: 121.1.1.1/32
         connectedv4prefix: 100.121.1.0/24
         connectedv6prefix: 2000::100:121:1:0/126

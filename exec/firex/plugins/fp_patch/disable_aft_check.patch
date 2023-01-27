@@ -1,5 +1,5 @@
 diff --git a/internal/cisco/flags/flags.go b/internal/cisco/flags/flags.go
-index 9e877233..42907009 100644
+index b898ce65..f4cebc50 100644
 --- a/internal/cisco/flags/flags.go
 +++ b/internal/cisco/flags/flags.go
 @@ -12,7 +12,7 @@ var (
