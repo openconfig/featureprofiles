@@ -107,13 +107,13 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			"BE0": "6",
 		},
 		ondatra.ARISTA: {
-			"NC1": dp3.Name() + "-7",
-			"AF4": dp3.Name() + "-4",
-			"AF3": dp3.Name() + "-3",
-			"AF2": dp3.Name() + "-2",
-			"AF1": dp3.Name() + "-0",
+			"NC1": dp3.Name() + "-6",
+			"AF4": dp3.Name() + "-5",
+			"AF3": dp3.Name() + "-4",
+			"AF2": dp3.Name() + "-3",
+			"AF1": dp3.Name() + "-2",
 			"BE1": dp3.Name() + "-1",
-			"BE0": dp3.Name() + "-1",
+			"BE0": dp3.Name() + "-0",
 		},
 		ondatra.CISCO: {
 			"NC1": "7",
@@ -139,7 +139,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 	//   - There should be no packet drop for all traffic classes.
 	NonoversubscribedTrafficFlows := map[string]*trafficData{
 		"intf1-nc1": {
-			frameSize:             700,
+			frameSize:             1000,
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
@@ -147,7 +147,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf1,
 		},
 		"intf1-af4": {
-			frameSize:             400,
+			frameSize:             1000,
 			trafficRate:           18,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
@@ -155,7 +155,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf1,
 		},
 		"intf1-af3": {
-			frameSize:             1300,
+			frameSize:             1000,
 			trafficRate:           16,
 			expectedThroughputPct: 100.0,
 			dscp:                  24,
@@ -163,7 +163,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf1,
 		},
 		"intf1-af2": {
-			frameSize:             1200,
+			frameSize:             1000,
 			trafficRate:           8,
 			expectedThroughputPct: 100.0,
 			dscp:                  16,
@@ -179,23 +179,23 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf1,
 		},
 		"intf1-be1": {
-			frameSize:             1111,
+			frameSize:             1000,
 			trafficRate:           2,
 			expectedThroughputPct: 100.0,
-			dscp:                  0,
+			dscp:                  4,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf1,
 		},
 		"intf1-be0": {
-			frameSize:             1110,
+			frameSize:             1000,
 			trafficRate:           0.5,
-			dscp:                  4,
+			dscp:                  0,
 			expectedThroughputPct: 100.0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
-			frameSize:             700,
+			frameSize:             1000,
 			trafficRate:           0.9,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
@@ -203,7 +203,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf2,
 		},
 		"intf2-af4": {
-			frameSize:             400,
+			frameSize:             1000,
 			trafficRate:           20,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
@@ -211,7 +211,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf2,
 		},
 		"intf2-af3": {
-			frameSize:             1300,
+			frameSize:             1000,
 			trafficRate:           16,
 			expectedThroughputPct: 100.0,
 			dscp:                  24,
@@ -219,7 +219,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf2,
 		},
 		"intf2-af2": {
-			frameSize:             1200,
+			frameSize:             1000,
 			trafficRate:           8,
 			expectedThroughputPct: 100.0,
 			dscp:                  16,
@@ -235,19 +235,19 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf2,
 		},
 		"intf2-be1": {
-			frameSize:             1111,
+			frameSize:             1000,
 			trafficRate:           2,
-			dscp:                  0,
+			dscp:                  4,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf2,
 		},
 		"intf2-be0": {
-			frameSize:             1112,
+			frameSize:             1000,
 			trafficRate:           0.5,
 			expectedThroughputPct: 100.0,
-			dscp:                  5,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			dscp:                  0,
+			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf2,
 		},
 	}
@@ -257,7 +257,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 	//   - All WRR traffic should be droped.
 	oversubscribedTrafficFlows1 := map[string]*trafficData{
 		"intf1-nc1": {
-			frameSize:             700,
+			frameSize:             1000,
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
@@ -265,7 +265,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf1,
 		},
 		"intf1-af4": {
-			frameSize:             400,
+			frameSize:             1000,
 			trafficRate:           50,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
@@ -273,7 +273,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf1,
 		},
 		"intf1-af3": {
-			frameSize:             1300,
+			frameSize:             1000,
 			trafficRate:           20,
 			expectedThroughputPct: 0.0,
 			dscp:                  24,
@@ -281,7 +281,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf1,
 		},
 		"intf1-af2": {
-			frameSize:             1200,
+			frameSize:             1000,
 			trafficRate:           14,
 			expectedThroughputPct: 0.0,
 			dscp:                  16,
@@ -297,23 +297,23 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf1,
 		},
 		"intf1-be1": {
-			frameSize:             1111,
+			frameSize:             1000,
 			trafficRate:           1,
 			expectedThroughputPct: 0.0,
-			dscp:                  0,
+			dscp:                  4,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf1,
 		},
 		"intf1-be0": {
-			frameSize:             1110,
+			frameSize:             1000,
 			trafficRate:           1,
-			dscp:                  4,
+			dscp:                  0,
 			expectedThroughputPct: 0.0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
-			frameSize:             700,
+			frameSize:             1000,
 			trafficRate:           0.9,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
@@ -321,7 +321,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf2,
 		},
 		"intf2-af4": {
-			frameSize:             400,
+			frameSize:             1000,
 			trafficRate:           49,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
@@ -329,7 +329,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf2,
 		},
 		"intf2-af3": {
-			frameSize:             1300,
+			frameSize:             1000,
 			trafficRate:           14,
 			expectedThroughputPct: 0.0,
 			dscp:                  24,
@@ -337,7 +337,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf2,
 		},
 		"intf2-af2": {
-			frameSize:             1200,
+			frameSize:             1000,
 			trafficRate:           24,
 			expectedThroughputPct: 0.0,
 			dscp:                  16,
@@ -353,19 +353,19 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf2,
 		},
 		"intf2-be1": {
-			frameSize:             1111,
+			frameSize:             1000,
 			trafficRate:           7,
-			dscp:                  0,
+			dscp:                  4,
 			expectedThroughputPct: 0.0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf2,
 		},
 		"intf2-be0": {
-			frameSize:             1112,
+			frameSize:             1000,
 			trafficRate:           1,
 			expectedThroughputPct: 0.0,
-			dscp:                  5,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			dscp:                  0,
+			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf2,
 		},
 	}
@@ -375,7 +375,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 	//   - 50% of WRR traffic should be droped.
 	oversubscribedTrafficFlows2 := map[string]*trafficData{
 		"intf1-nc1": {
-			frameSize:             700,
+			frameSize:             1000,
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
@@ -383,7 +383,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf1,
 		},
 		"intf1-af4": {
-			frameSize:             400,
+			frameSize:             1000,
 			trafficRate:           18,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
@@ -391,7 +391,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf1,
 		},
 		"intf1-af3": {
-			frameSize:             1300,
+			frameSize:             1000,
 			trafficRate:           40,
 			expectedThroughputPct: 50.0,
 			dscp:                  24,
@@ -399,7 +399,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf1,
 		},
 		"intf1-af2": {
-			frameSize:             1200,
+			frameSize:             1000,
 			trafficRate:           8,
 			expectedThroughputPct: 50.0,
 			dscp:                  16,
@@ -414,23 +414,23 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf: intf1,
 		},
 		"intf1-be1": {
-			frameSize:             1111,
+			frameSize:             1000,
 			trafficRate:           1,
 			expectedThroughputPct: 50.0,
-			dscp:                  0,
+			dscp:                  4,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf1,
 		},
 		"intf1-be0": {
-			frameSize:             1110,
+			frameSize:             1000,
 			trafficRate:           1,
-			dscp:                  4,
+			dscp:                  0,
 			expectedThroughputPct: 50.0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
-			frameSize:             700,
+			frameSize:             1000,
 			trafficRate:           0.9,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
@@ -438,7 +438,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf2,
 		},
 		"intf2-af4": {
-			frameSize:             400,
+			frameSize:             1000,
 			trafficRate:           20,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
@@ -446,7 +446,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf2,
 		},
 		"intf2-af3": {
-			frameSize:             1300,
+			frameSize:             1000,
 			trafficRate:           24,
 			expectedThroughputPct: 50.0,
 			dscp:                  24,
@@ -454,7 +454,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf2,
 		},
 		"intf2-af2": {
-			frameSize:             1200,
+			frameSize:             1000,
 			trafficRate:           24,
 			expectedThroughputPct: 50.0,
 			dscp:                  16,
@@ -470,19 +470,19 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			inputIntf:             intf2,
 		},
 		"intf2-be1": {
-			frameSize:             1111,
+			frameSize:             1000,
 			trafficRate:           7,
-			dscp:                  0,
+			dscp:                  4,
 			expectedThroughputPct: 50.0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf2,
 		},
 		"intf2-be0": {
-			frameSize:             1112,
+			frameSize:             1000,
 			trafficRate:           1,
 			expectedThroughputPct: 50.0,
-			dscp:                  5,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			dscp:                  0,
+			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf2,
 		},
 	}
@@ -749,26 +749,24 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos Classifiers config: %v", classifiers)
 	for _, tc := range classifiers {
-		t.Run(tc.desc, func(t *testing.T) {
-			classifier := q.GetOrCreateClassifier(tc.name)
-			classifier.SetName(tc.name)
-			classifier.SetType(tc.classType)
-			term, err := classifier.NewTerm(tc.termID)
-			if err != nil {
-				t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
-			}
+		classifier := q.GetOrCreateClassifier(tc.name)
+		classifier.SetName(tc.name)
+		classifier.SetType(tc.classType)
+		term, err := classifier.NewTerm(tc.termID)
+		if err != nil {
+			t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
+		}
 
-			term.SetId(tc.termID)
-			action := term.GetOrCreateActions()
-			action.SetTargetGroup(tc.targetGrpoup)
-			condition := term.GetOrCreateConditions()
-			if tc.name == "dscp_based_classifier_ipv4" {
-				condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
-			} else if tc.name == "dscp_based_classifier_ipv6" {
-				condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
-			}
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-		})
+		term.SetId(tc.termID)
+		action := term.GetOrCreateActions()
+		action.SetTargetGroup(tc.targetGrpoup)
+		condition := term.GetOrCreateConditions()
+		if tc.name == "dscp_based_classifier_ipv4" {
+			condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
+		} else if tc.name == "dscp_based_classifier_ipv6" {
+			condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
+		}
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
 	t.Logf("Create qos input classifier config")
@@ -801,14 +799,12 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
-		t.Run(tc.desc, func(t *testing.T) {
-			i := q.GetOrCreateInterface(tc.intf)
-			i.SetInterfaceId(tc.intf)
-			c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-			c.SetType(tc.inputClassifierType)
-			c.SetName(tc.classifier)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-		})
+		i := q.GetOrCreateInterface(tc.intf)
+		i.SetInterfaceId(tc.intf)
+		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
+		c.SetType(tc.inputClassifierType)
+		c.SetName(tc.classifier)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
 	t.Logf("Create qos forwarding groups config")
@@ -848,14 +844,12 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos forwarding groups config: %v", forwardingGroups)
 	for _, tc := range forwardingGroups {
-		t.Run(tc.desc, func(t *testing.T) {
-			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
-			fwdGroup.SetName(tc.targetGrpoup)
-			fwdGroup.SetOutputQueue(tc.queueName)
-			queue := q.GetOrCreateQueue(tc.queueName)
-			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-		})
+		fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
+		fwdGroup.SetName(tc.targetGrpoup)
+		fwdGroup.SetOutputQueue(tc.queueName)
+		queue := q.GetOrCreateQueue(tc.queueName)
+		queue.SetName(tc.queueName)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
 	t.Logf("Create qos scheduler policies config")
@@ -937,17 +931,15 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	schedulerPolicy.SetName("scheduler")
 	t.Logf("qos scheduler policies config: %v", schedulerPolicies)
 	for _, tc := range schedulerPolicies {
-		t.Run(tc.desc, func(t *testing.T) {
-			s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
-			s.SetSequence(tc.sequence)
-			s.SetPriority(tc.priority)
-			input := s.GetOrCreateInput(tc.inputID)
-			input.SetId(tc.inputID)
-			input.SetInputType(tc.inputType)
-			input.SetQueue(tc.queueName)
-			input.SetWeight(tc.weight)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-		})
+		s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
+		s.SetSequence(tc.sequence)
+		s.SetPriority(tc.priority)
+		input := s.GetOrCreateInput(tc.inputID)
+		input.SetId(tc.inputID)
+		input.SetInputType(tc.inputType)
+		input.SetQueue(tc.queueName)
+		input.SetWeight(tc.weight)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
 	t.Logf("Create qos output interface config")
@@ -987,15 +979,13 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos output interface config: %v", schedulerIntfs)
 	for _, tc := range schedulerIntfs {
-		t.Run(tc.desc, func(t *testing.T) {
-			i := q.GetOrCreateInterface(dp3.Name())
-			i.SetInterfaceId(dp3.Name())
-			output := i.GetOrCreateOutput()
-			schedulerPolicy := output.GetOrCreateSchedulerPolicy()
-			schedulerPolicy.SetName(tc.scheduler)
-			queue := output.GetOrCreateQueue(tc.queueName)
-			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-		})
+		i := q.GetOrCreateInterface(dp3.Name())
+		i.SetInterfaceId(dp3.Name())
+		output := i.GetOrCreateOutput()
+		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
+		schedulerPolicy.SetName(tc.scheduler)
+		queue := output.GetOrCreateQueue(tc.queueName)
+		queue.SetName(tc.queueName)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 }
