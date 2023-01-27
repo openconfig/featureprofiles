@@ -118,10 +118,11 @@ Within each test directory, `README.md` should document the test plan. The test
 name directory and the `*.go` files should be named after the test name as shown
 in the [project](https://github.com/orgs/openconfig/projects/2/views/1) item.
 
-Each test must also be accompanied by a `rundata_test.go` file that is
-automatically generated using the command `go run ./tools/addrundata --fix`. The
-rundata is for tracking the test result. If the rundata is outdated, the
-"Rundata Check" in the pull request check will fail.
+Each test must also be accompanied by a `rundata_test.go` file that supplies the
+metadata for annotating the JUnit XML test results. This allows the test results
+to be tracked. If the rundata is outdated, the "Rundata Check" in the pull
+request check will fail. This file can be generated or updated using the
+command: `go run ./tools/addrundata --fix`
 
 For example:
 
