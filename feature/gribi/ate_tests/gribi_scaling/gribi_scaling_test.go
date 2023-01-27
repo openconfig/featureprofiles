@@ -313,6 +313,9 @@ func pushConfig(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d *
 	iname := dutPort.Name()
 	i := d.GetOrCreateInterface(iname)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(iname).Config(), i)
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dutPort)
+	}
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, i.GetName(), *deviations.DefaultNetworkInstance, 0)
 	}

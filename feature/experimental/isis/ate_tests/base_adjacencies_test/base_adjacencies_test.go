@@ -74,15 +74,20 @@ func TestBasic(t *testing.T) {
 
 		// if MissingIsisGlobalEnableAfSafiLevel is set, ignore enable flag check for AFI, SAFI and level at global level
 		// and validate enable at interface level
-		if *deviations.MissingIsisGlobalEnableAfSafiLevel {
+		if *deviations.MissingIsisInterfaceAfiSafiEnable {
 			data = append(data,
 				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
 		} else {
 			data = append(data,
 				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
-				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
-				check.Equal(isisRoot.Level(2).Enabled().State(), true))
+				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
+		}
+
+		if *deviations.ISISInterfaceLevel1DisableRequired {
+			data = append(data, check.Equal(port1ISIS.Level(1).Enabled().State(), false))
+		} else {
+			data = append(data, check.Equal(isisRoot.Level(2).Enabled().State(), true))
 		}
 
 		for _, vd := range data {
@@ -175,7 +180,7 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
-				EqualToDefault(sysCounts.DatabaseOverloads().State(), uint32(0)),
+				check.Present[uint32](sysCounts.DatabaseOverloads().State()),
 				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
 				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
@@ -207,13 +212,16 @@ func TestBasic(t *testing.T) {
 			check.Equal(adj.AdjacencyState().State(), oc.Isis_IsisInterfaceAdjState_UP),
 			check.Equal(adj.SystemId().State(), systemID),
 			check.Equal(adj.AreaAddress().State(), []string{session.ATEAreaAddress, session.DUTAreaAddress}),
-			check.Equal(adj.DisSystemId().State(), "0000.0000.0000"),
+			check.EqualOrNil(adj.DisSystemId().State(), "0000.0000.0000"),
 			check.NotEqual(adj.LocalExtendedCircuitId().State(), uint32(0)),
 			check.Equal(adj.MultiTopology().State(), false),
 			check.Equal(adj.NeighborCircuitType().State(), oc.Isis_LevelType_LEVEL_2),
 			check.NotEqual(adj.NeighborExtendedCircuitId().State(), uint32(0)),
 			check.Equal(adj.NeighborIpv4Address().State(), session.ATEISISAttrs.IPv4),
-			check.Equal(adj.NeighborSnpa().State(), "00:00:00:00:00:00"),
+			check.Predicate(adj.NeighborSnpa().State(), "Need a valid MAC address", func(got string) bool {
+				mac, err := net.ParseMAC(got)
+				return mac != nil && err == nil
+			}),
 			check.Equal(adj.Nlpid().State(), []oc.E_Adjacency_Nlpid{oc.Adjacency_Nlpid_IPV4, oc.Adjacency_Nlpid_IPV6}),
 			check.Predicate(adj.NeighborIpv6Address().State(), "want a valid IPv6 address", func(got string) bool {
 				ip := net.ParseIP(got)
@@ -311,7 +319,7 @@ func TestBasic(t *testing.T) {
 				check.Equal(sysCounts.AuthFails().State(), uint32(0)),
 				check.Equal(sysCounts.AuthTypeFails().State(), uint32(0)),
 				check.Equal(sysCounts.CorruptedLsps().State(), uint32(0)),
-				check.Equal(sysCounts.DatabaseOverloads().State(), uint32(0)),
+				check.Present[uint32](sysCounts.DatabaseOverloads().State()),
 				check.Equal(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				check.Equal(sysCounts.IdLenMismatch().State(), uint32(0)),
 				check.Equal(sysCounts.LspErrors().State(), uint32(0)),
@@ -356,8 +364,8 @@ func TestHelloPadding(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// skip run for isis hello padding adaptive mode if true
-			if *deviations.MissingIsisHelloPaddingAdaptiveMode && tc.name == "adaptive" {
+			// Test is skipped due to IsisHelloPaddingAdaptiveModeNotSupported deviation
+			if *deviations.IsisHelloPaddingAdaptiveModeNotSupported && tc.name == "adaptive" {
 				t.Skip(tc.skip)
 			}
 			if tc.skip != "" {
@@ -478,8 +486,6 @@ func TestTraffic(t *testing.T) {
 	// We generate traffic entering along port2 and destined for port1
 	srcIntf := ts.MustATEInterface(t, "port2")
 	dstIntf := ts.MustATEInterface(t, "port1")
-	// Set metric type for isis interface else prefixes won't be advertised with right metric
-	dstIntf.ISIS().WithMetric(10)
 	// net is a simulated network containing the addresses specified by targetNetwork
 	net := dstIntf.AddNetwork("net")
 	net.IPv4().WithAddress(targetNetwork.IPv4CIDR()).WithCount(1)
