@@ -143,5 +143,5 @@ var (
 		"Set isis af ipv6 single topology on the device if value is true, Default value is false and sets multi topology for isis af ipv6")
 
 	ISISprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
-		"Set isis protocol enable flag on the device if value is true, Default value is false and protocol enable flag is not set")
+		"Unset isis protocol enable flag on the device if value is true, Default value is false and protocol enable flag is set")
 )
