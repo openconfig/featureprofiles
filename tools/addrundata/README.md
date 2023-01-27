@@ -1,6 +1,6 @@
-# The addrundata tool
+# The `addrundata` Tool
 
-The addrundata tool keeps all the `rundata_test.go` files up to date in the
+The `addrundata` tool keeps all the `rundata_test.go` files up to date in the
 featureprofiles repo. These files contain the rundata that identifies each test,
 and the rundata will find its way into the test XML output when a functional
 test is run with the `-xml` flag. The rundata allows us to track the test
@@ -18,9 +18,9 @@ There are two modes of operation:
 *   Fix mode: `go run ./tools/addrundata --fix`
 
     This will update any outdated rundata, to be run by the author of a pull
-    request if the "Rundata Check" fails.
+    request if the "[Rundata Check]" fails.
 
-[Rundata Check]: https://github.com/openconfig/featureprofiles/blob/main/.github/workflows/rundata_check.yml
+[Rundata Check]: /.github/workflows/rundata_check.yml
 
 An example `rundata_test.go` looks like this:
 
@@ -48,6 +48,6 @@ in `README.md`:
 One line summary of what foo functional test does.
 ```
 
-But the TestUUID is uniquely generated for each test. The `addrundata` tool
+But the `TestUUID` is uniquely generated for each test. The `addrundata` tool
 takes care of the UUID generation. Both the `ate_tests` and `otg_tests` variants
 of the same test must have the same rundata.
