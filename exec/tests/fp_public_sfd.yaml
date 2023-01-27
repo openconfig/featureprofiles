@@ -322,6 +322,8 @@ tests:
 - name: RT-1.3 (BGP Route Propagation) 
   path: feature/bgp/addpath/ate_tests/route_propagation_test
   owner: sprem@cisco.com
+  args:
+    - '-deviation_rpl_under_peergroup=true'
   mustpass: false
   priority: 52
   skip: false
