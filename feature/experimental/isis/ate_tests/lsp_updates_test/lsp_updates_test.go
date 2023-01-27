@@ -41,12 +41,12 @@ func TestOverloadBit(t *testing.T) {
 	}
 	isisPath := session.ISISPath()
 	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
-	//Get the value for 'database-overloads' leaf counter after config is pushed to DUT & before adjacency is formed
+	//Get the initial value for 'database-overloads' leaf counter after config is pushed to DUT & before adjacency is formed
 	dbOLInitCount := gnmi.Get(t,ts.DUT,overloads.State())
 	ts.PushAndStartATE(t)
 	ts.MustAdjacency(t)
 	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
-	deadline := time.Now().Add(time.Minute)
+	deadline := time.Now().Add(time.Second)
 	checkSetBit := check.Equal(setBit.State(), false)
 	if *deviations.MissingValueForDefaults {
 		checkSetBit = check.EqualOrNil(setBit.State(), false)
@@ -69,10 +69,10 @@ func TestOverloadBit(t *testing.T) {
 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
 	ts.PushDUT(context.Background())
 	// TODO: Verify the link state database once device support is added.
-	if err := check.Equal(overloads.State(), uint32(dbOLInitCount+1)).AwaitFor(time.Minute, ts.DUTClient); err != nil {
+	if err := check.Equal(overloads.State(), uint32(dbOLInitCount+1)).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
-	if err := check.Equal(setBit.State(), true).AwaitFor(time.Minute, ts.DUTClient); err != nil {
+	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
 	// TODO: Verify the link state database on the ATE once the ATE reports this properly
