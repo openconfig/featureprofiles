@@ -204,7 +204,8 @@ func TestBackup(t *testing.T) {
 		if err := client.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection can not be established")
 		}
-		// Client becomes leader
+
+		// Make client leader
 		client.BecomeLeader(t)
 
 		// Flush past entries before running the tc
