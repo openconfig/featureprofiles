@@ -24,7 +24,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -35,16 +34,10 @@ func TestMain(m *testing.M) {
 
 func TestOverloadBit(t *testing.T) {
 	ts := session.MustNew(t).WithISIS()
-	// Only push DUT config - no adjacency established yet
-	if err := ts.PushDUT(context.Background()); err != nil {
-		t.Fatalf("Unable to push initial DUT config: %v", err)
-	}
+	ts.PushAndStart(t)
+	ts.MustAdjacency(t)
 	isisPath := session.ISISPath()
 	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
-	//Get the initial value for 'database-overloads' leaf counter after config is pushed to DUT & before adjacency is formed
-	dbOLInitCount := gnmi.Get(t,ts.DUT,overloads.State())
-	ts.PushAndStartATE(t)
-	ts.MustAdjacency(t)
 	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
 	deadline := time.Now().Add(time.Second)
 	checkSetBit := check.Equal(setBit.State(), false)
@@ -54,7 +47,7 @@ func TestOverloadBit(t *testing.T) {
 
 	for _, vd := range []check.Validator{
 		checkSetBit,
-		check.Equal(overloads.State(), dbOLInitCount),
+		check.Equal(overloads.State(), uint32(0)),
 	} {
 		if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 			t.Error(err)
@@ -69,7 +62,7 @@ func TestOverloadBit(t *testing.T) {
 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
 	ts.PushDUT(context.Background())
 	// TODO: Verify the link state database once device support is added.
-	if err := check.Equal(overloads.State(), uint32(dbOLInitCount+1)).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
+	if err := check.Equal[uint32](overloads.State(), 1).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
 	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second, ts.DUTClient); err != nil {
