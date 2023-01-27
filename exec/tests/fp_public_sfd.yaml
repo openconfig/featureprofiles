@@ -302,7 +302,6 @@ tests:
   skip: false
 - name: RT-2.2 (IS-IS LSP Updates) 
   path: feature/experimental/isis/ate_tests/lsp_updates_test
-  patch: exec/firex/plugins/fp_patch/lsp_updates_test.patch
   owner: mananpat@cisco.com
   args:
        - '-deviation_isis_af_metric_style_wide_level_required="true"'
