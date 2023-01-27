@@ -3,22 +3,17 @@ import argparse
 import os
 
 def _fix_testsuite_class(ts):
-    current_class = ''
-
     for t in ts.findall('testcase'):
-        if not current_class:
-            current_class = t.get('name')
-
-        t.set('classname', current_class)
-
-        if not t.get('name').startswith(current_class):
-            current_prefix = ''
-            current_class = ''
+        if t.get('name') == '_':
+            ts.remove(t)
+            continue
+        cls = ts.get('name') + '.' + t.get('name').split('/')[0]
+        t.set('classname', cls)
 
 def _find_ts_name(ts):
     for p in ts.findall('./properties/property'):
-        if p.get('name') == 'testsuite_name':
-            return p.get('value')
+        if p.get('name') == 'test.plan_id':
+            return p.get('value').replace('.', '-')
     return ''
 
 def _rewrite(file, outfile):
