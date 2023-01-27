@@ -126,6 +126,7 @@ tests:
   priority: 5
   mustpass: true
 - name: P4RT-1.1 (Base P4RT Functionality)
+  binding: topologies/cisco/hw/8808_FOX2506P2QT/binding_p4rt_1_1
   path: feature/experimental/p4rt/ate_tests/base_p4rt
   args:
     - '-deviation_explicit_p4rt_node_component="true"'
