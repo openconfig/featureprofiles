@@ -62,6 +62,7 @@ var (
 )
 
 const (
+	chasisType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
 	supervisorType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	linecardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
 	powerSupplyType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY
@@ -333,48 +334,21 @@ func TestQoSCounters(t *testing.T) {
 	}
 }
 
-func getParentType(t *testing.T, dut *ondatra.DUTDevice, cards []string, parentType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
-	t.Helper()
-	var cardsValid []string
-	for _, card := range cards {
-		parent := gnmi.Lookup(t, dut, gnmi.OC().Component(card).Parent().State())
-		val, _ := parent.Val()
-		got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
-		if got == parentType {
-			cardsValid = append(cardsValid, card)
-		}
-	}
-	return cardsValid
-}
-
 func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	var componentParent map[string]string
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		componentParent = map[string]string{
-			"Fabric":      "Rack",
-			"FabricChip":  "0/FC",
-			"Linecard":    "Rack",
-			"PowerSupply": "Rack",
-			"Supervisor":  "Rack",
-			"SwitchChip":  "0/",
-		}
-	default:
-		componentParent = map[string]string{
-			"Fabric":      "Chassis",
-			"FabricChip":  "Fabric",
-			"Linecard":    "Chassis",
-			"PowerSupply": "Chassis",
-			"Supervisor":  "Chassis",
-			"SwitchChip":  "Linecard",
-		}
+	componentParent := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
+		"Fabric":      chasisType,
+		"FabricChip":  fabricType,
+		"Linecard":    chasisType,
+		"PowerSupply": chasisType,
+		"Supervisor":  chasisType,
+		"SwitchChip":  linecardType,
 	}
 
 	cases := []struct {
 		desc          string
 		componentType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT
-		parent        string
+		parent        oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT
 	}{{
 		desc:          "Fabric",
 		componentType: fabricType,
@@ -390,7 +364,7 @@ func TestComponentParent(t *testing.T) {
 	}, {
 		desc:          "Power supply",
 		componentType: powerSupplyType,
-		parent:        componentParent["Power supply"],
+		parent:        componentParent["PowerSupply"],
 	}, {
 		desc:          "Supervisor",
 		componentType: supervisorType,
@@ -408,36 +382,36 @@ func TestComponentParent(t *testing.T) {
 			if len(cards) == 0 {
 				t.Fatalf("Get Card list for %q: got 0, want > 0", dut.Model())
 			}
-			if tc.desc == "FabricChip" {
-				cardsFabricChipType := getParentType(t, dut, cards, fabricType)
-				t.Logf("Found cards of type FabricChip : %v", cardsFabricChipType)
-				if len(cardsFabricChipType) == 0 {
-					t.Fatalf("Get FabricChip Card list for %q: got 0, want > 0", dut.Model())
-				}
-				cards = cardsFabricChipType
-			}
-			if tc.desc == "SwitchChip" {
-				cardsSwitchChipType := getParentType(t, dut, cards, linecardType)
-				t.Logf("Found cards of type SwitchChip: %v", cardsSwitchChipType)
-				if len(cardsSwitchChipType) == 0 {
-					t.Fatalf("Get SwitchChip Card list for %q: got 0, want > 0", dut.Model())
-				}
-				cards = cardsSwitchChipType
-			}
-
+			// Validate parent component
 			for _, card := range cards {
 				t.Logf("Validate card %s", card)
-				parent := gnmi.Lookup(t, dut, gnmi.OC().Component(card).Parent().State())
-				val, present := parent.Val()
-				if !present {
-					t.Errorf("parent.IsPresent() for %q: got %v, want true", card, parent.IsPresent())
+				cardName := card
+				for {
+					parent := gnmi.Lookup(t, dut, gnmi.OC().Component(cardName).Parent().State())
+					val, present := parent.Val()
+					if !present {
+						t.Fatalf("Parent not present for %q: got %v, want true", card, parent.IsPresent())
+					} else {
+						got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+						if tc.desc == "SwitchChip" || tc.desc == "FabricChip" {
+							if got == componentParent["FabricChip"] || got == componentParent["SwitchChip"] {
+								t.Logf("Got expected parent for card %s", card)
+								break
+							}
+						} else {
+							if got == tc.parent {
+								t.Logf("Got expected parent for card %s", card)
+								break
+							}
+						}
+
+					}
+					parentName := gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
+					cardName = parentName
 				}
 
-				t.Logf("Got %s parent: %s", tc.desc, val)
-				if !strings.HasPrefix(val, tc.parent) {
-					t.Errorf("Get parent for %q: got %v, want HasPrefix %v", card, val, tc.parent)
-				}
 			}
+
 		})
 	}
 }
