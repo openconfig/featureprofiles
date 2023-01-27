@@ -61,7 +61,7 @@ func TestBasic(t *testing.T) {
 	isisRoot := session.ISISPath()
 
 	//Get the value for 'database-overloads' leaf counters, after config is pushed to the DUT
-	dbOLInitCount := gnmi.Get(t,ts.DUT,isisRoot.Level(2).SystemLevelCounters().DatabaseOverloads().State())
+	dbOLInitCount := gnmi.Get(t, ts.DUT, isisRoot.Level(2).SystemLevelCounters().DatabaseOverloads().State())
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
 	// There might be lag between when the instance name is set and when the
 	// other parameters are set; we expect the total lag to be under 5s
@@ -183,7 +183,7 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
-				EqualToDefault(sysCounts.DatabaseOverloads().State(),dbOLInitCount),
+				EqualToDefault(sysCounts.DatabaseOverloads().State(), dbOLInitCount),
 				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
 				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
@@ -221,8 +221,8 @@ func TestBasic(t *testing.T) {
 			check.Equal(adj.NeighborCircuitType().State(), oc.Isis_LevelType_LEVEL_2),
 			check.NotEqual(adj.NeighborExtendedCircuitId().State(), uint32(0)),
 			check.Equal(adj.NeighborIpv4Address().State(), session.ATEISISAttrs.IPv4),
-			check.Predicate(adj.NeighborSnpa().State(),"Need a valid MAC address", func(got string) bool {
-				mac,err := net.ParseMAC(got)
+			check.Predicate(adj.NeighborSnpa().State(), "Need a valid MAC address", func(got string) bool {
+				mac, err := net.ParseMAC(got)
 				return mac != nil && err == nil
 			}),
 			check.Equal(adj.Nlpid().State(), []oc.E_Adjacency_Nlpid{oc.Adjacency_Nlpid_IPV4, oc.Adjacency_Nlpid_IPV6}),
@@ -322,7 +322,7 @@ func TestBasic(t *testing.T) {
 				check.Equal(sysCounts.AuthFails().State(), uint32(0)),
 				check.Equal(sysCounts.AuthTypeFails().State(), uint32(0)),
 				check.Equal(sysCounts.CorruptedLsps().State(), uint32(0)),
-				check.Equal(sysCounts.DatabaseOverloads().State(),dbOLInitCount),
+				check.Equal(sysCounts.DatabaseOverloads().State(), dbOLInitCount),
 				check.Equal(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				check.Equal(sysCounts.IdLenMismatch().State(), uint32(0)),
 				check.Equal(sysCounts.LspErrors().State(), uint32(0)),
@@ -367,7 +367,7 @@ func TestHelloPadding(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// skip run for isis hello padding adaptive mode if true
+			// Test is skipped due to IsisHelloPaddingAdaptiveModeNotSupported deviation
 			if *deviations.IsisHelloPaddingAdaptiveModeNotSupported && tc.name == "adaptive" {
 				t.Skip(tc.skip)
 			}
