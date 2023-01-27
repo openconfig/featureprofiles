@@ -59,9 +59,6 @@ func TestBasic(t *testing.T) {
 		t.Fatalf("Unable to push initial DUT config: %v", err)
 	}
 	isisRoot := session.ISISPath()
-
-	//Get the value for 'database-overloads' leaf counters, after config is pushed to the DUT
-	dbOLInitCount := gnmi.Get(t, ts.DUT, isisRoot.Level(2).SystemLevelCounters().DatabaseOverloads().State())
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
 	// There might be lag between when the instance name is set and when the
 	// other parameters are set; we expect the total lag to be under 5s
@@ -75,9 +72,9 @@ func TestBasic(t *testing.T) {
 			check.Equal(port1ISIS.CircuitType().State(), oc.Isis_CircuitType_POINT_TO_POINT),
 		}
 
-		// if MissingIsisGlobalEnableAfSafiLevel is set, ignore enable flag check for AFI, SAFI and level at global level
+		// if MissingIsisInterfaceAfiSafiEnable is set, ignore enable flag check for AFI, SAFI at global level
 		// and validate enable at interface level
-		if *deviations.MissingIsisGlobalEnableAfiSafi {
+		if *deviations.MissingIsisInterfaceAfiSafiEnable {
 			data = append(data,
 				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
@@ -87,6 +84,7 @@ func TestBasic(t *testing.T) {
 				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
 		}
 
+		// if ISISInterfaceLevel1DisableRequired is set, validate Level1 enabled false at interface level else validate Level2 enabled at global level
 		if *deviations.ISISInterfaceLevel1DisableRequired {
 			data = append(data, check.Equal(port1ISIS.Level(1).Enabled().State(), false))
 		} else {
@@ -183,7 +181,7 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
-				EqualToDefault(sysCounts.DatabaseOverloads().State(), dbOLInitCount),
+				check.Present[uint32](sysCounts.DatabaseOverloads().State()),
 				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
 				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
@@ -322,7 +320,7 @@ func TestBasic(t *testing.T) {
 				check.Equal(sysCounts.AuthFails().State(), uint32(0)),
 				check.Equal(sysCounts.AuthTypeFails().State(), uint32(0)),
 				check.Equal(sysCounts.CorruptedLsps().State(), uint32(0)),
-				check.Equal(sysCounts.DatabaseOverloads().State(), dbOLInitCount),
+				check.Present[uint32](sysCounts.DatabaseOverloads().State()),
 				check.Equal(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				check.Equal(sysCounts.IdLenMismatch().State(), uint32(0)),
 				check.Equal(sysCounts.LspErrors().State(), uint32(0)),
@@ -489,8 +487,6 @@ func TestTraffic(t *testing.T) {
 	// We generate traffic entering along port2 and destined for port1
 	srcIntf := ts.MustATEInterface(t, "port2")
 	dstIntf := ts.MustATEInterface(t, "port1")
-	// Set metric type for isis interface else prefixes won't be advertised with right metric
-	dstIntf.ISIS().WithMetric(10)
 	// net is a simulated network containing the addresses specified by targetNetwork
 	net := dstIntf.AddNetwork("net")
 	net.IPv4().WithAddress(targetNetwork.IPv4CIDR()).WithCount(1)

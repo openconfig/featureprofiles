@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/networkinstance"
@@ -141,7 +142,7 @@ func addISISTopo(iface *ondatra.Interface, areaAddress, sysID string) {
 		WithTERouterID(sysID).
 		WithNetworkTypePointToPoint().
 		WithWideMetricEnabled(true).
-		WithLevelL2()
+		WithLevelL2().WithMetric(10)
 }
 
 // TestSession is a convenience wrapper around the dut, ate, ports, and
@@ -228,6 +229,10 @@ func (s *TestSession) PushAndStart(t testing.TB) error {
 	t.Helper()
 	if err := s.PushDUT(context.Background()); err != nil {
 		return err
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
 	s.PushAndStartATE(t)
 	return nil
