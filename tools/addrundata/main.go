@@ -80,6 +80,8 @@ func main() {
 			glog.Exitf("Error writing JSON: %v", err)
 		}
 		return
+	default:
+		glog.Exitf("Unknown listing format: %s", *list)
 	}
 
 	if !*fix {
