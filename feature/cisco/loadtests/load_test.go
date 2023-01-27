@@ -3,6 +3,7 @@ package load_test
 
 import (
 	"context"
+	"flag"
 	"io"
 	"sync"
 	"testing"
@@ -27,12 +28,23 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+const (
+	pingThreadScale          = 5    // # of parallel ping request to send
+	pingScale                = 2000 // # of ping message to send
+	AFTTelemtryUpdateTimeout = 120  // second
+)
+
+var (
+	configFilePath = flag.String("gnmi_config_file", "", "Path for gNMI config file")
+)
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
 func testGNMISet(t *testing.T, event *monitor.CachedConsumer, args ...interface{}) {
 	dut := args[0].(*ondatra.DUTDevice)
+
 	// TODO: The below code is not tested yet
 	if *configFilePath == "" {
 		return
@@ -88,8 +100,8 @@ func testGNMISet(t *testing.T, event *monitor.CachedConsumer, args ...interface{
 
 func testPing(t *testing.T, event *monitor.CachedConsumer, args ...interface{}) {
 	t.Helper()
-	dut := args[0].(*ondatra.DUTDevice)
 
+	dut := args[0].(*ondatra.DUTDevice)
 	startTime := time.Now()
 	t.Logf("Ping test is started at: %v", startTime)
 	fetchResponses := func(c spb.System_PingClient) ([]*spb.PingResponse, error) {
@@ -148,6 +160,7 @@ func testPing(t *testing.T, event *monitor.CachedConsumer, args ...interface{}) 
 func testBatchADDReplaceDeleteIPV4(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
 	t.Helper()
 	dut := args[0].(*ondatra.DUTDevice)
+
 	startTime := time.Now()
 	t.Logf("Gribi test is started at: %v", startTime)
 	ciscoFlags.GRIBIFIBCheck = ygot.Bool(true)
@@ -200,7 +213,9 @@ out:
 				break out
 			}
 		}
-		t.Fatalf("The Telemtry Update for AFT entries added by gribi is not recieved ontime, waittime")
+		if waitTime > AFTTelemtryUpdateTimeout {
+			t.Fatalf("The Telemtry Update for AFT entries added by gribi is not recieved ontime, waittime: %d seconds", AFTTelemtryUpdateTimeout)
+		}
 		time.Sleep(10 * time.Second)
 		waitTime += 10
 	}
@@ -213,7 +228,9 @@ out:
 			if found {
 				break
 			}
-			t.Fatalf("The Telemtry Update for AFT entry %s added by gribi is not recieved", prefix)
+			if waitTime > AFTTelemtryUpdateTimeout {
+				t.Fatalf("The Telemtry Update for AFT entry %s added by gribi is not recieved", prefix)
+			}
 			time.Sleep(10 * time.Second)
 			waitTime += 10
 		}
@@ -255,10 +272,8 @@ func TestLoad(t *testing.T) {
 	testGroup := &sync.WaitGroup{}
 	// start reset/apply config
 	runner.RunTestInBackground(ctx, t, time.NewTimer(10*time.Millisecond), testGroup, eventConsumer, testGNMISet)
-
 	// start gribi test writter
 	runner.RunTestInBackground(ctx, t, time.NewTimer(1*time.Second), testGroup, eventConsumer, testBatchADDReplaceDeleteIPV4)
-
 	// start gnoi  ping
 	runner.RunTestInBackground(ctx, t, time.NewTimer(10*time.Second), testGroup, eventConsumer, testPing)
 
@@ -277,4 +292,5 @@ func TestLoad(t *testing.T) {
 	}
 	fmt.Println(len(eventConsumer.Cache.Items()))
 	*/
+
 }
