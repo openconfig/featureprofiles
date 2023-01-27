@@ -1,10 +1,9 @@
 # The `addrundata` Tool
 
 The `addrundata` tool keeps all the `rundata_test.go` files up to date in the
-featureprofiles repo. These files contain the rundata that identifies each test,
+featureprofiles repo. These files contain the rundata that identify each test,
 and the rundata will find its way into the test XML output when a functional
-test is run with the `-xml` flag. The rundata allows us to track the test
-result.
+test is run with the `-xml` flag. The rundata allow us to track the test result.
 
 There are two modes of operation:
 
