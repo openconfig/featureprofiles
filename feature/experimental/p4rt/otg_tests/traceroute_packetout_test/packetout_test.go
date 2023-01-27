@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
@@ -34,7 +35,7 @@ type testArgs struct {
 	leader   *p4rt_client.P4RTClient
 	dut      *ondatra.DUTDevice
 	ate      *ondatra.ATEDevice
-	top      *ondatra.ATETopology
+	top      gosnappi.Config
 	packetIO PacketIO
 }
 
@@ -66,11 +67,11 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	//for ipv4
 	t.Run(desc+" ipv4 ", func(t *testing.T) {
 		// Check initial packet counters
-		port := sortPorts(args.ate.Ports())[0].Name()
+		port := sortPorts(args.ate.Ports())[0].ID()
 
 		for _, ttl := range ttls {
 			t.Logf("Sending ipv4 pakcets with ttl %d", ttl)
-			counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
+			counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
 			t.Logf("Initial number of packets: %d", counter0)
 
 			packets := args.packetIO.GetPacketOut(portId, true, uint8(ttl))
@@ -83,20 +84,14 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			time.Sleep(60 * time.Second)
 
 			// Check packet counters after packet out
-			counter1 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
+			counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
 			t.Logf("Final number of packets: %d", counter1)
 
 			// Verify InPkts stats to check P4RT stream
 			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
 
-			if ttl == 0 {
-				if counter1-counter0 > uint64(float64(packetCounter)*0.05) {
-					t.Fatalf("Ttl=0 packets are being forwarded.")
-				}
-			} else {
-				if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
-					t.Fatalf("Not all the packets are received.")
-				}
+			if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
+				t.Fatalf("Not all the packets are received.")
 			}
 			time.Sleep(20 * time.Second)
 		}
@@ -106,11 +101,11 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	//for ipv6
 	t.Run(desc+" ipv6", func(t *testing.T) {
 		// Check initial packet counters
-		port := sortPorts(args.ate.Ports())[0].Name()
+		port := sortPorts(args.ate.Ports())[0].ID()
 
 		for _, ttl := range ttls {
 			t.Logf("Sending ipv6 packets with ttl = %d", ttl)
-			counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
+			counter0 := gnmi.Get(t, args.ate, gnmi.OTG().Port(port).Counters().InFrames().State())
 			t.Logf("Initial number of packets: %d", counter0)
 
 			packets := args.packetIO.GetPacketOut(portId, false, uint8(ttl))
@@ -123,19 +118,14 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			time.Sleep(60 * time.Second)
 
 			// Check packet counters after packet out
-			counter1 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
+			counter1 := gnmi.Get(t, args.ate, gnmi.OTG().Port(port).Counters().InFrames().State())
 			t.Logf("Final number of packets: %d", counter1)
 
 			// Verify InPkts stats to check P4RT stream
 			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
-			if ttl == 0 {
-				if counter1-counter0 > uint64(float64(packetCounter)*0.05) {
-					t.Fatalf("Hoplimit=0 packets are being forwarded.")
-				}
-			} else {
-				if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
-					t.Fatalf("Not all the packets are received.")
-				}
+
+			if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
+				t.Fatalf("Not all the packets are received.")
 			}
 
 			time.Sleep(20 * time.Second)

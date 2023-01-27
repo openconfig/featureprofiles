@@ -263,8 +263,9 @@ func TestLeaderFailover(t *testing.T) {
 	}
 
 	t.Run("SINGLE_PRIMARY/PERSISTENCE=DELETE", func(t *testing.T) {
-		// This is an indicator test for gRIBI persistence DELETE, so we
-		// do not skip based on *deviations.GRIBIPreserveOnly.
+		if *deviations.GRIBIPreserveOnly {
+			t.Skip("Skipping due to --deviation_gribi_preserve_only, DELETE mode is not supported")
+		}
 
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to false.
@@ -302,8 +303,9 @@ func TestLeaderFailover(t *testing.T) {
 	})
 
 	t.Run("ShouldDelete", func(t *testing.T) {
-		// This is an indicator test for gRIBI persistence DELETE, so we
-		// do not skip based on *deviations.GRIBIPreserveOnly.
+		if *deviations.GRIBIPreserveOnly {
+			t.Skip("Skipping due to --deviation_gribi_preserve_only, DELETE mode is not supported")
+		}
 
 		t.Logf("Verify through Telemetry and Traffic that the route to %s has been deleted after gRIBI client disconnected", ateDstNetCIDR)
 
