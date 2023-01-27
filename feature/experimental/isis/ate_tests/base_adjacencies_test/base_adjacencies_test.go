@@ -72,7 +72,7 @@ func TestBasic(t *testing.T) {
 			check.Equal(port1ISIS.CircuitType().State(), oc.Isis_CircuitType_POINT_TO_POINT),
 		}
 
-		// if MissingIsisGlobalEnableAfSafiLevel is set, ignore enable flag check for AFI, SAFI and level at global level
+		// if MissingIsisInterfaceAfiSafiEnable is set, ignore enable flag check for AFI, SAFI at global level
 		// and validate enable at interface level
 		if *deviations.MissingIsisInterfaceAfiSafiEnable {
 			data = append(data,
@@ -84,6 +84,7 @@ func TestBasic(t *testing.T) {
 				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
 		}
 
+		// if ISISInterfaceLevel1DisableRequired is set, validate Level1 enabled false at interface level else validate Level2 enabled at global level
 		if *deviations.ISISInterfaceLevel1DisableRequired {
 			data = append(data, check.Equal(port1ISIS.Level(1).Enabled().State(), false))
 		} else {
