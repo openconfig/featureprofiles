@@ -307,6 +307,7 @@ tests:
   skip: false
 - name: RT-2.1 (Base IS-IS Process and Adjacencies) 
   path: feature/experimental/isis/ate_tests/base_adjacencies_test
+  patch: exec/firex/plugins/fp_patch/base_adjacencies_test.patch
   args:
        - '-deviation_isis_interface_level1_disable_required="true"'
        - '-deviation_isis_af_metric_style_wide_level_required="true"'
