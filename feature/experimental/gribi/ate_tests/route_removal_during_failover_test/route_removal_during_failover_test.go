@@ -61,18 +61,9 @@ func TestMain(m *testing.M) {
 //   - ate:port2.i -> dut:port2.i VLAN-ID i subnet 198.51.100.(4*i)/30
 //   - ate:port2.63 -> dut:port2.63 VLAN-ID 63 subnet 198.51.100.252/30
 const (
-	ipv4PrefixLen       = 30                // ipv4PrefixLen is the ATE and DUT interface IP prefix length.
-	IPBlock1            = "198.18.0.1/18"   // IPBlock1 represents the ipv4 entries in VRF1
-	IPBlock2            = "198.18.64.1/18"  // IPBlock2 represents the ipv4 entries in VRF2
-	IPBlock3            = "198.18.128.1/18" // IPBlock3 represents the ipv4 entries in VRF3
-	nhID1               = 2                 // nhID1 is the starting nh Index for entries in VRF1
-	nhID2               = 1002              // nhID2 is the starting nh Index for entries in VRF2
-	nhID3               = 18502             // nhID3 is the starting nh Index for entries in VRF3
-	tunnelSrcIP         = "198.18.204.1"    // tunnelSrcIP represents Source IP of IPinIP Tunnel
-	tunnelDstIP         = "198.18.208.1"    // tunnelDstIP represents Dest IP of IPinIP Tunnel
-	staticNH            = "192.0.2.6"
-	nhIndex             = 1
-	nhgIndex            = 42
+	ipv4PrefixLen       = 30              // ipv4PrefixLen is the ATE and DUT interface IP prefix length.
+	IPBlock1            = "198.18.0.1/18" // IPBlock1 represents the ipv4 entries in VRF1
+	nhgID               = 1
 	controlcardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	primaryController   = oc.Platform_ComponentRedundantRole_PRIMARY
 	secondaryController = oc.Platform_ComponentRedundantRole_SECONDARY
@@ -125,7 +116,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) {
 		args.client.Modify().AddEntry(t,
 			fluent.NextHopGroupEntry().
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
-				WithID(uint64(1)).
+				WithID(uint64(nhgID)).
 				AddNextHop(index, 64).
 				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
@@ -137,7 +128,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) {
 			fluent.IPv4Entry().
 				WithPrefix(virtualVIPs[ip]+"/32").
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
-				WithNextHopGroup(uint64(1)).
+				WithNextHopGroup(uint64(nhgID)).
 				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
@@ -337,6 +328,7 @@ func stopTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	ate.Traffic().Stop(t)
 }
 
+// switchoverReady is to check if controller is ready for switchover
 func switchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string) bool {
 	switchoverReady := gnmi.OC().Component(controller).SwitchoverReady()
 	_, ok := gnmi.Watch(t, dut, switchoverReady.State(), 30*time.Minute, func(val *ygnmi.Value[bool]) bool {
@@ -389,6 +381,7 @@ func testTraffic(t *testing.T, args testArgs, flow *ondatra.Flow) {
 
 }
 
+// validateSwitchoverStatus is to validate switchover status.
 func validateSwitchoverStatus(t *testing.T, dut *ondatra.DUTDevice, secondaryBeforeSwitch string) string {
 	startSwitchover := time.Now()
 	t.Logf("Wait for new Primary controller to boot up by polling the telemetry output.")
@@ -415,6 +408,8 @@ func validateSwitchoverStatus(t *testing.T, dut *ondatra.DUTDevice, secondaryBef
 
 }
 
+// TestRouteRemovalDuringFailover is to test gRIBI flush and slave switchover
+// concurrently, validate reinject of gRIBI programmed routes and traffic.
 func TestRouteRemovalDuringFailover(t *testing.T) {
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
