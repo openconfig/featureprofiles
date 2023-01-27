@@ -40,7 +40,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Format xunit test result file')
     parser.add_argument('file', type=lambda x: _is_valid_file(parser, x),
                         help='xunit result file')
-    parser.add_argument('outfile', type=lambda x: _is_valid_file(parser, x),
-                        help='output file')
+    parser.add_argument('outfile', help='output file')
     args = parser.parse_args()
     _rewrite(args.file, args.outfile)
