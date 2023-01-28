@@ -278,19 +278,19 @@ tests:
   mustpass: true
   skip: false
   priority: 43
-- name: gNMI-1.9
+- name: gNMI-1.9 (Get requests)
   path: feature/system/gnmi/get/tests/system_gnmi_get_test
   owner: agvarghe@cisco.com
   mustpass: true
   priority: 44
-- name: OC-26.1
+- name: OC-26.1 (NTP in Management Network Instance)
   path: feature/system/ntp/tests/system_ntp_test
   owner: agvarghe@cisco.com
   args:
        - '-deviation_ntp_association_type_required="true"'
   mustpass: true
   priority: 45
-- name: OC-1.1
+- name: OC-1.1 (System Configuration)
   path: feature/system/tests/system_base_test
   owner: agvarghe@cisco.com
   mustpass: true
