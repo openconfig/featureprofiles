@@ -28,9 +28,10 @@ ONDATRA_REPO_CLONE_INFO = CloneInfo('https://github.com/openconfig/ondatra.git',
 FP_REPO_CLONE_INFO = CloneInfo('git@wwwin-github.cisco.com:B4Test/featureprofiles.git', 'openconfig/featureprofiles')
 
 ONDATRA_PATCHES = [
-    'exec/firex/plugins/ondatra/0001-windows-ixia-path.patch', 
-    'exec/firex/plugins/ondatra/0002-disable-log.patch',
-    'exec/firex/plugins/ondatra/xml-stdout-smlt-logs.patch',
+    # 'exec/firex/plugins/ondatra/0001-windows-ixia-path.patch', 
+    # 'exec/firex/plugins/ondatra/0002-disable-log.patch',
+    # 'exec/firex/plugins/ondatra/xml-stdout-smlt-logs.patch',
+    'exec/firex/plugins/ondatra/ixate-retry.patch',
 ]
 
 ONDATRA_SIM_PATCHES = [
@@ -78,7 +79,7 @@ def BringupTestbed(self, ws, images = None,
                         base_conf_path=None,
                         skip_install=False,
                         apply_test_patches=True,
-                        apply_ondatra_patches=False,
+                        apply_ondatra_patches=True,
                         exec_repo_dir=None):
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
