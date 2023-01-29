@@ -85,8 +85,7 @@ jobs:
       uses: actions/checkout@v3
     - name: IP Addresses Assignment
       run: |
-        find . -path ./yang/fpoc -prune -o -name \*.go \
-          -exec ./tools/check_ip_addresses.pl \{} +
+        find . -name \*.go -exec ./tools/check_ip_addresses.pl \{} +
     - name: Allowed File Types
       run: ./tools/allowed_file_types.sh
     - name: Enum
@@ -110,8 +109,7 @@ jobs:
         exit "${fail}"
     - name: Default NetworkInstance
       run: |
-        if find . -path ./yang/fpoc -prune -o \
-          -name \*.go -exec egrep -n '"default"' \{} +
+        if find . -name \*.go -exec egrep -n '"default"' \{} +
         then
           echo "Default network instance name should be uppercase." >&2
           echo "See CONTRIBUTING.md#default-network-instance" >&2
@@ -163,7 +161,7 @@ jobs:
     - name: Get revive
       run: go install github.com/mgechev/revive@latest
     - name: Run revive
-      run: revive -exclude yang/fpoc ./...
+      run: revive ./...
     - name: Get staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
