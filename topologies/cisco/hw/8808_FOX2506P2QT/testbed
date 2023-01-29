@@ -37,7 +37,7 @@ duts {
   #ports {
   #  id: "port8"
   #  speed: S_10GB  
-  3}
+  #}
   #ports {
   #  id: "port9"
   #  speed: S_10GB  
