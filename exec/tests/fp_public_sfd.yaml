@@ -59,7 +59,7 @@ tests:
   path: feature/gribi/ate_tests/weighted_balancing_test
   patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
   mustpass: true
-  priority: 2
+  priority: 3
 - name: TE-3.3 (Hierarchical weight resolution)
   path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
   owner: mananpat@cisco.com
