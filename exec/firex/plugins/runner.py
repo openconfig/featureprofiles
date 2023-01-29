@@ -121,15 +121,11 @@ def BringupTestbed(self, ws, images = None,
             file=ondatra_testbed_path)
     else:
         if ondatra_binding_path[0] != '/':
-            shutil.copyfile(os.path.join(exec_repo_dir, ondatra_binding_path), 
-                os.path.join(ws, 'ondatra.binding'))
-            ondatra_binding_path = os.path.join(ws, 'ondatra.binding')
+            ondatra_binding_path = os.path.join(exec_repo_dir, ondatra_binding_path)
 
         if ondatra_testbed_path[0] != '/':
-            shutil.copyfile(os.path.join(exec_repo_dir, ondatra_testbed_path), 
-                os.path.join(ws, 'ondatra.testbed'))
-            ondatra_testbed_path = os.path.join(ws, 'ondatra.testbed')
-        
+            ondatra_testbed_path = os.path.join(exec_repo_dir, ondatra_testbed_path)
+
         if base_conf_path and len(base_conf_path) > 0:
             if base_conf_path[0] != '/':
                 base_conf_path = os.path.join(exec_repo_dir, base_conf_path)
