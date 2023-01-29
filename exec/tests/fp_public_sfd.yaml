@@ -16,7 +16,7 @@ tests:
   mustpass: true
 - name: TE-15.1 (gRIBI Compliance) 
   path: feature/gribi/ate_tests/gribigo_compliance_test
-  priority: 2
+  priority: 1
   owner: mananpat@cisco.com
   mustpass: true
 - name: TE-2.1 (gRIBI IPv4 Entry) 
@@ -59,7 +59,7 @@ tests:
   path: feature/gribi/ate_tests/weighted_balancing_test
   patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
   mustpass: true
-  priority: 3
+  priority: 2
 - name: TE-3.3 (Hierarchical weight resolution)
   path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
   owner: mananpat@cisco.com
