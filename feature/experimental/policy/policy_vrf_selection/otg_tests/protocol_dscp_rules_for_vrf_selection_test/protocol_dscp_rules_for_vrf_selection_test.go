@@ -323,7 +323,12 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 		t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
 		outPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 		inPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-		lossPct := ((outPkts - inPkts) * 100) / outPkts
+		var lossPct uint64
+		if outPkts == 0 {
+			t.Logf("The loss percentage can't be calculated if no packets are sent.")
+		} else {
+			lossPct = ((outPkts - inPkts) * 100) / outPkts
+		}
 
 		// log stats
 		t.Log("All flow LossPct: ", lossPct)
