@@ -1,0 +1,13 @@
+diff --git a/internal/rundata/rundata.go b/internal/rundata/rundata.go
+index 465dcaeb..83abcfbf 100644
+--- a/internal/rundata/rundata.go
++++ b/internal/rundata/rundata.go
+@@ -119,7 +119,7 @@ func Properties(ctx context.Context, resv *binding.Reservation) map[string]strin
+ 
+ 	if resv != nil {
+ 		m["topology"] = topology(resv)
+-		dutsInfo(ctx, m, resv)
++		//dutsInfo(ctx, m, resv)
+ 	}
+ 
+ 	return m

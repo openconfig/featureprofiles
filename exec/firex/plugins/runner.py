@@ -39,7 +39,7 @@ ONDATRA_SIM_PATCHES = [
 ]
 
 FP_PATCHES = [
-
+    'exec/firex/plugins/fp_patch/disable-rundata.patch'
 ]
 
 whitelist_arguments([
