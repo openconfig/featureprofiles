@@ -110,7 +110,6 @@ index 1667dec5..1486ea48 100644
  	}, func(isis *ixnet.ISIS) {
  		// disable global hello padding on the ATE
  		isis.WithHelloPaddingEnabled(false)
-
 diff --git a/feature/experimental/isis/ate_tests/internal/session/session.go b/feature/experimental/isis/ate_tests/internal/session/session.go
 index 145b97c2..b8f1d39f 100644
 --- a/feature/experimental/isis/ate_tests/internal/session/session.go
@@ -160,3 +159,4 @@ index 145b97c2..b8f1d39f 100644
  }
  
  // TestSession is a convenience wrapper around the dut, ate, ports, and
+ 
