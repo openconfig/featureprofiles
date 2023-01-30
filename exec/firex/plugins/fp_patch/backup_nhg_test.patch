@@ -1,0 +1,16 @@
+diff --git a/feature/experimental/backup_nhg/ate_tests/backup_nhg_test/backup_nhg_test.go b/feature/experimental/backup_nhg/ate_tests/backup_nhg_test/backup_nhg_test.go
+index ea94a4f1..fe0ad4c0 100644
+--- a/feature/experimental/backup_nhg/ate_tests/backup_nhg_test/backup_nhg_test.go
++++ b/feature/experimental/backup_nhg/ate_tests/backup_nhg_test/backup_nhg_test.go
+@@ -132,6 +132,11 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
+ 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+ 		t.Fatalf("Await got error during session negotiation: %v", err)
+ 	}
++	gribi.BecomeLeader(t, c)
++	// Flush all entries before test.
++	if err := gribi.FlushAll(c); err != nil {
++		t.Errorf("Cannot flush: %v", err)
++	}
+ 
+ 	tcArgs := &testArgs{
+ 		ate:    ate,
