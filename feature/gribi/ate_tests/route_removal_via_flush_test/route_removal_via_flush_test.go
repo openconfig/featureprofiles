@@ -223,6 +223,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
 }
 
 // configureATE configures port1, port2 on the ATE.
