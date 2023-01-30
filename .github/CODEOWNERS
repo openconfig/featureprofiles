@@ -8,9 +8,9 @@
 # review when someone opens a pull request.
 *       @openconfig/featureprofiles-maintainers @openconfig/featureprofiles-quattro-tl
 
-# reviewers for tests which are ported from ate-tests to 
-# otg-tests may be reviewed by this team
-**/otg_tests/**    @openconfig/featureprofiles-maintainers-otg
+# Tests which are ported from ate_tests to otg_tests may be reviewed by this team.
+**/otg_tests/**      @openconfig/featureprofiles-maintainers-otg @openconfig/featureprofiles-maintainers @openconfig/featureprofiles-quattro-tl
+/internal/otgutils/  @openconfig/featureprofiles-maintainers-otg @openconfig/featureprofiles-maintainers @openconfig/featureprofiles-quattro-tl
 
 # Order is important; the last matching pattern takes the most
 # precedence.
