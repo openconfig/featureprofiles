@@ -15,6 +15,7 @@
 package qos_ecn_config_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -59,17 +60,19 @@ func TestECNConfig(t *testing.T) {
 	q := d.GetOrCreateQos()
 
 	ecnConfig := struct {
-		ecnEnabled   bool
-		dropEnabled  bool
-		minThreshold uint64
-		maxThreshold uint64
-		weight       uint32
+		ecnEnabled                bool
+		dropEnabled               bool
+		minThreshold              uint64
+		maxThreshold              uint64
+		maxDropProbabilityPercent uint8
+		weight                    uint32
 	}{
-		ecnEnabled:   true,
-		dropEnabled:  false,
-		minThreshold: uint64(80000),
-		maxThreshold: uint64(0),
-		weight:       uint32(0),
+		ecnEnabled:                true,
+		dropEnabled:               false,
+		minThreshold:              uint64(80000),
+		maxThreshold:              math.MaxUint64,
+		maxDropProbabilityPercent: uint8(1),
+		weight:                    uint32(0),
 	}
 
 	queueMgmtProfile := q.GetOrCreateQueueManagementProfile("DropProfile")
@@ -80,12 +83,36 @@ func TestECNConfig(t *testing.T) {
 	uniform.SetDrop(ecnConfig.dropEnabled)
 	uniform.SetMinThreshold(ecnConfig.minThreshold)
 	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
+	// TODO: uncomment the following config after it is supported.
+	// uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
 	// uniform.SetWeight(ecnConfig.weight)
 
 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	// queueMgmtProfiles := gnmi.GetAll(t, dut, gnmi.OC().Qos().QueueManagementProfileAny().Name().Config())
-	// t.Logf("queueMgmtProfiles from telmetry: %v", queueMgmtProfiles)
+
+	// TODO: Remove the following t.Skipf() after the config verification code has been tested.
+	t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
+
+	// Verify the QueueManagementProfile is applied by checking the telemetry path state values.
+	wredUniform := gnmi.OC().Qos().QueueManagementProfile("DropProfile").Wred().Uniform()
+	if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {
+		t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
+	}
+	if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), ecnConfig.dropEnabled; got != want {
+		t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
+	}
+	if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), ecnConfig.minThreshold; got != want {
+		t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
+	}
+	if got, want := gnmi.Get(t, dut, wredUniform.MaxThreshold().State()), ecnConfig.maxThreshold; got != want {
+		t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
+	}
+	if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().State()), ecnConfig.maxDropProbabilityPercent; got != want {
+		t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
+	}
+	if got, want := gnmi.Get(t, dut, wredUniform.Weight().State()), ecnConfig.weight; got != want {
+		t.Errorf("wredUniform.Weight().State(): got %v, want %v", got, want)
+	}
 }
 
 func TestQoSOutputIntfConfig(t *testing.T) {
@@ -148,9 +175,23 @@ func TestQoSOutputIntfConfig(t *testing.T) {
 			queue := output.GetOrCreateQueue(tc.queueName)
 			queue.SetQueueManagementProfile(tc.ecnProfile)
 			queue.SetName(tc.queueName)
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
+
+		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
+		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
+
+		// Verify the policy is applied by checking the telemetry path state values.
+		policy := gnmi.OC().Qos().Interface(dp.Name()).Output().SchedulerPolicy()
+		outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(tc.queueName)
+		if got, want := gnmi.Get(t, dut, policy.Name().State()), tc.scheduler; got != want {
+			t.Errorf("policy.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, outQueue.Name().State()), tc.queueName; got != want {
+			t.Errorf("outQueue.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), tc.ecnProfile; got != want {
+			t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
+		}
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	// outputIntf := gnmi.GetAll(t, dut, gnmi.OC().Qos().Interface(dp.Name()).Output().QueueAny().Name().Config())
-	// t.Logf("qos output interface from telmetry: %v", outputIntf)
 }

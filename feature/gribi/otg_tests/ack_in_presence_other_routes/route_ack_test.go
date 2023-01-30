@@ -148,6 +148,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
 
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port3"))
+	}
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -239,7 +244,6 @@ func configureNetworkInstance(t *testing.T) {
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
 	ni1 := gnmi.GetConfig(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Config())
 	static := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
-	static.Enabled = ygot.Bool(true)
 	sr := static.GetOrCreateStatic(prefix)
 	nh := sr.GetOrCreateNextHop("nhg1")
 	nh.NextHop = oc.UnionString(nexthop)
