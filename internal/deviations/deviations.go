@@ -126,4 +126,6 @@ var (
 	MissingPrePolicyReceivedRoutes = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
 
 	RoutePolicyUnderNeighborAfiSafi = flag.Bool("deviation_rpl_under_neighbor_afisafi", false, "Device requires route-policy configuration under bgp neighbor afisafi. Fully-compliant devices should pass with this deviation set to true.")
+
+	P4rtTtlHoplimitZero = flag.Bool("deviation_p4rt_ttl0_hoplimit0", false, "Device does not support handling illegal IPv4 TTL=0 and IPv6 Hoplimit=0 packets. In ideal condition these packets should not be forwarded by any upstream device.")
 )

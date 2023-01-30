@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
@@ -63,6 +64,9 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.leader
 	desc := "PacketOut from Primary Controller"
 	ttls := []int{0, 1}
+	if *deviations.P4rtTtlHoplimitZero {
+		ttls = []int{1}
+	}
 	//for ipv4
 	t.Run(desc+" ipv4 ", func(t *testing.T) {
 		// Check initial packet counters
