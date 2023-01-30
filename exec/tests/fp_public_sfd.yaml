@@ -415,10 +415,10 @@ tests:
 - name: DP-1.2 (QoS policy feature config)
   path: feature/experimental/qos/ate_tests/qos_policy_config_test
   owner: arvbaska@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 802
 - name: DP-1.3 (QoS ECN feature config) 
   path: feature/experimental/qos/ate_tests/qos_ecn_config_test
   owner: arvbaska@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 802
