@@ -60,9 +60,16 @@ import (
 	"github.com/openconfig/ondatra/binding"
 )
 
-// TestPlanID can be set by a test to optionally self-report the test
-// plan ID.
-var TestPlanID string
+var (
+	// TestPlanID should be set by a test to self-report the test plan ID.
+	TestPlanID string
+
+	// TestDescription should be set by a test to self-report the one-line description.
+	TestDescription string
+
+	// TestUUID should be set by a test to self-report the test UUID.
+	TestUUID string
+)
 
 var (
 	knownIssueURL = flag.String("known_issue_url", "", "Report a known issue that explains why the test fails.  This should be a URL to the issue tracker.")
@@ -99,6 +106,13 @@ func Properties(ctx context.Context, resv *binding.Reservation) map[string]strin
 	if TestPlanID != "" {
 		m["test.plan_id"] = TestPlanID
 	}
+	if TestDescription != "" {
+		m["test.description"] = TestDescription
+	}
+	if TestUUID != "" {
+		m["test.uuid"] = TestUUID
+	}
+
 	if *knownIssueURL != "" {
 		m["known_issue_url"] = *knownIssueURL
 	}
