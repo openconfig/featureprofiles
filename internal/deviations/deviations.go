@@ -126,10 +126,8 @@ var (
 	MissingPrePolicyReceivedRoutes = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
 
 	RoutePolicyUnderNeighborAfiSafi = flag.Bool("deviation_rpl_under_neighbor_afisafi", false, "Device requires route-policy configuration under bgp neighbor afisafi. Fully-compliant devices should pass with this deviation set to true.")
-	
+
 	TraceRouteL4ProtocolUDP = flag.Bool("traceroute_l4_protocol_udp", true, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
-	
-	TraceRouteOnlySupportsL4ProtocolUDP = flag.Bool("trace_route_l4protocol_udp", true, "Device only supports UDP as L4Protocol for traceroute.")
 
 	TraceRouteFragmenation = flag.Bool("TraceRouteFragmenation", true, "Device does not support fragmentation bit for traceroute.")
 )

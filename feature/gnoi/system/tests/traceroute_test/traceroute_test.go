@@ -244,7 +244,7 @@ func TestGNOITraceroute(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			time.Sleep(1 * time.Second) // some devices do not allow back to back traceroute to prevent flooding
-			if *deviations.TraceRouteOnlySupportsL4ProtocolUDP {
+			if *deviations.TraceRouteL4ProtocolUDP {
 				if tc.defaultL4Protocol {
 					tc.traceRequest.L4Protocol = spb.TracerouteRequest_UDP
 				}
