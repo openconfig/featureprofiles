@@ -102,6 +102,9 @@ func TestMetric(t *testing.T) {
 		GetOrCreateLevel(2).
 		GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).
 		Metric = ygot.Uint32(configuredMetric)
+	ts.DUTConf.GetNetworkInstance(*deviations.DefaultNetworkInstance).GetProtocol(session.PTISIS, session.ISISName).GetIsis().GetOrCreateLevel(2).
+		MetricStyle = oc.E_Isis_MetricStyle(2)
+
 	ts.PushAndStart(t)
 	ts.MustAdjacency(t)
 
