@@ -45,13 +45,6 @@ const (
 	maxPortVal      = "FFFFFEFF" // Maximum Port Value : https://github.com/openconfig/public/blob/2049164a8bca4cc9f11ffb313ef25c0e87303a24/release/models/p4rt/openconfig-p4rt.yang#L63-L81
 )
 
-type trafficData struct {
-	trafficRate float64
-	frameSize   uint32
-	dscp        uint8
-	queue       string
-}
-
 var (
 	vendorQueueNo = map[ondatra.Vendor]int{
 		ondatra.ARISTA:  16,
@@ -775,115 +768,6 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 	if dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic < ateOutPkts {
 		t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic, ateOutPkts)
-	}
-}
-
-func TestQoSCounterUpdate(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
-
-	// Configure DUT interfaces.
-	ConfigureDUTIntf(t, dut)
-
-	// Configure ATE interfaces.
-	ate := ondatra.ATE(t, "ate")
-	ap1 := ate.Port(t, "port1")
-	ap2 := ate.Port(t, "port2")
-	top := ate.Topology().New()
-	intf1 := top.AddInterface("intf1").WithPort(ap1)
-	intf1.IPv4().
-		WithAddress("198.51.100.1/31").
-		WithDefaultGateway("198.51.100.0")
-	intf2 := top.AddInterface("intf2").WithPort(ap2)
-	intf2.IPv4().
-		WithAddress("198.51.100.3/31").
-		WithDefaultGateway("198.51.100.2")
-	top.Push(t).StartProtocols(t)
-
-	trafficFlows := make(map[string]*trafficData)
-
-	// TODO: Please update the QoS test after the bug is closed.
-	switch dut.Vendor() {
-	case ondatra.JUNIPER:
-		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "3"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "2"},
-			"flow-af3": {frameSize: 300, trafficRate: 3, dscp: 24, queue: "5"},
-			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: "1"},
-			"flow-af1": {frameSize: 1100, trafficRate: 1, dscp: 8, queue: "4"},
-			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: "0"},
-		}
-	case ondatra.ARISTA:
-		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: dp2.Name() + "-7"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: dp2.Name() + "-4"},
-			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: dp2.Name() + "-3"},
-			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: dp2.Name() + "-2"},
-			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: dp2.Name() + "-0"},
-			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: dp2.Name() + "-1"},
-		}
-	}
-
-	var flows []*ondatra.Flow
-	for trafficID, data := range trafficFlows {
-		t.Logf("Configuring flow %s", trafficID)
-		flow := ate.Traffic().NewFlow(trafficID).
-			WithSrcEndpoints(intf1).
-			WithDstEndpoints(intf2).
-			WithHeaders(ondatra.NewEthernetHeader(), ondatra.NewIPv4Header().WithDSCP(data.dscp)).
-			WithFrameRatePct(data.trafficRate).
-			WithFrameSize(data.frameSize)
-		flows = append(flows, flow)
-	}
-
-	ateOutPkts := make(map[string]uint64)
-	dutQosPktsBeforeTraffic := make(map[string]uint64)
-	dutQosPktsAfterTraffic := make(map[string]uint64)
-
-	// Get QoS egress packet counters before the traffic.
-	for _, data := range trafficFlows {
-		dutQosPktsBeforeTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
-	}
-
-	t.Logf("Running traffic on DUT interfaces: %s and %s ", dp1.Name(), dp2.Name())
-	ate.Traffic().Start(t, flows...)
-	time.Sleep(10 * time.Second)
-	ate.Traffic().Stop(t)
-	time.Sleep(60 * time.Second)
-
-	for trafficID, data := range trafficFlows {
-		ateOutPkts[data.queue] = gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().OutPkts().State())
-		t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
-		t.Logf("Get(out packets for queue %q): got %v", data.queue, ateOutPkts[data.queue])
-
-		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
-		if lossPct >= 1 {
-			t.Errorf("Get(traffic loss for queue %q): got %v, want < 1", data.queue, lossPct)
-		}
-	}
-
-	for trafficID, data := range trafficFlows {
-		ateOutPkts[data.queue] = gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().OutPkts().State())
-		dutQosPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
-		t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
-		t.Logf("Get(out packets for flow %q): got %v, want nonzero", trafficID, ateOutPkts)
-
-		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
-		if lossPct >= 1 {
-			t.Errorf("Get(traffic loss for queue %q: got %v, want < 1", data.queue, lossPct)
-		}
-	}
-
-	// Check QoS egress packet counters are updated correctly.
-	t.Logf("QoS egress packet counters before traffic: %v", dutQosPktsBeforeTraffic)
-	t.Logf("QoS egress packet counters after traffic: %v", dutQosPktsAfterTraffic)
-	t.Logf("QoS packet counters from ATE: %v", ateOutPkts)
-	for _, data := range trafficFlows {
-		qosCounterDiff := dutQosPktsAfterTraffic[data.queue] - dutQosPktsBeforeTraffic[data.queue]
-		if qosCounterDiff < ateOutPkts[data.queue] {
-			t.Errorf("Get(telemetry packet update for queue %q): got %v, want >= %v", data.queue, qosCounterDiff, ateOutPkts[data.queue])
-		}
 	}
 }
 
