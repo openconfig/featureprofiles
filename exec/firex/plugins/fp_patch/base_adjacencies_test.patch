@@ -111,7 +111,7 @@ index 1667dec5..1486ea48 100644
  		// disable global hello padding on the ATE
  		isis.WithHelloPaddingEnabled(false)
 diff --git a/feature/experimental/isis/ate_tests/internal/session/session.go b/feature/experimental/isis/ate_tests/internal/session/session.go
-index 145b97c2..b8f1d39f 100644
+index 145b97c2..fba3cbb3 100644
 --- a/feature/experimental/isis/ate_tests/internal/session/session.go
 +++ b/feature/experimental/isis/ate_tests/internal/session/session.go
 @@ -106,17 +106,32 @@ func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
@@ -119,7 +119,7 @@ index 145b97c2..b8f1d39f 100644
  	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
  	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
 -	prot.Enabled = ygot.Bool(true)
-+	if *deviations.ISISprotocolEnabledNotRequired {
++	if !*deviations.ISISprotocolEnabledNotRequired {
 +		prot.Enabled = ygot.Bool(true)
 +	}
  	isis := prot.GetOrCreateIsis()
@@ -159,4 +159,3 @@ index 145b97c2..b8f1d39f 100644
  }
  
  // TestSession is a convenience wrapper around the dut, ate, ports, and
- 
