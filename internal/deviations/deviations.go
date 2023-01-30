@@ -129,7 +129,7 @@ var (
 
 	TraceRouteL4ProtocolUDP = flag.Bool("traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
 
-	TraceRouteFragmenation = flag.Bool("TraceRouteFragmenation", false, "Device does not support fragmentation bit for traceroute.")
+	TraceRouteFragmentation = flag.Bool("traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
 
 	ConnectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
 

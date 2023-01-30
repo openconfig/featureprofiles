@@ -252,9 +252,9 @@ func TestGNOITraceroute(t *testing.T) {
 					t.Skip("Test is skiped due to the TraceRouteL4ProtocolUDP deviatiopn")
 				}
 			}
-			if *deviations.TraceRouteFragmenation {
+			if *deviations.TraceRouteFragmentation {
 				if tc.traceRequest.DoNotFragment {
-					t.Skip("Test is skiped due to the TraceRouteFragmenation deviatiopn")
+					t.Skip("Test is skiped due to the TraceRouteFragmentation deviatiopn")
 				}
 			}
 			t.Logf("Sent traceroute request: %v\n\n", tc.traceRequest)
