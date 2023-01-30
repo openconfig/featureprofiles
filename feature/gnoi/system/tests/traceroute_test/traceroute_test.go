@@ -249,7 +249,7 @@ func TestGNOITraceroute(t *testing.T) {
 					tc.traceRequest.L4Protocol = spb.TracerouteRequest_UDP
 				}
 				if tc.traceRequest.L4Protocol != spb.TracerouteRequest_UDP {
-					t.Skip("Test is skiped due to the TraceRouteOnlySupportsL4ProtocolUDP deviatiopn")
+					t.Skip("Test is skiped due to the TraceRouteL4ProtocolUDP deviatiopn")
 				}
 			}
 			if *deviations.TraceRouteFragmenation {
