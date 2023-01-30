@@ -319,15 +319,10 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flow ...*on
 }
 
 // getL3PBRRule returns an IPv4 or IPv6 policy-forwarding rule configuration populated with protocol and/or DSCPset information.
-func getL3PBRRule(args *testArgs, networkInstance string, index uint32, dscpset []uint8, discard bool) *oc.NetworkInstance_PolicyForwarding_Policy_Rule {
+func getL3PBRRule(args *testArgs, networkInstance string, index uint32, dscpset []uint8) *oc.NetworkInstance_PolicyForwarding_Policy_Rule {
 	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r.SequenceId = ygot.Uint32(index)
-	if networkInstance != "" {
-		r.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
-	}
-	if discard {
-		r.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{Discard: ygot.Bool(true)}
-	}
+	r.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
 	if args.iptype == "ipv4" {
 		r.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 			Protocol: args.protocol,
@@ -402,10 +397,9 @@ func TestPBR(t *testing.T) {
 			name: "RT3.2 Case1",
 			desc: "Ensure matching IPinIP with DSCP (10 - VRF10, 20- VRF20, 30-VRF30) traffic reaches appropriate VLAN.",
 			policy: getPBRPolicyForwarding(args,
-				getL3PBRRule(args, "VRF10", 1, []uint8{10}, false),
-				getL3PBRRule(args, "VRF20", 2, []uint8{20}, false),
-				getL3PBRRule(args, "VRF30", 3, []uint8{30}, false),
-				getL3PBRRule(args, "", 4, []uint8{}, true)),
+				getL3PBRRule(args, "VRF10", 1, []uint8{10}),
+				getL3PBRRule(args, "VRF20", 2, []uint8{20}),
+				getL3PBRRule(args, "VRF30", 3, []uint8{30})),
 			// use IPinIP DSCP10, DSCP20, DSCP30 flows for VLAN10, VLAN20 and VLAN30 respectively.
 			passingFlows: []*ondatra.Flow{
 				getIPinIPFlow(args, dstEndPointVlan10, "ipinipd10", 10),
@@ -416,10 +410,9 @@ func TestPBR(t *testing.T) {
 			name: "RT3.2 Case2",
 			desc: "Ensure matching IPinIP with DSCP (10-12 - VRF10, 20-22- VRF20, 30-32-VRF30) traffic reaches appropriate VLAN.",
 			policy: getPBRPolicyForwarding(args,
-				getL3PBRRule(args, "VRF10", 1, []uint8{10, 11, 12}, false),
-				getL3PBRRule(args, "VRF20", 2, []uint8{20, 21, 22}, false),
-				getL3PBRRule(args, "VRF30", 3, []uint8{30, 31, 32}, false),
-				getL3PBRRule(args, "", 4, []uint8{}, true)),
+				getL3PBRRule(args, "VRF10", 1, []uint8{10, 11, 12}),
+				getL3PBRRule(args, "VRF20", 2, []uint8{20, 21, 22}),
+				getL3PBRRule(args, "VRF30", 3, []uint8{30, 31, 32})),
 			// use IPinIP flows with DSCP10-12 for VLAN10, DSCP20-22 for VLAN20, DSCP30-32 for VLAN30.
 			passingFlows: []*ondatra.Flow{
 				getIPinIPFlow(args, dstEndPointVlan10, "ipinipd10", 10),
@@ -438,9 +431,8 @@ func TestPBR(t *testing.T) {
 			name: "RT3.2 Case3",
 			desc: "Ensure first matching of IPinIP with DSCP (10-12 - VRF10, 10-12 - VRF20) rule takes precedence.",
 			policy: getPBRPolicyForwarding(args,
-				getL3PBRRule(args, "VRF10", 1, []uint8{10, 11, 12}, false),
-				getL3PBRRule(args, "VRF20", 2, []uint8{10, 11, 12}, false),
-				getL3PBRRule(args, "", 4, []uint8{}, true)),
+				getL3PBRRule(args, "VRF10", 1, []uint8{10, 11, 12}),
+				getL3PBRRule(args, "VRF20", 2, []uint8{10, 11, 12})),
 			// use IPinIP DSCP10-12 flows for VLAN10 as well as VLAN20.
 			passingFlows: []*ondatra.Flow{
 				getIPinIPFlow(args, dstEndPointVlan10, "ipinipd10", 10),
@@ -455,9 +447,8 @@ func TestPBR(t *testing.T) {
 			name: "RT3.2 Case4",
 			desc: "Ensure matching IPinIP to VRF10, IPinIP with DSCP20 to VRF20 causes unspecified DSCP IPinIP traffic to match VRF10.",
 			policy: getPBRPolicyForwarding(args,
-				getL3PBRRule(args, "VRF10", 1, []uint8{}, false),
-				getL3PBRRule(args, "VRF20", 2, []uint8{20}, false),
-				getL3PBRRule(args, "", 4, []uint8{}, true)),
+				getL3PBRRule(args, "VRF10", 1, []uint8{}),
+				getL3PBRRule(args, "VRF20", 2, []uint8{20})),
 			// use IPinIP DSCP10-12 flows to match IPinIP to VRF10
 			// use IPinIP DSCP20 flow to match to VRF20
 			// use IPinIP DSCP10-12 flows to match to VRF20 to show they fail for VRF20
@@ -478,6 +469,7 @@ func TestPBR(t *testing.T) {
 			pfpath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding()
 
 			//configure pbr policy-forwarding
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
 			dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
@@ -485,6 +477,7 @@ func TestPBR(t *testing.T) {
 			defer gnmi.Delete(t, args.dut, pfpath.Config())
 
 			// apply pbr policy on ingress interface
+			gnmi.Replace(t, args.dut, pfpath.Interface(port1.Name()).ApplyVrfSelectionPolicy().Config(), args.policyName)
 			p1 := port1.Name()
 			d := &oc.Root{}
 			pfIntf := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(p1)
