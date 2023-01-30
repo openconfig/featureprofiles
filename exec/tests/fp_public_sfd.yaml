@@ -308,11 +308,12 @@ tests:
   skip: false
 - name: RT-2.2 (IS-IS LSP Updates) 
   path: feature/experimental/isis/ate_tests/lsp_updates_test
-  patch: exec/firex/plugins/fp_patch/base_adjacencies_test.patch
+  patch: exec/firex/plugins/fp_patch/lsp_updates_test.patch
   owner: mananpat@cisco.com
   args:
        - '-deviation_isis_af_metric_style_wide_level_required="true"'
        - '-deviation_missing_isis_interface_afi_safi_enable="true"'
+       - '-deviation_isis_protocol_enabled_not_required="true"'
   mustpass: false
   priority: 48
   skip: false
@@ -326,6 +327,7 @@ tests:
       - '-deviation_missing_isis_interface_afi_safi_enable="true"'
       - '-deviation_isis_hello_padding_adaptive_mode_not_supported="true"'
       - '-deviation_isis_single_topology_required="true"'
+      - '-deviation_isis_protocol_enabled_not_required="true"'
   mustpass: false
   priority: 49
   skip: false
