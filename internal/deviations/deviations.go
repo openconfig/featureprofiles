@@ -127,5 +127,9 @@ var (
 
 	RoutePolicyUnderNeighborAfiSafi = flag.Bool("deviation_rpl_under_neighbor_afisafi", false, "Device requires route-policy configuration under bgp neighbor afisafi. Fully-compliant devices should pass with this deviation set to true.")
 
+	ConnectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
+
+	MissingBgpNeighborStatePeerGroup = flag.Bool("deviation_missing_bgp_neighbor_state_peer_group", false, "Device requires peer-group under bgp neighbor bgp/neighbors/neighbor/state/peer-group.")
+
 	P4rtTtlHoplimitZero = flag.Bool("deviation_p4rt_ttl0_hoplimit0", false, "Device does not support handling illegal IPv4 TTL=0 and IPv6 Hoplimit=0 packets. In ideal condition these packets should not be forwarded by any upstream device.")
 )
