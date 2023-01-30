@@ -267,6 +267,10 @@ tests:
 - name: gNOI-5.2 (Traceroute Test) 
   path: feature/gnoi/system/tests/traceroute_test
   owner: agvarghe@cisco.com
+  patch: exec/firex/plugins/fp_patch/traceroute_test.patch
+  args:
+      - 'traceroute_l4_protocol_udp="true"'
+      - 'traceroute_fragmentation="true"'
   mustpass: true
   priority: 41
   skip: false
@@ -408,6 +412,7 @@ tests:
   priority: 50
 - name: OC-1.2 (Default Address)
   path: feature/networkinstance/ate_tests/defaults_test
+  patch: exec/firex/plugins/fp_patch/defaults_test.patch
   owner: mbagherz@cisco.com
   mustpass: true
   priority: 801
