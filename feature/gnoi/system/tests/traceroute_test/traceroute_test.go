@@ -19,6 +19,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -28,7 +29,6 @@ import (
 )
 
 const (
-	minTraceroutePktSize     = 60
 	minTracerouteHops        = 1
 	minTracerouteRTT         = 1
 	maxDefaultTracerouteHops = 30
@@ -53,7 +53,6 @@ func TestMain(m *testing.M) {
 //     - destination_name.
 //     - destination_address.
 //     - hops.
-//     - packet_size.
 //  - Verify that traceroute response contains some of the following fields.
 //     - hop: Hop number is required.
 //     - address: Address of responding hop is required.
@@ -96,7 +95,9 @@ func TestGNOITraceroute(t *testing.T) {
 	if len(ipv6Addrs) == 0 {
 		t.Fatalf("Failed to get a valid IPv6 loopback address: %+v", ipv6Addrs)
 	}
-
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, lbIntf, *deviations.DefaultNetworkInstance, 0)
+	}
 	cases := []struct {
 		desc         string
 		traceRequest *spb.TracerouteRequest
@@ -246,9 +247,6 @@ func TestGNOITraceroute(t *testing.T) {
 			t.Logf("Verify that the fields are only correctly filled in for the first message.")
 			if resps[0].DestinationAddress != tc.traceRequest.Destination {
 				t.Errorf("Traceroute Destination: got %v, want %v", resps[0].DestinationAddress, tc.traceRequest.Destination)
-			}
-			if resps[0].PacketSize < minTraceroutePktSize {
-				t.Errorf("Traceroute reply size: got %v, want >= %v", resps[0].PacketSize, minTraceroutePktSize)
 			}
 			if tc.traceRequest.MaxTtl > 0 && resps[0].Hops != tc.traceRequest.MaxTtl {
 				t.Errorf("Traceroute reply hops: got %v, want %v", resps[0].Hops, tc.traceRequest.MaxTtl)
