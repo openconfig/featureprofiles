@@ -113,7 +113,6 @@ func syncElectionID(t *testing.T, dut *ondatra.DUTDevice) {
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection for clientA could not be established")
 	}
-	clientA.BecomeLeader(t)
 	electionID := clientA.LearnElectionID(t)
 	compliance.SetElectionID(electionID.Increment().Low)
 	clientA.Close(t)
