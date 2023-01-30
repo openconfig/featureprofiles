@@ -324,12 +324,12 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 			t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
 			outPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 			inPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-			var lossPct uint64
+
 			if outPkts == 0 {
 				t.Fatalf("OutPkts == 0, want >0.")
 			}
 
-			lossPct = ((outPkts - inPkts) * 100) / outPkts
+			lossPct := ((outPkts - inPkts) * 100) / outPkts
 
 			// log stats
 			t.Log("Flow LossPct: ", lossPct)
