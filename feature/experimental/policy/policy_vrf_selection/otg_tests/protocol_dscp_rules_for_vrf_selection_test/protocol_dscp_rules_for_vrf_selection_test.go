@@ -320,30 +320,31 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 	top := args.ate.OTG().FetchConfig(t)
 	otgutils.LogFlowMetrics(t, args.ate.OTG(), top)
 	for _, flow := range flows {
-		t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
-		outPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-		inPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-		var lossPct uint64
-		if outPkts == 0 {
-			t.Logf("The loss percentage can't be calculated if no packets are sent.")
-		} else {
+		t.Run(flow.Name(), func(t *testing.T) {
+			t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
+			outPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+			inPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
+			var lossPct uint64
+			if outPkts == 0 {
+				t.Fatalf("OutPkts == 0, want >0.")
+			}
+
 			lossPct = ((outPkts - inPkts) * 100) / outPkts
-		}
 
-		// log stats
-		t.Log("All flow LossPct: ", lossPct)
-		t.Log("FlowAny InPkts  : ", inPkts)
-		t.Log("FlowAny OutPkts : ", outPkts)
+			// log stats
+			t.Log("Flow LossPct: ", lossPct)
+			t.Log("Flow InPkts  : ", inPkts)
+			t.Log("Flow OutPkts : ", outPkts)
 
-		if (expectPass == true) && (lossPct == 0) {
-			t.Logf("Traffic for %v flow is passing as expected", flow.Name())
-		} else if (expectPass == false) && (lossPct == 100) {
-			t.Logf("Traffic for %v flow is failing as expected", flow.Name())
-		} else {
-			t.Fatalf("Traffic is not working as expected for flow: %v.", flow.Name())
-		}
+			if (expectPass == true) && (lossPct == 0) {
+				t.Logf("Traffic for %v flow is passing as expected", flow.Name())
+			} else if (expectPass == false) && (lossPct == 100) {
+				t.Logf("Traffic for %v flow is failing as expected", flow.Name())
+			} else {
+				t.Fatalf("Traffic is not working as expected for flow: %v.", flow.Name())
+			}
+		})
 	}
-
 }
 
 // getL3PBRRule returns an IPv4 or IPv6 policy-forwarding rule configuration populated with protocol and/or DSCPset information.
