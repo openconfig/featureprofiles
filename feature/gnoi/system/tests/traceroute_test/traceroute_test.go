@@ -275,8 +275,6 @@ func TestGNOITraceroute(t *testing.T) {
 			if resps[0].DestinationAddress != tc.traceRequest.Destination {
 				t.Errorf("Traceroute Destination: got %v, want %v", resps[0].DestinationAddress, tc.traceRequest.Destination)
 			}
-			// if the device allows traceroute to its loopback then hops can be one most of the time.
-			// TODO: traceroute to loobback is not a reliable way to test traceroute. We need to use ATE.
 			if tc.traceRequest.MaxTtl > 0 && resps[0].Hops != tc.traceRequest.MaxTtl {
 				t.Errorf("Traceroute reply hops: got %v, want %v", resps[0].Hops, tc.traceRequest.MaxTtl)
 			} else if tc.traceRequest.MaxTtl == 0 && resps[0].Hops != maxDefaultTracerouteHops {
