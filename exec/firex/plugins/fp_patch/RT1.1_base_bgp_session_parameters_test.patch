@@ -1,0 +1,35 @@
+diff --git a/feature/experimental/bgp/ate_tests/base_bgp_session_parameters/base_bgp_session_parameters_test.go b/feature/experimental/bgp/ate_tests/base_bgp_session_parameters/base_bgp_session_parameters_test.go
+index d1ef9454..e2097b00 100644
+--- a/feature/experimental/bgp/ate_tests/base_bgp_session_parameters/base_bgp_session_parameters_test.go
++++ b/feature/experimental/bgp/ate_tests/base_bgp_session_parameters/base_bgp_session_parameters_test.go
+@@ -130,7 +130,9 @@ func bgpCreateNbr(bgpParams *bgpTestParams) *oc.NetworkInstance_Protocol {
+ 	nv4t := nv4.GetOrCreateTimers()
+ 	nv4t.HoldTime = ygot.Uint16(dutHoldTime)
+ 	nv4t.KeepaliveInterval = ygot.Uint16(dutKeepaliveTime)
+-	nv4t.ConnectRetry = ygot.Uint16(connRetryTime)
++	if !*deviations.ConnectRetry {
++		nv4t.ConnectRetry = ygot.Uint16(connRetryTime)
++	}
+ 
+ 	nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+ 	return ni_proto
+@@ -295,8 +297,8 @@ func TestEstablishAndDisconnect(t *testing.T) {
+ 	// Send Cease Notification from ATE to DUT
+ 	t.Log("Send Cease Notification from ATE to DUT")
+ 	ate.Actions().NewBGPPeerNotification().WithCode(6).WithSubCode(6).WithPeers(bgpPeer).Send(t)
+-	t.Log("Verify BGP session state : ACTIVE")
+-	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*60, oc.Bgp_Neighbor_SessionState_ACTIVE)
++	t.Log("Verify BGP session state : IDLE")
++	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*60, oc.Bgp_Neighbor_SessionState_IDLE)
+ 
+ 	// Verify if Cease notification is received on DUT.
+ 	t.Log("Verify Error code received on DUT: BgpTypes_BGP_ERROR_CODE_CEASE")
+@@ -420,7 +422,7 @@ func TestParameters(t *testing.T) {
+ 		},
+ 		{
+ 			name:    "Test the iBGP session establishment: Neighbor AS",
+-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2, nbrLocalAS: dutAS2}),
++			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS2, nbrLocalAS: dutAS2}),
+ 			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP}, connInternal),
+ 		},
+ 	}
