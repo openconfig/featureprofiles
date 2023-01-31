@@ -11,5 +11,3 @@ tests:
   patch: exec/firex/plugins/internal_fp_patch/disable_aft_check.patch
   timeout: 36000
   mustpass: true
-  args: 
-    - '-gribi_aft_check="false"'

@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/flags"
 	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 // AddIPv4Batch adds a list of IPv4Entries mapping  prefixes to a given next hop group index within a given network instance.
@@ -59,7 +60,7 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 		t.Fatalf("Number of responses for programing results is not as expected, want: %d , got: %d ", expectResultCount, newResultsCount)
 	}
 	if check.FIBACK || check.RIBACK {
-		c.checkIPV4ResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
+		c.checkResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
 	}
 	if check.AFTCheck {
 		for _, prefix := range prefixes {
@@ -68,7 +69,85 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 	}
 }
 
-func (c *Client) checkIPV4ResultWithScale(t testing.TB, startIndex, endIndex int, expectFailure bool) {
+// AddNHBatch configures batch NH
+func (c *Client) AddNHBatch(t testing.TB, nhIndex uint64, prefixes []string, instance string, nhInstance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck, opts ...*NHOptions) {
+	resultLenBefore := len(c.fluentC.Results(t))
+	NHEntries := []fluent.GRIBIEntry{}
+	for index, prefix := range prefixes {
+		if prefix == DecapEncap {
+			for _, opt := range opts {
+				for dstIndex, dst := range opt.Dest {
+					NHEntry := fluent.NextHopEntry().WithNetworkInstance(instance).
+						WithIndex(nhIndex + uint64(dstIndex))
+					aftNh := c.getOrCreateAft(instance).GetOrCreateNextHop(nhIndex + uint64(dstIndex))
+					NHEntry = NHEntry.WithDecapsulateHeader(fluent.IPinIP)
+					aftNh.DecapsulateHeader = oc.Aft_EncapsulationHeaderType_IPV4
+					NHEntry = NHEntry.WithEncapsulateHeader(fluent.IPinIP)
+					aftNh.EncapsulateHeader = oc.Aft_EncapsulationHeaderType_IPV4
+					NHEntry = NHEntry.WithIPinIP(opt.Src, dst)
+					NHEntries = append(NHEntries, NHEntry)
+				}
+			}
+
+		} else {
+			NHEntry := fluent.NextHopEntry().WithNetworkInstance(instance).
+				WithIndex(nhIndex + uint64(index))
+			aftNh := c.getOrCreateAft(instance).GetOrCreateNextHop(nhIndex + uint64(index))
+			if prefix == DECAP {
+				NHEntry = NHEntry.WithDecapsulateHeader(fluent.IPinIP)
+				aftNh.DecapsulateHeader = oc.Aft_EncapsulationHeaderType_IPV4
+			} else if prefix == ENCAP {
+				NHEntry = NHEntry.WithEncapsulateHeader(fluent.IPinIP)
+				aftNh.EncapsulateHeader = oc.Aft_EncapsulationHeaderType_IPV4
+			} else if prefix != "" {
+				NHEntry = NHEntry.WithIPAddress(prefix)
+				aftNh.IpAddress = &prefix
+			}
+			if nhInstance != "" {
+				NHEntry = NHEntry.WithNextHopNetworkInstance(nhInstance)
+				aftNh.NetworkInstance = &nhInstance
+			}
+			if interfaceRef != "" {
+				NHEntry = NHEntry.WithInterfaceRef(interfaceRef)
+				aftNh.InterfaceRef = &oc.NetworkInstance_Afts_NextHop_InterfaceRef{Interface: &interfaceRef}
+			}
+			NHEntries = append(NHEntries, NHEntry)
+		}
+	}
+	c.fluentC.Modify().AddEntry(t, NHEntries...)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add NH entries: %v", err)
+	}
+	resultLenAfter := len(c.fluentC.Results(t))
+	newResultsCount := resultLenAfter - resultLenBefore
+	expectResultCount := len(prefixes)
+	if check.FIBACK {
+		expectResultCount = len(prefixes) * 2
+		for _, opt := range opts {
+			if len(opt.Dest) > 0 {
+				expectResultCount = len(opt.Dest) * 2
+			}
+		}
+	}
+	if newResultsCount != expectResultCount {
+		t.Fatalf("Number of responses for programing results is not as expected, want: %d , got: %d ", expectResultCount, newResultsCount)
+	}
+	if check.FIBACK || check.RIBACK {
+		c.checkResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
+	}
+	if check.AFTCheck {
+		for _, prefix := range prefixes {
+			if prefix == DECAP {
+				c.checkNH(t, nhIndex, "0.0.0.0", instance, "", "Null0")
+			} else {
+				c.checkNH(t, nhIndex, prefix, instance, nhInstance, interfaceRef)
+			}
+		}
+	}
+}
+
+// checkResultWithScale validates results
+func (c *Client) checkResultWithScale(t testing.TB, startIndex, endIndex int, expectFailure bool) {
 	results := c.fluentC.Results(t)
 	for i := startIndex; i < endIndex; i = i + 1 {
 		if results[i] == nil {
@@ -125,7 +204,7 @@ func (c *Client) ReplaceIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint
 		t.Fatalf("Number of responses for programing results is not as expected, want: %d , got: %d ", expectResultCount, newResultsCount)
 	}
 	if check.FIBACK || check.RIBACK {
-		c.checkIPV4ResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
+		c.checkResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
 	}
 
 	if check.AFTCheck {
@@ -166,6 +245,6 @@ func (c *Client) DeleteIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint6
 		t.Fatalf("Number of responses for programing results is not as expected, want: %d , got: %d ", expectResultCount, newResultsCount)
 	}
 	if check.FIBACK || check.RIBACK {
-		c.checkIPV4ResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
+		c.checkResultWithScale(t, resultLenBefore, resultLenAfter, expecteFailure)
 	}
 }
