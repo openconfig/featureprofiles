@@ -1576,15 +1576,15 @@ func test_triggers(t *testing.T, args *testArgs) {
 					defer sshClient.Close()
 					time.Sleep(10 * time.Second)
 
-					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n address-family ipv6 \n commit \n"), 30*time.Second)
+					config.TextWithSSH(args.ctx, t, args.dut, "configure \n grpc \n address-family ipv6 \n commit \n", 30*time.Second)
 					response, _ := sshClient.SendCommand(args.ctx, "show grpc")
 					t.Logf("grpc value after configuring ipv6 af %s", response)
 
-					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n address-family ipv4 \n commit \n"), 30*time.Second)
+					config.TextWithSSH(args.ctx, t, args.dut, "configure \n grpc \n address-family ipv4 \n commit \n", 30*time.Second)
 					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
 					t.Logf("grpc value after configuring only ipv4 af %s", response)
 
-					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n address-family dual \n commit \n"), 30*time.Second)
+					config.TextWithSSH(args.ctx, t, args.dut, "configure \n grpc \n address-family dual \n commit \n", 30*time.Second)
 					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
 					t.Logf("grpc value after configuring dual af %s", response)
 
