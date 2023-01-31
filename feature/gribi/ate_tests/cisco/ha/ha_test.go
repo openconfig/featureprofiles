@@ -29,7 +29,6 @@ import (
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/components"
-	comp "github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 
@@ -153,7 +152,7 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 	supervisors = append(supervisors, active, standby)
 
 	// find active and standby RP
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := comp.FindStandbyRP(t, args.dut, supervisors)
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, args.dut, supervisors)
 	t.Logf("Detected activeRP: %v, standbyRP: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
 
 	// make sure standby RP is reach
@@ -205,7 +204,7 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := comp.FindStandbyRP(t, args.dut, supervisors)
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, args.dut, supervisors)
 	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
 
 	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
