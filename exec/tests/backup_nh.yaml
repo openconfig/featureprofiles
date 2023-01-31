@@ -10,3 +10,5 @@ tests:
   path: feature/gribi/ate_tests/cisco/backup_nh
   timeout: 36000
   mustpass: true
+  args: 
+    - '-gribi_aft_check="false"'

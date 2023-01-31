@@ -17,25 +17,35 @@
 # !
 
 #interface MgmtEth0/RP0/CPU0/0
-# ipv4 address 5.78.26.10 255.255.0.0
+# ipv4 address 5.78.26.27 255.255.0.0
 # no shut
 #!
 
-#telnet: RP0 -  telnet 10.85.84.53 2010
+#interface MgmtEth0/RP1/CPU0/0
+# ipv4 address 5.78.26.28 255.255.0.0
+# no shut
+#!
+
+#telnet: RP0 -  telnet 10.85.84.54 2005
+#telnet: RP1 -  telnet 10.85.84.54 2006
 
 ##Exec server:
 #ssh ott2lab-as3
 
 ## Consoe server:
-# telnet 10.85.84.53
-# Pass1: lab
-# Pass2: lab
+# telnet 10.85.84.54
+# Pass1: roZes!23
+# Pass2: roZes!23
 
 # Username: cisco
 # Password: cisco
 
 ## Management interface RP0:
-# ipv4 address 5.78.26.10
+# ipv4 address 5.78.26.27 
+
+## Management interface RP1:
+# ipv4 address 5.78.26.28 
+
 
 options {
   username: "cisco"
@@ -44,14 +54,15 @@ options {
 
 duts {
   id: "dut"
-  name: "R4_churchill"  # Change this to the device hostname.
+  name: "SF-D"  # Change this to the device hostname.
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
-  # telnet RP0: 10.85.84.53 2010
-  # Mgmt RP0: 5.78.26.10
-  # Rack Location : 22-18-26
-  # PDU/outlets : 5.78.27.240/Outlets 5 & 6 
+  # telnet RP0: 10.85.84.54 2005
+  # telnet RP1: 10.85.84.54 2006
+  # Mgmt RP0: 5.78.26.27
+  # Mgmt RP0: 5.78.26.28
+  # Rack Location : 22-18-27
   # Exec server: ott2lab-as3
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
@@ -64,19 +75,20 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.84.159:56666"
+    target: "10.85.84.159:47777"
   }
   gnmi {
-    target: "10.85.84.159:56666"
+    target: "10.85.84.159:47777" 
   }
+
   gribi{
-    target: "10.85.84.159:56666"
+    target: "10.85.84.159:47777"
   }
   ssh{
-    target: "10.85.84.159:46786"
+    target: "10.85.84.159:48777"
   }
   p4rt{
-    target: "10.85.84.159:56666"
+    target: "10.85.84.159:47777"
   }
 
 # Before this binding can be used with a topology, add ports mapping
@@ -84,40 +96,40 @@ duts {
   
   ports {
     id: "port1"
-    name: "TenGigE0/0/0/6/2"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port2"
-    name: "TenGigE0/0/0/6/3"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port3"
-    name: "TenGigE0/0/0/7/1" # Change this to the actual port name.
-  }
-  ports {
-    id: "port4"
-    name: "TenGigE0/0/0/7/2"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/4/0"  # Change this to the actual port name.
   }
   ports {
     id: "port5"
-    name: "TenGigE0/0/0/7/3"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/4/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "TenGigE0/0/0/4/2" # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "TenGigE0/0/0/4/3"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "TenGigE0/7/0/14/0"  # Change this to the actual port name.
   }
   ports {
     id: "port6"
-    name: "TenGigE0/0/0/6/0"  # Change this to the actual port name.
+    name: "TenGigE0/7/0/14/1"  # Change this to the actual port name.
   }
   ports {
     id: "port7"
-    name: "TenGigE0/0/0/6/1"  # Change this to the actual port name.
+    name: "TenGigE0/7/0/14/2"  # Change this to the actual port name.
   }
-  ports {
-    id: "port8"
-    name: "TenGigE0/0/0/8/3"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port9"
-    name: "TenGigE0/0/0/7/0"  # Change this to the actual port name.
-  }
+  #ports {
+  #  id: "port8"
+  #  name: "TenGigE0/7/0/35/3"  # Change this to the actual port name.
+  #}
+  #ports {
+  #  id: "port9"
+  #  name: "TenGigE0/0/0/34/1"  # Change this to the actual port name.
+  #}
 }
 
 ates {
@@ -144,38 +156,38 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "10/23"  # Change this to the actual port name.
+    name: "10/9"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "10/24"  # Change this to the actual port name.
+    name: "10/10"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "10/18"  # Change this to the actual port name.
+    name: "10/11"  # Change this to the actual port name.
   }
   ports {
     id: "port4"
-    name: "10/19"  # Change this to the actual port name.
+    name: "10/12"  # Change this to the actual port name.
   }
   ports {
     id: "port5"
-    name: "10/20" # Change this to the actual port name.
+    name: "10/13" # Change this to the actual port name.
   }
   ports {
     id: "port6"
-    name: "10/21"  # Change this to the actual port name.
+    name: "10/14"  # Change this to the actual port name.
   }
   ports {
     id: "port7"
-    name: "10/22"  # Change this to the actual port name.
+    name: "10/15"  # Change this to the actual port name.
   }
-  ports {
-    id: "port8"
-    name: "10/16"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port9"
-    name: "10/17"  # Change this to the actual port name.
-  }  
+  #ports {
+  #  id: "port8"
+  #  name: "3/9"  # Change this to the actual port name.
+  #}
+  #ports {
+  #  id: "port9"
+  #  name: "3/12"  # Change this to the actual port name.
+  #}  
 }

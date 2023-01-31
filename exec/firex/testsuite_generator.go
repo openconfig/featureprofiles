@@ -273,7 +273,7 @@ func main() {
 					keptTests[suite[i].Name] = []GoTest{}
 				}
 				for j := range suite[i].Tests {
-					if strings.HasPrefix(suite[i].Tests[j].Name, t) {
+					if t == strings.Split(suite[i].Tests[j].Name, " ")[0] {
 						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
 					}
 				}

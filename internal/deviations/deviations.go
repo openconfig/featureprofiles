@@ -99,7 +99,7 @@ var (
 	OmitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
 		"Device does not support setting the L2 MTU, so omit it.  OpenConfig allows a device to enforce that L2 MTU, which has a default value of 1514, must be set to a higher value than L3 MTU, so a full OpenConfig compliant device may fail with the deviation.")
 
-	GRIBIPreserveOnly = flag.Bool("deviation_gribi_preserve_only", true, "Device does not support gRIBI client with persistence DELETE, so this skips the optional test cases in DELETE mode.  However, tests explicitly testing DELETE mode will still run.  Full gRIBI compliant devices should pass both with and without this deviation.")
+	GRIBIPreserveOnly = flag.Bool("deviation_gribi_preserve_only", false, "Device does not support gRIBI client with persistence DELETE, so this skips the optional test cases in DELETE mode.  However, tests explicitly testing DELETE mode will still run.  Full gRIBI compliant devices should pass both with and without this deviation.")
 
 	GRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
 
@@ -126,4 +126,22 @@ var (
 	MissingPrePolicyReceivedRoutes = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
 
 	RoutePolicyUnderNeighborAfiSafi = flag.Bool("deviation_rpl_under_neighbor_afisafi", false, "Device requires route-policy configuration under bgp neighbor afisafi. Fully-compliant devices should pass with this deviation set to true.")
+
+	ISISInterfaceLevel1DisableRequired = flag.Bool("deviation_isis_interface_level1_disable_required", false,
+		"Disable isis level1 under interface mode on the device if value is true, Default value is false and enables isis level2 under interface mode")
+
+	IsisAfMetricStyleWideLevelRequired = flag.Bool("deviation_isis_af_metric_style_wide_level_required", false,
+		"Set isis address family metric style wide level 2 on the device if value is true, Default value is false")
+
+	MissingIsisInterfaceAfiSafiEnable = flag.Bool("deviation_missing_isis_interface_afi_safi_enable", false,
+		"Set and validate isis interface address family enable on the device if value is true, Default value is false and validate isis address family enable at global mode")
+
+	IsisHelloPaddingAdaptiveModeNotSupported = flag.Bool("deviation_isis_hello_padding_adaptive_mode_not_supported", false,
+		"Skip isis hello padding adaptive mode TC if value is true, Default value is false")
+
+	IsisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", false,
+		"Set isis af ipv6 single topology on the device if value is true, Default value is false and sets multi topology for isis af ipv6")
+
+	ISISprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
+		"Unset isis protocol enable flag on the device if value is true, Default value is false and protocol enable flag is set")
 )
