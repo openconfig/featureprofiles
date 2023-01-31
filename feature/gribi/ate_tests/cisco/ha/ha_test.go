@@ -1254,9 +1254,8 @@ func test_multiple_clients(t *testing.T, args *testArgs) {
 		args.ate.Traffic().Stop(t)
 	}
 
-	p4rtPacketOut(t, args.events, args)
-	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
-	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
+	runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
+	runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
 
 	testGroup.Wait()
 
