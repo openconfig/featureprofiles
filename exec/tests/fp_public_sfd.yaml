@@ -271,8 +271,8 @@ tests:
   owner: agvarghe@cisco.com
   patch: exec/firex/plugins/fp_patch/traceroute_test.patch
   args:
-      - 'traceroute_l4_protocol_udp="true"'
-      - 'traceroute_fragmentation="true"'
+      - '-traceroute_l4_protocol_udp="true"'
+      - '-traceroute_fragmentation="true"'
   mustpass: true
   priority: 41
   skip: false
