@@ -108,6 +108,7 @@ tests:
 - name: TE-11.1 (Backup NHG Single NH) 
   path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
   owner: mananpat@cisco.com
+  patch: exec/firex/plugins/fp_patch/backup_nhg_test.patch
   mustpass: true
   priority: 3
 - name: TE-14.1 (gRIBI Scaling)
@@ -172,7 +173,7 @@ tests:
     - '-deviation_explicit_p4rt_node_component="true"'
   owner: sprem@cisco.com
   priority: 5
-  mustpass: true
+  mustpass: false
 - name: gNMI-1.1 (cli Origin) 
   path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
   owner: agvarghe@cisco.com
@@ -185,7 +186,6 @@ tests:
   priority: 6
 - name: DP-1.4 (QoS Interface Output Queue Counters) 
   path: feature/experimental/qos/ate_tests/qos_output_queue_counters_test
-  patch: exec/firex/plugins/fp_patch/qos_output_queue_counters_test.patch
   owner: arvbaska@cisco.com
   mustpass: true
   priority: 37
@@ -268,7 +268,11 @@ tests:
 - name: gNOI-5.2 (Traceroute Test) 
   path: feature/gnoi/system/tests/traceroute_test
   owner: agvarghe@cisco.com
-  mustpass: false
+  patch: exec/firex/plugins/fp_patch/traceroute_test.patch
+  args:
+      - 'traceroute_l4_protocol_udp="true"'
+      - 'traceroute_fragmentation="true"'
+  mustpass: true
   priority: 41
   skip: false
 - name: gNOI-3.4 (Chassis Reboot Status and Reboot Cancellation) 
@@ -303,17 +307,18 @@ tests:
 - name: RT-1.1 (Base BGP Session Parameters) 
   path: feature/experimental/bgp/ate_tests/base_bgp_session_parameters
   owner: sprem@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 47
   skip: false
 - name: RT-2.2 (IS-IS LSP Updates) 
   path: feature/experimental/isis/ate_tests/lsp_updates_test
-  patch: exec/firex/plugins/fp_patch/base_adjacencies_test.patch
+  patch: exec/firex/plugins/fp_patch/lsp_updates_test.patch
   owner: mananpat@cisco.com
   args:
        - '-deviation_isis_af_metric_style_wide_level_required="true"'
        - '-deviation_missing_isis_interface_afi_safi_enable="true"'
-  mustpass: false
+       - '-deviation_isis_protocol_enabled_not_required="true"'
+  mustpass: true
   priority: 48
   skip: false
 - name: RT-2.1 (Base IS-IS Process and Adjacencies) 
@@ -326,7 +331,8 @@ tests:
       - '-deviation_missing_isis_interface_afi_safi_enable="true"'
       - '-deviation_isis_hello_padding_adaptive_mode_not_supported="true"'
       - '-deviation_isis_single_topology_required="true"'
-  mustpass: false
+      - '-deviation_isis_protocol_enabled_not_required="true"'
+  mustpass: true
   priority: 49
   skip: false
 - name: RT-6.1 (Core LLDP TLV Population) 
@@ -340,7 +346,7 @@ tests:
   owner: sprem@cisco.com
   args:
     - '-deviation_rpl_under_peergroup=true'
-  mustpass: false
+  mustpass: true
   priority: 52
   skip: false
 - name: RT-1.5 (BGP Prefix Limit) 
@@ -354,13 +360,13 @@ tests:
 - name: RT-1.4 (BGP Graceful Restart) 
   path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
   owner: sprem@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 54
   skip: false
 - name: RT-1.7 (Local BGP Test) 
   path: feature/bgp/tests/local_bgp_test
   owner: sprem@cisco.com
-  mustpass: false
+  mustpass: true
   priority: 55
   skip: false
 - name: RT-1.2 (BGP Policy and Route Installation) 
@@ -403,10 +409,11 @@ tests:
 - name: TE-1.1 (Static ARP) 
   path: feature/interface/staticarp/ate_tests/static_arp_test
   owner: mbagherz@cisco.com
-  mustpass: true
+  mustpass: false ## requires ixia license
   priority: 50
 - name: OC-1.2 (Default Address)
   path: feature/networkinstance/ate_tests/defaults_test
+  patch: exec/firex/plugins/fp_patch/defaults_test.patch
   owner: mbagherz@cisco.com
   mustpass: true
   priority: 801

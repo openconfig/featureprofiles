@@ -1,5 +1,5 @@
 diff --git a/internal/ate/ixate.go b/internal/ate/ixate.go
-index e0b2726..58c5249 100644
+index e0b2726..a77571e 100644
 --- a/internal/ate/ixate.go
 +++ b/internal/ate/ixate.go
 @@ -836,7 +836,7 @@ func validateProtocolStart(ctx context.Context, ix *ixATE) ([]string, error) {
@@ -11,11 +11,3 @@ index e0b2726..58c5249 100644
  	if len(ix.routeTableToIxFile) > 0 {
  		// Protocols may need extra time to start on large-scale route imports.
  		maxRetriesProtocols = 30
-@@ -1049,6 +1049,7 @@ func (ix *ixATE) StopProtocols(ctx context.Context) error {
- 		return fmt.Errorf("could not stop protocols: %w", err)
- 	}
- 	ix.operState = operStateOff
-+	time.Sleep(5 * time.Second)
- 	return nil
- }
- 

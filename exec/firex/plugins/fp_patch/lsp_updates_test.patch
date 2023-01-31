@@ -1,87 +1,102 @@
-diff --git a/feature/experimental/isis/ate_tests/lsp_updates_test/lsp_updates_test.go b/feature/experimental/isis/ate_tests/lsp_updates_test/lsp_updates_test.go
-index 5b54e374..e6722b80 100644
---- a/feature/experimental/isis/ate_tests/lsp_updates_test/lsp_updates_test.go
-+++ b/feature/experimental/isis/ate_tests/lsp_updates_test/lsp_updates_test.go
-@@ -39,7 +39,8 @@ func TestOverloadBit(t *testing.T) {
- 	isisPath := session.ISISPath()
- 	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
- 	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
--	deadline := time.Now().Add(time.Second)
-+	// extending time for await function
-+	deadline := time.Now().Add(10 * time.Second)
- 	checkSetBit := check.Equal(setBit.State(), false)
- 	if *deviations.MissingValueForDefaults {
- 		checkSetBit = check.EqualOrNil(setBit.State(), false)
-@@ -47,7 +48,8 @@ func TestOverloadBit(t *testing.T) {
- 
- 	for _, vd := range []check.Validator{
- 		checkSetBit,
--		check.Equal(overloads.State(), uint32(0)),
-+		// since overload bit starts with 5 (af v4,v6, multicast v4, multicast v6 and isis instance)
-+		check.Equal(overloads.State(), uint32(5)),
- 	} {
- 		if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
- 			t.Error(err)
-@@ -62,10 +64,12 @@ func TestOverloadBit(t *testing.T) {
- 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
- 	ts.PushDUT(context.Background())
- 	// TODO: Verify the link state database once device support is added.
--	if err := check.Equal[uint32](overloads.State(), 1).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
-+	// since overload bit starts with 5 (af v4,v6, multicast v4, multicast v6 and isis instance) and increments by 1 after configuring overload bit
-+	if err := check.Equal[uint32](overloads.State(), 6).AwaitFor(time.Second*30, ts.DUTClient); err != nil {
- 		t.Error(err)
- 	}
--	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second, ts.DUTClient); err != nil {
-+	// longer time for fetching the value
-+	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second*30, ts.DUTClient); err != nil {
- 		t.Error(err)
- 	}
- 	// TODO: Verify the link state database on the ATE once the ATE reports this properly
-@@ -88,7 +92,8 @@ func TestMetric(t *testing.T) {
- 
- 	metric := session.ISISPath().Interface(ts.DUTPort1.Name()).Level(2).
- 		Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric()
--	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second, ts.DUTClient); err != nil {
-+	// longer time for fetching the value
-+	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second*30, ts.DUTClient); err != nil {
- 		t.Error(err)
- 	}
- 	// TODO: Verify the link state database on the ATE once the ATE reports this properly
 diff --git a/feature/experimental/isis/ate_tests/internal/session/session.go b/feature/experimental/isis/ate_tests/internal/session/session.go
-index 14d1d8d6..0dec4202 100644
+index 145b97c2..fba3cbb3 100644
 --- a/feature/experimental/isis/ate_tests/internal/session/session.go
 +++ b/feature/experimental/isis/ate_tests/internal/session/session.go
-@@ -107,15 +107,22 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
+@@ -106,17 +106,32 @@ func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
+ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
+ 	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
  	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
- 	prot.Enabled = ygot.Bool(true)
+-	prot.Enabled = ygot.Bool(true)
++	if !*deviations.ISISprotocolEnabledNotRequired {
++		prot.Enabled = ygot.Bool(true)
++	}
  	isis := prot.GetOrCreateIsis()
-+	// configuring level at global mode till CSCwd56267 is fixed
-+	level := isis.GetOrCreateLevel(2)
-+	level.MetricStyle = 2
  	glob := isis.GetOrCreateGlobal()
 -	glob.Instance = ygot.String(ISISName)
-+	// instance is accepted as string of intergers, however with instance configured same has to be set on ATE side, following ATE call added we can enable below statement
-+	// glob.Instance = ygot.String("10")
  	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
  	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
  	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
++	if *deviations.IsisAfMetricStyleWideLevelRequired {
++		level := isis.GetOrCreateLevel(2)
++		level.MetricStyle = 2
++	}
  	intf := isis.GetOrCreateInterface(ifaceName)
  	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
  	intf.Enabled = ygot.Bool(true)
 -	intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
-+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-+	// CSCwd56267 791.15I: OC Isis interface level not supported
-+	// intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
++	// Configure ISIS level at global mode if true else at interface mode
++	if *deviations.ISISInterfaceLevel1DisableRequired {
++		intf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
++	} else {
++		intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
++	}
++	// Configure ISIS enable flag at interface level
++	if *deviations.MissingIsisInterfaceAfiSafiEnable {
++		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
++		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
++	}
  }
  
  // addISISTopo configures basic IS-IS on an ATETopology interface.
-@@ -253,6 +260,8 @@ func (s *TestSession) PushAndStartATE(t testing.TB) {
- // link has formed any IS-IS adjacency, returning the adjacency ID or an error
- // if one doesn't form.
- func (s *TestSession) AwaitAdjacency() (string, error) {
-+	//CSCwd56223: 791.15I, OC: Target defined subscription doesn't work on adjacency-state leaf
-+	time.Sleep(40 * time.Second)
- 	intf := ISISPath().Interface(s.DUTPort1.Name())
- 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
- 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+@@ -127,7 +142,7 @@ func addISISTopo(iface *ondatra.Interface, areaAddress, sysID string) {
+ 		WithTERouterID(sysID).
+ 		WithNetworkTypePointToPoint().
+ 		WithWideMetricEnabled(true).
+-		WithLevelL2()
++		WithLevelL2().WithMetric(10)
+ }
+ 
+ // TestSession is a convenience wrapper around the dut, ate, ports, and
+diff --git a/feature/experimental/isis/ate_tests/lsp_updates_test/lsp_updates_test.go b/feature/experimental/isis/ate_tests/lsp_updates_test/lsp_updates_test.go
+index 5b54e374..2753e389 100644
+--- a/feature/experimental/isis/ate_tests/lsp_updates_test/lsp_updates_test.go
++++ b/feature/experimental/isis/ate_tests/lsp_updates_test/lsp_updates_test.go
+@@ -24,6 +24,7 @@ import (
+ 	"github.com/openconfig/featureprofiles/internal/check"
+ 	"github.com/openconfig/featureprofiles/internal/deviations"
+ 	"github.com/openconfig/featureprofiles/internal/fptest"
++	"github.com/openconfig/ondatra/gnmi"
+ 	"github.com/openconfig/ondatra/gnmi/oc"
+ 	"github.com/openconfig/ygot/ygot"
+ )
+@@ -34,10 +35,20 @@ func TestMain(m *testing.M) {
+ 
+ func TestOverloadBit(t *testing.T) {
+ 	ts := session.MustNew(t).WithISIS()
+-	ts.PushAndStart(t)
+-	ts.MustAdjacency(t)
++	// Only push DUT config - no adjacency established yet
++	if err := ts.PushDUT(context.Background()); err != nil {
++		t.Fatalf("Unable to push initial DUT config: %v", err)
++	}
+ 	isisPath := session.ISISPath()
+ 	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
++	//Lookup the initial value for 'database-overloads' leaf counter after config is pushed to DUT & before adjacency is formed
++	getDbOlInitCount := gnmi.Lookup(t, ts.DUT, overloads.State())
++	olVal, present := getDbOlInitCount.Val()
++	if !present {
++		olVal = uint32(0)
++	}
++	ts.PushAndStartATE(t)
++	ts.MustAdjacency(t)
+ 	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
+ 	deadline := time.Now().Add(time.Second)
+ 	checkSetBit := check.Equal(setBit.State(), false)
+@@ -47,7 +58,7 @@ func TestOverloadBit(t *testing.T) {
+ 
+ 	for _, vd := range []check.Validator{
+ 		checkSetBit,
+-		check.Equal(overloads.State(), uint32(0)),
++		check.Equal(overloads.State(), olVal),
+ 	} {
+ 		if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
+ 			t.Error(err)
+@@ -62,7 +73,7 @@ func TestOverloadBit(t *testing.T) {
+ 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
+ 	ts.PushDUT(context.Background())
+ 	// TODO: Verify the link state database once device support is added.
+-	if err := check.Equal[uint32](overloads.State(), 1).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
++	if err := check.Equal(overloads.State(), uint32(olVal+1)).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
+ 		t.Error(err)
+ 	}
+ 	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second, ts.DUTClient); err != nil {

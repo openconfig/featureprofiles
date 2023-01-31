@@ -79,7 +79,7 @@ def BringupTestbed(self, ws, images = None,
                         base_conf_path=None,
                         skip_install=False,
                         apply_test_patches=True,
-                        apply_ondatra_patches=False,
+                        apply_ondatra_patches=True,
                         exec_repo_dir=None):
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
@@ -238,7 +238,8 @@ def b4_fp_chain_provider(ws,
     if apply_test_patches and test_patch:
         chain |= PatchFP.s(fp_repo=fp_repo_dir, patch_path=os.path.join(exec_repo_dir, test_patch))
 
-    chain |= ReleaseIxiaPorts.s(ws=ws, fp_ws=exec_repo_dir, ondatra_binding_path=ondatra_binding_path)
+    if '/ate_tests/' in test_path:
+        chain |= ReleaseIxiaPorts.s(ws=ws, fp_ws=exec_repo_dir, ondatra_binding_path=ondatra_binding_path)
 
     if fp_pre_tests:
         for pt in fp_pre_tests:
@@ -252,7 +253,7 @@ def b4_fp_chain_provider(ws,
             for k, v in pt.items():
                 chain |= RunB4FPTest.s(fp_ws=exec_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path)
 
-    chain |= GoReporting.s(fp_ws=exec_repo_dir)
+    # chain |= GoReporting.s(fp_ws=exec_repo_dir)
     return chain
 
 # noinspection PyPep8Naming
