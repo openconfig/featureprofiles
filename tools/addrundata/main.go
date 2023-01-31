@@ -25,7 +25,9 @@ import (
 )
 
 var (
-	fix = flag.Bool("fix", false, "Update the rundata in tests.  If false, only check if the tests have the most recent rundata.")
+	fix       = flag.Bool("fix", false, "Update the rundata in tests.  If false, only check if the tests have the most recent rundata.")
+	list      = flag.String("list", "", "List the tests in one of the following formats: csv, json")
+	mergejson = flag.String("mergejson", "", "Merge the JSON listing from this JSON file.")
 )
 
 func isDir(path string) bool {
@@ -63,6 +65,23 @@ func main() {
 	ts := testsuite{}
 	if ok := ts.read(featuredir); !ok {
 		glog.Exitf("Problems found under feature root.  Please make sure test paths follow feature/<feature>/<subfeature>/<testkind>/<testname>/<testname>_test.go and all tests have an accompanying README.md in the test directory.")
+	}
+
+	switch *list {
+	case "":
+		// Not listing, so it's either check-only or fix.  See below.
+	case "csv":
+		if err := writeCSV(os.Stdout, featuredir, ts); err != nil {
+			glog.Exitf("Error writing CSV: %v", err)
+		}
+		return
+	case "json":
+		if err := writeJSON(os.Stdout, *mergejson, featuredir, ts); err != nil {
+			glog.Exitf("Error writing JSON: %v", err)
+		}
+		return
+	default:
+		glog.Exitf("Unknown listing format: %s", *list)
 	}
 
 	if !*fix {
