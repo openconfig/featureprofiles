@@ -64,7 +64,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.leader
 	desc := "PacketOut from Primary Controller"
 	ttls := []int{0, 1}
-	if *deviations.P4rtTtlHoplimitZero {
+	if *deviations.P4rtTTLHoplimitZero {
 		ttls = []int{1}
 	}
 	//for ipv4
