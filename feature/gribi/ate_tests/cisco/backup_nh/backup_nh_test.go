@@ -1236,7 +1236,7 @@ func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArg
 	args.client.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
-	args.client.AddNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.ReplaceNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// validate traffic passing via primary links
 	time.Sleep(time.Minute)
@@ -1389,7 +1389,7 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 		defer args.interfaceaction(t, intf, true)
 	}
 	// validate traffic passing successfulling after decap via ISIS route
-	args.client.AddNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks, &gribi.NHGOptions{FRR: true})
+	args.client.ReplaceNHG(t, 100, 0, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks, &gribi.NHGOptions{FRR: true})
 
 	time.Sleep(time.Minute)
 	if *ciscoFlags.GRIBITrafficCheck {
@@ -1403,7 +1403,7 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 		}
 	}
 
-	args.client.AddNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks, &gribi.NHGOptions{FRR: true})
+	args.client.ReplaceNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks, &gribi.NHGOptions{FRR: true})
 
 	time.Sleep(time.Minute)
 	if *ciscoFlags.GRIBITrafficCheck {

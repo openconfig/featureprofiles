@@ -42,12 +42,14 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func testGNMISet(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsumer) {
+func testGNMISet(t *testing.T, event *monitor.CachedConsumer, args ...interface{}) {
+	dut := args[0].(*ondatra.DUTDevice)
+
 	// TODO: The below code is not tested yet
 	if *configFilePath == "" {
 		return
 	}
-	ports := args.DUT[0].Ports()
+	ports := dut.Ports()
 	bundles := []confgen.Bundle{
 		{
 			ID:                121,
@@ -93,11 +95,13 @@ func testGNMISet(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsu
 	if err := oc.Unmarshal([]byte(generatedConf), configRoot); err != nil {
 		t.Fatalf(err.Error())
 	}
-	gnmi.Replace(t, args.DUT[0], gnmi.OC().Config(), configRoot)
+	gnmi.Replace(t, dut, gnmi.OC().Config(), configRoot)
 }
 
-func testPing(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsumer) {
+func testPing(t *testing.T, event *monitor.CachedConsumer, args ...interface{}) {
 	t.Helper()
+
+	dut := args[0].(*ondatra.DUTDevice)
 	startTime := time.Now()
 	t.Logf("Ping test is started at: %v", startTime)
 	fetchResponses := func(c spb.System_PingClient) ([]*spb.PingResponse, error) {
@@ -114,10 +118,10 @@ func testPing(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsumer
 			}
 		}
 	}
-	lbIntf := netutil.LoopbackInterface(t, args.DUT[0], 0)
+	lbIntf := netutil.LoopbackInterface(t, dut, 0)
 	lo0 := gnmi.OC().Interface(lbIntf).Subinterface(0)
-	ipv4Addrs := gnmi.GetAll(t, args.DUT[0], lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.GetAll(t, args.DUT[0], lo0.Ipv6().AddressAny().State())
+	ipv4Addrs := gnmi.GetAll(t, dut, lo0.Ipv4().AddressAny().State())
+	ipv6Addrs := gnmi.GetAll(t, dut, lo0.Ipv6().AddressAny().State())
 	if len(ipv4Addrs) == 0 {
 		t.Fatalf("Failed to get a valid IPv4 loopback address: %+v", ipv4Addrs)
 	}
@@ -125,7 +129,7 @@ func testPing(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsumer
 		t.Fatalf("Failed to get a valid IPv6 loopback address: %+v", ipv6Addrs)
 	}
 
-	gnoiClient := args.DUT[0].RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	pingRequest := &spb.PingRequest{
 		Destination: ipv4Addrs[0].GetIp(),
 		Source:      ipv4Addrs[0].GetIp(),
@@ -153,8 +157,10 @@ func testPing(t *testing.T, args *runner.TestArgs, event *monitor.CachedConsumer
 	t.Logf("Ping test is completed by doing ping %d times  at %v, (The completion time is %v)", pingScale*pingThreadScale, endTime, time.Since(startTime))
 }
 
-func testBatchADDReplaceDeleteIPV4(t *testing.T, args *runner.TestArgs, events *monitor.CachedConsumer) {
+func testBatchADDReplaceDeleteIPV4(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
 	t.Helper()
+	dut := args[0].(*ondatra.DUTDevice)
+
 	startTime := time.Now()
 	t.Logf("Gribi test is started at: %v", startTime)
 	ciscoFlags.GRIBIFIBCheck = ygot.Bool(true)
@@ -165,7 +171,7 @@ func testBatchADDReplaceDeleteIPV4(t *testing.T, args *runner.TestArgs, events *
 	ciscoFlags.GRIBIChecks.FIBACK = true
 	ciscoFlags.GRIBIChecks.RIBACK = true
 	gribiC := gribi.Client{
-		DUT:                  args.DUT[0],
+		DUT:                  dut,
 		FibACK:               true,
 		Persistence:          true,
 		InitialElectionIDLow: 100,
@@ -246,13 +252,8 @@ func configVRFS(t *testing.T, dut *ondatra.DUTDevice) {
 func TestLoad(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
+	// ate := ondatra.ATE(t, "ate")
 	configVRFS(t, dut)
-	testArgs := &runner.TestArgs{
-		DUT:     []*ondatra.DUTDevice{dut},
-		ATE:     ate,
-		ATELock: sync.Mutex{},
-	}
 
 	eventConsumer := monitor.NewCachedConsumer(5*time.Minute, /*expiration time for events in the cache*/
 		10 /*number of events for keep for each leaf*/)
@@ -270,13 +271,11 @@ func TestLoad(t *testing.T) {
 	// start tests
 	testGroup := &sync.WaitGroup{}
 	// start reset/apply config
-	runner.RunTestInBackground(ctx, t, time.NewTimer(10*time.Millisecond), testArgs, eventConsumer, testGNMISet, testGroup)
-
+	runner.RunTestInBackground(ctx, t, time.NewTimer(10*time.Millisecond), testGroup, eventConsumer, testGNMISet)
 	// start gribi test writter
-	runner.RunTestInBackground(ctx, t, time.NewTimer(1*time.Second), testArgs, eventConsumer, testBatchADDReplaceDeleteIPV4, testGroup)
-
+	runner.RunTestInBackground(ctx, t, time.NewTimer(1*time.Second), testGroup, eventConsumer, testBatchADDReplaceDeleteIPV4)
 	// start gnoi  ping
-	runner.RunTestInBackground(ctx, t, time.NewTimer(10*time.Second), testArgs, eventConsumer, testPing, testGroup)
+	runner.RunTestInBackground(ctx, t, time.NewTimer(10*time.Second), testGroup, eventConsumer, testPing)
 
 	// start p4rt test
 
