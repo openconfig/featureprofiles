@@ -69,16 +69,17 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 	}
 }
 
+// AddNHBatch configures batch NH
 func (c *Client) AddNHBatch(t testing.TB, nhIndex uint64, prefixes []string, instance string, nhInstance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck, opts ...*NHOptions) {
 	resultLenBefore := len(c.fluentC.Results(t))
 	NHEntries := []fluent.GRIBIEntry{}
 	for index, prefix := range prefixes {
 		if prefix == DecapEncap {
 			for _, opt := range opts {
-				for dst_index, dst := range opt.Dest {
+				for dstIndex, dst := range opt.Dest {
 					NHEntry := fluent.NextHopEntry().WithNetworkInstance(instance).
-						WithIndex(nhIndex + uint64(dst_index))
-					aftNh := c.getOrCreateAft(instance).GetOrCreateNextHop(nhIndex + uint64(dst_index))
+						WithIndex(nhIndex + uint64(dstIndex))
+					aftNh := c.getOrCreateAft(instance).GetOrCreateNextHop(nhIndex + uint64(dstIndex))
 					NHEntry = NHEntry.WithDecapsulateHeader(fluent.IPinIP)
 					aftNh.DecapsulateHeader = oc.Aft_EncapsulationHeaderType_IPV4
 					NHEntry = NHEntry.WithEncapsulateHeader(fluent.IPinIP)
@@ -145,6 +146,7 @@ func (c *Client) AddNHBatch(t testing.TB, nhIndex uint64, prefixes []string, ins
 	}
 }
 
+// checkResultWithScale validates results
 func (c *Client) checkResultWithScale(t testing.TB, startIndex, endIndex int, expectFailure bool) {
 	results := c.fluentC.Results(t)
 	for i := startIndex; i < endIndex; i = i + 1 {
