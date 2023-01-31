@@ -35,7 +35,7 @@ duts {
     target: "10.85.70.112:58005" 
   }
   p4rt{
-    target: "10.85.70.112:58005"
+    target: "10.85.70.112:60699"
   }
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
