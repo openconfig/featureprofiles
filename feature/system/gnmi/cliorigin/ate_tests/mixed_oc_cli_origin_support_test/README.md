@@ -3,16 +3,33 @@
 ## Summary
 
 Ensure that both CLI and OC configuration can be pushed to the device within the
-same `SetRequest`.
+same `SetRequest`, with the CLI as a `replace` operation and the OC as an
+`update` operation.
 
-## Interdependent Case
+e.g. QoS
 
-`TestQoSDependentCLIThenOC` and `TestQoSDependentOCThenCLI` cases cover setting interdependent CLI and OC configuration in the same request (OC requires CLI to be applied first in order to make sense).
-
-* First, we provide CLI update + OC update (in this order) in the same Set() request.
-
-* Second, we provide OC update + CLI update (in this order) in the same Set() request.
-
-In both cases, CLI is ARISTA-specific and a test will skip if the DUT is from another vendor.
-
-The second case is not a requirement at this point and will skip if failed. However, DUTs from ARISTA are known to pass it.
+```textproto
+SetRequest:
+prefix:  {
+  target:  "device-name"
+}
+replace:  {
+  path:  {
+    origin:  "cli"
+  }
+  val:  {
+    ascii_val:  "! comment\nusername admin role network-admin secret 3 foobarbaz\nusername foo privilege 23 role network-admin secret 4 tuesday\n!\nend\n"
+  }
+}
+update:  {
+  path:  {
+    origin:  "openconfig"
+    elem:  {
+      name:  "qos"
+    }
+  }
+  val:  {
+    json_ietf_val:  "{\n  \"openconfig-qos:forwarding-groups\": {\n    \"forwarding-group\": [\n      {\n        \"config\": {\n          \"name\": \"target-group-BE0\",\n          \"output-queue\": \"BE0\"\n        },\n        \"name\": \"target-group-BE0\"\n      }\n    ]\n  },\n  \"openconfig-qos:queues\": {\n    \"queue\": [\n      {\n        \"config\": {\n          \"name\": \"BE0\"\n        },\n        \"name\": \"BE0\"\n      }\n    ]\n  }\n}"
+  }
+}
+```

@@ -17,64 +17,54 @@ package mixed_oc_cli_origin_support_test
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygnmi/schemaless"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func buildOCUpdate(t *testing.T, ps ygnmi.PathStruct, goStruct ygot.ValidatedGoStruct, configPath bool) *gpb.Update {
-	t.Helper()
-	path, _, err := ygnmi.ResolvePath(ps)
-	if err != nil {
-		t.Fatalf("Could not resolve QoS path: %v", err)
-	}
-
-	if len(path.GetElem()) == 0 || path.GetElem()[0].GetName() != "meta" {
-		path.Origin = "openconfig"
-	}
-	jsonVal, err := ygot.Marshal7951(goStruct, ygot.JSONIndent("  "), &ygot.RFC7951JSONConfig{AppendModuleName: true, PreferShadowPath: configPath})
-	if err != nil {
-		t.Fatalf("Error while marshalling a goStruct: %v", err)
-	}
-	update := &gpb.Update{
-		Path: path,
-		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: jsonVal}},
-	}
-	return update
-}
-
-func buildCLIUpdate(value string) *gpb.Update {
-	update := &gpb.Update{
-		Path: &gpb.Path{
-			Origin: "cli",
-			Elem:   []*gpb.PathElem{},
-		},
-		Val: &gpb.TypedValue{
-			Value: &gpb.TypedValue_AsciiVal{
-				AsciiVal: value,
-			},
-		},
-	}
-	return update
-}
-
 type testCase struct {
 	cliConfig        string
 	queueName        string
 	forwardGroupName string
-	// reorderFunc orders the input updates a certain way for the test case.
-	reorderFunc func(input []*gpb.Update) []*gpb.Update
-	okToFail    bool
+}
+
+// appendCLIConfig appends a suffix CLI config to the input CLI body.
+func appendCLIConfig(d *ondatra.DUTDevice, body, suffix string) (string, error) {
+	var term string
+	switch d.Vendor() {
+	case ondatra.ARISTA:
+		// Arista configs must be terminated with "end" to ensure the device accepts the config.
+		term = "end"
+	default:
+		return "", fmt.Errorf("Unsupported vendor: %v", d.Vendor())
+	}
+
+	// Ensure previous config doesn't contain end-of-config words that would prevent future patches.
+	body = strings.TrimSuffix(body, term+"\n")
+	body = fmt.Sprintf("%s\n%s\n%s\n", body, suffix, term)
+
+	return body, nil
+}
+
+// showRunningConfig returns the output of 'show running-config' on the device.
+func showRunningConfig(t *testing.T, dut *ondatra.DUTDevice) string {
+	t.Helper()
+	runningConfig, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), "show running-config")
+	if err != nil {
+		t.Fatalf("'show running-config' failed: %v", err)
+	}
+	return runningConfig
 }
 
 func testQoSWithCLIAndOCUpdates(t *testing.T, tCase testCase) {
@@ -87,14 +77,17 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, tCase testCase) {
 
 	t.Logf("Generated an update for the CLI config:\n%s", tCase.cliConfig)
 
+	// Test the CLI config sanitize function.
+	testSanitizeCLIConfig(t)
+
 	qosPath := gnmi.OC().Qos()
 
 	// Make sure the current config does not contain new data already.
 	if existingQueue := gnmi.LookupConfig(t, dut, qosPath.Queue(tCase.queueName).Config()); existingQueue.IsPresent() {
-		t.Errorf("Detected an existing %v queue. This is unexpected.", tCase.queueName)
+		t.Fatalf("Detected an existing %v queue. This is unexpected.", tCase.queueName)
 	}
 
-	// Creating OC addition to the config.
+	// Create OC addition to the config.
 	r := &oc.Root{}
 	qos := r.GetOrCreateQos()
 	qos.GetOrCreateQueue(tCase.queueName)
@@ -102,23 +95,28 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, tCase testCase) {
 
 	fptest.LogQuery(t, "QoS update for the OC config:", qosPath.Config(), qos)
 
-	update1 := buildCLIUpdate(tCase.cliConfig)
-	update2 := buildOCUpdate(t, qosPath.Config().PathStruct(), qos, true)
-	gpbSetRequest := &gpb.SetRequest{Update: tCase.reorderFunc([]*gpb.Update{update1, update2})}
+	runningConfig := showRunningConfig(t, dut)
 
-	t.Log("Calling gnmiClient.Set() CLI + OpenConfig config:")
-	t.Log(gpbSetRequest)
-
-	gnmiClient := dut.RawAPIs().GNMI().Default(t)
-	response, err := gnmiClient.Set(context.Background(), gpbSetRequest)
+	newConfig, err := appendCLIConfig(dut, sanitizeRunningConfig(runningConfig), tCase.cliConfig)
 	if err != nil {
-		if tCase.okToFail {
-			t.Skipf("gnmiClient.Set() with unexpected error: %v\nSkipping as this test has okToFail: %v", err, tCase.okToFail)
-		} else {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
+		t.Fatalf("Error appending config to running-config: %v", err)
 	}
-	t.Log("gnmiClient.Set() response:\n", response)
+
+	// Create and apply mixed CLI+OC SetRequest.
+	cliPath, err := schemaless.NewConfig[string]("", "cli")
+	if err != nil {
+		t.Fatalf("Failed to create CLI ygnmi query: %v", err)
+	}
+
+	mixedQuery := &gnmi.SetBatch{}
+	gnmi.BatchReplace(mixedQuery, cliPath, newConfig)
+	gnmi.BatchUpdate(mixedQuery, qosPath.Config(), qos)
+	result := mixedQuery.Set(t, dut)
+
+	t.Logf("gnmiClient.Set() response: %+v", result.RawResponse)
+
+	newRunningConfig := showRunningConfig(t, dut)
+	t.Logf("running config (-old, +new):\n%s", cmp.Diff(runningConfig, newRunningConfig))
 
 	// Validate
 	gotQueue := gnmi.GetConfig(t, dut, qosPath.Queue(tCase.queueName).Config())
@@ -134,38 +132,78 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, tCase testCase) {
 	}
 }
 
-var (
-	passthru = func(input []*gpb.Update) []*gpb.Update {
-		return []*gpb.Update{input[0], input[1]}
-	}
-	swap = func(input []*gpb.Update) []*gpb.Update {
-		return []*gpb.Update{input[1], input[0]}
-	}
-)
-
-func TestQoSDependentCLIThenOC(t *testing.T) {
+func TestQoSDependentCLI(t *testing.T) {
 	testQoSWithCLIAndOCUpdates(t, testCase{
-		cliConfig: `
-qos traffic-class 0 name target-group-BE0
-qos tx-queue 0 name BE0
-	`,
+		cliConfig: `qos traffic-class 0 name target-group-BE0
+qos tx-queue 0 name BE0`,
 		queueName:        "BE0",
 		forwardGroupName: "target-group-BE0",
-		reorderFunc:      passthru,
-		okToFail:         false,
 	})
 }
 
-// This test (dependent OC preceding CLI) is not required to succeed.
-func TestQoSDependentOCThenCLI(t *testing.T) {
-	testQoSWithCLIAndOCUpdates(t, testCase{
-		cliConfig: `
-qos traffic-class 1 name target-group-BE1
-qos tx-queue 1 name BE1
-	`,
-		queueName:        "BE1",
-		forwardGroupName: "target-group-BE1",
-		reorderFunc:      swap,
-		okToFail:         true,
-	})
+// sanitizeRunningConfig removes the "banner motd" configuration from the CLI
+// config since the device may not accept it.
+func sanitizeRunningConfig(conf string) string {
+	var sanitizedConf strings.Builder
+	ignore := false
+	for i, line := range strings.Split(conf, "\n") {
+		switch {
+		case !ignore && strings.HasPrefix(line, "banner motd"):
+			ignore = true
+		case ignore && strings.HasPrefix(line, "!"):
+			ignore = false
+		case !ignore:
+			if i > 0 {
+				sanitizedConf.WriteByte('\n')
+			}
+			sanitizedConf.WriteString(line)
+		}
+	}
+	return sanitizedConf.String()
+}
+
+func testSanitizeCLIConfig(t *testing.T) {
+	inConfig := `hostname foo
+!
+redundancy
+   protocol sso
+!
+spanning-tree mode mstp
+!
+system bar
+   unsupported speed action error
+   unsupported error-correction action error
+!
+clock timezone America/Los_Angeles
+!
+banner motd
+hello world
+EOF
+!
+management console
+   idle-timeout 30
+!
+`
+
+	wantConfig := `hostname foo
+!
+redundancy
+   protocol sso
+!
+spanning-tree mode mstp
+!
+system bar
+   unsupported speed action error
+   unsupported error-correction action error
+!
+clock timezone America/Los_Angeles
+!
+management console
+   idle-timeout 30
+!
+`
+
+	if diff := cmp.Diff(wantConfig, sanitizeRunningConfig(inConfig)); diff != "" {
+		t.Fatalf("sanitizeRunningConfig (-want, +got):\n%s", diff)
+	}
 }
