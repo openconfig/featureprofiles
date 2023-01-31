@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"sort"
 	"strconv"
 	"sync"
 	"testing"
@@ -28,7 +27,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
-	"github.com/openconfig/featureprofiles/internal/cisco/gnmiutil"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/components"
 	comp "github.com/openconfig/featureprofiles/internal/components"
@@ -45,7 +43,6 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -93,8 +90,6 @@ var (
 	te_flow       = []*ondatra.Flow{}
 	src_ip_flow   = []*ondatra.Flow{}
 	p4rtNodeName  = flag.String("p4rt_node_name", "0/0/CPU0-NPU0", "component name for P4RT Node")
-	portID        = *ygot.Uint32(10)
-	deviceID      = *ygot.Uint64(1)
 )
 
 // NHScaleOptions
@@ -253,19 +248,6 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 		}
 		args.client = &client
 	}
-}
-
-// sortPorts sorts the ports by the testbed port ID.
-func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
-	sort.Slice(ports, func(i, j int) bool {
-		idi, idj := ports[i].ID(), ports[j].ID()
-		li, lj := len(idi), len(idj)
-		if li == lj {
-			return idi < idj
-		}
-		return li < lj // "port2" < "port10"
-	})
-	return ports
 }
 
 func baseProgramming(ctx context.Context, t *testing.T, args *testArgs) {
@@ -584,30 +566,6 @@ func baseScaleProgramming(ctx context.Context, t *testing.T, args *testArgs) {
 	// // -----------------------------------------
 	// // vrf DECAP
 	args.client.AddIPv4(t, "0.0.0.0/0", 4000, vrf4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-}
-
-func checkscaleaft(ctx context.Context, dut *ondatra.DUTDevice, event *monitor.CachedConsumer, prf []string, vrf string) error {
-	waitTime := 0
-	for _, prefix := range prf {
-		ipv4 := gnmi.OC().NetworkInstance(vrf).Afts().Ipv4Entry(prefix).Prefix()
-		nhg := gnmi.OC().NetworkInstance(vrf).Afts().Ipv4Entry(prefix).NextHopGroup()
-
-		ipv4_str_path := gnmiutil.PathStructToString(ipv4)
-		nhg_str_path := gnmiutil.PathStructToString(nhg)
-		for {
-			_, v4_found := event.Cache.Get(ipv4_str_path)
-			_, nhg_found := event.Cache.Get(nhg_str_path)
-			if v4_found || nhg_found {
-				break
-			}
-			if waitTime > 120 {
-				return fmt.Errorf("The Telemtry Update for AFT entry %s added by gribi is not recieved", prefix)
-			}
-			time.Sleep(10 * time.Second)
-			waitTime += 10
-		}
-	}
-	return nil
 }
 
 func testRestart_single_process(t *testing.T, args *testArgs) {
@@ -1272,51 +1230,51 @@ func test_microdrops(t *testing.T, args *testArgs) {
 	}
 }
 
-func test_multiple_clients(t *testing.T, args *testArgs) {
-	args.ATELock = sync.Mutex{}
-	testGroup := &sync.WaitGroup{}
+// func test_multiple_clients(t *testing.T, args *testArgs) {
+// 	args.ATELock = sync.Mutex{}
+// 	testGroup := &sync.WaitGroup{}
 
-	configureDeviceId(args.ctx, t, args.dut)
-	configurePortId(args.ctx, t, args.dut)
+// 	configureDeviceId(args.ctx, t, args.dut)
+// 	configurePortId(args.ctx, t, args.dut)
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		te_flow = args.allFlows(t)
-		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
-		flows = append(te_flow, src_ip_flow...)
-	}
-	outgoing_interface := make(map[string][]string)
+// 	if *ciscoFlags.GRIBITrafficCheck {
+// 		te_flow = args.allFlows(t)
+// 		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+// 		flows = append(te_flow, src_ip_flow...)
+// 	}
+// 	outgoing_interface := make(map[string][]string)
 
-	// verify traffic
-	if *ciscoFlags.GRIBITrafficCheck {
-		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether126"}
-		// args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
-		args.ate.Traffic().Start(t, flows...)
-		time.Sleep(120 * time.Second)
-		args.ate.Traffic().Stop(t)
-	}
+// 	// verify traffic
+// 	if *ciscoFlags.GRIBITrafficCheck {
+// 		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+// 		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether126"}
+// 		// args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
+// 		args.ate.Traffic().Start(t, flows...)
+// 		time.Sleep(120 * time.Second)
+// 		args.ate.Traffic().Stop(t)
+// 	}
 
-	p4rtPacketOut(t, args.events, args)
-	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
-	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
+// 	p4rtPacketOut(t, args.events, args)
+// 	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
+// 	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
 
-	testGroup.Wait()
+// 	testGroup.Wait()
 
-	// starting traffic after 2 mins
-	time.Sleep(2 * time.Minute)
-}
+// 	// starting traffic after 2 mins
+// 	time.Sleep(2 * time.Minute)
+// }
 
-func multi_process_gribi_programming(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
+// func multi_process_gribi_programming(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
 
-	// base programming
-	arg := args[0].(*testArgs)
-	if with_scale {
-		baseScaleProgramming(arg.ctx, t, arg)
-	} else {
+// 	// base programming
+// 	arg := args[0].(*testArgs)
+// 	if with_scale {
+// 		baseScaleProgramming(arg.ctx, t, arg)
+// 	} else {
 
-		baseProgramming(arg.ctx, t, arg)
-	}
-}
+// 		baseProgramming(arg.ctx, t, arg)
+// 	}
+// }
 
 func test_triggers(t *testing.T, args *testArgs) {
 
