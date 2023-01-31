@@ -262,8 +262,15 @@ github.com/openconfig/gribi v0.1.1-0.20210423184541-ce37eb4ba92f/go.mod h1:OoH46
 github.com/openconfig/gribi v0.1.1-0.20220622162620-08d53dffce45/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
 github.com/openconfig/gribi v0.1.1-0.20221218044856-ec9f4fc18013 h1:ulN32js9l/zXatF4ksJohJI3M8F5DG8DCC0GW9SGdWE=
 github.com/openconfig/gribi v0.1.1-0.20221218044856-ec9f4fc18013/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
+github.com/openconfig/gribi v0.1.1-0.20230111180713-7ea0c4e1ee20/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
+github.com/openconfig/gribi v1.0.0 h1:xMwEg0mBD+21mOxuFOw0d9dBKuIPwJEhMUUeUulZdLg=
+github.com/openconfig/gribi v1.0.0/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
 github.com/openconfig/gribigo v0.0.0-20221005212504-61bfce3da52b h1:GyOxlABKxuMzDhwaK3qStAx5XaNdv4OdqVrQYFNxZtE=
 github.com/openconfig/gribigo v0.0.0-20221005212504-61bfce3da52b/go.mod h1:XFjHVplvGeKC3jNkDzh2fAVbPh4CVecZy11yhByAXw0=
+github.com/openconfig/gribigo v0.0.0-20230112001431-c2737bd77799 h1:SBWncCKABhoL7Pms/MHviQgl1NhVk6K+hgjhvSEBnGU=
+github.com/openconfig/gribigo v0.0.0-20230112001431-c2737bd77799/go.mod h1:j27O3AtRvufyXzMJrgvzmPxwerhZc/2Luqtr2FgyY10=
+github.com/openconfig/gribigo v0.0.0-20230125182415-c8a707ca3d7c h1:Epfa9rQ6cb5MheXXvFlDedZxsNb2GoyGD0m3i3WsT0E=
+github.com/openconfig/gribigo v0.0.0-20230125182415-c8a707ca3d7c/go.mod h1:j27O3AtRvufyXzMJrgvzmPxwerhZc/2Luqtr2FgyY10=
 github.com/openconfig/grpctunnel v0.0.0-20210610163803-fde4a9dc048d/go.mod h1:x9tAZ4EwqCQ0jI8D6S8Yhw9Z0ee7/BxWQX0k0Uib5Q8=
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 h1:t6SvvdfWCMlw0XPlsdxO8EgO+q/fXnTevDjdYREKFwU=
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70/go.mod h1:OmTWe7RyZj2CIzIgy4ovEBzCLBJzRvWSZmn7u02U9gU=
@@ -281,6 +288,8 @@ github.com/openconfig/ygot v0.13.2/go.mod h1:kJN0yCXIH07dOXvNBEFm3XxXdnDD5NI6K99
 github.com/openconfig/ygot v0.20.0/go.mod h1:7ZiBFNc4n/1Hkv2v2dAEpxisqDznp0JVpLR13Toe4AY=
 github.com/openconfig/ygot v0.25.5 h1:TzxehzAfihlT+v9Hq1Ppx+Nky9C+HgA+QuKDHfbvgKI=
 github.com/openconfig/ygot v0.25.5/go.mod h1:+IVqHe5iTfGcDRi3szuq1Mgvy5q3S4x8DG69K5kw62o=
+github.com/openconfig/ygot v0.25.6 h1:r8KgTHbWoQJsaoiB/Lec9jUQDT1P+3AHYrJdDn59x64=
+github.com/openconfig/ygot v0.25.6/go.mod h1:+IVqHe5iTfGcDRi3szuq1Mgvy5q3S4x8DG69K5kw62o=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/p4lang/p4runtime v1.4.0-rc.5 h1:zztZGEkRM09Hf25SIX0p0ML07dmRCgsy0oC8uafmjtg=
 github.com/p4lang/p4runtime v1.4.0-rc.5/go.mod h1:m9laObIMXM9N1ElGXijc66/MSM5eheZJLRLxg/TG+fU=
