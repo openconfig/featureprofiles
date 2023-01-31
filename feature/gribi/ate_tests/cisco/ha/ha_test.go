@@ -1230,51 +1230,51 @@ func test_microdrops(t *testing.T, args *testArgs) {
 	}
 }
 
-// func test_multiple_clients(t *testing.T, args *testArgs) {
-// 	args.ATELock = sync.Mutex{}
-// 	testGroup := &sync.WaitGroup{}
+func test_multiple_clients(t *testing.T, args *testArgs) {
+	args.ATELock = sync.Mutex{}
+	testGroup := &sync.WaitGroup{}
 
-// 	configureDeviceId(args.ctx, t, args.dut)
-// 	configurePortId(args.ctx, t, args.dut)
+	configureDeviceId(args.ctx, t, args.dut)
+	configurePortId(args.ctx, t, args.dut)
 
-// 	if *ciscoFlags.GRIBITrafficCheck {
-// 		te_flow = args.allFlows(t)
-// 		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
-// 		flows = append(te_flow, src_ip_flow...)
-// 	}
-// 	outgoing_interface := make(map[string][]string)
+	if *ciscoFlags.GRIBITrafficCheck {
+		te_flow = args.allFlows(t)
+		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+		flows = append(te_flow, src_ip_flow...)
+	}
+	outgoing_interface := make(map[string][]string)
 
-// 	// verify traffic
-// 	if *ciscoFlags.GRIBITrafficCheck {
-// 		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-// 		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether126"}
-// 		// args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
-// 		args.ate.Traffic().Start(t, flows...)
-// 		time.Sleep(120 * time.Second)
-// 		args.ate.Traffic().Stop(t)
-// 	}
+	// verify traffic
+	if *ciscoFlags.GRIBITrafficCheck {
+		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether126"}
+		// args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
+		args.ate.Traffic().Start(t, flows...)
+		time.Sleep(120 * time.Second)
+		args.ate.Traffic().Stop(t)
+	}
 
-// 	p4rtPacketOut(t, args.events, args)
-// 	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
-// 	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
+	p4rtPacketOut(t, args.events, args)
+	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
+	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
 
-// 	testGroup.Wait()
+	testGroup.Wait()
 
-// 	// starting traffic after 2 mins
-// 	time.Sleep(2 * time.Minute)
-// }
+	// starting traffic after 2 mins
+	time.Sleep(2 * time.Minute)
+}
 
-// func multi_process_gribi_programming(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
+func multi_process_gribi_programming(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
 
-// 	// base programming
-// 	arg := args[0].(*testArgs)
-// 	if with_scale {
-// 		baseScaleProgramming(arg.ctx, t, arg)
-// 	} else {
+	// base programming
+	arg := args[0].(*testArgs)
+	if with_scale {
+		baseScaleProgramming(arg.ctx, t, arg)
+	} else {
 
-// 		baseProgramming(arg.ctx, t, arg)
-// 	}
-// }
+		baseProgramming(arg.ctx, t, arg)
+	}
+}
 
 func test_triggers(t *testing.T, args *testArgs) {
 
@@ -1717,11 +1717,11 @@ func TestHA(t *testing.T) {
 			desc: "With traffic running do delete/update/create programming and look for drops",
 			fn:   test_microdrops,
 		},
-		// {
-		// 	name: "check multiple clients",
-		// 	desc: "With traffic running, validate use of multiple clients",
-		// 	fn:   test_multiple_clients,
-		// },
+		{
+			name: "check multiple clients",
+			desc: "With traffic running, validate use of multiple clients",
+			fn:   test_multiple_clients,
+		},
 		{
 			name: "Triggers",
 			desc: "With traffic running, validate multiple triggers",
