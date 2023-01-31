@@ -100,7 +100,7 @@ func TestCoreLLDPTLVPopulation(t *testing.T) {
 			otg := ate.OTG()
 			otgConfig := configureATE(t, otg)
 
-			checkOtgLLDPMetrics(t, otg, otgConfig, test.lldpEnabled)
+			checkLLDPMetricsOTG(t, otg, otgConfig, test.lldpEnabled)
 
 			dutPeerState := lldpNeighbors{
 				systemName:    lldpSrc.systemName,
@@ -111,25 +111,18 @@ func TestCoreLLDPTLVPopulation(t *testing.T) {
 			}
 
 			if test.lldpEnabled {
-				expOtgLLDPNeighbors := map[string][]lldpNeighbors{
-					"ixia-otg": {
-						{
-							systemName:    dutConf.GetSystemName(),
-							portId:        dutPort.Name(),
-							portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
-							chassisId:     strings.ToUpper(dutConf.GetChassisId()),
-							chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
-						},
-					},
+				expOtgLLDPNeighbor := lldpNeighbors{
+					systemName:    dutConf.GetSystemName(),
+					portId:        dutPort.Name(),
+					portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
+					chassisId:     strings.ToUpper(dutConf.GetChassisId()),
+					chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
 				}
-				checkOtgLLDPNeighbors(t, otg, otgConfig, expOtgLLDPNeighbors)
-				verifyDUTTelemetry(t, dut, dutPort, dutConf, dutPeerState, test.lldpEnabled)
+				checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
+				verifyDUTTelemetry(t, dut, dutPort, dutConf, dutPeerState)
 			} else {
-				expOtgLLDPNeighbors := map[string][]lldpNeighbors{
-					"ixia-otg": {},
-				}
-
-				checkOtgLLDPNeighbors(t, otg, otgConfig, expOtgLLDPNeighbors)
+				expOtgLLDPNeighbor := lldpNeighbors{}
+				checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
 			}
 		})
 	}
@@ -206,8 +199,8 @@ func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, 
 	}
 }
 
-// checkOtgLLDPMetrics verifies OTG side lldp Metrics values based on DUT side lldp is enabled or not
-func checkOtgLLDPMetrics(t *testing.T, otg *otg.OTG, c gosnappi.Config, lldpEnabled bool) {
+// checkLLDPMetricsOTG verifies OTG side lldp Metrics values based on DUT side lldp is enabled or not
+func checkLLDPMetricsOTG(t *testing.T, otg *otg.OTG, c gosnappi.Config, lldpEnabled bool) {
 	for _, lldp := range c.Lldp().Items() {
 		lastValue, ok := gnmi.Watch(t, otg, gnmi.OTG().LldpInterface(lldp.Name()).Counters().FrameOut().State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
 			txPackets, _ := v.Val()
@@ -234,64 +227,32 @@ func checkOtgLLDPMetrics(t *testing.T, otg *otg.OTG, c gosnappi.Config, lldpEnab
 	}
 }
 
-// checkOtgLLDPNeighbors verifies OTG side lldp neighbor states
-func checkOtgLLDPNeighbors(t *testing.T, otg *otg.OTG, c gosnappi.Config, expLldpNeighbors map[string][]lldpNeighbors) {
+// checkOTGLLDPNeighbor verifies OTG side lldp neighbor states
+func checkOTGLLDPNeighbor(t *testing.T, otg *otg.OTG, c gosnappi.Config, expLldpNeighbor lldpNeighbors) {
 	otgutils.LogLLDPNeighborStates(t, otg, c)
 
-	for lldp, lldpNeighbors := range expLldpNeighbors {
-		lldpState := gnmi.Get(t, otg, gnmi.OTG().LldpInterface(lldp).State())
-
-		if len(lldpNeighbors) == 0 {
-			if lldpState.LldpNeighborDatabase != nil {
-				t.Errorf("LldpNeighborDatabase = %v; want nil", lldpState.LldpNeighborDatabase)
-				return
-			}
-		} else {
-			neighbors := lldpState.GetLldpNeighborDatabase().LldpNeighbor
-			for _, lldpNeighbor := range lldpNeighbors {
-				neighborFound := false
-				for _, neighbor := range neighbors {
-					if neighbor.GetChassisId() == lldpNeighbor.chassisId &&
-						neighbor.GetChassisIdType() == lldpNeighbor.chassisIdType &&
-						neighbor.GetPortId() == lldpNeighbor.portId &&
-						neighbor.GetPortIdType() == lldpNeighbor.portIdType &&
-						neighbor.GetSystemName() == lldpNeighbor.systemName {
-						neighborFound = true
-						break
-					}
-				}
-				if !neighborFound {
-					t.Errorf("LLDP Neighbor not found")
-				}
-			}
+	lldpState := gnmi.Get(t, otg, gnmi.OTG().LldpInterface(lldpSrc.otgName).State())
+	neighbors := lldpState.GetLldpNeighborDatabase().LldpNeighbor
+	neighborFound := false
+	for _, neighbor := range neighbors {
+		if expLldpNeighbor.Equal(neighbor) {
+			neighborFound = true
+			break
 		}
-
+	}
+	if !neighborFound {
+		t.Errorf("LLDP Neighbor not found")
 	}
 }
 
 // verifyDUTTelemetry verifies the telemetry values from the node such as port LLDP neighbor info.
-func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.Port, conf *oc.Lldp, dutPeerState lldpNeighbors, lldpEnabled bool) {
-	verifyNodeConfig(t, dut, nodePort, conf, lldpEnabled)
+func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.Port, conf *oc.Lldp, dutPeerState lldpNeighbors) {
+	verifyNodeConfig(t, dut, nodePort, conf, true)
 	interfacePath := gnmi.OC().Lldp().Interface(nodePort.Name())
 
 	// Ensure that DUT does not generate any LLDP messages irrespective of the
 	// configuration of lldp/interfaces/interface/config/enabled (TRUE or FALSE)
 	// on any interface.
-	var gotLen int
-	if !lldpEnabled {
-		if _, ok := gnmi.Watch(t, dut, interfacePath.State(), time.Minute, func(val *ygnmi.Value[*oc.Lldp_Interface]) bool {
-			intf, present := val.Val()
-			if !present {
-				return false
-			}
-			gotLen = len(intf.Neighbor)
-			return gotLen == 0
-		}).Await(t); !ok {
-			t.Errorf("Number of neighbors got: %d, want: 0.", gotLen)
-		}
-		return
-	}
-
 	// LLDP Enabled
 	// Get the LLDP state of the peer.
 
@@ -318,4 +279,12 @@ func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.
 		SystemName:    &dutPeerState.systemName,
 	}
 	confirm.State(t, wantNbrState, gotNbrState)
+}
+
+func (expLldpNeighbor *lldpNeighbors) Equal(neighbour *otgtelemetry.LldpInterface_LldpNeighborDatabase_LldpNeighbor) bool {
+	return neighbour.GetChassisId() == expLldpNeighbor.chassisId &&
+		neighbour.GetChassisIdType() == expLldpNeighbor.chassisIdType &&
+		neighbour.GetPortId() == expLldpNeighbor.portId &&
+		neighbour.GetPortIdType() == expLldpNeighbor.portIdType &&
+		neighbour.GetSystemName() == expLldpNeighbor.systemName
 }
