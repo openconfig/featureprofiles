@@ -1,0 +1,210 @@
+diff --git a/feature/experimental/qos/ate_tests/qos_ecn_config_test/qos_ecn_config_test.go b/feature/experimental/qos/ate_tests/qos_ecn_config_test/qos_ecn_config_test.go
+index e0d1293..4c99a4b 100644
+--- a/feature/experimental/qos/ate_tests/qos_ecn_config_test/qos_ecn_config_test.go
++++ b/feature/experimental/qos/ate_tests/qos_ecn_config_test/qos_ecn_config_test.go
+@@ -15,13 +15,14 @@
+ package qos_ecn_config_test
+ 
+ import (
+-	"math"
++	//"math"
+ 	"testing"
+ 
+ 	"github.com/openconfig/featureprofiles/internal/fptest"
+ 	"github.com/openconfig/ondatra"
+ 	"github.com/openconfig/ondatra/gnmi"
+ 	"github.com/openconfig/ondatra/gnmi/oc"
++	"github.com/openconfig/ygot/ygot"
+ )
+ 
+ func TestMain(m *testing.M) {
+@@ -58,6 +59,101 @@ func TestECNConfig(t *testing.T) {
+ 	dut := ondatra.DUT(t, "dut")
+ 	d := &oc.Root{}
+ 	q := d.GetOrCreateQos()
++	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
++	for _, queue := range queues {
++		q1 := q.GetOrCreateQueue(queue)
++		q1.Name = ygot.String(queue)
++		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
++	}
++	cases := []struct {
++		desc         string
++		sequence     uint32
++		priority     oc.E_Scheduler_Priority
++		inputID      string
++		inputType    oc.E_Input_InputType
++		weight       uint64
++		queueName    string
++		targetGrpoup string
++	}{{
++		desc:         "scheduler-policy-BE1",
++		sequence:     uint32(1),
++		priority:     oc.Scheduler_Priority_UNSET,
++		inputID:      "tc1",
++		inputType:    oc.Input_InputType_QUEUE,
++		weight:       uint64(1),
++		queueName:    "tc1",
++		targetGrpoup: "tc1",
++	}, {
++		desc:         "scheduler-policy-BE0",
++		sequence:     uint32(1),
++		priority:     oc.Scheduler_Priority_UNSET,
++		inputID:      "tc2",
++		inputType:    oc.Input_InputType_QUEUE,
++		weight:       uint64(2),
++		queueName:    "tc2",
++		targetGrpoup: "tc2",
++	}, {
++		desc:         "scheduler-policy-AF1",
++		sequence:     uint32(1),
++		priority:     oc.Scheduler_Priority_UNSET,
++		inputID:      "tc3",
++		inputType:    oc.Input_InputType_QUEUE,
++		weight:       uint64(4),
++		queueName:    "tc3",
++		targetGrpoup: "tc3",
++	}, {
++		desc:         "scheduler-policy-AF2",
++		sequence:     uint32(1),
++		priority:     oc.Scheduler_Priority_UNSET,
++		inputID:      "tc4",
++		inputType:    oc.Input_InputType_QUEUE,
++		weight:       uint64(8),
++		queueName:    "tc4",
++		targetGrpoup: "tc4",
++	}, {
++		desc:         "scheduler-policy-AF3",
++		sequence:     uint32(1),
++		priority:     oc.Scheduler_Priority_UNSET,
++		inputID:      "tc5",
++		inputType:    oc.Input_InputType_QUEUE,
++		weight:       uint64(16),
++		queueName:    "tc5",
++		targetGrpoup: "tc5",
++	}, {
++		desc:         "scheduler-policy-AF4",
++		sequence:     uint32(2),
++		priority:     oc.Scheduler_Priority_STRICT,
++		inputID:      "tc6",
++		inputType:    oc.Input_InputType_QUEUE,
++		weight:       uint64(6),
++		queueName:    "tc6",
++		targetGrpoup: "tc6",
++	}, {
++		desc:         "scheduler-policy-NC1",
++		sequence:     uint32(2),
++		priority:     oc.Scheduler_Priority_STRICT,
++		inputID:      "tc7",
++		inputType:    oc.Input_InputType_QUEUE,
++		weight:       uint64(7),
++		queueName:    "tc7",
++		targetGrpoup: "tc7",
++	}}
++
++	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
++	schedulerPolicy.SetName("scheduler")
++	t.Logf("qos scheduler policies config cases: %v", cases)
++	for _, tc := range cases {
++		t.Run(tc.desc, func(t *testing.T) {
++			s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
++			s.SetSequence(tc.sequence)
++			s.SetPriority(tc.priority)
++			input := s.GetOrCreateInput(tc.inputID)
++			input.SetId(tc.inputID)
++			//input.SetInputType(tc.inputType)
++			input.SetQueue(tc.queueName)
++			input.SetWeight(tc.weight)
++		})
++	}
+ 
+ 	ecnConfig := struct {
+ 		ecnEnabled                bool
+@@ -70,7 +166,7 @@ func TestECNConfig(t *testing.T) {
+ 		ecnEnabled:                true,
+ 		dropEnabled:               false,
+ 		minThreshold:              uint64(80000),
+-		maxThreshold:              math.MaxUint64,
++		maxThreshold:              uint64(1000000),
+ 		maxDropProbabilityPercent: uint8(1),
+ 		weight:                    uint32(0),
+ 	}
+@@ -80,15 +176,16 @@ func TestECNConfig(t *testing.T) {
+ 	wred := queueMgmtProfile.GetOrCreateWred()
+ 	uniform := wred.GetOrCreateUniform()
+ 	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
+-	uniform.SetDrop(ecnConfig.dropEnabled)
++	//uniform.SetDrop(ecnConfig.dropEnabled)
+ 	uniform.SetMinThreshold(ecnConfig.minThreshold)
+ 	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
+-	// TODO: uncomment the following config after it is supported.
+-	// uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
+ 	// uniform.SetWeight(ecnConfig.weight)
+ 
+ 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
+-	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
++	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), q)
++	// TODO: uncomment the following config after it is supported.
++	// uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
++	// uniform.SetWeight(ecnConfig.weight)
+ 
+ 	// TODO: Remove the following t.Skipf() after the config verification code has been tested.
+ 	t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
+@@ -126,37 +223,37 @@ func TestQoSOutputIntfConfig(t *testing.T) {
+ 		scheduler  string
+ 	}{{
+ 		desc:       "output-interface-BE1",
+-		queueName:  "BE1",
++		queueName:  "tc1",
+ 		ecnProfile: "DropProfile",
+ 		scheduler:  "scheduler",
+ 	}, {
+ 		desc:       "output-interface-BE0",
+-		queueName:  "BE0",
++		queueName:  "tc2",
+ 		ecnProfile: "DropProfile",
+ 		scheduler:  "scheduler",
+ 	}, {
+ 		desc:       "output-interface-AF1",
+-		queueName:  "AF1",
++		queueName:  "tc3",
+ 		ecnProfile: "DropProfile",
+ 		scheduler:  "scheduler",
+ 	}, {
+ 		desc:       "output-interface-AF2",
+-		queueName:  "AF2",
++		queueName:  "tc4",
+ 		ecnProfile: "DropProfile",
+ 		scheduler:  "scheduler",
+ 	}, {
+ 		desc:       "output-interface-AF3",
+-		queueName:  "AF3",
++		queueName:  "tc5",
+ 		ecnProfile: "DropProfile",
+ 		scheduler:  "scheduler",
+ 	}, {
+ 		desc:       "output-interface-AF4",
+-		queueName:  "AF4",
++		queueName:  "tc6",
+ 		ecnProfile: "DropProfile",
+ 		scheduler:  "scheduler",
+ 	}, {
+ 		desc:       "output-interface-NC1",
+-		queueName:  "NC1",
++		queueName:  "tc7",
+ 		ecnProfile: "DropProfile",
+ 		scheduler:  "scheduler",
+ 	}}
+@@ -175,8 +272,11 @@ func TestQoSOutputIntfConfig(t *testing.T) {
+ 			queue := output.GetOrCreateQueue(tc.queueName)
+ 			queue.SetQueueManagementProfile(tc.ecnProfile)
+ 			queue.SetName(tc.queueName)
+-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+ 		})
++	}
++	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), q)
++
++	for _, tc := range cases {
+ 
+ 		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
+ 		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
