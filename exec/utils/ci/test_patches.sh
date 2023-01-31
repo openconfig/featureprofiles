@@ -1,6 +1,6 @@
 #!/bin/bash
 git reset --hard HEAD
-git checkout main
+git checkout origin/main
 
 failed=0
 for f in $1/*
