@@ -65,7 +65,7 @@ func TestBasic(t *testing.T) {
 	deadline := time.Now().Add(time.Second * 5)
 
 	t.Run("read_config", func(t *testing.T) {
-		data := []check.Validator{
+		checks := []check.Validator{
 			check.Equal(isisRoot.Global().Net().State(), []string{"49.0001.1920.0000.2001.00"}),
 			EqualToDefault(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_1_2),
 			check.Equal(port1ISIS.Enabled().State(), true),
@@ -75,23 +75,23 @@ func TestBasic(t *testing.T) {
 		// if MissingIsisInterfaceAfiSafiEnable is set, ignore enable flag check for AFI, SAFI at global level
 		// and validate enable at interface level
 		if *deviations.MissingIsisInterfaceAfiSafiEnable {
-			data = append(data,
+			checks = append(checks,
 				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
 		} else {
-			data = append(data,
+			checks = append(checks,
 				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
 		}
 
 		// if ISISInterfaceLevel1DisableRequired is set, validate Level1 enabled false at interface level else validate Level2 enabled at global level
 		if *deviations.ISISInterfaceLevel1DisableRequired {
-			data = append(data, check.Equal(port1ISIS.Level(1).Enabled().State(), false))
+			checks = append(checks, check.Equal(port1ISIS.Level(1).Enabled().State(), false))
 		} else {
-			data = append(data, check.Equal(isisRoot.Level(2).Enabled().State(), true))
+			checks = append(checks, check.Equal(isisRoot.Level(2).Enabled().State(), true))
 		}
 
-		for _, vd := range data {
+		for _, vd := range checks {
 			t.Run(vd.RelPath(isisRoot), func(t *testing.T) {
 				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 					t.Error(err)
