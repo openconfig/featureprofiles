@@ -187,7 +187,8 @@ func flushNonDefaultVrfPrimary(ctx context.Context, t *testing.T, dut *ondatra.D
 
 	t.Log("Test traffic between ATE port-1 and ATE port-2 for destinations within 198.51.100.0/24")
 
-	if got := getTrafficPacketLoss(t, ate, ateTop); got > 0 {
+	sendTraffic(t, ate, ateTop)
+	if got := computeLossPct(t, ate, ateTop); got > 0 {
 		t.Errorf("LossPct for flow got %v, want 0", got)
 	} else {
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
@@ -201,7 +202,8 @@ func flushNonDefaultVrfPrimary(ctx context.Context, t *testing.T, dut *ondatra.D
 	}
 
 	t.Log("After flush, left entry should be 0, and packets can no longer be forwarded")
-	if got := getTrafficPacketLoss(t, ate, ateTop); got == 0 {
+	sendTraffic(t, ate, ateTop)
+	if got := computeLossPct(t, ate, ateTop); got == 0 {
 		t.Error("Traffic can still be forwarded between ATE port-1 and ATE port-2")
 	} else {
 		t.Log("Traffic can not be forwarded between ATE port-1 and ATE port-2")
@@ -236,7 +238,8 @@ func flushNonDefaultVrfFailover(ctx context.Context, t *testing.T, dut *ondatra.
 	}
 
 	t.Log("After flush, left entry should be 0, and packets can no longer be forwarded")
-	if got := getTrafficPacketLoss(t, ate, ateTop); got == 0 {
+	sendTraffic(t, ate, ateTop)
+	if got := computeLossPct(t, ate, ateTop); got == 0 {
 		t.Error("Traffic can still be forwarded between ATE port-1 and ATE port-2")
 	} else {
 		t.Log("Traffic stopped as expected after flush between ATE port-1 and ATE port-2")
@@ -247,8 +250,8 @@ func flushNonDefaultVrfFailover(ctx context.Context, t *testing.T, dut *ondatra.
 func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, clientB *gribi.Client, ate *ondatra.ATEDevice, ateTop gosnappi.Config) {
 
 	t.Log("Test traffic between ATE port-1 and ATE port-2 for destinations within 198.51.100.0/24")
-
-	if got := getTrafficPacketLoss(t, ate, ateTop); got > 0 {
+	sendTraffic(t, ate, ateTop)
+	if got := computeLossPct(t, ate, ateTop); got > 0 {
 		t.Errorf("LossPct for flow got %v, want 0", got)
 	} else {
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
@@ -267,7 +270,8 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 	}
 
 	t.Log("Ensure that the IPEntry 198.51.100.0/24 (ateDstNetEntryNonDefault) is not removed, by validating packet forwarding and telemetry.")
-	if got := getTrafficPacketLoss(t, ate, ateTop); got > 0 {
+	sendTraffic(t, ate, ateTop)
+	if got := computeLossPct(t, ate, ateTop); got > 0 {
 		t.Errorf("LossPct for flow got %v, want 0", got)
 	} else {
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
@@ -355,20 +359,23 @@ func networkInstance(t *testing.T, name string) *oc.NetworkInstance {
 	return ni
 }
 
-// getTrafficPacketLoss generates traffic flow from source network to
-// destination network via srcEndPoint to dstEndPoint and checks for
-// packet loss.
-func getTrafficPacketLoss(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) int64 {
+// sendTraffic generates traffic flow from source network to
+// destination network via srcEndPoint to dstEndPoint
+func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
+	t.Helper()
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), config)
+}
 
+// computeLossPct checks for traffic packet loss.
+func computeLossPct(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) int64 {
+	t.Helper()
 	flowMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("Flow").State())
 	txPackets := flowMetric.GetCounters().GetOutPkts()
 	if txPackets == 0 {
-		t.Errorf("No tx packets")
-		return 0
+		t.Fatal("No tx packets")
 	}
 	rxPackets := flowMetric.GetCounters().GetInPkts()
 	lossPct := int64((txPackets - rxPackets) * 100 / txPackets)
