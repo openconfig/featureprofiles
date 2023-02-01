@@ -163,10 +163,10 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 		expectPass: false,
 	}}
 
-	TTL := uint8(1)
+	ttl := uint8(1)
 
 	t.Log("TTL/HopLimit 1")
-	testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, TTL, 300, 2), srcEndPoint, 10)
+	testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, ttl, 300, 2), srcEndPoint, 10)
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Extract packets from PacketIn message sent to p4rt client
