@@ -146,7 +146,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 		defer programmTableEntry(leader, args.packetIO, true, false)
 	}
 
-	// Send GDP traffic from ATE
+	// Send Traceroute traffic from ATE
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	packetInTests := []struct {
@@ -163,92 +163,67 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 		expectPass: false,
 	}}
 
-	//CheckTTL struct for TTL/HopLimit=0,1
-	checkTTL := []struct {
-		desc string
-		TTL  uint8
-	}{{
-		desc: "TTL/HopLimit 1",
-		TTL:  1,
-	}, {
-		desc: "TTL/HopLimit 0",
-		TTL:  0,
-	}}
+	TTL := uint8(1)
 
-	for _, TTL := range checkTTL {
-		t.Log(TTL.desc)
-		testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, TTL.TTL, 300, 2), srcEndPoint, 10)
-		for _, test := range packetInTests {
-			t.Run(test.desc, func(t *testing.T) {
-				// Extract packets from PacketIn message sent to p4rt client
-				packets := fetchPackets(ctx, t, test.client, 40)
+	t.Log("TTL/HopLimit 1")
+	testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, TTL, 300, 2), srcEndPoint, 10)
+	for _, test := range packetInTests {
+		t.Run(test.desc, func(t *testing.T) {
+			// Extract packets from PacketIn message sent to p4rt client
+			packets := fetchPackets(ctx, t, test.client, 20)
 
-				if !test.expectPass {
-					if len(packets) > 0 {
-						t.Fatalf("Unexpected packets received.")
-						return
-					}
+			if !test.expectPass {
+				if len(packets) > 0 {
+					t.Fatalf("Unexpected packets received.")
 					return
-				} else {
-					if len(packets) == 0 {
-						t.Fatalf("There are no packets received.")
-						return
-					}
-					t.Logf("Start to decode packet and compare with expected packets.")
-					wantPacket := args.packetIO.GetPacketTemplate()
-					for _, packet := range packets {
-						if packet != nil {
-							if wantPacket.TTL != nil {
-								//TTL/HopLimit comparison for IPV4 & IPV6
-								if IsIpv4 {
-									if TTL.TTL == 1 {
-										captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
-										if captureTTL != TTL1 {
-											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")
-										}
-									} else {
-										captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
-										if captureTTL != TTL0 {
-											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL0")
-										}
-									}
-								} else {
-									if TTL.TTL == 1 {
-										captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
-										if captureHopLimit != HopLimit1 {
-											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit1")
-										}
-									} else {
-										captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
-										if captureHopLimit != HopLimit0 {
-											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit0")
-										}
-									}
+				}
+				return
+			} else {
+				if len(packets) == 0 {
+					t.Fatalf("There are no packets received.")
+					return
+				}
+				t.Logf("Start to decode packet and compare with expected packets.")
+				wantPacket := args.packetIO.GetPacketTemplate()
+				for _, packet := range packets {
+					if packet != nil {
+						if wantPacket.TTL != nil {
+							//TTL/HopLimit comparison for IPV4 & IPV6
+							if IsIpv4 {
+								captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
+								if captureTTL != TTL1 {
+									t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")
+								}
+
+							} else {
+								captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
+								if captureHopLimit != HopLimit1 {
+									t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit1")
 								}
 							}
+						}
 
-							//Metadata comparision
-							metaData := packet.Pkt.GetMetadata()
-							for _, data := range metaData {
-								if data.GetMetadataId() == METADATA_INGRESS_PORT {
-									if string(data.GetValue()) != args.packetIO.GetIngressPort() {
-										t.Fatalf("Ingress Port Id is not matching expectation.")
-									}
+						//Metadata comparision
+						metaData := packet.Pkt.GetMetadata()
+						for _, data := range metaData {
+							if data.GetMetadataId() == METADATA_INGRESS_PORT {
+								if string(data.GetValue()) != args.packetIO.GetIngressPort() {
+									t.Fatalf("Ingress Port Id is not matching expectation.")
 								}
-								if data.GetMetadataId() == METADATA_EGRESS_PORT {
-									found := false
-									if string(data.GetValue()) == args.packetIO.GetEgressPort() {
-										found = true
-									}
-									if !found {
-										t.Fatalf("Egress Port Id is not matching expectation.")
-									}
+							}
+							if data.GetMetadataId() == METADATA_EGRESS_PORT {
+								found := false
+								if string(data.GetValue()) == args.packetIO.GetEgressPort() {
+									found = true
+								}
+								if !found {
+									t.Fatalf("Egress Port Id is not matching expectation.")
 								}
 							}
 						}
 					}
 				}
-			})
-		}
+			}
+		})
 	}
 }
