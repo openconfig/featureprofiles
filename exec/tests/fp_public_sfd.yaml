@@ -307,7 +307,10 @@ tests:
   priority: 46
 - name: RT-1.1 (Base BGP Session Parameters) 
   path: feature/experimental/bgp/ate_tests/base_bgp_session_parameters
-  owner: sprem@cisco.com
+  patch: exec/firex/plugins/fp_patch/RT1.1_base_bgp_session_parameters_test.patch
+  owner: arvbaska@cisco.com
+  args:
+    - '-deviation_connect_retry="true"'
   mustpass: true
   priority: 47
   skip: false
