@@ -211,7 +211,7 @@ func inferP4RTNodesCisco(t testing.TB, dut *ondatra.DUTDevice) map[string]string
 			npu := npus[sort.SearchInts(pranges, pnum)]
 			res[p.ID()] = fmt.Sprintf("0/%s/CPU0-NPU%d", parts[1], npu)
 		} else {
-			res[p.ID()] = "0/RP0/CPU0/0"
+			res[p.ID()] = "0/RP0/CPU0-NPU0"
 		}
 	}
 	return res
