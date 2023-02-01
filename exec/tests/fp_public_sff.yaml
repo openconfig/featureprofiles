@@ -157,8 +157,9 @@ tests:
   mustpass: false
 - name: P4RT-5.2 (Traceroute Packetout)
   path: feature/experimental/p4rt/ate_tests/traceroute_packetout_test
+  patch: exec/firex/plugins/fp_patch/p4rt5dot2.patch
   args:
-    - '-p4rt_node_name="0/0/CPU0-NPU0"'
+    - '-deviation_explicit_p4rt_node_component="true"'
   owner: sprem@cisco.com
   priority: 5
   mustpass: false
