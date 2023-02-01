@@ -197,6 +197,13 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 			nextCount = 0
 		}
 	}
+	nhgCount := localIndex - index.nhgIndex
+	if nextCount == 0 { // last nhg without no nh needs to be ignored
+		nhgCount--
+	}
+	// maxIPCount should be set based on the number of added nhg,
+	// otherwise ipv4entry may be added with invalid nhg id (Note. forward refrencing is not allowed)
+	index.maxIPCount = (len(ips) / nhgCount) + 1
 	nextCount = 0
 	localIndex = index.nhgIndex
 	for ip := range ips {
@@ -249,14 +256,14 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) []strin
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithIndex(index).
 				WithIPAddress(nextHops[i]).
-				WithElectionID(12, 0))
+				WithElectionID(args.electionID.Low, args.electionID.High))
 
 		args.client.Modify().AddEntry(t,
 			fluent.NextHopGroupEntry().
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithID(uint64(2)).
 				AddNextHop(index, 64).
-				WithElectionID(12, 0))
+				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 	time.Sleep(time.Minute)
 	virtualVIPs := createIPv4Entries("198.18.196.1/22")
@@ -267,7 +274,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) []strin
 				WithPrefix(virtualVIPs[ip]+"/32").
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithNextHopGroup(uint64(2)).
-				WithElectionID(12, 0))
+				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
 		t.Fatalf("Could not program entries via clientA, got err: %v", err)
@@ -291,12 +298,14 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) 
 	for _, vrf := range vrfs {
 		// For non-default VRF, we want to replace the
 		// entire VRF tree so the instance is created.
-		i := d.GetOrCreateNetworkInstance(vrf)
-		i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		i.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
-		nip := gnmi.OC().NetworkInstance(vrf)
-		fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
+		if vrf != *deviations.DefaultNetworkInstance {
+			i := d.GetOrCreateNetworkInstance(vrf)
+			i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+			i.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
+			nip := gnmi.OC().NetworkInstance(vrf)
+			fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
+		}
 	}
 }
 
@@ -308,7 +317,6 @@ func pushConfig(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d *
 	iname := dutPort.Name()
 	i := d.GetOrCreateInterface(iname)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(iname).Config(), i)
-
 	if *deviations.ExplicitPortSpeed {
 		fptest.SetPortSpeed(t, dutPort)
 	}
@@ -363,7 +371,11 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
 	if vlanID != 0 {
-		s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
+		if *deviations.DeprecatedVlanID {
+			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+		}
 	}
 
 	sipv4 := s.GetOrCreateIpv4()

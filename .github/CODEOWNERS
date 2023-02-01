@@ -9,8 +9,8 @@
 *       @openconfig/featureprofiles-maintainers @openconfig/featureprofiles-quattro-tl
 
 # Tests which are ported from ate_tests to otg_tests may be reviewed by this team.
-**/otg_tests/**      @openconfig/featureprofiles-maintainers-otg
-/internal/otgutils/  @openconfig/featureprofiles-maintainers-otg
+**/otg_tests/**      @openconfig/featureprofiles-maintainers-otg @openconfig/featureprofiles-maintainers @openconfig/featureprofiles-quattro-tl
+/internal/otgutils/  @openconfig/featureprofiles-maintainers-otg @openconfig/featureprofiles-maintainers @openconfig/featureprofiles-quattro-tl
 
 # Order is important; the last matching pattern takes the most
 # precedence.
