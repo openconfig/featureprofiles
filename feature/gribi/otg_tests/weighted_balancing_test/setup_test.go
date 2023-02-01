@@ -235,8 +235,8 @@ func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 		config.Ports().Add().SetName(ap.ID())
 		dev := config.Devices().Add().SetName(ateid)
 		macAddress, _ := incrementMAC(ateSrcPortMac, i)
-		eth := dev.Ethernets().Add().SetName(ateid + ".Eth").
-			SetPortName(ap.ID()).SetMac(macAddress)
+		eth := dev.Ethernets().Add().SetName(ateid + ".Eth").SetMac(macAddress)
+		eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap.ID())
 		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4").
 			SetAddress(portsIPv4[ateid]).SetGateway(portsIPv4[dutid]).
 			SetPrefix(plen)
