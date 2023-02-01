@@ -198,7 +198,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	defer programmTableEntry(ctx, t, leader, args.packetIO, true)
 
 	// Send LLDP traffic from ATE
-	srcEndPoint := ateInterface(t, args.top, "port1")
+	srcEndPoint := ateInterface(args.top, "port1")
 	txPackets := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, 300, 2), srcEndPoint, 10)
 
 	packetInTests := []struct {
@@ -516,7 +516,7 @@ func (lldp *LLDPPacketIO) GetIngressPort() string {
 	return lldp.IngressPort
 }
 
-func ateInterface(t *testing.T, topo gosnappi.Config, portID string) gosnappi.Port {
+func ateInterface(topo gosnappi.Config, portID string) gosnappi.Port {
 	for _, p := range topo.Ports().Items() {
 		if p.Name() == portID {
 			return p
