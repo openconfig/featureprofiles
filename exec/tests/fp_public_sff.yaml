@@ -162,6 +162,11 @@ tests:
   owner: sprem@cisco.com
   priority: 5
   mustpass: false
+- name: P4RT-5.1 (Traceroute Packetin)
+  path: feature/experimental/p4rt/ate_tests/traceroute_packetin_test
+  patch: exec/firex/plugins/fp_patch/p4rt5dot1.patch
+  args:
+    - '-deviation_explicit_p4rt_node_component="true"'
 - name: gNMI-1.1 (cli Origin) 
   path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
   owner: agvarghe@cisco.com
