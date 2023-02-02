@@ -386,6 +386,9 @@ tests:
   mustpass: true
   priority: 55
   skip: false
+  args:
+    - '-deviation_connect_retry="true"'
+    - '-deviation_missing_bgp_neighbor_state_peer_group="true"'
 - name: RT-1.2 (BGP Policy and Route Installation) 
   path: feature/bgp/policybase/ate_tests/route_installation_test
   owner: sprem@cisco.com
