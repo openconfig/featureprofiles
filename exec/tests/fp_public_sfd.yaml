@@ -169,6 +169,15 @@ tests:
   mustpass: true
 - name: P4RT-5.2 (Traceroute Packetout)
   path: feature/experimental/p4rt/ate_tests/traceroute_packetout_test
+  patch: exec/firex/plugins/fp_patch/p4rt5dot2.patch
+  args:
+    - '-deviation_explicit_p4rt_node_component="true"'
+  owner: sprem@cisco.com
+  priority: 5
+  mustpass: false
+- name: P4RT-5.1 (Traceroute Packetin)
+  path: feature/experimental/p4rt/ate_tests/traceroute_packetin_test
+  patch: exec/firex/plugins/fp_patch/p4rt5dot1.patch
   args:
     - '-deviation_explicit_p4rt_node_component="true"'
   owner: sprem@cisco.com
@@ -307,7 +316,10 @@ tests:
   priority: 46
 - name: RT-1.1 (Base BGP Session Parameters) 
   path: feature/experimental/bgp/ate_tests/base_bgp_session_parameters
-  owner: sprem@cisco.com
+  patch: exec/firex/plugins/fp_patch/RT1.1_base_bgp_session_parameters_test.patch
+  owner: arvbaska@cisco.com
+  args:
+    - '-deviation_connect_retry="true"'
   mustpass: true
   priority: 47
   skip: false
