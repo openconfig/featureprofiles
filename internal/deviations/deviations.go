@@ -151,4 +151,6 @@ var (
 
 	ISISInstanceEnabledNotRequired = flag.Bool("deviation_isis_instance_enabled_not_required", false,
 		"Don't set isis instance enable flag on the device if value is true, Default value is false and instance enable flag is set")
+
+	ExplicitInterfaceRefInPolicyForwarding = flag.Bool("deviation_explicit_interface_ref_in_policy_forwarding", false, "Device requires interface ref config when applying vrf-selection-policy")
 )
