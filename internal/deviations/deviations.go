@@ -148,4 +148,7 @@ var (
 
 	ISISprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
 		"Unset isis protocol enable flag on the device if value is true, Default value is false and protocol enable flag is set")
+
+	ISISInstanceEnabledNotRequired = flag.Bool("deviation_isis_instance_enabled_not_required", false,
+		"Don't set isis instance enable flag on the device if value is true, Default value is false and instance enable flag is set")
 )

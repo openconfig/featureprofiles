@@ -111,6 +111,9 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	}
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
+	if !*deviations.ISISInstanceEnabledNotRequired {
+		glob.Instance = ygot.String(ISISName)
+	}
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
