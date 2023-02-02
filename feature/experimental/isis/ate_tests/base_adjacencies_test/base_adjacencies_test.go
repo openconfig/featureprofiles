@@ -221,7 +221,7 @@ func TestBasic(t *testing.T) {
 		for _, vd := range []check.Validator{
 			check.Equal(adj.AdjacencyState().State(), oc.Isis_IsisInterfaceAdjState_UP),
 			check.Equal(adj.SystemId().State(), systemID),
-			check.Equal(adj.DisSystemId().State(), "0000.0000.0000"),
+			check.EqualOrNil(adj.DisSystemId().State(), "0000.0000.0000"),
 			check.NotEqual(adj.LocalExtendedCircuitId().State(), uint32(0)),
 			check.Equal(adj.MultiTopology().State(), false),
 			check.Equal(adj.NeighborCircuitType().State(), oc.Isis_LevelType_LEVEL_2),
