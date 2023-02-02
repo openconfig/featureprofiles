@@ -331,6 +331,8 @@ tests:
 - name: RT-6.1 (Core LLDP TLV Population) 
   path: feature/lldp/tests/core_lldp_tlv_population_test
   patch: exec/firex/plugins/fp_patch/core_lldp_tlv_population_test.patch
+  args:
+       - 'deviation_lldp_interface_config_override_global="true"'
   owner: agvarghe@cisco.com
   mustpass: false 
   priority: 51
