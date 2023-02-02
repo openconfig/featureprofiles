@@ -301,10 +301,6 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) 
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 			nip := gnmi.OC().NetworkInstance(vrf)
 			fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
-		} else if vrf == *deviations.DefaultNetworkInstance {
-			i := d.GetOrCreateNetworkInstance(vrf)
-			i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
-			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 		}
 	}
 }
@@ -344,13 +340,14 @@ func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *oc.Root, desc
 func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, ate *ondatra.ATEDevice, atePort *ondatra.Port, top *ondatra.ATETopology, d *oc.Root) []string {
 	nextHops := []string{}
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
-	for i := 0; i <= nextHopCount; i++ {
+	for i := 1; i <= nextHopCount; i++ {
 		//yang file using  vlan rang 1-4094 https://github.com/openconfig/public/blob/b34db05e8cf2efe69df3762d4bbd80665e1f9e79/release/models/vlan/openconfig-vlan-types.yang#L133
-		vlanID := uint16(i) + 1
+		vlanID := uint16(i)
 		name := fmt.Sprintf(`dst%d`, i)
 		Index := uint32(i)
-		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
-		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 2))
+		ipIndex := i - 1
+		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * ipIndex) + 1))
+		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * ipIndex) + 2))
 		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4, *deviations.DefaultNetworkInstance)
 		configureATE(t, top, atePort, name, vlanID, dutIPv4, ateIPv4+"/30")
 		nextHops = append(nextHops, ateIPv4)
@@ -429,6 +426,8 @@ func TestScaling(t *testing.T) {
 	ap1 := ate.Port(t, "port1")
 	top := ate.Topology().New()
 	vrfs := []string{*deviations.DefaultNetworkInstance, vrf1, vrf2, vrf3}
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	createVrf(t, dut, d, vrfs)
 	// configure an L3 subinterface of no vlan tagging under DUT port#1
 	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4, vrf1)
