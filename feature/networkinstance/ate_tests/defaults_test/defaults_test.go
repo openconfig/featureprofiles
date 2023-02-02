@@ -133,8 +133,6 @@ func TestDefaultAddressFamilies(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			// Reset DUT config.
-			dut.Config().New().WithText("").Push(t)
 			d := &oc.Root{}
 			// Assign two ports into the network instance.
 			assignPort(t, d, dut.Port(t, "port1").Name(), tc.niName, dutPort1)
