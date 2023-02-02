@@ -15,15 +15,20 @@
 package binding
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"plugin"
+	"time"
 
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/knebind"
+	opb "github.com/openconfig/ondatra/proto"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
@@ -56,6 +61,14 @@ var (
 //
 // For more detail about how to write a plugin, see: https://pkg.go.dev/plugin
 func New() (binding.Binding, error) {
+	b, err := newBind()
+	if err != nil {
+		return nil, err
+	}
+	return &rundataBind{Binding: b}, nil
+}
+
+func newBind() (binding.Binding, error) {
 	if *pluginFile != "" {
 		return loadBinding(*pluginFile, *pluginArgs)
 	}
@@ -113,4 +126,40 @@ func staticBinding(bindingFile string) (binding.Binding, error) {
 		r:          resolver{b},
 		pushConfig: *pushConfig,
 	}, nil
+}
+
+// rundataBind wraps an Ondatra binding to report rundata.
+type rundataBind struct {
+	binding.Binding
+}
+
+func (b *rundataBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, waitTime time.Duration, partial map[string]string) (*binding.Reservation, error) {
+	resv, err := b.Binding.Reserve(ctx, tb, runTime, waitTime, partial)
+	if err != nil {
+		return nil, err
+	}
+	b.addResvProperties(ctx, resv)
+	return resv, nil
+}
+
+func (b *rundataBind) FetchReservation(ctx context.Context, id string) (*binding.Reservation, error) {
+	resv, err := b.Binding.FetchReservation(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	b.addResvProperties(ctx, resv)
+	return resv, nil
+}
+
+func (b *rundataBind) addResvProperties(ctx context.Context, resv *binding.Reservation) {
+	for k, v := range rundata.Properties(ctx, resv) {
+		ondatra.Report().AddSuiteProperty(k, v)
+	}
+}
+
+func (b *rundataBind) Release(ctx context.Context) error {
+	for k, v := range rundata.Timing(ctx) {
+		ondatra.Report().AddSuiteProperty(k, v)
+	}
+	return b.Binding.Release(ctx)
 }

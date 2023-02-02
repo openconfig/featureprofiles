@@ -19,12 +19,12 @@ require (
 	github.com/openconfig/gnoi v0.0.0-20221111175026-79709cdf28e1
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.2.0
-	github.com/openconfig/gribi v0.1.1-0.20221218044856-ec9f4fc18013
-	github.com/openconfig/gribigo v0.0.0-20221005212504-61bfce3da52b
+	github.com/openconfig/gribi v1.0.0
+	github.com/openconfig/gribigo v0.0.0-20230125182415-c8a707ca3d7c
 	github.com/openconfig/ondatra v0.1.0
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.7.4
-	github.com/openconfig/ygot v0.25.5
+	github.com/openconfig/ygot v0.25.6
 	github.com/p4lang/p4runtime v1.4.0-rc.5
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
