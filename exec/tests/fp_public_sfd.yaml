@@ -57,7 +57,7 @@ tests:
   priority: 3
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
-  patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
+  # patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
   mustpass: true
   priority: 3
 - name: TE-3.3 (Hierarchical weight resolution)
@@ -169,7 +169,7 @@ tests:
   mustpass: true
 - name: P4RT-5.2 (Traceroute Packetout)
   path: feature/experimental/p4rt/ate_tests/traceroute_packetout_test
-  patch: exec/firex/plugins/fp_patch/p4rt5dot2.patch
+  # patch: exec/firex/plugins/fp_patch/p4rt5dot2.patch
   args:
     - '-deviation_explicit_p4rt_node_component="true"'
   owner: sprem@cisco.com
@@ -325,7 +325,7 @@ tests:
   skip: false
 - name: RT-2.2 (IS-IS LSP Updates) 
   path: feature/experimental/isis/ate_tests/lsp_updates_test
-  patch: exec/firex/plugins/fp_patch/lsp_updates_test.patch
+  # patch: exec/firex/plugins/fp_patch/lsp_updates_test.patch
   owner: mananpat@cisco.com
   args:
        - '-deviation_isis_af_metric_style_wide_level_required="true"'
@@ -336,7 +336,7 @@ tests:
   skip: false
 - name: RT-2.1 (Base IS-IS Process and Adjacencies) 
   path: feature/experimental/isis/ate_tests/base_adjacencies_test
-  patch: exec/firex/plugins/fp_patch/base_adjacencies_test.patch
+  # patch: exec/firex/plugins/fp_patch/base_adjacencies_test.patch
   owner: mananpat@cisco.com
   args:
       - '-deviation_isis_interface_level1_disable_required="true"'
@@ -426,7 +426,7 @@ tests:
   priority: 50
 - name: OC-1.2 (Default Address)
   path: feature/networkinstance/ate_tests/defaults_test
-  patch: exec/firex/plugins/fp_patch/defaults_test.patch
+  # patch: exec/firex/plugins/fp_patch/defaults_test.patch
   owner: mbagherz@cisco.com
   mustpass: true
   priority: 801
