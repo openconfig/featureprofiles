@@ -66,45 +66,33 @@ var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
-		IPv6:    "2001:db8::192:0:2:1",
 		IPv4Len: 30,
-		IPv6Len: 126,
 	}
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "192.0.2.5",
-		IPv6:    "2001:db8::192:0:2:5",
 		IPv4Len: 30,
-		IPv6Len: 126,
 	}
 	dutPort3 = attrs.Attributes{
 		Desc:    "dutPort3",
 		IPv4:    "192.0.2.9",
-		IPv6:    "2001:db8::192:0:2:9",
 		IPv4Len: 30,
-		IPv6Len: 126,
 	}
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
 		IPv4:    "192.0.2.2",
-		IPv6:    "2001:db8::192:0:2:2",
 		IPv4Len: 30,
-		IPv6Len: 126,
 	}
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
 		IPv4:    "192.0.2.6",
-		IPv6:    "2001:db8::192:0:2:6",
 		IPv4Len: 30,
-		IPv6Len: 126,
 	}
 	atePort3 = attrs.Attributes{
 		Name:    "atePort3",
 		IPv4:    "192.0.2.10",
-		IPv6:    "2001:db8::192:0:2:a",
 		IPv4Len: 30,
-		IPv6Len: 126,
 	}
 )
 
@@ -265,7 +253,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
 	gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
 	gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
-
+	if *deviations.ExplicitIPv6EnableForGRIBI {
+		gnmi.Update(t, dut, d.Interface(p2.Name()).Subinterface(0).Ipv6().Enabled().Config(), bool(true))
+		gnmi.Update(t, dut, d.Interface(p3.Name()).Subinterface(0).Ipv6().Enabled().Config(), bool(true))
+	}
 	if *deviations.ExplicitPortSpeed {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
