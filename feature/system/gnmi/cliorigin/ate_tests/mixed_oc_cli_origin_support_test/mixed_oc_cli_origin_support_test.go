@@ -75,13 +75,12 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, tCase testCase) {
 		t.Skipf("Unsupported vendor device: got %v, expected %v", dut.Vendor(), ondatra.ARISTA)
 	}
 
-	t.Logf("Generated an update for the CLI config:\n%s", tCase.cliConfig)
-
 	// Test the CLI config sanitize function.
 	testSanitizeCLIConfig(t)
 
 	qosPath := gnmi.OC().Qos()
 
+	t.Logf("Step 1: Make sure QoS queue under test is not already set.")
 	// Make sure the current config does not contain new data already.
 	if existingQueue := gnmi.LookupConfig(t, dut, qosPath.Queue(tCase.queueName).Config()); existingQueue.IsPresent() {
 		t.Fatalf("Detected an existing %v queue. This is unexpected.", tCase.queueName)
@@ -95,6 +94,7 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, tCase testCase) {
 
 	fptest.LogQuery(t, "QoS update for the OC config:", qosPath.Config(), qos)
 
+	t.Logf("Step 2: Retrieve current running-config")
 	runningConfig := showRunningConfig(t, dut)
 
 	newConfig, err := appendCLIConfig(dut, sanitizeRunningConfig(runningConfig), tCase.cliConfig)
@@ -108,6 +108,7 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, tCase testCase) {
 		t.Fatalf("Failed to create CLI ygnmi query: %v", err)
 	}
 
+	t.Logf("Step 3: Send mixed-origin SetRequest")
 	mixedQuery := &gnmi.SetBatch{}
 	gnmi.BatchReplace(mixedQuery, cliPath, newConfig)
 	gnmi.BatchUpdate(mixedQuery, qosPath.Config(), qos)
@@ -115,6 +116,7 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, tCase testCase) {
 
 	t.Logf("gnmiClient.Set() response: %+v", result.RawResponse)
 
+	t.Logf("Step 4: Verify QoS queue configuration has been accepted by the target")
 	newRunningConfig := showRunningConfig(t, dut)
 	t.Logf("running config (-old, +new):\n%s", cmp.Diff(runningConfig, newRunningConfig))
 

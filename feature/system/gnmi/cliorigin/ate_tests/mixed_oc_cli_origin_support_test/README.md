@@ -33,3 +33,20 @@ update:  {
   }
 }
 ```
+
+## Procedure
+
+1.  Make sure QoS queue under test is not already set.
+2.  Retrieve current running-config.
+3.  Send mixed-origin SetRequest.
+4.  Verify QoS queue configuration has been accepted by the target.
+
+## Config Parameter Coverage
+
+*   origin: "cli"
+*   /qos/forwarding-groups/forwarding-group/config/output-queue
+*   /qos/queues/queue/config/name
+
+## Telemetry Parameter Coverage
+
+*   None
