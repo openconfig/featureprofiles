@@ -9,6 +9,7 @@ require (
 	github.com/golang/glog v1.0.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/gopacket v1.1.19
+	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/open-traffic-generator/snappi/gosnappi v0.10.4
 	github.com/openconfig/gnmi v0.0.0-20220920173703-480bf53a74d2
@@ -17,9 +18,9 @@ require (
 	github.com/openconfig/goyang v1.2.0
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20230125182415-c8a707ca3d7c
-	github.com/openconfig/ondatra v0.1.0
+	github.com/openconfig/ondatra v0.1.3
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
-	github.com/openconfig/ygnmi v0.7.4
+	github.com/openconfig/ygnmi v0.7.6
 	github.com/openconfig/ygot v0.25.6
 	github.com/p4lang/p4runtime v1.4.0-rc.5
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
@@ -39,7 +40,6 @@ require (
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
