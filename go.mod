@@ -3,7 +3,7 @@ module github.com/openconfig/featureprofiles
 go 1.19
 
 require (
-	github.com/cisco-open/go-p4 v0.0.0-20230112214152-c0d31345dd63
+	github.com/cisco-open/go-p4 v0.0.0-20230117234941-7359c630de78
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/golang/glog v1.0.0
@@ -15,12 +15,12 @@ require (
 	github.com/openconfig/gnoi v0.0.0-20221111175026-79709cdf28e1
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.2.0
-	github.com/openconfig/gribi v0.1.1-0.20221218044856-ec9f4fc18013
-	github.com/openconfig/gribigo v0.0.0-20221005212504-61bfce3da52b
+	github.com/openconfig/gribi v1.0.0
+	github.com/openconfig/gribigo v0.0.0-20230125182415-c8a707ca3d7c
 	github.com/openconfig/ondatra v0.1.0
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.7.4
-	github.com/openconfig/ygot v0.25.5
+	github.com/openconfig/ygot v0.25.6
 	github.com/p4lang/p4runtime v1.4.0-rc.5
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	github.com/yuin/goldmark v1.4.13
