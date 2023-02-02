@@ -315,7 +315,7 @@ func deleteRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 
 // testRecursiveIPv4Entry verifies recursive IPv4 Entry for 198.51.100.0/24 (a) -> 203.0.113.1/32 (b) -> 192.0.2.6 (c).
 // The IPv4 Entry is verified through AFT Telemetry and Traffic.
-// TODO: the below code checks entries for each level of the hierarchy statically. We need to create a helper function that does the check recursively.
+// TODO: The below code checks entries for each level of the hierarchy statically. We need to create a helper function that does the check recursively.
 func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	setupRecursiveIPv4Entry(t, args)
 
