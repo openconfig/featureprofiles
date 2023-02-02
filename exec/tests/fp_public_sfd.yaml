@@ -278,10 +278,10 @@ tests:
 - name: gNOI-5.2 (Traceroute Test) 
   path: feature/gnoi/system/tests/traceroute_test
   owner: agvarghe@cisco.com
-  patch: exec/firex/plugins/fp_patch/traceroute_test.patch
+  # patch: exec/firex/plugins/fp_patch/traceroute_test.patch
   args:
-      - '-traceroute_l4_protocol_udp="true"'
-      - '-traceroute_fragmentation="true"'
+      - '-deviation_traceroute_l4_protocol_udp="true"'
+      - '-deviation_traceroute_fragmentation="true"'
   mustpass: true
   priority: 41
   skip: false
