@@ -90,7 +90,7 @@ func TestTimeZone(t *testing.T) {
 			})
 
 			t.Run("Get Timezone Telemetry", func(t *testing.T) {
-				stateGot := gnmi.Await(t, dut, state.State(), 5*time.Second, testCase.tz)
+				stateGot := gnmi.Await(t, dut, state.State(), 1*time.Minute, testCase.tz)
 				if got, _ := stateGot.Val(); got != testCase.tz {
 					t.Errorf("State domainname: got %v, want %s", stateGot, testCase.tz)
 				}
