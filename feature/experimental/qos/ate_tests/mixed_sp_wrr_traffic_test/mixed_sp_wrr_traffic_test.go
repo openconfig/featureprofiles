@@ -544,7 +544,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			t.Logf("Running traffic 2 on DUT interfaces: %s => %s ", dp2.Name(), dp3.Name())
 			t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
 			ate.Traffic().Start(t, flows...)
-			time.Sleep(10 * time.Second)
+			time.Sleep(120 * time.Second)
 			ate.Traffic().Stop(t)
 			time.Sleep(30 * time.Second)
 
