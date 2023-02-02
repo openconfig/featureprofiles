@@ -163,10 +163,8 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 		expectPass: false,
 	}}
 
-	ttl := uint8(1)
-
 	t.Log("TTL/HopLimit 1")
-	testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, ttl, 300, 2), srcEndPoint, 10)
+	testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, 1 /*ttl/Hoplimit=1*/, 300, 2), srcEndPoint, 10)
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Extract packets from PacketIn message sent to p4rt client
@@ -204,22 +202,24 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 						}
 
 						//Metadata comparision
-						metaData := packet.Pkt.GetMetadata()
-						for _, data := range metaData {
-							if data.GetMetadataId() == METADATA_INGRESS_PORT {
-								if string(data.GetValue()) != args.packetIO.GetIngressPort() {
-									t.Fatalf("Ingress Port Id is not matching expectation.")
+						if metaData := packet.Pkt.GetMetadata(); metaData != nil {
+							if got := metaData[0].GetMetadataId(); got == METADATA_INGRESS_PORT {
+								if gotPortID := string(metaData[0].GetValue()); gotPortID != args.packetIO.GetIngressPort() {
+									t.Fatalf("Ingress Port Id mismatch: want %s, got %s", args.packetIO.GetIngressPort(), gotPortID)
 								}
+							} else {
+								t.Fatalf("Metadata ingress port mismatch: want %d, got %d", METADATA_INGRESS_PORT, got)
 							}
-							if data.GetMetadataId() == METADATA_EGRESS_PORT {
-								found := false
-								if string(data.GetValue()) == args.packetIO.GetEgressPort() {
-									found = true
+
+							if got := metaData[1].GetMetadataId(); got == METADATA_EGRESS_PORT {
+								if gotPortID := string(metaData[1].GetValue()); gotPortID != args.packetIO.GetEgressPort() {
+									t.Fatalf("Egress Port Id mismatch: want %s, got %s", args.packetIO.GetEgressPort(), gotPortID)
 								}
-								if !found {
-									t.Fatalf("Egress Port Id is not matching expectation.")
-								}
+							} else {
+								t.Fatalf("Metadata egress port mismatch: want %d, got %d", METADATA_EGRESS_PORT, got)
 							}
+						} else {
+							t.Fatalf("Packet missing metadata information.")
 						}
 					}
 				}

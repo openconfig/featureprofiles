@@ -47,6 +47,8 @@ var (
 	METADATA_EGRESS_PORT  = uint32(2)
 	TTL1                  = uint8(1)
 	HopLimit1             = uint8(1)
+	TTL0                  = uint8(0)
+	HopLimit0             = uint8(0)
 	ipv4PrefixLen         = uint8(30)
 	ipv6PrefixLen         = uint8(126)
 )
@@ -333,7 +335,14 @@ func (traceroute *TraceroutePacketIO) GetTableEntry(delete bool, IsIpv4 bool) []
 			TTL:      0x1,
 			TTLMask:  0xFF,
 			Priority: 1,
-		}}
+		},
+			{
+				Type:     actionType,
+				IsIpv4:   0x1,
+				TTL:      0x0,
+				TTLMask:  0xFF,
+				Priority: 1,
+			}}
 	} else {
 		actionType := p4_v1.Update_INSERT
 		if delete {
@@ -345,7 +354,14 @@ func (traceroute *TraceroutePacketIO) GetTableEntry(delete bool, IsIpv4 bool) []
 			TTL:      0x1,
 			TTLMask:  0xFF,
 			Priority: 1,
-		}}
+		},
+			{
+				Type:     actionType,
+				IsIpv6:   0x1,
+				TTL:      0x0,
+				TTLMask:  0xFF,
+				Priority: 1,
+			}}
 	}
 }
 
