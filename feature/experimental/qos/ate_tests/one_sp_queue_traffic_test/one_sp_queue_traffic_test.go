@@ -120,15 +120,6 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 	var tolerance float32 = 2.0
 
 	queueMap := map[ondatra.Vendor]map[string]string{
-		ondatra.JUNIPER: {
-			"NC1": "3",
-			"AF4": "2",
-			"AF3": "5",
-			"AF2": "1",
-			"AF1": "4",
-			"BE1": "0",
-			"BE0": "6",
-		},
 		ondatra.ARISTA: {
 			"NC1": dp3.Name() + "-6",
 			"AF4": dp3.Name() + "-5",
@@ -146,6 +137,15 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			"AF1": "0",
 			"BE1": "1",
 			"BE0": "1",
+		},
+		ondatra.JUNIPER: {
+			"NC1": "3",
+			"AF4": "2",
+			"AF3": "5",
+			"AF2": "1",
+			"AF1": "4",
+			"BE1": "0",
+			"BE0": "6",
 		},
 		ondatra.NOKIA: {
 			"NC1": "7",
