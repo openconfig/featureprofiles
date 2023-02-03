@@ -49,6 +49,7 @@ func EqualToDefault[T any](query ygnmi.SingletonQuery[T], val T) check.Validator
 	return check.Equal(query, val)
 }
 
+// checkSliceContains checks if given string s1 is found in string array s2.
 func checkSliceContains(s1 string, s2 []string) bool {
 	for _, str := range s2 {
 		if s1 == str {

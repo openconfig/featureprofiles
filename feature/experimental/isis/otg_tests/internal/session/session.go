@@ -50,7 +50,6 @@ const (
 	ATEAreaAddress = "49.0002"
 	DUTSysID       = "1920.0000.2001"
 	ATESysID       = "640000000001"
-	// TODO: Change the name to DEFAULT
 	ISISName = "DEFAULT"
 	pLen4    = 30
 	pLen6    = 126
