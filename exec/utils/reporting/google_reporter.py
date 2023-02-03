@@ -80,6 +80,7 @@ parser.add_argument('test_suites', help='Testsuite files')
 parser.add_argument('firex_ids', help='FireX run IDs')
 parser.add_argument('out_dir', help='Output directory')
 parser.add_argument('--patches', default=False, action='store_true', help="include patches")
+parser.add_argument('--skip-patched', default=False, action='store_true', help="skip patched tests")
 parser.add_argument('--update_failed', default=False, action='store_true', help="update failed tests only")
 parser.add_argument('--set-property', action='store', type=str, nargs='*')
 args = parser.parse_args()
@@ -88,6 +89,7 @@ testsuite_files = args.test_suites
 firex_ids= args.firex_ids
 out_dir = args.out_dir
 include_patches = args.patches
+skip_patched = args.skip_patched
 update_failed = args.update_failed
 set_properties = args.set_property
 
@@ -96,9 +98,10 @@ for firex_id in firex_ids.split(','):
     test_id_map = _get_test_id_name_map(logs_dir)
 
     properties = {}
-    for p in set_properties:
-        k, v = p.split('=')
-        properties[k] = v
+    if set_properties != None:
+        for p in set_properties:
+            k, v = p.split('=')
+            properties[k] = v
 
     for ts in  _get_testsuites(testsuite_files.split(',')):
         for t in ts['tests']:
@@ -111,6 +114,10 @@ for firex_id in firex_ids.split(','):
                 tree = ET.parse(log_files[0])
                 test_out_dir = os.path.join(out_dir, _get_test_pkg(tree))
                 test_log_file = os.path.join(test_out_dir, "test.xml")
+
+                if skip_patched and 'patch' in t:
+                    print("Skipped " + t['name'] + " because it is patched")
+                    continue
 
                 if update_failed:
                     if _did_fail(log_files[0]):
