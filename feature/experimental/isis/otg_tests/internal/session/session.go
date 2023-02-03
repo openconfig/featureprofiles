@@ -50,9 +50,9 @@ const (
 	ATEAreaAddress = "49.0002"
 	DUTSysID       = "1920.0000.2001"
 	ATESysID       = "640000000001"
-	ISISName = "DEFAULT"
-	pLen4    = 30
-	pLen6    = 126
+	ISISName       = "DEFAULT"
+	pLen4          = 30
+	pLen6          = 126
 )
 
 var (
@@ -254,6 +254,7 @@ func (s *TestSession) PushDUT(ctx context.Context) error {
 		return fmt.Errorf("configuring network instance: %w", err)
 	}
 	dutConf := s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
+
 	// Clear ISIS Protocol
 	_, err := ygnmi.Delete(ctx, s.DUTClient, ProtocolPath().Config())
 	if err != nil {
