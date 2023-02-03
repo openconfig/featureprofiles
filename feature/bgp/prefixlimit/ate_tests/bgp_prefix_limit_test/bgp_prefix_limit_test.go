@@ -67,7 +67,7 @@ const (
 	plenIPv4               = 30
 	plenIPv6               = 126
 	tolerance              = 50
-	lossTolerance          = 2
+	lossTolerance          = 10
 	rplType                = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	rplName                = "ALLOW"
 	peerGrpName            = "BGP-PEER-GROUP"
