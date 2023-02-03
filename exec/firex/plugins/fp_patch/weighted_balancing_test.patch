@@ -1,0 +1,39 @@
+diff --git a/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go b/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go
+index 468f8c1f..902f7548 100644
+--- a/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go
++++ b/feature/gribi/ate_tests/weighted_balancing_test/port_flap_rebalanced_test.go
+@@ -117,6 +117,12 @@ func TestPortFlap(t *testing.T) {
+ 		WithPersistence()
+ 	c.Start(ctx, t)
+ 	defer c.Stop(t)
++	defer func() {
++		// Flush all entries after test.
++		if err := gribi.FlushAll(c); err != nil {
++			t.Errorf("Cannot flush: %v", err)
++		}
++	}()
+ 	c.StartSending(ctx, t)
+ 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+ 		t.Fatalf("Await got error during session negotiation: %v", err)
+diff --git a/feature/gribi/ate_tests/weighted_balancing_test/setup_test.go b/feature/gribi/ate_tests/weighted_balancing_test/setup_test.go
+index 9709573b..d2efca3e 100644
+--- a/feature/gribi/ate_tests/weighted_balancing_test/setup_test.go
++++ b/feature/gribi/ate_tests/weighted_balancing_test/setup_test.go
+@@ -175,7 +175,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
+ 	// down, the device does not attempt to route packets through the
+ 	// default gateway 0.0.0.0/0.  Packets destined to the more specific
+ 	// next hop CIDRs will be routed.
+-	static := &oc.NetworkInstance_Protocol_Static{
++	/*static := &oc.NetworkInstance_Protocol_Static{
+ 		Prefix: ygot.String(discardCIDR),
+ 	}
+ 	static.GetOrCreateNextHop("AUTO_drop_2").
+@@ -184,7 +184,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
+ 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
+ 		Static(discardCIDR)
+ 	fptest.LogQuery(t, "discard route", staticp.Config(), static)
+-	gnmi.Replace(t, dut, staticp.Config(), static)
++	gnmi.Replace(t, dut, staticp.Config(), static)*/
+ 
+ 	for _, dp := range dut.Ports() {
+ 		if i := dutInterface(dp); i != nil {
