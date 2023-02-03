@@ -130,9 +130,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p1, *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, p2, *deviations.DefaultNetworkInstance, 0)
 	}
-	//if *deviations.RoutePolicyUnderNeighborAfiSafi {
 	configureRoutePolicy(t, dut, rplName, rplType)
-	//}
 
 	dutConfPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConf := createBGPNeighbor(dutAS, ateAS, prefixLimit, grRestartTime)
