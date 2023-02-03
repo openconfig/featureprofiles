@@ -184,7 +184,8 @@ func (tc *testCase) configureATE(t *testing.T) {
 	tc.top.Ports().Add().SetName(ap1.ID())
 	i1 := tc.top.Devices().Add().SetName(ap1.ID())
 	eth1 := i1.Ethernets().Add().SetName(ateSrc.Name + ".Eth").
-		SetPortName(i1.Name()).SetMac(ateSrc.MAC).SetMtu(int32(ateMTU))
+		SetMac(ateSrc.MAC).SetMtu(int32(ateMTU))
+	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 	if ateSrc.IPv4 != "" {
 		eth1.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").
 			SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).
@@ -198,7 +199,8 @@ func (tc *testCase) configureATE(t *testing.T) {
 	tc.top.Ports().Add().SetName(ap2.ID())
 	i2 := tc.top.Devices().Add().SetName(ap2.ID())
 	eth2 := i2.Ethernets().Add().SetName(ateDst.Name + ".Eth").
-		SetPortName(i2.Name()).SetMac(ateDst.MAC).SetMtu(int32(ateMTU))
+		SetMac(ateDst.MAC).SetMtu(int32(ateMTU))
+	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
 	if ateDst.IPv4 != "" {
 		eth2.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").
 			SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).
