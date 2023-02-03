@@ -257,7 +257,7 @@ func nextIP(iprep uint128, step int32, v4net *net.IPNet, ipv string) (*uint128, 
 		step = 1
 	}
 	groupLen := uint64(0)
-	_max := uint128{}
+	var _max uint128
 	//default is ipv6
 	switch ipv {
 	case "v4":

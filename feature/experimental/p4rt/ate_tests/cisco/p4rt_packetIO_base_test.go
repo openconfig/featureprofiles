@@ -499,126 +499,126 @@ var (
 		IPv6Len: ipv6PrefixLen,
 	}
 
-	dutPort3 = attrs.Attributes{
-		Desc:    "dutPort3",
-		IPv4:    "100.122.1.1",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// dutPort3 = attrs.Attributes{
+	// 	Desc:    "dutPort3",
+	// 	IPv4:    "100.122.1.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	atePort3 = attrs.Attributes{
-		Name:    "atePort3",
-		IPv4:    "100.122.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// atePort3 = attrs.Attributes{
+	// 	Name:    "atePort3",
+	// 	IPv4:    "100.122.1.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	dutPort4 = attrs.Attributes{
-		Desc:    "dutPort4",
-		IPv4:    "100.123.1.1",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// dutPort4 = attrs.Attributes{
+	// 	Desc:    "dutPort4",
+	// 	IPv4:    "100.123.1.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	atePort4 = attrs.Attributes{
-		Name:    "atePort4",
-		IPv4:    "100.123.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
-	dutPort5 = attrs.Attributes{
-		Desc:    "dutPort5",
-		IPv4:    "100.124.1.1",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// atePort4 = attrs.Attributes{
+	// 	Name:    "atePort4",
+	// 	IPv4:    "100.123.1.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
+	// dutPort5 = attrs.Attributes{
+	// 	Desc:    "dutPort5",
+	// 	IPv4:    "100.124.1.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	atePort5 = attrs.Attributes{
-		Name:    "atePort5",
-		IPv4:    "100.124.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
-	dutPort6 = attrs.Attributes{
-		Desc:    "dutPort6",
-		IPv4:    "100.125.1.1",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// atePort5 = attrs.Attributes{
+	// 	Name:    "atePort5",
+	// 	IPv4:    "100.124.1.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
+	// dutPort6 = attrs.Attributes{
+	// 	Desc:    "dutPort6",
+	// 	IPv4:    "100.125.1.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	atePort6 = attrs.Attributes{
-		Name:    "atePort6",
-		IPv4:    "100.125.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
-	dutPort7 = attrs.Attributes{
-		Desc:    "dutPort7",
-		IPv4:    "100.126.1.1",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// atePort6 = attrs.Attributes{
+	// 	Name:    "atePort6",
+	// 	IPv4:    "100.125.1.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
+	// dutPort7 = attrs.Attributes{
+	// 	Desc:    "dutPort7",
+	// 	IPv4:    "100.126.1.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	atePort7 = attrs.Attributes{
-		Name:    "atePort7",
-		IPv4:    "100.126.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
-	dutPort8 = attrs.Attributes{
-		Desc:    "dutPort8",
-		IPv4:    "100.127.1.1",
-		IPv4Len: ipv4PrefixLen,
-	}
-	atePort8 = attrs.Attributes{
-		Name:    "atePort8",
-		IPv4:    "100.127.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// atePort7 = attrs.Attributes{
+	// 	Name:    "atePort7",
+	// 	IPv4:    "100.126.1.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
+	// dutPort8 = attrs.Attributes{
+	// 	Desc:    "dutPort8",
+	// 	IPv4:    "100.127.1.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
+	// atePort8 = attrs.Attributes{
+	// 	Name:    "atePort8",
+	// 	IPv4:    "100.127.1.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	dutPort2Vlan10 = attrs.Attributes{
-		Desc:    "dutPort2Vlan10",
-		IPv4:    "100.121.10.1",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:10:1",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
+	// dutPort2Vlan10 = attrs.Attributes{
+	// 	Desc:    "dutPort2Vlan10",
+	// 	IPv4:    "100.121.10.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:121:10:1",
+	// 	IPv6Len: ipv6PrefixLen,
+	// 	MTU:     vlanMTU,
+	// }
 
-	atePort2Vlan10 = attrs.Attributes{
-		Name:    "atePort2Vlan10",
-		IPv4:    "100.121.10.2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:10:2",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
+	// atePort2Vlan10 = attrs.Attributes{
+	// 	Name:    "atePort2Vlan10",
+	// 	IPv4:    "100.121.10.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:121:10:2",
+	// 	IPv6Len: ipv6PrefixLen,
+	// 	MTU:     vlanMTU,
+	// }
 
-	dutPort2Vlan20 = attrs.Attributes{
-		Desc:    "dutPort2Vlan20",
-		IPv4:    "100.121.20.1",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:20:1",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
+	// dutPort2Vlan20 = attrs.Attributes{
+	// 	Desc:    "dutPort2Vlan20",
+	// 	IPv4:    "100.121.20.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:121:20:1",
+	// 	IPv6Len: ipv6PrefixLen,
+	// 	MTU:     vlanMTU,
+	// }
 
-	atePort2Vlan20 = attrs.Attributes{
-		Name:    "atePort2Vlan20",
-		IPv4:    "100.121.20.2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:20:2",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
+	// atePort2Vlan20 = attrs.Attributes{
+	// 	Name:    "atePort2Vlan20",
+	// 	IPv4:    "100.121.20.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:121:20:2",
+	// 	IPv6Len: ipv6PrefixLen,
+	// 	MTU:     vlanMTU,
+	// }
 
-	dutPort2Vlan30 = attrs.Attributes{
-		Desc:    "dutPort2Vlan30",
-		IPv4:    "100.121.30.1",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:30:1",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
+	// dutPort2Vlan30 = attrs.Attributes{
+	// 	Desc:    "dutPort2Vlan30",
+	// 	IPv4:    "100.121.30.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:121:30:1",
+	// 	IPv6Len: ipv6PrefixLen,
+	// 	MTU:     vlanMTU,
+	// }
 
-	atePort2Vlan30 = attrs.Attributes{
-		Name:    "atePort2Vlan20",
-		IPv4:    "100.121.30.2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:30:2",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
+	// atePort2Vlan30 = attrs.Attributes{
+	// 	Name:    "atePort2Vlan20",
+	// 	IPv4:    "100.121.30.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:121:30:2",
+	// 	IPv6Len: ipv6PrefixLen,
+	// 	MTU:     vlanMTU,
+	// }
 )
 
 // configureATE configures port1, port2 and port3 on the ATE.

@@ -41,35 +41,35 @@ const (
 )
 
 var (
-	dutPort1 = attrs.Attributes{
-		Desc:    "dutPort1",
-		IPv4:    "192.0.2.1",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// dutPort1 = attrs.Attributes{
+	// 	Desc:    "dutPort1",
+	// 	IPv4:    "192.0.2.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	atePort1 = attrs.Attributes{
-		Name:    "atePort1",
-		IPv4:    "192.0.2.2",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// atePort1 = attrs.Attributes{
+	// 	Name:    "atePort1",
+	// 	IPv4:    "192.0.2.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	dutPort2 = attrs.Attributes{
-		Desc:    "dutPort2",
-		IPv4:    "192.0.2.5",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// dutPort2 = attrs.Attributes{
+	// 	Desc:    "dutPort2",
+	// 	IPv4:    "192.0.2.5",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	atePort2 = attrs.Attributes{
-		Name:    "atePort2",
-		IPv4:    "192.0.2.6",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// atePort2 = attrs.Attributes{
+	// 	Name:    "atePort2",
+	// 	IPv4:    "192.0.2.6",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	dutPort3 = attrs.Attributes{
-		Desc:    "dutPort3",
-		IPv4:    "192.0.2.9",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// dutPort3 = attrs.Attributes{
+	// 	Desc:    "dutPort3",
+	// 	IPv4:    "192.0.2.9",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
 	atePort3 = attrs.Attributes{
 		Name:    "atePort3",
