@@ -499,17 +499,17 @@ var (
 		IPv6Len: ipv6PrefixLen,
 	}
 
-	dutPort3 = attrs.Attributes{
-		Desc:    "dutPort3",
-		IPv4:    "100.122.1.1",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// dutPort3 = attrs.Attributes{
+	// 	Desc:    "dutPort3",
+	// 	IPv4:    "100.122.1.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	atePort3 = attrs.Attributes{
-		Name:    "atePort3",
-		IPv4:    "100.122.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// atePort3 = attrs.Attributes{
+	// 	Name:    "atePort3",
+	// 	IPv4:    "100.122.1.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
 	// dutPort4 = attrs.Attributes{
 	// 	Desc:    "dutPort4",
