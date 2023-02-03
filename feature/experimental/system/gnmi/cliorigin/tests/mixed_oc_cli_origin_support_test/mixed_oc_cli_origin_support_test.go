@@ -75,9 +75,6 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, tCase testCase) {
 		t.Skipf("Unsupported vendor device: got %v, expected %v", dut.Vendor(), ondatra.ARISTA)
 	}
 
-	// Test the CLI config sanitize function.
-	testSanitizeCLIConfig(t)
-
 	qosPath := gnmi.OC().Qos()
 
 	t.Logf("Step 1: Make sure QoS queue under test is not already set.")
@@ -97,7 +94,7 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, tCase testCase) {
 	t.Logf("Step 2: Retrieve current running-config")
 	runningConfig := showRunningConfig(t, dut)
 
-	newConfig, err := appendCLIConfig(dut, sanitizeRunningConfig(runningConfig), tCase.cliConfig)
+	newConfig, err := appendCLIConfig(dut, runningConfig, tCase.cliConfig)
 	if err != nil {
 		t.Fatalf("Error appending config to running-config: %v", err)
 	}
@@ -141,71 +138,4 @@ qos tx-queue 0 name BE0`,
 		queueName:        "BE0",
 		forwardGroupName: "target-group-BE0",
 	})
-}
-
-// sanitizeRunningConfig removes the "banner motd" configuration from the CLI
-// config since the device may not accept it.
-func sanitizeRunningConfig(conf string) string {
-	var sanitizedConf strings.Builder
-	ignore := false
-	for i, line := range strings.Split(conf, "\n") {
-		switch {
-		case !ignore && strings.HasPrefix(line, "banner motd"):
-			ignore = true
-		case ignore && strings.HasPrefix(line, "!"):
-			ignore = false
-		case !ignore:
-			if i > 0 {
-				sanitizedConf.WriteByte('\n')
-			}
-			sanitizedConf.WriteString(line)
-		}
-	}
-	return sanitizedConf.String()
-}
-
-func testSanitizeCLIConfig(t *testing.T) {
-	inConfig := `hostname foo
-!
-redundancy
-   protocol sso
-!
-spanning-tree mode mstp
-!
-system bar
-   unsupported speed action error
-   unsupported error-correction action error
-!
-clock timezone America/Los_Angeles
-!
-banner motd
-hello world
-EOF
-!
-management console
-   idle-timeout 30
-!
-`
-
-	wantConfig := `hostname foo
-!
-redundancy
-   protocol sso
-!
-spanning-tree mode mstp
-!
-system bar
-   unsupported speed action error
-   unsupported error-correction action error
-!
-clock timezone America/Los_Angeles
-!
-management console
-   idle-timeout 30
-!
-`
-
-	if diff := cmp.Diff(wantConfig, sanitizeRunningConfig(inConfig)); diff != "" {
-		t.Fatalf("sanitizeRunningConfig (-want, +got):\n%s", diff)
-	}
 }
