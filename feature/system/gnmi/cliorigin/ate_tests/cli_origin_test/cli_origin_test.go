@@ -137,7 +137,7 @@ func nokiaCLI(intf string, enabled bool) string {
 		op = "enable"
 	}
 	return fmt.Sprintf(`
-   interface %s admin-state %s
+   /interface %s admin-state %s
 	`, intf, op)
 }
 
