@@ -472,9 +472,10 @@ func TestPBR(t *testing.T) {
 			pfpath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding()
 
 			//configure pbr policy-forwarding
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
 			dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
-			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
+			gnmi.Update(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
 			// defer cleaning policy-forwarding
 			defer gnmi.Delete(t, args.dut, pfpath.Config())
 
