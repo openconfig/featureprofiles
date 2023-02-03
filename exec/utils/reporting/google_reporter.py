@@ -48,11 +48,14 @@ def _did_fail(log_file):
 def _did_pass(log_file):
     return not _did_fail(log_file)
 
-def update_properties(test_log_file, properties):
+def _get_test_pkg(tree):
+    for p in tree.findall(".//property"):
+        if p.get('name') == 'test.path':
+            return p.get('value')
+
+def _update_properties(tree, test_log_file, properties):
     changes_needed = {}
-    tree = ET.parse(test_log_file)
-    props = tree.findall(".//property")
-    for p in props:
+    for p in tree.findall(".//property"):
         if p.get('name') in properties:
             p_name = p.get('name')
             p_old_val = p.get('value')
@@ -105,7 +108,8 @@ for firex_id in firex_ids.split(','):
                 if len(log_files) == 0: 
                     continue
 
-                test_out_dir = os.path.join(out_dir, t['path'])
+                tree = ET.parse(log_files[0])
+                test_out_dir = os.path.join(out_dir, _get_test_pkg(tree))
                 test_log_file = os.path.join(test_out_dir, "test.xml")
 
                 if update_failed:
@@ -120,6 +124,6 @@ for firex_id in firex_ids.split(','):
                 print("Adding " + t['name'])
                 os.makedirs(test_out_dir, exist_ok=True)
                 shutil.copyfile(log_files[0], test_log_file)
-                update_properties(test_log_file, properties)
+                _update_properties(tree, test_log_file, properties)
                 if include_patches and 'patch' in t and os.path.exists(t['patch']):
                     shutil.copyfile(t['patch'], os.path.join(test_out_dir, "test.patch"))
