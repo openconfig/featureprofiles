@@ -355,7 +355,7 @@ tests:
   patch: exec/firex/plugins/fp_patch/core_lldp_tlv_population_test.patch
   owner: agvarghe@cisco.com
   args:
-       - 'deviation_lldp_interface_config_override_global="true"'
+       - '-deviation_lldp_interface_config_override_global="true"'
   mustpass: false 
   priority: 51
 - name: RT-1.3 (BGP Route Propagation) 
