@@ -62,7 +62,7 @@ const (
 	IPBlock1      = "198.18.0.1/18"   // IPBlock1 represents the ipv4 entries in VRF1
 	IPBlock2      = "198.18.64.1/18"  // IPBlock2 represents the ipv4 entries in VRF2
 	IPBlock3      = "198.18.128.1/18" // IPBlock3 represents the ipv4 entries in VRF3
-	nhID1         = 65                 // nhID1 is the starting nh Index for entries in VRF1
+	nhID1         = 65                // nhID1 is the starting nh Index for entries in VRF1
 	nhID2         = 1065              // nhID2 is the starting nh Index for entries in VRF2
 	nhID3         = 18565             // nhID3 is the starting nh Index for entries in VRF3
 	tunnelSrcIP   = "198.18.204.1"    // tunnelSrcIP represents Source IP of IPinIP Tunnel
