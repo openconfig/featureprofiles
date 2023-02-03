@@ -334,6 +334,33 @@ func TestQoSCounters(t *testing.T) {
 	}
 }
 
+func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][]string {
+	t.Helper()
+	componentType := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
+		"Fabric":      fabricType,
+		"FabricChip":  fabricChipType,
+		"Linecard":    linecardType,
+		"PowerSupply": powerSupplyType,
+		"Supervisor":  supervisorType,
+		"SwitchChip":  switchChipType,
+	}
+	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	s := make(map[string][]string)
+	for comp := range componentType {
+		for _, c := range components {
+			if c.GetType() == nil {
+				t.Logf("Component %s type is missing from telemetry", c.GetName())
+				continue
+			}
+			t.Logf("Component %s has type: %v", c.GetName(), c.GetType())
+			if v := c.GetType(); v == componentType[comp] {
+				s[comp] = append(s[comp], c.GetName())
+			}
+		}
+	}
+	return s
+}
+
 func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	componentParent := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
@@ -344,7 +371,7 @@ func TestComponentParent(t *testing.T) {
 		"Supervisor":  chasisType,
 		"SwitchChip":  linecardType,
 	}
-
+	cardList := findComponentsListByType(t, dut)
 	cases := []struct {
 		desc          string
 		componentType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT
@@ -362,7 +389,7 @@ func TestComponentParent(t *testing.T) {
 		componentType: linecardType,
 		parent:        componentParent["Linecard"],
 	}, {
-		desc:          "Power supply",
+		desc:          "PowerSupply",
 		componentType: powerSupplyType,
 		parent:        componentParent["PowerSupply"],
 	}, {
@@ -377,13 +404,12 @@ func TestComponentParent(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			cards := components.FindComponentsByType(t, dut, tc.componentType)
-			t.Logf("Found card list: %v", cards)
-			if len(cards) == 0 {
+			t.Logf("Found card list for Component Type %v : %v", tc.componentType, cardList[tc.desc])
+			if len(cardList[tc.desc]) == 0 {
 				t.Fatalf("Get Card list for %q: got 0, want > 0", dut.Model())
 			}
 			// Validate parent component
-			for _, card := range cards {
+			for _, card := range cardList[tc.desc] {
 				t.Logf("Validate card %s", card)
 				cardName := card
 				for {
