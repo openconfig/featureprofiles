@@ -6,6 +6,7 @@ import yaml
 import constants
 import argparse
 import shutil
+import xml.etree.ElementTree as ET
 
 def _get_testsuites(files):
     test_suites = []
@@ -47,12 +48,37 @@ def _did_fail(log_file):
 def _did_pass(log_file):
     return not _did_fail(log_file)
 
+def update_properties(test_log_file, properties):
+    changes_needed = {}
+    tree = ET.parse(test_log_file)
+    props = tree.findall(".//property")
+    for p in props:
+        if p.get('name') in properties:
+            p_name = p.get('name')
+            p_old_val = p.get('value')
+            p_new_val = properties[p_name]
+            changes_needed[f'<property name="{p_name}" value="{p_old_val}"></property>'] = f'<property name="{p_name}" value="{p_new_val}"></property>'
+            changes_needed[f'*** PROPERTY: {p_name} -> {p_old_val}'] = f'*** PROPERTY: {p_name} -> {p_new_val}'
+    
+    if len(changes_needed) == 0:
+        return
+
+    with open(test_log_file, 'r') as fp:
+        contents = fp.read()
+
+    for k in changes_needed:
+        contents = contents.replace(k, changes_needed[k])
+
+    with open(test_log_file, 'w') as fp:
+        fp.write(contents)
+
 parser = argparse.ArgumentParser(description='Generate MD FireX report')
 parser.add_argument('test_suites', help='Testsuite files')
 parser.add_argument('firex_ids', help='FireX run IDs')
 parser.add_argument('out_dir', help='Output directory')
 parser.add_argument('--patches', default=False, action='store_true', help="include patches")
 parser.add_argument('--update_failed', default=False, action='store_true', help="update failed tests only")
+parser.add_argument('--set-property', action='store', type=str, nargs='*')
 args = parser.parse_args()
 
 testsuite_files = args.test_suites
@@ -60,10 +86,16 @@ firex_ids= args.firex_ids
 out_dir = args.out_dir
 include_patches = args.patches
 update_failed = args.update_failed
+set_properties = args.set_property
 
 for firex_id in firex_ids.split(','):
     logs_dir = os.path.join(constants.base_logs_dir, firex_id, 'tests_logs')
     test_id_map = _get_test_id_name_map(logs_dir)
+
+    properties = {}
+    for p in set_properties:
+        k, v = p.split('=')
+        properties[k] = v
 
     for ts in  _get_testsuites(testsuite_files.split(',')):
         for t in ts['tests']:
@@ -88,5 +120,6 @@ for firex_id in firex_ids.split(','):
                 print("Adding " + t['name'])
                 os.makedirs(test_out_dir, exist_ok=True)
                 shutil.copyfile(log_files[0], test_log_file)
+                update_properties(test_log_file, properties)
                 if include_patches and 'patch' in t and os.path.exists(t['patch']):
                     shutil.copyfile(t['patch'], os.path.join(test_out_dir, "test.patch"))
