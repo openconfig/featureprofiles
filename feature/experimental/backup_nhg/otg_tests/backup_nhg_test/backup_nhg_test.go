@@ -258,6 +258,12 @@ func TestIndirectBackupNexthopGroup(t *testing.T) {
 		t.Errorf("Cannot flush: %v", err)
 	}
 
+	gribi.BecomeLeader(t, c)
+	// Flush all entries before test.
+	if err := gribi.FlushAll(c); err != nil {
+		t.Errorf("Cannot flush: %v", err)
+	}
+
 	tcArgs := &testArgs{
 		ate:    ate,
 		ateTop: ateTop,
