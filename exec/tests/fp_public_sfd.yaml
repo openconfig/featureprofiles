@@ -57,7 +57,7 @@ tests:
   priority: 3
 - name: TE-3.2 (Traffic Balancing According to Weights) 
   path: feature/gribi/ate_tests/weighted_balancing_test
-  # patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
+  patch: exec/firex/plugins/fp_patch/weighted_balancing_test.patch
   mustpass: true
   priority: 3
 - name: TE-3.3 (Hierarchical weight resolution)
