@@ -339,7 +339,7 @@ func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *oc.Root, desc
 // It returns a slice of the corresponding ATE IPAddresses.
 func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, ate *ondatra.ATEDevice, atePort *ondatra.Port, top *ondatra.ATETopology, d *oc.Root) []string {
 	nextHops := []string{}
-	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
+	nextHopCount := 64 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 1; i <= nextHopCount; i++ {
 		//yang file using  vlan rang 1-4094 https://github.com/openconfig/public/blob/b34db05e8cf2efe69df3762d4bbd80665e1f9e79/release/models/vlan/openconfig-vlan-types.yang#L133
 		vlanID := uint16(i)
