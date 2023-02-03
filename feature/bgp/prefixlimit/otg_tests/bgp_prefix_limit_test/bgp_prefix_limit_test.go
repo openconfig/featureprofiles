@@ -74,6 +74,8 @@ const (
 	tolerance                = 50
 	lossTolerance            = 1
 	peerGrpName              = "BGP-PEER-GROUP"
+	rplType                  = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	rplName                  = "ALLOW"
 )
 
 var (
@@ -134,6 +136,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p1, *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, p2, *deviations.DefaultNetworkInstance, 0)
 	}
+	configureRoutePolicy(t, dut, rplName, rplType)
 
 	dutConfPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	dutConf := createBGPNeighbor(dutAS, ateAS, prefixLimit, grRestartTime)
@@ -267,6 +270,8 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.N
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(localAs)
 	global.RouterId = ygot.String(dutSrc.IPv4)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
@@ -283,8 +288,18 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.N
 			nv4.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
 			afisafi := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			afisafi.Enabled = ygot.Bool(true)
+			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
 			prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 			prefixLimit.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
+			if *deviations.RoutePolicyUnderNeighborAfiSafi {
+				rpl := afisafi.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{rplName}
+				rpl.ExportPolicy = []string{rplName}
+			} else {
+				rpl := nv4.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{rplName}
+				rpl.ExportPolicy = []string{rplName}
+			}
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			nv6.PeerAs = ygot.Uint32(nbr.as)
@@ -293,11 +308,31 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.N
 			nv6.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
 			afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			afisafi6.Enabled = ygot.Bool(true)
+			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
 			prefixLimit6 := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
 			prefixLimit6.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
+			if *deviations.RoutePolicyUnderNeighborAfiSafi {
+				rpl := afisafi6.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{rplName}
+				rpl.ExportPolicy = []string{rplName}
+			} else {
+				rpl := nv6.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{rplName}
+				rpl.ExportPolicy = []string{rplName}
+			}
 		}
+
 	}
 	return bgp
+}
+
+func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	pd := rp.GetOrCreatePolicyDefinition(name)
+	st := pd.GetOrCreateStatement("id-1")
+	st.GetOrCreateActions().PolicyResult = pr
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
 func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished bool) {
