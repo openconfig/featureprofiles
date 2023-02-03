@@ -199,7 +199,7 @@ func TestLinecardReboot(t *testing.T) {
 	for _, port := range intfsOperStatusUPBeforeReboot {
 		batch.AddPaths(gnmi.OC().Interface(port).OperStatus())
 	}
-	watch := gnmi.Watch(t, dut, batch.State(), 5*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
+	watch := gnmi.Watch(t, dut, batch.State(), 10*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
 		root, present := val.Val()
 		if !present {
 			return false
