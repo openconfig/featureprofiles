@@ -32,7 +32,7 @@ nodes: {
     os: "ios-xr"
     config: {
         file: "cisco.config"
-        image: "cisco:latest"
+        image: "8000e:latest"
         init_image: "networkop/init-wait:latest"
     }
     constraints:{
