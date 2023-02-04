@@ -348,9 +348,8 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 		}
 		name := fmt.Sprintf(`dst%d`, i)
 		Index := uint32(i)
-		ipIndex := i - 1
-		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * ipIndex) + 1))
-		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * ipIndex) + 2))
+		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
+		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 2))
 		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4, *deviations.DefaultNetworkInstance)
 		configureATE(t, top, atePort, name, vlanID, dutIPv4, ateIPv4+"/30")
 		nextHops = append(nextHops, ateIPv4)
