@@ -75,6 +75,9 @@ func TestBasic(t *testing.T) {
 	}
 	// There might be lag between when the instance name is set and when the
 	// other parameters are set; we expect the total lag to be under one minute
+	// There are about 14 RPCs executed in quick succession in this block.
+	// Increasing the wait-time to 1 minute value to accommodate this.
+
 	deadline := time.Now().Add(time.Minute)
 
 	t.Run("read_config", func(t *testing.T) {
@@ -202,6 +205,8 @@ func TestBasic(t *testing.T) {
 
 	// Allow 1 Minute of lag between adjacency appearing and all data being populated
 	t.Run("adjacency_state", func(t *testing.T) {
+		// There are about 16 RPCs executed in quick succession in this block.
+		// Increasing the wait-time value to accommodate this.
 		deadline = time.Now().Add(time.Minute)
 		adj := port1ISIS.Level(2).Adjacency(systemID)
 		for _, vd := range []check.Validator{
@@ -248,6 +253,9 @@ func TestBasic(t *testing.T) {
 		// Note: This is not a subtest because a failure here means checking the
 		//   rest of the counters is pointless - none of them will change if we
 		//   haven't been exchanging IS-IS messages.
+		// There are about 3 RPCs executed in quick succession in this block.
+		// Increasing the wait-time value to accommodate this.
+
 		deadline = time.Now().Add(time.Second * 15)
 		for _, vd := range []check.Validator{
 			check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
@@ -260,6 +268,9 @@ func TestBasic(t *testing.T) {
 				}
 			})
 		}
+		// There are about 16 RPCs executed in quick succession in this block.
+		// Increasing the wait-time value to accommodate this.
+
 		deadline = time.Now().Add(time.Minute)
 		t.Run("packet_counters", func(t *testing.T) {
 			pCounts := port1ISIS.Level(2).PacketCounters()
