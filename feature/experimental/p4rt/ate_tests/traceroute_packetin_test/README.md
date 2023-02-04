@@ -12,8 +12,8 @@ Verify that Traceroute packets are punted with correct metadata.
 *	TODO: Install the set of routes on the device.
 *	Enable the P4RT server on the device.
 *	Connect a P4RT client and configure the forwarding pipeline. InstallP4RT table 	entries required for traceroute.
-*	Send IPv4 packets from the ATE with TTL={0,1/2} and verify that packets with TTL=0 and at least one of TTL={1/2} are received by the client.
-*	Send IPv6 packets from the ATE with HopLimit={0,1/2} and verify that packets with HopLimit=0 and at least one of HopLimit={1/2} are received by the client.
+*	Send IPv4 packets from the ATE with TTL=1 and verify that packets with TTL=1 are received by the client.
+*	Send IPv6 packets from the ATE with HopLimit=1 and verify that packets with HopLimit=1 are received by the client.
 *	Verify that the packets have both ingress_singleton_port and egress_singleton_port metadata set.
 
 
