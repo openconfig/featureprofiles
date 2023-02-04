@@ -183,7 +183,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			trafficRate:           2,
 			expectedThroughputPct: 100.0,
 			dscp:                  4,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf1,
 		},
 		"intf1-be0": {
@@ -191,7 +191,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			trafficRate:           0.5,
 			dscp:                  0,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -239,7 +239,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			trafficRate:           2,
 			dscp:                  4,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf2,
 		},
 		"intf2-be0": {
@@ -247,7 +247,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			trafficRate:           0.5,
 			expectedThroughputPct: 100.0,
 			dscp:                  0,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf2,
 		},
 	}
@@ -301,7 +301,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			trafficRate:           1,
 			expectedThroughputPct: 0.0,
 			dscp:                  4,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf1,
 		},
 		"intf1-be0": {
@@ -309,7 +309,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			trafficRate:           1,
 			dscp:                  0,
 			expectedThroughputPct: 0.0,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -357,7 +357,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			trafficRate:           7,
 			dscp:                  4,
 			expectedThroughputPct: 0.0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf2,
 		},
 		"intf2-be0": {
@@ -365,7 +365,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			trafficRate:           1,
 			expectedThroughputPct: 0.0,
 			dscp:                  0,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf2,
 		},
 	}
@@ -418,7 +418,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			trafficRate:           1,
 			expectedThroughputPct: 50.0,
 			dscp:                  4,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf1,
 		},
 		"intf1-be0": {
@@ -426,7 +426,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			trafficRate:           1,
 			dscp:                  0,
 			expectedThroughputPct: 50.0,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -474,7 +474,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			trafficRate:           7,
 			dscp:                  4,
 			expectedThroughputPct: 50.0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf2,
 		},
 		"intf2-be0": {
@@ -482,7 +482,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			trafficRate:           1,
 			expectedThroughputPct: 50.0,
 			dscp:                  0,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf2,
 		},
 	}
@@ -544,7 +544,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			t.Logf("Running traffic 2 on DUT interfaces: %s => %s ", dp2.Name(), dp3.Name())
 			t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
 			ate.Traffic().Start(t, flows...)
-			time.Sleep(10 * time.Second)
+			time.Sleep(120 * time.Second)
 			ate.Traffic().Stop(t)
 			time.Sleep(30 * time.Second)
 
@@ -648,18 +648,18 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup string
 		dscpSet      []uint8
 	}{{
-		desc:         "classifier_ipv4_be0",
-		name:         "dscp_based_classifier_ipv4",
-		classType:    oc.Qos_Classifier_Type_IPV4,
-		termID:       "0",
-		targetGrpoup: "target-group-BE0",
-		dscpSet:      []uint8{0, 1, 2, 3},
-	}, {
 		desc:         "classifier_ipv4_be1",
 		name:         "dscp_based_classifier_ipv4",
 		classType:    oc.Qos_Classifier_Type_IPV4,
-		termID:       "1",
+		termID:       "0",
 		targetGrpoup: "target-group-BE1",
+		dscpSet:      []uint8{0, 1, 2, 3},
+	}, {
+		desc:         "classifier_ipv4_be0",
+		name:         "dscp_based_classifier_ipv4",
+		classType:    oc.Qos_Classifier_Type_IPV4,
+		termID:       "1",
+		targetGrpoup: "target-group-BE0",
 		dscpSet:      []uint8{4, 5, 6, 7},
 	}, {
 		desc:         "classifier_ipv4_af1",
@@ -697,18 +697,18 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-NC1",
 		dscpSet:      []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
 	}, {
-		desc:         "classifier_ipv6_be0",
-		name:         "dscp_based_classifier_ipv6",
-		classType:    oc.Qos_Classifier_Type_IPV6,
-		termID:       "0",
-		targetGrpoup: "target-group-BE0",
-		dscpSet:      []uint8{0, 1, 2, 3},
-	}, {
 		desc:         "classifier_ipv6_be1",
 		name:         "dscp_based_classifier_ipv6",
 		classType:    oc.Qos_Classifier_Type_IPV6,
-		termID:       "1",
+		termID:       "0",
 		targetGrpoup: "target-group-BE1",
+		dscpSet:      []uint8{0, 1, 2, 3},
+	}, {
+		desc:         "classifier_ipv6_be0",
+		name:         "dscp_based_classifier_ipv6",
+		classType:    oc.Qos_Classifier_Type_IPV6,
+		termID:       "1",
+		targetGrpoup: "target-group-BE0",
 		dscpSet:      []uint8{4, 5, 6, 7},
 	}, {
 		desc:         "classifier_ipv6_af1",
