@@ -478,7 +478,6 @@ func TestPBR(t *testing.T) {
 
 			// apply pbr policy on ingress interface
 			p1 := port1.Name()
-			gnmi.Replace(t, args.dut, pfpath.Interface(p1).ApplyVrfSelectionPolicy().Config(), args.policyName)
 			d := &oc.Root{}
 			pfIntf := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(p1)
 			pfIntfConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(p1)
@@ -487,7 +486,9 @@ func TestPBR(t *testing.T) {
 				pfIntf.GetOrCreateInterfaceRef().Interface = ygot.String(p1)
 				pfIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 				pfIntf.SetApplyVrfSelectionPolicy(args.policyName)
-				gnmi.Replace(t, dut, pfIntfConfPath.Config(), pfIntf)
+				gnmi.Update(t, dut, pfIntfConfPath.Config(), pfIntf)
+			} else {
+				gnmi.Replace(t, args.dut, pfpath.Interface(p1).ApplyVrfSelectionPolicy().Config(), args.policyName)
 			}
 
 			// defer deletion of policy from interface
