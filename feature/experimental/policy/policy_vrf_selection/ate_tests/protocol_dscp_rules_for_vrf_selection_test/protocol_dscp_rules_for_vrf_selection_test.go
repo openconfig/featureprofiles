@@ -146,6 +146,16 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 		WithDefaultGateway(dutPort1.IPv6)
 
 	p2 := ate.Port(t, "port2")
+	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
+	if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+		i2.Ethernet().WithVLANID(1)
+	}
+	i2.IPv4().
+		WithAddress(atePort2.IPv4CIDR()).
+		WithDefaultGateway(dutPort2.IPv4)
+	i2.IPv6().
+		WithAddress(atePort2.IPv6CIDR()).
+		WithDefaultGateway(dutPort2.IPv6)
 	// configure vlans on ATE port2
 	i2v10 := top.AddInterface("atePort2Vlan10").WithPort(p2)
 	i2v10.Ethernet().WithVLANID(10)
@@ -241,6 +251,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
 
 	p2 := dut.Port(t, "port2")
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+	if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+		i3 := &oc.Interface{Name: ygot.String(p2.Name())}
+		s := i3.GetOrCreateSubinterface(0)
+		s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(1)
+		gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), i3)
+	}
+
 	if *deviations.ExplicitPortSpeed {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
