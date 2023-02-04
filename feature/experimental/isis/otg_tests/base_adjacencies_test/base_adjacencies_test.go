@@ -49,16 +49,6 @@ func EqualToDefault[T any](query ygnmi.SingletonQuery[T], val T) check.Validator
 	return check.Equal(query, val)
 }
 
-// checkSliceContains checks if given string s1 is found in string array s2.
-func checkSliceContains(s1 string, s2 []string) bool {
-	for _, str := range s2 {
-		if s1 == str {
-			return true
-		}
-	}
-	return false
-}
-
 // TestBasic configures IS-IS on the DUT and confirms that the various values and defaults propagate
 // then configures the ATE as well, waits for the adjacency to form, and checks that numerous
 // counters and other values now have sensible values.
@@ -212,6 +202,7 @@ func TestBasic(t *testing.T) {
 		for _, vd := range []check.Validator{
 			check.Equal(adj.AdjacencyState().State(), oc.Isis_IsisInterfaceAdjState_UP),
 			check.Equal(adj.SystemId().State(), systemID),
+			check.Equal(adj.AreaAddress().State(), []string{session.ATEAreaAddress, session.DUTAreaAddress}),
 			check.Equal(adj.DisSystemId().State(), "0000.0000.0000"),
 			check.NotEqual(adj.LocalExtendedCircuitId().State(), uint32(0)),
 			check.Equal(adj.MultiTopology().State(), false),
@@ -235,13 +226,7 @@ func TestBasic(t *testing.T) {
 				}
 			})
 		}
-		status := gnmi.Get(t, ts.DUT, adj.AreaAddress().State())
-		want := []string{session.ATEAreaAddress, session.DUTAreaAddress}
-		for _, wantAddress := range want {
-			if checkSliceContains(wantAddress, status) != true {
-				t.Errorf("isis area address is not found in telemetry: got %v, want %v ", status, wantAddress)
-			}
-		}
+
 	})
 
 	t.Run("counters_after_adjacency", func(t *testing.T) {
