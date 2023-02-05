@@ -96,6 +96,7 @@ func decodePacket6(t *testing.T, packetData []byte) uint8 {
 // testTraffic sends traffic flow for duration seconds.
 func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int) {
 	t.Helper()
+	top.Flows().Clear()
 	for _, flow := range flows {
 		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
 		top.Flows().Append(flow)
