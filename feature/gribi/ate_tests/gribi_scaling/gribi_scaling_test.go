@@ -342,7 +342,7 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 0; i <= nextHopCount; i++ {
 		//yang file using  vlan rang 1-4094 https://github.com/openconfig/public/blob/b34db05e8cf2efe69df3762d4bbd80665e1f9e79/release/models/vlan/openconfig-vlan-types.yang#L133
-		vlanID := uint16(i) + 1
+		vlanID := uint16(i)
 		if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
 			vlanID = uint16(i) + 1
 		}
