@@ -47,9 +47,9 @@ func TestMain(m *testing.M) {
 // consistent with IPv4.
 
 const (
-	trafficDuration        = 90
+	trafficDuration        = 1 * time.Minute
 	grTimer                = 2 * time.Minute
-	grRestartTime          = 90
+	grRestartTime          = 60
 	grStaleRouteTime       = 300.0
 	ipv4SrcTraffic         = "192.0.2.2"
 	ipv6SrcTraffic         = "2001:db8::192:0:2:2"
