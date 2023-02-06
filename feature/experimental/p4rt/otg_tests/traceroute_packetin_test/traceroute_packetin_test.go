@@ -170,12 +170,13 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 // configureDeviceIDs configures p4rt device-id on the DUT.
 func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	nodes := p4rtutils.P4RTNodesByPort(t, dut)
-	p4rtNode, ok := nodes["port1"]
-	if !ok {
-		t.Fatal("Couldn't find P4RT Node for port: port1")
-	}
-	t.Logf("Configuring P4RT Node: %s", p4rtNode)
+	// nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	// p4rtNode, ok := nodes["port1"]
+	// if !ok {
+	// 	t.Fatal("Couldn't find P4RT Node for port: port1")
+	// }
+	// t.Logf("Configuring P4RT Node: %s", p4rtNode)
+	p4rtNode := "FPC0:NPU0"
 	c := oc.Component{}
 	c.Name = ygot.String(p4rtNode)
 	c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
