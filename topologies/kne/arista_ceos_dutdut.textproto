@@ -5,6 +5,7 @@ nodes: {
   model: "ceos"
   os: "eos"
   config: {
+    image: "ceos:latest"
     config_path: "/mnt/flash"
     config_file: "startup-config"
     file: "arista_ceos.config"
@@ -47,6 +48,7 @@ nodes: {
   model: "ceos"
   os: "eos"
   config: {
+    image: "ceos:latest"
     config_path: "/mnt/flash"
     config_file: "startup-config"
     file: "arista_ceos.config"
