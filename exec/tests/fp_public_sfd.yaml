@@ -440,12 +440,18 @@ tests:
 - name: DP-1.2 (QoS policy feature config)
   path: feature/experimental/qos/ate_tests/qos_policy_config_test
   patch: exec/firex/plugins/fp_patch/qos_policy_config_test.patch
-  owner: arvbaska@cisco.com
+  owner: saarvind@cisco.com
   mustpass: true
   priority: 802
 - name: DP-1.3 (QoS ECN feature config) 
   path: feature/experimental/qos/ate_tests/qos_ecn_config_test
   patch: exec/firex/plugins/fp_patch/qos_ecn_config_test.patch
-  owner: arvbaska@cisco.com
+  owner: saarvind@cisco.com
   mustpass: true
   priority: 802
+
+- name: DP-1.10 (QoS policy feature config)
+  path: feature/experimental/qos/ate_tests/mixed_sp_wrr_traffic_test
+  patch: exec/firex/plugins/fp_patch/mixed_sp_wrr_traffic_test.patch
+  owner: saarvind@cisco.com
+  mustpass: true  
