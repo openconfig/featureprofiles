@@ -47,7 +47,6 @@ const (
 
 var (
 	p4InfoFile                                = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	p4rtNodeName                              = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
 	streamName                                = "p4rt"
 	gdpInLayers           layers.EthernetType = 0x6007
 	deviceID                                  = *ygot.Uint64(1)
