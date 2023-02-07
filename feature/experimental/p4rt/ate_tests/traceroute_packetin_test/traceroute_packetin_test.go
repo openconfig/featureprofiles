@@ -39,9 +39,8 @@ import (
 
 var (
 	p4InfoFile            = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	p4rtNodeName          = flag.String("p4rt_node_name", "FPC0:NPU0", "component name for P4RT Node")
 	streamName            = "p4rt"
-	deviceId              = *ygot.Uint64(1)
+	deviceID              = *ygot.Uint64(1)
 	portId                = *ygot.Uint32(10)
 	electionId            = *ygot.Uint64(100)
 	METADATA_INGRESS_PORT = uint32(1)
@@ -177,13 +176,19 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// configureDeviceId configures p4rt device-id on the DUT.
-func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	component := oc.Component{}
-	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-	component.Name = ygot.String(*p4rtNodeName)
-	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceId)
-	gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).Config(), &component)
+// configureDeviceIDs configures p4rt device-id on the DUT.
+func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	p4rtNode, ok := nodes["port1"]
+	if !ok {
+		t.Fatal("Couldn't find P4RT Node for port: port1")
+	}
+	t.Logf("Configuring P4RT Node: %s", p4rtNode)
+	c := oc.Component{}
+	c.Name = ygot.String(p4rtNode)
+	c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+	c.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
+	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
 }
 
 // configurePortId configures p4rt port-id on the DUT.
@@ -200,7 +205,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	// Setup p4rt-client stream parameters
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
-		DeviceId:    deviceId,
+		DeviceId:    deviceID,
 		ElectionIdH: uint64(0),
 		ElectionIdL: electionId,
 	}
@@ -221,10 +226,13 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 					},
 				},
 			}); err != nil {
-				return errors.New("Errors seen when sending ClientArbitration message.")
+				return fmt.Errorf("errors seen when sending ClientArbitration message: %v", err)
 			}
 			if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
-				return errors.New("Errors seen in ClientArbitration response.")
+				if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
+					return err
+				}
+				return fmt.Errorf("errors seen in ClientArbitration response: %v", arbErr)
 			}
 		}
 	}
@@ -237,7 +245,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 
 	// Send SetForwardingPipelineConfig for p4rt leader client.
 	if err := args.leader.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
-		DeviceId:   deviceId,
+		DeviceId:   deviceID,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
 		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4_v1.ForwardingPipelineConfig{
@@ -260,7 +268,7 @@ func getTracerouteParameter(t *testing.T) PacketIO {
 			HopLimit: &HopLimit1,
 		},
 		IngressPort: fmt.Sprint(portId),
-		EgressPort:  fmt.Sprint(portId),
+		EgressPort:  fmt.Sprint(portId + 1),
 	}
 }
 
@@ -272,7 +280,7 @@ func TestPacketIn(t *testing.T) {
 	configureDUT(t, dut)
 
 	// Configure P4RT device-id and port-id
-	configureDeviceId(ctx, t, dut)
+	configureDeviceID(ctx, t, dut)
 	configurePortId(ctx, t, dut)
 
 	// Configure the ATE
@@ -280,20 +288,20 @@ func TestPacketIn(t *testing.T) {
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
 
-	leader := p4rt_client.P4RTClient{}
+	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
-	follower := p4rt_client.P4RTClient{}
+	follower := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	args := &testArgs{
 		ctx:      ctx,
-		leader:   &leader,
-		follower: &follower,
+		leader:   leader,
+		follower: follower,
 		dut:      dut,
 		ate:      ate,
 		top:      top,
@@ -322,34 +330,37 @@ func (traceroute *TraceroutePacketIO) GetTableEntry(delete bool, IsIpv4 bool) []
 			actionType = p4_v1.Update_DELETE
 		}
 		return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
-			Type:    actionType,
-			IsIpv4:  0x1,
-			TTL:     0x1,
-			TTLMask: 0xFF,
+			Type:     actionType,
+			IsIpv4:   0x1,
+			TTL:      0x1,
+			TTLMask:  0xFF,
+			Priority: 1,
 		},
 			{
-				Type:    actionType,
-				IsIpv4:  0x1,
-				TTL:     0x0,
-				TTLMask: 0xFF,
-			},
-		}
+				Type:     actionType,
+				IsIpv4:   0x1,
+				TTL:      0x0,
+				TTLMask:  0xFF,
+				Priority: 1,
+			}}
 	} else {
 		actionType := p4_v1.Update_INSERT
 		if delete {
 			actionType = p4_v1.Update_DELETE
 		}
 		return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
-			Type:    actionType,
-			IsIpv6:  0x1,
-			TTL:     0x1,
-			TTLMask: 0xFF,
+			Type:     actionType,
+			IsIpv6:   0x1,
+			TTL:      0x1,
+			TTLMask:  0xFF,
+			Priority: 1,
 		},
 			{
-				Type:    actionType,
-				IsIpv6:  0x1,
-				TTL:     0x0,
-				TTLMask: 0xFF,
+				Type:     actionType,
+				IsIpv6:   0x1,
+				TTL:      0x0,
+				TTLMask:  0xFF,
+				Priority: 1,
 			}}
 	}
 }
@@ -361,8 +372,8 @@ func (traceroute *TraceroutePacketIO) GetPacketTemplate() *PacketIOPacket {
 
 func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []*ondatra.Flow {
 	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header().WithSrcAddress(atePort1.IPv4).WithDstAddress(dutPort1.IPv4).WithTTL(uint8(TTL)) //ttl=1 is traceroute/lldp traffic
-	ipv6Header := ondatra.NewIPv6Header().WithSrcAddress(atePort1.IPv6).WithDstAddress(dutPort1.IPv6).WithHopLimit(uint8(TTL))
+	ipv4Header := ondatra.NewIPv4Header().WithSrcAddress(atePort1.IPv4).WithDstAddress(atePort2.IPv4).WithTTL(uint8(TTL)) //ttl=1 is traceroute traffic
+	ipv6Header := ondatra.NewIPv6Header().WithSrcAddress(atePort1.IPv6).WithDstAddress(atePort2.IPv6).WithHopLimit(uint8(TTL))
 	if isIpv4 {
 		flow := ate.Traffic().NewFlow("IP4").WithFrameSize(frameSize).WithFrameRateFPS(frameRate).WithHeaders(ethHeader, ipv4Header)
 		return []*ondatra.Flow{flow}

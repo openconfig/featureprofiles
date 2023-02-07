@@ -25,6 +25,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -49,10 +50,9 @@ const (
 	ATEAreaAddress = "49.0002"
 	DUTSysID       = "1920.0000.2001"
 	ATESysID       = "640000000001"
-	// TODO: Change the name to DEFAULT
-	ISISName = "osisis"
-	pLen4    = 30
-	pLen6    = 126
+	ISISName       = "DEFAULT"
+	pLen4          = 30
+	pLen6          = 126
 )
 
 var (
@@ -231,6 +231,10 @@ func (s *TestSession) PushAndStart(t testing.TB) error {
 	if err := s.PushDUT(context.Background()); err != nil {
 		return err
 	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 	s.PushAndStartATE(t)
 	return nil
 }
@@ -250,7 +254,15 @@ func (s *TestSession) PushDUT(ctx context.Context) error {
 		return fmt.Errorf("configuring network instance: %w", err)
 	}
 	dutConf := s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
-	_, err := ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
+
+	// Clear ISIS Protocol
+	_, err := ygnmi.Delete(ctx, s.DUTClient, ProtocolPath().Config())
+	if err != nil {
+		return fmt.Errorf("deleting ISIS config before configuring test config: %w", err)
+	}
+
+	// Configure ISIS test config on DUT
+	_, err = ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
 	if err != nil {
 		return fmt.Errorf("configuring ISIS: %w", err)
 	}
