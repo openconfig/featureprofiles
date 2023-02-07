@@ -1,6 +1,6 @@
 name: "juniper-ixia-lag"
 nodes: {
-    name: "cptx"
+    name: "dut"
     vendor: JUNIPER
     model: "cptx"
     os: "evo"
@@ -186,55 +186,55 @@ nodes: {
     }
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth12"
     z_node: "otg"
     z_int: "eth1"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth20"
     z_node: "otg"
     z_int: "eth2"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth28"
     z_node: "otg"
     z_int: "eth3"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth36"
     z_node: "otg"
     z_int: "eth4"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth44"
     z_node: "otg"
     z_int: "eth5"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth52"
     z_node: "otg"
     z_int: "eth6"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth60"
     z_node: "otg"
     z_int: "eth7"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth68"
     z_node: "otg"
     z_int: "eth8"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth72"
     z_node: "otg"
     z_int: "eth9"
