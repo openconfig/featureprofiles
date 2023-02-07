@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package one_sp_queue_traffic_test
+package two_sp_queue_traffic_test
 
 import (
 	"testing"
