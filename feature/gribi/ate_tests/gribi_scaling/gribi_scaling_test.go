@@ -343,7 +343,7 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	for i := 0; i <= nextHopCount; i++ {
 		vlanID := uint16(i)
 		// As per yang model, valid vlan range is 1-4094 - https://github.com/openconfig/public/blob/b34db05e8cf2efe69df3762d4bbd80665e1f9e79/release/models/vlan/openconfig-vlan-types.yang#L133
-		// Without below deviation, vlan-id 0 is being used for subinterface 0. The deviation is to start with valid vlan-id of 1 for subinterface 0. 
+		// Without below deviation, vlan-id 0 is being used for subinterface 0. The deviation is to start with valid vlan-id of 1 for subinterface 0.
 		if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
 			vlanID = uint16(i) + 1
 		}
