@@ -47,7 +47,9 @@ type lldpNeighbors struct {
 }
 
 const (
-	portName = "port1"
+	portName     = "port1"
+	lldpEnabled  = true
+	lldpDisabled = false
 )
 
 func TestMain(m *testing.M) {
@@ -69,63 +71,58 @@ var (
 	}
 )
 
-// Determine LLDP advertisement and reception operates correctly.
-func TestCoreLLDPTLVPopulation(t *testing.T) {
-	tests := []struct {
-		desc        string
-		lldpEnabled bool
-	}{
-		{
-			desc:        "LLDP Enabled",
-			lldpEnabled: true,
-		},
-		{
-			desc:        "LLDP Disabled",
-			lldpEnabled: false,
-		},
+// TestLLDPEnabled tests LLDP advertisement turned on.
+func TestLLDPEnabled(t *testing.T) {
+	// DUT configuration.
+	t.Log("Configure DUT.")
+	dut, dutConf := configureDUT(t, "dut", lldpEnabled)
+	dutPort := dut.Port(t, portName)
+	verifyNodeConfig(t, dut, dutPort, dutConf, lldpEnabled)
+
+	// ATE Configuration.
+	t.Log("Configure ATE.")
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+	otgConfig := configureATE(t, otg)
+
+	checkLLDPMetricsOTG(t, otg, otgConfig, lldpEnabled)
+
+	dutPeerState := lldpNeighbors{
+		systemName:    lldpSrc.systemName,
+		chassisId:     lldpSrc.macAddress,
+		chassisIdType: otgtelemetry.LldpNeighbor_ChassisIdType_MAC_ADDRESS,
+		portId:        ate.Port(t, portName).Name(),
+		portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
 	}
+	verifyDUTTelemetry(t, dut, dutPort, dutConf, dutPeerState)
 
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-
-			// DUT configuration.
-			t.Log("Configure DUT.")
-			dut, dutConf := configureDUT(t, "dut", test.lldpEnabled)
-			dutPort := dut.Port(t, portName)
-			verifyNodeConfig(t, dut, dutPort, dutConf, test.lldpEnabled)
-
-			// ATE Configuration.
-			t.Log("Configure ATE")
-			ate := ondatra.ATE(t, "ate")
-			otg := ate.OTG()
-			otgConfig := configureATE(t, otg)
-
-			checkLLDPMetricsOTG(t, otg, otgConfig, test.lldpEnabled)
-
-			dutPeerState := lldpNeighbors{
-				systemName:    lldpSrc.systemName,
-				chassisId:     lldpSrc.macAddress,
-				chassisIdType: otgtelemetry.LldpNeighbor_ChassisIdType_MAC_ADDRESS,
-				portId:        ate.Port(t, portName).Name(),
-				portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
-			}
-
-			if test.lldpEnabled {
-				expOtgLLDPNeighbor := lldpNeighbors{
-					systemName:    dutConf.GetSystemName(),
-					portId:        dutPort.Name(),
-					portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
-					chassisId:     strings.ToUpper(dutConf.GetChassisId()),
-					chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
-				}
-				checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
-				verifyDUTTelemetry(t, dut, dutPort, dutConf, dutPeerState)
-			} else {
-				expOtgLLDPNeighbor := lldpNeighbors{}
-				checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
-			}
-		})
+	expOtgLLDPNeighbor := lldpNeighbors{
+		systemName:    dutConf.GetSystemName(),
+		portId:        dutPort.Name(),
+		portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
+		chassisId:     strings.ToUpper(dutConf.GetChassisId()),
+		chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
 	}
+	checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
+}
+
+// TestLLDPDisabled tests LLDP advertisement turned off.
+func TestLLDPDisabled(t *testing.T) {
+	// DUT configuration.
+	t.Log("Configure DUT.")
+	dut, dutConf := configureDUT(t, "dut", lldpDisabled)
+	dutPort := dut.Port(t, portName)
+	verifyNodeConfig(t, dut, dutPort, dutConf, lldpDisabled)
+
+	// ATE Configuration.
+	t.Log("Configure ATE.")
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+	otgConfig := configureATE(t, otg)
+
+	checkLLDPMetricsOTG(t, otg, otgConfig, lldpDisabled)
+	expOtgLLDPNeighbor := lldpNeighbors{}
+	checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
 }
 
 // configureDUT configures LLDP on a single node.
