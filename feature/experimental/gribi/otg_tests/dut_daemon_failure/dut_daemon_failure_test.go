@@ -57,6 +57,7 @@ const (
 	ateDstNetStartIp = "203.0.113.1"
 	nhIndex          = 1
 	nhgIndex         = 42
+	flowName         = "Flow"
 )
 
 var (
@@ -90,6 +91,7 @@ var (
 		ondatra.ARISTA:  "Gribi",
 		ondatra.CISCO:   "emsd",
 		ondatra.JUNIPER: "rpd",
+		ondatra.NOKIA:   "sr_gribi_server",
 	}
 )
 
@@ -114,6 +116,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
@@ -123,10 +126,20 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // configureATE configures port1 and port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	t.Helper()
 	otg := ate.OTG()
 	top := otg.NewConfig(t)
 
@@ -136,7 +149,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	atePort1.AddToOTG(top, p1, &dutPort1)
 	atePort2.AddToOTG(top, p2, &dutPort2)
 
-	flow := top.Flows().Add().SetName("Flow")
+	flow := top.Flows().Add().SetName(flowName)
 	flow.Metrics().SetEnable(true)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
@@ -152,7 +165,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 // and checks for packet loss for the given flow.
 func stopAndVerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 
-	flowName := "Flow"
 	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
