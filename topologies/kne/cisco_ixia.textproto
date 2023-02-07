@@ -26,13 +26,13 @@ nodes: {
     }
 }
 nodes: {
-    name: "vxr"
+    name: "dut"
     vendor: CISCO
     model:"8201"
     os: "ios-xr"
     config: {
         file: "cisco.config"
-        image: "cisco:latest"
+        image: "8000e:latest"
         init_image: "networkop/init-wait:latest"
     }
     constraints:{
@@ -81,23 +81,23 @@ nodes: {
 links: {
     a_node: "otg"
     a_int: "eth1"
-    z_node: "vxr"
+    z_node: "dut"
     z_int: "eth1"
 }
 links: {
-    a_node: "vxr"
+    a_node: "dut"
     a_int: "eth2"
     z_node: "otg"
     z_int: "eth2"
 }
 links: {
-    a_node: "vxr"
+    a_node: "dut"
     a_int: "eth3"
     z_node: "otg"
     z_int: "eth3"
 }
 links: {
-    a_node: "vxr"
+    a_node: "dut"
     a_int: "eth4"
     z_node: "otg"
     z_int: "eth4"
