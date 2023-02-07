@@ -84,7 +84,7 @@ func configInterface(name, desc, ipv4 string, prefixlen uint8) *oc.Interface {
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
 
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 
@@ -149,8 +149,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		t.Logf("OTG AddInterface: ports[%d] = %v", i, ap)
 		in := top.Ports().Add().SetName(ap.ID())
 		dev := top.Devices().Add().SetName(ap.Name() + ".dev")
-		eth := dev.Ethernets().Add().SetName(ap.Name() + ".eth").
-			SetPortName(in.Name()).SetMac(atePortMac(i))
+		eth := dev.Ethernets().Add().SetName(ap.Name() + ".eth").SetMac(atePortMac(i))
+		eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(in.Name())
 		ipv4Addr := strings.Split(atePortCIDR(i), "/")[0]
 		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".ipv4").
 			SetAddress(ipv4Addr).SetGateway(dutPortIP(i)).

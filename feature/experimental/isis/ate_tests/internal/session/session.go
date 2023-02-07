@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/networkinstance"
@@ -105,17 +106,35 @@ func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
 func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
-	prot.Enabled = ygot.Bool(true)
+	if !*deviations.ISISprotocolEnabledNotRequired {
+		prot.Enabled = ygot.Bool(true)
+	}
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
-	glob.Instance = ygot.String(ISISName)
+	if !*deviations.ISISInstanceEnabledNotRequired {
+		glob.Instance = ygot.String(ISISName)
+	}
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	if *deviations.IsisAfMetricStyleWideLevelRequired {
+		level := isis.GetOrCreateLevel(2)
+		level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
+	}
 	intf := isis.GetOrCreateInterface(ifaceName)
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
-	intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+	// Configure ISIS level at global mode if true else at interface mode
+	if *deviations.ISISInterfaceLevel1DisableRequired {
+		intf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
+	} else {
+		intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+	}
+	// Configure ISIS enable flag at interface level
+	if *deviations.MissingIsisInterfaceAfiSafiEnable {
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	}
 }
 
 // addISISTopo configures basic IS-IS on an ATETopology interface.
@@ -126,7 +145,7 @@ func addISISTopo(iface *ondatra.Interface, areaAddress, sysID string) {
 		WithTERouterID(sysID).
 		WithNetworkTypePointToPoint().
 		WithWideMetricEnabled(true).
-		WithLevelL2()
+		WithLevelL2().WithMetric(10)
 }
 
 // TestSession is a convenience wrapper around the dut, ate, ports, and
@@ -214,6 +233,10 @@ func (s *TestSession) PushAndStart(t testing.TB) error {
 	if err := s.PushDUT(context.Background()); err != nil {
 		return err
 	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 	s.PushAndStartATE(t)
 	return nil
 }
@@ -233,7 +256,15 @@ func (s *TestSession) PushDUT(ctx context.Context) error {
 		return fmt.Errorf("configuring network instance: %w", err)
 	}
 	dutConf := s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
-	_, err := ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
+
+	// Clear ISIS Protocol
+	_, err := ygnmi.Delete(ctx, s.DUTClient, ProtocolPath().Config())
+	if err != nil {
+		return fmt.Errorf("deleting ISIS config before configuring test config: %w", err)
+	}
+
+	// Configure ISIS test config on DUT
+	_, err = ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
 	if err != nil {
 		return fmt.Errorf("configuring ISIS: %w", err)
 	}
@@ -267,6 +298,7 @@ func (s *TestSession) AwaitAdjacency() (string, error) {
 		}
 		return ygnmi.Continue
 	})
+
 	got, err := watcher.Await()
 	if err != nil {
 		return "", err

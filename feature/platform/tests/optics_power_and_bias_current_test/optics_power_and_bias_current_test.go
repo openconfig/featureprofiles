@@ -29,6 +29,7 @@ import (
 )
 
 const (
+	ethernetCsmacd         = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	transceiverType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
 	sleepDuration          = time.Minute
 	minOpticsPower         = -30.0
@@ -127,6 +128,7 @@ func TestOpticsPowerUpdate(t *testing.T) {
 		intUpdateTime := 2 * time.Minute
 		t.Run(tc.desc, func(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
+			i.Type = ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedStatus)
 
@@ -144,14 +146,24 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			t.Logf("Transceiver MfgName: %s", mfgName)
 
 			channels := gnmi.OC().Component(dp.Name()).Transceiver().ChannelAny()
-			inputPowers := gnmi.GetAll(t, dut, channels.InputPower().Instant().State())
-			outputPowers := gnmi.GetAll(t, dut, channels.OutputPower().Instant().State())
-			for _, inPower := range inputPowers {
+			inputPowers := gnmi.LookupAll(t, dut, channels.InputPower().Instant().State())
+			outputPowers := gnmi.LookupAll(t, dut, channels.OutputPower().Instant().State())
+			for _, inputPower := range inputPowers {
+				inPower, ok := inputPower.Val()
+				if !ok {
+					t.Errorf("Get inputPower for port %q: got 0, want > 0", dp.Name())
+					continue
+				}
 				if inPower > maxOpticsPower || inPower < minOpticsPower {
 					t.Errorf("Get inputPower for port %q): got %.2f, want within [%f, %f]", dp.Name(), inPower, minOpticsPower, maxOpticsPower)
 				}
 			}
-			for _, outPower := range outputPowers {
+			for _, outputPower := range outputPowers {
+				outPower, ok := outputPower.Val()
+				if !ok {
+					t.Errorf("Get outputPower for port %q: got 0, want > 0", dp.Name())
+					continue
+				}
 				if outPower > tc.expectedMaxOutPower {
 					t.Errorf("Get outPower for port %q): got %.2f, want < %f", dp.Name(), outPower, tc.expectedMaxOutPower)
 				}

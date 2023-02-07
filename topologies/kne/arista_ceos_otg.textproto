@@ -1,6 +1,6 @@
 name: "ixia-c"
 nodes: {
-    name: "ate"
+    name: "otg"
     vendor: KEYSIGHT
     version: "0.0.1-9999"
     services: {
@@ -63,7 +63,7 @@ nodes: {
   }
 }
 links: {
-    a_node: "ate"
+    a_node: "otg"
     a_int: "eth1"
     z_node: "dut"
     z_int: "eth1"
@@ -71,6 +71,6 @@ links: {
 links: {
     a_node: "dut"
     a_int: "eth2"
-    z_node: "ate"
+    z_node: "otg"
     z_int: "eth2"
 }

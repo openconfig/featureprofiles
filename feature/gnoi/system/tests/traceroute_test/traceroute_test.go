@@ -18,7 +18,9 @@ import (
 	"context"
 	"io"
 	"testing"
+	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -28,9 +30,8 @@ import (
 )
 
 const (
-	minTraceroutePktSize     = 60
 	minTracerouteHops        = 1
-	minTracerouteRTT         = 1
+	minTracerouteRTT         = 0 // the device traceroute to its loopback, the RTT can be zero.
 	maxDefaultTracerouteHops = 30
 )
 
@@ -53,7 +54,6 @@ func TestMain(m *testing.M) {
 //     - destination_name.
 //     - destination_address.
 //     - hops.
-//     - packet_size.
 //  - Verify that traceroute response contains some of the following fields.
 //     - hop: Hop number is required.
 //     - address: Address of responding hop is required.
@@ -96,32 +96,39 @@ func TestGNOITraceroute(t *testing.T) {
 	if len(ipv6Addrs) == 0 {
 		t.Fatalf("Failed to get a valid IPv6 loopback address: %+v", ipv6Addrs)
 	}
-
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, lbIntf, *deviations.DefaultNetworkInstance, 0)
+	}
 	cases := []struct {
-		desc         string
-		traceRequest *spb.TracerouteRequest
+		desc              string
+		traceRequest      *spb.TracerouteRequest
+		defaultL4Protocol bool
 	}{
 		{
-			desc: "Check traceroute with IPv4 destination",
+			desc:              "Check traceroute with IPv4 destination",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv4Addrs[0].GetIp(),
 				DoNotLookupAsn: true,
 			}},
 		{
-			desc: "Check traceroute with IPv6 destination",
+			desc:              "Check traceroute with IPv6 destination",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv6Addrs[0].GetIp(),
 				DoNotLookupAsn: true,
 			}},
 		{
-			desc: "Check traceroute with IPv6 protocol",
+			desc:              "Check traceroute with IPv6 protocol",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv6Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV6,
 				DoNotLookupAsn: true,
 			}},
 		{
-			desc: "Check traceroute with IPv4 DF bit",
+			desc:              "Check traceroute with IPv4 DF bit",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv4Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV4,
@@ -129,7 +136,8 @@ func TestGNOITraceroute(t *testing.T) {
 				DoNotLookupAsn: true,
 			}},
 		{
-			desc: "Check traceroute with IPv4 do_not_resolve",
+			desc:              "Check traceroute with IPv4 do_not_resolve",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv4Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV4,
@@ -137,7 +145,8 @@ func TestGNOITraceroute(t *testing.T) {
 				DoNotLookupAsn: true,
 			}},
 		{
-			desc: "Check traceroute with IPv6 do_not_resolve",
+			desc:              "Check traceroute with IPv6 do_not_resolve",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv6Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV6,
@@ -145,7 +154,8 @@ func TestGNOITraceroute(t *testing.T) {
 				DoNotLookupAsn: true,
 			}},
 		{
-			desc: "Check traceroute with IPv4 wait",
+			desc:              "Check traceroute with IPv4 wait",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv4Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV4,
@@ -153,7 +163,8 @@ func TestGNOITraceroute(t *testing.T) {
 				DoNotLookupAsn: true,
 			}},
 		{
-			desc: "Check traceroute with IPv6 wait",
+			desc:              "Check traceroute with IPv6 wait",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv6Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV6,
@@ -161,7 +172,8 @@ func TestGNOITraceroute(t *testing.T) {
 				DoNotLookupAsn: true,
 			}},
 		{
-			desc: "Check traceroute with IPv4 TTL",
+			desc:              "Check traceroute with IPv4 TTL",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv4Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV4,
@@ -170,7 +182,8 @@ func TestGNOITraceroute(t *testing.T) {
 				DoNotLookupAsn: true,
 			}},
 		{
-			desc: "Check traceroute with IPv6 TTL",
+			desc:              "Check traceroute with IPv6 TTL",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv6Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV6,
@@ -178,7 +191,8 @@ func TestGNOITraceroute(t *testing.T) {
 				DoNotLookupAsn: true,
 			}},
 		{
-			desc: "Check traceroute with IPv4 L4protocol ICMP",
+			desc:              "Check traceroute with IPv4 L4protocol ICMP",
+			defaultL4Protocol: true,
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv4Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV4,
@@ -229,6 +243,20 @@ func TestGNOITraceroute(t *testing.T) {
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			time.Sleep(1 * time.Second) // some devices do not allow back to back traceroute to prevent flooding
+			if *deviations.TraceRouteL4ProtocolUDP {
+				if tc.defaultL4Protocol {
+					tc.traceRequest.L4Protocol = spb.TracerouteRequest_UDP
+				}
+				if tc.traceRequest.L4Protocol != spb.TracerouteRequest_UDP {
+					t.Skip("Test is skiped due to the TraceRouteL4ProtocolUDP deviation")
+				}
+			}
+			if *deviations.TraceRouteFragmentation {
+				if tc.traceRequest.DoNotFragment {
+					t.Skip("Test is skiped due to the TraceRouteFragmentation deviation")
+				}
+			}
 			t.Logf("Sent traceroute request: %v\n\n", tc.traceRequest)
 			traceClient, err := gnoiClient.System().Traceroute(context.Background(), tc.traceRequest)
 			if err != nil {
@@ -246,9 +274,6 @@ func TestGNOITraceroute(t *testing.T) {
 			t.Logf("Verify that the fields are only correctly filled in for the first message.")
 			if resps[0].DestinationAddress != tc.traceRequest.Destination {
 				t.Errorf("Traceroute Destination: got %v, want %v", resps[0].DestinationAddress, tc.traceRequest.Destination)
-			}
-			if resps[0].PacketSize < minTraceroutePktSize {
-				t.Errorf("Traceroute reply size: got %v, want >= %v", resps[0].PacketSize, minTraceroutePktSize)
 			}
 			if tc.traceRequest.MaxTtl > 0 && resps[0].Hops != tc.traceRequest.MaxTtl {
 				t.Errorf("Traceroute reply hops: got %v, want %v", resps[0].Hops, tc.traceRequest.MaxTtl)

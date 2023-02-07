@@ -72,7 +72,7 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
 	s := intf.GetOrCreateSubinterface(0)
 	if a.IPv4 != "" {
 		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled {
+		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 			s4.Enabled = ygot.Bool(true)
 		}
 		if a.MTU > 0 {
@@ -128,8 +128,8 @@ func (a *Attributes) AddToATE(top *ondatra.ATETopology, ap *ondatra.Port, peer *
 func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attributes) gosnappi.Device {
 	top.Ports().Add().SetName(ap.ID())
 	dev := top.Devices().Add().SetName(a.Name)
-	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth")
-	eth.SetPortName(ap.ID()).SetMac(a.MAC)
+	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth").SetMac(a.MAC)
+	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap.ID())
 
 	if a.MTU > 0 {
 		eth.SetMtu(int32(a.MTU))

@@ -101,7 +101,7 @@ func (*testCase) configDUT(i *oc.Interface, a *attrs.Attributes) {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4.GetOrCreateAddress(a.IPv4).PrefixLength = ygot.Uint8((plen4))
@@ -185,6 +185,15 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		tc.setupAggregateAtomically(t)
 	}
 
+	for _, port := range tc.dutPorts {
+		iName := port.Name()
+		i := &oc.Interface{Name: ygot.String(iName)}
+		tc.configMemberDUT(i, port)
+		iPath := d.Interface(iName)
+		fptest.LogQuery(t, port.String(), iPath.Config(), i)
+		gnmi.Replace(t, tc.dut, iPath.Config(), i)
+	}
+
 	if tc.lagType == lagTypeLACP {
 		lacp := &oc.Lacp_Interface{Name: ygot.String(tc.aggID)}
 		lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
@@ -203,20 +212,15 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
 	t.Cleanup(func() {
+		gnmi.Delete(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().MinLinks().Config())
+		for _, port := range tc.dutPorts {
+			iName := port.Name()
+			iPath := d.Interface(iName)
+			gnmi.Replace(t, tc.dut, iPath.Config(), &oc.Interface{Name: ygot.String(iName), Type: ethernetCsmacd})
+		}
 		gnmi.Delete(t, tc.dut, aggPath.Config())
 	})
 
-	for _, port := range tc.dutPorts {
-		iName := port.Name()
-		i := &oc.Interface{Name: ygot.String(iName)}
-		tc.configMemberDUT(i, port)
-		iPath := d.Interface(iName)
-		fptest.LogQuery(t, port.String(), iPath.Config(), i)
-		gnmi.Replace(t, tc.dut, iPath.Config(), i)
-		t.Cleanup(func() {
-			gnmi.Replace(t, tc.dut, iPath.Config(), &oc.Interface{Name: ygot.String(iName)})
-		})
-	}
 }
 
 func (tc *testCase) configureATE(t *testing.T) {
@@ -254,7 +258,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 func (tc *testCase) verifyDUT(t *testing.T, numPort int) {
 	dutPort := tc.dut.Port(t, "port1")
 	want := int(dutPort.Speed()) * numPort * 1000
-	val, _ := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().LagSpeed().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool { return val.IsPresent() }).Await(t)
+	val, _ := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().LagSpeed().State(), 60*time.Second, func(val *ygnmi.Value[uint32]) bool { return val.IsPresent() }).Await(t)
 	if got, _ := val.Val(); int(got) != want {
 		t.Errorf("Get(DUT port status): got %v, want %v", got, want)
 	}

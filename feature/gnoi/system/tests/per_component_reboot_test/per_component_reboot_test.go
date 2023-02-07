@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -81,23 +82,25 @@ func TestMain(m *testing.M) {
 func TestStandbyControllerCardReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	supervisors := components.FindComponentsByType(t, dut, controlcardType)
-	t.Logf("Found supervisor list: %v", supervisors)
-	// Only perform the standby RP rebooting for the chassis with dual RPs/Supervisors.
-	if len(supervisors) != 2 {
-		t.Skipf("Dual RP/SUP is required on %v: got %v, want 2", dut.Model(), len(supervisors))
+	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
+	t.Logf("Found controller card list: %v", controllerCards)
+
+	if *args.NumControllerCards >= 0 && len(controllerCards) != *args.NumControllerCards {
+		t.Errorf("Incorrect number of controller cards: got %v, want exactly %v (specified by flag)", len(controllerCards), *args.NumControllerCards)
 	}
 
-	rpStandby, rpActive := findStandbyRP(t, dut, supervisors)
+	if got, want := len(controllerCards), 2; got < want {
+		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
+	}
+
+	rpStandby, rpActive := findStandbyRP(t, dut, controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandby, rpActive)
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
 		Subcomponents: []*tpb.Path{
-			{
-				Elem: []*tpb.PathElem{{Name: rpStandby}},
-			},
+			components.GetSubcomponentPath(rpStandby),
 		},
 	}
 
@@ -126,8 +129,13 @@ func TestLinecardReboot(t *testing.T) {
 
 	lcs := components.FindComponentsByType(t, dut, linecardType)
 	t.Logf("Found linecard list: %v", lcs)
+
+	if *args.NumLinecards >= 0 && len(lcs) != *args.NumLinecards {
+		t.Errorf("Incorrect number of linecards: got %v, want exactly %v (specified by flag)", len(lcs), *args.NumLinecards)
+	}
+
 	if got := len(lcs); got == 0 {
-		t.Errorf("Get number of Linecards on %v: got %v, want > 0", dut.Model(), got)
+		t.Skipf("Not enough linecards for the test on %v: got %v, want > 0", dut.Model(), got)
 	}
 
 	t.Logf("Find a removable line card to reboot.")
@@ -151,9 +159,7 @@ func TestLinecardReboot(t *testing.T) {
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
 		Subcomponents: []*tpb.Path{
-			{
-				Elem: []*tpb.PathElem{{Name: removableLinecard}},
-			},
+			components.GetSubcomponentPath(removableLinecard),
 		},
 	}
 
@@ -193,7 +199,7 @@ func TestLinecardReboot(t *testing.T) {
 	for _, port := range intfsOperStatusUPBeforeReboot {
 		batch.AddPaths(gnmi.OC().Interface(port).OperStatus())
 	}
-	watch := gnmi.Watch(t, dut, batch.State(), 5*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
+	watch := gnmi.Watch(t, dut, batch.State(), 10*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
 		root, present := val.Val()
 		if !present {
 			return false

@@ -115,7 +115,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -148,6 +148,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+		fptest.SetPortSpeed(t, p3)
+	}
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -158,22 +163,22 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	top.Ports().Add().SetName(atePort1.Name)
 	dev := top.Devices().Add().SetName(atePort1.Name)
-	eth := dev.Ethernets().Add().SetName(atePort1.Name + ".Eth")
-	eth.SetPortName(dev.Name()).SetMac(atePort1.MAC)
+	eth := dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
+	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dev.Name())
 	ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
 	ip.SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(int32(atePort1.IPv4Len))
 
 	top.Ports().Add().SetName(atePort2.Name)
 	dev = top.Devices().Add().SetName(atePort2.Name)
-	eth = dev.Ethernets().Add().SetName(atePort2.Name + ".Eth")
-	eth.SetPortName(dev.Name()).SetMac(atePort2.MAC)
+	eth = dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
+	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dev.Name())
 	ip = eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
 	ip.SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(int32(atePort2.IPv4Len))
 
 	top.Ports().Add().SetName(atePort3.Name)
 	dev = top.Devices().Add().SetName(atePort3.Name)
-	eth = dev.Ethernets().Add().SetName(atePort3.Name + ".Eth")
-	eth.SetPortName(dev.Name()).SetMac(atePort3.MAC)
+	eth = dev.Ethernets().Add().SetName(atePort3.Name + ".Eth").SetMac(atePort3.MAC)
+	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dev.Name())
 	ip = eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
 	ip.SetAddress(atePort3.IPv4).SetGateway(dutPort3.IPv4).SetPrefix(int32(atePort3.IPv4Len))
 

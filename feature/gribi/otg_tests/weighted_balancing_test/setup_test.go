@@ -171,7 +171,7 @@ func dutInterface(p *ondatra.Port) *oc.Interface {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 
@@ -206,6 +206,11 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 			t.Fatalf("No address found for port %v", dp)
 		}
 	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		for _, dp := range dut.Ports() {
+			fptest.AssignToNetworkInstance(t, dut, dp.Name(), *deviations.DefaultNetworkInstance, 0)
+		}
+	}
 }
 
 // setDUTInterfaceState sets the admin state on the dut interface
@@ -230,8 +235,8 @@ func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 		config.Ports().Add().SetName(ap.ID())
 		dev := config.Devices().Add().SetName(ateid)
 		macAddress, _ := incrementMAC(ateSrcPortMac, i)
-		eth := dev.Ethernets().Add().SetName(ateid + ".Eth").
-			SetPortName(ap.ID()).SetMac(macAddress)
+		eth := dev.Ethernets().Add().SetName(ateid + ".Eth").SetMac(macAddress)
+		eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap.ID())
 		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4").
 			SetAddress(portsIPv4[ateid]).SetGateway(portsIPv4[dutid]).
 			SetPrefix(plen)

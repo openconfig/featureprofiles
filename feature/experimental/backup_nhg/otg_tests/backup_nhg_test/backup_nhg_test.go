@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 )
 
@@ -137,7 +138,11 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation: %v", err)
 	}
-
+	gribi.BecomeLeader(t, c)
+	// Flush all entries before test.
+	if err := gribi.FlushAll(c); err != nil {
+		t.Errorf("Cannot flush: %v", err)
+	}
 	tcArgs := &testArgs{
 		ate:    ate,
 		ateTop: ateTop,
@@ -247,6 +252,17 @@ func TestIndirectBackupNexthopGroup(t *testing.T) {
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation: %v", err)
 	}
+	gribi.BecomeLeader(t, c)
+	// Flush all entries before test.
+	if err := gribi.FlushAll(c); err != nil {
+		t.Errorf("Cannot flush: %v", err)
+	}
+
+	gribi.BecomeLeader(t, c)
+	// Flush all entries before test.
+	if err := gribi.FlushAll(c); err != nil {
+		t.Errorf("Cannot flush: %v", err)
+	}
 
 	tcArgs := &testArgs{
 		ate:    ate,
@@ -314,6 +330,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
 	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
+
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+		fptest.SetPortSpeed(t, p3)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // configureBackupNextHopGroup creates and deletes the gribi nexthops, nexthop

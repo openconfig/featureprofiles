@@ -102,7 +102,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -122,6 +122,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // configureATE configures port1 and port2 on the ATE.
@@ -131,16 +140,16 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	top.Ports().Add().SetName(atePort1.Name)
 	i1 := top.Devices().Add().SetName(atePort1.Name)
-	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").
-		SetPortName(i1.Name()).SetMac(atePort1.MAC)
+	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
+	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 	eth1.Ipv4Addresses().Add().SetName(i1.Name() + ".IPv4").
 		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
 		SetPrefix(int32(atePort1.IPv4Len))
 
 	top.Ports().Add().SetName(atePort2.Name)
 	i2 := top.Devices().Add().SetName(atePort2.Name)
-	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").
-		SetPortName(i2.Name()).SetMac(atePort2.MAC)
+	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
+	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
 	eth2.Ipv4Addresses().Add().SetName(i2.Name() + ".IPv4").
 		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
 		SetPrefix(int32(atePort2.IPv4Len))
@@ -304,8 +313,9 @@ func deleteRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	)
 }
 
-// testRecursiveIPv4Entry verifies recursive IPv4 Entry for 198.51.100.0/24 -> 203.0.113.1/32 -> 192.0.2.6.
+// testRecursiveIPv4Entry verifies recursive IPv4 Entry for 198.51.100.0/24 (a) -> 203.0.113.1/32 (b) -> 192.0.2.6 (c).
 // The IPv4 Entry is verified through AFT Telemetry and Traffic.
+// TODO: The below code checks entries for each level of the hierarchy statically. We need to create a helper function that does the check recursively.
 func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	setupRecursiveIPv4Entry(t, args)
 
@@ -313,6 +323,7 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	fptest.LogQuery(t, "AFTs", aftsPath.State(), gnmi.Get(t, args.dut, aftsPath.State()))
 
 	// Verify that the entry for 198.51.100.0/24 is installed through AFT Telemetry.
+	// Verify that the entry for 198.51.100.0/24 (a) is installed through AFT Telemetry. a->c or a->b are the expected results.
 	ipv4Entry := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR).State())
 	if got, want := ipv4Entry.GetPrefix(), ateDstNetCIDR; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/prefix = %v, want %v", got, want)
@@ -337,15 +348,18 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 			t.Errorf("next-hop index is incorrect: got %v, want %v", got, want)
 		}
 		nh := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(nhIndexInst).State())
-		if got, want := nh.GetIpAddress(), ateIndirectNH; got != want {
-			t.Errorf("next-hop is incorrect: got %v, want %v", got, want)
+		// For devices that return the nexthop with resolving it recursively. For a->b->c the device returns c.
+		if got := nh.GetIpAddress(); got != atePort2.IPv4 && got != ateIndirectNH {
+			// For devices that return the nexthop without resolving it recursively. For a->b->c the device returns b.
+			// Note that b->c is validated in the next code block.
+			t.Errorf("next-hop is incorrect: got %v, want %v or %v ", got, ateIndirectNH, atePort2.IPv4)
 		}
 		if nh.GetInterfaceRef().GetInterface() == "" {
 			t.Errorf("next-hop interface-ref/interface not found")
 		}
 	}
 
-	// Verify that the entry for 203.0.113.1/32 is installed through AFT Telemetry.
+	// Verify that the entry for 203.0.113.1/32 (b) is installed through AFT Telemetry. b->c is the expected result.
 	ipv4Entry = gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateIndirectNHCIDR).State())
 	if got, want := ipv4Entry.GetPrefix(), ateIndirectNHCIDR; got != want {
 		t.Errorf("TestRecursiveIPv4Entry = %v: ipv4-entry/state/prefix, want %v", got, want)
