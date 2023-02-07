@@ -32,7 +32,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 
 	spb "github.com/openconfig/gnoi/system"
-	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -54,14 +53,16 @@ func TestMain(m *testing.M) {
 const (
 	ipv4PrefixLen       = 30
 	ateDstNetCIDR       = "203.0.113.0/24"
+	ateDstNetStartIP    = "203.0.113.0"
 	staticNH            = "192.0.2.6"
 	nhIndex             = 1
 	nhgIndex            = 42
 	controlcardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	primaryController   = oc.Platform_ComponentRedundantRole_PRIMARY
 	secondaryController = oc.Platform_ComponentRedundantRole_SECONDARY
-	switchTrigger       = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_SYSTEM_INITIATED
+	switchTrigger       = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED
 	maxSwitchoverTime   = 900
+	flowName            = "Flow"
 )
 
 var (
@@ -102,7 +103,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -113,6 +114,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
@@ -123,10 +125,19 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
 
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
-// configureATE configures port1 and port2 on the ATE.
+// configureATE configures port1 and port2 on the ATE and adding a flow with port1 as the source and port2 as destination
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	t.Helper()
 	top := ate.OTG().NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
@@ -135,30 +146,27 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	atePort1.AddToOTG(top, p1, &dutPort1)
 	atePort2.AddToOTG(top, p2, &dutPort2)
 
-	flow := top.Flows().Add().SetName("Flow")
+	flow := top.Flows().Add().SetName(flowName)
 	flow.Metrics().SetEnable(true)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().Increment().SetStart("203.0.113.0").SetCount(250)
+	v4.Dst().Increment().SetStart(ateDstNetStartIP).SetCount(250)
 
 	return top
 }
 
-// Function to send traffic
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
-	t.Logf("Starting traffic")
-	ate.OTG().StartTraffic(t)
-}
-
 // Function to verify traffic
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
-	flowName := "Flow"
 	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
 	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().InPkts().State())
 
+	if txPkts == 0 {
+		t.Errorf("txPackets is 0")
+		return
+	}
 	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
 		t.Errorf("LossPct for flow %s got %v, want 0", flowName, got)
 	} else {
@@ -233,7 +241,7 @@ func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch 
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
 	if gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger() != switchTrigger {
-		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want SYSTEM_INITIATED.",
+		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want USER_INITIATED.",
 			gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger().String())
 	}
 
@@ -302,7 +310,8 @@ func TestSupFailure(t *testing.T) {
 	// Program a route and ensure AFT telemetry returns FIB_PROGRAMMED
 	routeInstall(ctx, t, args)
 	// Verify that static route(203.0.113.0/24) to ATE port-2 is preferred by the traffic.`
-	sendTraffic(t, args.ate)
+	t.Logf("Starting traffic")
+	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	verifyTraffic(t, args.ate)
@@ -322,9 +331,7 @@ func TestSupFailure(t *testing.T) {
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: &tpb.Path{
-			Elem: []*tpb.PathElem{{Name: secondaryBeforeSwitch}},
-		},
+		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
