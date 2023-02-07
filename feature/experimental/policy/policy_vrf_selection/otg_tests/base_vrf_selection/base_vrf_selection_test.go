@@ -26,7 +26,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/telemetry"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -109,6 +108,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
+
 	// Configure network instance
 	t.Logf("*** Configuring network instance on DUT ... ")
 	niConfPath := gnmi.OC().NetworkInstance("10")
@@ -138,8 +138,8 @@ func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, subintfinde
 
 	if vlan != 0 {
 		// Add VLANs
-		singletag := s.GetOrCreateVlan()
-		singletag.VlanId = telemetry.UnionUint16(vlan)
+		singletag := s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged()
+		singletag.VlanId = ygot.Uint16(vlan)
 	}
 	// Add IPv4 stack
 	s4 := s.GetOrCreateIpv4()
@@ -170,8 +170,8 @@ func configNetworkInstance(name string, peer *attrs.Attributes) *oc.NetworkInsta
 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(peer.IPv4)
 	ipv6Nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop("0")
 	ipv6Nh.NextHop, _ = ipv6Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(peer.IPv6)
-	// ipv4Nh.Recurse = ygot.Bool(true)
-	// ipv6Nh.Recurse = ygot.Bool(true)
+	ipv4Nh.Recurse = ygot.Bool(true)
+	ipv6Nh.Recurse = ygot.Bool(true)
 
 	return ni
 }
@@ -254,6 +254,7 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort str
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) []gosnappi.Flow {
+	t.Helper()
 	t.Logf("*** Configuring OTG interfaces ...")
 	topo := ate.OTG().NewConfig(t)
 
@@ -269,18 +270,20 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []gosnappi.Flow {
 
 	topo.Ports().Add().SetName(p2.ID())
 	dstDev := topo.Devices().Add().SetName(ateDst.Name)
-	eth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth")
-	eth.SetPortName(p2.ID()).SetMac(ateDst.MAC)
-	eth.Vlans().Add().SetName(dstDev.Name() + "-VLAN").SetId(int32(vlan10))
-	eth.Ipv4Addresses().Add().SetName(dstDev.Name() + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
-	eth.Ipv6Addresses().Add().SetName(dstDev.Name() + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
+	ethDst := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth")
+
+	ethDst.SetPortName(p2.ID()).SetMac(ateDst.MAC)
+	ethDst.Vlans().Add().SetName(dstDev.Name() + "-VLAN").SetId(int32(vlan10))
+	ethDst.Ipv4Addresses().Add().SetName(dstDev.Name() + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
+	ethDst.Ipv6Addresses().Add().SetName(dstDev.Name() + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
 
 	dstDev2 := topo.Devices().Add().SetName(ateDst2.Name)
-	eth2 := dstDev2.Ethernets().Add().SetName(ateDst2.Name + ".Eth")
-	eth2.SetPortName(p2.ID()).SetMac(ateDst2.MAC)
-	eth2.Vlans().Add().SetName(dstDev2.Name() + "-VLAN").SetId(int32(vlan20))
-	eth2.Ipv4Addresses().Add().SetName(dstDev2.Name() + ".IPv4").SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(int32(ateDst2.IPv4Len))
-	eth2.Ipv6Addresses().Add().SetName(dstDev2.Name() + ".IPv6").SetAddress(ateDst2.IPv6).SetGateway(dutDst2.IPv6).SetPrefix(int32(ateDst2.IPv6Len))
+	ethDst2 := dstDev2.Ethernets().Add().SetName(ateDst2.Name + ".Eth")
+
+	ethDst2.SetPortName(p2.ID()).SetMac(ateDst2.MAC)
+	ethDst2.Vlans().Add().SetName(dstDev2.Name() + "-VLAN").SetId(int32(vlan20))
+	ethDst2.Ipv4Addresses().Add().SetName(dstDev2.Name() + ".IPv4").SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(int32(ateDst2.IPv4Len))
+	ethDst2.Ipv6Addresses().Add().SetName(dstDev2.Name() + ".IPv6").SetAddress(ateDst2.IPv6).SetGateway(dutDst2.IPv6).SetPrefix(int32(ateDst2.IPv6Len))
 
 	// Create traffic flows
 	t.Logf("*** Configuring OTG flows ...")
@@ -333,6 +336,7 @@ func createFlow(name string, top gosnappi.Config, ipType string, IPinIP bool, ds
 }
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
+	t.Helper()
 	t.Logf("*** Starting traffic ...")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
@@ -341,12 +345,12 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 }
 
 func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice, flowName string, wantLoss bool) {
-	afc := ate.OTG().Telemetry().Flow(flowName).Counters()
-	outPkts := ate.OTG().Telemetry().Flow(flowName).Counters().OutPkts().Get(t)
-	t.Logf("otg:Flow out counters %v %v", flowName, outPkts)
-	t.Log("otg:Flow counters", afc, afc.Get(t))
 
-	inPkts := afc.InPkts().Get(t)
+	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
+	inPkts := flowMetrics.GetCounters().GetInPkts()
+	outPkts := flowMetrics.GetCounters().GetOutPkts()
+
+	t.Logf("otg:Flow out counters %v %v", flowName, outPkts)
 	t.Logf("otg:Flow in counters %v %v", flowName, inPkts)
 
 	lostPkts := outPkts - inPkts
@@ -377,8 +381,13 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Flow, 
 	for _, flow := range flows {
 		t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
 		captureTrafficStats(t, ate, flow.Name(), false)
-		outPkts := ate.OTG().Telemetry().Flow(flow.Name()).Counters().OutPkts().Get(t)
-		inPkts := ate.OTG().Telemetry().Flow(flow.Name()).Counters().InPkts().Get(t)
+		flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
+		inPkts := flowMetrics.GetCounters().GetInPkts()
+		outPkts := flowMetrics.GetCounters().GetOutPkts()
+		if outPkts == 0 {
+			t.Errorf("tx packets is 0")
+			return
+		}
 		lossPct := (outPkts - inPkts) / outPkts * 100
 		if contains(flow.Name(), passFlows) {
 			if lossPct > 0 {
