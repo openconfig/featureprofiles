@@ -39,6 +39,7 @@ func (c *Client) AddIPv4Batch(t testing.TB, prefixes []string, nhgIndex uint64, 
 			WithPrefix(prefix).
 			WithNextHopGroup(nhgIndex)
 		aftIpv4Entry := c.getOrCreateAft(instance).GetOrCreateIpv4Entry(prefix)
+		aftIpv4Entry.OriginProtocol = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI
 		aftIpv4Entry.NextHopGroup = &nhgIndex
 		if nhgInstance != "" && nhgInstance != instance {
 			ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
