@@ -374,6 +374,8 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 		ipHeader.Src().SetValue(atePort1.IPv4)
 		ipHeader.Dst().SetValue(atePort2.IPv4)
 		ipHeader.TimeToLive().SetValue(int32(TTL))
+		flow.Size().SetFixed(int32(frameSize))
+		flow.Rate().SetPps(int64(frameRate))
 		return []gosnappi.Flow{flow}
 
 	} else {
@@ -386,6 +388,8 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 		ipv6Header.Src().SetValue(atePort1.IPv6)
 		ipv6Header.Dst().SetValue(atePort2.IPv6)
 		ipv6Header.HopLimit().SetValue(int32(TTL))
+		flow.Size().SetFixed(int32(frameSize))
+		flow.Rate().SetPps(int64(frameRate))
 		return []gosnappi.Flow{flow}
 	}
 }
