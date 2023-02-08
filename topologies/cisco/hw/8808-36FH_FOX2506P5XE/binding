@@ -69,7 +69,7 @@ duts {
   name: "SFD-Moji"  # Change this to the device hostname.
   config:{
     #gnmi_set_file: "$BASE_CONF_PATH"
-    gnmi_set_file: "/Users/mbagherz/git/test_ws/src/featureprofiles/topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto"
+    #gnmi_set_file: "/Users/mbagherz/git/test_ws/src/featureprofiles/topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto"
   }
  
   options {
@@ -158,34 +158,34 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "2/1"  # Change this to the actual port name.
+    name: "1/53"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "2/2"  # Change this to the actual port name.
+    name: "1/54"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "2/3"  # Change this to the actual port name.
+    name: "1/55"  # Change this to the actual port name.
   }
   ports {
     id: "port4"
-    name: "2/4"  # Change this to the actual port name.
+    name: "1/56"  # Change this to the actual port name.
   }
   ports {
     id: "port5"
-    name: "6/1" # Change this to the actual port name.
+    name: "6/169" # Change this to the actual port name.
   }
   ports {
     id: "port6"
-    name: "6/2"  # Change this to the actual port name.
+    name: "6/170"  # Change this to the actual port name.
   }
   ports {
     id: "port7"
-    name: "6/3"  # Change this to the actual port name.
+    name: "6/171"  # Change this to the actual port name.
   }
   ports {
     id: "port8"
-    name: "6/4"  # Change this to the actual port name.
+    name: "6/172"  # Change this to the actual port name.
   }
 }
