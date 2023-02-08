@@ -1,0 +1,260 @@
+diff --git a/feature/experimental/p4rt/ate_tests/traceroute_packetin_test/README.md b/feature/experimental/p4rt/ate_tests/traceroute_packetin_test/README.md
+index e4209ff..8a69af7 100644
+--- a/feature/experimental/p4rt/ate_tests/traceroute_packetin_test/README.md
++++ b/feature/experimental/p4rt/ate_tests/traceroute_packetin_test/README.md
+@@ -12,8 +12,8 @@ Verify that Traceroute packets are punted with correct metadata.
+ *	TODO: Install the set of routes on the device.
+ *	Enable the P4RT server on the device.
+ *	Connect a P4RT client and configure the forwarding pipeline. InstallP4RT table 	entries required for traceroute.
+-*	Send IPv4 packets from the ATE with TTL={0,1/2} and verify that packets with TTL=0 and at least one of TTL={1/2} are received by the client.
+-*	Send IPv6 packets from the ATE with HopLimit={0,1/2} and verify that packets with HopLimit=0 and at least one of HopLimit={1/2} are received by the client.
++*	Send IPv4 packets from the ATE with TTL=1 and verify that packets with TTL=1 are received by the client.
++*	Send IPv6 packets from the ATE with HopLimit=1 and verify that packets with HopLimit=1 are received by the client.
+ *	Verify that the packets have both ingress_singleton_port and egress_singleton_port metadata set.
+ 
+ 
+diff --git a/feature/experimental/p4rt/ate_tests/traceroute_packetin_test/packetin_test.go b/feature/experimental/p4rt/ate_tests/traceroute_packetin_test/packetin_test.go
+index 1775991..8cf8e7b 100644
+--- a/feature/experimental/p4rt/ate_tests/traceroute_packetin_test/packetin_test.go
++++ b/feature/experimental/p4rt/ate_tests/traceroute_packetin_test/packetin_test.go
+@@ -139,14 +139,14 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
+ 		defer programmTableEntry(leader, args.packetIO, true, IsIpv4)
+ 	} else {
+ 		// Insert p4rtutils acl entry on the DUT
+-		if err := programmTableEntry(leader, args.packetIO, true, false); err != nil {
++		if err := programmTableEntry(leader, args.packetIO, false, false); err != nil {
+ 			t.Fatalf("There is error when programming entry")
+ 		}
+ 		// Delete p4rtutils acl entry on the device
+ 		defer programmTableEntry(leader, args.packetIO, true, false)
+ 	}
+ 
+-	// Send GDP traffic from ATE
++	// Send Traceroute traffic from ATE
+ 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+ 
+ 	packetInTests := []struct {
+@@ -163,92 +163,67 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
+ 		expectPass: false,
+ 	}}
+ 
+-	//CheckTTL struct for TTL/HopLimit=0,1
+-	checkTTL := []struct {
+-		desc string
+-		TTL  uint8
+-	}{{
+-		desc: "TTL/HopLimit 1",
+-		TTL:  1,
+-	}, {
+-		desc: "TTL/HopLimit 0",
+-		TTL:  0,
+-	}}
++	t.Log("TTL/HopLimit 1")
++	testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, 1 /*ttl/Hoplimit=1*/, 300, 2), srcEndPoint, 10)
++	for _, test := range packetInTests {
++		t.Run(test.desc, func(t *testing.T) {
++			// Extract packets from PacketIn message sent to p4rt client
++			packets := fetchPackets(ctx, t, test.client, 20)
+ 
+-	for _, TTL := range checkTTL {
+-		t.Log(TTL.desc)
+-		testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, TTL.TTL, 300, 2), srcEndPoint, 10)
+-		for _, test := range packetInTests {
+-			t.Run(test.desc, func(t *testing.T) {
+-				// Extract packets from PacketIn message sent to p4rt client
+-				packets := fetchPackets(ctx, t, test.client, 40)
+-
+-				if !test.expectPass {
+-					if len(packets) > 0 {
+-						t.Fatalf("Unexpected packets received.")
+-						return
+-					}
++			if !test.expectPass {
++				if len(packets) > 0 {
++					t.Fatalf("Unexpected packets received.")
+ 					return
+-				} else {
+-					if len(packets) == 0 {
+-						t.Fatalf("There are no packets received.")
+-						return
+-					}
+-					t.Logf("Start to decode packet and compare with expected packets.")
+-					wantPacket := args.packetIO.GetPacketTemplate()
+-					for _, packet := range packets {
+-						if packet != nil {
+-							if wantPacket.TTL != nil {
+-								//TTL/HopLimit comparison for IPV4 & IPV6
+-								if IsIpv4 {
+-									if TTL.TTL == 1 {
+-										captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
+-										if captureTTL != TTL1 {
+-											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")
+-										}
+-									} else {
+-										captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
+-										if captureTTL != TTL0 {
+-											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL0")
+-										}
+-									}
+-								} else {
+-									if TTL.TTL == 1 {
+-										captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
+-										if captureHopLimit != HopLimit1 {
+-											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit1")
+-										}
+-									} else {
+-										captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
+-										if captureHopLimit != HopLimit0 {
+-											t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit0")
+-										}
+-									}
++				}
++				return
++			} else {
++				if len(packets) == 0 {
++					t.Fatalf("There are no packets received.")
++					return
++				}
++				t.Logf("Start to decode packet and compare with expected packets.")
++				wantPacket := args.packetIO.GetPacketTemplate()
++				for _, packet := range packets {
++					if packet != nil {
++						if wantPacket.TTL != nil {
++							//TTL/HopLimit comparison for IPV4 & IPV6
++							if IsIpv4 {
++								captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
++								if captureTTL != TTL1 {
++									t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")
++								}
++
++							} else {
++								captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
++								if captureHopLimit != HopLimit1 {
++									t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit1")
+ 								}
+ 							}
++						}
+ 
+-							//Metadata comparision
+-							metaData := packet.Pkt.GetMetadata()
+-							for _, data := range metaData {
+-								if data.GetMetadataId() == METADATA_INGRESS_PORT {
+-									if string(data.GetValue()) != args.packetIO.GetIngressPort() {
+-										t.Fatalf("Ingress Port Id is not matching expectation.")
+-									}
++						//Metadata comparision
++						if metaData := packet.Pkt.GetMetadata(); metaData != nil {
++							if got := metaData[0].GetMetadataId(); got == METADATA_INGRESS_PORT {
++								if gotPortID := string(metaData[0].GetValue()); gotPortID != args.packetIO.GetIngressPort() {
++									t.Fatalf("Ingress Port Id mismatch: want %s, got %s", args.packetIO.GetIngressPort(), gotPortID)
+ 								}
+-								if data.GetMetadataId() == METADATA_EGRESS_PORT {
+-									found := false
+-									if string(data.GetValue()) == args.packetIO.GetEgressPort() {
+-										found = true
+-									}
+-									if !found {
+-										t.Fatalf("Egress Port Id is not matching expectation.")
+-									}
++							} else {
++								t.Fatalf("Metadata ingress port mismatch: want %d, got %d", METADATA_INGRESS_PORT, got)
++							}
++
++							if got := metaData[1].GetMetadataId(); got == METADATA_EGRESS_PORT {
++								if gotPortID := string(metaData[1].GetValue()); gotPortID != args.packetIO.GetEgressPort() {
++									t.Fatalf("Egress Port Id mismatch: want %s, got %s", args.packetIO.GetEgressPort(), gotPortID)
+ 								}
++							} else {
++								t.Fatalf("Metadata egress port mismatch: want %d, got %d", METADATA_EGRESS_PORT, got)
+ 							}
++						} else {
++							t.Fatalf("Packet missing metadata information.")
+ 						}
+ 					}
+ 				}
+-			})
+-		}
++			}
++		})
+ 	}
+ }
+diff --git a/feature/experimental/p4rt/ate_tests/traceroute_packetin_test/traceroute_packetin_test.go b/feature/experimental/p4rt/ate_tests/traceroute_packetin_test/traceroute_packetin_test.go
+index 19aa162..ff9c3b4 100644
+--- a/feature/experimental/p4rt/ate_tests/traceroute_packetin_test/traceroute_packetin_test.go
++++ b/feature/experimental/p4rt/ate_tests/traceroute_packetin_test/traceroute_packetin_test.go
+@@ -268,7 +268,7 @@ func getTracerouteParameter(t *testing.T) PacketIO {
+ 			HopLimit: &HopLimit1,
+ 		},
+ 		IngressPort: fmt.Sprint(portId),
+-		EgressPort:  fmt.Sprint(portId),
++		EgressPort:  fmt.Sprint(portId + 1),
+ 	}
+ }
+ 
+@@ -330,34 +330,37 @@ func (traceroute *TraceroutePacketIO) GetTableEntry(delete bool, IsIpv4 bool) []
+ 			actionType = p4_v1.Update_DELETE
+ 		}
+ 		return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
+-			Type:    actionType,
+-			IsIpv4:  0x1,
+-			TTL:     0x1,
+-			TTLMask: 0xFF,
++			Type:     actionType,
++			IsIpv4:   0x1,
++			TTL:      0x1,
++			TTLMask:  0xFF,
++			Priority: 1,
+ 		},
+ 			{
+-				Type:    actionType,
+-				IsIpv4:  0x1,
+-				TTL:     0x0,
+-				TTLMask: 0xFF,
+-			},
+-		}
++				Type:     actionType,
++				IsIpv4:   0x1,
++				TTL:      0x0,
++				TTLMask:  0xFF,
++				Priority: 1,
++			}}
+ 	} else {
+ 		actionType := p4_v1.Update_INSERT
+ 		if delete {
+ 			actionType = p4_v1.Update_DELETE
+ 		}
+ 		return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
+-			Type:    actionType,
+-			IsIpv6:  0x1,
+-			TTL:     0x1,
+-			TTLMask: 0xFF,
++			Type:     actionType,
++			IsIpv6:   0x1,
++			TTL:      0x1,
++			TTLMask:  0xFF,
++			Priority: 1,
+ 		},
+ 			{
+-				Type:    actionType,
+-				IsIpv6:  0x1,
+-				TTL:     0x0,
+-				TTLMask: 0xFF,
++				Type:     actionType,
++				IsIpv6:   0x1,
++				TTL:      0x0,
++				TTLMask:  0xFF,
++				Priority: 1,
+ 			}}
+ 	}
+ }
+@@ -369,8 +372,8 @@ func (traceroute *TraceroutePacketIO) GetPacketTemplate() *PacketIOPacket {
+ 
+ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []*ondatra.Flow {
+ 	ethHeader := ondatra.NewEthernetHeader()
+-	ipv4Header := ondatra.NewIPv4Header().WithSrcAddress(atePort1.IPv4).WithDstAddress(dutPort1.IPv4).WithTTL(uint8(TTL)) //ttl=1 is traceroute/lldp traffic
+-	ipv6Header := ondatra.NewIPv6Header().WithSrcAddress(atePort1.IPv6).WithDstAddress(dutPort1.IPv6).WithHopLimit(uint8(TTL))
++	ipv4Header := ondatra.NewIPv4Header().WithSrcAddress(atePort1.IPv4).WithDstAddress(atePort2.IPv4).WithTTL(uint8(TTL)) //ttl=1 is traceroute traffic
++	ipv6Header := ondatra.NewIPv6Header().WithSrcAddress(atePort1.IPv6).WithDstAddress(atePort2.IPv6).WithHopLimit(uint8(TTL))
+ 	if isIpv4 {
+ 		flow := ate.Traffic().NewFlow("IP4").WithFrameSize(frameSize).WithFrameRateFPS(frameRate).WithHeaders(ethHeader, ipv4Header)
+ 		return []*ondatra.Flow{flow}

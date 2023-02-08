@@ -122,14 +122,14 @@ duts {
     id: "port7"
     name: "TenGigE0/7/0/14/2"  # Change this to the actual port name.
   }
-  ports {
-    id: "port8"
-    name: "TenGigE0/7/0/35/3"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port9"
-    name: "TenGigE0/0/0/34/1"  # Change this to the actual port name.
-  }
+  #ports {
+  #  id: "port8"
+  #  name: "TenGigE0/7/0/35/3"  # Change this to the actual port name.
+  #}
+ # ports {
+ #   id: "port9"
+ #   name: "TenGigE0/0/0/34/1"  # Change this to the actual port name.
+ # }
 }
 
 ates {
@@ -145,6 +145,12 @@ ates {
    skip_verify: true
    username: "admin"
    password: "ixia123!" 
+
+   #linux
+   #target: "10.85.84.214"
+   #skip_verify: true
+   #username: "admin"
+   #password: "Admin!@#123123" 
 
    # windows
    # target: "10.85.84.161:12009" 
@@ -182,12 +188,12 @@ ates {
     id: "port7"
     name: "10/15"  # Change this to the actual port name.
   }
-  ports {
-    id: "port8"
-    name: "3/9"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port9"
-    name: "3/12"  # Change this to the actual port name.
-  }  
+  #ports {
+  #  id: "port8"
+  #  name: "3/9"  # Change this to the actual port name.
+  #}
+ # ports {
+ #   id: "port9"
+ #   name: "3/12"  # Change this to the actual port name.
+ # }  
 }

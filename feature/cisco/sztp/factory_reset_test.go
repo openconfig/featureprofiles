@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	frpb "github.com/openconfig/gnoi/factory_reset"
 	"github.com/openconfig/ondatra"
 )
@@ -37,7 +38,12 @@ func factoryReset(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 
 func TestFactoryReset(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
+	resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+	t.Logf(resp)
+	if strings.Contains(resp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
 	switch dut.Vendor() {
 	case ondatra.CISCO:
 		enCiscoCommands = encryptionCommands{EncrytionStatus: "show disk-encryption status", EncryptionActivate: "disk-encryption activate", EncryptionDeactivate: "disk-encryption deactivate", DevicePaths: []string{"/misc/disk1"}}

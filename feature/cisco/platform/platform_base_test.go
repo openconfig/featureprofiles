@@ -4,14 +4,17 @@ import (
 	"flag"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 )
 
 const (
-	RP = "0/RP0/CPU0"
+	RP           = "0/RP0/CPU0"
+	linecardType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
 )
 
 var (
@@ -37,6 +40,7 @@ var (
 var (
 	ControllerOptics      = flag.String("controller_optics", "0/0/0/20", "ControllerOptics")
 	ControllerOpticsSpeed = flag.String("controller_optics_speed", "4x10", "ControllerOpticsSpeed")
+	qspfdString           = flag.String("QSFP_DD_Optics", "-QSFP_DD Optics Port 20", "qspfdString")
 )
 
 // to hold platform info
@@ -56,21 +60,37 @@ type PlatformInfo struct {
 	SwPackage          string
 }
 
-func verifyBreakout(index uint8, numBreakouts uint8, breakoutSpeed string, t *testing.T) {
+var componentName string
+
+func portComponentName(t *testing.T, dut *ondatra.DUTDevice) {
+
+	lcs := components.FindComponentsByType(t, dut, linecardType)
+	if got := len(lcs); got == 0 {
+		componentName = "0/RP0/CPU0" + *qspfdString
+		t.Logf("The choosen component name: %v", componentName)
+	} else {
+		for _, lc := range lcs {
+			componentName = lc + *qspfdString
+			t.Logf("The choosen component name: %v", componentName)
+			break
+		}
+	}
+}
+func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, breakoutSpeedWant string, breakoutSpeedGot string, t *testing.T) {
 
 	if index != uint8(1) {
 		t.Errorf("Index: got %v, want 1", index)
 	}
-	if numBreakouts != uint8(4) {
-		t.Errorf("Number of breakouts configured : got %v, want 4", numBreakouts)
+	if numBreakoutsGot != numBreakoutsWant {
+		t.Errorf("Number of breakouts configured : got %v, want %v", numBreakoutsGot, numBreakoutsWant)
 	}
-	if breakoutSpeed != "SPEED_10GB" {
-		t.Errorf("Breakout speed configured : got %v, want 10GB", breakoutSpeed)
+	if breakoutSpeedGot != breakoutSpeedWant {
+		t.Errorf("Breakout speed configured : got %v, want %v", breakoutSpeedGot, breakoutSpeedWant)
 	}
 }
 func verifyDelete(t *testing.T, dut *ondatra.DUTDevice) {
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		gnmi.GetConfig(t, dut, gnmi.OC().Component(PlatformSF.Transceiver).Port().BreakoutMode().Group(1).Index().Config()) //catch the error  as it is expected and absorb the panic.
+		gnmi.GetConfig(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(1).Index().Config()) //catch the error  as it is expected and absorb the panic.
 	}); errMsg != nil {
 		t.Log("Expected failure ")
 	} else {

@@ -81,7 +81,7 @@ duts {
     name: "TenGigE0/6/0/2/0"  # Change this to the actual port name.
   }
   ports {
-    id: "port2"
+    id: "port5"
     name: "TenGigE0/6/0/2/1"  # Change this to the actual port name.
   }
   ports {
@@ -93,7 +93,7 @@ duts {
     name: "TenGigE0/6/0/2/3"  # Change this to the actual port name.
   }
   ports {
-    id: "port5"
+    id: "port2"
     name: "TenGigE0/0/0/2/0"  # Change this to the actual port name.
   }
   ports {
@@ -125,34 +125,34 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "5/1"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port2"
-    name: "5/2"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port3"
-    name: "5/3"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port4"
-    name: "5/4"  # Change this to the actual port name.
+    name: "7/3"  # Change this to the actual port name.
   }
   ports {
     id: "port5"
-    name: "5/5"  # Change this to the actual port name.
+    name: "7/4"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "7/5"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "7/6"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "7/7"  # Change this to the actual port name.
   }
   ports {
     id: "port6"
-    name: "5/6"  # Change this to the actual port name.
+    name: "7/8"  # Change this to the actual port name.
   }
   ports {
     id: "port7"
-    name: "5/7"  # Change this to the actual port name.
+    name: "7/11"  # Change this to the actual port name.
   }
   ports {
     id: "port8"
-    name: "5/8"  # Change this to the actual port name.
+    name: "7/12"  # Change this to the actual port name.
   }
 } 

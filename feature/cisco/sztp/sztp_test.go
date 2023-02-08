@@ -62,6 +62,13 @@ func generateKeypair(client_ssh_dir string) error {
 
 // scp using an existing established SSH connection
 func TestPWLess(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	showresp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+	t.Logf(showresp)
+	if strings.Contains(showresp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
 	if *sshIP == "" {
 		t.Fatal("--ssh_ip flag must be set.")
 	}
@@ -81,7 +88,6 @@ func TestPWLess(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	dut := ondatra.DUT(t, "dut")
 	cli_handle := dut.RawAPIs().CLI(t)
 	resp, err := cli_handle.SendCommand(context.Background(), "crypto key import authentication rsa harddisk:/id_rsa.bin")
 	t.Logf(resp)
@@ -98,6 +104,13 @@ func TestPWLess(t *testing.T) {
 	t.Logf("show version from the box\n %v\n", string(outPw))
 }
 func TestCertAuth(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	showresp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+	t.Logf(showresp)
+	if strings.Contains(showresp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
 	if *sshIP == "" {
 		t.Fatal("--ssh_ip flag must be set.")
 	}
@@ -122,6 +135,13 @@ func TestCertAuth(t *testing.T) {
 }
 
 func TestPwDisable(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	showresp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+	t.Logf(showresp)
+	if strings.Contains(showresp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
 	if *sshIP == "" {
 		t.Fatal("--ssh_ip flag must be set.")
 	}
@@ -134,11 +154,16 @@ func TestPwDisable(t *testing.T) {
 }
 
 func TestDiskEn(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	showresp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+	t.Logf(showresp)
+	if strings.Contains(showresp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
 	if *sshIP == "" {
 		t.Fatal("--ssh_ip flag must be set.")
 	}
-
-	dut := ondatra.DUT(t, "dut")
 	cli_handle := dut.RawAPIs().CLI(t)
 	resp, err := cli_handle.SendCommand(context.Background(), "show disk-encryption status")
 	if err != nil {
@@ -170,11 +195,17 @@ func TestDiskEn(t *testing.T) {
 }
 
 func TestTLS(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	showresp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+	t.Logf(showresp)
+	if strings.Contains(showresp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
 	if *sshIP == "" {
 		t.Fatal("--ssh_ip flag must be set.")
 	}
 	//t.Log("configuring grpc tls to generate the certificates/key")
-	dut := ondatra.DUT(t, "dut")
 	cli_handle := dut.RawAPIs().CLI(t)
 	rmGrpc, errRmGrpc := cli_handle.SendCommand(context.Background(), "run rm -rf /misc/config/grpc/")
 	t.Logf(rmGrpc)
@@ -239,10 +270,16 @@ func TestTLS(t *testing.T) {
 }
 
 func TestSZTP(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	showresp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+	t.Logf(showresp)
+	if strings.Contains(showresp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
 	if *sshIP == "" {
 		t.Fatal("--ssh_ip flag must be set.")
 	}
-	dut := ondatra.DUT(t, "dut")
 	cli_handle := dut.RawAPIs().CLI(t)
 	ztp_resp, err := cli_handle.SendCommand(context.Background(), "ztp initiate noprompt")
 	if err != nil {

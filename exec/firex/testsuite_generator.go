@@ -21,6 +21,7 @@ import (
 type GoTest struct {
 	ID            string
 	Name          string
+	ShortName     string
 	Owner         string
 	Priority      int
 	Path          string
@@ -111,6 +112,10 @@ var (
 		"sort", true, "sort tests by priority",
 	)
 
+	useShortNameFlag = flag.Bool(
+		"use_short_names", false, "output short test names",
+	)
+
 	testDescFiles    []string
 	testNames        []string
 	excludeTestNames []string
@@ -125,13 +130,14 @@ var (
 	excludePatched   bool
 	randomize        bool
 	sorted           bool
+	useShortName     bool
 )
 
 var (
 	firexSuiteTemplate = template.Must(template.New("firexTestSuite").Funcs(template.FuncMap{
 		"join": strings.Join,
 	}).Parse(`
-{{ $.Test.Name }}:
+{{ if $.UseShortTestNames}}{{ $.Test.ShortName }}{{ else }}{{ $.Test.Name }}{{ end }}:
     framework: b4_fp
     owners:
         - {{ $.Test.Owner }}
@@ -161,6 +167,7 @@ var (
     {{- end }}
     supported_platforms:
         - "8000"
+    {{- if gt (len $.Test.Pretests) 0 }}
     fp_pre_tests:
         {{- range $j, $pt := $.Test.Pretests}}
         - {{ $pt.Name }}:
@@ -169,8 +176,13 @@ var (
             test_args: {{ join $pt.Args " " }}
             {{- end }}
         {{- end }}
+    {{- end }}
     script_paths:
+        {{- if $.UseShortTestNames}}
+        - {{ $.Test.ShortName }}:
+        {{- else }}
         - ({{ $.Test.ID }}) {{ $.Test.Name }}{{ if $.Test.Patch }} (Patched){{ end }}{{ if $.Test.HasDeviations }} (Deviation){{ end }}{{ if $.Test.MustPass }} (MP){{ end }}:
+        {{- end }}
             test_path: {{ $.Test.Path }}
             {{- if $.Test.Args }}
             test_args: {{ join $.Test.Args " " }}
@@ -179,6 +191,7 @@ var (
             test_patch: {{ $.Test.Patch }}
             {{- end }}
             test_timeout: {{ $.Test.Timeout }}
+    {{- if gt (len $.Test.Posttests) 0 }}
     fp_post_tests:
         {{- range $j, $pt := $.Test.Posttests}}
         - {{ $pt.Name }}:
@@ -187,6 +200,7 @@ var (
             test_args: {{ join $pt.Args " " }}
             {{- end }}
         {{- end }}
+    {{- end }}
     smart_sanity_exclude: True
 `))
 )
@@ -235,6 +249,7 @@ func init() {
 	excludePatched = *excludePatchedFlag
 	randomize = *randomizeFlag
 	sorted = *sortFlag
+	useShortName = *useShortNameFlag
 }
 
 func main() {
@@ -273,7 +288,7 @@ func main() {
 					keptTests[suite[i].Name] = []GoTest{}
 				}
 				for j := range suite[i].Tests {
-					if strings.HasPrefix(suite[i].Tests[j].Name, t) {
+					if t == strings.Split(suite[i].Tests[j].Name, " ")[0] {
 						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
 					}
 				}
@@ -469,6 +484,7 @@ func main() {
 
 	for i := range suite {
 		for j := range suite[i].Tests {
+			suite[i].Tests[j].ShortName = strings.Split(suite[i].Tests[j].Name, " ")[0]
 			if len(topology) > 0 {
 				suite[i].Tests[j].Binding = ""
 				suite[i].Tests[j].Testbed = ""
@@ -491,11 +507,13 @@ func main() {
 			}
 
 			firexSuiteTemplate.Execute(&testSuiteCode, struct {
-				Test    GoTest
-				Plugins []string
+				Test              GoTest
+				Plugins           []string
+				UseShortTestNames bool
 			}{
-				Test:    suite[i].Tests[j],
-				Plugins: extraPlugins,
+				Test:              suite[i].Tests[j],
+				Plugins:           extraPlugins,
+				UseShortTestNames: useShortName,
 			})
 
 			if len(outDir) > 0 {

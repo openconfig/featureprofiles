@@ -64,19 +64,19 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.80.9:46789"
+    target: "10.85.84.159:56666"
   }
   gnmi {
-    target: "10.85.80.9:46789"
+    target: "10.85.84.159:56666"
   }
   gribi{
-    target: "10.85.80.9:46789"
+    target: "10.85.84.159:56666"
   }
   ssh{
-    target: "10.85.80.9:46786"
+    target: "10.85.84.159:46786"
   }
   p4rt{
-    target: "10.85.80.9:46789"
+    target: "10.85.84.159:56666"
   }
 
 # Before this binding can be used with a topology, add ports mapping
@@ -84,11 +84,11 @@ duts {
   
   ports {
     id: "port1"
-    name: "TenGigE0/0/0/8/3"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/6/2"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "TenGigE0/0/0/7/0"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/6/3"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
@@ -112,11 +112,11 @@ duts {
   }
   ports {
     id: "port8"
-    name: "TenGigE0/0/0/6/2"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/8/3"  # Change this to the actual port name.
   }
   ports {
     id: "port9"
-    name: "TenGigE0/0/0/6/3"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/7/0"  # Change this to the actual port name.
   }
 }
 
@@ -144,11 +144,11 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "10/16"  # Change this to the actual port name.
+    name: "10/23"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "10/17"  # Change this to the actual port name.
+    name: "10/24"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
@@ -172,10 +172,10 @@ ates {
   }
   ports {
     id: "port8"
-    name: "10/23"  # Change this to the actual port name.
+    name: "10/16"  # Change this to the actual port name.
   }
   ports {
     id: "port9"
-    name: "10/24"  # Change this to the actual port name.
+    name: "10/17"  # Change this to the actual port name.
   }  
 }

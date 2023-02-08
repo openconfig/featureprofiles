@@ -1,4 +1,3 @@
-import shutil
 from celery.utils.log import get_task_logger
 from firexapp.engine.celery import app
 from firexapp.common import silent_mkdir
@@ -17,6 +16,9 @@ from collections import namedtuple
 from pathlib import Path
 import os
 import git 
+import shutil
+import random
+import string
 
 GO_BIN = '/auto/firex/bin/go'
 PYTHON_BIN = '/auto/firex/sw/python/3.9.10/bin/python3.9'
@@ -28,9 +30,10 @@ ONDATRA_REPO_CLONE_INFO = CloneInfo('https://github.com/openconfig/ondatra.git',
 FP_REPO_CLONE_INFO = CloneInfo('git@wwwin-github.cisco.com:B4Test/featureprofiles.git', 'openconfig/featureprofiles')
 
 ONDATRA_PATCHES = [
-    'exec/firex/plugins/ondatra/0001-windows-ixia-path.patch', 
-    'exec/firex/plugins/ondatra/0002-disable-log.patch',
-    'exec/firex/plugins/ondatra/xml-stdout-smlt-logs.patch',
+    # 'exec/firex/plugins/ondatra/0001-windows-ixia-path.patch', 
+    # 'exec/firex/plugins/ondatra/0002-disable-log.patch',
+    # 'exec/firex/plugins/ondatra/xml-stdout-smlt-logs.patch',
+    'exec/firex/plugins/ondatra/ixate-retry.patch',
 ]
 
 ONDATRA_SIM_PATCHES = [
@@ -38,7 +41,7 @@ ONDATRA_SIM_PATCHES = [
 ]
 
 FP_PATCHES = [
-
+#    'exec/firex/plugins/fp_patch/disable-rundata.patch'
 ]
 
 whitelist_arguments([
@@ -68,17 +71,17 @@ whitelist_arguments([
 @returns('ondatra_binding_path', 'ondatra_testbed_path', 'exec_repo_dir', 'fp_repo_dir')
 def BringupTestbed(self, ws, images = None,  
                         ondatra_repo_branch='main',
-                        ondatra_repo_rev=None, # '7d597f5e3308250778e90ff06cc866245e277f6b'
+                        ondatra_repo_rev='8e19d8cde055be8c68f7ff63164df359baf29a1a',
                         fp_repo_url=FP_REPO_CLONE_INFO.url,
                         fp_repo_branch='main',  
-                        fp_repo_rev=None, # '1b33f9a62ad14c4f20efe0ff47cc3be0048c21f1'
+                        fp_repo_rev=None,
                         topo_file=None,                      
                         ondatra_testbed_path=None,
                         ondatra_binding_path=None,
                         base_conf_path=None,
                         skip_install=False,
                         apply_test_patches=True,
-                        apply_ondatra_patches=True,
+                        apply_ondatra_patches=False,
                         exec_repo_dir=None):
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
@@ -102,6 +105,10 @@ def BringupTestbed(self, ws, images = None,
         fp_repo = git.Repo(fp_repo_dir)
         fp_repo.git.checkout(fp_repo_rev)
 
+    ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
+    ondatra_binding_fname = f'ondatra_{ondatra_files_suffix}.binding'
+    ondatra_testbed_fname = f'ondatra_{ondatra_files_suffix}.testbed'
+
     if topo_file and len(topo_file) > 0:
         if topo_file[0] != '/':
             topo_file = os.path.join(exec_repo_dir, topo_file)
@@ -111,24 +118,24 @@ def BringupTestbed(self, ws, images = None,
         testbed_path, *other = self.enqueue_child_and_get_results(c, return_keys=('testbed_path'))
         logger.print(f'Testbed path: {testbed_path}')
         
-        ondatra_binding_path = os.path.join(ws, 'ondatra.binding')
+        ondatra_binding_path = os.path.join(ws, ondatra_binding_fname)
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}', 
             file=ondatra_binding_path)
 
-        ondatra_testbed_path = os.path.join(ws, 'ondatra.testbed')
+        ondatra_testbed_path = os.path.join(ws, ondatra_testbed_fname)
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh statictestbed service {testbed_path}', 
             file=ondatra_testbed_path)
     else:
         if ondatra_binding_path[0] != '/':
             shutil.copyfile(os.path.join(exec_repo_dir, ondatra_binding_path), 
-                os.path.join(ws, 'ondatra.binding'))
-            ondatra_binding_path = os.path.join(ws, 'ondatra.binding')
+                os.path.join(ws, ondatra_binding_fname))
+            ondatra_binding_path = os.path.join(ws, ondatra_binding_fname)
 
         if ondatra_testbed_path[0] != '/':
             shutil.copyfile(os.path.join(exec_repo_dir, ondatra_testbed_path), 
-                os.path.join(ws, 'ondatra.testbed'))
-            ondatra_testbed_path = os.path.join(ws, 'ondatra.testbed')
-        
+                os.path.join(ws, ondatra_testbed_fname))
+            ondatra_testbed_path = os.path.join(ws, ondatra_testbed_fname)
+
         if base_conf_path and len(base_conf_path) > 0:
             if base_conf_path[0] != '/':
                 base_conf_path = os.path.join(exec_repo_dir, base_conf_path)
@@ -241,7 +248,8 @@ def b4_fp_chain_provider(ws,
     if apply_test_patches and test_patch:
         chain |= PatchFP.s(fp_repo=fp_repo_dir, patch_path=os.path.join(exec_repo_dir, test_patch))
 
-    chain |= ReleaseIxiaPorts.s(ws=ws, fp_ws=exec_repo_dir, ondatra_binding_path=ondatra_binding_path)
+    if '/ate_tests/' in test_path:
+        chain |= ReleaseIxiaPorts.s(ws=ws, fp_ws=exec_repo_dir, ondatra_binding_path=ondatra_binding_path)
 
     if fp_pre_tests:
         for pt in fp_pre_tests:
@@ -255,7 +263,7 @@ def b4_fp_chain_provider(ws,
             for k, v in pt.items():
                 chain |= RunB4FPTest.s(fp_ws=exec_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'), ondatra_binding_path=ondatra_binding_path)
 
-    chain |= GoReporting.s(fp_ws=exec_repo_dir)
+    # chain |= GoReporting.s(fp_ws=exec_repo_dir)
     return chain
 
 # noinspection PyPep8Naming

@@ -39,7 +39,9 @@ const (
 
 // DECAP constant declaration
 const (
-	DECAP = "decap"
+	DECAP      = "decap"
+	ENCAP      = "encap"
+	DecapEncap = "DecapEncap"
 )
 
 // Client provides access to GRIBI APIs of the DUT.
@@ -73,6 +75,13 @@ const responseTimeThreshold = 10000000 // nanosecond (10 ML)
 type NHGOptions struct {
 	// BackupNHG specifies the backup next-hop-group to be used when all next-hops are unavailable.
 	FRR bool
+}
+
+// NHOptions are optional parameters to a GRIBI next-hop-group.
+type NHOptions struct {
+	// BackupNHG specifies the backup next-hop-group to be used when all next-hops are unavailable.
+	Src  string
+	Dest []string
 }
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
@@ -227,16 +236,27 @@ func (c *Client) checkNHResult(t testing.TB, expectedResult fluent.ProgrammingRe
 }
 
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
-func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck) {
+func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, interfaceRef string, expecteFailure bool, check *flags.GRIBICheck, opts ...*NHOptions) {
 	NH := fluent.NextHopEntry().
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex)
 
 	aftNh := c.getOrCreateAft(instance).GetOrCreateNextHop(nhIndex)
 
+	//DecapEncap case need to pass source and destination address as optimal parameter
 	if address == DECAP {
 		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
 		aftNh.DecapsulateHeader = oc.Aft_EncapsulationHeaderType_IPV4
+	} else if address == ENCAP {
+		NH = NH.WithEncapsulateHeader(fluent.IPinIP)
+	} else if address == DecapEncap {
+		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
+		NH = NH.WithEncapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			for _, dst := range opt.Dest {
+				NH = NH.WithIPinIP(opt.Src, dst)
+			}
+		}
 	} else if address != "" {
 		NH = NH.WithIPAddress(address)
 		aftNh.IpAddress = &address
@@ -265,10 +285,12 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 
 	if check.AFTCheck {
 		//if address is "decap", prefix will be 0.0.0.0, nhInstance is "", and InterfaceRef is Null0
-		if address == DECAP {
+		if address == DECAP || address == ENCAP || address == DecapEncap {
 			c.checkNH(t, nhIndex, "0.0.0.0", instance, "", "Null0")
 		} else {
-			c.checkNH(t, nhIndex, address, instance, nhInstance, interfaceRef)
+			if address != "" {
+				c.checkNH(t, nhIndex, address, instance, nhInstance, interfaceRef)
+			}
 		}
 	}
 }
