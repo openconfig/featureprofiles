@@ -494,11 +494,22 @@ func TestPBR(t *testing.T) {
 			defer gnmi.Delete(t, args.dut, pfpath.Config())
 
 			// apply pbr policy on ingress interface
-			gnmi.Replace(t, args.dut, pfpath.Interface(port1.Name()).ApplyVrfSelectionPolicy().Config(), args.policyName)
+			p1 := port1.Name()
+			d := &oc.Root{}
+			pfIntf := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(p1)
+			pfIntfConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(p1)
+
+			if *deviations.ExplicitInterfaceRefInPolicyForwarding {
+				pfIntf.GetOrCreateInterfaceRef().Interface = ygot.String(p1)
+				pfIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+				pfIntf.SetApplyVrfSelectionPolicy(args.policyName)
+				gnmi.Update(t, dut, pfIntfConfPath.Config(), pfIntf)
+			} else {
+				gnmi.Replace(t, args.dut, pfpath.Interface(p1).ApplyVrfSelectionPolicy().Config(), args.policyName)
+			}
 
 			// defer deletion of policy from interface
-			defer gnmi.Delete(t, args.dut, pfpath.Interface(port1.Name()).ApplyVrfSelectionPolicy().Config())
-
+			defer gnmi.Delete(t, args.dut, pfIntfConfPath.Config())
 			// traffic should pass
 			testTrafficFlows(t, args, true, tc.passingFlows...)
 
