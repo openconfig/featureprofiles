@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/ate_tests/internal/setup"
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -58,8 +59,8 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-// modIntfDesc builds OC config to modify description of a subset of interfaces.
-func modIntfDesc(t *testing.T) *oc.Root {
+// modifyIntfDescription builds config to modify description of a subset of interfaces.
+func modifyIntfDescription(t *testing.T) *oc.Root {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
 	dutPorts := sortPorts(dut.Ports())
@@ -74,11 +75,12 @@ func modIntfDesc(t *testing.T) *oc.Root {
 	return d
 }
 
+// TestGnmiFullConfigReplace measures performance of gNMI configuration replace.
 func TestGnmiFullConfigReplace(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	// Build pool of ip addresses to configure DUT interfaces
-	setup.BuildIPPool(t)
+	// Build list of ip addresses to configure DUT ports.
+	setup.BuildIPList(t)
 
 	t.Log("Configure Network Instance type to DEFAULT on DUT")
 	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
@@ -87,25 +89,44 @@ func TestGnmiFullConfigReplace(t *testing.T) {
 	t.Log("Cleanup exisitng bgp and isis configs on DUT before configuring test configs")
 	dutBGPPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	gnmi.Delete(t, dut, dutBGPPath.Config())
-	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.IsisInstance).Isis()
+	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
 	gnmi.Delete(t, dut, dutISISPath.Config())
 
-	t.Logf("Build interfaces, ISIS and BGP protocols configuration and send gNMI Set request")
-	setup.BuildOCUpdate(t)
-
-	t.Logf("Modify description of a subset of interfaces and send gNMI Set request")
-	d2 := modIntfDesc(t)
 	confP := gnmi.OC()
 
-	fptest.LogQuery(t, "DUT", confP.Config(), d2)
-	//Start the timer.
-	start := time.Now()
+	t.Logf("Build interfaces, ISIS and BGP protocols configuration for benchmarking")
+	d1 := setup.BuildBenchmarkingConfig(t)
 
-	//conf.Update(t, d2)
-	gnmi.Update(t, dut, confP.Config(), d2)
+	t.Run("Benchmark full configuration replace", func(t *testing.T) {
+		// Start the timer.
+		start := time.Now()
+		gnmi.Update(t, dut, confP.Config(), d1)
 
-	//End the timer and calculate time.
-	elapsed := time.Since(start)
-	t.Logf("Time taken for gNMI Set request is: %v", elapsed)
+		// End the timer and calculate time requied to apply the config on DUT.
+		elapsed := time.Since(start)
 
+		if *args.FullConfigReplaceTime > 0 && elapsed > *args.FullConfigReplaceTime {
+			t.Errorf("Time taken for full configuration replace is more than the expected benchmark value: want %v got %v", *args.FullConfigReplaceTime, elapsed)
+		} else {
+			t.Logf("Time taken for full configuration replace: %v", elapsed)
+		}
+	})
+
+	t.Run("Benchmark modifying a subset of configuration", func(t *testing.T) {
+		d2 := modifyIntfDescription(t)
+		fptest.LogQuery(t, "DUT", confP.Config(), d2)
+
+		// Start the timer.
+		start := time.Now()
+		gnmi.Update(t, dut, confP.Config(), d2)
+
+		// End the timer and calculate time.
+		elapsed := time.Since(start)
+
+		if *args.SubsetConfigReplaceTime > 0 && elapsed > *args.SubsetConfigReplaceTime {
+			t.Errorf("Time taken to modify a subset of configuration is more than the expected benchmark value: want %v got %v", *args.SubsetConfigReplaceTime, elapsed)
+		} else {
+			t.Logf("Time taken to modify a subset of configuration: %v", elapsed)
+		}
+	})
 }

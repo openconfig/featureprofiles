@@ -2,7 +2,7 @@
 
 ## Summary
 
-Measure performance of full configuration replace
+Measure performance of full configuration replace.
 
 ## Procedure
 
