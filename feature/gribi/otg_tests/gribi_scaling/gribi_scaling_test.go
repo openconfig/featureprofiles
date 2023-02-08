@@ -51,11 +51,11 @@ func TestMain(m *testing.M) {
 //
 //   - ate:port1 -> dut:port1 subnet 192.0.2.0/30
 //   - ate:port2 -> dut:port2 64 Sub interfaces:
-//   - ate:port2.1 -> dut:port2.1 VLAN-ID: 1 subnet 198.51.100.0/30
-//   - ate:port2.2 -> dut:port2.2 VLAN-ID: 2 subnet 198.51.100.4/30
-//   - ate:port2.3 -> dut:port2.3 VLAN-ID: 3 subnet 198.51.100.8/30
+//   - ate:port2.0 -> dut:port2.0 VLAN-ID: 0 subnet 198.51.100.0/30
+//   - ate:port2.1 -> dut:port2.1 VLAN-ID: 1 subnet 198.51.100.4/30
+//   - ate:port2.2 -> dut:port2.2 VLAN-ID: 2 subnet 198.51.100.8/30
 //   - ate:port2.i -> dut:port2.i VLAN-ID i subnet 198.51.100.(4*i)/30
-//   - ate:port2.64 -> dut:port2.64 VLAN-ID 64 subnet 198.51.100.252/30
+//   - ate:port2.63 -> dut:port2.63 VLAN-ID 63 subnet 198.51.100.252/30
 const (
 	ipv4PrefixLen = 30 // ipv4PrefixLen is the ATE and DUT interface IP prefix length.
 	vrf1          = "vrf1"
@@ -298,7 +298,6 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) 
 	for _, vrf := range vrfs {
 		// For non-default VRF, we want to replace the
 		// entire VRF tree so the instance is created.
-<<<<<<< HEAD
 		if vrf != *deviations.DefaultNetworkInstance {
 			i := d.GetOrCreateNetworkInstance(vrf)
 			i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
@@ -306,13 +305,6 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) 
 			nip := gnmi.OC().NetworkInstance(vrf)
 			fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
 		}
-=======
-		i := d.GetOrCreateNetworkInstance(vrf)
-		i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
-		nip := gnmi.OC().NetworkInstance(vrf)
-		fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
->>>>>>> 75163de (Update TE-14.1 OTG test to remove tagged/untagged subinterface mix from a single port and fix ExplicitInterfaceInDefaultVRF deviation handling)
 	}
 }
 
@@ -338,31 +330,18 @@ func configureInterfaceDUT(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatr
 // It returns a slice of the corresponding ATE IPAddresses.
 func generateSubIntfPair(t *testing.T, top gosnappi.Config, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPort, atePort *ondatra.Port, d *oc.Root) []string {
 	nextHops := []string{}
-<<<<<<< HEAD
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
 	configureInterfaceDUT(t, dut, dutPort, d, "dst")
 	for i := 0; i <= nextHopCount; i++ {
-=======
-	nextHopCount := 64 // nextHopCount specifies number of nextHop IPs needed.
-	configureInterfaceDUT(t, dut, dutPort, d, "dst")
-	for i := 1; i <= nextHopCount; i++ {
->>>>>>> 75163de (Update TE-14.1 OTG test to remove tagged/untagged subinterface mix from a single port and fix ExplicitInterfaceInDefaultVRF deviation handling)
 		vlanID := uint16(i)
 		if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
 			vlanID = uint16(i) + 1
 		}
 		name := fmt.Sprintf(`dst%d`, i)
-<<<<<<< HEAD
 		Index := uint32(i)
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 2))
 		configureSubinterfaceDUT(t, d, dut, dutPort, Index, vlanID, dutIPv4, *deviations.DefaultNetworkInstance)
-=======
-		index := uint32(i)
-		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*(i-1))+1)
-		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*(i-1))+2)
-		configureSubinterfaceDUT(t, d, dut, dutPort, index, vlanID, dutIPv4, *deviations.DefaultNetworkInstance)
->>>>>>> 75163de (Update TE-14.1 OTG test to remove tagged/untagged subinterface mix from a single port and fix ExplicitInterfaceInDefaultVRF deviation handling)
 		MAC, _ := incrementMAC(atePort1.MAC, i+1)
 		configureATE(t, top, ate, atePort, vlanID, name, MAC, dutIPv4, ateIPv4)
 		nextHops = append(nextHops, ateIPv4)
