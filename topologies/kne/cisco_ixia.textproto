@@ -35,9 +35,9 @@ nodes: {
         image: "8000e:latest"
         init_image: "networkop/init-wait:latest"
     }
-    constraints:{
+   constraints:{
         key: "memory"
-        value: "4Gi"
+        value: "20Gi"
     }
     services:{
         key: 22
@@ -50,31 +50,56 @@ nodes: {
         key: 57400
         value: {
             name: "gnmi"
+            outside: 57400
+            inside: 57400
+        }
+    }
+   services:{
+        key: 57401
+        value: {
+            name: "gribi"
+            outside: 57401
+            inside: 57400
+        }
+    }
+   services:{
+        key: 57402
+        value: {
+            name: "gnoi"
+            outside: 57402
+            inside: 57400
+        }
+    }
+   services:{
+        key: 57403
+        value: {
+            name: "p4rt"
+            outside: 57403
             inside: 57400
         }
     }
     interfaces: {
         key: "eth1"
         value: {
-          name: "GigabitEthernet0/0/0/0"
+          name: "FourHundredGigE0/0/0/0"
         }
     }
     interfaces: {
         key: "eth2"
         value: {
-          name: "GigabitEthernet0/0/0/1"
+          name: "FourHundredGigE0/0/0/1"
         }
     }
     interfaces: {
         key: "eth3"
         value: {
-          name: "GigabitEthernet0/0/0/2"
+          name: "FourHundredGigE0/0/0/2"
         }
     }
     interfaces: {
         key: "eth4"
         value: {
-          name: "GigabitEthernet0/0/0/3"
+          name: "FourHundredGigE0/0/0/3"
         }
     }
 }
