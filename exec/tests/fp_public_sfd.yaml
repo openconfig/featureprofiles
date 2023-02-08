@@ -269,7 +269,7 @@ tests:
   mustpass: true
   skip: false
   priority: 38
-- name: gNOI-3.3 Copying Debug Files
+- name: gNOI-3.5 (Copying Debug Files)
   path: feature/experimental/gnoi/copying_debug_files_test/
   owner: agvarghe@cisco.com
   mustpass: false
