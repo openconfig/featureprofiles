@@ -356,8 +356,11 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 
 	// ATE destination endpoints.
 	dstEndPoints := []ondatra.Endpoint{}
-	// populate dstEndPoints with subinterfaces on Port2
-	for i := uint32(1); i <= atePort2.numSubIntf; i++ {
+	startIndex := uint32(0)
+	if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+		startIndex = uint32(1)
+	}
+	for i := startIndex; i <= atePort2.numSubIntf; i++ {
 		dstIP := atePort2.ip(uint8(i))
 		dstEndPoints = append(dstEndPoints, allIntf[dstIP])
 	}
