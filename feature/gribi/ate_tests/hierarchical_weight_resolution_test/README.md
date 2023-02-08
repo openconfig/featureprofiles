@@ -13,7 +13,7 @@ Configure ATE and DUT:
 
 *   Create a non-default VRF (VRF-1) that includes DUT port-1.
 
-*   Create 18 L3 sub-interfaces (each with their own VLAN and IP) under DUT port-2 and corresponding 18 L3 sub-interfaces on ATE port-2.
+*   Create 18 L3 sub-interfaces (each with their own VLAN and IP) under DUT port-2 and corresponding 18 L3 sub-interfaces on ATE port-2. 
 
 Test case for basic hierarchical weight:
 
