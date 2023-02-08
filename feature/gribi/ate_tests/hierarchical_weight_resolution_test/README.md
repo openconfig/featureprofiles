@@ -13,20 +13,7 @@ Configure ATE and DUT:
 
 *   Create a non-default VRF (VRF-1) that includes DUT port-1.
 
-*   For DUT port-2 interface, create a subinterface with Index 0 and IPv4
-    address 192.0.2.5, not in a VLAN.
-
-*   For ATE port-2, create a subinterface with IPv4 address 192.0.2.6 and
-    Default Gateway of 192.0.2.5, not in a VLAN.
-
-*   Repeat for 18 more subinterfaces in a VLAN configuration:
-
-    *   For DUT port-2, subinterfaces indices 1...18 with VLAN IDs 1...18 and
-        corresponding IPv4 addresses 192.0.2.9 ... 192.0.2.73
-
-    *   For ATE port-2, subinterfaces with VLAN IDs 1...18 and corresponding
-        IPv4 addresses 192.0.2.10 ... 192.0.2.79 with default gateways of
-        192.0.2.9 ... 192.0.2.78
+*   Create 18 L3 sub-interfaces (each with their own VLAN and IP) under DUT port-2 and corresponding 18 L3 sub-interfaces on ATE port-2.
 
 Test case for basic hierarchical weight:
 
