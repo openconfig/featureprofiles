@@ -322,7 +322,7 @@ func (a *attributes) ConfigureATE(t *testing.T, top *ondatra.ATETopology, ate *o
 	t.Helper()
 	p := ate.Port(t, a.Name)
 	// Configure source port on ATE : Port1
-	if a.numSubIntf <= 0 {
+	if !*deviations.NoMixOfTaggedAndUntaggedSubinterfaces || (a.numSubIntf <= 0 && *deviations.NoMixOfTaggedAndUntaggedSubinterfaces) {
 		ip := a.ip(0)
 		gateway := a.gateway(0)
 		intf := top.AddInterface(ip).WithPort(p)
