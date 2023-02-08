@@ -174,12 +174,6 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	}
 }
 
-// Function to stop traffic
-func stopTraffic(t *testing.T, ate *ondatra.ATEDevice) {
-	t.Logf("Stopping traffic")
-	ate.OTG().StopTraffic(t)
-}
-
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	ctx     context.Context
@@ -384,6 +378,6 @@ func TestSupFailure(t *testing.T) {
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	verifyTraffic(t, args.ate)
-	stopTraffic(t, args.ate)
+	ate.OTG().StopTraffic(t)
 	args.ate.OTG().StopProtocols(t)
 }
