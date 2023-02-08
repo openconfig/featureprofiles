@@ -62,9 +62,9 @@ const (
 	IPBlock1      = "198.18.0.1/18"   // IPBlock1 represents the ipv4 entries in VRF1
 	IPBlock2      = "198.18.64.1/18"  // IPBlock2 represents the ipv4 entries in VRF2
 	IPBlock3      = "198.18.128.1/18" // IPBlock3 represents the ipv4 entries in VRF3
-	nhID1         = 2                 // nhID1 is the starting nh Index for entries in VRF1
-	nhID2         = 1002              // nhID2 is the starting nh Index for entries in VRF2
-	nhID3         = 18502             // nhID3 is the starting nh Index for entries in VRF3
+	nhID1         = 65                // nhID1 is the starting nh index for entries in VRF1
+	nhID2         = 1065              // nhID2 is the starting nh index for entries in VRF2
+	nhID3         = 18565             // nhID3 is the starting nh index for entries in VRF3
 	tunnelSrcIP   = "198.18.204.1"    // tunnelSrcIP represents Source IP of IPinIP Tunnel
 	tunnelDstIP   = "198.18.208.1"    // tunnelDstIP represents Dest IP of IPinIP Tunnel
 )
@@ -416,6 +416,8 @@ func TestScaling(t *testing.T) {
 	ap1 := ate.Port(t, "port1")
 	top := ate.Topology().New()
 	vrfs := []string{*deviations.DefaultNetworkInstance, vrf1, vrf2, vrf3}
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	createVrf(t, dut, d, vrfs)
 	configureInterfaceDUT(t, dut, dp1, d, "src")
 	// configure an L3 subinterface of no vlan tagging under DUT port#1
