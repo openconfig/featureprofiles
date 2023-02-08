@@ -159,5 +159,5 @@ var (
 		"Don't set isis instance enable flag on the device if value is true, Default value is false and instance enable flag is set")
 
 	NoMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
-		"Device does not support mix of tagged and untagged subinterfaces")
+		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
 )
