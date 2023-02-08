@@ -95,43 +95,43 @@ func getBaseCLIConfig(ctx context.Context, gnmiC gpb.GNMIClient) string {
 	resp, err := gnmiC.Get(ctx, getRequest)
 	if err != nil {
 		fmt.Printf("Could not connect to GNMI service: %v", err)
-		os.Exit(2)	
+		os.Exit(2)
 	}
 	return string(resp.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
 }
 
 func main() {
-	gnmiC :=gpb.NewGNMIClient(grpcStub)
-	baseConfig:= getBaseCLIConfig(context.Background(),gnmiC)
-	baseConfigLines := strings.Split(baseConfig,"\n")
-	annotatedBaseConfig:=[]string{}
-	configuredInterfaces:=map[string]bool{}
-	for idx,line := range baseConfigLines {
+	gnmiC := gpb.NewGNMIClient(grpcStub)
+	baseConfig := getBaseCLIConfig(context.Background(), gnmiC)
+	baseConfigLines := strings.Split(baseConfig, "\n")
+	annotatedBaseConfig := []string{}
+	configuredInterfaces := map[string]bool{}
+	for idx, line := range baseConfigLines {
 		if strings.HasPrefix(line, "interface") {
-			annotatedBaseConfig=append(annotatedBaseConfig,line)
-			configuredInterfaces[strings.Split(line," ")[1]] = true
-			if strings.Contains(line,"MgmtEth"){
+			annotatedBaseConfig = append(annotatedBaseConfig, line)
+			configuredInterfaces[strings.Split(line, " ")[1]] = true
+			if strings.Contains(line, "MgmtEth") {
 				continue
 			}
-			intfConfgidx:=idx+1
-			descFound:=false
+			intfConfgidx := idx + 1
+			descFound := false
 			for {
-				if baseConfigLines[intfConfgidx]== "!" {
+				if baseConfigLines[intfConfgidx] == "!" {
 					break
 				}
 				if strings.HasPrefix(baseConfigLines[intfConfgidx], " description") {
-					descFound=true
+					descFound = true
 					break
 				}
-				intfConfgidx+=1
+				intfConfgidx += 1
 			}
 			if !descFound {
-				annotatedBaseConfig=append(annotatedBaseConfig," description not connected interface")
+				annotatedBaseConfig = append(annotatedBaseConfig, " description not connected interface")
 			}
 		} else {
-			annotatedBaseConfig=append(annotatedBaseConfig,line)
+			annotatedBaseConfig = append(annotatedBaseConfig, line)
 		}
-	} 
+	}
 	ygnmiCli, err := ygnmi.NewClient(gnmiC)
 	if err != nil {
 		fmt.Printf("Could not connect to GNMI service: %v", err)
@@ -139,23 +139,24 @@ func main() {
 	}
 	interfaces, _ := ygnmi.GetAll(context.Background(), ygnmiCli, gnmi.OC().InterfaceAny().State())
 	addedBaseConfig := []string{}
-	for _,intf := range interfaces {
-		ok := configuredInterfaces[intf.GetName()]; if !ok {
-			addedBaseConfig=append(addedBaseConfig,fmt.Sprintf("interface %s",intf.GetName()))
-			addedBaseConfig=append(addedBaseConfig," description not connected interface")
-			addedBaseConfig=append(addedBaseConfig," shutdown")
-			addedBaseConfig=append(addedBaseConfig,"!")
+	for _, intf := range interfaces {
+		ok := configuredInterfaces[intf.GetName()]
+		if !ok {
+			addedBaseConfig = append(addedBaseConfig, fmt.Sprintf("interface %s", intf.GetName()))
+			addedBaseConfig = append(addedBaseConfig, " description not connected interface")
+			addedBaseConfig = append(addedBaseConfig, " shutdown")
+			addedBaseConfig = append(addedBaseConfig, "!")
 		}
-	} 
+	}
 	fmt.Println("----------- Here is the FP base config -----------")
-	for _,line := range annotatedBaseConfig {
-		if line!="end" {
-			fmt.Printf("\"%s\\n\"\n",line)
+	for _, line := range annotatedBaseConfig {
+		if line != "end" {
+			fmt.Printf("\"%s\\n\"\n", line)
 		} else {
-			for _,addedLine := range addedBaseConfig {
-				fmt.Printf("\"%s\\n\"\n",addedLine)
+			for _, addedLine := range addedBaseConfig {
+				fmt.Printf("\"%s\\n\"\n", addedLine)
 			}
-			fmt.Printf("\"%s\\n\"\n","end")
+			fmt.Printf("\"%s\\n\"\n", "end")
 		}
 	}
 }
