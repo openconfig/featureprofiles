@@ -36,14 +36,15 @@ import (
 )
 
 const (
-	ISISInstance          = "DEFAULT"
-	ISISMetric            = 100
-	DUTAreaAddress        = "49.0001"
-	DUTSysID              = "1920.0000.2001"
-	RouteCount            = 200
-	PeerGrpName           = "BGP-PEER-GROUP"
-	DUTAs                 = 64500
-	ATEAs                 = 64501
+	ISISInstance   = "DEFAULT"        // ISIS instance name.
+	ISISMetric     = 100              // ISIS metric.
+	DUTAreaAddress = "49.0001"        // DUT ISIS area address.
+	DUTSysID       = "1920.0000.2001" // DUT ISIS system ID.
+	RouteCount     = 200              // Route count.
+	PeerGrpName    = "BGP-PEER-GROUP" // BGP peer group name.
+	DUTAs          = 64500            // DUT AS.
+	ATEAs          = 64501            // ATE AS.
+
 	ateAs2                = 64502
 	dutStartIPAddr        = "192.0.2.1"
 	ateStartIPAddr        = "192.0.2.2"
@@ -54,10 +55,10 @@ const (
 )
 
 var (
-	DUTIPList       = make(map[string]net.IP)
-	ATEIPList       = make(map[string]net.IP)
-	ISISMetricArray []uint32
-	ISISSetBitArray []bool
+	DUTIPList       = make(map[string]net.IP) // DUT IP list.
+	ATEIPList       = make(map[string]net.IP) // ATE IP list.
+	ISISMetricArray []uint32                  // ISIS metric array.
+	ISISSetBitArray []bool                    // ISIS set bit array.
 )
 
 // BuildIPList builds list of ip addresses for the ports in binding file.

@@ -15,9 +15,7 @@ Modify descriptions of a subset of interfaces within the system.
 Measure time for Set to complete.
 
 Notes:
-This test does not cover entirely converged system, simply replacing
-the configuration for the initial case, and then a case where the device
-generates a diff.
+This test does not measure the time to an entirely converged state, only to completion of the gNMI update.
 
 ## Config Parameter Coverage
 
