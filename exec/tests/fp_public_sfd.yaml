@@ -169,7 +169,7 @@ tests:
   mustpass: true
 - name: P4RT-5.2 (Traceroute Packetout)
   path: feature/experimental/p4rt/ate_tests/traceroute_packetout_test
-  patch: exec/firex/plugins/fp_patch/p4rt5dot2.patch
+  # patch: exec/firex/plugins/fp_patch/p4rt5dot2.patch
   args:
     - '-deviation_explicit_p4rt_node_component="true"'
   owner: sprem@cisco.com
@@ -269,7 +269,7 @@ tests:
   mustpass: true
   skip: false
   priority: 38
-- name: gNOI-3.3 Copying Debug Files
+- name: gNOI-3.5 (Copying Debug Files)
   path: feature/experimental/gnoi/copying_debug_files_test/
   owner: agvarghe@cisco.com
   mustpass: false
@@ -278,10 +278,10 @@ tests:
 - name: gNOI-5.2 (Traceroute Test) 
   path: feature/gnoi/system/tests/traceroute_test
   owner: agvarghe@cisco.com
-  patch: exec/firex/plugins/fp_patch/traceroute_test.patch
+  # patch: exec/firex/plugins/fp_patch/traceroute_test.patch
   args:
-      - '-traceroute_l4_protocol_udp="true"'
-      - '-traceroute_fragmentation="true"'
+      - '-deviation_traceroute_l4_protocol_udp="true"'
+      - '-deviation_traceroute_fragmentation="true"'
   mustpass: true
   priority: 41
   skip: false
@@ -325,18 +325,19 @@ tests:
   skip: false
 - name: RT-2.2 (IS-IS LSP Updates) 
   path: feature/experimental/isis/ate_tests/lsp_updates_test
-  patch: exec/firex/plugins/fp_patch/lsp_updates_test.patch
+  # patch: exec/firex/plugins/fp_patch/lsp_updates_test.patch
   owner: mananpat@cisco.com
   args:
        - '-deviation_isis_af_metric_style_wide_level_required="true"'
        - '-deviation_missing_isis_interface_afi_safi_enable="true"'
        - '-deviation_isis_protocol_enabled_not_required="true"'
+       - '-deviation_isis_instance_enabled_not_required="true"'
   mustpass: true
   priority: 48
   skip: false
 - name: RT-2.1 (Base IS-IS Process and Adjacencies) 
   path: feature/experimental/isis/ate_tests/base_adjacencies_test
-  patch: exec/firex/plugins/fp_patch/base_adjacencies_test.patch
+  # patch: exec/firex/plugins/fp_patch/base_adjacencies_test.patch
   owner: mananpat@cisco.com
   args:
       - '-deviation_isis_interface_level1_disable_required="true"'
@@ -345,6 +346,7 @@ tests:
       - '-deviation_isis_hello_padding_adaptive_mode_not_supported="true"'
       - '-deviation_isis_single_topology_required="true"'
       - '-deviation_isis_protocol_enabled_not_required="true"'
+      - '-deviation_isis_instance_enabled_not_required="true"'
   mustpass: true
   priority: 49
   skip: false
@@ -352,6 +354,8 @@ tests:
   path: feature/lldp/tests/core_lldp_tlv_population_test
   patch: exec/firex/plugins/fp_patch/core_lldp_tlv_population_test.patch
   owner: agvarghe@cisco.com
+  args:
+       - '-deviation_lldp_interface_config_override_global="true"'
   mustpass: false 
   priority: 51
 - name: RT-1.3 (BGP Route Propagation) 
@@ -382,6 +386,9 @@ tests:
   mustpass: true
   priority: 55
   skip: false
+  args:
+    - '-deviation_connect_retry="true"'
+    - '-deviation_missing_bgp_neighbor_state_peer_group="true"'
 - name: RT-1.2 (BGP Policy and Route Installation) 
   path: feature/bgp/policybase/ate_tests/route_installation_test
   owner: sprem@cisco.com
@@ -426,19 +433,25 @@ tests:
   priority: 50
 - name: OC-1.2 (Default Address)
   path: feature/networkinstance/ate_tests/defaults_test
-  patch: exec/firex/plugins/fp_patch/defaults_test.patch
+  # patch: exec/firex/plugins/fp_patch/defaults_test.patch
   owner: mbagherz@cisco.com
   mustpass: true
   priority: 801
 - name: DP-1.2 (QoS policy feature config)
   path: feature/experimental/qos/ate_tests/qos_policy_config_test
   patch: exec/firex/plugins/fp_patch/qos_policy_config_test.patch
-  owner: arvbaska@cisco.com
+  owner: saarvind@cisco.com
   mustpass: true
   priority: 802
 - name: DP-1.3 (QoS ECN feature config) 
   path: feature/experimental/qos/ate_tests/qos_ecn_config_test
   patch: exec/firex/plugins/fp_patch/qos_ecn_config_test.patch
-  owner: arvbaska@cisco.com
+  owner: saarvind@cisco.com
   mustpass: true
   priority: 802
+
+- name: DP-1.10 (QoS policy feature config)
+  path: feature/experimental/qos/ate_tests/mixed_sp_wrr_traffic_test
+  patch: exec/firex/plugins/fp_patch/mixed_sp_wrr_traffic_test.patch
+  owner: saarvind@cisco.com
+  mustpass: true  

@@ -285,10 +285,11 @@ func TestStationMacConfig(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.test, func(t *testing.T) {
 			modifyStationMac(ctx, t, dut, c.op, c.want)
-			got := getStationMacConfig(ctx, t, dut)
+			got := getStationMacConfig(ctx, t, dut, c.test)
 			if diff := cmp.Diff(c.want, got, protocmp.Transform()); diff != "" {
 				t.Fatalf("Error detected (-want +got):\n%s", diff)
 			}
+
 		})
 	}
 
@@ -342,7 +343,7 @@ func modifyStationMac(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
 }
 
 // getStationMacConfig fetches location station mac configuration using gnmi GetRequest
-func getStationMacConfig(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) string {
+func getStationMacConfig(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, testType string) string {
 
 	r := &gnmipb.GetRequest{
 		Path: []*gnmipb.Path{
@@ -356,11 +357,19 @@ func getStationMacConfig(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 	}
 
 	res, err := dut.RawAPIs().GNMI().Default(t).Get(ctx, r)
-	if err != nil {
-		t.Fatal("There is error when getting configuration: ", err)
+	if testType == "Delete Station Local Mac" {
+		if err == nil {
+			t.Fatal("Expected an error when getting configuration: ", err)
+		} else {
+			return ""
+		}
 
+	} else {
+		if err != nil {
+			t.Fatal("There is error when getting configuration: ", err)
+
+		}
 	}
-
 	var address string
 	json.Unmarshal(res.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal(), &address)
 	return address

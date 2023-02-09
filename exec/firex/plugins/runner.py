@@ -1,4 +1,3 @@
-import shutil
 from celery.utils.log import get_task_logger
 from firexapp.engine.celery import app
 from firexapp.common import silent_mkdir
@@ -17,6 +16,9 @@ from collections import namedtuple
 from pathlib import Path
 import os
 import git 
+import shutil
+import random
+import string
 
 GO_BIN = '/auto/firex/bin/go'
 PYTHON_BIN = '/auto/firex/sw/python/3.9.10/bin/python3.9'
@@ -39,7 +41,7 @@ ONDATRA_SIM_PATCHES = [
 ]
 
 FP_PATCHES = [
-    'exec/firex/plugins/fp_patch/disable-rundata.patch'
+#    'exec/firex/plugins/fp_patch/disable-rundata.patch'
 ]
 
 whitelist_arguments([
@@ -79,7 +81,7 @@ def BringupTestbed(self, ws, images = None,
                         base_conf_path=None,
                         skip_install=False,
                         apply_test_patches=True,
-                        apply_ondatra_patches=True,
+                        apply_ondatra_patches=False,
                         exec_repo_dir=None):
 
     pkgs_parent_path = os.path.join(ws, f'go_pkgs')
@@ -103,6 +105,10 @@ def BringupTestbed(self, ws, images = None,
         fp_repo = git.Repo(fp_repo_dir)
         fp_repo.git.checkout(fp_repo_rev)
 
+    ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
+    ondatra_binding_fname = f'ondatra_{ondatra_files_suffix}.binding'
+    ondatra_testbed_fname = f'ondatra_{ondatra_files_suffix}.testbed'
+
     if topo_file and len(topo_file) > 0:
         if topo_file[0] != '/':
             topo_file = os.path.join(exec_repo_dir, topo_file)
@@ -112,19 +118,23 @@ def BringupTestbed(self, ws, images = None,
         testbed_path, *other = self.enqueue_child_and_get_results(c, return_keys=('testbed_path'))
         logger.print(f'Testbed path: {testbed_path}')
         
-        ondatra_binding_path = os.path.join(ws, 'ondatra.binding')
+        ondatra_binding_path = os.path.join(ws, ondatra_binding_fname)
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {testbed_path}', 
             file=ondatra_binding_path)
 
-        ondatra_testbed_path = os.path.join(ws, 'ondatra.testbed')
+        ondatra_testbed_path = os.path.join(ws, ondatra_testbed_fname)
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh statictestbed service {testbed_path}', 
             file=ondatra_testbed_path)
     else:
         if ondatra_binding_path[0] != '/':
-            ondatra_binding_path = os.path.join(exec_repo_dir, ondatra_binding_path)
+            shutil.copyfile(os.path.join(exec_repo_dir, ondatra_binding_path), 
+                os.path.join(ws, ondatra_binding_fname))
+            ondatra_binding_path = os.path.join(ws, ondatra_binding_fname)
 
         if ondatra_testbed_path[0] != '/':
-            ondatra_testbed_path = os.path.join(exec_repo_dir, ondatra_testbed_path)
+            shutil.copyfile(os.path.join(exec_repo_dir, ondatra_testbed_path), 
+                os.path.join(ws, ondatra_testbed_fname))
+            ondatra_testbed_path = os.path.join(ws, ondatra_testbed_fname)
 
         if base_conf_path and len(base_conf_path) > 0:
             if base_conf_path[0] != '/':

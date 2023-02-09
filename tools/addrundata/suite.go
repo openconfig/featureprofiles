@@ -33,7 +33,7 @@ func (ts testsuite) read(featuredir string) (ok bool) {
 			return nil // Ignore anything that's not a test, including intermediate directories.
 		}
 		testdir := filepath.Dir(path)
-		if !testKinds[testKind(testdir)] {
+		if !isTestKind(testKind(testdir)) {
 			relpath, err := filepath.Rel(filepath.Dir(featuredir), path)
 			if err != nil {
 				relpath = path
@@ -71,11 +71,15 @@ func (ts testsuite) read(featuredir string) (ok bool) {
 }
 
 // testKinds list the valid test kinds.
-var testKinds = map[string]bool{
-	"ate_tests": true,
-	"kne_tests": true,
-	"otg_tests": true,
-	"tests":     true,
+var testKinds = map[string]string{
+	"ate_tests": "ATE Test",
+	"kne_tests": "KNE Test",
+	"otg_tests": "OTG Test",
+	"tests":     "Test",
+}
+
+func isTestKind(kind string) bool {
+	return testKinds[kind] != ""
 }
 
 // testKind returns the test kind given a package testdir of this form:
