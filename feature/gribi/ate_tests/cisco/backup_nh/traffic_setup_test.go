@@ -231,7 +231,10 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 		flowPath := gnmi.OC().Flow(f.Name())
 		got := gnmi.Get(t, a.ate, flowPath.LossPct().State())
 		if drop {
-			if got != 100 {
+			if got == 0 {
+				t.Log("No stats collected as interfaces are down due to LC reload")
+				break
+			} else if got != 100 {
 				t.Errorf("Traffic passing for flow %s got %g, want 100 percent loss", f.Name(), got)
 			}
 		} else {

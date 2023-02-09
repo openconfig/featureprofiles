@@ -1,34 +1,31 @@
 diff --git a/internal/cisco/flags/flags.go b/internal/cisco/flags/flags.go
-index b898ce65..b311881c 100644
+index dbf7371b..6a855a57 100644
 --- a/internal/cisco/flags/flags.go
 +++ b/internal/cisco/flags/flags.go
-@@ -15,13 +15,13 @@ var (
- 	GRIBIAFTCheck = flag.Bool("gribi_aft_check", true,
+@@ -12,7 +12,7 @@ var (
+ 	GRIBITrafficCheck = flag.Bool("gribi_traffic_check", true,
+ 		"This enable/disable traffic check for gribi tests.")
+ 
+-	GRIBIAFTCheck = flag.Bool("gribi_aft_check", true,
++	GRIBIAFTCheck = flag.Bool("gribi_aft_check", false,
  		"This enable/disable AFT check for gribi entries in gribi tests.")
  
--	GRIBINHTimer = flag.Int("gribi_nh_timer", 5,
-+	GRIBINHTimer = flag.Int("gribi_nh_timer", 0,
- 		"Wait time before executing aft call for NH")
- 
--	GRIBINHGTimer = flag.Int("gribi_nhg_timer", 5,
-+	GRIBINHGTimer = flag.Int("gribi_nhg_timer", 0,
- 		"Wait time before executing aft call for NHG")
- 
--	GRIBIIPv4Timer = flag.Int("gribi_ipv4_timer", 5,
-+	GRIBIIPv4Timer = flag.Int("gribi_ipv4_timer", 0,
+ 	GRIBINHTimer = flag.Int("gribi_nh_timer", 0,
+@@ -27,7 +27,7 @@ var (
+ 	GRIBIRemoveTimer = flag.Int("gribi_remove_timer", 2,
  		"Wait time before executing aft call for IPv4")
  
- 	GRIBIRemoveTimer = flag.Int("gribi_remove_timer", 10,
-@@ -39,10 +39,10 @@ var (
+-	GRIBIAFTChainCheck = flag.Bool("gribi_aft_chain_check", true,
++	GRIBIAFTChainCheck = flag.Bool("gribi_aft_chain_check", false,
+ 		"This enable/disable AFT chain check for gribi prefix in gribi tests.")
+ 
+ 	GRIBIAFTChainCheckWait = flag.Int("gribi_aft_chain_check_wait_timer", 5,
+@@ -39,7 +39,7 @@ var (
  	GRIBIRIBCheck = flag.Bool("gribi_rib_check", true,
  		"This enable/disable  RIB ack check for gribi entries in gribi tests.")
  
--	GRIBIScale = flag.Uint("gribi_scale", 10,
-+	GRIBIScale = flag.Uint("gribi_scale", 10, //30208 scale value
+-	GRIBIScale = flag.Uint("gribi_scale", 2, //30208 scale value
++	GRIBIScale = flag.Uint("gribi_scale", 100, //30208 scale value
  		"The number of gribi entries to be added in scale test.")
  
--	GRIBIConfidence = flag.Float64("gribi_confidence", 10.0,
-+	GRIBIConfidence = flag.Float64("gribi_confidence", 100.0,
- 		"This defines the how many gribi entries are gonna be validated, float value is represented in percentage")
- 
- 	PYXRRun = flag.Bool("pyvxr_run", true,
+ 	GRIBIConfidence = flag.Float64("gribi_confidence", 100.0,

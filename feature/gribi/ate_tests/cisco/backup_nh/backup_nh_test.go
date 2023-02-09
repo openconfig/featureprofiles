@@ -27,7 +27,10 @@ import (
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	gnps "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 	spb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
@@ -75,6 +78,7 @@ const (
 	bundleEther122        = "Bundle-Ether122"
 	bundleEther123        = "Bundle-Ether123"
 	bundleEther124        = "Bundle-Ether124"
+	lc                    = "0/0/CPU0"
 )
 
 // testArgs holds the objects needed by a test case.
@@ -398,6 +402,13 @@ func testBackupToTrafficLoss(ctx context.Context, t *testing.T, args *testArgs) 
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -513,6 +524,13 @@ func testUpdateBackUpToDropID(ctx context.Context, t *testing.T, args *testArgs)
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -595,6 +613,9 @@ func testBackupToDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -615,6 +636,10 @@ func testBackupToDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -726,6 +751,7 @@ func testFlushForwarding(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPopConfig(t)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -746,6 +772,13 @@ func testFlushForwarding(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -849,6 +882,13 @@ func testBackupSwitchFromDropToDecap(ctx context.Context, t *testing.T, args *te
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1076,6 +1116,8 @@ func testBackupSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1105,13 +1147,6 @@ func testBackupSingleNH(ctx context.Context, t *testing.T, args *testArgs) {
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
-	}
-	//aft check
-	if *ciscoFlags.GRIBIAFTChainCheck {
-		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
-		for i := 0; i < len(randomItems); i++ {
-			args.client.CheckAftIPv4(t, "TE", randomItems[i])
-		}
 	}
 }
 
@@ -1161,6 +1196,8 @@ func testBackupMultiNH(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1174,6 +1211,7 @@ func testBackupMultiNH(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1320,6 +1358,13 @@ func testIPv4BackUpAddBkNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1397,6 +1442,13 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1481,6 +1533,11 @@ func testIPv4BackUpShutSite1(ctx context.Context, t *testing.T, args *testArgs) 
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1555,6 +1612,13 @@ func testIPv4BackUpDecapToDrop(ctx context.Context, t *testing.T, args *testArgs
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1654,6 +1718,13 @@ func testIPv4BackUpDropToDecap(ctx context.Context, t *testing.T, args *testArgs
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1751,6 +1822,13 @@ func testIPv4BackUpModifyDecapNHG(ctx context.Context, t *testing.T, args *testA
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1861,6 +1939,13 @@ func testIPv4BackUpMultiplePrefixes(ctx context.Context, t *testing.T, args *tes
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1971,6 +2056,13 @@ func testIPv4BackUpMultipleVRF(ctx context.Context, t *testing.T, args *testArgs
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -2046,6 +2138,13 @@ func testIPv4BackUpFlapBGPISIS(ctx context.Context, t *testing.T, args *testArgs
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
+		args.client.AftPushConfig(t)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -2198,20 +2297,31 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 		args.interfaceaction(t, intf, false)
 		defer args.interfaceaction(t, intf, true)
 	}
-	// BGP /ISIS peer is in port 8. So flap port 8
-	config.CMDViaGNMI(args.ctx, t, args.dut, "reload location 0/0/CPU0 noprompt \n")
-	// validate traffic passing successfulling via primary Site 2
-	time.Sleep(time.Minute)
+
+	gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
+	lineCardPath := components.GetSubcomponentPath(lc)
+	rebootSubComponentRequest := &gnps.RebootRequest{
+		Method: gnps.RebootMethod_COLD,
+		Subcomponents: []*tpb.Path{
+			lineCardPath,
+		},
+	}
+	t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
+	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	}
+
+	// sleep while lc reloads
+	time.Sleep(10 * time.Minute)
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
-	}
-	//aft check
-	if *ciscoFlags.GRIBIAFTChainCheck {
-		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
-		for i := 0; i < len(randomItems); i++ {
-			args.client.CheckAftIPv4(t, "TE", randomItems[i])
-		}
 	}
 }
 
@@ -2255,13 +2365,6 @@ func testRecursiveToNonrecursive(ctx context.Context, t *testing.T, args *testAr
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121"})
 	}
-	//aft check
-	if *ciscoFlags.GRIBIAFTChainCheck {
-		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
-		for i := 0; i < len(randomItems); i++ {
-			args.client.CheckAftIPv4(t, "TE", randomItems[i])
-		}
-	}
 }
 
 func testNonrecursiveToRecursive(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2303,13 +2406,6 @@ func testNonrecursiveToRecursive(ctx context.Context, t *testing.T, args *testAr
 	args.client.ReplaceIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
-	}
-	//aft check
-	if *ciscoFlags.GRIBIAFTChainCheck {
-		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
-		for i := 0; i < len(randomItems); i++ {
-			args.client.CheckAftIPv4(t, "TE", randomItems[i])
-		}
 	}
 }
 func fimBase(ctx context.Context, t *testing.T, args *testArgs, nhg string, ipv4add string, ipv4del string, nhgfault bool, ipv4fault bool) {

@@ -317,6 +317,11 @@ func (c *Client) AftRemoveIPv4(t testing.TB, instance, prefix string) {
 						changed = true
 					}
 				}
+				// Breakout since backup is deleted and there are no primary NHs present
+				if len(nhg.NextHop) == 0 && len(aft.NextHopGroup) == 1 {
+					changed = false
+					break
+				}
 				// This logic is to update the database entry and delete NHG since there are no NH and BNHG associations left
 				if len(nhg.NextHop) == 0 && nhg.BackupNextHopGroup == nil {
 					aft.DeleteNextHopGroup(*nhg.Id)
