@@ -331,12 +331,12 @@ var (
 		},
 		{
 			name: "Test Replace Policies",
-			desc: "Test Replace Policies, it is skipped for now",
+			desc: "Replaces policy with non-matchable policies and expects the traffic to fail",
 			fn:   testPolicesReplace,
 		},
 		{
 			name: "Test Replace Policy",
-			desc: "Test Replace Policy, it is skipped for now",
+			desc: "Replaces policy with non-matchable policy and expects the traffic to fail",
 			fn:   testPolicyReplace,
 		},
 		{
