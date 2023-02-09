@@ -89,8 +89,8 @@ var (
 )
 
 // configInterfaceDUT configures the DUT interfaces.
-func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes) *oc.Interface {
-	i.Description = ygot.String(me.Desc)
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
+	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
@@ -101,14 +101,14 @@ func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes) *oc.Interface {
 	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
-	s4a := s4.GetOrCreateAddress(me.IPv4)
+	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 
 	s6 := s.GetOrCreateIpv6()
 	if *deviations.InterfaceEnabled {
 		s6.Enabled = ygot.Bool(true)
 	}
-	s6.GetOrCreateAddress(me.IPv6).PrefixLength = ygot.Uint8(ipv6PrefixLen)
+	s6.GetOrCreateAddress(a.IPv6).PrefixLength = ygot.Uint8(ipv6PrefixLen)
 
 	return i
 }
