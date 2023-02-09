@@ -33,23 +33,8 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// Test case:
-// Configure DUT with:
-//  Maximum number of interfaces to be supported.
-//  Maximum number of BGP peers to be supported.
-//  Maximum number of IS-IS adjacencies to be supported.
-// Measure time required for Set operation to complete.
-// Modify descriptions of a subset of interfaces within the system.
-// Measure time for Set to complete.
-//
 // Topology:
-//   dut:port(1..N)
-//
-// Test notes:
-// This test does not cover entirely converged system, simply replacing
-// the configuration for the initial case, and then a case where the device
-// generates a diff.
-//
+// 	dut:port(1..N)
 
 // sortPorts sorts the ports by the testbed port ID.
 func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
@@ -82,11 +67,11 @@ func TestGnmiFullConfigReplace(t *testing.T) {
 	// Build list of ip addresses to configure DUT ports.
 	setup.BuildIPList(t)
 
-	t.Log("Configure Network Instance type to DEFAULT on DUT")
+	t.Log("Configure network instance on DUT")
 	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
-	t.Log("Cleanup exisitng bgp and isis configs on DUT before configuring test configs")
+	t.Log("Cleanup exisitng BGP and ISIS configs on DUT before configuring test configs")
 	dutBGPPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	gnmi.Delete(t, dut, dutBGPPath.Config())
 	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
