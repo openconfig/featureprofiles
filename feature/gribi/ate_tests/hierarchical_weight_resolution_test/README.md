@@ -38,7 +38,7 @@ Test case for basic hierarchical weight:
 
         *   NH#1 with weight:1, pointing to 192.0.2.111
 
-        *   NH#2 with weight:2, pointing to 192.0.2.222
+        *   NH#2 with weight:3, pointing to 192.0.2.222
 
     *   IPv4Entry 192.0.2.111/32 in default VRF, pointing to NextHopGroup(NHG#2)
         in default VRF, with two NextHops(NH#10, NH#11) in default VRF:
