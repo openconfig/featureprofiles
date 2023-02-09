@@ -165,6 +165,7 @@ func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTCli
 			t.Fatalf("There is error seen when receving packets. %v, %s", err, err)
 			break
 		}
+	time.Sleep(5 * time.Second)
 	}
 	return packets
 }
