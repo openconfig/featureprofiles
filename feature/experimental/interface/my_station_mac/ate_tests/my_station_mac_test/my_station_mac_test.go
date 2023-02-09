@@ -15,7 +15,6 @@
 package my_station_mac_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -48,7 +47,7 @@ const (
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
 
-	myStationMAC = "02:12:34:56:78:1a" // 0x02 means the MAC address is locally administered.
+	myStationMAC = "00:1A:11:00:00:01"
 
 	ateDstNetCIDR = "203.0.113.0/24"
 	nhIndex       = 1
@@ -90,7 +89,7 @@ var (
 )
 
 // configInterfaceDUT configures the DUT interfaces.
-func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, mac string) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(me.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
@@ -105,21 +104,11 @@ func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, mac string)
 	s4a := s4.GetOrCreateAddress(me.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 
-	if mac != "" {
-		n4 := s4.GetOrCreateNeighbor(peer.IPv4)
-		n4.LinkLayerAddress = ygot.String(mac)
-	}
-
 	s6 := s.GetOrCreateIpv6()
 	if *deviations.InterfaceEnabled {
 		s6.Enabled = ygot.Bool(true)
 	}
 	s6.GetOrCreateAddress(me.IPv6).PrefixLength = ygot.Uint8(ipv6PrefixLen)
-
-	if mac != "" {
-		n6 := s6.GetOrCreateNeighbor(peer.IPv6)
-		n6.LinkLayerAddress = ygot.String(mac)
-	}
 
 	return i
 }
@@ -131,11 +120,11 @@ func configureDUT(t *testing.T) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, &ateSrc, ""))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc))
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, &ateDst, ""))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst))
 
 	if *deviations.ExplicitPortSpeed {
 		fptest.SetPortSpeed(t, p1)
@@ -172,34 +161,16 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// configStaticArp configures static ARP on DUT.
-func configStaticArp(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	p2 := dut.Port(t, "port2")
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-
-	s4 := i2.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-	n4 := s4.GetOrCreateNeighbor(ateDst.IPv4)
-	n4.LinkLayerAddress = ygot.String(myStationMAC)
-
-	s6 := i2.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-	n6 := s6.GetOrCreateNeighbor(ateDst.IPv6)
-	n6.LinkLayerAddress = ygot.String(myStationMAC)
-
-	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), i2)
-
-}
-
-// addRoute adds an IPv4Entry and verifies the same through AFT Telemetry.
+// addRoute adds an IPv4Entry and verifies the same through AFT telemetry.
 func addRoute(t *testing.T, clientA *gribi.Client) {
 	dut := ondatra.DUT(t, "dut")
 
 	t.Logf("Add an IPv4Entry for %s pointing to ate:port2 via clientA", ateDstNetCIDR)
-	clientA.AddNH(t, nhIndex, ateDst.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
+	clientA.AddNH(t, nhIndex, ateDst.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInFIB)
 
-	t.Logf("Verify through AFT Telemetry that %s is active", ateDstNetCIDR)
+	t.Logf("Verify through AFT telemetry that %s is active", ateDstNetCIDR)
 	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
 	if got, ok := gnmi.Watch(t, dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
 		prefix, present := val.Val()
@@ -209,9 +180,10 @@ func addRoute(t *testing.T, clientA *gribi.Client) {
 	}
 }
 
-// testTraffic generates and verifies traffic flow with destination MAC as my station MAC
+// testTraffic generates and verifies traffic flow with destination MAC as MyStationMAC.
 func testTraffic(
 	t *testing.T,
+	pktLossPct float32,
 	ate *ondatra.ATEDevice,
 	top *ondatra.ATETopology,
 	headers ...ondatra.Header,
@@ -219,58 +191,23 @@ func testTraffic(
 	i1 := top.Interfaces()[ateSrc.Name]
 	i2 := top.Interfaces()[ateDst.Name]
 
-	// Egress tracking inspects packets from DUT and key the flow
-	// counters by custom bit offset and width.  Width is limited to
-	// 15-bits.
-	//
-	// Ethernet header:
-	//   - Destination MAC (6 octets)
-	//   - Source MAC (6 octets)
-	//   - Optional 802.1q VLAN tag (4 octets)
-	//   - Frame size (2 octets)
-	//
-	// myStationMAC is "02:12:34:56:78:1a";
-	// last 15-bits of myStationMAC is 0x781a = 30746
-
-	stationMacFilterVal := "30746"
-
 	flow := ate.Traffic().NewFlow("Flow").
 		WithSrcEndpoints(i1).
 		WithDstEndpoints(i2).
 		WithHeaders(headers...)
-	flow.EgressTracking().WithOffset(33).WithWidth(15)
 
 	ate.Traffic().Start(t, flow)
 	time.Sleep(10 * time.Second)
 	ate.Traffic().Stop(t)
 
 	flowPath := gnmi.OC().Flow(flow.Name())
-	inPkts := gnmi.Get(t, ate, flowPath.Counters().InPkts().State())
 
-	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got > 0 {
-		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
-	}
-
-	etPath := flowPath.EgressTrackingAny()
-	ets := gnmi.GetAll(t, ate, etPath.State())
-	for i, et := range ets {
-		fptest.LogQuery(t, fmt.Sprintf("ATE flow EgressTracking[%d]", i), etPath.State(), et)
-	}
-
-	if got := len(ets); got != 1 {
-		t.Errorf("EgressTracking got %d items, want 1", got)
-		return
-	}
-
-	if got := ets[0].GetFilter(); got != stationMacFilterVal {
-		t.Errorf("EgressTracking filter got %q, want %q", got, stationMacFilterVal)
-	}
-
-	if got := ets[0].GetCounters().GetInPkts(); got != inPkts {
-		t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, inPkts)
+	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got != pktLossPct {
+		t.Errorf("Packet loss percentage for flow %s: got %g, want %g", flow.Name(), got, pktLossPct)
 	}
 }
 
+// TestMyStationMAC verifies MyStationMAC installed on the DUT is honored and used for routing.
 func TestMyStationMAC(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -282,18 +219,15 @@ func TestMyStationMAC(t *testing.T) {
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
 
-	t.Logf("Configure My Station MAC")
+	t.Logf("Configure MyStationMAC")
 	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), myStationMAC)
-
-	t.Logf("Configure static ARP on DUT for ate:port2 so the destination MAC to ate:port2 is also the My Station MAC")
-	configStaticArp(t)
 
 	t.Logf("Install static route on DUT")
 	// Set parameters for gRIBI client clientA.
 	clientA := &gribi.Client{
 		DUT:         dut,
-		FIBACK:      false,
-		Persistence: false,
+		FIBACK:      true,
+		Persistence: true,
 	}
 	defer clientA.Close(t)
 
@@ -325,11 +259,25 @@ func TestMyStationMAC(t *testing.T) {
 
 	ipv6Header := ondatra.NewIPv6Header()
 
-	t.Run("IPv4", func(t *testing.T) {
-		testTraffic(t, ate, top, ethHeader, ipv4Header)
+	t.Run("With MyStationMAC", func(t *testing.T) {
+		t.Run("IPv4", func(t *testing.T) {
+			testTraffic(t, 0 /* pkt loss percent */, ate, top, ethHeader, ipv4Header)
+		})
+		t.Run("IPv6", func(t *testing.T) {
+			testTraffic(t, 0 /* pkt loss percent */, ate, top, ethHeader, ipv6Header)
+		})
 	})
-	t.Run("IPv6", func(t *testing.T) {
-		testTraffic(t, ate, top, ethHeader, ipv6Header)
+
+	t.Logf("Remove MyStationMAC configuraiton")
+	gnmi.Delete(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config())
+
+	t.Run("Without MyStationMAC", func(t *testing.T) {
+		t.Run("IPv4", func(t *testing.T) {
+			testTraffic(t, 100 /* pkt loss percent */, ate, top, ethHeader, ipv4Header)
+		})
+		t.Run("IPv6", func(t *testing.T) {
+			testTraffic(t, 100 /* pkt loss percent */, ate, top, ethHeader, ipv6Header)
+		})
 	})
 
 }
