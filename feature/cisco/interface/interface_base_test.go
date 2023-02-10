@@ -45,21 +45,22 @@ func sliceEqual(a, b []string) bool {
 
 func verifyForwardingViable(t *testing.T, dut *ondatra.DUTDevice, interfaceName string) {
 	t.Logf("Set forwarding viable on interface %v ", interfaceName)
+
 	rawData := fmt.Sprintf(` {
-		"Cisco-IOS-XR-ifmgr-cfg:interface-configurations": {
-		 "interface-configuration": [
-		  {
-		   "active": "act",
-		   "interface-name": "%v",
-		   "Cisco-IOS-XR-drivers-media-eth-cfg:ethernet": {
-			"forwarding-unviable": [
-			 null
-			]
-		   }
-		  }
-		 ]
-		}
-	}`, interfaceName)
+						"Cisco-IOS-XR-ifmgr-cfg:interface-configurations": {
+						 "interface-configuration": [
+						  {
+						   "active": "act",
+						   "interface-name": "%v",
+						   "Cisco-IOS-XR-drivers-media-eth-cfg:ethernet": {
+							"forwarding-unviable": [
+							 null
+							]
+						   }
+						  }
+						 ]
+						}
+					}`, interfaceName)
 	fjson, err := os.CreateTemp("", "fv.json")
 	if err != nil {
 		t.Error("Error occcured while creating the file ", err)
@@ -71,6 +72,7 @@ func verifyForwardingViable(t *testing.T, dut *ondatra.DUTDevice, interfaceName 
 		t.Error("There is error when applying the config: ", err)
 	}
 	feature.ConfigJSON(dut, t, fjson.Name())
+
 	t.Logf("Get and verify forwarding-unviable config %v", interfaceName)
 	getRequest := &gnmipb.GetRequest{
 		Path: []*gnmipb.Path{
