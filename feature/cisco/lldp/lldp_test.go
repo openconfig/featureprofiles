@@ -57,6 +57,7 @@ func TestLldpState(t *testing.T) {
 		gnmi.Update(t, dut, path.Config(), true)
 
 	})
+	time.Sleep(30 * time.Second)
 	t.Run("Subscribe//lldp/config/enabled", func(t *testing.T) {
 		state := gnmi.OC().Lldp().Interface(iut.Name()).Enabled()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -73,12 +74,13 @@ func TestLldpState(t *testing.T) {
 		gnmi.Update(t, dut, path.Config(), false)
 
 	})
+	time.Sleep(30 * time.Second)
 	t.Run("Subscribe//lldp/config/enabled", func(t *testing.T) {
 		state := gnmi.OC().Lldp().Interface(iut.Name()).Enabled()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
 		if val != false {
-			t.Errorf("Lacp Enabled: got %t, want %t", val, false)
+			t.Errorf("LLDP Enabled: got %t, want %t", val, false)
 
 		}
 
@@ -98,7 +100,7 @@ func TestLldpState(t *testing.T) {
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
 		if val != peername {
-			t.Errorf("Lacp SystemName: got %s, want %s", val, peername)
+			t.Errorf("LLDP SystemName: got %s, want %s", val, peername)
 
 		}
 

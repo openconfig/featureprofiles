@@ -536,6 +536,8 @@ func TestInterfaceState(t *testing.T) {
 		Mtu:         ygot.Uint16(1200),
 	}
 	gnmi.Update(t, dut, path.Config(), obj)
+	util.SetInterfaceState(t, dut, iut.Members()[0], true)
+	time.Sleep(30 * time.Second)
 	t.Run("Subscribe//interfaces/interface/state/admin-status", func(t *testing.T) {
 		state := state.AdminStatus()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -713,7 +715,7 @@ func TestInterfaceTelemetry(t *testing.T) {
 	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
 
 	//Default susbcription rate is 30 seconds.
-	subscriptionDuration := 50 * time.Second
+	subscriptionDuration := 120 * time.Second
 	triggerDelay := 20 * time.Second
 	postInterfaceEventWait := 10 * time.Second
 	expectedEntries := 2
