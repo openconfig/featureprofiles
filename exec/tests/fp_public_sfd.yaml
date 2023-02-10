@@ -375,10 +375,14 @@ tests:
     - '-deviation_rpl_under_neighbor_afisafi="true"'
 - name: RT-1.4 (BGP Graceful Restart) 
   path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
+  patch: exec/firex/plugins/fp_patch/bgp_graceful_restart_test.patch
   owner: sprem@cisco.com
   mustpass: true
   priority: 54
   skip: false
+  args:
+     - '-deviation_rpl_under_peergroup=true'
+     - '-deviation_bgp_state_active_acl_deny=true'
 - name: RT-1.7 (Local BGP Test) 
   path: feature/bgp/tests/local_bgp_test
   owner: sprem@cisco.com
