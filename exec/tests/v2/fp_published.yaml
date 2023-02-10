@@ -56,6 +56,7 @@ tests:
   path: feature/gribi/ate_tests/weighted_balancing_test
   mustpass: true
   priority: 3
+  # need pr/branch
 - name: TE-3.3 (Hierarchical weight resolution)
   path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
   owner: mananpat@cisco.com
@@ -104,7 +105,6 @@ tests:
 - name: TE-11.1 (Backup NHG Single NH) 
   path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
   owner: mananpat@cisco.com
-  pr: 900
   mustpass: true
   priority: 3
 - name: TE-14.1 (gRIBI Scaling)
@@ -367,8 +367,6 @@ tests:
   owner: sprem@cisco.com
   mustpass: true
   priority: 53
-  pr: 611
-  internal: true
   skip: false
   args:
     - '-deviation_rpl_under_neighbor_afisafi="true"'
@@ -376,8 +374,6 @@ tests:
   path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
   owner: sprem@cisco.com
   mustpass: true
-  pr: 625
-  internal: true
   priority: 54
   skip: false
 - name: RT-1.7 (Local BGP Test) 
