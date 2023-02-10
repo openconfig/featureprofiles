@@ -256,7 +256,7 @@ func (s *TestSession) PushDUT(ctx context.Context) error {
 		return fmt.Errorf("configuring network instance: %w", err)
 	}
 	dutConf := s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
-	_, err = ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
+	_, err := ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
 	if err != nil {
 		return fmt.Errorf("configuring ISIS: %w", err)
 	}
