@@ -1257,9 +1257,6 @@ func test_multiple_clients(t *testing.T, args *testArgs) {
 	runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
 
 	testGroup.Wait()
-
-	// starting traffic after 2 mins
-	time.Sleep(2 * time.Minute)
 }
 
 func multi_process_gribi_programming(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
@@ -1306,8 +1303,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 		}
 	}
 
-	processes := []string{"grpc_config_change"}
-	//processes := []string{"shutdown", "disconnect_gribi_reconnect", "delete_vrfs", "grpc_config_change", "grpc_AF_change", "LC_OIR"}
+	processes := []string{"shutdown", "disconnect_gribi_reconnect", "delete_vrfs", "grpc_config_change", "grpc_AF_change", "LC_OIR"}
 
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
@@ -1324,6 +1320,12 @@ func test_triggers(t *testing.T, args *testArgs) {
 
 				//aft check TE
 				if *ciscoFlags.GRIBIAFTChainCheck {
+					args.client.AftPushConfig(t)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
 					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 					for i := 0; i < len(randomItems); i++ {
 						args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1349,6 +1351,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 
 				//aft check TE
 				if *ciscoFlags.GRIBIAFTChainCheck {
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
 					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 					for i := 0; i < len(randomItems); i++ {
 						args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1372,6 +1375,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 				args.interfaceaction(t, true, []string{"port2", "port3", "port4", "port5", "port6"})
 				//aft check TE
 				if *ciscoFlags.GRIBIAFTChainCheck {
+					args.client.AftPopConfig(t)
 					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 					for i := 0; i < len(randomItems); i++ {
 						args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1716,11 +1720,6 @@ func TestHA(t *testing.T) {
 			fn:   test_microdrops,
 		},
 		{
-			name: "check multiple clients",
-			desc: "With traffic running, validate use of multiple clients",
-			fn:   test_multiple_clients,
-		},
-		{
 			name: "Triggers",
 			desc: "With traffic running, validate multiple triggers",
 			fn:   test_triggers,
@@ -1739,6 +1738,11 @@ func TestHA(t *testing.T) {
 			name: "Restart single process",
 			desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
 			fn:   testRestart_single_process,
+		},
+		{
+			name: "check multiple clients",
+			desc: "With traffic running, validate use of multiple clients",
+			fn:   test_multiple_clients,
 		},
 	}
 	for _, tt := range test {
