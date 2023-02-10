@@ -108,7 +108,6 @@ tests:
 - name: TE-11.1 (Backup NHG Single NH) 
   path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
   owner: mananpat@cisco.com
-  patch: exec/firex/plugins/fp_patch/backup_nhg_test.patch
   mustpass: true
   priority: 3
 - name: TE-14.1 (gRIBI Scaling)
