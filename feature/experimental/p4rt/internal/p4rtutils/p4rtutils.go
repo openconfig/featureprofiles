@@ -203,7 +203,7 @@ func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string
 	re := regexp.MustCompile("ethernet-([0-9]+)")
 	for _, p := range dut.Ports() {
 		m := re.FindStringSubmatch(p.Name())
-		if m != nil && len(m) == 2 {
+		if len(m) == 2 {
 			res[p.ID()] = node(m[1])
 		}
 	}
