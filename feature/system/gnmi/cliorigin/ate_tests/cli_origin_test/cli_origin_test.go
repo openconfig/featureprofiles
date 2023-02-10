@@ -101,6 +101,8 @@ func TestOriginCliConfig(t *testing.T) {
 				config = ciscoCLI(dp1.Name(), tc.intfOper)
 			case ondatra.ARISTA:
 				config = aristaCLI(dp1.Name(), tc.intfOper)
+			case ondatra.NOKIA:
+				config = nokiaCLI(dp1.Name(), tc.intfOper)
 			}
 
 			t.Logf("Push the CLI config:\n%s", config)
@@ -127,6 +129,16 @@ func TestOriginCliConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func nokiaCLI(intf string, enabled bool) string {
+	op := "disable"
+	if enabled {
+		op = "enable"
+	}
+	return fmt.Sprintf(`
+   /interface %s admin-state %s
+	`, intf, op)
 }
 
 func juniperCLI(intf string, enabled bool) string {
