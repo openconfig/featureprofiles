@@ -194,7 +194,7 @@ func explicitP4RTNodes() map[string]string {
 	}
 }
 
-// inferP4RTNodesCisco infers the P4RT node name from the port name for Nokia devices.
+// inferP4RTNodesNokia infers the P4RT node name from the port name for Nokia devices.
 func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	res := make(map[string]string)
 	node := func(fpc string, asic string) string {
