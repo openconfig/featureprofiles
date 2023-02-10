@@ -176,8 +176,6 @@ tests:
   path: feature/experimental/p4rt/ate_tests/traceroute_packetin_test
   args:
     - '-deviation_explicit_p4rt_node_component="true"'
-  pr: 608
-  internal: true
   owner: sprem@cisco.com
   priority: 5
   mustpass: false
