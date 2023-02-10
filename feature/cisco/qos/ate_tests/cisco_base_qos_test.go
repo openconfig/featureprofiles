@@ -135,11 +135,46 @@ var (
 		},
 	}
 )
+var (
+	QosSPopGateTestcases = []Testcase{
+
+		{
+			name: "one priority queue and rest are wrr",
+			desc: "create congestion on egress interface and test scheduling",
+			fn:   testSchedulergoog1p,
+		},
+		{
+			name: " two priority testing scheduling functionality with wrr and ecn",
+			desc: "create congestion on egress interface and test scheduling interfaces",
+			fn:   testSchedulergoog2p,
+		},
+		{
+			name: "testing scheduling functionality with wrr/ecn",
+			desc: "create congestion on egress interface and test scheduling interfaces",
+			fn:   testSchedulergoog2pwrr,
+		},
+		{
+			name: "testing scheduling functionality google use case",
+			desc: "create congestion on egress interface and test scheduling interfaces",
+			fn:   testSchedulergoog2pburst,
+		},
+		{
+			name: "testing scheduling functionality google use case",
+			desc: "create congestion on egress interface and test scheduling interfaces",
+			fn:   testSchedulergoomix,
+		},
+	}
+)
 
 func TestTrafficQos(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+	cliHandle := dut.RawAPIs().CLI(t)
+	defer cliHandle.Close()
+	resp, err := cliHandle.SendCommand(context.Background(), "show version")
 	t.Logf(resp)
+	if err != nil {
+		t.Error(err)
+	}
 	if strings.Contains(resp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
@@ -221,8 +256,13 @@ func TestTrafficQos(t *testing.T) {
 func TestScheduler(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	time.Sleep(time.Minute)
-	resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+	cliHandle := dut.RawAPIs().CLI(t)
+	defer cliHandle.Close()
+	resp, err := cliHandle.SendCommand(context.Background(), "show version")
 	t.Logf(resp)
+	if err != nil {
+		t.Error(err)
+	}
 	if strings.Contains(resp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
@@ -309,8 +349,13 @@ func TestScheduler(t *testing.T) {
 func TestWrrTrafficQos(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	time.Sleep(time.Minute)
-	resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+	cliHandle := dut.RawAPIs().CLI(t)
+	defer cliHandle.Close()
+	resp, err := cliHandle.SendCommand(context.Background(), "show version")
 	t.Logf(resp)
+	if err != nil {
+		t.Error(err)
+	}
 	if strings.Contains(resp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
@@ -333,6 +378,96 @@ func TestWrrTrafficQos(t *testing.T) {
 			t.Logf("Description: %s", tt.desc)
 
 			clientA := gribi.Client{
+				DUT:                   dut,
+				FibACK:                *ciscoFlags.GRIBIFIBCheck,
+				Persistence:           true,
+				InitialElectionIDLow:  10,
+				InitialElectionIDHigh: 0,
+			}
+			defer clientA.Close(t)
+			if err := clientA.Start(t); err != nil {
+				t.Fatalf("Could not initialize gRIBI: %v", err)
+			}
+			//clientA.BecomeLeader(t)
+
+			interfaceList := []string{}
+			for i := 121; i < 128; i++ {
+				interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
+			}
+
+			interfaces := interfaces{
+				in:  []string{"Bundle-Ether120"},
+				out: interfaceList,
+			}
+
+			args := &testArgs{
+				ctx:        ctx,
+				clientA:    &clientA,
+				dut:        dut,
+				ate:        ate,
+				top:        top,
+				usecase:    0,
+				interfaces: &interfaces,
+				prefix: &gribiPrefix{
+					scale:           1,
+					host:            "11.11.11.0",
+					vrfName:         "TE",
+					vipPrefixLength: "32",
+
+					vip1Ip: "192.0.2.40",
+					vip2Ip: "192.0.2.42",
+
+					vip1NhIndex:  uint64(100),
+					vip1NhgIndex: uint64(100),
+
+					vip2NhIndex:  uint64(200),
+					vip2NhgIndex: uint64(200),
+
+					vrfNhIndex:  uint64(1000),
+					vrfNhgIndex: uint64(1000),
+				},
+			}
+
+			tt.fn(ctx, t, args)
+		})
+	}
+}
+func TestGooglePopgate(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	time.Sleep(time.Minute)
+	// cliHandle := dut.RawAPIs().CLI(t)
+	// defer cliHandle.Close()
+	// resp, err := cliHandle.SendCommand(context.Background(), "show version")
+	resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+
+	if strings.Contains(resp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
+
+	// Dial gRIBI
+	ctx := context.Background()
+
+	//Configure IPv6 addresses and VLANS on DUT
+	configureIpv6AndVlans(t, dut)
+	gnmi.Update(t, dut, gnmi.OC().Interface(inint1).Ethernet().MacAddress().Config(), mac1)
+	gnmi.Update(t, dut, gnmi.OC().Interface(inint2).Ethernet().MacAddress().Config(), mac2)
+
+	// Disable Flowspec and Enable PBR
+
+	// Configure the ATE
+	ate := ondatra.ATE(t, "ate")
+	top := configureATE(t, ate)
+	top.Push(t).StartProtocols(t)
+
+	for _, tt := range QosSPopGateTestcases {
+		// Each case will run with its own gRIBI fluent client.
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Name: %s", tt.name)
+			t.Logf("Description: %s", tt.desc)
+
+			clientA := gribi.Client{
+
 				DUT:                   dut,
 				FibACK:                *ciscoFlags.GRIBIFIBCheck,
 				Persistence:           true,
