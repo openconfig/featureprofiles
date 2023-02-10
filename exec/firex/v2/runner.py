@@ -119,6 +119,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_name,
             topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
             check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file_copy}|g' {topo_file}")
             c |= self.orig.s(plat='8000', topo_file=topo_file)
+        else:
+            c |= ReserveTestbed.s()
     else:
         c |= ReserveTestbed.s()
 
@@ -137,7 +139,6 @@ def CleanupTestbed(self, ws, internal_fp_repo_dir, reserved_testbed=None):
         )
     else:
         _release_testbed(internal_fp_repo_dir, reserved_testbed['id'])
-    # shutil.rmtree(ws)
 
 def max_testbed_requests():
     if 'B4_FIREX_TESTBEDS_COUNT' in os.environ:
