@@ -3,6 +3,7 @@ import json
 import os
 
 from subprocess import check_output
+from operator import itemgetter
 
 parser = argparse.ArgumentParser(description='Find latest pims image')
 parser.add_argument('--lineup', default='xr-dev', help="image lineup")
@@ -28,14 +29,16 @@ for l in pims_output.splitlines():
     if l.startswith('EFR-'):
         parts = l.split('\t')
         labels = parts[-1].split(',')
-        candidates.extend(labels)
+        for lb in labels:
+            candidates.append((lb, parts[0]))
 
-candidates.sort(reverse=True)
-
+candidates = sorted(candidates,key=itemgetter(0), reverse=True)
 image_path = None
 image_label = None
+image_efr = None
 
-for label in candidates:
+for c in candidates:
+    label, efr = c
     js = json.loads(check_output([
         '/usr/cisco/bin/pims',
         'gsr',
@@ -57,6 +60,7 @@ for label in candidates:
                 if os.path.exists(location):
                     image_path = location
                     image_label = label
+                    image_efr = efr
                     break
             if image_path:
                 break
@@ -71,4 +75,4 @@ if image_path:
             encoding='utf-8'
         ).strip()
 
-    print(f'{image_path},{image_version},{image_label}')
+    print(f'{image_path},{image_version},{image_label},{image_efr}')
