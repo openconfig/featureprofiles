@@ -128,7 +128,7 @@ func TestQoSDependentCLI(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	var cliConfig string
-	// We use ARISTA-specific command-line commands here. Other vendor devices won't accept it.
+	// TODO: additional vendor CLI to be added if and when necessary for compatibility with the OC QoS configuration.
 	switch vendor := dut.Vendor(); vendor {
 	case ondatra.ARISTA:
 		cliConfig = `qos traffic-class 0 name target-group-BE0
