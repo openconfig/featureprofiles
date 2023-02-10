@@ -85,7 +85,7 @@ def _release_testbed(internal_fp_repo_dir, testbed_id):
 @returns('internal_fp_repo_dir', 'reserved_testbed', FireX.DYNAMIC_RETURN)
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
-                        internal_fp_repo_branch='kjahed/parallel_runner',
+                        internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
                         collect_tb_info=False):
 
