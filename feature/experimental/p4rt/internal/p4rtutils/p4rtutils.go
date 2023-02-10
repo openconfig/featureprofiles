@@ -203,19 +203,22 @@ func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string
 	re := regexp.MustCompile("ethernet-([0-9]+)/([0-9]+)")
 	for _, p := range dut.Ports() {
 		m := re.FindStringSubmatch(p.Name())
-		if len(m) == 3 {
-			fpc := m[1]
-			port, err := strconv.Atoi(m[2])
-			if err != nil {
-				t.Fatalf("Error generating P4RT Node Name: %v", err)
-			}
-			if port > 18 {
-				res[p.ID()] = node(fpc, "1")
-				continue
-			}
-			res[p.ID()] = node(fpc, "0")
+		if len(m) != 3 {
+			continue
 		}
+
+		fpc := m[1]
+		port, err := strconv.Atoi(m[2])
+		if err != nil {
+			t.Fatalf("Error generating P4RT Node Name: %v", err)
+		}
+		if port > 18 {
+			res[p.ID()] = node(fpc, "1")
+			continue
+		}
+		res[p.ID()] = node(fpc, "0")
 	}
+
 	if _, ok := res["port1"]; !ok {
 		res["port1"] = *args.P4RTNodeName1
 	}
