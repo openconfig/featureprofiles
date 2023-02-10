@@ -7,11 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -781,156 +784,288 @@ func TestInterfaceTelemetry(t *testing.T) {
 	})
 
 }
+
+const (
+	ipv4PrefixLen = 24
+)
+
+var (
+	dutPort1 = attrs.Attributes{
+		Desc:    "BundlePort1",
+		IPv4:    "100.120.1.1",
+		MAC:     "1.2.0",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	atePort1 = attrs.Attributes{
+		Name:    "atePort1",
+		IPv4:    "100.120.1.2",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	dutPort2 = attrs.Attributes{
+		Desc:    "BundlePort2",
+		IPv4:    "100.121.1.1",
+		MAC:     "1.2.1",
+		IPv4Len: ipv4PrefixLen,
+	}
+	atePort2 = attrs.Attributes{
+		Name:    "atePort2",
+		IPv4:    "100.121.1.2",
+		IPv4Len: ipv4PrefixLen,
+	}
+	dutPort3 = attrs.Attributes{ //non-bundle member
+		Desc:    "dutPort3",
+		IPv4:    "100.123.2.3",
+		IPv4Len: ipv4PrefixLen,
+	}
+	atePort3 = attrs.Attributes{
+		Name:    "atePort3",
+		IPv4:    "100.123.2.4",
+		IPv4Len: ipv4PrefixLen,
+	}
+)
+
+// configureDUT configures port1 and port2 on the DUT.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	d := gnmi.OC()
+
+	p3 := dut.Port(t, "port3").Name()
+	member := gnmi.OC().Interface(p3)
+	gnmi.Delete(t, dut, member.Config())
+	i3 := dutPort3.NewOCInterface(p3)
+	gnmi.Replace(t, dut, d.Interface(p3).Config(), i3)
+
+}
+
+// configureATE configures port1 and port2 on the ATE.
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
+	top := ate.Topology().New()
+
+	p1 := ate.Port(t, "port1")
+	atePort1.AddToATE(top, p1, &dutPort1)
+
+	p2 := ate.Port(t, "port2")
+	atePort2.AddToATE(top, p2, &dutPort2)
+
+	p3 := ate.Port(t, "port3")
+	atePort3.AddToATE(top, p3, &dutPort3)
+	return top
+}
+
+// testFlow sends traffic across ATE ports and verifies continuity.
+func testFlow(
+	t *testing.T,
+	ate *ondatra.ATEDevice,
+	top *ondatra.ATETopology,
+	bundleMember bool,
+	headers ...ondatra.Header,
+
+) float32 {
+	i1 := top.Interfaces()[atePort1.Name]
+	var i2 *ondatra.Interface
+	if bundleMember {
+		i2 = top.Interfaces()[atePort2.Name]
+	} else {
+		i2 = top.Interfaces()[atePort3.Name]
+	}
+
+	flow := ate.Traffic().NewFlow("flow-unviable").
+		WithSrcEndpoints(i1).
+		WithDstEndpoints(i2).
+		WithHeaders(headers...).
+		WithFrameRateFPS(100).
+		WithFrameSize(512)
+	fmt.Print("TRAFFIC STARTED")
+	ate.Traffic().Start(t, flow)
+	time.Sleep(15 * time.Second)
+	ate.Traffic().Stop(t)
+	lossPct := gnmi.Get(t, ate, gnmi.OC().Flow("flow-unviable").LossPct().State())
+	t.Logf("Loss Packet %v ", lossPct)
+	return lossPct
+}
 func TestForwardingUnviableFP(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
-	inputObj, err := testInput.GetTestInput(t)
-	if err != nil {
-		t.Error(err)
-	}
-	iut1 := inputObj.Device(dut).GetInterface("Bundle-Ether120")
-	iut2 := inputObj.Device(dut).GetInterface("Bundle-Ether121")
-	nonBundleMember := iut2.Members()[0]
-	bundleMember := iut1.Members()[0]
-	outPktsBefore := gnmi.Get(t, dut, gnmi.OC().Interface(bundleMember).Counters().OutPkts().State())
+	// Configure the DUT
+	configureDUT(t, dut)
+	// Configure the ATE
+	ate := ondatra.ATE(t, "ate")
+	top := configureATE(t, ate)
 
-	t.Run("Configure forwarding-unviable on bundle member ", func(t *testing.T) {
-		verifyForwardingViable(t, dut, bundleMember)
-		t.Log("Sleep after for 10s after configuring bundle member")
-		time.Sleep(30 * time.Second)
-	})
+	top.Push(t).StartProtocols(t)
 
 	t.Run("Counters checked after forwarding-unviable configured on bundle-member", func(t *testing.T) {
-		outPktsAfterBundleMember := gnmi.Get(t, dut, gnmi.OC().Interface(bundleMember).Counters().OutPkts().State())
-		outPktsAfterBundle := gnmi.Get(t, dut, gnmi.OC().Interface(iut1.Name()).Counters().OutPkts().State())
-		if (outPktsAfterBundle > outPktsBefore) && (outPktsAfterBundleMember > outPktsBefore) {
-			t.Logf("Counters before forward-unviable config: %v , Counters after forward-unviable config on Bundle interface  %v", outPktsBefore, outPktsAfterBundle)
-			t.Logf("Counters before forward-unviable config: %v , Counters after forward-unviable config on Bundle Member interface  %v", outPktsBefore, outPktsAfterBundleMember)
-			t.Errorf("Out pkts are increasing with forwarding-unviable are not as expected")
+		config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n forwarding-unviable\n", dut.Port(t, "port2").Name()))
+		defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n no forwarding-unviable\n", dut.Port(t, "port2").Name()))
+		ethHeader := ondatra.NewEthernetHeader()
+		ipv4Header := ondatra.NewIPv4Header()
+		lossPckt := testFlow(t, ate, top, true, ethHeader, ipv4Header)
+		if lossPckt != 100 {
+			t.Errorf("Traffic Loss Expected , Got %v , want 100", lossPckt)
 		}
+
 	})
 
 	t.Run("Configure forwarding-unviable and check if bundle interface status is DOWN", func(t *testing.T) {
-		stateBundleInterface := gnmi.Get(t, dut, gnmi.OC().Interface(iut1.Name()).OperStatus().State()).String()
-		stateBundleMemberInterface := gnmi.Get(t, dut, gnmi.OC().Interface(bundleMember).OperStatus().State()).String()
+		config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n forwarding-unviable\n", dut.Port(t, "port2").Name()))
+		defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n no forwarding-unviable\n", dut.Port(t, "port2").Name()))
+		stateBundleInterface := gnmi.Get(t, dut, gnmi.OC().Interface("Bundle-Ether120").OperStatus().State()).String()
+		stateBundleMemberInterface := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).OperStatus().State()).String()
 		if (stateBundleInterface != "DOWN") && (stateBundleMemberInterface != "UP") {
-			t.Logf("Bunde interface state %v, got %v , want DOWN", iut1.Name(), stateBundleInterface)
-			t.Logf("Bundle member interface state %v, got %v, want UP ", bundleMember, stateBundleMemberInterface)
+			t.Logf("Bunde interface state %v, got %v , want DOWN", "Bundle-Ether120", stateBundleInterface)
+			t.Logf("Bundle member interface state %v, got %v, want UP ", dut.Port(t, "port1").Name(), stateBundleMemberInterface)
+			t.Errorf("Interface state is not expected ")
+		}
+
+	})
+	t.Run("Flap bundle/bundle-member interfaces and check counter values", func(t *testing.T) {
+		config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n forwarding-unviable\n", dut.Port(t, "port1").Name()))
+		defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n no forwarding-unviable\n", dut.Port(t, "port1").Name()))
+		for i := 0; i < 4; i++ {
+			util.FlapInterface(t, dut, dut.Port(t, "port1").Name(), 10*time.Second)
+			util.FlapInterface(t, dut, "Bundle-Ether120", 10*time.Second)
+		}
+		time.Sleep(30 * time.Second)
+		ethHeader := ondatra.NewEthernetHeader()
+		ipv4Header := ondatra.NewIPv4Header()
+		lossPckt := testFlow(t, ate, top, true, ethHeader, ipv4Header)
+		if lossPckt != 100 {
+			t.Errorf("Traffic Loss Expected , Got %v , want 100", lossPckt)
+		}
+
+	})
+
+	t.Run("Testing forwarding-unviable on non-bundle interface", func(t *testing.T) {
+		config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n forwarding-unviable\n", dut.Port(t, "port3").Name()))
+		defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n no forwarding-unviable\n", dut.Port(t, "port3").Name()))
+		ethHeader := ondatra.NewEthernetHeader()
+		ipv4Header := ondatra.NewIPv4Header()
+		lossPckt := testFlow(t, ate, top, false, ethHeader, ipv4Header)
+		if lossPckt != 0 {
+			t.Errorf("Traffic Loss NOT Expected , Got %v , want 0", lossPckt)
+		}
+	})
+	t.Run("Configure forwarding-unviable and check if interface status is UP", func(t *testing.T) {
+		config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n forwarding-unviable\n", dut.Port(t, "port3").Name()))
+		defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n no forwarding-unviable\n", dut.Port(t, "port3").Name()))
+		stateInterface := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port3").Name()).OperStatus().State()).String()
+		if stateInterface != "UP" {
+			t.Logf("Interface state %v, got %v, want UP ", dut.Port(t, "port3").Name(), stateInterface)
 			t.Errorf("Interface state is not expected ")
 		}
 
 	})
 	t.Run("Flap interfaces and check counter values", func(t *testing.T) {
-		pktsBundleMemberBefore := gnmi.Get(t, dut, gnmi.OC().Interface(iut1.Name()).Counters().OutPkts().State())
-		pktsBundleBefore := gnmi.Get(t, dut, gnmi.OC().Interface(bundleMember).Counters().OutPkts().State())
+		config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n forwarding-unviable\n", dut.Port(t, "port3").Name()))
+		defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n no forwarding-unviable\n", dut.Port(t, "port3").Name()))
 		for i := 0; i < 4; i++ {
-			util.FlapInterface(t, dut, bundleMember, 10*time.Second)
-			util.FlapInterface(t, dut, iut1.Name(), 10*time.Second)
+			util.FlapInterface(t, dut, dut.Port(t, "port3").Name(), 10*time.Second)
 		}
-		time.Sleep(30 * time.Second)
-		pktsBundleMemberAfter := gnmi.Get(t, dut, gnmi.OC().Interface(iut1.Name()).Counters().OutPkts().State())
-		pktsBundleAfter := gnmi.Get(t, dut, gnmi.OC().Interface(iut1.Name()).Counters().OutPkts().State())
-		if (pktsBundleMemberAfter > pktsBundleMemberBefore) && (pktsBundleAfter > pktsBundleBefore) {
-			t.Logf("Counters before flap: %v , Counters after flap on Bundle interface  %v", pktsBundleBefore, pktsBundleAfter)
-			t.Logf("Counters before flap config: %v , Counters after flap on Bundle Member interface   %v", pktsBundleMemberBefore, pktsBundleMemberAfter)
-			t.Errorf("Out pkts are increasing with forwarding-unviable upon flapping")
-		}
-
-	})
-	t.Run("Testing forwarding-unviable on non-bundle interface", func(t *testing.T) {
-		member := gnmi.OC().Interface(nonBundleMember)
-		gnmi.Delete(t, dut, member.Config())
-		defer gnmi.Delete(t, dut, member.Config())
-		pktsBefore := gnmi.Get(t, dut, gnmi.OC().Interface(nonBundleMember).Counters().OutPkts().State())
-		t.Log(pktsBefore)
-		verifyForwardingViable(t, dut, nonBundleMember)
-		time.Sleep(30 * time.Second)
-		pktsAfter := gnmi.Get(t, dut, gnmi.OC().Interface(nonBundleMember).Counters().OutPkts().State())
-		t.Log(pktsAfter)
-		if pktsAfter < pktsBefore {
-			t.Errorf("Pkts after configuring forwarding-unviable on non bundle interface are expected to increase , Got pkts before configuring %v and after %v", pktsBefore, pktsAfter)
-		}
-		for i := 0; i < 4; i++ {
-			util.FlapInterface(t, dut, nonBundleMember, 10*time.Second)
-		}
-		time.Sleep(30 * time.Second)
-		pktsAfterFlap := gnmi.Get(t, dut, gnmi.OC().Interface(nonBundleMember).Counters().OutPkts().State())
-		t.Log(pktsAfterFlap)
-		if pktsAfterFlap < pktsAfter {
-			t.Errorf("Pkts after configuring forwarding-unviable on non bundle interface are expected to increase even after interface flap, Got pkts before configuring %v and after %v", pktsBefore, pktsAfter)
+		time.Sleep(60 * time.Second)
+		ethHeader := ondatra.NewEthernetHeader()
+		ipv4Header := ondatra.NewIPv4Header()
+		lossPckt := testFlow(t, ate, top, false, ethHeader, ipv4Header)
+		if lossPckt > 0.4 {
+			t.Errorf("Traffic Loss NOT Expected , Got %v , want 0", lossPckt)
 		}
 
 	})
 
 	t.Run("Configure 2 bundle members with one viable and other unviable", func(t *testing.T) {
-		member := gnmi.OC().Interface(nonBundleMember)
+		member := gnmi.OC().Interface(dut.Port(t, "port3").Name())
 		gnmi.Delete(t, dut, member.Config())
-		pktsBundleBefore := gnmi.Get(t, dut, gnmi.OC().Interface(iut1.Name()).Counters().OutPkts().State())
-
-		t.Log(pktsBundleBefore)
-		members := gnmi.OC().Interface(nonBundleMember).Ethernet().AggregateId()
-		gnmi.Update(t, dut, members.Config(), iut1.Name())
-		defer gnmi.Update(t, dut, members.Config(), iut2.Name())
-		defer gnmi.Delete(t, dut, member.Config())
-		t.Logf("Interface %v is forwarding-viable and Interface %v is forwarding-unviable", nonBundleMember, bundleMember)
-		time.Sleep(10 * time.Second)
-		bundleStatus := gnmi.Get(t, dut, gnmi.OC().Interface(iut1.Name()).OperStatus().State()).String()
+		members := gnmi.OC().Interface(dut.Port(t, "port3").Name()).Ethernet().AggregateId()
+		gnmi.Update(t, dut, members.Config(), "Bundle-Ether120")
+		config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n forwarding-unviable\n", dut.Port(t, "port3").Name()))
+		defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n no forwarding-unviable\n", dut.Port(t, "port3").Name()))
+		t.Logf("Interface %v is forwarding-viable and Interface %v is forwarding-unviable", dut.Port(t, "port1").Name(), dut.Port(t, "port3").Name())
+		bundleStatus := gnmi.Get(t, dut, gnmi.OC().Interface("Bundle-Ether120").OperStatus().State()).String()
 		t.Log((bundleStatus))
 		if bundleStatus != "UP" {
-			t.Errorf("Expected Bundle interface %v to be UP as its member %v is forwading-viable ", bundleStatus, nonBundleMember)
+			t.Errorf("Expected Bundle interface %v to be UP as its member %v is forwading-viable ", bundleStatus, dut.Port(t, "port2").Name())
 		}
-		time.Sleep(60 * time.Second)
+		ethHeader := ondatra.NewEthernetHeader()
+		ipv4Header := ondatra.NewIPv4Header()
+		lossPckt := testFlow(t, ate, top, true, ethHeader, ipv4Header)
+		if lossPckt >= 1 {
+			t.Errorf("Traffic loss not expected as Bundle interface is UP , got %v , want 0 ", lossPckt)
+		}
 
-		pktsBundleAfter := gnmi.Get(t, dut, gnmi.OC().Interface(iut1.Name()).Counters().OutPkts().State())
-		t.Log(pktsBundleAfter)
-		if pktsBundleAfter < pktsBundleBefore {
-			t.Errorf("Counters is not increasing as Interface is UP and bundle member is viable ")
-		}
-		verifyForwardingViable(t, dut, nonBundleMember)
-		time.Sleep(10 * time.Second)
-		bundleStatusAfter := gnmi.Get(t, dut, gnmi.OC().Interface(iut1.Name()).OperStatus().State()).String()
-		time.Sleep(30 * time.Second)
+		config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n forwarding-unviable\n", dut.Port(t, "port1").Name()))
+		defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n no forwarding-unviable\n", dut.Port(t, "port1").Name()))
+		bundleStatusAfter := gnmi.Get(t, dut, gnmi.OC().Interface("Bundle-Ether120").OperStatus().State()).String()
 		if bundleStatusAfter != "DOWN" {
-			t.Errorf("Expected Bundle interface %v to be down as both its members are forwarding-unviable ", iut1.Name())
+			t.Errorf("Expected Bundle interface %v to be down as both its members are forwarding-unviable ", "Bundle-Ether120")
 		}
-
-		pktsBundleAfter2 := gnmi.Get(t, dut, gnmi.OC().Interface(iut1.Name()).Counters().OutPkts().State())
-		t.Log(pktsBundleAfter2)
-		if pktsBundleAfter2 == pktsBundleAfter {
-			t.Logf("Pkts before %v Pkts after %v ", pktsBundleAfter, pktsBundleAfter2)
-		} else {
-			t.Error("Outgoing pkts are increasing with forwarding unviable configured on the box ")
+		lossPckt = testFlow(t, ate, top, true, ethHeader, ipv4Header)
+		if lossPckt <= 1 {
+			t.Errorf("Traffic Loss Expected , Got %v , want 100", lossPckt)
 		}
-
 	})
 
-	t.Run("Process restart the router and check for counters ", func(t *testing.T) {
-
-		pktsBundleMemberBefore := gnmi.Get(t, dut, gnmi.OC().Interface(iut1.Name()).Counters().OutPkts().State())
-		pktsBundleBefore := gnmi.Get(t, dut, gnmi.OC().Interface(bundleMember).Counters().OutPkts().State())
+	t.Run("Process restart the router and check for counters", func(t *testing.T) {
+		config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n forwarding-unviable\n", dut.Port(t, "port2").Name()))
+		defer config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("interface %v\n no forwarding-unviable\n", dut.Port(t, "port2").Name()))
 		processList := [4]string{"ether_mgbl", "ifmgr", " bundlemgr_distrib", "bundlemgr_local"}
 		for _, process := range processList {
 			config.CMDViaGNMI(context.Background(), t, dut, fmt.Sprintf("process restart %v", process))
 		}
 		time.Sleep(30 * time.Second)
-		pktsBundleMemberAfter := gnmi.Get(t, dut, gnmi.OC().Interface(iut1.Name()).Counters().OutPkts().State())
-		pktsBundleAfter := gnmi.Get(t, dut, gnmi.OC().Interface(iut1.Name()).Counters().OutPkts().State())
-		if (pktsBundleMemberAfter > pktsBundleMemberBefore) && (pktsBundleAfter != pktsBundleBefore) {
-			t.Logf("Counters before flap: %v , Counters after flap on Bundle interface  %v", pktsBundleBefore, pktsBundleAfter)
-			t.Logf("Counters before flap config: %v , Counters after flap on Bundle Member interface   %v", pktsBundleMemberBefore, pktsBundleMemberAfter)
-			t.Errorf("Out pkts are increasing with forwarding-unviable upon flapping")
+		bundleStatusAfter := gnmi.Get(t, dut, gnmi.OC().Interface("Bundle-Ether121").OperStatus().State()).String()
+		if bundleStatusAfter != "DOWN" {
+			t.Errorf("Expected Bundle interface %v to be down as both its members are forwarding-unviable ", "Bundle-Ether121")
+		}
+		time.Sleep(30 * time.Second)
+		ethHeader := ondatra.NewEthernetHeader()
+		ipv4Header := ondatra.NewIPv4Header()
+		lossPckt := testFlow(t, ate, top, true, ethHeader, ipv4Header)
+		if lossPckt <= 1 {
+			t.Errorf("Traffic Loss Expected , Got %v , want 100", lossPckt)
 		}
 
 	})
 
 	t.Run("Reload the router and check for counters", func(t *testing.T) {
-		util.ReloadDUT(t, dut)
+		gnoiClient := dut.RawAPIs().GNOI().New(t)
+		_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+			Method:  spb.RebootMethod_COLD,
+			Delay:   0,
+			Message: "Reboot chassis without delay",
+			Force:   true,
+		})
+		if err != nil {
+			t.Fatalf("Reboot failed %v", err)
+		}
+		startReboot := time.Now()
+		const maxRebootTime = 30
+		t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+		for {
+			var currentTime string
+			t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
+
+			time.Sleep(3 * time.Minute)
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+			}); errMsg != nil {
+				t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+			} else {
+				t.Logf("Device rebooted successfully with received time: %v", currentTime)
+				break
+			}
+
+			if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+				t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+			}
+		}
+		t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 		dutR := ondatra.DUT(t, device1)
-		pktsBundleMemberAfter := gnmi.Get(t, dutR, gnmi.OC().Interface(iut1.Name()).Counters().OutPkts().State())
-		pktsBundleAfter := gnmi.Get(t, dutR, gnmi.OC().Interface(bundleMember).Counters().OutPkts().State())
-		if (pktsBundleMemberAfter == 0) && (pktsBundleAfter == 0) {
-			t.Logf(" Counters after flap on Bundle interface not expected: got %v, got 0 ", pktsBundleAfter)
-			t.Logf(" Counters after flap on Bundle Member interface not expected: got %v, want 0 ", pktsBundleMemberAfter)
-			t.Errorf("Out pkts are increasing with forwarding-unviable upon flapping")
+		config.TextWithGNMI(context.Background(), t, dutR, fmt.Sprintf("interface %v\n forwarding-unviable\n", dut.Port(t, "port2").Name()))
+		defer config.TextWithGNMI(context.Background(), t, dutR, fmt.Sprintf("interface %v\n no forwarding-unviable\n", dut.Port(t, "port2").Name()))
+		ethHeader := ondatra.NewEthernetHeader()
+		ipv4Header := ondatra.NewIPv4Header()
+		lossPckt := testFlow(t, ate, top, true, ethHeader, ipv4Header)
+		if lossPckt <= 1 {
+			t.Errorf("Traffic Loss Expected , Got %v , want 100", lossPckt)
 		}
 
 	})

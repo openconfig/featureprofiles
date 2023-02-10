@@ -1,7 +1,8 @@
 package basetest
 
 import (
-	"flag"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -37,11 +38,6 @@ var (
 	}
 	Platform = PlatformSF
 )
-var (
-	ControllerOptics      = flag.String("controller_optics", "0/0/0/20", "ControllerOptics")
-	ControllerOpticsSpeed = flag.String("controller_optics_speed", "4x10", "ControllerOpticsSpeed")
-	qspfdString           = flag.String("QSFP_DD_Optics", "-QSFP_DD Optics Port 20", "qspfdString")
-)
 
 // to hold platform info
 // To do: get this dynamiclly from device
@@ -60,22 +56,64 @@ type PlatformInfo struct {
 	SwPackage          string
 }
 
-var componentName string
+var componentNameList []string
+var qsfpType string
+var hundredGigE string
+var hundredGigEComponentName string
+var fourhundredGigEComponentName string
 
-func portComponentName(t *testing.T, dut *ondatra.DUTDevice) {
-
-	lcs := components.FindComponentsByType(t, dut, linecardType)
-	if got := len(lcs); got == 0 {
-		componentName = "0/RP0/CPU0" + *qspfdString
-		t.Logf("The choosen component name: %v", componentName)
+func qsfptype(t *testing.T, dut *ondatra.DUTDevice, intf string) string {
+	qsfptype := strings.Fields(gnmi.Lookup(t, dut, gnmi.OC().Component(intf).Description().State()).String())[1]
+	if strings.Contains(qsfptype, "28") {
+		qsfpType = "-QSFP28 Optics Port " + strings.Split(intf, "/")[3]
 	} else {
-		for _, lc := range lcs {
-			componentName = lc + *qspfdString
-			t.Logf("The choosen component name: %v", componentName)
+		qsfpType = "-QSFP_DD Optics Port " + strings.Split(intf, "/")[3]
+	}
+	return qsfpType
+}
+func checkHundredGigE(t *testing.T, dut *ondatra.DUTDevice) {
+	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
+	for _, intf := range intfs {
+		intfName, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(intf).Name().State()).Val()
+		if strings.HasPrefix(intfName, "HundredGigE") {
+			if strings.Contains(gnmi.Lookup(t, dut, gnmi.OC().Component(intf).Description().State()).String(), "QSFP") {
+				hundredGigE = intfName
+				t.Logf("HundredGige interface %v ", hundredGigE)
+			}
 			break
 		}
 	}
 }
+func checklc(t *testing.T, dut *ondatra.DUTDevice) bool {
+	lcs := components.FindComponentsByType(t, dut, linecardType)
+	if got := len(lcs); got == 0 {
+		return true
+	}
+	return false
+}
+
+func portName(t *testing.T, dut *ondatra.DUTDevice) {
+	checkHundredGigE(t, dut)
+	lccheck := checklc(t, dut)
+	if hundredGigE != "" {
+		if lccheck {
+			hundredGigEComponentName = "0/RP0/CPU0" + qsfptype(t, dut, hundredGigE)
+			t.Logf("HundredGigE component name %v ", hundredGigEComponentName)
+		} else {
+			hundredGigEComponentName = fmt.Sprintf("0/%v/CPU0", strings.Split(hundredGigE, "/")[1]) + qsfptype(t, dut, hundredGigE)
+			t.Logf("HundredGigE component name %v ", hundredGigEComponentName)
+		}
+	}
+	if lccheck {
+		fourhundredGigEComponentName = "0/RP0/CPU0" + qsfptype(t, dut, dut.Port(t, "port1").Name())
+		t.Logf("FourHundredGigE component name %v ", fourhundredGigEComponentName)
+	} else {
+		fourhundredGigEComponentName = fmt.Sprintf("0/%v/CPU0", strings.Split(dut.Port(t, "port1").Name(), "/")[1]) + qsfptype(t, dut, dut.Port(t, "port1").Name())
+		t.Logf("FourHundredGigE component name %v ", fourhundredGigEComponentName)
+	}
+
+}
+
 func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, breakoutSpeedWant string, breakoutSpeedGot string, t *testing.T) {
 
 	if index != uint8(1) {
@@ -88,9 +126,9 @@ func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, 
 		t.Errorf("Breakout speed configured : got %v, want %v", breakoutSpeedGot, breakoutSpeedWant)
 	}
 }
-func verifyDelete(t *testing.T, dut *ondatra.DUTDevice) {
+func verifyDelete(t *testing.T, dut *ondatra.DUTDevice, compname string) {
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		gnmi.GetConfig(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(1).Index().Config()) //catch the error  as it is expected and absorb the panic.
+		gnmi.GetConfig(t, dut, gnmi.OC().Component(compname).Port().BreakoutMode().Group(1).Index().Config()) //catch the error  as it is expected and absorb the panic.
 	}); errMsg != nil {
 		t.Log("Expected failure ")
 	} else {
