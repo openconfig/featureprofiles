@@ -219,6 +219,9 @@ func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc
 	}
 	s.Index = ygot.Uint32(index)
 	s4 := s.GetOrCreateIpv4()
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+		s4.Enabled = ygot.Bool(true)
+	}
 	a := s4.GetOrCreateAddress(dutPort.IPv4)
 	a.PrefixLength = ygot.Uint8(dutPort.IPv4Len)
 	s6 := s.GetOrCreateIpv6()
@@ -236,6 +239,9 @@ func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc
 
 // configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
+	if *deviations.InterfaceEnabled {
+		i.Enabled = ygot.Bool(true)
+	}
 	i.Description = ygot.String(dutPort.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	i.AppendSubinterface(getSubInterface(dutPort, 0, 0))
