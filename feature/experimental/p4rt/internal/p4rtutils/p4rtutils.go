@@ -22,6 +22,7 @@ package p4rtutils
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -193,6 +194,28 @@ func explicitP4RTNodes() map[string]string {
 	}
 }
 
+// inferP4RTNodesCisco infers the P4RT node name from the port name for Nokia devices.
+func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
+	res := make(map[string]string)
+	node := func(idx string) string {
+		return fmt.Sprintf("SwitchChip%s/0", idx)
+	}
+	re := regexp.MustCompile("ethernet-([0-9]+)")
+	for _, p := range dut.Ports() {
+		m := re.FindStringSubmatch(p.Name())
+		if m != nil && len(m) == 2 {
+			res[p.ID()] = node(m[1])
+		}
+	}
+	if _, ok := res["port1"]; !ok {
+		res["port1"] = *args.P4RTNodeName1
+	}
+	if _, ok := res["port2"]; !ok {
+		res["port2"] = *args.P4RTNodeName2
+	}
+	return res
+}
+
 // inferP4RTNodesCisco infers the P4RT node name from the port name and device model
 // for Cisco devices.
 func inferP4RTNodesCisco(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
@@ -222,10 +245,14 @@ func inferP4RTNodesCisco(t testing.TB, dut *ondatra.DUTDevice) map[string]string
 func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
 	if *deviations.ExplicitP4RTNodeComponent {
-		if dut.Vendor() == ondatra.CISCO {
+		switch dut.Vendor() {
+		case ondatra.CISCO:
 			return inferP4RTNodesCisco(t, dut)
+		case ondatra.NOKIA:
+			return inferP4RTNodesNokia(t, dut)
+		default:
+			return explicitP4RTNodes()
 		}
-		return explicitP4RTNodes()
 	}
 
 	ports := make(map[string]string) // <hardware-port>:<portID>
