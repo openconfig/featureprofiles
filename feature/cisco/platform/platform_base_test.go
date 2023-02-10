@@ -90,9 +90,8 @@ func checklc(t *testing.T, dut *ondatra.DUTDevice) bool {
 	lcs := components.FindComponentsByType(t, dut, linecardType)
 	if got := len(lcs); got == 0 {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 func portName(t *testing.T, dut *ondatra.DUTDevice) {
