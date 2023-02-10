@@ -23,48 +23,46 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	ISISInstance   = "DEFAULT"        // ISIS instance name.
-	ISISMetric     = 100              // ISIS metric.
-	DUTAreaAddress = "49.0001"        // DUT ISIS area address.
-	DUTSysID       = "1920.0000.2001" // DUT ISIS system ID.
-	RouteCount     = 200              // Route count.
-	PeerGrpName    = "BGP-PEER-GROUP" // BGP peer group name.
-	DUTAs          = 64500            // DUT AS.
-	ATEAs          = 64501            // ATE AS.
+	// ISISInstance is ISIS instance name.
+	ISISInstance = "DEFAULT"
+	// DUTAreaAddress is DUT ISIS area address.
+	DUTAreaAddress = "49.0001"
+	// DUTSysID is DUT ISIS system ID.
+	DUTSysID = "1920.0000.2001"
+	// PeerGrpName is BGP peer group name.
+	PeerGrpName = "BGP-PEER-GROUP"
+	// DUTAs is DUT AS.
+	DUTAs = 64500
+	// ATEAs is ATE AS.
+	ATEAs = 64501
 
-	ateAs2                = 64502
-	dutStartIPAddr        = "192.0.2.1"
-	ateStartIPAddr        = "192.0.2.2"
-	plenIPv4              = 30
-	advertiseBGPRoutesv4  = "203.0.113.1"
-	advertiseISISRoutesv4 = "198.18.0.0"
-	authPassword          = "ISISAuthPassword"
+	ateAs2         = 64502
+	dutStartIPAddr = "192.0.2.1"
+	ateStartIPAddr = "192.0.2.2"
+	plenIPv4       = 30
+	authPassword   = "ISISAuthPassword"
 )
 
 var (
-	DUTIPList       = make(map[string]net.IP) // DUT IP list.
-	ATEIPList       = make(map[string]net.IP) // ATE IP list.
-	ISISMetricArray []uint32                  // ISIS metric array.
-	ISISSetBitArray []bool                    // ISIS set bit array.
+	// DUTIPList is DUT IP list.
+	DUTIPList = make(map[string]net.IP)
+	// ATEIPList is ATE IP list.
+	ATEIPList = make(map[string]net.IP)
 )
 
 // BuildIPList builds list of ip addresses for the ports in binding file.
 // (Both DUT and ATE ports).
-func BuildIPList(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
+func BuildIPList(dut *ondatra.DUTDevice) {
 	var dutIPIndex, ipSubnet, ateIPIndex int = 1, 2, 2
 	var endSubnetIndex = 253
 	for _, dp := range dut.Ports() {
@@ -199,98 +197,4 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	fptest.LogQuery(t, "DUT", p.Config(), d)
 
 	return d
-}
-
-// ConfigureATE configures ATE ports with IPv4, ISIS and BGP peers.
-func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
-	topo := ate.Topology().New()
-
-	for _, dp := range ate.Ports() {
-		ISISMetricArray = append(ISISMetricArray, ISISMetric)
-		ISISSetBitArray = append(ISISSetBitArray, true)
-		atePortAttr := attrs.Attributes{
-			Name:    "ate" + dp.ID(),
-			IPv4:    ATEIPList[dp.ID()].String(),
-			IPv4Len: plenIPv4,
-		}
-		iDut1 := topo.AddInterface(dp.Name()).WithPort(dp)
-		iDut1.IPv4().WithAddress(atePortAttr.IPv4CIDR()).WithDefaultGateway(DUTIPList[dp.ID()].String())
-
-		// Add BGP routes and ISIS routes. ATE port1 is ingress port.
-		if dp.ID() == "port1" {
-			bgpDut1 := iDut1.BGP()
-			bgpDut1.AddPeer().WithPeerAddress(DUTIPList[dp.ID()].String()).WithLocalASN(ateAs2).
-				WithTypeExternal()
-
-			isisDut1 := iDut1.ISIS()
-			isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DUTIPList[dp.ID()].String()).WithAuthMD5(authPassword)
-
-			netCIDR := fmt.Sprintf("%s/%d", advertiseBGPRoutesv4, 32)
-			bgpNeti1 := iDut1.AddNetwork("bgpNeti1")
-			bgpNeti1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
-			bgpNeti1.BGP().WithNextHopAddress(atePortAttr.IPv4)
-
-			netCIDR = fmt.Sprintf("%s/%d", advertiseISISRoutesv4, 32)
-			isisnet1 := iDut1.AddNetwork("isisnet1")
-			isisnet1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
-			isisnet1.ISIS().WithActive(true).WithIPReachabilityMetric(20)
-
-			continue
-		}
-
-		// Add BGP on ATE.
-		bgpDut1 := iDut1.BGP()
-		bgpDut1.AddPeer().WithPeerAddress(DUTIPList[dp.ID()].String()).WithLocalASN(ATEAs).
-			WithTypeExternal()
-
-		// Add ISIS on ATE.
-		isisDut1 := iDut1.ISIS()
-		isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DUTIPList[dp.ID()].String()).WithAuthMD5(authPassword)
-
-	}
-
-	t.Log("Pushing config to ATE...")
-	topo.Push(t)
-	t.Log("Starting protocols on ATE...")
-	topo.StartProtocols(t)
-}
-
-// VerifyISISTelemetry verifies ISIS telemetry on DUT.
-func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
-	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance).Isis()
-	for _, dp := range dut.Ports() {
-		nbrPath := statePath.Interface(dp.Name())
-		query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
-		_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-			state, present := val.Val()
-			return present && state == oc.Isis_IsisInterfaceAdjState_UP
-		}).Await(t)
-		if !ok {
-			t.Logf("ISIS state on %v has no adjacencies", dp.Name())
-			t.Fatal("No ISIS adjacencies reported.")
-		}
-	}
-}
-
-// VerifyBgpTelemetry verifies BGP telemetry on DUT.
-func VerifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
-	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	for _, peerAddr := range ATEIPList {
-		nbrIP := peerAddr.String()
-		nbrPath := statePath.Neighbor(nbrIP)
-
-		// Get BGP neighbor state.
-		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
-			state, present := val.Val()
-			return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
-		}).Await(t)
-		if !ok {
-			t.Fatal("No BGP neighbor formed")
-		}
-		status := gnmi.Get(t, dut, nbrPath.SessionState().State())
-		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; status != want {
-			t.Errorf("BGP peer %s status got %d, want %d", nbrIP, status, want)
-		}
-
-	}
 }
