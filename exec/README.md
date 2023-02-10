@@ -126,11 +126,11 @@ gNOI-5.1 (Ping Test):
 # Using FireX
 Since our runner plugin is not in the FireX store, you need to copy it somewhere accessible from an ADS machine. For example:
 ```
-cp exec/firex/plugins/v2/runner.py /auto/tftpboot-ottawa/kjahed/firex/v2/runner.py
+cp exec/firex/v2/runner.py /auto/tftpboot-ottawa/kjahed/firex/runner.py
 ```
 Then, you can submit a FireX run (on HW) using the command:
 ```
-/auto/firex/bin/firex submit --chain RunTests --plugins /auto/tftpboot-ottawa/kjahed/firex/v2/runner.py --testsuite firex_testsuite.yaml --images dummy.iso
+/auto/firex/bin/firex submit --chain RunTests --plugins /auto/tftpboot-ottawa/kjahed/firex/runner.py --testsuite firex_testsuite.yaml --images dummy.iso
 ```
 Note that the `--images` argument is mandatory although it is not actually used. That's it, for HW runs
 we assume that the image is already loaded.
@@ -140,5 +140,5 @@ If you're running on sim (i.e., `testbeds` in the run list points to a sim testb
 You can also override any of the properties in the generated `firex_testsuite.yaml`. For example, to force all tests to run from an internal branch called 'mybranch', you can do:
 
 ```
-/auto/firex/bin/firex submit --chain RunTests --plugins /auto/tftpboot-ottawa/kjahed/firex/v2/runner.py --testsuite firex_testsuite.yaml --test_branch 'mybranch' --internal_test True
+/auto/firex/bin/firex submit --chain RunTests --plugins /auto/tftpboot-ottawa/kjahed/firex/runner.py --testsuite firex_testsuite.yaml --test_branch 'mybranch' --internal_test True
 ```
