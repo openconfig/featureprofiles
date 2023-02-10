@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
@@ -554,6 +555,12 @@ func TestOCAFT(t *testing.T) {
 	t.Log("Description: Verify OC AFT gNMI Subscribe")
 
 	dut := ondatra.DUT(t, "dut")
+	resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+	t.Logf(resp)
+	if strings.Contains(resp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
 
 	// Dial gRIBI
 	ctx := context.Background()
