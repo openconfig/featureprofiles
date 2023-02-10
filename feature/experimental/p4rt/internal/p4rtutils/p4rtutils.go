@@ -197,14 +197,23 @@ func explicitP4RTNodes() map[string]string {
 // inferP4RTNodesCisco infers the P4RT node name from the port name for Nokia devices.
 func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	res := make(map[string]string)
-	node := func(idx string) string {
-		return fmt.Sprintf("SwitchChip%s/0", idx)
+	node := func(fpc string, asic string) string {
+		return fmt.Sprintf("SwitchChip%s/%s", fpc, asic)
 	}
-	re := regexp.MustCompile("ethernet-([0-9]+)")
+	re := regexp.MustCompile("ethernet-([0-9]+)/([0-9]+)")
 	for _, p := range dut.Ports() {
 		m := re.FindStringSubmatch(p.Name())
-		if len(m) == 2 {
-			res[p.ID()] = node(m[1])
+		if len(m) == 3 {
+			fpc := m[1]
+			port, err := strconv.Atoi(m[2])
+			if err != nil {
+				t.Fatalf("Error generating P4RT Node Name: %v", err)
+			}
+			if port > 18 {
+				res[p.ID()] = node(fpc, "1")
+				continue
+			}
+			res[p.ID()] = node(fpc, "0")
 		}
 	}
 	if _, ok := res["port1"]; !ok {
