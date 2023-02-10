@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -434,13 +435,11 @@ func TestWrrTrafficQos(t *testing.T) {
 func TestGooglePopgate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	time.Sleep(time.Minute)
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show version")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
+	// cliHandle := dut.RawAPIs().CLI(t)
+	// defer cliHandle.Close()
+	// resp, err := cliHandle.SendCommand(context.Background(), "show version")
+	resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+
 	if strings.Contains(resp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
