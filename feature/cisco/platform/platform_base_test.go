@@ -59,10 +59,8 @@ type PlatformInfo struct {
 var componentNameList []string
 var qsfpType string
 var hundredGigE string
-var hundredGigEintf string
 var hundredGigEComponentName string
 var fourhundredGigEComponentName string
-var fourHGigEintf string
 
 func qsfptype(t *testing.T, dut *ondatra.DUTDevice, intf string) string {
 	qsfptype := strings.Fields(gnmi.Lookup(t, dut, gnmi.OC().Component(intf).Description().State()).String())[1]
