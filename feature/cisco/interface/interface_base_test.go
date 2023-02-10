@@ -1,18 +1,11 @@
 package basetest
 
 import (
-	"context"
-	"fmt"
-	"os"
 	"sort"
-	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
-	"github.com/openconfig/featureprofiles/tools/inputcisco/feature"
-	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/ondatra"
 )
 
 const (
