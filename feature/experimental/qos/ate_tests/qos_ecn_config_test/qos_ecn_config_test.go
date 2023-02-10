@@ -54,11 +54,65 @@ func TestMain(m *testing.M) {
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
 
+const (
+	dropProfile               = "DropProfile"
+	forwardingGroup           = "fc"
+	schedulerMap              = "smap"
+	sequeneId                 = 1
+	schedulerPriority         = 1
+	cirValue                  = 3200
+	cirPct                    = 10
+	pirValue                  = 3200
+	pirPct                    = 12
+	queueName                 = "0"
+	minThresholdPerecent      = 10
+	maxThresholdPercent       = 70
+	maxDropProbabilityPercent = 1
+	enableEcn                 = true
+)
+
 func TestECNConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 
+	if dut.Vendor() == ondatra.JUNIPER {
+		t.Logf("Interface config required for queue management profile")
+		dp := dut.Port(t, "port2")
+		i := q.GetOrCreateInterface(dp.Name())
+		i.SetInterfaceId(dp.Name())
+		iref := i.GetOrCreateInterfaceRef()
+		iref.SetInterface(dp.Name())
+
+		t.Logf("Forwarding group config required for queue management profile")
+		fwdGroup := q.GetOrCreateForwardingGroup(forwardingGroup)
+		fwdGroup.SetName(forwardingGroup)
+		fwdGroup.SetOutputQueue(queueName)
+
+		t.Logf("Scheduler config required for binding with queue management profile")
+		schedulerPolicy := q.GetOrCreateSchedulerPolicy(schedulerMap)
+		schedulerPolicy.SetName(schedulerMap)
+		s := schedulerPolicy.GetOrCreateScheduler(sequeneId)
+		s.SetSequence(sequeneId)
+		s.SetPriority(schedulerPriority)
+		Output := s.GetOrCreateOutput()
+		Output.SetOutputFwdGroup(forwardingGroup)
+		output := i.GetOrCreateOutput()
+		queue := output.GetOrCreateQueue(forwardingGroup)
+		queue.SetQueueManagementProfile(dropProfile)
+		queue.SetName(forwardingGroup)
+
+	}
+	var minThresholdValue, maxThresholdValue uint64
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		t.Logf("Minthreshold and Maxthreshold values are expressed in percentages")
+		minThresholdValue = uint64(10)
+		maxThresholdValue = uint64(70)
+	default:
+		minThresholdValue = uint64(80000)
+		maxThresholdValue = math.MaxUint64
+	}
 	ecnConfig := struct {
 		ecnEnabled                bool
 		dropEnabled               bool
@@ -69,37 +123,33 @@ func TestECNConfig(t *testing.T) {
 	}{
 		ecnEnabled:                true,
 		dropEnabled:               false,
-		minThreshold:              uint64(80000),
-		maxThreshold:              math.MaxUint64,
+		minThreshold:              minThresholdValue,
+		maxThreshold:              maxThresholdValue,
 		maxDropProbabilityPercent: uint8(1),
 		weight:                    uint32(0),
 	}
 
-	queueMgmtProfile := q.GetOrCreateQueueManagementProfile("DropProfile")
-	queueMgmtProfile.SetName("DropProfile")
+	queueMgmtProfile := q.GetOrCreateQueueManagementProfile(dropProfile)
+	queueMgmtProfile.SetName(dropProfile)
 	wred := queueMgmtProfile.GetOrCreateWred()
 	uniform := wred.GetOrCreateUniform()
 	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
-	uniform.SetDrop(ecnConfig.dropEnabled)
 	uniform.SetMinThreshold(ecnConfig.minThreshold)
 	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
-	// TODO: uncomment the following config after it is supported.
-	// uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
-	// uniform.SetWeight(ecnConfig.weight)
+	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
+	if dut.Vendor() != ondatra.JUNIPER {
+		uniform.SetDrop(ecnConfig.dropEnabled)
+		// TODO: uncomment the following config after it is supported.
+		// uniform.SetWeight(ecnConfig.weight)
+	}
 
 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
-	// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-	t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
-
 	// Verify the QueueManagementProfile is applied by checking the telemetry path state values.
-	wredUniform := gnmi.OC().Qos().QueueManagementProfile("DropProfile").Wred().Uniform()
+	wredUniform := gnmi.OC().Qos().QueueManagementProfile(dropProfile).Wred().Uniform()
 	if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {
 		t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
-	}
-	if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), ecnConfig.dropEnabled; got != want {
-		t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
 	}
 	if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), ecnConfig.minThreshold; got != want {
 		t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
@@ -110,8 +160,14 @@ func TestECNConfig(t *testing.T) {
 	if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().State()), ecnConfig.maxDropProbabilityPercent; got != want {
 		t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
 	}
-	if got, want := gnmi.Get(t, dut, wredUniform.Weight().State()), ecnConfig.weight; got != want {
-		t.Errorf("wredUniform.Weight().State(): got %v, want %v", got, want)
+	if dut.Vendor() != ondatra.JUNIPER {
+		if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), ecnConfig.dropEnabled; got != want {
+			t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, wredUniform.Weight().State()), ecnConfig.weight; got != want {
+			t.Errorf("wredUniform.Weight().State(): got %v, want %v", got, want)
+		}
+
 	}
 }
 
@@ -124,48 +180,77 @@ func TestQoSOutputIntfConfig(t *testing.T) {
 		queueName  string
 		ecnProfile string
 		scheduler  string
+		queue      string
+		sequence   uint32
 	}{{
 		desc:       "output-interface-BE1",
 		queueName:  "BE1",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "0",
+		sequence:   0,
 	}, {
 		desc:       "output-interface-BE0",
 		queueName:  "BE0",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "1",
+		sequence:   1,
 	}, {
 		desc:       "output-interface-AF1",
 		queueName:  "AF1",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "2",
+		sequence:   2,
 	}, {
 		desc:       "output-interface-AF2",
 		queueName:  "AF2",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "3",
+		sequence:   3,
 	}, {
 		desc:       "output-interface-AF3",
 		queueName:  "AF3",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "4",
+		sequence:   4,
 	}, {
 		desc:       "output-interface-AF4",
 		queueName:  "AF4",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "5",
+		sequence:   5,
 	}, {
 		desc:       "output-interface-NC1",
 		queueName:  "NC1",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "6",
+		sequence:   6,
 	}}
 
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
-
+	if dut.Vendor() == ondatra.JUNIPER {
+		t.Logf("Adding required interface-ref config")
+		iref := i.GetOrCreateInterfaceRef()
+		iref.SetInterface(dp.Name())
+		t.Logf("Queue management profile config required for scheduler and Queue management profile binding")
+		queueMgmtProfile := q.GetOrCreateQueueManagementProfile(dropProfile)
+		queueMgmtProfile.SetName(dropProfile)
+		wred := queueMgmtProfile.GetOrCreateWred()
+		uniform := wred.GetOrCreateUniform()
+		uniform.SetEnableEcn(enableEcn)
+		uniform.SetMinThreshold(minThresholdPerecent)
+		uniform.SetMaxThreshold(maxThresholdPercent)
+		uniform.SetMaxDropProbabilityPercent(maxDropProbabilityPercent)
+	}
 	t.Logf("qos output interface config cases: %v", cases)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -175,11 +260,21 @@ func TestQoSOutputIntfConfig(t *testing.T) {
 			queue := output.GetOrCreateQueue(tc.queueName)
 			queue.SetQueueManagementProfile(tc.ecnProfile)
 			queue.SetName(tc.queueName)
+			t.Logf("Scheduler config required for binding with queue management profile")
+			if dut.Vendor() == ondatra.JUNIPER {
+				fwdGroup := q.GetOrCreateForwardingGroup(tc.queueName)
+				fwdGroup.SetName(tc.queueName)
+				fwdGroup.SetOutputQueue(tc.queue)
+				CreateSchedulerPolicy := q.GetOrCreateSchedulerPolicy(tc.scheduler)
+				CreateSchedulerPolicy.SetName(tc.scheduler)
+				s := CreateSchedulerPolicy.GetOrCreateScheduler(sequeneId)
+				s.SetSequence(tc.sequence)
+				s.SetPriority(schedulerPriority)
+				SchedulerOutput := s.GetOrCreateOutput()
+				SchedulerOutput.SetOutputFwdGroup(tc.queueName)
+			}
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
-
-		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
 		// Verify the policy is applied by checking the telemetry path state values.
 		policy := gnmi.OC().Qos().Interface(dp.Name()).Output().SchedulerPolicy()
