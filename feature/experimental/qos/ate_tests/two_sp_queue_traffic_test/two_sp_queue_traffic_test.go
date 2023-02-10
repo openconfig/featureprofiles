@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package one_sp_queue_traffic_test
+package two_sp_queue_traffic_test
 
 import (
 	"testing"
@@ -52,17 +52,37 @@ func TestMain(m *testing.M) {
 //     - There should be no packet drop for all traffic classes.
 //  6) Non-oversubscription NC1 and BE1 traffic.
 //     - There should be no packet drop for all traffic classes.
-//  7) Oversubscription NC1 and AF4 traffic.
+//  7) Non-oversubscription AF4 and AF3 traffic.
+//     - There should be no packet drop for all traffic classes.
+//  8) Non-oversubscription AF4 and AF2 traffic.
+//     - There should be no packet drop for all traffic classes.
+//  9) Non-oversubscription AF4 and AF1 traffic.
+//     - There should be no packet drop for all traffic classes.
+//  10) Non-oversubscription AF4 and BE0 traffic.
+//     - There should be no packet drop for all traffic classes.
+//  11) Non-oversubscription AF4 and BE1 traffic.
+//     - There should be no packet drop for all traffic classes.
+//  12) Oversubscription NC1 and AF4 traffic.
 //     - There should be no packet drop for strict priority traffic class.
-//  8) Oversubscription NC1 and AF3 traffic.
+//  12) Oversubscription NC1 and AF3 traffic.
 //     - There should be no packet drop for strict priority traffic class.
-//  9) Oversubscription NC1 and AF2 traffic.
+//  13) Oversubscription NC1 and AF2 traffic.
 //     - There should be no packet drop for strict priority traffic class.
-//  10) Oversubscription NC1 and AF1 traffic.
+//  14) Oversubscription NC1 and AF1 traffic.
 //     - There should be no packet drop for strict priority traffic class.
-//  11) Oversubscription NC1 and BE0 traffic.
+//  15) Oversubscription NC1 and BE0 traffic.
 //     - There should be no packet drop for strict priority traffic class.
-//  12) Oversubscription NC1 and BE1 traffic.
+//  16) Oversubscription NC1 and BE1 traffic.
+//     - There should be no packet drop for strict priority traffic class.
+//  17) Oversubscription AF4 and AF3 traffic.
+//     - There should be no packet drop for strict priority traffic class.
+//  19) Oversubscription AF4 and AF3 traffic.
+//     - There should be no packet drop for strict priority traffic class.
+//  20) Oversubscription AF4 and AF3 traffic.
+//     - There should be no packet drop for strict priority traffic class.
+//  21) Oversubscription AF4 and AF3 traffic.
+//     - There should be no packet drop for strict priority traffic class.
+//  22) Oversubscription AF4 and AF3 traffic.
 //     - There should be no packet drop for strict priority traffic class.
 //
 // Topology:
@@ -79,7 +99,7 @@ func TestMain(m *testing.M) {
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
 
-func TestOneSPQueueTraffic(t *testing.T) {
+func TestTwoSPQueueTraffic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
@@ -372,7 +392,192 @@ func TestOneSPQueueTraffic(t *testing.T) {
 		},
 	}
 
-	// Test case 7: Oversubscription NC1 and AF4 traffic.
+	// Test case 7: Non-oversubscription AF4 and AF3 traffic.
+	//   - There should be no packet drop for all traffic classes.
+	nonOversubscribedTrafficFlows7 := map[string]*trafficData{
+		"intf1-af4": {
+			frameSize:             1000,
+			trafficRate:           50,
+			expectedThroughputPct: 100.0,
+			dscp:                  32,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf1,
+		},
+		"intf1-af3": {
+			frameSize:             1000,
+			trafficRate:           50,
+			expectedThroughputPct: 0.0,
+			dscp:                  24,
+			queue:                 queueMap[dut.Vendor()]["AF3"],
+			inputIntf:             intf1,
+		},
+		"intf2-af4": {
+			frameSize:             1000,
+			trafficRate:           50,
+			dscp:                  32,
+			expectedThroughputPct: 100.0,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf2,
+		},
+		"intf2-af3": {
+			frameSize:             1000,
+			trafficRate:           50,
+			dscp:                  24,
+			expectedThroughputPct: 0.0,
+			queue:                 queueMap[dut.Vendor()]["AF3"],
+			inputIntf:             intf2,
+		},
+	}
+
+	// Test case 8: Non-oversubscription AF4 and AF2 traffic.
+	//   - There should be no packet drop for all traffic classes.
+	nonOversubscribedTrafficFlows8 := map[string]*trafficData{
+		"intf1-af4": {
+			frameSize:             1000,
+			trafficRate:           50,
+			expectedThroughputPct: 100.0,
+			dscp:                  32,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf1,
+		},
+		"intf1-af2": {
+			frameSize:             1000,
+			trafficRate:           50,
+			expectedThroughputPct: 0.0,
+			dscp:                  16,
+			queue:                 queueMap[dut.Vendor()]["AF2"],
+			inputIntf:             intf1,
+		},
+		"intf2-af4": {
+			frameSize:             1000,
+			trafficRate:           50,
+			dscp:                  32,
+			expectedThroughputPct: 100.0,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf2,
+		},
+		"intf2-af2": {
+			frameSize:             1000,
+			trafficRate:           50,
+			dscp:                  16,
+			expectedThroughputPct: 0.0,
+			queue:                 queueMap[dut.Vendor()]["AF2"],
+			inputIntf:             intf2,
+		},
+	}
+
+	// Test case 9: Non-oversubscription AF4 and AF1 traffic.
+	//   - There should be no packet drop for all traffic classes.
+	nonOversubscribedTrafficFlows9 := map[string]*trafficData{
+		"intf1-af4": {
+			frameSize:             1000,
+			trafficRate:           50,
+			expectedThroughputPct: 100.0,
+			dscp:                  32,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf1,
+		},
+		"intf1-af1": {
+			frameSize:             1000,
+			trafficRate:           50,
+			expectedThroughputPct: 0.0,
+			dscp:                  8,
+			queue:                 queueMap[dut.Vendor()]["AF1"],
+			inputIntf:             intf1,
+		},
+		"intf2-af4": {
+			frameSize:             1000,
+			trafficRate:           50,
+			dscp:                  32,
+			expectedThroughputPct: 100.0,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf2,
+		},
+		"intf2-af1": {
+			frameSize:             1000,
+			trafficRate:           50,
+			dscp:                  8,
+			expectedThroughputPct: 0.0,
+			queue:                 queueMap[dut.Vendor()]["AF1"],
+			inputIntf:             intf2,
+		},
+	}
+
+	// Test case 10: Non-oversubscription AF4 and BE0 traffic.
+	//   - There should be no packet drop for all traffic classes.
+	nonOversubscribedTrafficFlows10 := map[string]*trafficData{
+		"intf1-af4": {
+			frameSize:             1000,
+			trafficRate:           50,
+			expectedThroughputPct: 100.0,
+			dscp:                  32,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf1,
+		},
+		"intf1-be0": {
+			frameSize:             1000,
+			trafficRate:           50,
+			expectedThroughputPct: 0.0,
+			dscp:                  4,
+			queue:                 queueMap[dut.Vendor()]["BE0"],
+			inputIntf:             intf1,
+		},
+		"intf2-af4": {
+			frameSize:             1000,
+			trafficRate:           50,
+			dscp:                  32,
+			expectedThroughputPct: 100.0,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf2,
+		},
+		"intf2-be0": {
+			frameSize:             1000,
+			trafficRate:           50,
+			dscp:                  4,
+			expectedThroughputPct: 0.0,
+			queue:                 queueMap[dut.Vendor()]["BE0"],
+			inputIntf:             intf2,
+		},
+	}
+
+	// Test case 11: Non-oversubscription AF4 and BE1 traffic.
+	//   - There should be no packet drop for all traffic classes.
+	nonOversubscribedTrafficFlows11 := map[string]*trafficData{
+		"intf1-af4": {
+			frameSize:             1000,
+			trafficRate:           50,
+			expectedThroughputPct: 100.0,
+			dscp:                  32,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf1,
+		},
+		"intf1-be1": {
+			frameSize:             1000,
+			trafficRate:           50,
+			expectedThroughputPct: 0.0,
+			dscp:                  0,
+			queue:                 queueMap[dut.Vendor()]["BE1"],
+			inputIntf:             intf1,
+		},
+		"intf2-af4": {
+			frameSize:             1000,
+			trafficRate:           50,
+			dscp:                  32,
+			expectedThroughputPct: 100.0,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf2,
+		},
+		"intf2-be1": {
+			frameSize:             1000,
+			trafficRate:           50,
+			dscp:                  0,
+			expectedThroughputPct: 0.0,
+			queue:                 queueMap[dut.Vendor()]["BE1"],
+			inputIntf:             intf2,
+		},
+	}
+
+	// Test case 12: Oversubscription NC1 and AF4 traffic.
 	//   - There should be no packet drop for strict priority traffic class.
 	oversubscribedTrafficFlows1 := map[string]*trafficData{
 		"intf1-nc1": {
@@ -409,7 +614,7 @@ func TestOneSPQueueTraffic(t *testing.T) {
 		},
 	}
 
-	// Test case 8: Oversubscription NC1 and AF3 traffic.
+	// Test case 13: Oversubscription NC1 and AF3 traffic.
 	//   - There should be no packet drop for strict priority traffic class.
 	oversubscribedTrafficFlows2 := map[string]*trafficData{
 		"intf1-nc1": {
@@ -446,7 +651,7 @@ func TestOneSPQueueTraffic(t *testing.T) {
 		},
 	}
 
-	// Test case 9: Oversubscription NC1 and AF2 traffic.
+	// Test case 14: Oversubscription NC1 and AF2 traffic.
 	//   - There should be no packet drop for strict priority traffic class.
 	oversubscribedTrafficFlows3 := map[string]*trafficData{
 		"intf1-nc1": {
@@ -483,7 +688,7 @@ func TestOneSPQueueTraffic(t *testing.T) {
 		},
 	}
 
-	// Test case 10: Oversubscription NC1 and AF1 traffic.
+	// Test case 15: Oversubscription NC1 and AF1 traffic.
 	//   - There should be no packet drop for strict priority traffic class.
 	oversubscribedTrafficFlows4 := map[string]*trafficData{
 		"intf1-nc1": {
@@ -520,7 +725,7 @@ func TestOneSPQueueTraffic(t *testing.T) {
 		},
 	}
 
-	// Test case 11: Oversubscription NC1 and BE0 traffic.
+	// Test case 16: Oversubscription NC1 and BE0 traffic.
 	//   - There should be no packet drop for strict priority traffic class.
 	oversubscribedTrafficFlows5 := map[string]*trafficData{
 		"intf1-nc1": {
@@ -557,7 +762,7 @@ func TestOneSPQueueTraffic(t *testing.T) {
 		},
 	}
 
-	// Test case 12: Oversubscription NC1 and BE1 traffic.
+	// Test case 17: Oversubscription NC1 and BE1 traffic.
 	//   - There should be no packet drop for strict priority traffic class.
 	oversubscribedTrafficFlows6 := map[string]*trafficData{
 		"intf1-nc1": {
@@ -594,6 +799,191 @@ func TestOneSPQueueTraffic(t *testing.T) {
 		},
 	}
 
+	// Test case 18: Oversubscription AF4 and AF3 traffic.
+	//   - There should be no packet drop for strict priority traffic class.
+	oversubscribedTrafficFlows7 := map[string]*trafficData{
+		"intf1-af4": {
+			frameSize:             1000,
+			trafficRate:           20,
+			expectedThroughputPct: 100.0,
+			dscp:                  32,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf1,
+		},
+		"intf1-af3": {
+			frameSize:             1000,
+			trafficRate:           60,
+			expectedThroughputPct: 50.0,
+			dscp:                  24,
+			queue:                 queueMap[dut.Vendor()]["AF3"],
+			inputIntf:             intf1,
+		},
+		"intf2-af4": {
+			frameSize:             1000,
+			trafficRate:           30,
+			dscp:                  32,
+			expectedThroughputPct: 100.0,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf2,
+		},
+		"intf2-af3": {
+			frameSize:             1000,
+			trafficRate:           40,
+			dscp:                  24,
+			expectedThroughputPct: 50.0,
+			queue:                 queueMap[dut.Vendor()]["AF3"],
+			inputIntf:             intf2,
+		},
+	}
+
+	// Test case 19: Non-oversubscription AF4 and AF2 traffic.
+	//   - There should be no packet drop for all traffic classes.
+	oversubscribedTrafficFlows8 := map[string]*trafficData{
+		"intf1-af4": {
+			frameSize:             1000,
+			trafficRate:           20,
+			expectedThroughputPct: 100.0,
+			dscp:                  32,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf1,
+		},
+		"intf1-af2": {
+			frameSize:             1000,
+			trafficRate:           60,
+			expectedThroughputPct: 50.0,
+			dscp:                  16,
+			queue:                 queueMap[dut.Vendor()]["AF2"],
+			inputIntf:             intf1,
+		},
+		"intf2-af4": {
+			frameSize:             1000,
+			trafficRate:           30,
+			dscp:                  32,
+			expectedThroughputPct: 100.0,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf2,
+		},
+		"intf2-af2": {
+			frameSize:             1000,
+			trafficRate:           40,
+			dscp:                  16,
+			expectedThroughputPct: 50.0,
+			queue:                 queueMap[dut.Vendor()]["AF2"],
+			inputIntf:             intf2,
+		},
+	}
+
+	// Test case 20: Non-oversubscription AF4 and AF1 traffic.
+	//   - There should be no packet drop for all traffic classes.
+	oversubscribedTrafficFlows9 := map[string]*trafficData{
+		"intf1-af4": {
+			frameSize:             1000,
+			trafficRate:           20,
+			expectedThroughputPct: 100.0,
+			dscp:                  32,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf1,
+		},
+		"intf1-af1": {
+			frameSize:             1000,
+			trafficRate:           60,
+			expectedThroughputPct: 50.0,
+			dscp:                  8,
+			queue:                 queueMap[dut.Vendor()]["AF1"],
+			inputIntf:             intf1,
+		},
+		"intf2-af4": {
+			frameSize:             1000,
+			trafficRate:           30,
+			dscp:                  32,
+			expectedThroughputPct: 100.0,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf2,
+		},
+		"intf2-af1": {
+			frameSize:             1000,
+			trafficRate:           40,
+			dscp:                  8,
+			expectedThroughputPct: 50.0,
+			queue:                 queueMap[dut.Vendor()]["AF1"],
+			inputIntf:             intf2,
+		},
+	}
+
+	// Test case 21: Non-oversubscription AF4 and BE0 traffic.
+	//   - There should be no packet drop for all traffic classes.
+	oversubscribedTrafficFlows10 := map[string]*trafficData{
+		"intf1-af4": {
+			frameSize:             1000,
+			trafficRate:           20,
+			expectedThroughputPct: 100.0,
+			dscp:                  32,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf1,
+		},
+		"intf1-be0": {
+			frameSize:             1000,
+			trafficRate:           60,
+			expectedThroughputPct: 50.0,
+			dscp:                  4,
+			queue:                 queueMap[dut.Vendor()]["BE0"],
+			inputIntf:             intf1,
+		},
+		"intf2-af4": {
+			frameSize:             1000,
+			trafficRate:           30,
+			dscp:                  32,
+			expectedThroughputPct: 100.0,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf2,
+		},
+		"intf2-be0": {
+			frameSize:             1000,
+			trafficRate:           40,
+			dscp:                  4,
+			expectedThroughputPct: 50.0,
+			queue:                 queueMap[dut.Vendor()]["BE0"],
+			inputIntf:             intf2,
+		},
+	}
+
+	// Test case 22: Non-oversubscription AF4 and BE1 traffic.
+	//   - There should be no packet drop for all traffic classes.
+	oversubscribedTrafficFlows11 := map[string]*trafficData{
+		"intf1-af4": {
+			frameSize:             1000,
+			trafficRate:           20,
+			expectedThroughputPct: 100.0,
+			dscp:                  32,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf1,
+		},
+		"intf1-be1": {
+			frameSize:             1000,
+			trafficRate:           60,
+			expectedThroughputPct: 50.0,
+			dscp:                  0,
+			queue:                 queueMap[dut.Vendor()]["BE1"],
+			inputIntf:             intf1,
+		},
+		"intf2-af4": {
+			frameSize:             1000,
+			trafficRate:           30,
+			dscp:                  32,
+			expectedThroughputPct: 100.0,
+			queue:                 queueMap[dut.Vendor()]["AF4"],
+			inputIntf:             intf2,
+		},
+		"intf2-be1": {
+			frameSize:             1000,
+			trafficRate:           40,
+			dscp:                  0,
+			expectedThroughputPct: 50.0,
+			queue:                 queueMap[dut.Vendor()]["BE1"],
+			inputIntf:             intf2,
+		},
+	}
+
 	cases := []struct {
 		desc         string
 		trafficFlows map[string]*trafficData
@@ -616,6 +1006,21 @@ func TestOneSPQueueTraffic(t *testing.T) {
 		desc:         "Non-oversubscription NC1 and BE1 traffic",
 		trafficFlows: nonOversubscribedTrafficFlows6,
 	}, {
+		desc:         "Non-oversubscription AF4 and AF3 traffic",
+		trafficFlows: nonOversubscribedTrafficFlows7,
+	}, {
+		desc:         "Non-oversubscription AF4 and AF2 traffic",
+		trafficFlows: nonOversubscribedTrafficFlows8,
+	}, {
+		desc:         "Non-oversubscription AF4 and AF1 traffic",
+		trafficFlows: nonOversubscribedTrafficFlows9,
+	}, {
+		desc:         "Non-oversubscription AF4 and BE0 traffic",
+		trafficFlows: nonOversubscribedTrafficFlows10,
+	}, {
+		desc:         "Non-oversubscription AF4 and BE1 traffic",
+		trafficFlows: nonOversubscribedTrafficFlows11,
+	}, {
 		desc:         "Oversubscription NC1 and AF4 traffic with half AF4 dropped",
 		trafficFlows: oversubscribedTrafficFlows1,
 	}, {
@@ -633,6 +1038,21 @@ func TestOneSPQueueTraffic(t *testing.T) {
 	}, {
 		desc:         "Oversubscription NC1 and BE1 traffic with half BE1 dropped",
 		trafficFlows: oversubscribedTrafficFlows6,
+	}, {
+		desc:         "Oversubscription AF4 and AF3 traffic with half AF3 dropped",
+		trafficFlows: oversubscribedTrafficFlows7,
+	}, {
+		desc:         "Oversubscription AF4 and AF2 traffic with half AF2 dropped",
+		trafficFlows: oversubscribedTrafficFlows8,
+	}, {
+		desc:         "Oversubscription AF4 and AF1 traffic with half AF1 dropped",
+		trafficFlows: oversubscribedTrafficFlows9,
+	}, {
+		desc:         "Oversubscription AF4 and BE0 traffic with half BE0 dropped",
+		trafficFlows: oversubscribedTrafficFlows10,
+	}, {
+		desc:         "Oversubscription AF4 and BE1 traffic with half BE1 dropped",
+		trafficFlows: oversubscribedTrafficFlows11,
 	}}
 
 	for _, tc := range cases {
@@ -678,9 +1098,9 @@ func TestOneSPQueueTraffic(t *testing.T) {
 			t.Logf("Running traffic 2 on DUT interfaces: %s => %s ", dp2.Name(), dp3.Name())
 			t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
 			ate.Traffic().Start(t, flows...)
-			time.Sleep(30 * time.Second)
+			time.Sleep(20 * time.Second)
 			ate.Traffic().Stop(t)
-			time.Sleep(30 * time.Second)
+			time.Sleep(10 * time.Second)
 
 			for trafficID, data := range trafficFlows {
 				ateOutPkts[data.queue] += gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().OutPkts().State())
@@ -1011,7 +1431,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "BE0",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(2),
+		weight:       uint64(4),
 		queueName:    "BE0",
 		targetGrpoup: "target-group-BE0",
 	}, {
@@ -1020,7 +1440,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "AF1",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(4),
+		weight:       uint64(8),
 		queueName:    "AF1",
 		targetGrpoup: "target-group-AF1",
 	}, {
@@ -1029,7 +1449,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "AF2",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(8),
+		weight:       uint64(16),
 		queueName:    "AF2",
 		targetGrpoup: "target-group-AF2",
 	}, {
@@ -1038,16 +1458,16 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "AF3",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(12),
+		weight:       uint64(32),
 		queueName:    "AF3",
 		targetGrpoup: "target-group-AF3",
 	}, {
 		desc:         "scheduler-policy-AF4",
 		sequence:     uint32(1),
-		priority:     oc.Scheduler_Priority_UNSET,
+		priority:     oc.Scheduler_Priority_STRICT,
 		inputID:      "AF4",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(48),
+		weight:       uint64(100),
 		queueName:    "AF4",
 		targetGrpoup: "target-group-AF4",
 	}, {
