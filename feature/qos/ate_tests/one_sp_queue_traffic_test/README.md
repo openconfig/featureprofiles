@@ -22,7 +22,7 @@ Verify that DUT drops AF4, AF3, AF2, AF1, BE1 and BE0 before NC1.
 
 *   Traffic classes:
 
-    *   We will use 7 traffic classes NC1, AF4, AF3, AF2, AF1, BE1 and BE0.
+    *   We will use 7 traffic classes NC1, AF4, AF3, AF2, AF1, BE0 and BE1.
 
 *   Traffic types:
 
