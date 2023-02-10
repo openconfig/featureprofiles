@@ -227,7 +227,7 @@ func p4rtPacketOut(t *testing.T, events *monitor.CachedConsumer, args ...interfa
 	for _, test := range packetOutTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Check initial packet counters
-			counter0 := gnmi.Get(t, dut, gnmi.OC().Interface(port).Counters().InPkts().State())
+			counter0 := gnmi.Get(t, arg.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 
 			packets := packetIO.GetPacketOut(portId, false)
 
@@ -250,7 +250,7 @@ func p4rtPacketOut(t *testing.T, events *monitor.CachedConsumer, args ...interfa
 			time.Sleep(60 * time.Second)
 
 			// Check packet counters after packet out
-			counter1 := gnmi.Get(t, dut, gnmi.OC().Interface(port).Counters().InPkts().State())
+			counter1 := gnmi.Get(t, arg.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 
 			// Verify InPkts stats to check P4RT stream
 			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)

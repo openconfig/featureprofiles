@@ -201,10 +201,14 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeigh
 	}
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
+		if len(opts) > 0 {
+			if opts[0].FRR {
+				break
+			}
+		}
 		aftNh := aftNhg.GetOrCreateNextHop(nhIndex)
 		aftNh.Weight = new(uint64)
 		*aftNh.Weight = weight
-
 	}
 	c.fluentC.Modify().AddEntry(t, nhg)
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
@@ -301,6 +305,7 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 		WithNetworkInstance(instance).
 		WithNextHopGroup(nhgIndex)
 	aftIpv4Entry := c.getOrCreateAft(instance).GetOrCreateIpv4Entry(prefix)
+	aftIpv4Entry.OriginProtocol = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI
 	aftIpv4Entry.NextHopGroup = &nhgIndex
 
 	if nhgInstance != "" && nhgInstance != instance {
@@ -337,8 +342,14 @@ func (c *Client) ReplaceNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhW
 	}
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
-		aftNh, _ := aftNhg.NewNextHop(nhIndex)
-		aftNh.Weight = &weight
+		if len(opts) > 0 {
+			if opts[0].FRR {
+				break
+			}
+		}
+		aftNh := aftNhg.GetOrCreateNextHop(nhIndex)
+		aftNh.Weight = new(uint64)
+		*aftNh.Weight = weight
 	}
 	c.fluentC.Modify().ReplaceEntry(t, nhg)
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
@@ -449,6 +460,7 @@ func (c *Client) ReplaceIPv4(t testing.TB, prefix string, nhgIndex uint64, insta
 func (c *Client) DeleteNHG(t testing.TB, nhgIndex uint64, bkhgIndex uint64, nhWeights map[uint64]uint64, instance string, expecteFailure bool, check *flags.GRIBICheck) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	c.getOrCreateAft(instance).DeleteNextHopGroup(nhgIndex)
+	c.getAft(instance).DeleteNextHopGroup(nhgIndex)
 
 	if bkhgIndex != 0 {
 		nhg.WithBackupNHG(bkhgIndex)
@@ -478,6 +490,7 @@ func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex)
 	c.getOrCreateAft(instance).DeleteNextHop(nhIndex)
+	c.getAft(instance).DeleteNextHop(nhIndex)
 
 	if address == DECAP {
 		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
@@ -510,6 +523,7 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, nhgIndex uint64, instan
 		WithNetworkInstance(instance).
 		WithNextHopGroup(nhgIndex)
 	c.getOrCreateAft(instance).DeleteIpv4Entry(prefix)
+	c.getAft(instance).DeleteIpv4Entry(prefix)
 
 	if nhgInstance != "" && nhgInstance != instance {
 		ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
