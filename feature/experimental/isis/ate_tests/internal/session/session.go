@@ -263,6 +263,9 @@ func (s *TestSession) PushDUT(ctx context.Context) error {
 		return fmt.Errorf("deleting ISIS config before configuring test config: %w", err)
 	}
 
+	// After deleting, Wait few seconds here before config the protocol again
+	time.Sleep(5 * time.Second)
+
 	// Configure ISIS test config on DUT
 	_, err = ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
 	if err != nil {
