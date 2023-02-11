@@ -70,16 +70,22 @@ var (
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
 		IPv4Len: 30,
+		IPv6:    "2001:db8::192:0:2:1",
+		IPv6Len: 126,
 	}
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "192.0.2.5",
 		IPv4Len: 30,
+		IPv6:    "2001:db8::192:0:2:5",
+		IPv6Len: 126,
 	}
 	dutPort3 = attrs.Attributes{
 		Desc:    "dutPort3",
 		IPv4:    "192.0.2.9",
 		IPv4Len: 30,
+		IPv6:    "2001:db8::192:0:2:9",
+		IPv6Len: 126,
 	}
 
 	atePort1 = attrs.Attributes{
@@ -87,18 +93,24 @@ var (
 		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: 30,
+		IPv6:    "2001:db8::192:0:2:2",
+		IPv6Len: 126,
 	}
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
 		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: 30,
+		IPv6:    "2001:db8::192:0:2:6",
+		IPv6Len: 126,
 	}
 	atePort3 = attrs.Attributes{
 		Name:    "atePort3",
 		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: 30,
+		IPv6:    "2001:db8::192:0:2:a",
+		IPv6Len: 126,
 	}
 )
 
