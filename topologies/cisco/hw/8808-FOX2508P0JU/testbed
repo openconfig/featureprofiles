@@ -9,6 +9,7 @@ duts {
   vendor: CISCO
   ports {
     id: "port1"
+    speed: S_10GB
   }
   ports {
     id: "port2"
