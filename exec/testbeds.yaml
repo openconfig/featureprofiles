@@ -35,10 +35,6 @@ testbeds:
     testbed: topologies/cisco/hw/8201-32FH_FLM253900HJ/testbed
     binding: topologies/cisco/hw/8201-32FH_FLM253900HJ/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM253900HJ/baseconfig.proto
-  - id: 8812-FOC2326NBZB
-    testbed: topologies/cisco/hw/8812-FOC2326NBZB/testbed
-    binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
-    baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
   - id: 8201-1DUT-1ATE
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT-1ATE/topo.yaml
