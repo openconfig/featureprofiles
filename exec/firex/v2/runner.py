@@ -164,6 +164,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         fp_post_tests=[],
                         internal_test=False,
                         test_debug=True,
+                        test_report=True,
                         testbed=None,
                         **kwargs):
 
@@ -212,7 +213,8 @@ def b4_chain_provider(ws, testsuite_id, cflow,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    chain |= GoReporting.s()
+    if test_report:
+        chain |= GoReporting.s()
 
     if cflow and testbed:
         chain |= CollectCoverageData.s(pyats_testbed=testbed)
