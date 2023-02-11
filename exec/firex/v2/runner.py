@@ -3,6 +3,7 @@ from celery.utils.log import get_task_logger
 from microservices.workspace_tasks import Warn
 from firexapp.common import silent_mkdir
 from firexapp.firex_subprocess import check_output
+from firexapp.submit.arguments import whitelist_arguments
 from microservices.testbed_tasks import register_testbed_file_generator
 from microservices.runners.go_b4_tasks import copy_test_logs_dir, write_output_from_results_json
 from microservices.firex_base import returns, flame, InjectArgs, FireX
@@ -33,6 +34,10 @@ PUBLIC_FP_REPO_URL = 'https://github.com/openconfig/featureprofiles.git'
 INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
 
 TESTBEDS_FILE = 'exec/testbeds.yaml'
+
+whitelist_arguments([
+    'test_html_report'
+])
 
 def _get_go_env():
     gorootpath = os.path.join('/nobackup', getuser())
@@ -164,7 +169,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         fp_post_tests=[],
                         internal_test=False,
                         test_debug=True,
-                        test_report=True,
+                        test_html_report=True,
                         testbed=None,
                         **kwargs):
 
@@ -213,7 +218,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    if test_report:
+    if test_html_report:
         chain |= GoReporting.s()
 
     if cflow and testbed:
