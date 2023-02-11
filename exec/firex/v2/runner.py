@@ -411,7 +411,9 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path,
 def GoTidy(self, repo):
     env = dict(os.environ)
     env.update(_get_go_env())
-    check_output(f'{GO_BIN} mod tidy', env=env, cwd=repo)
+    logger.print(
+        check_output(f'{GO_BIN} mod tidy', env=env, cwd=repo)
+    )
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
