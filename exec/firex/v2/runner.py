@@ -39,6 +39,9 @@ whitelist_arguments([
     'test_html_report'
 ])
 
+class GoTestSegFaultException(Exception):
+    pass
+
 def _get_go_env():
     gorootpath = os.path.join('/nobackup', getuser())
     return {
@@ -226,7 +229,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
     return chain
 
 # noinspection PyPep8Naming
-@app.task(bind=True, base=FireXRunnerBase)
+@app.task(bind=True, base=FireXRunnerBase, max_retries=2, autoretry_for=[GoTestSegFaultException])
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
@@ -278,6 +281,9 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
 
         if self.console_output_file and Path(self.console_output_file).is_file():
             shutil.copyfile(self.console_output_file, json_results_file)
+            with open(json_results_file, 'r') as f:
+                if 'segmentation fault (core dumped)' in f.read():
+                    raise GoTestSegFaultException
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
 
