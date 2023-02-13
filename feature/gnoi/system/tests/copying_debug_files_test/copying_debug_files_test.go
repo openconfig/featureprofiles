@@ -18,19 +18,66 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	hpb "github.com/openconfig/gnoi/healthz"
-	spb "github.com/openconfig/gnoi/system"
+	gnps "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+)
+
+var processName = map[ondatra.Vendor]string{
+	ondatra.ARISTA:  "bgp",
+	ondatra.CISCO:   "bgp",
+	ondatra.JUNIPER: "rpd",
+	ondatra.NOKIA:   "bgp",
+}
+
+const (
+	ipv4PrefixLen = 30
 )
 
 var (
-	bgpProcName = map[ondatra.Vendor]string{
-		ondatra.NOKIA:  "sr_bgp_mgr",
-		ondatra.ARISTA: "bgp",
+	dutPort1 = attrs.Attributes{
+		Desc:    "dutPort1",
+		IPv4:    "192.0.2.1",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	atePort1 = attrs.Attributes{
+		Name:    "atePort1",
+		IPv4:    "192.0.2.2",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	dutPort2 = attrs.Attributes{
+		Desc:    "dutPort2",
+		IPv4:    "192.0.2.5",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	atePort2 = attrs.Attributes{
+		Name:    "atePort2",
+		IPv4:    "192.0.2.6",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	gRIBIDaemons = map[ondatra.Vendor]string{
+		ondatra.ARISTA:  "Gribi",
+		ondatra.CISCO:   "emsd",
+		ondatra.JUNIPER: "rpd",
+		ondatra.NOKIA:   "sr_gribi_server",
 	}
 )
+
+// testArgs holds the objects needed by the test case.
+type testArgs struct {
+	ctx context.Context
+	dut *ondatra.DUTDevice
+	ate *ondatra.ATEDevice
+	top *ondatra.ATETopology
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -53,28 +100,84 @@ func TestMain(m *testing.M) {
 //    https://github.com/fullstorydev/grpcurl
 //
 
+// gNOIKillProcess kills a daemon on the DUT, given its name and pid.
+func gNOIKillProcess(ctx context.Context, t *testing.T, args *testArgs, pName string, pID uint32) {
+	gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
+	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_TERM,
+		Restart: true}
+	killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
+	t.Logf("Got kill process response: %v\n\n", killResponse)
+	if err != nil {
+		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
+	}
+}
+
+// findProcessByName uses telemetry to find out the PID of a process
+func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) uint64 {
+	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
+	var pID uint64
+	for _, proc := range pList {
+		if proc.GetName() == pName {
+			pID = proc.GetPid()
+			t.Logf("Pid of daemon '%s' is '%d'", pName, pID)
+		}
+	}
+	return pID
+}
+
+// configureATE configures port1 and port2 on the ATE.
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
+	top := ate.Topology().New()
+
+	p1 := ate.Port(t, "port1")
+	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
+	i1.IPv4().
+		WithAddress(atePort1.IPv4CIDR()).
+		WithDefaultGateway(dutPort1.IPv4)
+
+	p2 := ate.Port(t, "port2")
+	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
+	i2.IPv4().
+		WithAddress(atePort2.IPv4CIDR()).
+		WithDefaultGateway(dutPort2.IPv4)
+
+	return top
+}
+
 func TestCopyingDebugFiles(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
 	gnoiClient := dut.RawAPIs().GNOI().New(t)
-	if _, ok := bgpProcName[dut.Vendor()]; !ok {
-		t.Fatalf("Please add support for vendor %v in var bgpProcName", dut.Vendor())
-	}
-	killProcessRequest := &spb.KillProcessRequest{
-		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
-		Name:    bgpProcName[dut.Vendor()],
-		Restart: true,
-	}
-	processKillResponse, err := gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
-	if err != nil {
-		t.Fatalf("Failed to restart process %v with unexpected err: %v", bgpProcName[dut.Vendor()], err)
+	ate := ondatra.ATE(t, "ate")
+	top := configureATE(t, ate)
+
+	args := &testArgs{
+		ctx: ctx,
+		dut: dut,
+		ate: ate,
+		top: top,
 	}
 
-	t.Logf("gnoiClient.System().KillProcess() response: %v, err: %v", processKillResponse, err)
-	t.Logf("Wait 60 seconds for process to restart ...")
+	if _, ok := processName[dut.Vendor()]; !ok {
+		t.Fatalf("Please add support for vendor %v in var processName", dut.Vendor())
+	}
+
+	process := processName[dut.Vendor()]
+
+	pId := findProcessByName(ctx, t, dut, process)
+	if pId == 0 {
+		t.Fatalf("Couldn't find pid of gRIBI daemon '%s'", process)
+	} else {
+		t.Logf("Pid of gRIBI daemon '%s' is '%d'", process, pId)
+	}
+
+	gNOIKillProcess(ctx, t, args, process, uint32(pId))
+
+	// Wait for a bit for gRIBI daemon on the DUT to restart.
 	time.Sleep(60 * time.Second)
 
-	componentName := map[string]string{"name": "Chassis"}
+	componentName := map[string]string{"name": "CHASSIS0"}
 	req := &hpb.GetRequest{
 		Path: &tpb.Path{
 			Elem: []*tpb.PathElem{
@@ -92,6 +195,6 @@ func TestCopyingDebugFiles(t *testing.T) {
 	t.Logf("Error: %v", err)
 	t.Logf("Response: %v", (validResponse))
 	if err != nil {
-		t.Fatalf("Unexpected error on healthz get response after restart of %v: %v", bgpProcName[dut.Vendor()], err)
+		t.Fatalf("Unexpected error on healthz get response after restart of %v: %v", process, err)
 	}
 }
