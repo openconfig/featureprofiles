@@ -85,6 +85,14 @@ Verify that DUT drops AF3, AF2, AF1, BE1 and BE0 before AF4 before NC1.
     NC1           | 0.1                     | 0.7                     | 100                   | 100
     AF4           | 99.9                    | 99.3                    | 49.8                  | 49.8
 
+*   Repeat the above 2 test cases between traffic classes:
+
+    *   NC1 vs AF3
+    *   NC1 vs AF2
+    *   NC1 vs AF1
+    *   NC1 vs BE1
+    *   NC1 vs BE0
+
 *   Strict priority vs WRR traffic test
 
     *   Starvation traffic test case
@@ -98,8 +106,8 @@ Verify that DUT drops AF3, AF2, AF1, BE1 and BE0 before AF4 before NC1.
 
     Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
     ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
-    AF4           | 90                      | 0                       | 90                    | 0
-    AF3           | 10                      | 100                     | 9                     | 9
+    AF4           | 20                      | 30                      | 100                   | 100
+    AF3           | 60                      | 40                      | 50                    | 50
 
 *   Repeat the above 2 test cases between traffic classes:
 
@@ -107,11 +115,6 @@ Verify that DUT drops AF3, AF2, AF1, BE1 and BE0 before AF4 before NC1.
     *   AF4 vs AF1
     *   AF4 vs BE1
     *   AF4 vs BE0
-    *   NC1 vs AF3
-    *   NC1 vs AF2
-    *   NC1 vs AF1
-    *   NC1 vs BE1
-    *   NC1 vs BE0
 
 ## Config parameter coverage
 
