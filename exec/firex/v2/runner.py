@@ -447,7 +447,7 @@ def SoftwareUpgrade(self, internal_fp_repo_dir, image_path,
     env.update(_get_go_env())
     logger.print(
         check_output(
-            f'{GO_BIN} ./exec/utils/upgrade -binding {ondatra_binding_path} ' +
+            f'{GO_BIN} test -v ./exec/utils/upgrade -binding {ondatra_binding_path} ' +
                  f'-testbed {ondatra_testbed_path} -imagePath {image_path}', 
             env=env, cwd=internal_fp_repo_dir)
     )
