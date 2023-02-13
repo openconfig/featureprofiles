@@ -38,7 +38,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 
 	spb "github.com/openconfig/gnoi/system"
-	tpb "github.com/openconfig/gnoi/types"
 )
 
 func TestMain(m *testing.M) {
@@ -120,6 +119,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) {
 				AddNextHop(index, 64).
 				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
+
 	time.Sleep(time.Minute)
 	virtualVIPs := createIPv4Entries("198.18.196.1/22")
 
@@ -133,15 +133,6 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) {
 	}
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
 		t.Fatalf("Could not program entries via clientA, got err: %v", err)
-	}
-
-	for i := 1; i <= 5; i++ {
-		entriesCount := checkNIHasNEntries(args.ctx, args.client, *deviations.DefaultNetworkInstance, t)
-		if entriesCount >= 1080 {
-			t.Logf("Found all route entries")
-			break
-		}
-		time.Sleep(25 * time.Second)
 	}
 
 	for ip := range virtualVIPs {
@@ -188,7 +179,10 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	for i := 0; i <= nextHopCount; i++ {
 		// Vlan ID should start from 1 as vlan types yang.
 		// Please check openconfig-vlan-types.yang
-		vlanID := uint16(i) + 1
+		vlanID := uint16(i)
+		if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+			vlanID = uint16(i) + 1
+		}
 		name := fmt.Sprintf(`dst%d`, i)
 		Index := uint32(i)
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
@@ -488,9 +482,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: &tpb.Path{
-			Elem: []*tpb.PathElem{{Name: secondaryBeforeSwitch}},
-		},
+		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 
@@ -524,6 +516,10 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
 	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.
 	// Check vars for WithInitialElectionID
+
+	t.Log("Added wait time to make sure things are stablized post switchover")
+	time.Sleep(3 * time.Minute)
+
 	t.Log("Reconnect gRIBi client after switchover on new master")
 	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(eID.Low, eID.High).
 		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
@@ -555,7 +551,6 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	// TODO: Check for coredumps in the DUT and validate that none are present post failover
 
 	t.Log("Re-inject routes from IPBlock1 in default VRF with NHGID: #1.")
-	time.Sleep(3 * time.Minute)
 	pushDefaultEntries(t, args, subIntfIPs)
 
 	t.Log("Send traffic and validate")
