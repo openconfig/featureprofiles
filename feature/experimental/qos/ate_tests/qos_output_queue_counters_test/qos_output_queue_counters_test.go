@@ -230,24 +230,30 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 
-	var q_BE1, q_BE0, q_AF1, q_AF2, q_AF3, q_AF4, q_NC1 string
-	switch dut.Vendor() {
-	case ondatra.JUNIPER:
-		q_BE1 = "0"
-		q_BE0 = "7"
-		q_AF1 = "4"
-		q_AF2 = "1"
-		q_AF3 = "5"
-		q_AF4 = "2"
-		q_NC1 = "3"
-	default:
-		q_BE1 = "BE1"
-		q_BE0 = "BE0"
-		q_AF1 = "AF1"
-		q_AF2 = "AF2"
-		q_AF3 = "AF3"
-		q_AF4 = "AF4"
-		q_NC1 = "NC1"
+	type qosVals struct {
+		be0, be1, af1, af2, af3, af4, nc1 string
+	}
+
+	qos := qosVals{
+		be0: "BE0",
+		be1: "BE1",
+		af1: "AF1",
+		af2: "AF2",
+		af3: "AF3",
+		af4: "AF4",
+		nc1: "NC1",
+	}
+
+	if dut.Vendor() == ondatra.JUNIPER {
+		qos = qosVals{
+			be0: "7",
+			be1: "0",
+			af1: "4",
+			af2: "1",
+			af3: "5",
+			af4: "2",
+			nc1: "3",
+		}
 	}
 
 	t.Logf("Create qos forwarding groups config")
@@ -257,31 +263,31 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   q_BE1,
+		queueName:   qos.be1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   q_BE0,
+		queueName:   qos.be0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   q_AF1,
+		queueName:   qos.af1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   q_AF2,
+		queueName:   qos.af2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   q_AF3,
+		queueName:   qos.af3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   q_AF4,
+		queueName:   qos.af4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   q_NC1,
+		queueName:   qos.nc1,
 		targetGroup: "target-group-NC1",
 	}}
 
