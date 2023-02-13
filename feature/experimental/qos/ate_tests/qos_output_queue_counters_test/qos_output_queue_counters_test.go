@@ -252,39 +252,39 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("Create qos forwarding groups config")
 	forwardingGroups := []struct {
-		desc         string
-		queueName    string
-		targetGroup  string
+		desc        string
+		queueName   string
+		targetGroup string
 	}{{
-		desc:         "forwarding-group-BE1",
-		queueName:    q_BE1,
-		targetGroup:  "target-group-BE1",
+		desc:        "forwarding-group-BE1",
+		queueName:   q_BE1,
+		targetGroup: "target-group-BE1",
 	}, {
-		desc:         "forwarding-group-BE0",
-		queueName:    q_BE0,
-		targetGroup:  "target-group-BE0",
+		desc:        "forwarding-group-BE0",
+		queueName:   q_BE0,
+		targetGroup: "target-group-BE0",
 	}, {
-		desc:         "forwarding-group-AF1",
-		queueName:    q_AF1,
-		targetGroup:  "target-group-AF1",
+		desc:        "forwarding-group-AF1",
+		queueName:   q_AF1,
+		targetGroup: "target-group-AF1",
 	}, {
-		desc:         "forwarding-group-AF2",
-		queueName:    q_AF2,
-		targetGroup:  "target-group-AF2",
+		desc:        "forwarding-group-AF2",
+		queueName:   q_AF2,
+		targetGroup: "target-group-AF2",
 	}, {
-		desc:         "forwarding-group-AF3",
-		queueName:    q_AF3,
-		targetGroup:  "target-group-AF3",
+		desc:        "forwarding-group-AF3",
+		queueName:   q_AF3,
+		targetGroup: "target-group-AF3",
 	}, {
-		desc:         "forwarding-group-AF4",
-		queueName:    q_AF4,
-		targetGroup:  "target-group-AF4",
+		desc:        "forwarding-group-AF4",
+		queueName:   q_AF4,
+		targetGroup: "target-group-AF4",
 	}, {
-		desc:         "forwarding-group-NC1",
-		queueName:    q_NC1,
-		targetGroup:  "target-group-NC1",
+		desc:        "forwarding-group-NC1",
+		queueName:   q_NC1,
+		targetGroup: "target-group-NC1",
 	}}
-  
+
 	t.Logf("qos forwarding groups config: %v", forwardingGroups)
 	for _, tc := range forwardingGroups {
 		fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
