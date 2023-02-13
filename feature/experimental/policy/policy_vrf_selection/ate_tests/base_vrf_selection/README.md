@@ -21,22 +21,20 @@ Test different VRF selection policies.
 *   Configure DUT and validate packet forwarding for:
 
         *   Matching of IPinIP protocol (protocol number 4 in the outer IP header) - to network-instance VRF-10 for all input IPinIP
-
+        
             *   All other traffic should be punted to the Default VRF. These will be, native IPv4, native IPv6 and IPv6inIP (protocol 41 in the outer IPv4 header) traffic
-        
+            
         *   Matching of IPinIP protocol (protocol number 4 in the outer IP header) with specific outer IPv4 source address "222.222.222.222" - to network-instance VRF-10
-
-            *    All other traffic should be punted to the Default VRF. These will be, IPinIP w/o source as "222.222.222.222", native IPv4, native IPv6 and IPv6inIP (protocol 41 in the outer IPv4 header) traffic.
-
-        *   Matching of IPv6inIP protocol (protocol number 41 in the outer IPv4 header) - to network-instance VRF-10 for all input IPv6inIP
-
-            *   All other traffic should be punted to the Default VRF. These will be, native IPv4, native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic.
         
+            *    All other traffic should be punted to the Default VRF. These will be, IPinIP w/o source as "222.222.222.222", native IPv4, native IPv6 and IPv6inIP (protocol 41 in the outer IPv4 header) traffic.
+            
+        *   Matching of IPv6inIP protocol (protocol number 41 in the outer IPv4 header) - to network-instance VRF-10 for all input IPv6inIP
+        
+            *   All other traffic should be punted to the Default VRF. These will be, native IPv4, native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic.
+            
         *   Matching of IPv6inIP protocol (protocol number 41 in the outer IP header) with specific outer IPv4 source address "222.222.222.222" - to network-instance VRF-10
-
-            *   All other traffic should be punted to the Default VRF. These will be, IPv6inIP w/o source as "222.222.222.222", native IPv4, native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic
-
-
+        
+            *   All other traffic should be punted to the Default VRF. These will be, IPv6inIP w/o source as "222.222.222.222", native IPv4, native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic.
 
 ## Flows
 
@@ -57,5 +55,3 @@ Test different VRF selection policies.
 *   Native IPv6
 
         *   Flow#1: Native IPv6 flow with any source address
-
-
