@@ -109,6 +109,7 @@ func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *att
 	if !*deviations.OmitL2MTU {
 		i.Mtu = ygot.Uint16(tc.mtu + 14)
 	}
+	i.Description = ygot.String(*i.Description)
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
@@ -207,6 +208,10 @@ func (tc *testCase) verifyInterfaceDUT(
 	// auto-negotiation, then trying to enable it should be ignored.
 	di.GetOrCreateEthernet().AutoNegotiate = wantdi.GetOrCreateEthernet().AutoNegotiate
 
+	// Mac address value is still not populated in di. Hence getting using gnmi get method
+	diMacAddress := gnmi.Get(t, tc.dut, dip.Ethernet().MacAddress().State())
+	di.GetOrCreateEthernet().MacAddress = &diMacAddress
+
 	confirm.State(t, wantdi, di)
 
 	// State for the interface.
@@ -222,8 +227,6 @@ func (tc *testCase) verifyInterfaceDUT(
 	if !*deviations.IPNeighborMissing {
 		// IPv4 neighbor discovered by ARP.
 		dis4np := disp.Ipv4().Neighbor(atea.IPv4)
-		neigbour := gnmi.Get(t, tc.dut, dis4np.State())
-		fmt.Printf("%v", neigbour)
 		if got := gnmi.Get(t, tc.dut, dis4np.Origin().State()); got != dynamic {
 			t.Errorf("%s IPv4 neighbor %s origin got %v, want %v", dp, atea.IPv4, got, dynamic)
 		}

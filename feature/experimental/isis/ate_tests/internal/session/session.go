@@ -106,17 +106,35 @@ func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
 func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
-	prot.Enabled = ygot.Bool(true)
+	if !*deviations.ISISprotocolEnabledNotRequired {
+		prot.Enabled = ygot.Bool(true)
+	}
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
-	glob.Instance = ygot.String(ISISName)
+	if !*deviations.ISISInstanceEnabledNotRequired {
+		glob.Instance = ygot.String(ISISName)
+	}
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	if *deviations.IsisAfMetricStyleWideLevelRequired {
+		level := isis.GetOrCreateLevel(2)
+		level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
+	}
 	intf := isis.GetOrCreateInterface(ifaceName)
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
-	intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+	// Configure ISIS level at global mode if true else at interface mode
+	if *deviations.ISISInterfaceLevel1DisableRequired {
+		intf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
+	} else {
+		intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+	}
+	// Configure ISIS enable flag at interface level
+	if *deviations.MissingIsisInterfaceAfiSafiEnable {
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	}
 }
 
 // addISISTopo configures basic IS-IS on an ATETopology interface.
@@ -127,7 +145,7 @@ func addISISTopo(iface *ondatra.Interface, areaAddress, sysID string) {
 		WithTERouterID(sysID).
 		WithNetworkTypePointToPoint().
 		WithWideMetricEnabled(true).
-		WithLevelL2()
+		WithLevelL2().WithMetric(10)
 }
 
 // TestSession is a convenience wrapper around the dut, ate, ports, and
@@ -272,6 +290,7 @@ func (s *TestSession) AwaitAdjacency() (string, error) {
 		}
 		return ygnmi.Continue
 	})
+
 	got, err := watcher.Await()
 	if err != nil {
 		return "", err
