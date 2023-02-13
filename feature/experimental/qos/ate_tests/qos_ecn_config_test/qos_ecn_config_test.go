@@ -60,10 +60,6 @@ const (
 	schedulerMap              = "smap"
 	sequeneId                 = 1
 	schedulerPriority         = 1
-	cirValue                  = 3200
-	cirPct                    = 10
-	pirValue                  = 3200
-	pirPct                    = 12
 	queueName                 = "0"
 	minThresholdPerecent      = 10
 	maxThresholdPercent       = 70
