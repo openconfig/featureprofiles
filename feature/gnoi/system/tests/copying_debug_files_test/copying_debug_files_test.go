@@ -33,6 +33,12 @@ var processName = map[ondatra.Vendor]string{
 	ondatra.JUNIPER: "rpd",
 	ondatra.NOKIA:   "bgp",
 }
+var component = map[ondatra.Vendor]string{
+	ondatra.ARISTA:  "Chassis",
+	ondatra.CISCO:   "Chassis",
+	ondatra.JUNIPER: "CHASSIS0",
+	ondatra.NOKIA:   "Chassis",
+}
 
 const (
 	ipv4PrefixLen = 30
@@ -61,13 +67,6 @@ var (
 		Name:    "atePort2",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
-	}
-
-	gRIBIDaemons = map[ondatra.Vendor]string{
-		ondatra.ARISTA:  "Gribi",
-		ondatra.CISCO:   "emsd",
-		ondatra.JUNIPER: "rpd",
-		ondatra.NOKIA:   "sr_gribi_server",
 	}
 )
 
@@ -177,7 +176,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 	// Wait for a bit for gRIBI daemon on the DUT to restart.
 	time.Sleep(60 * time.Second)
 
-	componentName := map[string]string{"name": "CHASSIS0"}
+	componentName := map[string]string{"name": component[dut.Vendor()]}
 	req := &hpb.GetRequest{
 		Path: &tpb.Path{
 			Elem: []*tpb.PathElem{
