@@ -424,6 +424,10 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
+		if *deviations.ExplicitInterfaceRefDefinition {
+			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp1.Name())
+			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		}
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 		c.SetType(tc.inputClassifierType)
 		c.SetName(tc.classifier)
