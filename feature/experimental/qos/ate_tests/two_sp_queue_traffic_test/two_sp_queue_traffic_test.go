@@ -1193,6 +1193,16 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 
+	t.Logf("qos forwarding groups config: %v", forwardingGroups)
+	for _, tc := range forwardingGroups {
+		fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
+		fwdGroup.SetName(tc.targetGrpoup)
+		fwdGroup.SetOutputQueue(tc.queueName)
+		queue := q.GetOrCreateQueue(tc.queueName)
+		queue.SetName(tc.queueName)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	}
+
 	t.Logf("Create qos Classifiers config")
 	classifiers := []struct {
 		desc         string
@@ -1395,16 +1405,6 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		queueName:    "NC1",
 		targetGrpoup: "target-group-NC1",
 	}}
-
-	t.Logf("qos forwarding groups config: %v", forwardingGroups)
-	for _, tc := range forwardingGroups {
-		fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
-		fwdGroup.SetName(tc.targetGrpoup)
-		fwdGroup.SetOutputQueue(tc.queueName)
-		queue := q.GetOrCreateQueue(tc.queueName)
-		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	}
 
 	t.Logf("Create qos scheduler policies config")
 	schedulerPolicies := []struct {
