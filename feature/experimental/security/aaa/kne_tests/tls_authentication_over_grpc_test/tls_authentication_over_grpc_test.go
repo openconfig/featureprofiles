@@ -134,7 +134,6 @@ func TestAuthentication(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			
 			t.Log("Configuring hostname using GNMI Set")
 			_, err = gnmi.Set(ctx, &gpb.SetRequest{
 				Replace: []*gpb.Update{{
@@ -154,7 +153,6 @@ func TestAuthentication(t *testing.T) {
 					t.Errorf("gnmi.Set unexpected error for user %q: %v", tc.user, err)
 				}
 			}
-
 			t.Log("Trying credentials with GNMI Get")
 			_, err = gnmi.Get(ctx, &gpb.GetRequest{
 				Path: []*gpb.Path{{
