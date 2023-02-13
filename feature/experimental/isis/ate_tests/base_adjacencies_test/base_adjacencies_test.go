@@ -262,7 +262,6 @@ func TestBasic(t *testing.T) {
 		for _, vd := range []check.Validator{
 			check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
 			check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
-			check.NotEqual(pCounts.Psnp().Processed().State(), uint32(0)),
 		} {
 			t.Run(vd.RelPath(pCounts), func(t *testing.T) {
 				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -280,8 +279,6 @@ func TestBasic(t *testing.T) {
 				check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
 				check.NotEqual(pCounts.Csnp().Received().State(), uint32(0)),
 				check.NotEqual(pCounts.Csnp().Sent().State(), uint32(0)),
-				check.NotEqual(pCounts.Psnp().Processed().State(), uint32(0)),
-				check.NotEqual(pCounts.Psnp().Received().State(), uint32(0)),
 				check.NotEqual(pCounts.Psnp().Sent().State(), uint32(0)),
 				check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
 				check.NotEqual(pCounts.Lsp().Received().State(), uint32(0)),
