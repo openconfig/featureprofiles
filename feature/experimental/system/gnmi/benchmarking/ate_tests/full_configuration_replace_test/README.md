@@ -7,9 +7,9 @@ Measure performance of full configuration replace.
 ## Procedure
 
 Configure DUT with:
- - Maximum number of interfaces to be supported.
- - Maximum number of BGP peers to be supported.
- - Maximum number of IS-IS adjacencies to be supported.
+ - The number of interfaces needed for the benchmarking test.
+ - One BGP peer per interface.
+ - One ISIS adjacency per interface.
 Measure time required for Set operation to complete. 
 Modify descriptions of a subset of interfaces within the system.
 Measure time for Set to complete.

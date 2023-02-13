@@ -119,6 +119,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance).GetOrCreateIsis()
 
 	globalISIS := isis.GetOrCreateGlobal()
+	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalISIS.AuthenticationCheck = ygot.Bool(true)
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", DUTAreaAddress, DUTSysID)}
 	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
@@ -129,11 +130,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	spfTimers.SpfHoldInterval = ygot.Uint64(5000)
 	spfTimers.SpfFirstInterval = ygot.Uint64(600)
 
-	isisLevel1 := isis.GetOrCreateLevel(1)
-	isisLevel1.Enabled = ygot.Bool(false)
-
 	isisLevel2 := isis.GetOrCreateLevel(2)
-	isisLevel2.Enabled = ygot.Bool(true)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 
 	isisLevel2Auth := isisLevel2.GetOrCreateAuthentication()
