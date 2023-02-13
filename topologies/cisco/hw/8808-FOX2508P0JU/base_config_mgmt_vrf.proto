@@ -94,6 +94,7 @@ replace: {
 "hw-module profile pbr vrf-redirect\n"
 "hw-module local-station-mac 00ca.caca.caca\n"
 "ssh server v2\n"
+"ssh server vrf mgmt\n"
 "ssh server netconf vrf default\n"
 "end\n"
  }

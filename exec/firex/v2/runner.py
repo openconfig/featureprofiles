@@ -3,6 +3,7 @@ from celery.utils.log import get_task_logger
 from microservices.workspace_tasks import Warn
 from firexapp.common import silent_mkdir
 from firexapp.firex_subprocess import check_output
+from firexapp.submit.arguments import whitelist_arguments
 from microservices.testbed_tasks import register_testbed_file_generator
 from microservices.runners.go_b4_tasks import copy_test_logs_dir, write_output_from_results_json
 from microservices.firex_base import returns, flame, InjectArgs, FireX
@@ -34,6 +35,13 @@ INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
 
 TESTBEDS_FILE = 'exec/testbeds.yaml'
 
+whitelist_arguments([
+    'test_html_report'
+])
+
+class GoTestSegFaultException(Exception):
+    pass
+
 def _get_go_env():
     gorootpath = os.path.join('/nobackup', getuser())
     return {
@@ -53,6 +61,9 @@ def _check_json_output(cmd):
 def _get_testbeds_file(internal_fp_repo_dir):
     return _resolve_path_if_needed(internal_fp_repo_dir, TESTBEDS_FILE)
 
+def _get_locks_dir(testbed_logs_dir):
+    return os.path.join(os.path.dirname(testbed_logs_dir), 'tblocks')
+
 def _get_testbed_by_id(internal_fp_repo_dir, testbed_id):
     with open(_get_testbeds_file(internal_fp_repo_dir), 'r') as fp:
         tf = yaml.safe_load(fp)
@@ -61,19 +72,19 @@ def _get_testbed_by_id(internal_fp_repo_dir, testbed_id):
                 return t
     raise Exception(f'Testbed ${testbed_id} not found')
 
-def _trylock_testbed(internal_fp_repo_dir, testbed_id):
+def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     try:
-        output = _check_json_output(f'{TBLOCK_BIN} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {testbed_id}')
+        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {testbed_id}')
         if output['status'] == 'ok':
             return output['testbed']
         return None
     except:
         return None
 
-def _release_testbed(internal_fp_repo_dir, testbed_id):
+def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     logger.print(f'Releasing testbed {testbed_id}')
     try:
-        output = _check_json_output(f'{TBLOCK_BIN} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {testbed_id}')
+        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {testbed_id}')
         if output['status'] != 'ok':
             logger.warn(f'Cannot release testbed {testbed_id}: {output["status"]}')
         return True
@@ -119,6 +130,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_name,
             topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
             check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file_copy}|g' {topo_file}")
             c |= self.orig.s(plat='8000', topo_file=topo_file)
+        else:
+            c |= ReserveTestbed.s()
     else:
         c |= ReserveTestbed.s()
 
@@ -128,7 +141,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_name,
     return internal_fp_repo_dir, reserved_testbed, self.enqueue_child_and_get_results(c)
 
 @app.task(base=FireX, bind=True)
-def CleanupTestbed(self, ws, internal_fp_repo_dir, reserved_testbed=None):
+def CleanupTestbed(self, ws, testbed_logs_dir, 
+        internal_fp_repo_dir, reserved_testbed=None):
     logger.print('Cleaning up...')
     if reserved_testbed.get('sim', False):
         self.enqueue_child(
@@ -136,8 +150,7 @@ def CleanupTestbed(self, ws, internal_fp_repo_dir, reserved_testbed=None):
             block=True
         )
     else:
-        _release_testbed(internal_fp_repo_dir, reserved_testbed['id'])
-    # shutil.rmtree(ws)
+        _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
 
 def max_testbed_requests():
     if 'B4_FIREX_TESTBEDS_COUNT' in os.environ:
@@ -163,6 +176,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         fp_post_tests=[],
                         internal_test=False,
                         test_debug=True,
+                        test_html_report=True,
                         testbed=None,
                         **kwargs):
 
@@ -211,14 +225,15 @@ def b4_chain_provider(ws, testsuite_id, cflow,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    chain |= GoReporting.s()
+    if test_html_report:
+        chain |= GoReporting.s()
 
     if cflow and testbed:
         chain |= CollectCoverageData.s(pyats_testbed=testbed)
     return chain
 
 # noinspection PyPep8Naming
-@app.task(bind=True, base=FireXRunnerBase)
+@app.task(bind=True, base=FireXRunnerBase, max_retries=2, autoretry_for=[GoTestSegFaultException])
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
@@ -270,6 +285,9 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
 
         if self.console_output_file and Path(self.console_output_file).is_file():
             shutil.copyfile(self.console_output_file, json_results_file)
+            with open(json_results_file, 'r') as f:
+                if 'segmentation fault (core dumped)' in f.read():
+                    raise GoTestSegFaultException
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
 
@@ -357,12 +375,12 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
 @app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
     soft_time_limit=12*60*60, time_limit=12*60*60)
-def ReserveTestbed(self, internal_fp_repo_dir, testbeds):
+def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     logger.print('Reserving testbed...')
     reserved_testbed = None
     while not reserved_testbed:
         for t in testbeds:
-            reserved_testbed = _trylock_testbed(internal_fp_repo_dir, t)
+            reserved_testbed = _trylock_testbed(internal_fp_repo_dir, t, testbed_logs_dir)
             if reserved_testbed: break
         time.sleep(1)
     logger.print(f'Reserved testbed {reserved_testbed["id"]}')
@@ -410,7 +428,9 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path,
 def GoTidy(self, repo):
     env = dict(os.environ)
     env.update(_get_go_env())
-    check_output(f'{GO_BIN} mod tidy', env=env, cwd=repo)
+    logger.print(
+        check_output(f'{GO_BIN} mod tidy', env=env, cwd=repo)
+    )
 
 # noinspection PyPep8Naming
 @app.task(bind=True)

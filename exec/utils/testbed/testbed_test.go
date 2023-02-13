@@ -29,6 +29,7 @@ func TestShowVersion(t *testing.T) {
 		"show platform",
 		"show install fixes active",
 		"show running-config",
+		"show context",
 	}
 
 	ctx := context.Background()
