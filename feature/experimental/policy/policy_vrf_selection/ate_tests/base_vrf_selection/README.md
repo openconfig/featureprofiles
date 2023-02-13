@@ -52,10 +52,10 @@ Test different VRF selection policies.
 
 *   Native IPv4
 
-        *   Flow#1: Native IPv4 flow as any source address
+        *   Flow#1: Native IPv4 flow with any source address
         
 *   Native IPv6
 
-        *   Flow#1: Native IPv4 flow as any source address
+        *   Flow#1: Native IPv6 flow with any source address
 
 
