@@ -116,25 +116,23 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
     c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
                 reserved_testbed=reserved_testbed, **self.abog)
 
-    if reserved_testbed:
-        if reserved_testbed.get('sim', False):
-            overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
-            reserved_testbed.update(overrides)
+    using_sim = reserved_testbed and reserved_testbed.get('sim', False) 
+    if using_sim:
+        overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
+        reserved_testbed.update(overrides)
 
-            baseconf_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
-            baseconf_file_copy = os.path.join(testbed_logs_dir, 'baseconf.conf')
-            shutil.copyfile(baseconf_file, baseconf_file_copy)
+        baseconf_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
+        baseconf_file_copy = os.path.join(testbed_logs_dir, 'baseconf.conf')
+        shutil.copyfile(baseconf_file, baseconf_file_copy)
 
-            topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
-            check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file_copy}|g' {topo_file}")
-            c |= self.orig.s(plat='8000', topo_file=topo_file)
-        else:
-            c |= ReserveTestbed.s()
+        topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
+        check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file_copy}|g' {topo_file}")
+        c |= self.orig.s(plat='8000', topo_file=topo_file)
     else:
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
-    if install_image:
+    if install_image and not using_sim:
         c |= SoftwareUpgrade.s(image_path=images[0])
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
