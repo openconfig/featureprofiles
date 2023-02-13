@@ -91,11 +91,12 @@ def _release_testbed(internal_fp_repo_dir, testbed_id):
 
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_dir', 'reserved_testbed', FireX.DYNAMIC_RETURN)
-def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_name,
+def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
-                        collect_tb_info=False):
+                        collect_tb_info=False,
+                        install_image=False):
 
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
@@ -133,6 +134,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_name,
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
+    if install_image:
+        c |= SoftwareUpgrade.s(image_path=images[0])
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
     return internal_fp_repo_dir, reserved_testbed, self.enqueue_child_and_get_results(c)
@@ -438,6 +441,18 @@ def ReleaseIxiaPorts(self, ws, ondatra_binding_path):
         )
     except:
         logger.warning(f'Failed to release ixia ports. Ignoring...')
+
+@app.task(bind=True)
+def SoftwareUpgrade(self, internal_fp_repo_dir, image_path,
+                    ondatra_binding_path, ondatra_testbed_path):
+    env = dict(os.environ)
+    env.update(_get_go_env())
+    logger.print(
+        check_output(
+            f'{GO_BIN} ./exec/utils/upgrade -binding {ondatra_binding_path} ' +
+                 f'-testbed {ondatra_testbed_path} -imagePath {image_path}', 
+            env=env, cwd=internal_fp_repo_dir)
+    )
 
 @app.task(bind=True)
 def GoReporting(self, internal_fp_repo_dir, test_log_directory_path):
