@@ -177,8 +177,6 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	nextHops := []string{}
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 0; i <= nextHopCount; i++ {
-		// Vlan ID should start from 1 as vlan types yang.
-		// Please check openconfig-vlan-types.yang
 		vlanID := uint16(i)
 		if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
 			vlanID = uint16(i) + 1
@@ -523,9 +521,9 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	t.Log("Reconnect gRIBi client after switchover on new master")
 	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(eID.Low, eID.High).
 		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
+
 	client.Start(ctx, t)
 	defer client.Stop(t)
-
 	defer func() {
 		// Flush all entries after test.
 		if err := gribi.FlushAll(client); err != nil {
@@ -537,7 +535,11 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	client.StartSending(ctx, t)
 
 	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
-		t.Fatalf("Await got error during session negotiation for clientA: %v", err)
+		t.Log("Try to connect gRIBi client again, retrying...")
+		client.StartSending(ctx, t)
+		if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
+			t.Fatalf("Await got error during session negotiation for client: %v", err)
+		}
 	}
 
 	t.Log("Compare route entries after switchover")
