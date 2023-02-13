@@ -101,8 +101,8 @@ var (
 		"test_repo_rev", "", "fp repo rev to use for test execution",
 	)
 
-	tbCountFlag = flag.Bool(
-		"testbed_count", false, "just output the number of testbeds",
+	showTestbedsFlag = flag.Bool(
+		"show_testbeds", false, "just output the testbeds used",
 	)
 
 	mustPassOnlyFlag = flag.Bool(
@@ -135,7 +135,7 @@ var (
 	outDir           string
 	testRepoRev      string
 	internalRepoRev  string
-	tbCount          bool
+	showTestbeds     bool
 	mustPassOnly     bool
 	ignorePatched    bool
 	randomize        bool
@@ -268,7 +268,7 @@ func init() {
 		testRepoRev = *testRepoRevFlag
 	}
 
-	tbCount = *tbCountFlag
+	showTestbeds = *showTestbedsFlag
 	mustPassOnly = *mustPassOnlyFlag
 	ignorePatched = *ignorePatchedFlag
 	randomize = *randomizeFlag
@@ -611,10 +611,15 @@ func main() {
 		}
 	}
 
-	if !tbCount && len(outDir) == 0 {
+	if !showTestbeds && len(outDir) == 0 {
 		fmt.Printf("%v", testSuiteCode.String())
-	} else if tbCount {
-		fmt.Println(len(tbFound))
+	} else if showTestbeds {
+		output := ""
+		for k := range tbFound {
+			output += k + ","
+		}
+		output = strings.Trim(output, ",")
+		fmt.Println(output)
 	}
 }
 
