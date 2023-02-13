@@ -22,7 +22,7 @@ type GoTest struct {
 	ID              string
 	Name            string
 	ShortName       string
-	Owner           string
+	Owners          []string
 	Priority        int
 	Path            string
 	Branch          string
@@ -45,7 +45,7 @@ type GoTest struct {
 // FirexTest represents a single firex test suite
 type FirexTest struct {
 	Name      string
-	Owner     string
+	Owners    []string
 	Branch    string
 	Revision  string
 	PrNum     int `yaml:"pr"`
@@ -101,8 +101,8 @@ var (
 		"test_repo_rev", "", "fp repo rev to use for test execution",
 	)
 
-	tbCountFlag = flag.Bool(
-		"testbed_count", false, "just output the number of testbeds",
+	showTestbedsFlag = flag.Bool(
+		"show_testbeds", false, "just output the testbeds used",
 	)
 
 	mustPassOnlyFlag = flag.Bool(
@@ -135,7 +135,7 @@ var (
 	outDir           string
 	testRepoRev      string
 	internalRepoRev  string
-	tbCount          bool
+	showTestbeds     bool
 	mustPassOnly     bool
 	ignorePatched    bool
 	randomize        bool
@@ -149,8 +149,11 @@ var (
 	}).Parse(`
 {{ if $.UseShortTestNames}}{{ $.Test.ShortName }}{{ else }}{{ $.Test.Name }}{{ end }}:
     framework: b4
+    restrict_known_break_to_owners: true
     owners:
-        - {{ $.Test.Owner }}
+    {{- range $k, $ow := $.Test.Owners }}
+        - {{ $ow }}
+    {{- end }}
     {{- if gt (len $.Plugins) 0 }}
     plugins:
     {{- range $k, $pl := $.Plugins }}
@@ -265,7 +268,7 @@ func init() {
 		testRepoRev = *testRepoRevFlag
 	}
 
-	tbCount = *tbCountFlag
+	showTestbeds = *showTestbedsFlag
 	mustPassOnly = *mustPassOnlyFlag
 	ignorePatched = *ignorePatchedFlag
 	randomize = *randomizeFlag
@@ -412,16 +415,24 @@ func main() {
 		}
 
 		for j := range suite[i].Tests {
+			owners := make(map[string]bool)
+			for _, ow := range suite[i].Owners {
+				owners[ow] = true
+			}
+			for _, ow := range suite[i].Tests[j].Owners {
+				owners[ow] = true
+			}
+			suite[i].Tests[j].Owners = []string{}
+			for ow := range owners {
+				suite[i].Tests[j].Owners = append(suite[i].Tests[j].Owners, ow)
+			}
+
 			if suite[i].Tests[j].Priority == 0 {
 				suite[i].Tests[j].Priority = 100000000
 			}
 
 			if suite[i].Timeout > 0 && suite[i].Tests[j].Timeout == 0 {
 				suite[i].Tests[j].Timeout = suite[i].Timeout
-			}
-
-			if len(suite[i].Owner) > 0 && len(suite[i].Tests[j].Owner) == 0 {
-				suite[i].Tests[j].Owner = suite[i].Owner
 			}
 
 			if suite[i].Internal {
@@ -600,10 +611,15 @@ func main() {
 		}
 	}
 
-	if !tbCount && len(outDir) == 0 {
+	if !showTestbeds && len(outDir) == 0 {
 		fmt.Printf("%v", testSuiteCode.String())
-	} else if tbCount {
-		fmt.Println(len(tbFound))
+	} else if showTestbeds {
+		output := ""
+		for k := range tbFound {
+			output += k + ","
+		}
+		output = strings.Trim(output, ",")
+		fmt.Println(output)
 	}
 }
 

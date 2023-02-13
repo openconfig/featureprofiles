@@ -61,6 +61,9 @@ def _check_json_output(cmd):
 def _get_testbeds_file(internal_fp_repo_dir):
     return _resolve_path_if_needed(internal_fp_repo_dir, TESTBEDS_FILE)
 
+def _get_locks_dir(testbed_logs_dir):
+    return os.path.join(os.path.dirname(testbed_logs_dir), 'tblocks')
+
 def _get_testbed_by_id(internal_fp_repo_dir, testbed_id):
     with open(_get_testbeds_file(internal_fp_repo_dir), 'r') as fp:
         tf = yaml.safe_load(fp)
@@ -69,19 +72,19 @@ def _get_testbed_by_id(internal_fp_repo_dir, testbed_id):
                 return t
     raise Exception(f'Testbed ${testbed_id} not found')
 
-def _trylock_testbed(internal_fp_repo_dir, testbed_id):
+def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     try:
-        output = _check_json_output(f'{TBLOCK_BIN} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {testbed_id}')
+        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {testbed_id}')
         if output['status'] == 'ok':
             return output['testbed']
         return None
     except:
         return None
 
-def _release_testbed(internal_fp_repo_dir, testbed_id):
+def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     logger.print(f'Releasing testbed {testbed_id}')
     try:
-        output = _check_json_output(f'{TBLOCK_BIN} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {testbed_id}')
+        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {testbed_id}')
         if output['status'] != 'ok':
             logger.warn(f'Cannot release testbed {testbed_id}: {output["status"]}')
         return True
@@ -139,7 +142,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
     return internal_fp_repo_dir, reserved_testbed, self.enqueue_child_and_get_results(c)
 
 @app.task(base=FireX, bind=True)
-def CleanupTestbed(self, ws, internal_fp_repo_dir, reserved_testbed=None):
+def CleanupTestbed(self, ws, testbed_logs_dir, 
+        internal_fp_repo_dir, reserved_testbed=None):
     logger.print('Cleaning up...')
     if reserved_testbed.get('sim', False):
         self.enqueue_child(
@@ -147,7 +151,7 @@ def CleanupTestbed(self, ws, internal_fp_repo_dir, reserved_testbed=None):
             block=True
         )
     else:
-        _release_testbed(internal_fp_repo_dir, reserved_testbed['id'])
+        _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
 
 def max_testbed_requests():
     if 'B4_FIREX_TESTBEDS_COUNT' in os.environ:
@@ -372,12 +376,12 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
 @app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
     soft_time_limit=12*60*60, time_limit=12*60*60)
-def ReserveTestbed(self, internal_fp_repo_dir, testbeds):
+def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     logger.print('Reserving testbed...')
     reserved_testbed = None
     while not reserved_testbed:
         for t in testbeds:
-            reserved_testbed = _trylock_testbed(internal_fp_repo_dir, t)
+            reserved_testbed = _trylock_testbed(internal_fp_repo_dir, t, testbed_logs_dir)
             if reserved_testbed: break
         time.sleep(1)
     logger.print(f'Reserved testbed {reserved_testbed["id"]}')
