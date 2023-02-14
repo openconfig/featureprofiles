@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -49,7 +50,7 @@ func TestMain(m *testing.M) {
 const (
 	trafficDuration        = 1 * time.Minute
 	grTimer                = 2 * time.Minute
-	grRestartTime          = 60
+	grRestartTime          = 75
 	grStaleRouteTime       = 300.0
 	ipv4SrcTraffic         = "192.0.2.2"
 	ipv6SrcTraffic         = "2001:db8::192:0:2:2"
@@ -67,7 +68,6 @@ const (
 	plenIPv4               = 30
 	plenIPv6               = 126
 	tolerance              = 50
-	lossTolerance          = 2
 	rplType                = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	rplName                = "ALLOW"
 	peerGrpName            = "BGP-PEER-GROUP"
@@ -155,7 +155,7 @@ type config struct {
 }
 
 // configureATE configures the interfaces and BGP on the ATE, with port2 advertising routes.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice, numRoutes uint32) *config {
 	port1 := ate.Port(t, "port1")
 	topo := ate.Topology().New()
 	iDut1 := topo.AddInterface(ateSrc.Name).WithPort(port1)
@@ -198,7 +198,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.WithSrcAddress(ipv4SrcTraffic).DstAddressRange().
 		WithMin(ipv4DstTrafficStart).WithMax(ipv4DstTrafficEnd).
-		WithCount(prefixLimit)
+		WithCount(numRoutes)
 	flowIPV4 := ate.Traffic().NewFlow("Ipv4").
 		WithSrcEndpoints(iDut1).
 		WithDstEndpoints(iDut2).
@@ -209,7 +209,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
 	ipv6Header := ondatra.NewIPv6Header()
 	ipv6Header.WithECN(0).WithSrcAddress(ipv6SrcTraffic).
 		DstAddressRange().WithMin(ipv6DstTrafficStart).WithMax(ipv6DstTrafficEnd).
-		WithCount(prefixLimit)
+		WithCount(numRoutes)
 	flowIPV6 := ate.Traffic().NewFlow("Ipv6").
 		WithSrcEndpoints(iDut1).
 		WithDstEndpoints(iDut2).
@@ -400,7 +400,7 @@ func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, all
 	captureTrafficStats(t, ate)
 	for _, flow := range allFlows {
 		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State())
-		if lossPct > lossTolerance {
+		if lossPct > float32(*args.BGPTrafficTolerance) {
 			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want 0", flow.Name(), lossPct)
 		} else {
 			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
@@ -412,7 +412,7 @@ func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFl
 	captureTrafficStats(t, ate)
 	for _, flow := range allFlows {
 		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State())
-		if lossPct > (100-lossTolerance) && lossPct <= 100 {
+		if lossPct == (100-float32(*args.BGPTrafficTolerance)) && lossPct <= 100 {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
 			t.Errorf("Traffic %s is expected to fail: got %v, want 100%% failure", flow.Name(), lossPct)
@@ -540,12 +540,12 @@ func TestTrafficBGPPrefixLimit(t *testing.T) {
 	t.Log("Start DUT interface Config")
 	configureDUT(t, dut)
 
-	// ATE Configuration.
-	t.Log("Start ATE Config")
-	conf := configureATE(t, ate)
-
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			// ATE Configuration.
+			t.Log("Start ATE Config")
+			conf := configureATE(t, ate, tc.numRoutes)
+			time.Sleep(1 * time.Minute)
 			tc.run(t, conf, dut, ate)
 		})
 	}
