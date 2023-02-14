@@ -147,7 +147,7 @@ var (
 	firexSuiteTemplate = template.Must(template.New("firexTestSuite").Funcs(template.FuncMap{
 		"join": strings.Join,
 	}).Parse(`
-{{ if $.UseShortTestNames}}{{ $.Test.ShortName }}{{ else }}{{ $.Test.Name }}{{ end }}:
+{{ if $.UseShortTestNames}}{{ $.Test.ShortName }}{{ else }}({{ $.Test.ID }}) {{ $.Test.Name }}{{ end }}:
     framework: b4
     restrict_known_break_to_owners: true
     owners:
