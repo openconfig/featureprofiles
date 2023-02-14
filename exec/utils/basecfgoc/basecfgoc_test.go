@@ -16,41 +16,38 @@
 package mixed_oc_cli_origin_support_test
 
 import (
-	"strings"
 	"fmt"
+	"strings"
 	"testing"
 
 	//"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/gnmi/proto/gnmi"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	"google.golang.org/protobuf/encoding/prototext"
 	"github.com/openconfig/ondatra"
 	ognmi "github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-
 func TestGenConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	ocRoot := & oc.Root{}
-	for _,p := range dut.Ports() {
-		intf:=ocRoot.GetOrCreateInterface(p.Name())
-		intf.Type= oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ocRoot := &oc.Root{}
+	for _, p := range dut.Ports() {
+		intf := ocRoot.GetOrCreateInterface(p.Name())
+		intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		intf.GetOrCreateSubinterface(0)
 	}
-	
-	fmt.Printf("%s",prettySetRequest(t,ognmi.OC(),ocRoot))
+
+	fmt.Printf("%s", prettySetRequest(t, ognmi.OC(), ocRoot))
 
 }
-
-
 
 // prettySetRequest returns a string version of a gNMI SetRequest for human
 // consumption and ignores errors. Note that the output is subject to change.

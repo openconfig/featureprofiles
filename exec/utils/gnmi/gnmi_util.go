@@ -1,3 +1,4 @@
+// Package main implements a utility to load and unload config using oc from a router
 package main
 
 import (
@@ -23,7 +24,7 @@ import (
 )
 
 var (
-	addr       = flag.String("addr", "10.85.84.159:47402", "address of the gRIBI server in the format hostname:port")
+	addr = flag.String("addr", "10.85.84.159:47402", "address of the gRIBI server in the format hostname:port")
 	//addr       = flag.String("addr", "10.85.84.159:57900", "address of the gRIBI server in the format hostname:port")
 	insecure   = flag.Bool("insecure", false, "dial insecure gRPC (no TLS)")
 	skipVerify = flag.Bool("skip_verify", true, "allow self-signed TLS certificate; not needed for -insecure")
@@ -117,7 +118,7 @@ func resetLeaf(s map[string]interface{}, leafName string) {
 }
 
 // load oc from a file
-func loadJsonOC(path string) *oc.Root {
+func loadJSONOC(path string) *oc.Root {
 	var ocRoot oc.Root
 	jsonConfig, err := os.ReadFile(path)
 	if err != nil {
@@ -194,7 +195,7 @@ func main() {
 	}
 
 	// gnmi push  from json file
-	ocRoot = loadJsonOC("device_interfaces.json")
+	ocRoot = loadJSONOC("device_interfaces.json")
 	// push gnmi replaces one by one
 	for _, intf := range ocRoot.Interface {
 		_, err = ygnmi.Replace(context.Background(), ygnmiCli, gnmi.OC().Interface(intf.GetName()).Config(), intf)
