@@ -2470,6 +2470,7 @@ func testFaultInjectNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", false)
 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", false)
 	fimBase(ctx, t, args, "nhgconfig", "", "", true, false)
+	time.Sleep(60 * time.Second)
 
 }
 func testFaultInjectAddIPv4(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2478,6 +2479,7 @@ func testFaultInjectAddIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", true)
 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", false)
 	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "", false, true)
+	time.Sleep(60 * time.Second)
 
 }
 func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2486,6 +2488,7 @@ func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs
 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", true)
 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", false)
 	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "ipv4del", false, true)
+	time.Sleep(60 * time.Second)
 
 }
 
@@ -2549,6 +2552,7 @@ func testFaultInjectTimingAddNHG(ctx context.Context, t *testing.T, args *testAr
 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", false)
 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", false)
 	nhBulkConfig(ctx, t, args)
+	time.Sleep(60 * time.Second)
 
 }
 func testFaultInjectTimingAddIpv4(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2556,6 +2560,7 @@ func testFaultInjectTimingAddIpv4(ctx context.Context, t *testing.T, args *testA
 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", true)
 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", false)
 	nhBulkConfig(ctx, t, args)
+	time.Sleep(60 * time.Second)
 
 }
 

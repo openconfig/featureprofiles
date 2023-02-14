@@ -1,29 +1,29 @@
-update:  {
-  path:  {
-    origin:  "openconfig"
-  }
-  val:  {
-    json_ietf_val:  "{\n  \"openconfig-interfaces:interfaces\": {\n    \"interface\": [\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/1/0\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/1/0\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/1/1\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/1/1\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/1/2\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/1/2\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/1/3\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/1/3\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/2/0\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/2/0\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/2/1\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/2/1\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/2/2\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/2/2\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/2/3\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/2/3\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      }\n    ]\n  }\n}"
-  }
-}
-update: {
- path:  {
- origin:  "openconfig"
- elem:  {
-  name:  "network-instances"
-   }
-  elem:  {
-    name:  "network-instance"
-       key:  {
-       key:  "name"
-       value:  "DEFAULT"
-       }
-    }
-   }
-   val:  {
-    json_ietf_val:  "{\n  \"openconfig-network-instance:config\": {\n    \"name\": \"DEFAULT\",\n    \"type\": \"openconfig-network-instance-types:DEFAULT_INSTANCE\"\n  },\n  \"openconfig-network-instance:name\": \"DEFAULT\"\n}"
-  }
-}
+#update:  {
+#  path:  {
+#    origin:  "openconfig"
+#  }
+#  val:  {
+#    json_ietf_val:  "{\n  \"openconfig-interfaces:interfaces\": {\n    \"interface\": [\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/1/0\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/1/0\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/1/1\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/1/1\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/1/2\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/1/2\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/1/3\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/1/3\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/2/0\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/2/0\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/2/1\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/2/1\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/2/2\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/2/2\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      },\n      {\n        \"config\": {\n          \"name\": \"TenGigE0/0/0/2/3\",\n          \"type\": \"iana-if-type:ethernetCsmacd\"\n        },\n        \"name\": \"TenGigE0/0/0/2/3\",\n        \"subinterfaces\": {\n          \"subinterface\": [\n            {\n              \"config\": {\n                \"index\": 0\n              },\n              \"index\": 0\n            }\n          ]\n        }\n      }\n    ]\n  }\n}"
+#  }
+#}
+#update: {
+# path:  {
+# origin:  "openconfig"
+# elem:  {
+#  name:  "network-instances"
+#   }
+#  elem:  {
+#    name:  "network-instance"
+#       key:  {
+#       key:  "name"
+#       value:  "DEFAULT"
+#       }
+#    }
+#   }
+#   val:  {
+#    json_ietf_val:  "{\n  \"openconfig-network-instance:config\": {\n    \"name\": \"DEFAULT\",\n    \"type\": \"openconfig-network-instance-types:DEFAULT_INSTANCE\"\n  },\n  \"openconfig-network-instance:name\": \"DEFAULT\"\n}"
+#  }
+#}
 replace: {
   path: {
     origin: "cli"

@@ -341,13 +341,16 @@ func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *oc.Interface_Su
 // returnValue specifies perticluar error to simulate eg : 3482356236 indicates Route programming failure
 // to activate fault point use true and to deactivate use false
 func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []string, componentName string, faultPointNumber string, returnValue string, activate bool) {
+	cliHandle := dut.RawAPIs().CLI(t)
+	defer cliHandle.Close()
 	for _, lineCard := range lcNumber {
 		var fimActivate string
 		var fimDeactivate string
 		if activate {
 			fimActivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -a %s:%s", lineCard, componentName, faultPointNumber, returnValue)
 			t.Logf("The fim activate string %v", fimActivate)
-			fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fimActivate)
+			fimRes, err := cliHandle.SendCommand(context.Background(), fimActivate)
+			time.Sleep(60 * time.Second)
 			if strings.Contains(fimRes, fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
 				t.Logf("Successfull Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
 			} else {
@@ -360,7 +363,8 @@ func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []st
 		} else {
 			fimDeactivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -r %s:%s", lineCard, componentName, faultPointNumber, returnValue)
 			t.Logf("The fim deactivate string %v", fimDeactivate)
-			fimRes, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fimDeactivate)
+			fimRes, err := cliHandle.SendCommand(context.Background(), fimDeactivate)
+			time.Sleep(60 * time.Second)
 			if strings.Contains(fimRes, fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
 				t.Logf("Successfull Disabled Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
 			} else {
