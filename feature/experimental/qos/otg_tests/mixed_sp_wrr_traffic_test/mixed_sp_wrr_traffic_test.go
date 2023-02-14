@@ -29,30 +29,30 @@ import (
 )
 
 var (
-	ate1 = attrs.Attributes{
+	intf1 = attrs.Attributes{
 		Name:    "ate1",
 		MAC:     "02:00:01:01:01:01",
 		IPv4:    "198.51.100.1",
 		IPv4Len: 31,
 	}
 
-	ate2 = attrs.Attributes{
+	intf2 = attrs.Attributes{
 		Name:    "ate2",
 		MAC:     "02:00:01:01:01:02",
 		IPv4:    "198.51.100.3",
 		IPv4Len: 31,
 	}
 
-	ate3 = attrs.Attributes{
+	intf3 = attrs.Attributes{
 		Name:    "ate3",
 		MAC:     "02:00:01:01:01:03",
 		IPv4:    "198.51.100.5",
 		IPv4Len: 31,
 	}
 
-	ate1Gateway = "198.51.100.0"
-	ate2Gateway = "198.51.100.2"
-	ate3Gateway = "198.51.100.4"
+	intf1Gateway = "198.51.100.0"
+	intf2Gateway = "198.51.100.2"
+	intf3Gateway = "198.51.100.4"
 )
 
 type trafficData struct {
@@ -61,7 +61,7 @@ type trafficData struct {
 	frameSize             uint32
 	dscp                  uint8
 	queue                 string
-	ateAttrs              attrs.Attributes
+	inputIntf             attrs.Attributes
 }
 
 func TestMain(m *testing.M) {
@@ -114,20 +114,20 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 	top.Ports().Add().SetName(ap2.ID())
 	top.Ports().Add().SetName(ap3.ID())
 
-	dev1 := top.Devices().Add().SetName(ate1.Name)
+	dev1 := top.Devices().Add().SetName(intf1.Name)
 	eth1 := dev1.Ethernets().Add().SetName(dev1.Name() + ".eth")
-	eth1.SetPortName(ap1.ID()).SetMac(ate1.MAC)
-	eth1.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress(ate1.IPv4).SetGateway(ate1Gateway).SetPrefix(int32(ate1.IPv4Len))
+	eth1.SetPortName(ap1.ID()).SetMac(intf1.MAC)
+	eth1.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress(intf1.IPv4).SetGateway(intf1Gateway).SetPrefix(int32(intf1.IPv4Len))
 
-	dev2 := top.Devices().Add().SetName(ate2.Name)
+	dev2 := top.Devices().Add().SetName(intf2.Name)
 	eth2 := dev2.Ethernets().Add().SetName(dev2.Name() + ".eth")
-	eth2.SetPortName(ap2.ID()).SetMac(ate2.MAC)
-	eth2.Ipv4Addresses().Add().SetName(dev2.Name() + ".ipv4").SetAddress(ate2.IPv4).SetGateway(ate2Gateway).SetPrefix(int32(ate2.IPv4Len))
+	eth2.SetPortName(ap2.ID()).SetMac(intf2.MAC)
+	eth2.Ipv4Addresses().Add().SetName(dev2.Name() + ".ipv4").SetAddress(intf2.IPv4).SetGateway(intf2Gateway).SetPrefix(int32(intf2.IPv4Len))
 
-	dev3 := top.Devices().Add().SetName(ate3.Name)
+	dev3 := top.Devices().Add().SetName(intf3.Name)
 	eth3 := dev3.Ethernets().Add().SetName(dev3.Name() + ".eth")
-	eth3.SetPortName(ap3.ID()).SetMac(ate3.MAC)
-	eth3.Ipv4Addresses().Add().SetName(dev3.Name() + ".ipv4").SetAddress(ate3.IPv4).SetGateway(ate3Gateway).SetPrefix(int32(ate3.IPv4Len))
+	eth3.SetPortName(ap3.ID()).SetMac(intf3.MAC)
+	eth3.Ipv4Addresses().Add().SetName(dev3.Name() + ".ipv4").SetAddress(intf3.IPv4).SetGateway(intf3Gateway).SetPrefix(int32(intf3.IPv4Len))
 
 	var tolerance float32 = 2.0
 
@@ -179,7 +179,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
 			queue:                 queueMap[dut.Vendor()]["NC1"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-af4": {
 			frameSize:             1000,
@@ -187,7 +187,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
 			queue:                 queueMap[dut.Vendor()]["AF4"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-af3": {
 			frameSize:             1000,
@@ -195,7 +195,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  24,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-af2": {
 			frameSize:             1000,
@@ -203,7 +203,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-af1": {
 			frameSize:             1000,
@@ -211,7 +211,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  8,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-be1": {
 			frameSize:             1000,
@@ -219,7 +219,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  4,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-be0": {
 			frameSize:             1000,
@@ -227,7 +227,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			dscp:                  0,
 			expectedThroughputPct: 100.0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
 			frameSize:             1000,
@@ -235,7 +235,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
 			queue:                 queueMap[dut.Vendor()]["NC1"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-af4": {
 			frameSize:             1000,
@@ -243,7 +243,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
 			queue:                 queueMap[dut.Vendor()]["AF4"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-af3": {
 			frameSize:             1000,
@@ -251,7 +251,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  24,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-af2": {
 			frameSize:             1000,
@@ -259,7 +259,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-af1": {
 			frameSize:             1000,
@@ -267,7 +267,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  8,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-be1": {
 			frameSize:             1000,
@@ -275,7 +275,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			dscp:                  4,
 			expectedThroughputPct: 100.0,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-be0": {
 			frameSize:             1000,
@@ -283,7 +283,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 	}
 
@@ -297,7 +297,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
 			queue:                 queueMap[dut.Vendor()]["NC1"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-af4": {
 			frameSize:             1000,
@@ -305,7 +305,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
 			queue:                 queueMap[dut.Vendor()]["AF4"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-af3": {
 			frameSize:             1000,
@@ -313,7 +313,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 0.0,
 			dscp:                  24,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-af2": {
 			frameSize:             1000,
@@ -321,7 +321,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 0.0,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-af1": {
 			frameSize:             1000,
@@ -329,7 +329,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 0.0,
 			dscp:                  8,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-be1": {
 			frameSize:             1000,
@@ -337,15 +337,15 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 0.0,
 			dscp:                  4,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-be0": {
 			frameSize:             1000,
 			trafficRate:           1,
-			dscp:                  4,
+			dscp:                  0,
 			expectedThroughputPct: 0.0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
 			frameSize:             1000,
@@ -353,7 +353,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
 			queue:                 queueMap[dut.Vendor()]["NC1"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-af4": {
 			frameSize:             1000,
@@ -361,7 +361,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
 			queue:                 queueMap[dut.Vendor()]["AF4"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-af3": {
 			frameSize:             1000,
@@ -369,7 +369,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 0.0,
 			dscp:                  24,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-af2": {
 			frameSize:             1000,
@@ -377,7 +377,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 0.0,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-af1": {
 			frameSize:             1000,
@@ -385,7 +385,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 0.0,
 			dscp:                  8,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-be1": {
 			frameSize:             1000,
@@ -393,7 +393,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			dscp:                  4,
 			expectedThroughputPct: 0.0,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-be0": {
 			frameSize:             1000,
@@ -401,7 +401,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 0.0,
 			dscp:                  0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 	}
 
@@ -415,7 +415,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
 			queue:                 queueMap[dut.Vendor()]["NC1"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-af4": {
 			frameSize:             1000,
@@ -423,7 +423,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
 			queue:                 queueMap[dut.Vendor()]["AF4"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-af3": {
 			frameSize:             1000,
@@ -431,7 +431,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 50.0,
 			dscp:                  24,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-af2": {
 			frameSize:             1000,
@@ -439,14 +439,14 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 50.0,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-af1": {
 			frameSize:             1000,
 			trafficRate:           12,
 			expectedThroughputPct: 50.0,
 			dscp:                  8, queue: queueMap[dut.Vendor()]["AF1"],
-			ateAttrs: ate1,
+			inputIntf: intf1,
 		},
 		"intf1-be1": {
 			frameSize:             1000,
@@ -454,7 +454,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 50.0,
 			dscp:                  4,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf1-be0": {
 			frameSize:             1000,
@@ -462,7 +462,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			dscp:                  0,
 			expectedThroughputPct: 50.0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
-			ateAttrs:              ate1,
+			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
 			frameSize:             1000,
@@ -470,7 +470,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
 			queue:                 queueMap[dut.Vendor()]["NC1"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-af4": {
 			frameSize:             1000,
@@ -478,7 +478,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
 			queue:                 queueMap[dut.Vendor()]["AF4"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-af3": {
 			frameSize:             1000,
@@ -486,7 +486,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 50.0,
 			dscp:                  24,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-af2": {
 			frameSize:             1000,
@@ -494,7 +494,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 50.0,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-af1": {
 			frameSize:             1000,
@@ -502,7 +502,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 50.0,
 			dscp:                  8,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-be1": {
 			frameSize:             1000,
@@ -510,7 +510,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			dscp:                  4,
 			expectedThroughputPct: 50.0,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 		"intf2-be0": {
 			frameSize:             1000,
@@ -518,7 +518,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 			expectedThroughputPct: 50.0,
 			dscp:                  0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
-			ateAttrs:              ate2,
+			inputIntf:             intf2,
 		},
 	}
 
@@ -545,13 +545,13 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 				t.Logf("Configuring flow %s", trafficID)
 				flow := top.Flows().Add().SetName(trafficID)
 				flow.Metrics().SetEnable(true)
-				flow.TxRx().Device().SetTxNames([]string{data.ateAttrs.Name + ".ipv4"}).SetRxNames([]string{dev3.Name() + ".ipv4"})
+				flow.TxRx().Device().SetTxNames([]string{data.inputIntf.Name + ".ipv4"}).SetRxNames([]string{dev3.Name() + ".ipv4"})
 				ethHeader := flow.Packet().Add().Ethernet()
-				ethHeader.Src().SetValue(data.ateAttrs.MAC)
+				ethHeader.Src().SetValue(data.inputIntf.MAC)
 
 				ipHeader := flow.Packet().Add().Ipv4()
-				ipHeader.Src().SetValue(data.ateAttrs.IPv4)
-				ipHeader.Dst().SetValue(ate3.IPv4)
+				ipHeader.Src().SetValue(data.inputIntf.IPv4)
+				ipHeader.Dst().SetValue(intf3.IPv4)
 				ipHeader.Priority().Dscp().Phb().SetValue(int32(data.dscp))
 
 				flow.Size().SetFixed(int32(data.frameSize))
