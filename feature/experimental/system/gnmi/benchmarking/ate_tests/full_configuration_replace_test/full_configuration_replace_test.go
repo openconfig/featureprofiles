@@ -33,12 +33,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// Topology:
-// 	dut:port(1..N)
-//
-// Note:
-// The test uses the DUT ports defined in the binding file to generate appropriate configuration for benchmarking the gNMI operations.
-
 // sortPorts sorts the ports by the testbed port ID.
 func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	sort.SliceStable(ports, func(i, j int) bool {
@@ -65,9 +59,6 @@ func modifyIntfDescription(dut *ondatra.DUTDevice) *oc.Root {
 // TestGnmiFullConfigReplace measures performance of gNMI configuration replace.
 func TestGnmiFullConfigReplace(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
-	// Build list of ip addresses to configure DUT ports.
-	setup.BuildIPList(dut)
 
 	t.Log("Configure network instance on DUT")
 	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
