@@ -24,6 +24,7 @@ import (
 
 var (
 	addr       = flag.String("addr", "10.85.84.159:47402", "address of the gRIBI server in the format hostname:port")
+	//addr       = flag.String("addr", "10.85.84.159:57900", "address of the gRIBI server in the format hostname:port")
 	insecure   = flag.Bool("insecure", false, "dial insecure gRPC (no TLS)")
 	skipVerify = flag.Bool("skip_verify", true, "allow self-signed TLS certificate; not needed for -insecure")
 	username   = flag.String("username", "cafyauto", "username to be sent as gRPC metadata")

@@ -3,6 +3,22 @@
 		"interface": [
 			{
 				"config": {
+					"enabled": true,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "Bundle-Ether1",
+					"type": "iana-if-type:ieee8023adLag"
+				},
+				"name": "Bundle-Ether1",
+				"openconfig-if-aggregate:aggregation": {
+					"config": {
+						"lag-type": "STATIC",
+						"min-links": 1
+					}
+				}
+			},
+			{
+				"config": {
 					"description": "test interface",
 					"enabled": true,
 					"loopback-mode": false,
