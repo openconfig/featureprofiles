@@ -57,16 +57,24 @@ Test different VRF selection policies.
 *   IPinIP
 
         *   Flow#1: IPinIP with outer source as not "222.222.222.222" and outer destination as the directly connected 
-            ATE IPv4 address in the VRF that the flow is expected to land.
+            ATE IPv4 address in the VRF that the flow is expected to land. For Test-Case1, this will be ATE address 
+            connected to VRF-10. For all other test cases this will be the ATE IP address connected to the the Default
+            VRF.
         *   Flow#2: IPinIP with outer source as "222.222.222.222" and outer destination as the directly connected 
-            ATE IPv4 address in the VRF that the flow is expected to land.
+            ATE IPv4 address in the VRF that the flow is expected to land. For Test-Case1 and Test-Case2, this will be 
+            the ATE address connected to VRF-10. For all other test cases this will be the ATE IP address connected to the 
+            Default VRF.
 
 *   IPv6inIP
 
         *   Flow#1: IPv6inIP with outer source as not "222.222.222.222" and outer destination as the directly connected 
-            ATE IPv4 address in the VRF that the flow is expected to land.
+            ATE IPv4 address in the VRF that the flow is expected to land. For Test-Case3, this will be ATE address 
+            connected to VRF-10. For all other test cases this will be the ATE IP address connected to the the Default
+            VRF.
         *   Flow#2: IPv6IP with outer source as "222.222.222.222" and outer destination as the directly connected ATE 
-            IPv4 address in the VRF that the flow is expected to land.
+            IPv4 address in the VRF that the flow is expected to land. For Test-Case3 and Test-Case4, this will be 
+            the ATE address connected to VRF-10. For all other test cases this will be the ATE IP address connected to the 
+            Default VRF.
 
 *   Native IPv4
 
