@@ -40,14 +40,6 @@ func TestMain(m *testing.M) {
 }
 
 // Test cases:
-//  1) Non-oversubscription traffic.
-//     - There should be no packet drop for all traffic classes.
-//  2) Oversubscription traffic case 1.
-//     - There should be no packet drop for strict priority traffic classes.
-//     - All WRR traffic should be droped.
-//  3) Oversubscription traffic case 2.
-//     - There should be no packet drop for strict priority traffic classes.
-//     - 50% of WRR traffic should be droped.
 //  1) Non-oversubscription NC1 and AF4 traffic.
 //     - There should be no packet drop for all traffic classes.
 //  2) Non-oversubscription NC1 and AF3 traffic.
@@ -87,7 +79,7 @@ func TestMain(m *testing.M) {
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
 
-func TestMixedSPWrrTraffic(t *testing.T) {
+func TestOneSPQueueTraffic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
@@ -160,7 +152,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 
 	// Test case 1: Non-oversubscription NC1 and AF4 traffic.
 	//   - There should be no packet drop for all traffic classes.
-	NonoversubscribedTrafficFlows1 := map[string]*trafficData{
+	nonOversubscribedTrafficFlows1 := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             1000,
 			trafficRate:           0.1,
@@ -197,7 +189,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 
 	// Test case 2: Non-oversubscription NC1 and AF3 traffic.
 	//   - There should be no packet drop for all traffic classes.
-	NonoversubscribedTrafficFlows2 := map[string]*trafficData{
+	nonOversubscribedTrafficFlows2 := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             1000,
 			trafficRate:           0.1,
@@ -234,7 +226,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 
 	// Test case 3: Non-oversubscription NC1 and AF2 traffic.
 	//   - There should be no packet drop for all traffic classes.
-	NonoversubscribedTrafficFlows3 := map[string]*trafficData{
+	nonOversubscribedTrafficFlows3 := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             1000,
 			trafficRate:           0.1,
@@ -271,7 +263,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 
 	// Test case 4: Non-oversubscription NC1 and AF1 traffic.
 	//   - There should be no packet drop for all traffic classes.
-	NonoversubscribedTrafficFlows4 := map[string]*trafficData{
+	nonOversubscribedTrafficFlows4 := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             1000,
 			trafficRate:           0.1,
@@ -308,7 +300,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 
 	// Test case 5: Non-oversubscription NC1 and BE0 traffic.
 	//   - There should be no packet drop for all traffic classes.
-	NonoversubscribedTrafficFlows5 := map[string]*trafficData{
+	nonOversubscribedTrafficFlows5 := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             1000,
 			trafficRate:           0.1,
@@ -345,7 +337,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 
 	// Test case 6: Non-oversubscription NC1 and BE1 traffic.
 	//   - There should be no packet drop for all traffic classes.
-	NonoversubscribedTrafficFlows6 := map[string]*trafficData{
+	nonOversubscribedTrafficFlows6 := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             1000,
 			trafficRate:           0.1,
@@ -607,22 +599,22 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 		trafficFlows map[string]*trafficData
 	}{{
 		desc:         "Non-oversubscription NC1 and AF4 traffic",
-		trafficFlows: NonoversubscribedTrafficFlows1,
+		trafficFlows: nonOversubscribedTrafficFlows1,
 	}, {
 		desc:         "Non-oversubscription NC1 and AF3 traffic",
-		trafficFlows: NonoversubscribedTrafficFlows2,
+		trafficFlows: nonOversubscribedTrafficFlows2,
 	}, {
 		desc:         "Non-oversubscription NC1 and AF2 traffic",
-		trafficFlows: NonoversubscribedTrafficFlows3,
+		trafficFlows: nonOversubscribedTrafficFlows3,
 	}, {
 		desc:         "Non-oversubscription NC1 and AF1 traffic",
-		trafficFlows: NonoversubscribedTrafficFlows4,
+		trafficFlows: nonOversubscribedTrafficFlows4,
 	}, {
 		desc:         "Non-oversubscription NC1 and BE0 traffic",
-		trafficFlows: NonoversubscribedTrafficFlows5,
+		trafficFlows: nonOversubscribedTrafficFlows5,
 	}, {
 		desc:         "Non-oversubscription NC1 and BE1 traffic",
-		trafficFlows: NonoversubscribedTrafficFlows6,
+		trafficFlows: nonOversubscribedTrafficFlows6,
 	}, {
 		desc:         "Oversubscription NC1 and AF4 traffic with half AF4 dropped",
 		trafficFlows: oversubscribedTrafficFlows1,
@@ -1006,7 +998,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup string
 	}{{
 		desc:         "scheduler-policy-BE1",
-		sequence:     uint32(1),
+		sequence:     uint32(6),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "BE1",
 		inputType:    oc.Input_InputType_QUEUE,
@@ -1015,7 +1007,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-BE1",
 	}, {
 		desc:         "scheduler-policy-BE0",
-		sequence:     uint32(1),
+		sequence:     uint32(5),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "BE0",
 		inputType:    oc.Input_InputType_QUEUE,
@@ -1024,7 +1016,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-BE0",
 	}, {
 		desc:         "scheduler-policy-AF1",
-		sequence:     uint32(1),
+		sequence:     uint32(4),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "AF1",
 		inputType:    oc.Input_InputType_QUEUE,
@@ -1033,7 +1025,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-AF1",
 	}, {
 		desc:         "scheduler-policy-AF2",
-		sequence:     uint32(1),
+		sequence:     uint32(3),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "AF2",
 		inputType:    oc.Input_InputType_QUEUE,
@@ -1042,7 +1034,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-AF2",
 	}, {
 		desc:         "scheduler-policy-AF3",
-		sequence:     uint32(1),
+		sequence:     uint32(2),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "AF3",
 		inputType:    oc.Input_InputType_QUEUE,
@@ -1051,7 +1043,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-AF3",
 	}, {
 		desc:         "scheduler-policy-AF4",
-		sequence:     uint32(0),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "AF4",
 		inputType:    oc.Input_InputType_QUEUE,
