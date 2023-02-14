@@ -2,9 +2,11 @@ package cisco_p4rt_test
 
 import (
 	"context"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
@@ -159,6 +161,7 @@ func TestP4RTPacketIO(t *testing.T) {
 		t.Skip()
 	}
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
 
 	// Dial gRIBI
 	ctx := context.Background()
@@ -471,15 +474,16 @@ var (
 		Desc:    "dutPort1",
 		IPv4:    "100.120.1.1",
 		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:120:1:1",
+		IPv6:    "100:120:1::1",
 		IPv6Len: ipv6PrefixLen,
+		MAC:     "00:01:00:02:00:03",
 	}
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
 		IPv4:    "100.120.1.2",
 		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:120:1:2",
+		IPv6:    "100:120:1::2",
 		IPv6Len: ipv6PrefixLen,
 	}
 
@@ -487,7 +491,7 @@ var (
 		Desc:    "dutPort2",
 		IPv4:    "100.121.1.1",
 		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:1:1",
+		IPv6:    "100:121:1::1",
 		IPv6Len: ipv6PrefixLen,
 	}
 
@@ -495,130 +499,130 @@ var (
 		Name:    "atePort2",
 		IPv4:    "100.121.1.2",
 		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:1:2",
+		IPv6:    "100:121:1::2",
 		IPv6Len: ipv6PrefixLen,
 	}
 
-	// dutPort3 = attrs.Attributes{
-	// 	Desc:    "dutPort3",
-	// 	IPv4:    "100.122.1.1",
-	// 	IPv4Len: ipv4PrefixLen,
-	// }
+	dutPort3 = attrs.Attributes{
+		Desc:    "dutPort3",
+		IPv4:    "100.122.1.1",
+		IPv4Len: ipv4PrefixLen,
+	}
 
-	// atePort3 = attrs.Attributes{
-	// 	Name:    "atePort3",
-	// 	IPv4:    "100.122.1.2",
-	// 	IPv4Len: ipv4PrefixLen,
-	// }
+	atePort3 = attrs.Attributes{
+		Name:    "atePort3",
+		IPv4:    "100.122.1.2",
+		IPv4Len: ipv4PrefixLen,
+	}
 
-	// dutPort4 = attrs.Attributes{
-	// 	Desc:    "dutPort4",
-	// 	IPv4:    "100.123.1.1",
-	// 	IPv4Len: ipv4PrefixLen,
-	// }
+	dutPort4 = attrs.Attributes{
+		Desc:    "dutPort4",
+		IPv4:    "100.123.1.1",
+		IPv4Len: ipv4PrefixLen,
+	}
 
-	// atePort4 = attrs.Attributes{
-	// 	Name:    "atePort4",
-	// 	IPv4:    "100.123.1.2",
-	// 	IPv4Len: ipv4PrefixLen,
-	// }
-	// dutPort5 = attrs.Attributes{
-	// 	Desc:    "dutPort5",
-	// 	IPv4:    "100.124.1.1",
-	// 	IPv4Len: ipv4PrefixLen,
-	// }
+	atePort4 = attrs.Attributes{
+		Name:    "atePort4",
+		IPv4:    "100.123.1.2",
+		IPv4Len: ipv4PrefixLen,
+	}
+	dutPort5 = attrs.Attributes{
+		Desc:    "dutPort5",
+		IPv4:    "100.124.1.1",
+		IPv4Len: ipv4PrefixLen,
+	}
 
-	// atePort5 = attrs.Attributes{
-	// 	Name:    "atePort5",
-	// 	IPv4:    "100.124.1.2",
-	// 	IPv4Len: ipv4PrefixLen,
-	// }
-	// dutPort6 = attrs.Attributes{
-	// 	Desc:    "dutPort6",
-	// 	IPv4:    "100.125.1.1",
-	// 	IPv4Len: ipv4PrefixLen,
-	// }
+	atePort5 = attrs.Attributes{
+		Name:    "atePort5",
+		IPv4:    "100.124.1.2",
+		IPv4Len: ipv4PrefixLen,
+	}
+	dutPort6 = attrs.Attributes{
+		Desc:    "dutPort6",
+		IPv4:    "100.125.1.1",
+		IPv4Len: ipv4PrefixLen,
+	}
 
-	// atePort6 = attrs.Attributes{
-	// 	Name:    "atePort6",
-	// 	IPv4:    "100.125.1.2",
-	// 	IPv4Len: ipv4PrefixLen,
-	// }
-	// dutPort7 = attrs.Attributes{
-	// 	Desc:    "dutPort7",
-	// 	IPv4:    "100.126.1.1",
-	// 	IPv4Len: ipv4PrefixLen,
-	// }
+	atePort6 = attrs.Attributes{
+		Name:    "atePort6",
+		IPv4:    "100.125.1.2",
+		IPv4Len: ipv4PrefixLen,
+	}
+	dutPort7 = attrs.Attributes{
+		Desc:    "dutPort7",
+		IPv4:    "100.126.1.1",
+		IPv4Len: ipv4PrefixLen,
+	}
 
-	// atePort7 = attrs.Attributes{
-	// 	Name:    "atePort7",
-	// 	IPv4:    "100.126.1.2",
-	// 	IPv4Len: ipv4PrefixLen,
-	// }
-	// dutPort8 = attrs.Attributes{
-	// 	Desc:    "dutPort8",
-	// 	IPv4:    "100.127.1.1",
-	// 	IPv4Len: ipv4PrefixLen,
-	// }
-	// atePort8 = attrs.Attributes{
-	// 	Name:    "atePort8",
-	// 	IPv4:    "100.127.1.2",
-	// 	IPv4Len: ipv4PrefixLen,
-	// }
+	atePort7 = attrs.Attributes{
+		Name:    "atePort7",
+		IPv4:    "100.126.1.2",
+		IPv4Len: ipv4PrefixLen,
+	}
+	dutPort8 = attrs.Attributes{
+		Desc:    "dutPort8",
+		IPv4:    "100.127.1.1",
+		IPv4Len: ipv4PrefixLen,
+	}
+	atePort8 = attrs.Attributes{
+		Name:    "atePort8",
+		IPv4:    "100.127.1.2",
+		IPv4Len: ipv4PrefixLen,
+	}
 
-	// dutPort2Vlan10 = attrs.Attributes{
-	// 	Desc:    "dutPort2Vlan10",
-	// 	IPv4:    "100.121.10.1",
-	// 	IPv4Len: ipv4PrefixLen,
-	// 	IPv6:    "2000::100:121:10:1",
-	// 	IPv6Len: ipv6PrefixLen,
-	// 	MTU:     vlanMTU,
-	// }
+	dutPort2Vlan10 = attrs.Attributes{
+		Desc:    "dutPort2Vlan10",
+		IPv4:    "100.121.10.1",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:10:1",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
 
-	// atePort2Vlan10 = attrs.Attributes{
-	// 	Name:    "atePort2Vlan10",
-	// 	IPv4:    "100.121.10.2",
-	// 	IPv4Len: ipv4PrefixLen,
-	// 	IPv6:    "2000::100:121:10:2",
-	// 	IPv6Len: ipv6PrefixLen,
-	// 	MTU:     vlanMTU,
-	// }
+	atePort2Vlan10 = attrs.Attributes{
+		Name:    "atePort2Vlan10",
+		IPv4:    "100.121.10.2",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:10:2",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
 
-	// dutPort2Vlan20 = attrs.Attributes{
-	// 	Desc:    "dutPort2Vlan20",
-	// 	IPv4:    "100.121.20.1",
-	// 	IPv4Len: ipv4PrefixLen,
-	// 	IPv6:    "2000::100:121:20:1",
-	// 	IPv6Len: ipv6PrefixLen,
-	// 	MTU:     vlanMTU,
-	// }
+	dutPort2Vlan20 = attrs.Attributes{
+		Desc:    "dutPort2Vlan20",
+		IPv4:    "100.121.20.1",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:20:1",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
 
-	// atePort2Vlan20 = attrs.Attributes{
-	// 	Name:    "atePort2Vlan20",
-	// 	IPv4:    "100.121.20.2",
-	// 	IPv4Len: ipv4PrefixLen,
-	// 	IPv6:    "2000::100:121:20:2",
-	// 	IPv6Len: ipv6PrefixLen,
-	// 	MTU:     vlanMTU,
-	// }
+	atePort2Vlan20 = attrs.Attributes{
+		Name:    "atePort2Vlan20",
+		IPv4:    "100.121.20.2",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:20:2",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
 
-	// dutPort2Vlan30 = attrs.Attributes{
-	// 	Desc:    "dutPort2Vlan30",
-	// 	IPv4:    "100.121.30.1",
-	// 	IPv4Len: ipv4PrefixLen,
-	// 	IPv6:    "2000::100:121:30:1",
-	// 	IPv6Len: ipv6PrefixLen,
-	// 	MTU:     vlanMTU,
-	// }
+	dutPort2Vlan30 = attrs.Attributes{
+		Desc:    "dutPort2Vlan30",
+		IPv4:    "100.121.30.1",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:30:1",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
 
-	// atePort2Vlan30 = attrs.Attributes{
-	// 	Name:    "atePort2Vlan20",
-	// 	IPv4:    "100.121.30.2",
-	// 	IPv4Len: ipv4PrefixLen,
-	// 	IPv6:    "2000::100:121:30:2",
-	// 	IPv6Len: ipv6PrefixLen,
-	// 	MTU:     vlanMTU,
-	// }
+	atePort2Vlan30 = attrs.Attributes{
+		Name:    "atePort2Vlan20",
+		IPv4:    "100.121.30.2",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2000::100:121:30:2",
+		IPv6Len: ipv6PrefixLen,
+		MTU:     vlanMTU,
+	}
 )
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -626,16 +630,10 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	top := ate.Topology().New()
 
 	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
+	atePort1.AddToATE(top, p1, &dutPort1)
 
 	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
+	atePort2.AddToATE(top, p2, &dutPort2)
 
 	// p3 := ate.Port(t, "port3")
 	// i3 := top.AddInterface(atePort3.Name).WithPort(p3)
@@ -643,35 +641,35 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	// 	WithAddress(atePort3.IPv4CIDR()).
 	// 	WithDefaultGateway(dutPort3.IPv4)
 
-	// p4 := ate.Port(t, "port4")
-	// i4 := top.AddInterface(atePort4.Name).WithPort(p4)
-	// i4.IPv4().
-	// 	WithAddress(atePort4.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort4.IPv4)
-
-	// p5 := ate.Port(t, "port5")
-	// i5 := top.AddInterface(atePort5.Name).WithPort(p5)
-	// i5.IPv4().
-	// 	WithAddress(atePort5.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort5.IPv4)
-
-	// p6 := ate.Port(t, "port6")
-	// i6 := top.AddInterface(atePort6.Name).WithPort(p6)
-	// i6.IPv4().
-	// 	WithAddress(atePort6.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort6.IPv4)
-
-	// p7 := ate.Port(t, "port7")
-	// i7 := top.AddInterface(atePort7.Name).WithPort(p7)
-	// i7.IPv4().
-	// 	WithAddress(atePort7.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort7.IPv4)
-
-	// p8 := ate.Port(t, "port8")
-	// i8 := top.AddInterface(atePort8.Name).WithPort(p8)
-	// i8.IPv4().
-	// 	WithAddress(atePort8.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort8.IPv4)
-
 	return top
+}
+
+// configureDUT configures port1 and port2 on the DUT.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	d := gnmi.OC()
+
+	p1 := dut.Port(t, "port1").Name()
+	if strings.Contains(p1, "Bundle") {
+		// i1.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		// rely on base config
+	} else {
+		i1 := dutPort1.NewOCInterface(p1)
+		gnmi.Replace(t, dut, d.Interface(p1).Config(), i1)
+	}
+
+	p2 := dut.Port(t, "port2").Name()
+	if strings.Contains(p2, "Bundle") {
+		// i1.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		// rely on base config
+	} else {
+		i2 := dutPort2.NewOCInterface(p2)
+		gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
+	}
+
+}
+
+func TestDecode(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	fmt.Println("**********************", dut.Name())
+	fmt.Println(binary.BigEndian.Uint16([]byte("\000\001\000\002\000\003\000\001\000\001\000\001\206\335`\000\000\000\000\362;\001\001\000\001 \000\001\000\000\000\000\000\000\000\000\000\001\001\000\001!\000\001\000\000\000\000\000\000\000\000\000\0029\236\004\373yH\361`Ixia\000\000\000\000\020\021\022\023\020d\337\311\030\031\032\033\034\035\036\037 !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\177\200\201\202\203\204\205\206\207\210\211\212\213\214\215\216\217\220\221\222\223\224\225\226\227\230\231\232\233\234\235\236\237\240\241\242\243\244\245\246\247\250\251\252\253\254\255\256\257\260\261\262\263\264\265\266\267\270\271\272\273\274\275\276\277\300\301\302\303\304\305\306\307\310\311\312\313\314\315\316\317\320\321\322\323\324\325\326\327\330\331\332\333\334\335\336\337\340\341\342\343\344\345\346\347\350\351\352\353\354\355\356\357\360\361")))
 }
