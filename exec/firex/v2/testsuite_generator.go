@@ -306,6 +306,7 @@ func main() {
 		}
 
 		keptTests := map[string][]GoTest{}
+		testCount := 1
 		for _, t := range targetedTests {
 			for i := range suite {
 				if _, ok := keptTests[suite[i].Name]; !ok {
@@ -313,6 +314,8 @@ func main() {
 				}
 				for j := range suite[i].Tests {
 					if t == strings.Split(suite[i].Tests[j].Name, " ")[0] {
+						suite[i].Tests[j].Priority = testCount
+						testCount = testCount + 1
 						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
 					}
 				}
@@ -326,6 +329,8 @@ func main() {
 						if _, ok := keptTests[suite[i].Name]; !ok {
 							keptTests[suite[i].Name] = []GoTest{}
 						}
+						suite[i].Tests[j].Priority = testCount
+						testCount = testCount + 1
 						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
 					}
 				}
