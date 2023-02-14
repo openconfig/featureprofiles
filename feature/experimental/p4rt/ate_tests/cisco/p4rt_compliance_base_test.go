@@ -14,7 +14,7 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	wbb "github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -22,6 +22,10 @@ import (
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"google.golang.org/protobuf/testing/protocmp"
+)
+
+var (
+	identifiedNPUs = 0
 )
 
 func getComponentID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) string {
@@ -66,6 +70,7 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 			component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID + i)
 			gnmi.Update(t, dut, gnmi.OC().Component(name).Config(), &component)
 			i += 1
+			identifiedNPUs += 1
 		}
 	}
 }
