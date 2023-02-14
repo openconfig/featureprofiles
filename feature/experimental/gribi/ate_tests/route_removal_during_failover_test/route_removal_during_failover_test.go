@@ -536,6 +536,9 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 
 	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
 		t.Log("Try to connect gRIBi client again, retrying...")
+		client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(eID.Low, eID.High).
+			WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
+		client.Start(ctx, t)
 		client.StartSending(ctx, t)
 		if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
 			t.Fatalf("Await got error during session negotiation for client: %v", err)
