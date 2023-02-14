@@ -87,7 +87,7 @@ var (
 	}
 
 	dutPort3 = attrs.Attributes{
-		Desc:    "port3",
+		Desc:    "dutPort3",
 		IPv4:    "192.0.2.9",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:9",
@@ -95,7 +95,7 @@ var (
 	}
 
 	atePort3 = attrs.Attributes{
-		Name:    "atePort3",
+		Name:    "port3",
 		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: ipv4PrefixLen,
