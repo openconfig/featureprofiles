@@ -198,6 +198,11 @@ var nokiaPortNameRE = regexp.MustCompile("ethernet-([0-9]+)/([0-9]+)")
 
 // inferP4RTNodesNokia infers the P4RT node name from the port name for Nokia devices.
 func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
+	// if both P4RT NodeName1 and NodeName2 are explicitly specified by a user - return explicit values
+	if *args.P4RTNodeName1 != "" && *args.P4RTNodeName2 != "" {
+		return explicitP4RTNodes()
+	}
+
 	res := make(map[string]string)
 	for _, p := range dut.Ports() {
 		m := nokiaPortNameRE.FindStringSubmatch(p.Name())
