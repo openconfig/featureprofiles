@@ -234,12 +234,13 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Log("Validate traffic passes")
 	validateTrafficFlows(t, args.ate, args.top, baselineFlow, backupFlow)
 
+	// Setting admin state down on the DUT interface.
+	// Setting the otg interface down has no effect on kne and is not yet supported in otg
 	t.Log("Shutdown Port2")
-	ateP := args.ate.Port(t, "port2")
-	args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(false).Send(t)
-	defer args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(true).Send(t)
-
 	p2 := args.dut.Port(t, "port2")
+	setDUTInterfaceWithState(t, args.dut, &dutPort2, p2, false)
+	defer setDUTInterfaceWithState(t, args.dut, &dutPort2, p2, true)
+
 	t.Log("Capture port2 status if down")
 	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
 	operStatus := gnmi.Get(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State())
@@ -286,9 +287,11 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	validateTrafficFlows(t, args.ate, args.top, baselineFlow, backupFlow)
 
 	t.Log("Shutdown Port2")
-	ateP := args.ate.Port(t, "port2")
-	args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(false).Send(t)
-	defer args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(true).Send(t)
+	// Setting admin state down on the DUT interface.
+	// Setting the otg interface down has no effect on kne and is not yet supported in otg
+	dutP2 := args.dut.Port(t, "port2")
+	setDUTInterfaceWithState(t, args.dut, &dutPort2, dutP2, false)
+	defer setDUTInterfaceWithState(t, args.dut, &dutPort2, dutP2, true)
 
 	t.Log("Capture port2 status if down")
 	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
@@ -354,4 +357,14 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Con
 	if got := ((outPkts - inPkts) * 100) / outPkts; got < 100 {
 		t.Fatalf("LossPct for flow %s: got %v, want 100", bad.Name(), got)
 	}
+}
+
+// setDUTInterfaceState sets the admin state on the dut interface
+func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *attrs.Attributes, p *ondatra.Port, state bool) {
+	dc := gnmi.OC()
+	i := &oc.Interface{}
+	i.Enabled = ygot.Bool(state)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Name = ygot.String(p.Name())
+	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
 }
