@@ -34,7 +34,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
 	spb "github.com/openconfig/gnoi/system"
@@ -85,9 +84,11 @@ var (
 )
 
 // createIPv4Entries creates IPv4 Entries given the totalCount and starting prefix
-func createIPv4Entries(startIP string) []string {
-
-	_, netCIDR, _ := net.ParseCIDR(startIP)
+func createIPv4Entries(t *testing.T, startIP string) []string {
+	_, netCIDR, err := net.ParseCIDR(startIP)
+	if err != nil {
+		t.Fatalf("failed to parse prefix: %v", err)
+	}
 	netMask := binary.BigEndian.Uint32(netCIDR.Mask)
 	firstIP := binary.BigEndian.Uint32(netCIDR.IP)
 	lastIP := (firstIP & netMask) | (netMask ^ 0xffffffff)
@@ -102,7 +103,7 @@ func createIPv4Entries(startIP string) []string {
 
 // pushDefaultEntries creates NextHopGroup entries using the 64 SubIntf address and creates 1000 IPV4 Entries.
 func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) {
-
+	t.Helper()
 	for i := range nextHops {
 		index := uint64(i + 1)
 		args.client.Modify().AddEntry(t,
@@ -121,7 +122,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) {
 	}
 
 	time.Sleep(time.Minute)
-	virtualVIPs := createIPv4Entries("198.18.196.1/22")
+	virtualVIPs := createIPv4Entries(t, "198.18.196.1/22")
 
 	for ip := range virtualVIPs {
 		args.client.Modify().AddEntry(t,
@@ -216,7 +217,6 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 
 	a := sipv4.GetOrCreateAddress(dutIPv4)
 	a.PrefixLength = ygot.Uint8(uint8(ipv4PrefixLen))
-
 }
 
 // configureATE configures a single ATE layer 3 interface.
@@ -273,7 +273,6 @@ func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETop
 		WithHeaders(ethHeader, ipv4Header)
 
 	return flow
-
 }
 
 // Function to send traffic
@@ -321,17 +320,14 @@ func stopTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 }
 
 // switchoverReady is to check if controller is ready for switchover
-func switchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string) bool {
+func switchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string) {
 	switchoverReady := gnmi.OC().Component(controller).SwitchoverReady()
-	_, ok := gnmi.Watch(t, dut, switchoverReady.State(), 30*time.Minute, func(val *ygnmi.Value[bool]) bool {
-		ready, present := val.Val()
-		return present && ready
-	}).Await(t)
-	return ok
+	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
 }
 
 // validateTelemetry validates telemetry sensors
 func validateSwitchoverTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch string) {
+	t.Helper()
 	t.Log("Validate OC Switchover time/reason.")
 	primary := gnmi.OC().Component(primaryAfterSwitch)
 	if !gnmi.Lookup(t, dut, primary.LastSwitchoverTime().State()).IsPresent() {
@@ -366,15 +362,14 @@ func checkNIHasNEntries(ctx context.Context, c *fluent.GRIBIClient, ni string, t
 
 // Send traffic and validate traffic.
 func testTraffic(t *testing.T, args testArgs, flow *ondatra.Flow) {
-
 	sendTraffic(t, args.ate, flow)
 	stopTraffic(t, args.ate)
 	verifyTraffic(t, args.ate, flow)
-
 }
 
 // validateSwitchoverStatus is to validate switchover status.
 func validateSwitchoverStatus(t *testing.T, dut *ondatra.DUTDevice, secondaryBeforeSwitch string) string {
+	t.Helper()
 	startSwitchover := time.Now()
 	t.Logf("Wait for new Primary controller to boot up by polling the telemetry output.")
 	for {
@@ -397,7 +392,6 @@ func validateSwitchoverStatus(t *testing.T, dut *ondatra.DUTDevice, secondaryBef
 
 	// Old secondary controller becomes primary after switchover.
 	return secondaryBeforeSwitch
-
 }
 
 // TestRouteRemovalDuringFailover is to test gRIBI flush and slave switchover
@@ -474,9 +468,8 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 
 	secondaryBeforeSwitch, primaryBeforeSwitch := findSecondaryController(t, dut, controllers)
 
-	if ok := switchoverReady(t, dut, primaryBeforeSwitch); !ok {
-		t.Fatalf("Controller %q did not become switchover-ready before test.", primaryBeforeSwitch)
-	}
+	switchoverReady(t, dut, primaryBeforeSwitch)
+	t.Logf("Controller %q is ready for switchover before test.", primaryBeforeSwitch)
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
