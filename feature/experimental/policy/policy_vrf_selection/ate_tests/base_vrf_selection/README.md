@@ -4,7 +4,7 @@
 
 Test different VRF selection policies.
 
-## Procedure
+## Topology
 
 *   Connect ATE Port-1 to DUT Port-1, and ATE Port-2 to DUT Port-2.
 
@@ -12,46 +12,68 @@ Test different VRF selection policies.
 
 *   Configure network-instance “VRF-10” of type L3VRF and assign Port2.10 to network-instance "VRF-10" 
         
-*   Configure network-instance “DEFAULT” of type DEFAULT_INSTANCE. DUT-Port1 and DUT Port-2.20 should be part of "DEFAULT" Network instance by default w/o requiring explicit configuration.
+*   Configure network-instance “DEFAULT” of type DEFAULT_INSTANCE. DUT-Port1 and DUT Port-2.20 should be part of "DEFAULT" Network w/o requiring 
+    explicit configuration.
 
-*   Configure Network-instance “VRF-10” with a default route pointing at ATE Port-2.10
+## Procedure
 
-*   Configure Network-instance "DEFAULT" with IPv4 and IPv6 default routes pointing at ATE Port-2.20
+*   Test-Case 1
 
-*   Configure DUT and validate packet forwarding for:
+        *   Configure DUT to match on IPinIP protocol (protocol number 4) in the outer IPv4 header and punt it to 
+            network-instance VRF-10. All other traffic should be punted to the Default VRF. These will be, native IPv4, 
+            native IPv6 and IPv6inIP (protocol 41 in the outer IPv4 header) traffic.
+        
+        *   Start all traffic flows defined in the section "Flows" below and validate packet forwarding.
 
-        *   Matching of IPinIP protocol (protocol number 4 in the outer IP header) - to network-instance VRF-10 for all input IPinIP
-        
-            *   All other traffic should be punted to the Default VRF. These will be, native IPv4, native IPv6 and IPv6inIP (protocol 41 in the outer IPv4 header) traffic
-            
-        *   Matching of IPinIP protocol (protocol number 4 in the outer IP header) with specific outer IPv4 source address "222.222.222.222" - to network-instance VRF-10
-        
-            *    All other traffic should be punted to the Default VRF. These will be, IPinIP w/o source as "222.222.222.222", native IPv4, native IPv6 and IPv6inIP (protocol 41 in the outer IPv4 header) traffic.
-            
-        *   Matching of IPv6inIP protocol (protocol number 41 in the outer IPv4 header) - to network-instance VRF-10 for all input IPv6inIP
-        
-            *   All other traffic should be punted to the Default VRF. These will be, native IPv4, native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic.
-            
-        *   Matching of IPv6inIP protocol (protocol number 41 in the outer IP header) with specific outer IPv4 source address "222.222.222.222" - to network-instance VRF-10
-        
-            *   All other traffic should be punted to the Default VRF. These will be, IPv6inIP w/o source as "222.222.222.222", native IPv4, native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic.
+*   Test-Case 2
+
+        *   Configure DUT to match on IPinIP protocol (protocol number 4 in the outer IPv4 header) with specific outer 
+            IPv4 source address as "222.222.222.222" and punt it to network-instance VRF-10. All other traffic should be 
+            punted to the Default VRF. These will be, IPinIP w/o source as "222.222.222.222", native IPv4, native IPv6 and 
+            IPv6inIP (protocol 41 in the outer IPv4 header) traffic.
+
+        *   Start all traffic flows defined in the section "Flows" below and validate packet forwarding.   
+
+
+*   Test-Case 3
+
+        *   Configure DUT to match on IPv6inIP protocol (protocol number 41 in the outer IPv4 header) and punt it to 
+            network-instance VRF-10. All other traffic should be punted to the Default VRF. These will be, native IPv4, 
+            native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic.
+
+        *   Start all traffic flows defined in the section "Flows" below and validate packet forwarding.        
+
+* Test-Case 4
+          
+        *  Configure DUT to match on IPv6inIP protocol (protocol number 41 in the outer IPv4 header) with specific 
+           outer IPv4 source address "222.222.222.222" and punt it to the network-instance VRF-10. 
+           All other traffic should be punted to the Default VRF. These will be, IPv6inIP w/o source as 
+           "222.222.222.222", native IPv4, native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic.
+
+        *   Start all traffic flows defined in the section "Flows" below and validate packet forwarding. 
 
 ## Flows
 
 *   IPinIP
 
-        *   Flow#1: IPinIP with outer source as not "222.222.222.222"
-        *   Flow#2: IPinIP with outer source as "222.222.222.222"
+        *   Flow#1: IPinIP with outer source as not "222.222.222.222" and outer destination as the directly connected 
+            ATE IPv4 address in the VRF that the flow is expected to land.
+        *   Flow#2: IPinIP with outer source as "222.222.222.222" and outer destination as the directly connected 
+            ATE IPv4 address in the VRF that the flow is expected to land.
 
 *   IPv6inIP
 
-        *   Flow#1: IPv6inIP with outer source as not "222.222.222.222"
-        *   Flow#2: IPv6IP with outer source as "222.222.222.222"
+        *   Flow#1: IPv6inIP with outer source as not "222.222.222.222" and outer destination as the directly connected 
+            ATE IPv4 address in the VRF that the flow is expected to land.
+        *   Flow#2: IPv6IP with outer source as "222.222.222.222" and outer destination as the directly connected ATE 
+            IPv4 address in the VRF that the flow is expected to land.
 
 *   Native IPv4
 
-        *   Flow#1: Native IPv4 flow with any source address
+        *   Flow#1: Native IPv4 flow with any source address and destination as the IPv4 address of the Directly connected 
+            ATE interface in the DEFAULT VRF.
         
 *   Native IPv6
 
-        *   Flow#1: Native IPv6 flow with any source address
+        *   Flow#1: Native IPv6 flow with any source address and destination as the IPv6 address of the Directly connected 
+            ATE interface in the DEFAULT VRF.
