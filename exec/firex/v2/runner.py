@@ -137,7 +137,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
     c |= GenerateOndatraTestbedFiles.s()
     if install_image and not using_sim:
         c |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = 'exec/utils/software_upgrade', test_args = [
-            "-imagePath '${images[0]}'"
+            f"-imagePath '{images[0]}'"
         ]) #SoftwareUpgrade.s(image_path=images[0])
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
