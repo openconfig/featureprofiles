@@ -272,6 +272,9 @@ func testSamePrimaryForDifferentNPU(ctx context.Context, t *testing.T, args *tes
 
 // client arbitration-Compliance:004
 func testDifferentPrimaryForDifferentNPUWithSameGRPC(ctx context.Context, t *testing.T, args *testArgs) {
+	if identifiedNPUs <= 1 {
+		t.Skip("Not enough NPUs to run this test")
+	}
 	client := args.p4rtClientA
 
 	// Setup P4RT Client
@@ -295,6 +298,9 @@ func testDifferentPrimaryForDifferentNPUWithSameGRPC(ctx context.Context, t *tes
 
 // client arbitration-Compliance:005
 func testDifferentPrimaryForDifferentNPUWithDifferentGRPC(ctx context.Context, t *testing.T, args *testArgs) {
+	if identifiedNPUs <= 1 {
+		t.Skip("Not enough NPUs to run this test")
+	}
 	clientA := args.p4rtClientA
 	clientB := args.p4rtClientB
 
@@ -321,6 +327,9 @@ func testDifferentPrimaryForDifferentNPUWithDifferentGRPC(ctx context.Context, t
 
 // client arbitration-Compliance:006
 func testPrimaryControllerWorksAsBackupOnDifferentNPU(ctx context.Context, t *testing.T, args *testArgs) {
+	if identifiedNPUs <= 1 {
+		t.Skip("Not enough NPUs to run this test")
+	}
 	clientA := args.p4rtClientA
 	clientB := args.p4rtClientB
 
@@ -439,6 +448,9 @@ func testAdvisoryMessageOnSameNPU(ctx context.Context, t *testing.T, args *testA
 
 // client arbitration-Compliance:010
 func testAdvisoryMessageOnDifferentNPU(ctx context.Context, t *testing.T, args *testArgs) {
+	if identifiedNPUs <= 1 {
+		t.Skip("Not enough NPUs to run this test")
+	}
 	client := args.p4rtClientA
 
 	// Setup P4RT Client
@@ -478,7 +490,7 @@ func testNonExistDeviceIdInClientArbitration(ctx context.Context, t *testing.T, 
 	client := args.p4rtClientA
 
 	// Setup P4RT Client
-	if err := setupConnection(ctx, t, generateStreamParameter(^uint64(1), uint64(0), electionID), client); err == nil {
+	if err := setupConnection(ctx, t, generateStreamParameter(uint64(1), uint64(0), electionID), client); err == nil {
 		t.Errorf("Expected error is not seen.")
 	}
 

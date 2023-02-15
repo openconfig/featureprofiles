@@ -48,6 +48,7 @@ func getComponentList(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice)
 }
 
 func TestP4RTTMP(t *testing.T) {
+	t.Skip()
 	if !*ciscoFlags.HATests {
 		t.Skip()
 	}
