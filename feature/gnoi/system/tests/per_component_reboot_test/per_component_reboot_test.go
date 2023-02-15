@@ -141,6 +141,13 @@ func TestLinecardReboot(t *testing.T) {
 	t.Logf("Find a removable line card to reboot.")
 	var removableLinecard string
 	for _, lc := range lcs {
+		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+		if ok {
+			if empty {
+				t.Logf("Line card %v is empty", lc)
+				continue
+			}
+		}
 		t.Logf("Check if %s is removable", lc)
 		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Removable().State()).IsPresent(); !got {
 			t.Logf("Detected non-removable line card: %v", lc)
@@ -174,7 +181,7 @@ func TestLinecardReboot(t *testing.T) {
 
 	rebootDeadline := time.Now().Add(linecardBoottime)
 	for retry := true; retry; {
-		t.Log("Wating for 10 seconds before checking.")
+		t.Log("Waiting for 10 seconds before checking.")
 		time.Sleep(10 * time.Second)
 		if time.Now().After(rebootDeadline) {
 			retry = false
@@ -250,7 +257,7 @@ func fetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice) []string {
 	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
 	for _, intf := range intfs {
 		operStatus := gnmi.Lookup(t, dut, gnmi.OC().Interface(intf).OperStatus().State())
-		if status, present := operStatus.Val(); present && status == oc.Interface_OperStatus_UP {
+		if st, present := operStatus.Val(); present && st == oc.Interface_OperStatus_UP {
 			intfsOperStatusUP = append(intfsOperStatusUP, intf)
 		}
 	}
