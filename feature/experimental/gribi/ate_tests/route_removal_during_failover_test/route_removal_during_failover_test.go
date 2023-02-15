@@ -19,6 +19,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -102,8 +103,13 @@ func createIPv4Entries(t *testing.T, startIP string) []string {
 }
 
 // pushDefaultEntries creates NextHopGroup entries using the 64 SubIntf address and creates 1000 IPV4 Entries.
-func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) {
+func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []string) {
 	t.Helper()
+
+	fluentNhgVar := fluent.NextHopGroupEntry()
+	fluentNhgVar.WithNetworkInstance(*deviations.DefaultNetworkInstance).WithID(uint64(nhgID)).
+		WithElectionID(args.electionID.Low, args.electionID.High)
+
 	for i := range nextHops {
 		index := uint64(i + 1)
 		args.client.Modify().AddEntry(t,
@@ -113,16 +119,10 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) {
 				WithIPAddress(nextHops[i]).
 				WithElectionID(args.electionID.Low, args.electionID.High))
 
-		args.client.Modify().AddEntry(t,
-			fluent.NextHopGroupEntry().
-				WithNetworkInstance(*deviations.DefaultNetworkInstance).
-				WithID(uint64(nhgID)).
-				AddNextHop(index, 64).
-				WithElectionID(args.electionID.Low, args.electionID.High))
+		fluentNhgVar.AddNextHop(index, 64)
 	}
 
-	time.Sleep(time.Minute)
-	virtualVIPs := createIPv4Entries(t, "198.18.196.1/22")
+	args.client.Modify().AddEntry(t, fluentNhgVar)
 
 	for ip := range virtualVIPs {
 		args.client.Modify().AddEntry(t,
@@ -132,6 +132,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) {
 				WithNextHopGroup(uint64(nhgID)).
 				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
+
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
 		t.Fatalf("Could not program entries via clientA, got err: %v", err)
 	}
@@ -144,6 +145,23 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) {
 				WithProgrammingResult(fluent.InstalledInFIB).
 				AsResult(),
 			chk.IgnoreOperationID(),
+		)
+	}
+
+	gr, err := args.client.Get().
+		WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithAFT(fluent.IPv4).
+		Send()
+	if err != nil {
+		t.Fatalf("got unexpected error from get, got: %v", err)
+	}
+
+	for ip := range virtualVIPs {
+		chk.GetResponseHasEntries(t, gr,
+			fluent.IPv4Entry().
+				WithNetworkInstance(*deviations.DefaultNetworkInstance).
+				WithNextHopGroup(uint64(nhgID)).
+				WithPrefix(virtualVIPs[ip]+"/32"),
 		)
 	}
 }
@@ -451,8 +469,27 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 		top:        top,
 		electionID: eID,
 	}
-	// virtualVIPs are ipv4 entries in default vrf
-	pushDefaultEntries(t, args, subIntfIPs)
+
+	virtualIPs := createIPv4Entries(t, "198.18.196.1/22")
+
+	t.Log("inject routes from IPBlock1 in default VRF with NHGID: #1.")
+	pushDefaultEntries(t, args, subIntfIPs, virtualIPs)
+
+	gr, err := args.client.Get().
+		WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithAFT(fluent.IPv4).
+		Send()
+	if err != nil {
+		t.Fatalf("got unexpected error from get, got: %v", err)
+	}
+
+	// entries := gr.GetEntry()
+	for _, r := range gr.GetEntry() {
+		entry := r.GetIpv4().Prefix
+		if got := r.GetFibStatus().String(); got != "PROGRAMMED" {
+			t.Fatalf("gRIBI entry %v is not programmed in FIB, got:%v, want: PROGRAMMED", entry, got)
+		}
+	}
 
 	// Send traffic from ATE port-1 to prefixes in IPBlock1 and ensure traffic
 	// flows 100% and reaches ATE port-2.
@@ -508,9 +545,6 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.
 	// Check vars for WithInitialElectionID
 
-	t.Log("Added wait time to make sure things are stablized post switchover")
-	time.Sleep(3 * time.Minute)
-
 	t.Log("Reconnect gRIBi client after switchover on new master")
 	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(eID.Low, eID.High).
 		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
@@ -539,17 +573,29 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	}
 
 	t.Log("Compare route entries after switchover")
-	entriesAfter := checkNIHasNEntries(ctx, client, *deviations.DefaultNetworkInstance, t)
+	gr, err = args.client.Get().
+		WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithAFT(fluent.IPv4).
+		Send()
+	if err != nil {
+		t.Fatalf("got unexpected error from get, got: %v", err)
+	}
 
-	if entriesAfter >= entriesBefore {
+	prefixEntryList := []string{}
+	for _, r := range gr.GetEntry() {
+		entry := strings.Split(r.GetIpv4().Prefix, "/")
+		prefixEntryList = append(prefixEntryList, entry[0])
+	}
+
+	if len(prefixEntryList) == len(virtualIPs) {
 		t.Error("After switchover, on new master seeing unexpected number of route entries")
-		t.Errorf("Network instance has %d entries before switchover, found after switchover: %d", entriesBefore, entriesAfter)
+		t.Errorf("Network instance has %d entries before switchover, found after switchover: %d", entriesBefore, len(prefixEntryList))
 	}
 
 	// TODO: Check for coredumps in the DUT and validate that none are present post failover
 
 	t.Log("Re-inject routes from IPBlock1 in default VRF with NHGID: #1.")
-	pushDefaultEntries(t, args, subIntfIPs)
+	pushDefaultEntries(t, args, subIntfIPs, virtualIPs)
 
 	t.Log("Send traffic and validate")
 	testTraffic(t, *args, flow)
