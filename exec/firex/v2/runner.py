@@ -94,11 +94,12 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
 
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_dir', 'reserved_testbed', FireX.DYNAMIC_RETURN)
-def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_name,
+def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
-                        collect_tb_info=False):
+                        collect_tb_info=False,
+                        install_image=False):
 
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
@@ -118,24 +119,24 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_name,
     c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
                 reserved_testbed=reserved_testbed, **self.abog)
 
-    if reserved_testbed:
-        if reserved_testbed.get('sim', False):
-            overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
-            reserved_testbed.update(overrides)
+    using_sim = reserved_testbed and reserved_testbed.get('sim', False) 
+    if using_sim:
+        overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
+        reserved_testbed.update(overrides)
 
-            baseconf_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
-            baseconf_file_copy = os.path.join(testbed_logs_dir, 'baseconf.conf')
-            shutil.copyfile(baseconf_file, baseconf_file_copy)
+        baseconf_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
+        baseconf_file_copy = os.path.join(testbed_logs_dir, 'baseconf.conf')
+        shutil.copyfile(baseconf_file, baseconf_file_copy)
 
-            topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
-            check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file_copy}|g' {topo_file}")
-            c |= self.orig.s(plat='8000', topo_file=topo_file)
-        else:
-            c |= ReserveTestbed.s()
+        topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
+        check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file_copy}|g' {topo_file}")
+        c |= self.orig.s(plat='8000', topo_file=topo_file)
     else:
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
+    if install_image and not using_sim:
+        c |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = 'exec/utils/software_upgrade', test_args =f"-imagePath '{images[0]}'")
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
     return internal_fp_repo_dir, reserved_testbed, self.enqueue_child_and_get_results(c)

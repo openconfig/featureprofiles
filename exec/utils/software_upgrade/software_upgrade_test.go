@@ -1,0 +1,173 @@
+package software_upgrade_test
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/testt"
+	"github.com/povsister/scp"
+	"google.golang.org/protobuf/encoding/prototext"
+)
+
+const (
+	imageDestination = "/harddisk:/8000-x64.iso"
+	installCmd       = "install replace reimage " + imageDestination + " noprompt commit"
+	installStatusCmd = "sh install request"
+	imgCopyTimeout   = 900 * time.Second
+	installTimeout   = 1800 * time.Second
+	sshCmdTimeout    = 30 * time.Second
+	statusCheckDelay = 60 * time.Second
+)
+
+var (
+	imagePathFlag = flag.String("imagePath", "", "Full path to image iso")
+)
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
+type targetInfo struct {
+	dut     string
+	sshIp   string
+	sshPort string
+	sshUser string
+	sshPass string
+}
+
+func TestSoftwareUpgrade(t *testing.T) {
+	if *imagePathFlag == "" {
+		t.Fatal("Missing imagePath arg")
+	}
+
+	imagePath := *imagePathFlag
+	if _, err := os.Stat(imagePath); err != nil {
+		t.Fatalf("Image {%s} does not exist: %v", imagePath, err)
+	}
+
+	for _, d := range parseBindingFile(t) {
+		target := fmt.Sprintf("%s:%s", d.sshIp, d.sshPort)
+		t.Logf("Copying image to %s (%s)", d.dut, target)
+		sshConf := scp.NewSSHConfigFromPassword(d.sshUser, d.sshPass)
+		scpClient, err := scp.NewClient(target, sshConf, &scp.ClientOption{})
+		if err != nil {
+			t.Fatalf("Error initializing scp client: %v", err)
+		}
+		defer scpClient.Close()
+
+		if err := scpClient.CopyFileToRemote(imagePath, "/harddisk:/8000-x64.iso", &scp.FileTransferOption{
+			Timeout: imgCopyTimeout,
+		}); err != nil {
+			t.Fatalf("Error copying image to target %s (%s:%s): %v", d.dut, d.sshIp, d.sshPort, err)
+		}
+
+		dut := ondatra.DUT(t, d.dut)
+
+		if result, err := sendCLI(t, dut, installCmd); err == nil {
+			if !strings.Contains(result, "has started") {
+				t.Fatalf("Unexpected response:\n%s\n", result)
+			}
+		} else {
+			t.Fatalf("Error running command: %v", err)
+		}
+
+		success := false
+		for start := time.Now(); time.Since(start) < installTimeout && !success; {
+			time.Sleep(statusCheckDelay)
+
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				if result, err := sendCLI(t, dut, installStatusCmd); err == nil {
+					if strings.Contains(result, "In progress") {
+						t.Logf("Install operation in progress...")
+					} else if strings.Contains(result, "Failure") {
+						t.Fatalf("Image upgrade failed:\n%s\n", result)
+					} else if strings.Contains(result, "Success") {
+						success = true
+					} else {
+						t.Fatalf("Unexpected response:\n%s\n", result)
+					}
+				} else if err == context.DeadlineExceeded || err == io.EOF {
+					t.Logf("Device is probably rebooting...")
+				} else {
+					t.Logf("Error running command: %v", err)
+				}
+			}); errMsg != nil {
+				t.Logf("Device is probably rebooting...")
+			}
+		}
+
+		if !success {
+			t.Fatalf("Install operation timed out")
+		}
+	}
+}
+
+func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), sshCmdTimeout)
+	defer cancel()
+	sshClient := dut.RawAPIs().CLI(t)
+	defer sshClient.Close()
+	return sshClient.SendCommand(ctx, cmd)
+}
+
+func parseBindingFile(t *testing.T) []targetInfo {
+	t.Helper()
+
+	bindingFile := flag.Lookup("binding").Value.String()
+	in, err := os.ReadFile(bindingFile)
+	if err != nil {
+		t.Fatalf("unable to read binding file")
+	}
+
+	b := &bindpb.Binding{}
+	if err := prototext.Unmarshal(in, b); err != nil {
+		t.Fatalf("unable to parse binding file")
+	}
+
+	targets := []targetInfo{}
+	for _, dut := range b.Duts {
+
+		sshUser := dut.Ssh.Username
+		if sshUser == "" {
+			sshUser = dut.Options.Username
+		}
+		if sshUser == "" {
+			sshUser = b.Options.Username
+		}
+
+		sshPass := dut.Ssh.Password
+		if sshPass == "" {
+			sshPass = dut.Options.Password
+		}
+		if sshPass == "" {
+			sshPass = b.Options.Password
+		}
+
+		sshTarget := strings.Split(dut.Ssh.Target, ":")
+		sshIp := sshTarget[0]
+		sshPort := "22"
+		if len(sshTarget) > 1 {
+			sshPort = sshTarget[1]
+		}
+
+		targets = append(targets, targetInfo{
+			dut:     dut.Id,
+			sshIp:   sshIp,
+			sshPort: sshPort,
+			sshUser: sshUser,
+			sshPass: sshPass,
+		})
+	}
+
+	return targets
+}
