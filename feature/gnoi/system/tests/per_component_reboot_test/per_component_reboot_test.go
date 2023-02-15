@@ -141,12 +141,9 @@ func TestLinecardReboot(t *testing.T) {
 	t.Logf("Find a removable line card to reboot.")
 	var removableLinecard string
 	for _, lc := range lcs {
-		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
-		if ok {
-			if empty {
-				t.Logf("Line card %v is empty", lc)
-				continue
-			}
+		if empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val(); ok && empty {
+			t.Logf("Line card %v is empty", lc)
+			continue
 		}
 		t.Logf("Check if %s is removable", lc)
 		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Removable().State()).IsPresent(); !got {
