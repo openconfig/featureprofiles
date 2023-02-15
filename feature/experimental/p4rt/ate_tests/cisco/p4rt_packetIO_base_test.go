@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"sort"
-	"strings"
 	"testing"
 
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
@@ -16,6 +15,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -37,6 +37,7 @@ var (
 	SUBMIT_TO_EGRESS      = uint32(0)
 	forusIP               = "10.10.10.10"
 	maxPortID             = uint32(0xFFFFFEFF)
+	//intMACAddress         = "00:01:00:02:00:03"
 )
 
 // Testcase defines testcase structure
@@ -644,23 +645,42 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
+func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(name)}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	e := i.GetOrCreateEthernet()
+	e.AutoNegotiate = ygot.Bool(false)
+	e.AggregateId = ygot.String(bundleID)
+	return i
+}
+
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1").Name()
-	if strings.Contains(p1, "Bundle") {
-		// i1.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-		// rely on base config
+	if *ciscoFlags.BaseConfigBundle {
+		be1 := "Bundle-Ether120"
+		gnmi.Replace(t, dut, gnmi.OC().Interface(p1).Config(), generateBundleMemberInterfaceConfig(t, p1, be1))
+
+		i1 := dutPort1.NewOCInterface(be1)
+		i1.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		gnmi.Replace(t, dut, d.Interface(be1).Config(), i1)
+
 	} else {
 		i1 := dutPort1.NewOCInterface(p1)
 		gnmi.Replace(t, dut, d.Interface(p1).Config(), i1)
 	}
 
 	p2 := dut.Port(t, "port2").Name()
-	if strings.Contains(p2, "Bundle") {
-		// i1.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-		// rely on base config
+	if *ciscoFlags.BaseConfigBundle {
+		be2 := "Bundle-Ether121"
+		gnmi.Replace(t, dut, gnmi.OC().Interface(p2).Config(), generateBundleMemberInterfaceConfig(t, p2, be2))
+
+		i2 := dutPort2.NewOCInterface(be2)
+		i2.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		gnmi.Replace(t, dut, d.Interface(be2).Config(), i2)
+
 	} else {
 		i2 := dutPort2.NewOCInterface(p2)
 		gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
