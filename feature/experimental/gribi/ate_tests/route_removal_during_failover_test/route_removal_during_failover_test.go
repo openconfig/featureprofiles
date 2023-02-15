@@ -301,6 +301,7 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
 
 // Function to verify traffic
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
+	t.Helper()
 	flowPath := gnmi.OC().Flow(flow.Name())
 	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got > 0 {
 		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
@@ -311,6 +312,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
 
 // findSecondaryController finds out primary and secondary controllers
 func findSecondaryController(t *testing.T, dut *ondatra.DUTDevice, controllers []string) (string, string) {
+	t.Helper()
 	var primary, secondary string
 	for _, controller := range controllers {
 		role := gnmi.Get(t, dut, gnmi.OC().Component(controller).RedundantRole().State())
