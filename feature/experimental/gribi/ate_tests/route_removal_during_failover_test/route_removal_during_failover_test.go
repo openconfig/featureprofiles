@@ -596,6 +596,9 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 
 	// TODO: Check for coredumps in the DUT and validate that none are present post failover
 
+	if *deviations.GRIBIDelayedAckResponse {
+		time.Sleep(3 * time.Minute)
+	}
 	t.Log("Re-inject routes from IPBlock1 in default VRF with NHGID: #1.")
 	pushDefaultEntries(t, args, subIntfIPs, virtualIPs)
 
