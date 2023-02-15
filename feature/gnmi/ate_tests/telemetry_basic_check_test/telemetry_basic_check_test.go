@@ -53,7 +53,7 @@ var (
 )
 
 const (
-	chasisType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
+	chassisType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
 	supervisorType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	linecardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
 	powerSupplyType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY
@@ -355,11 +355,11 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	componentParent := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
-		"Fabric":      chasisType,
+		"Fabric":      chassisType,
 		"FabricChip":  fabricType,
-		"Linecard":    chasisType,
-		"PowerSupply": chasisType,
-		"Supervisor":  chasisType,
+		"Linecard":    chassisType,
+		"PowerSupply": chassisType,
+		"Supervisor":  chassisType,
 		"SwitchChip":  linecardType,
 	}
 	cardList := findComponentsListByType(t, dut)
