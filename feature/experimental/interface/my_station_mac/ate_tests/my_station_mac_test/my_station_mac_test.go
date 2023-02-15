@@ -21,12 +21,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -46,12 +43,7 @@ func TestMain(m *testing.M) {
 const (
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
-
-	myStationMAC = "00:1A:11:00:00:01"
-
-	ateDstNetCIDR = "203.0.113.0/24"
-	nhIndex       = 1
-	nhgIndex      = 42
+	myStationMAC  = "00:1A:11:00:00:01"
 )
 
 var (
@@ -161,25 +153,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// addRoute adds an IPv4Entry and verifies the same through AFT telemetry.
-func addRoute(t *testing.T, clientA *gribi.Client) {
-	dut := ondatra.DUT(t, "dut")
-
-	t.Logf("Add an IPv4Entry for %s pointing to ate:port2 via clientA", ateDstNetCIDR)
-	clientA.AddNH(t, nhIndex, ateDst.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInFIB)
-
-	t.Logf("Verify through AFT telemetry that %s is active", ateDstNetCIDR)
-	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := gnmi.Watch(t, dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		prefix, present := val.Val()
-		return present && prefix == ateDstNetCIDR
-	}).Await(t); !ok {
-		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
-	}
-}
-
 // testTraffic generates and verifies traffic flow with destination MAC as MyStationMAC.
 func testTraffic(
 	t *testing.T,
@@ -207,7 +180,7 @@ func testTraffic(
 	}
 }
 
-// TestMyStationMAC verifies MyStationMAC installed on the DUT is honored and used for routing.
+// TestMyStationMAC verifies that MyStationMAC installed on the DUT is honored and used for routing.
 func TestMyStationMAC(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -222,29 +195,10 @@ func TestMyStationMAC(t *testing.T) {
 	t.Logf("Configure MyStationMAC")
 	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), myStationMAC)
 
-	t.Logf("Install static route on DUT")
-	// Set parameters for gRIBI client clientA.
-	clientA := &gribi.Client{
-		DUT:         dut,
-		FIBACK:      true,
-		Persistence: true,
+	t.Logf("Verify configured MyStationMAC through telemetry")
+	if got := gnmi.Get(t, dut, gnmi.OC().System().MacAddress().RoutingMac().State()); got != myStationMAC {
+		t.Errorf("MyStationMAC got %v, want %v", got, myStationMAC)
 	}
-	defer clientA.Close(t)
-
-	// Flush all entries after test.
-	defer clientA.FlushAll(t)
-
-	t.Log("Establish gRIBI client connection")
-	if err := clientA.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection for clientA could not be established")
-	}
-	clientA.BecomeLeader(t)
-
-	// Flush past entries before running the test.
-	clientA.FlushAll(t)
-
-	//Add an IPv4Entry for 'ateDstNetCIDR'.
-	addRoute(t, clientA)
 
 	t.Logf("Verify traffic flow")
 
@@ -252,11 +206,6 @@ func TestMyStationMAC(t *testing.T) {
 	ethHeader.WithDstAddress(myStationMAC)
 
 	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.DstAddressRange().
-		WithMin("203.0.113.1").
-		WithMax("203.0.113.254").
-		WithCount(10)
-
 	ipv6Header := ondatra.NewIPv6Header()
 
 	t.Run("With MyStationMAC", func(t *testing.T) {
