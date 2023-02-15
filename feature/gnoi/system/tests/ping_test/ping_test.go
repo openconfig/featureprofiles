@@ -115,7 +115,7 @@ func TestGNOIPing(t *testing.T) {
 	lbIntf := lo10Intf.NewOCInterface(lbIntfName)
 	lbIntf.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
 	lo10 := gnmi.OC().Interface(lbIntfName)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(lbIntfName).Config(), lbIntf)
+	gnmi.Replace(t, dut, lo10.Config(), lbIntf)
 
 	lo10s := lo10.Subinterface(0)
 	ipv4Addrs := gnmi.GetAll(t, dut, lo10s.Ipv4().AddressAny().State())
