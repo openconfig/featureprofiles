@@ -24,6 +24,10 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
+var (
+	identifiedNPUs = 0
+)
+
 func getComponentID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) string {
 	resp := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
 	component := oc.Component{}
@@ -66,6 +70,7 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 			component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID + i)
 			gnmi.Update(t, dut, gnmi.OC().Component(name).Config(), &component)
 			i += 1
+			identifiedNPUs += 1
 		}
 	}
 }

@@ -88,17 +88,43 @@ func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType)
 	t.Helper()
 	packet := gopacket.NewPacket(packetData, layers.LayerTypeEthernet, gopacket.Default)
 	etherHeader := packet.Layer(layers.LayerTypeEthernet)
+	//t.Log("EtherHeader:   ", etherHeader)
 	if etherHeader != nil {
 		header, decoded := etherHeader.(*layers.Ethernet)
 		if decoded {
+			//t.Log("header, decode: ", header, " ", decoded)
 			return header.DstMAC.String(), header.EthernetType
 		}
 	}
 	return "", layers.EthernetType(0)
 }
 
+func decodePacket6(t *testing.T, packetData []byte) (string, string) {
+	t.Helper()
+	ethpacket := gopacket.NewPacket(packetData[:14], layers.LayerTypeEthernet, gopacket.Default)
+	if Ethernet := ethpacket.Layer(layers.LayerTypeEthernet); Ethernet != nil {
+		header, decoded := Ethernet.(*layers.Ethernet)
+		//t.Logf("Ethernet Information: header, decoded: %v, %v", header, decoded)
+		if header.EthernetType.String() == "IPv6" && decoded {
+			packet := gopacket.NewPacket(packetData[14:], layers.LayerTypeIPv6, gopacket.Default)
+			if IPv6 := packet.Layer(layers.LayerTypeIPv6); IPv6 != nil {
+				ipv6, _ := IPv6.(*layers.IPv6)
+				//t.Log("IPv6 hoplimit length payload: ", ipv6.HopLimit, " ", ipv6.Length, " ", ipv6.Payload)
+				return ipv6.SrcIP.String(), ipv6.DstIP.String()
+			}
+		}
+	}
+	return "", ""
+}
+
 func decodeIPPacket(t *testing.T, packetData []byte) (string, string) {
 	t.Helper()
+
+	//handle ipv6 packets
+	a, b := decodePacket6(t, packetData)
+	if a != "" && b != "" {
+		return a, b
+	}
 
 	var eth layers.Ethernet
 	var ip4 layers.IPv4
@@ -106,6 +132,7 @@ func decodeIPPacket(t *testing.T, packetData []byte) (string, string) {
 	parser := gopacket.NewDecodingLayerParser(layers.LayerTypeEthernet, &eth, &ip4, &ip6)
 	decoded := []gopacket.LayerType{}
 	if err := parser.DecodeLayers(packetData, &decoded); err != nil {
+		t.Log("Problem in parsing the packet: ", err)
 		return "", ""
 	}
 	for _, layerType := range decoded {
@@ -142,11 +169,13 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 	t.Logf("Start to decode packet.")
 	wantPacket := args.packetIO.GetPacketTemplate(t)
 	for _, packet := range packets {
-		// t.Logf("Packet: %v", packet)
+		//t.Logf("Packet: %v", packet)
+		//t.Logf("Packet: %v", binary.BigEndian.Uint16(packet.Pkt.GetPayload()))
 		if packet != nil {
 			// t.Logf("Packet Payload: %v", packet.Pkt.GetPayload())
 			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
 				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				//t.Logf("Ethernet dstMac, etherType %s, %s:", dstMac, etherType)
 				// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
 				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
 					t.Errorf("Packet is not matching wanted packet.")
@@ -155,8 +184,11 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 
 			if wantPacket.DstIPv4 != nil || wantPacket.DstIPv6 != nil {
 				srcIP, dstIP := decodeIPPacket(t, packet.Pkt.GetPayload())
+				//t.Logf("srcIP, dstIP %s, %s:", srcIP, dstIP)
 				// t.Logf("Decoded SRC IP: %v; Decoded DST IP: %v", srcIP, dstIP)
 				if *wantPacket.SrcIPv4 != srcIP && *wantPacket.SrcIPv6 != srcIP && *wantPacket.DstIPv4 != dstIP && *wantPacket.DstIPv6 != dstIP {
+					// t.Logf("SourceIP: wanted %s, or %s, got %s", *wantPacket.SrcIPv4, *wantPacket.SrcIPv6, srcIP)
+					// t.Logf("DestinationIP: wanted %s, or %s, got %s", *wantPacket.DstIPv4, *wantPacket.DstIPv6, dstIP)
 					t.Errorf("IP header in Packet is not matching wanted packet.")
 				}
 			}
@@ -164,9 +196,9 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 			// TODO: Check Port-id in MetaData
 			metaData := packet.Pkt.GetMetadata()
 			for _, data := range metaData {
-				// t.Logf("Metadata: %d, %s", data.GetMetadataId(), data.GetValue())
+				//t.Logf("Metadata: %d, %s", data.GetMetadataId(), data.GetValue())
 				if data.GetMetadataId() == METADATA_INGRESS_PORT {
-					// t.Logf("Expected Ingress Port Id: %v", args.packetIO.GetIngressPort(t))
+					//t.Logf("Expected Ingress Port Id: %v", args.packetIO.GetIngressPort(t))
 					if string(data.GetValue()) != args.packetIO.GetIngressPort(t) {
 						t.Errorf("Ingress Port Id is not matching expectation...")
 					}
