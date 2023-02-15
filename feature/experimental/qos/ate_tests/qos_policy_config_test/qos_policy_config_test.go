@@ -31,6 +31,10 @@ func TestMain(m *testing.M) {
 }
 
 // QoS policy OC config:
+//  - forwarding-groups:
+//    - /qos/forwarding-groups/forwarding-group/config/name
+//    - /qos/forwarding-groups/forwarding-group/config/output-queue
+//    - /qos/queues/queue/config/name
 //  - classifiers:
 //    - /qos/classifiers/classifier/config/name
 //    - /qos/classifiers/classifier/config/type
@@ -44,10 +48,6 @@ func TestMain(m *testing.M) {
 //    - /qos/interfaces/interface/input/classifiers/classifier/type
 //    - /qos/interfaces/interface/input/classifiers/classifier/config/type
 //    - /qos/interfaces/interface/input/classifiers/classifier/config/name
-//  - forwarding-groups:
-//    - /qos/forwarding-groups/forwarding-group/config/name
-//    - /qos/forwarding-groups/forwarding-group/config/output-queue
-//    - /qos/queues/queue/config/name
 //  - scheduler-policies:
 //    - /qos/scheduler-policies/scheduler-policy/config/name
 //    - /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority
@@ -80,6 +80,70 @@ func TestMain(m *testing.M) {
 //   - gnmic tool info:
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
+
+func TestQoSForwadingGroupsConfig(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	d := &oc.Root{}
+	q := d.GetOrCreateQos()
+
+	cases := []struct {
+		desc         string
+		queueName    string
+		targetGrpoup string
+	}{{
+		desc:         "forwarding-group-BE1",
+		queueName:    "BE1",
+		targetGrpoup: "target-group-BE1",
+	}, {
+		desc:         "forwarding-group-BE0",
+		queueName:    "BE0",
+		targetGrpoup: "target-group-BE0",
+	}, {
+		desc:         "forwarding-group-AF1",
+		queueName:    "AF1",
+		targetGrpoup: "target-group-AF1",
+	}, {
+		desc:         "forwarding-group-AF2",
+		queueName:    "AF2",
+		targetGrpoup: "target-group-AF2",
+	}, {
+		desc:         "forwarding-group-AF3",
+		queueName:    "AF3",
+		targetGrpoup: "target-group-AF3",
+	}, {
+		desc:         "forwarding-group-AF4",
+		queueName:    "AF4",
+		targetGrpoup: "target-group-AF4",
+	}, {
+		desc:         "forwarding-group-NC1",
+		queueName:    "NC1",
+		targetGrpoup: "target-group-NC1",
+	}}
+
+	t.Logf("qos forwarding groups config cases: %v", cases)
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
+			fwdGroup.SetName(tc.targetGrpoup)
+			fwdGroup.SetOutputQueue(tc.queueName)
+			queue := q.GetOrCreateQueue(tc.queueName)
+			queue.SetName(tc.queueName)
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		})
+
+		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
+		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
+
+		// Verify the ForwardingGroup is applied by checking the telemetry path state values.
+		forwardingGroup := gnmi.OC().Qos().ForwardingGroup(tc.targetGrpoup)
+		if got, want := gnmi.Get(t, dut, forwardingGroup.Name().State()), tc.targetGrpoup; got != want {
+			t.Errorf("forwardingGroup.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, forwardingGroup.OutputQueue().State()), tc.queueName; got != want {
+			t.Errorf("forwardingGroup.OutputQueue().State(): got %v, want %v", got, want)
+		}
+	}
+}
 
 func TestQoSClassifierConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -302,70 +366,6 @@ func TestQoSInputIntfClassifierConfig(t *testing.T) {
 		}
 		if got, want := gnmi.Get(t, dut, classifier.Type().State()), tc.inputClassifierType; got != want {
 			t.Errorf("classifier.Name().State(): got %v, want %v", got, want)
-		}
-	}
-}
-
-func TestQoSForwadingGroupsConfig(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	d := &oc.Root{}
-	q := d.GetOrCreateQos()
-
-	cases := []struct {
-		desc         string
-		queueName    string
-		targetGrpoup string
-	}{{
-		desc:         "forwarding-group-BE1",
-		queueName:    "BE1",
-		targetGrpoup: "target-group-BE1",
-	}, {
-		desc:         "forwarding-group-BE0",
-		queueName:    "BE0",
-		targetGrpoup: "target-group-BE0",
-	}, {
-		desc:         "forwarding-group-AF1",
-		queueName:    "AF1",
-		targetGrpoup: "target-group-AF1",
-	}, {
-		desc:         "forwarding-group-AF2",
-		queueName:    "AF2",
-		targetGrpoup: "target-group-AF2",
-	}, {
-		desc:         "forwarding-group-AF3",
-		queueName:    "AF3",
-		targetGrpoup: "target-group-AF3",
-	}, {
-		desc:         "forwarding-group-AF4",
-		queueName:    "AF4",
-		targetGrpoup: "target-group-AF4",
-	}, {
-		desc:         "forwarding-group-NC1",
-		queueName:    "NC1",
-		targetGrpoup: "target-group-NC1",
-	}}
-
-	t.Logf("qos forwarding groups config cases: %v", cases)
-	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
-			fwdGroup.SetName(tc.targetGrpoup)
-			fwdGroup.SetOutputQueue(tc.queueName)
-			queue := q.GetOrCreateQueue(tc.queueName)
-			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-		})
-
-		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
-
-		// Verify the ForwardingGroup is applied by checking the telemetry path state values.
-		forwardingGroup := gnmi.OC().Qos().ForwardingGroup(tc.targetGrpoup)
-		if got, want := gnmi.Get(t, dut, forwardingGroup.Name().State()), tc.targetGrpoup; got != want {
-			t.Errorf("forwardingGroup.Name().State(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.Get(t, dut, forwardingGroup.OutputQueue().State()), tc.queueName; got != want {
-			t.Errorf("forwardingGroup.OutputQueue().State(): got %v, want %v", got, want)
 		}
 	}
 }
