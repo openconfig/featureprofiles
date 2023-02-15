@@ -33,11 +33,6 @@ Ensure that traffic splits within a `NextHopGroup` are correctly honoured.
         *   Weight 31:1 - ~96.9% traffic to NH1, ~3.1% to NH2.
         *   Weight 63:1 - ~98.4% traffic to NH1, ~1.6% to NH2.
 
-*   Validate that weights of:
-
-    *   <64K are supported
-    *   \>64K are correctly balanced if the device supports it.
-
 *   With NHG10 containing 8 next-hops, with a weight of 1 assigned to each,
     sequentially remove each next-hop by turning down the port at the ATE
     (invalidates nexthop), ensure that traffic is rebalanced across remaining
@@ -45,7 +40,6 @@ Ensure that traffic splits within a `NextHopGroup` are correctly honoured.
 
 # Telemetry Parameter Coverage
 
-*   TODO:
     /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight
 
 # Protocol/RPC
