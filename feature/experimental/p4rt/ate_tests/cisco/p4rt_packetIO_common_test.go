@@ -92,7 +92,7 @@ func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType)
 	if etherHeader != nil {
 		header, decoded := etherHeader.(*layers.Ethernet)
 		if decoded {
-			fmt.Println("header, decode: ", header, " ", decoded)
+			//t.Log("header, decode: ", header, " ", decoded)
 			return header.DstMAC.String(), header.EthernetType
 		}
 	}
