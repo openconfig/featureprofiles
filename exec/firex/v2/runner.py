@@ -445,18 +445,6 @@ def ReleaseIxiaPorts(self, ws, ondatra_binding_path):
         logger.warning(f'Failed to release ixia ports. Ignoring...')
 
 @app.task(bind=True)
-def SoftwareUpgrade(self, internal_fp_repo_dir, image_path,
-                    ondatra_binding_path, ondatra_testbed_path):
-    env = dict(os.environ)
-    env.update(_get_go_env())
-    logger.print(
-        check_output(
-            f'{GO_BIN} test -v ./exec/utils/upgrade -binding {ondatra_binding_path} ' +
-                 f'-testbed {ondatra_testbed_path} -imagePath {image_path}', 
-            env=env, cwd=internal_fp_repo_dir)
-    )
-
-@app.task(bind=True)
 def GoReporting(self, internal_fp_repo_dir, test_log_directory_path):
     logger.print("Generating HTML report...")
     json_log_file = os.path.join(test_log_directory_path, f'go_logs.json')
