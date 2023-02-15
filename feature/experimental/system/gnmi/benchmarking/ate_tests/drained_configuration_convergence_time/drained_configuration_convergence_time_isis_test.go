@@ -33,7 +33,7 @@ func setISISOverloadBit(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// ISIS Configs to set OVerload Bit to true
-	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.IsisInstance).Isis()
+	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
 	lspBit := dutISISPath.Global().LspBit().OverloadBit()
 	gnmi.Replace(t, dut, lspBit.SetBit().Config(), true)
 }
@@ -41,7 +41,7 @@ func setISISOverloadBit(t *testing.T) {
 // setISISMetric is used to configure metric on isis interfaces
 func setISISMetric(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.IsisInstance).Isis()
+	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
 
 	t.Logf("Configure ISIS metric to %v", setup.ISISMetric)
 	for _, dp := range dut.Ports() {
@@ -72,10 +72,9 @@ func verifyISISMetric(t *testing.T) {
 			lsps := is.LevelAny().LspAny()
 			metric := gnmi.GetAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Metric().State())
 
-			if diff := cmp.Diff(setup.ISISMetricArray, metric); diff != "" {
-				t.Errorf("obtained Metric on ATE is not as expected, got %v, want %v", metric, setup.ISISMetricArray)
+			if diff := cmp.Diff(setup.ISISMetricList, metric); diff != "" {
+				t.Errorf("obtained Metric on ATE is not as expected, got %v, want %v", metric, setup.ISISMetricList)
 			}
-
 		}
 	})
 }
@@ -108,10 +107,8 @@ func verifyISISOverloadBit(t *testing.T) {
 			if diff := cmp.Diff(setup.ISISSetBitArray, setBit); diff != "" {
 				t.Errorf("obtained setBit on ATE is not as expected, got %v, want %v, prefixes %v", setBit, setup.ISISSetBitArray, prefix)
 			}*/
-
 		}
 	})
-
 }
 
 // TestISISBenchmarking is to test ISIS overload bit and metric change

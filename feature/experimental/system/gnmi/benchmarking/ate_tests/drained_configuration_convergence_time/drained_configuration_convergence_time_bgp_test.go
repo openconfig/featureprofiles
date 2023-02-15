@@ -34,17 +34,19 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	asPathRepeatValue      = 3
-	aclStatement2          = "20"
-	aclStatement3          = "30"
+	// BGP AS Path repeat value
+	asPathRepeatValue = 3
+	aclStatement2     = "20"
+	aclStatement3     = "30"
+	// BGP AS path prepend policy name
 	setAspathPrependPolicy = "SET-ASPATH-PREPEND"
-	setMedPolicy           = "SET-MED"
-	bgpMed                 = 25
+	// BGP MED policy name
+	setMedPolicy = "SET-MED"
 )
 
-// setMED is used to configure routing policy to set MED on DUT
+// configuerSetMED is used to configure routing policy to set MED on DUT
 // TODO : SetMED is not supported: https://github.com/openconfig/featureprofiles/issues/759
-func setMED(t *testing.T) {
+func configuerSetMED(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// Clear existing routing policies on DUT
@@ -62,8 +64,8 @@ func setMED(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
-// setASPath is used to configure route policy set-as-path prepend on DUT
-func setASPath(t *testing.T, dut *ondatra.DUTDevice) {
+// ConfigureASPath is used to configure route policy set-as-path prepend on DUT
+func ConfigureASPath(t *testing.T, dut *ondatra.DUTDevice) {
 	// Clear existing policies on dut
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), nil)
 
@@ -73,7 +75,7 @@ func setASPath(t *testing.T, dut *ondatra.DUTDevice) {
 	pdef5 := rp.GetOrCreatePolicyDefinition(setAspathPrependPolicy)
 	actions5 := pdef5.GetOrCreateStatement(aclStatement2).GetOrCreateActions()
 	aspend := actions5.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
-	aspend.Asn = ygot.Uint32(setup.DutAS)
+	aspend.Asn = ygot.Uint32(setup.DUTAs)
 	aspend.RepeatN = ygot.Uint8(asPathRepeatValue)
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
@@ -90,7 +92,7 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice) {
 	// Build wantArray to compare the diff
 	/*var wantArray []uint32
 	for i := 0; i < setup.RouteCount; i++ {
-		wantArray = append(wantArray, setup.DutAS, setup.DutAS, setup.DutAS, setup.DutAS, setup.AteAS)
+		wantArray = append(wantArray, setup.DUTAs, setup.DUTAs, setup.DUTAs, setup.DUTAs, setup.ATEAs)
 	}*/
 
 	// Start the timer.
@@ -108,25 +110,25 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice) {
 				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 		prefixLoop:
 			for repeat := 4; repeat > 0; repeat-- {
-				prefixesv4 := statePath.Neighbor(setup.AteIPPool[ap.ID()].String()).
+				prefixesv4 := statePath.Neighbor(setup.ATEIPList[ap.ID()].String()).
 					AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 				gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State())
 				switch {
 				case gotSent == setup.RouteCount:
-					t.Logf("Prefixes sent from ingress port are learnt at ATE dst port : %v", setup.AteIPPool[ap.ID()].String())
+					t.Logf("Prefixes sent from ingress port are learnt at ATE dst port : %v", setup.ATEIPList[ap.ID()].String())
 					break prefixLoop
 				case repeat > 0 && gotSent < setup.RouteCount:
 					t.Logf("All the prefixes are not learnt , wait for 5 secs before retry.. got %v, want %v", gotSent, setup.RouteCount)
 					time.Sleep(time.Second * 5)
 				case repeat == 0 && gotSent < setup.RouteCount:
-					t.Errorf("sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.AteIPPool[ap.ID()].String(), gotSent, setup.RouteCount)
+					t.Errorf("sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.ATEIPList[ap.ID()].String(), gotSent, setup.RouteCount)
 				}
 			}
 
 			// TODO: https://github.com/openconfig/ondatra/issues/45
 			/*rib := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, fmt.Sprintf("bgp-%s", ap.Name())).Bgp().Rib()
 			prefixPath := rib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().
-				Neighbor(setup.DutIPPool[ap.ID()].String()).AdjRibInPre().RouteAnyPrefix(0).Prefix()
+				Neighbor(setup.DUTIPList[ap.ID()].String()).AdjRibInPre().RouteAnyPrefix(0).Prefix()
 			pref := gnmi.Get(t, dut, prefixPath.State())
 			asPath := gnmi.Get(t, dut, rib.AttrSet(0).AsPath().State())
 
@@ -140,7 +142,6 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice) {
 	// End the timer and calculate time
 	elapsed := time.Since(start)
 	t.Logf("Duration taken to apply as path prepend policy is  %v", elapsed)
-
 }
 
 // verifyBGPSetMED is to Validate MED attribute using bgp rib telemetry on ATE
@@ -172,18 +173,18 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice) {
 				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 		prefixLoop:
 			for repeat := 4; repeat > 0; repeat-- {
-				prefixesv4 := statePath.Neighbor(setup.AteIPPool[ap.ID()].String()).
+				prefixesv4 := statePath.Neighbor(setup.ATEIPList[ap.ID()].String()).
 					AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 				gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State())
 				switch {
 				case gotSent == setup.RouteCount:
-					t.Logf("Prefixes sent from ingress port are learnt at ATE dst port : %v", setup.AteIPPool[ap.ID()].String())
+					t.Logf("Prefixes sent from ingress port are learnt at ATE dst port : %v", setup.ATEIPList[ap.ID()].String())
 					break prefixLoop
 				case repeat > 0 && gotSent < setup.RouteCount:
 					t.Logf("All the prefixes are not learnt , wait for 5 secs before retry.. got %v, want %v", gotSent, setup.RouteCount)
 					time.Sleep(time.Second * 5)
 				case repeat == 0 && gotSent < setup.RouteCount:
-					t.Errorf("Sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.AteIPPool[ap.ID()].String(), gotSent, setup.RouteCount)
+					t.Errorf("Sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.ATEIPList[ap.ID()].String(), gotSent, setup.RouteCount)
 				}
 			}
 			// TODO : SetMED is not supported: https://github.com/openconfig/featureprofiles/issues/759
@@ -208,20 +209,18 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice) {
 // on DUT using gnmi set request. It also verifies for bgp and isis adjacencies.
 func TestEstablish(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	setup.BuildIPPool(t)
+	dutConfigPath := gnmi.OC()
 
 	t.Log("Configure Network Instance type to DEFAULT on DUT")
 	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
-	t.Log("Cleanup exisitng bgp and isis configs on DUT before configuring test configs")
-	dutBGPPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	gnmi.Delete(t, dut, dutBGPPath.Config())
-	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.IsisInstance).Isis()
-	gnmi.Delete(t, dut, dutISISPath.Config())
+	t.Log("Build Benchmarking BGP and ISIS test configs")
+	dutBenchmarkConfig := setup.BuildBenchmarkingConfig(t)
 
-	t.Log("Configure BGP and ISIS test configs")
-	setup.BuildOCUpdate(t)
+	fptest.LogQuery(t, "Benchmarking configs to configure on DUT", dutConfigPath.Config(), dutBenchmarkConfig)
+	// Apply benchmarking configs on dut
+	gnmi.Update(t, dut, dutConfigPath.Config(), dutBenchmarkConfig)
 
 	t.Log("Configure ATE with Interfaces, BGP, ISIS configs")
 	ate := ondatra.ATE(t, "ate")
@@ -248,7 +247,7 @@ func TestBGPBenchmarking(t *testing.T) {
 
 	// TODO : SetMED is not supported: https://github.com/openconfig/featureprofiles/issues/759
 	t.Logf("Configure MED routing policy")
-	setMED(t)
+	configuerSetMED(t)
 
 	t.Logf("Verify time taken to apply MED to all routes in bgp rib")
 	verifyBGPSetMED(t, dut)
@@ -258,7 +257,7 @@ func TestBGPBenchmarking(t *testing.T) {
 	gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
 
 	t.Logf("Configure SET-AS-PATH routing policy")
-	setASPath(t, dut)
+	ConfigureASPath(t, dut)
 
 	t.Logf("Verify time taken to apply SET-AS-PATH to all routes in bgp rib")
 	verifyBGPAsPath(t, dut)
