@@ -2,7 +2,6 @@ package cisco_p4rt_test
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"strings"
@@ -89,7 +88,7 @@ func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType)
 	t.Helper()
 	packet := gopacket.NewPacket(packetData, layers.LayerTypeEthernet, gopacket.Default)
 	etherHeader := packet.Layer(layers.LayerTypeEthernet)
-	fmt.Println("EtherHeader:   ", etherHeader)
+	t.Log("EtherHeader:   ", etherHeader)
 	if etherHeader != nil {
 		header, decoded := etherHeader.(*layers.Ethernet)
 		if decoded {
@@ -181,13 +180,16 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 	wantPacket := args.packetIO.GetPacketTemplate(t)
 	for _, packet := range packets {
 		//packet = *p4rt_client.P4RTPacketInfo{9 payload:"\000\001\000\002\000\003\000\001\000\001\000\001\206\335`\000\000\000\000\362;\001\001\000\001 \000\001\000\000\000\000\000\000\000\000\000\001\001\000\001!\000\001\000\000\000\000\000\000\000\000\000\0029\236\004\373yH\361`Ixia\000\000\000\000\020\021\022\023\016\347+-\030\031\032\033\034\035\036\037 !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\177\200\201\202\203\204\205\206\207\210\211\212\213\214\215\216\217\220\221\222\223\224\225\226\227\230\231\232\233\234\235\236\237\240\241\242\243\244\245\246\247\250\251\252\253\254\255\256\257\260\261\262\263\264\265\266\267\270\271\272\273\274\275\276\277\300\301\302\303\304\305\306\307\310\311\312\313\314\315\316\317\320\321\322\323\324\325\326\327\330\331\332\333\334\335\336\337\340\341\342\343\344\345\346\347\350\351\352\353\354\355\356\357\360\361" metadata:<metadata_id:1 value:"10" > metadata:<metadata_id:2 value:"11" > }
-		t.Logf("Packet: %v", packet)
-		t.Logf("Packet: %v", binary.BigEndian.Uint16(packet.Pkt.GetPayload()))
+		//t.Logf("Packet: %v", packet)
+		//t.Logf("Packet: %v", binary.BigEndian.Uint16(packet.Pkt.GetPayload()))
 		if packet != nil {
 			// t.Logf("Packet Payload: %v", packet.Pkt.GetPayload())
-			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+			//if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+			dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+			t.Logf("Ethernet dstMac, etherType %s, %s:", dstMac, etherType)
+			if wantPacket.DstMAC == nil && wantPacket.EthernetType == nil {
 				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
-				t.Logf("dstMac, etherType %s, %s:", dstMac, etherType)
+				t.Logf("Ethernet dstMac, etherType %s, %s:", dstMac, etherType)
 				// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
 				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
 					t.Errorf("Packet is not matching wanted packet.")
