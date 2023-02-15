@@ -89,28 +89,29 @@ WCMP width of 16 nexthops:
 
     *   IPv4Entry 192.0.2.222/32 in default VRF, pointing to NextHopGroup(NHG#3)
         in default VRF, with 16 NextHops(NH#100, NH#101, ..., NH#115), all with
-        weight: 1, in default VRF:
+        weight: 16 except NHG#100 is of weight 1, in default VRF:
 
         *   NH#100 with weight:1, pointing to 192.0.2.18
 
-        *   NH#101 with weight:1, pointing to 192.0.2.22
+        *   NH#101 with weight:16, pointing to 192.0.2.22
 
         *   ...
 
-        *   NH#115 with weight:1, pointing to 192.0.2.79
+        *   NH#115 with weight:16, pointing to 192.0.2.79
 
 *   Validate with traffic:
 
-    *   NH10: (1/32) * (3/8) = 1.171% traffic received by ATE port-2 VLAN 1
+    *   NH10: (1/32) * (3/8) ~ 1.171% traffic received by ATE port-2 VLAN 1
 
-    *   NH11: (1/32) * (5/8) = 1.953% traffic received by ATE port-2 VLAN 2
+    *   NH11: (1/32) * (5/8) ~ 1.953% traffic received by ATE port-2 VLAN 2
 
-    *   for each VLAN ID in 3...18:
+    *   NH100: (31/32) * (1/241) ~ 0.402% traffic received by ATE port-2 VLAN 3
 
-        *   NH: (31/32) * (1/16) ~ 6.05% traffic received by ATE port-2 VLAN ID
+    for each VLAN ID in 3...18:
 
-    *   A deviation of 0.5% is allowed for each VLAN for now, since we only test
-        for 2 mins.
+        *   NH: (31/32) * (16/241) ~ 6.432% traffic received by ATE port-2 VLAN ID
+
+    *   A deviation of 0.2% is allowed for each VLAN for now.
 
 ## Config Parameter Coverage
 
@@ -118,7 +119,6 @@ N/A
 
 ## Telemetry Parameter Coverage
 
-TODO:
 /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight
 
 ## Protocol/RPC Parameter coverage
