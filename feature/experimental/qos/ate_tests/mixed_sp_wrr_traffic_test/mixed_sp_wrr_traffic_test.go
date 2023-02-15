@@ -639,6 +639,51 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 
+	t.Logf("Create qos forwarding groups config")
+	forwardingGroups := []struct {
+		desc         string
+		queueName    string
+		targetGrpoup string
+	}{{
+		desc:         "forwarding-group-BE1",
+		queueName:    "BE1",
+		targetGrpoup: "target-group-BE1",
+	}, {
+		desc:         "forwarding-group-BE0",
+		queueName:    "BE0",
+		targetGrpoup: "target-group-BE0",
+	}, {
+		desc:         "forwarding-group-AF1",
+		queueName:    "AF1",
+		targetGrpoup: "target-group-AF1",
+	}, {
+		desc:         "forwarding-group-AF2",
+		queueName:    "AF2",
+		targetGrpoup: "target-group-AF2",
+	}, {
+		desc:         "forwarding-group-AF3",
+		queueName:    "AF3",
+		targetGrpoup: "target-group-AF3",
+	}, {
+		desc:         "forwarding-group-AF4",
+		queueName:    "AF4",
+		targetGrpoup: "target-group-AF4",
+	}, {
+		desc:         "forwarding-group-NC1",
+		queueName:    "NC1",
+		targetGrpoup: "target-group-NC1",
+	}}
+
+	t.Logf("qos forwarding groups config: %v", forwardingGroups)
+	for _, tc := range forwardingGroups {
+		fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
+		fwdGroup.SetName(tc.targetGrpoup)
+		fwdGroup.SetOutputQueue(tc.queueName)
+		queue := q.GetOrCreateQueue(tc.queueName)
+		queue.SetName(tc.queueName)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	}
+
 	t.Logf("Create qos Classifiers config")
 	classifiers := []struct {
 		desc         string
@@ -804,51 +849,6 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 		c.SetType(tc.inputClassifierType)
 		c.SetName(tc.classifier)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	}
-
-	t.Logf("Create qos forwarding groups config")
-	forwardingGroups := []struct {
-		desc         string
-		queueName    string
-		targetGrpoup string
-	}{{
-		desc:         "forwarding-group-BE1",
-		queueName:    "BE1",
-		targetGrpoup: "target-group-BE1",
-	}, {
-		desc:         "forwarding-group-BE0",
-		queueName:    "BE0",
-		targetGrpoup: "target-group-BE0",
-	}, {
-		desc:         "forwarding-group-AF1",
-		queueName:    "AF1",
-		targetGrpoup: "target-group-AF1",
-	}, {
-		desc:         "forwarding-group-AF2",
-		queueName:    "AF2",
-		targetGrpoup: "target-group-AF2",
-	}, {
-		desc:         "forwarding-group-AF3",
-		queueName:    "AF3",
-		targetGrpoup: "target-group-AF3",
-	}, {
-		desc:         "forwarding-group-AF4",
-		queueName:    "AF4",
-		targetGrpoup: "target-group-AF4",
-	}, {
-		desc:         "forwarding-group-NC1",
-		queueName:    "NC1",
-		targetGrpoup: "target-group-NC1",
-	}}
-
-	t.Logf("qos forwarding groups config: %v", forwardingGroups)
-	for _, tc := range forwardingGroups {
-		fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
-		fwdGroup.SetName(tc.targetGrpoup)
-		fwdGroup.SetOutputQueue(tc.queueName)
-		queue := q.GetOrCreateQueue(tc.queueName)
-		queue.SetName(tc.queueName)
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
