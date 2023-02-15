@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -130,18 +131,18 @@ func TestOneSPQueueTraffic(t *testing.T) {
 	top.Ports().Add().SetName(ap3.ID())
 
 	dev1 := top.Devices().Add().SetName(intf1.Name)
-	eth1 := dev1.Ethernets().Add().SetName(dev1.Name() + ".eth")
-	eth1.SetPortName(ap1.ID()).SetMac(intf1.MAC)
+	eth1 := dev1.Ethernets().Add().SetName(dev1.Name() + ".eth").SetMac(intf1.MAC)
+	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
 	eth1.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress(intf1.IPv4).SetGateway(intf1Gateway).SetPrefix(int32(intf1.IPv4Len))
 
 	dev2 := top.Devices().Add().SetName(intf2.Name)
-	eth2 := dev2.Ethernets().Add().SetName(dev2.Name() + ".eth")
-	eth2.SetPortName(ap2.ID()).SetMac(intf2.MAC)
+	eth2 := dev2.Ethernets().Add().SetName(dev2.Name() + ".eth").SetMac(intf2.MAC)
+	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
 	eth2.Ipv4Addresses().Add().SetName(dev2.Name() + ".ipv4").SetAddress(intf2.IPv4).SetGateway(intf2Gateway).SetPrefix(int32(intf2.IPv4Len))
 
 	dev3 := top.Devices().Add().SetName(intf3.Name)
-	eth3 := dev3.Ethernets().Add().SetName(dev3.Name() + ".eth")
-	eth3.SetPortName(ap3.ID()).SetMac(intf3.MAC)
+	eth3 := dev3.Ethernets().Add().SetName(dev3.Name() + ".eth").SetMac(intf3.MAC)
+	eth3.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap3.ID())
 	eth3.Ipv4Addresses().Add().SetName(dev3.Name() + ".ipv4").SetAddress(intf3.IPv4).SetGateway(intf3Gateway).SetPrefix(int32(intf3.IPv4Len))
 
 	var tolerance float32 = 2.0
