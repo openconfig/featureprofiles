@@ -88,7 +88,7 @@ func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType)
 	t.Helper()
 	packet := gopacket.NewPacket(packetData, layers.LayerTypeEthernet, gopacket.Default)
 	etherHeader := packet.Layer(layers.LayerTypeEthernet)
-	t.Log("EtherHeader:   ", etherHeader)
+	//t.Log("EtherHeader:   ", etherHeader)
 	if etherHeader != nil {
 		header, decoded := etherHeader.(*layers.Ethernet)
 		if decoded {
