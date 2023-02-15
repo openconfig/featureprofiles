@@ -1193,6 +1193,51 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 
+	t.Logf("Create qos forwarding groups config")
+	forwardingGroups := []struct {
+		desc         string
+		queueName    string
+		targetGrpoup string
+	}{{
+		desc:         "forwarding-group-BE1",
+		queueName:    "BE1",
+		targetGrpoup: "target-group-BE1",
+	}, {
+		desc:         "forwarding-group-BE0",
+		queueName:    "BE0",
+		targetGrpoup: "target-group-BE0",
+	}, {
+		desc:         "forwarding-group-AF1",
+		queueName:    "AF1",
+		targetGrpoup: "target-group-AF1",
+	}, {
+		desc:         "forwarding-group-AF2",
+		queueName:    "AF2",
+		targetGrpoup: "target-group-AF2",
+	}, {
+		desc:         "forwarding-group-AF3",
+		queueName:    "AF3",
+		targetGrpoup: "target-group-AF3",
+	}, {
+		desc:         "forwarding-group-AF4",
+		queueName:    "AF4",
+		targetGrpoup: "target-group-AF4",
+	}, {
+		desc:         "forwarding-group-NC1",
+		queueName:    "NC1",
+		targetGrpoup: "target-group-NC1",
+	}}
+
+	t.Logf("qos forwarding groups config: %v", forwardingGroups)
+	for _, tc := range forwardingGroups {
+		fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
+		fwdGroup.SetName(tc.targetGrpoup)
+		fwdGroup.SetOutputQueue(tc.queueName)
+		queue := q.GetOrCreateQueue(tc.queueName)
+		queue.SetName(tc.queueName)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	}
+
 	t.Logf("Create qos Classifiers config")
 	classifiers := []struct {
 		desc         string
@@ -1361,51 +1406,6 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
-	t.Logf("Create qos forwarding groups config")
-	forwardingGroups := []struct {
-		desc         string
-		queueName    string
-		targetGrpoup string
-	}{{
-		desc:         "forwarding-group-BE1",
-		queueName:    "BE1",
-		targetGrpoup: "target-group-BE1",
-	}, {
-		desc:         "forwarding-group-BE0",
-		queueName:    "BE0",
-		targetGrpoup: "target-group-BE0",
-	}, {
-		desc:         "forwarding-group-AF1",
-		queueName:    "AF1",
-		targetGrpoup: "target-group-AF1",
-	}, {
-		desc:         "forwarding-group-AF2",
-		queueName:    "AF2",
-		targetGrpoup: "target-group-AF2",
-	}, {
-		desc:         "forwarding-group-AF3",
-		queueName:    "AF3",
-		targetGrpoup: "target-group-AF3",
-	}, {
-		desc:         "forwarding-group-AF4",
-		queueName:    "AF4",
-		targetGrpoup: "target-group-AF4",
-	}, {
-		desc:         "forwarding-group-NC1",
-		queueName:    "NC1",
-		targetGrpoup: "target-group-NC1",
-	}}
-
-	t.Logf("qos forwarding groups config: %v", forwardingGroups)
-	for _, tc := range forwardingGroups {
-		fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
-		fwdGroup.SetName(tc.targetGrpoup)
-		fwdGroup.SetOutputQueue(tc.queueName)
-		queue := q.GetOrCreateQueue(tc.queueName)
-		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	}
-
 	t.Logf("Create qos scheduler policies config")
 	schedulerPolicies := []struct {
 		desc         string
@@ -1418,7 +1418,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup string
 	}{{
 		desc:         "scheduler-policy-BE1",
-		sequence:     uint32(1),
+		sequence:     uint32(6),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "BE1",
 		inputType:    oc.Input_InputType_QUEUE,
@@ -1427,7 +1427,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-BE1",
 	}, {
 		desc:         "scheduler-policy-BE0",
-		sequence:     uint32(1),
+		sequence:     uint32(5),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "BE0",
 		inputType:    oc.Input_InputType_QUEUE,
@@ -1436,7 +1436,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-BE0",
 	}, {
 		desc:         "scheduler-policy-AF1",
-		sequence:     uint32(1),
+		sequence:     uint32(4),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "AF1",
 		inputType:    oc.Input_InputType_QUEUE,
@@ -1445,7 +1445,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-AF1",
 	}, {
 		desc:         "scheduler-policy-AF2",
-		sequence:     uint32(1),
+		sequence:     uint32(3),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "AF2",
 		inputType:    oc.Input_InputType_QUEUE,
@@ -1454,7 +1454,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-AF2",
 	}, {
 		desc:         "scheduler-policy-AF3",
-		sequence:     uint32(1),
+		sequence:     uint32(2),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "AF3",
 		inputType:    oc.Input_InputType_QUEUE,
@@ -1463,7 +1463,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-AF3",
 	}, {
 		desc:         "scheduler-policy-AF4",
-		sequence:     uint32(0),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_STRICT,
 		inputID:      "AF4",
 		inputType:    oc.Input_InputType_QUEUE,
