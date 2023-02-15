@@ -25,7 +25,7 @@ devices:
       windows: /auto/vxr/images/ixia/IxNetworkWeb_KVM_9.10.2011.180.qcow2
     platform: ixia
   dut: 
-    cvac: /auto/tftpboot-projects/b4/base_configs/sim_base_config.conf
+    cvac: /auto/tftpboot-projects/b4/base_configs/pbr_base.conf
     linecard_types: 
       - churchill
     platform: spitfire_f
@@ -83,7 +83,7 @@ custom:
     dut: 
       vendor: CISCO
       config:
-        gnmi_set_file: /auto/tftpboot-ottawa/b4/firex/pyvxr/fp_baseconf.conf 
+        gnmi_set_file: /auto/tftpboot-projects/b4/base_configs/pbr_base.conf 
       ports: 
         gnmi: 
           opts: 
