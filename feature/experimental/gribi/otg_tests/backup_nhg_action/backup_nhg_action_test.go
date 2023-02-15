@@ -32,6 +32,7 @@ const (
 	NH2ID                = 2
 	NH3ID                = 3
 	innersrcPfx          = "198.51.100.1"
+	ethernetCsmacd       = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
 // testArgs holds the objects needed by a test case.
@@ -364,7 +365,7 @@ func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *att
 	dc := gnmi.OC()
 	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(state)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = ethernetCsmacd
 	i.Name = ygot.String(p.Name())
 	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
 }
