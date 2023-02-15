@@ -51,18 +51,18 @@ const (
 	authPassword   = "ISISAuthPassword"
 )
 
-// buildIPList builds list of ip addresses for the ports in binding file.
+// buildPortIPs generates ip addresses for the ports in binding file.
 // (Both DUT and ATE ports).
-func buildIPList(dut *ondatra.DUTDevice) (map[string]net.IP, map[string]net.IP) {
-	var dutIPList = make(map[string]net.IP)
-	var ateIPList = make(map[string]net.IP)
+func buildPortIPs(dut *ondatra.DUTDevice) (map[string]net.IP, map[string]net.IP) {
+	var dutIPs = make(map[string]net.IP)
+	var ateIPs = make(map[string]net.IP)
 	var dutIPIndex, ipSubnet, ateIPIndex int = 1, 2, 2
 	var endSubnetIndex = 253
 	for _, dp := range dut.Ports() {
 		dutNextIP := nextIP(net.ParseIP(dutStartIPAddr), dutIPIndex, ipSubnet)
 		ateNextIP := nextIP(net.ParseIP(ateStartIPAddr), ateIPIndex, ipSubnet)
-		dutIPList[dp.ID()] = dutNextIP
-		ateIPList[dp.ID()] = ateNextIP
+		dutIPs[dp.ID()] = dutNextIP
+		ateIPs[dp.ID()] = ateNextIP
 
 		// Increment DUT and ATE host ip index by 4.
 		dutIPIndex = dutIPIndex + 4
@@ -75,7 +75,7 @@ func buildIPList(dut *ondatra.DUTDevice) (map[string]net.IP, map[string]net.IP) 
 			ateIPIndex = 2
 		}
 	}
-	return dutIPList, ateIPList
+	return dutIPs, ateIPs
 
 }
 
@@ -94,8 +94,8 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
 
-	// Build list of ip addresses to configure DUT and ATE ports.
-	dutIPList, ateIPList := buildIPList(dut)
+	// Generate ip addresses to configure DUT and ATE ports.
+	dutIPs, ateIPs := buildPortIPs(dut)
 
 	// Network instance and BGP configs.
 	netInstance := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
@@ -151,11 +151,11 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		if *deviations.InterfaceEnabled {
 			s4.Enabled = ygot.Bool(true)
 		}
-		a4 := s4.GetOrCreateAddress(dutIPList[dp.ID()].String())
+		a4 := s4.GetOrCreateAddress(dutIPs[dp.ID()].String())
 		a4.PrefixLength = ygot.Uint8(plenIPv4)
 
 		// BGP neighbor configs.
-		nv4 := bgp.GetOrCreateNeighbor(ateIPList[dp.ID()].String())
+		nv4 := bgp.GetOrCreateNeighbor(ateIPs[dp.ID()].String())
 		nv4.PeerGroup = ygot.String(PeerGrpName)
 		if dp.ID() == "port1" {
 			nv4.PeerAs = ygot.Uint32(ateAs2)
