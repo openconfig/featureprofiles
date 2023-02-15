@@ -24,4 +24,4 @@ Ensure my MAC entries installed on the DUT are honored and used for routing.
 
 ## Protocol/RPC Parameter Coverage
 
-*  For gRIBI use the same parameters as in TE-2.1.
+N/A
