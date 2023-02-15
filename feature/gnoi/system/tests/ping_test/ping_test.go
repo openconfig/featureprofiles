@@ -19,12 +19,14 @@ import (
 	"io"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 )
 
@@ -45,6 +47,16 @@ const (
 	minimumMaxTime           = 1
 	//StdDeviation would be 0 if we only send 1 ping.
 	minimumStdDev = 1
+)
+
+var (
+	lo10Intf = attrs.Attributes{
+		Desc:    "lo10",
+		IPv4:    "10.10.10.10",
+		IPv4Len: 32,
+		IPv6:    "2001:0db8::10:10:10:10",
+		IPv6Len: 128,
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -99,10 +111,15 @@ func TestMain(m *testing.M) {
 func TestGNOIPing(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	lbIntf := netutil.LoopbackInterface(t, dut, 0)
-	lo0 := gnmi.OC().Interface(lbIntf).Subinterface(0)
-	ipv4Addrs := gnmi.GetAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.GetAll(t, dut, lo0.Ipv6().AddressAny().State())
+	lbIntfName := netutil.LoopbackInterface(t, dut, 10)
+	lbIntf := lo10Intf.NewOCInterface(lbIntfName)
+	lbIntf.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	lo10 := gnmi.OC().Interface(lbIntfName)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(lbIntfName).Config(), lbIntf)
+
+	lo10s := lo10.Subinterface(0)
+	ipv4Addrs := gnmi.GetAll(t, dut, lo10s.Ipv4().AddressAny().State())
+	ipv6Addrs := gnmi.GetAll(t, dut, lo10s.Ipv6().AddressAny().State())
 	t.Logf("Got DUT %s IPv4 loopback address: %+v", dut.Name(), ipv4Addrs)
 	t.Logf("Got DUT %s IPv6 loopback address: %+v", dut.Name(), ipv6Addrs)
 	if len(ipv4Addrs) == 0 {
@@ -112,7 +129,7 @@ func TestGNOIPing(t *testing.T) {
 		t.Fatalf("Failed to get a valid IPv6 loopback address: %+v", ipv6Addrs)
 	}
 	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, lbIntf, *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, lbIntfName, *deviations.DefaultNetworkInstance, 0)
 	}
 	commonExpectedIPv4Reply := &spb.PingResponse{
 		Source:   ipv4Addrs[0].GetIp(),
