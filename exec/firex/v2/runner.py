@@ -94,11 +94,12 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
 
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_dir', 'reserved_testbed', FireX.DYNAMIC_RETURN)
-def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_name,
+def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
-                        collect_tb_info=False):
+                        collect_tb_info=False,
+                        install_image=False):
 
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
@@ -118,24 +119,24 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_name,
     c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
                 reserved_testbed=reserved_testbed, **self.abog)
 
-    if reserved_testbed:
-        if reserved_testbed.get('sim', False):
-            overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
-            reserved_testbed.update(overrides)
+    using_sim = reserved_testbed and reserved_testbed.get('sim', False) 
+    if using_sim:
+        overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
+        reserved_testbed.update(overrides)
 
-            baseconf_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
-            baseconf_file_copy = os.path.join(testbed_logs_dir, 'baseconf.conf')
-            shutil.copyfile(baseconf_file, baseconf_file_copy)
+        baseconf_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
+        baseconf_file_copy = os.path.join(testbed_logs_dir, 'baseconf.conf')
+        shutil.copyfile(baseconf_file, baseconf_file_copy)
 
-            topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
-            check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file_copy}|g' {topo_file}")
-            c |= self.orig.s(plat='8000', topo_file=topo_file)
-        else:
-            c |= ReserveTestbed.s()
+        topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
+        check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file_copy}|g' {topo_file}")
+        c |= self.orig.s(plat='8000', topo_file=topo_file)
     else:
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
+    if install_image and not using_sim:
+        c |= SoftwareUpgrade.s()
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
     return internal_fp_repo_dir, reserved_testbed, self.enqueue_child_and_get_results(c)
@@ -340,13 +341,14 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     short_sha = repo.git.rev_parse(head_commit_sha, short=7)
     self.send_flame_html(version=f'{repo_name}: {short_sha}')
 
-@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path'))
+@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path', 'install_lock_file'))
 def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed, test_name, **kwargs):
     logger.print('Generating Ondatra files...')
     ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
     ondatra_testbed_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.testbed')
     ondatra_binding_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
+    install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
 
     if reserved_testbed.get('sim', False):
         vxr_testbed = kwargs['testbed_path']
@@ -357,6 +359,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     else:
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
+        install_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
+            f'testbed_{reserved_testbed["id"]}_install.lock')
 
         overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
         reserved_testbed.update(overrides)
@@ -371,7 +375,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
     logger.print(f'Ondatra testbed file: {ondatra_testbed_path}')
     logger.print(f'Ondatra binding file: {ondatra_binding_path}')
-    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path
+    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path, install_lock_file
 
 @app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
     soft_time_limit=12*60*60, time_limit=12*60*60)
@@ -385,6 +389,30 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
         time.sleep(1)
     logger.print(f'Reserved testbed {reserved_testbed["id"]}')
     return reserved_testbed
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def SoftwareUpgrade(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
+        ondatra_testbed_path, install_lock_file, images):
+    if os.path.exists(install_lock_file):
+        return
+    Path(install_lock_file).touch()
+
+    logger.print("Performing Software Upgrade...")
+    su_command = f'{GO_BIN} test -v ' \
+            f'./exec/utils/software_upgrade ' \
+            f'-timeout 0 ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} ' \
+            f'-imagePath "{images[0]}"'
+    try:
+        env = dict(os.environ)
+        env.update(_get_go_env())
+        check_output(su_command, env=env, cwd=internal_fp_repo_dir)
+    except:
+        logger.warning(f'Software upgrade failed. Ignoring...')
+
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
@@ -403,11 +431,10 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 @app.task(bind=True)
 def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
         ondatra_testbed_path, testbed_info_path):
-    logger.print("Collecting testbed info...")
-
     if os.path.exists(testbed_info_path):
         return
 
+    logger.print("Collecting testbed info...")
     testbed_info_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/testbed ' \
             f'-timeout 0 ' \

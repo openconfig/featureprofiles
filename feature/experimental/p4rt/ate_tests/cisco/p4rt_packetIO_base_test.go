@@ -14,6 +14,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -35,6 +36,7 @@ var (
 	SUBMIT_TO_EGRESS      = uint32(0)
 	forusIP               = "10.10.10.10"
 	maxPortID             = uint32(0xFFFFFEFF)
+	//intMACAddress         = "00:01:00:02:00:03"
 )
 
 // Testcase defines testcase structure
@@ -159,6 +161,7 @@ func TestP4RTPacketIO(t *testing.T) {
 		t.Skip()
 	}
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
 
 	// Dial gRIBI
 	ctx := context.Background()
@@ -471,15 +474,16 @@ var (
 		Desc:    "dutPort1",
 		IPv4:    "100.120.1.1",
 		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:120:1:1",
+		IPv6:    "100:120:1::1",
 		IPv6Len: ipv6PrefixLen,
+		MAC:     "00:01:00:02:00:03",
 	}
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
 		IPv4:    "100.120.1.2",
 		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:120:1:2",
+		IPv6:    "100:120:1::2",
 		IPv6Len: ipv6PrefixLen,
 	}
 
@@ -487,7 +491,7 @@ var (
 		Desc:    "dutPort2",
 		IPv4:    "100.121.1.1",
 		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:1:1",
+		IPv6:    "100:121:1::1",
 		IPv6Len: ipv6PrefixLen,
 	}
 
@@ -495,7 +499,7 @@ var (
 		Name:    "atePort2",
 		IPv4:    "100.121.1.2",
 		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:1:2",
+		IPv6:    "100:121:1::2",
 		IPv6Len: ipv6PrefixLen,
 	}
 
@@ -626,16 +630,10 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	top := ate.Topology().New()
 
 	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
+	atePort1.AddToATE(top, p1, &dutPort1)
 
 	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
+	atePort2.AddToATE(top, p2, &dutPort2)
 
 	// p3 := ate.Port(t, "port3")
 	// i3 := top.AddInterface(atePort3.Name).WithPort(p3)
@@ -643,35 +641,48 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	// 	WithAddress(atePort3.IPv4CIDR()).
 	// 	WithDefaultGateway(dutPort3.IPv4)
 
-	// p4 := ate.Port(t, "port4")
-	// i4 := top.AddInterface(atePort4.Name).WithPort(p4)
-	// i4.IPv4().
-	// 	WithAddress(atePort4.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort4.IPv4)
-
-	// p5 := ate.Port(t, "port5")
-	// i5 := top.AddInterface(atePort5.Name).WithPort(p5)
-	// i5.IPv4().
-	// 	WithAddress(atePort5.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort5.IPv4)
-
-	// p6 := ate.Port(t, "port6")
-	// i6 := top.AddInterface(atePort6.Name).WithPort(p6)
-	// i6.IPv4().
-	// 	WithAddress(atePort6.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort6.IPv4)
-
-	// p7 := ate.Port(t, "port7")
-	// i7 := top.AddInterface(atePort7.Name).WithPort(p7)
-	// i7.IPv4().
-	// 	WithAddress(atePort7.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort7.IPv4)
-
-	// p8 := ate.Port(t, "port8")
-	// i8 := top.AddInterface(atePort8.Name).WithPort(p8)
-	// i8.IPv4().
-	// 	WithAddress(atePort8.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort8.IPv4)
-
 	return top
+}
+
+func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(name)}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	e := i.GetOrCreateEthernet()
+	e.AutoNegotiate = ygot.Bool(false)
+	e.AggregateId = ygot.String(bundleID)
+	return i
+}
+
+// configureDUT configures port1 and port2 on the DUT.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	d := gnmi.OC()
+
+	p1 := dut.Port(t, "port1").Name()
+	if *ciscoFlags.BaseConfigBundle {
+		be1 := "Bundle-Ether120"
+		gnmi.Replace(t, dut, gnmi.OC().Interface(p1).Config(), generateBundleMemberInterfaceConfig(t, p1, be1))
+
+		i1 := dutPort1.NewOCInterface(be1)
+		i1.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		gnmi.Replace(t, dut, d.Interface(be1).Config(), i1)
+
+	} else {
+		i1 := dutPort1.NewOCInterface(p1)
+		gnmi.Replace(t, dut, d.Interface(p1).Config(), i1)
+	}
+
+	p2 := dut.Port(t, "port2").Name()
+	if *ciscoFlags.BaseConfigBundle {
+		be2 := "Bundle-Ether121"
+		gnmi.Replace(t, dut, gnmi.OC().Interface(p2).Config(), generateBundleMemberInterfaceConfig(t, p2, be2))
+
+		i2 := dutPort2.NewOCInterface(be2)
+		i2.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		gnmi.Replace(t, dut, d.Interface(be2).Config(), i2)
+
+	} else {
+		i2 := dutPort2.NewOCInterface(p2)
+		gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
+	}
+
 }
