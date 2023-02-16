@@ -21,10 +21,9 @@ import (
 	"fmt"
 	"sort"
 	"testing"
-
+	"encoding/json"
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
-	"github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -285,11 +284,33 @@ func verifyReadReceiveMatch(expected_update []*p4_v1.Update, received_entry *p4_
 
 	matches := 0
 	for _, table := range received_entry.Entities {
-		if diff := cmp.Diff(expected_update[0].Entity.Entity, table.Entity, protocmp.Transform()); diff != "" {
-			glog.Errorf("Table entry diff (-want +got): \n%s", diff)
-			continue
+		//add a switch case for the captured table entry 
+		//Switch case to remove the counter_data and meter_config from table entry returned by p4rt server 
+		var tableMap map[string]interface{}
+		switch entry := table.Entity.(type) { 
+		case *p4_v1.Entity_TableEntry:
+			ent1,_ := json.Marshal(entry)
+			var toMap map[string]interface{}
+                    	_ = json.Unmarshal([]byte(string(ent1)), &toMap)
+		    	tableMap = toMap["TableEntry"].(map[string]interface{})
+			delete(tableMap, "meter_config")
+			delete(tableMap, "counter_data")
+			ent1,_ = json.Marshal(tableMap)
+		default:
+			fmt.Println("Not a table entry")
+                  }
+		ent2,_ := json.Marshal(expected_update[0].Entity.Entity)
+                var toMap1 map[string]interface{}
+
+                _ = json.Unmarshal([]byte(string(ent2)), &toMap1)
+		tableMap1 := toMap1["TableEntry"].(map[string]interface{})
+                ent2,_ = json.Marshal(tableMap1)
+		
+		if cmp.Equal(tableMap, tableMap1) {
+			fmt.Println("Table match succesful")
+			matches += 1
 		}
-		matches++
+
 	}
 	if matches == 0 {
 		return errors.New("match unsuccesful")
@@ -410,6 +431,9 @@ func TestP4rtConnect(t *testing.T) {
 		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
 			t.Errorf("Table entry for GDP %s", err)
 			nomatch += 1
+		} 
+		else {
+			t.Logf("Match successful for GDP for client%d",index)
 		}
 
 		// Construct expected table for LLDP to match with received table entry
@@ -424,6 +448,9 @@ func TestP4rtConnect(t *testing.T) {
 		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
 			t.Errorf("Table entry for LLDP %s", err)
 			nomatch += 1
+		}
+		else {
+			t.Logf("Match successful for LLDP for client%d",index)
 		}
 
 		// Construct expected table for traceroute to match with received table entry
@@ -440,6 +467,10 @@ func TestP4rtConnect(t *testing.T) {
 			t.Errorf("Table entry for traceroute %s", err)
 			nomatch += 1
 		}
+		else {
+			t.Logf("Match successful for Traceroute for client%d",index)
+		}
+
 	}
 	if nomatch > 0 {
 		t.Fatalf("Table entry matches failed")
