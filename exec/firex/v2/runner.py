@@ -476,7 +476,7 @@ def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path,
     with tempfile.NamedTemporaryFile(delete=False) as f:
         conf_file = f.name
 
-    with open(conf_file, 'rw') as fp:
+    with open(conf_file, 'w') as fp:
         fp.writelines([
             f"ipv4 virtual address ${mgmt_ip}/24",
             "end"
