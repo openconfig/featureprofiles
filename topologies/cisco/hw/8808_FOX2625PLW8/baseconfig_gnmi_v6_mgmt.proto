@@ -363,7 +363,7 @@ replace: {
 "  !\n"
 " !\n"
 "!\n"
-"ipv4 virtual address 5.78.26.1/16\n"
+"ipv4 virtual address vrf mgmt 5.78.26.1/16\n"
 "interface Bundle-Ether1\n"
 " description LA01.DEN85.AE-10-0 [T=naLI]\n"
 " mtu 2000\n"
