@@ -477,8 +477,7 @@ def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path,
         conf_file = f.name
 
     with open(conf_file, 'w') as fp:
-        fp.write(f'ipv4 virtual address ${mgmt_ip}/24\n')
-        fp.write('end\n')
+        fp.write(f'ipv4 virtual address ${mgmt_ip}/24\nend')
 
     set_conf_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/setconf ' \
