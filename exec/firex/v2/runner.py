@@ -394,12 +394,11 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
 @app.task(bind=True)
 def SoftwareUpgrade(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
         ondatra_testbed_path, install_lock_file, images):
-    logger.print("Performing Software Upgrade...")
-
     if os.path.exists(install_lock_file):
         return
     Path(install_lock_file).touch()
 
+    logger.print("Performing Software Upgrade...")
     su_command = f'{GO_BIN} test -v ' \
             f'./exec/utils/software_upgrade ' \
             f'-timeout 0 ' \
@@ -432,11 +431,10 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 @app.task(bind=True)
 def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
         ondatra_testbed_path, testbed_info_path):
-    logger.print("Collecting testbed info...")
-
     if os.path.exists(testbed_info_path):
         return
 
+    logger.print("Collecting testbed info...")
     testbed_info_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/testbed ' \
             f'-timeout 0 ' \
