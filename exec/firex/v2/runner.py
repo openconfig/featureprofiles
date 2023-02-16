@@ -390,17 +390,30 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     logger.print(f'Reserved testbed {reserved_testbed["id"]}')
     return reserved_testbed
 
-
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def SoftwareUpgrade(self, internal_fp_repo_dir, images, install_lock_file):
+def SoftwareUpgrade(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
+        ondatra_testbed_path, install_lock_file, images):
+    logger.print("Performing Software Upgrade...")
+
     if os.path.exists(install_lock_file):
         return
     Path(install_lock_file).touch()
-    self.enqueue_child(
-        RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = 'exec/utils/software_upgrade', test_args =f"-imagePath '{images[0]}'"),
-        block=True
-    )
+
+    su_command = f'{GO_BIN} test -v ' \
+            f'./exec/utils/software_upgrade ' \
+            f'-timeout 0 ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} ' \
+            f'-imagePath "{images[0]}"'
+    try:
+        env = dict(os.environ)
+        env.update(_get_go_env())
+        check_output(su_command, env=env, cwd=internal_fp_repo_dir)
+    except:
+        logger.warning(f'Software upgrade failed. Ignoring...')
+
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
