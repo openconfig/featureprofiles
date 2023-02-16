@@ -423,3 +423,32 @@ func NotPresent[T any, QT ygnmi.SingletonQuery[T]](query QT) Validator {
 		return nil
 	})
 }
+
+// Compare slices in un ordered way.
+func UnOrderedEqual[T any, QT ygnmi.SingletonQuery[T]](query QT, want T) Validator {
+	return Predicate(query, fmt.Sprintf("want %#v", want), func(got T) bool {
+
+		v1 := reflect.ValueOf(got)
+		v2 := reflect.ValueOf(want)
+		if v1.Len() != v2.Len() {
+			return false
+		}
+		if !v1.IsValid() || !v2.IsValid() {
+			return v1.IsValid() == v2.IsValid()
+		}
+		if v1.Type() != v2.Type() {
+			return false
+		}
+		found := 0
+		for i := 0; i < v1.Len(); i++ {
+			for j := 0; j < v2.Len(); j++ {
+				if v1.Index(i).String() == v2.Index(j).String() {
+					found++
+					break
+				}
+			}
+		}
+		// If found all slices of v1 found will be v.len()
+		return found == v1.Len()
+	})
+}
