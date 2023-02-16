@@ -1,4 +1,4 @@
-// Package main implements a utility to load and unload config using oc from a router
+// Package main implements a utility functions to load and unload oc config using gnmi from a router
 package main
 
 import (
@@ -21,6 +21,8 @@ import (
 	"github.com/openconfig/ygot/ytypes"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+
 )
 
 var (
@@ -54,7 +56,7 @@ func init() {
 	flag.Parse()
 	dialOpts := []grpc.DialOption{grpc.WithBlock()}
 	if *insecure {
-		dialOpts = append(dialOpts, grpc.WithInsecure())
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else if *skipVerify {
 		tlsc := credentials.NewTLS(&tls.Config{
 			InsecureSkipVerify: *skipVerify,
