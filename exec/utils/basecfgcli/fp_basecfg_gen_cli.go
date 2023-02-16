@@ -1,3 +1,4 @@
+// package main is a utility function to generate base config
 package main
 
 import (
@@ -124,7 +125,7 @@ func main() {
 					descFound = true
 					break
 				}
-				intfConfgidx += 1
+				intfConfgidx++
 			}
 			if !descFound {
 				annotatedBaseConfig = append(annotatedBaseConfig, " description not connected interface")
