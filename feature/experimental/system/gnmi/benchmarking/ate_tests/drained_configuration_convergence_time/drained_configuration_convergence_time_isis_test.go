@@ -98,14 +98,14 @@ func verifyISISOverloadBit(t *testing.T) {
 			if got := gnmi.Get(t, ate, at.Interface(ap.Name()).OperStatus().State()); got != want {
 				t.Errorf("%s oper-status got %v, want %v", ap, got, want)
 			}
-			// https://github.com/openconfig/ondatra/issues/51
+			// Ixia support not available to grep set bit
 			/*is := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
 			lsps := is.LevelAny().LspAny()
 			prefix := gnmi.GetAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Prefix().State())
 			setBit := gnmi.GetAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().SBit().State())
 
-			if diff := cmp.Diff(setup.ISISSetBitArray, setBit); diff != "" {
-				t.Errorf("obtained setBit on ATE is not as expected, got %v, want %v, prefixes %v", setBit, setup.ISISSetBitArray, prefix)
+			if diff := cmp.Diff(setup.ISISSetBitList, setBit); diff != "" {
+				t.Errorf("obtained setBit on ATE is not as expected, got %v, want %v, prefixes %v", setBit, setup.ISISSetBitList, prefix)
 			}*/
 		}
 	})

@@ -34,19 +34,17 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	// BGP AS Path repeat value
-	asPathRepeatValue = 3
-	aclStatement2     = "20"
-	aclStatement3     = "30"
-	// BGP AS path prepend policy name
+	asPathRepeatValue      = 3
+	aclStatement2          = "20"
+	aclStatement3          = "30"
 	setAspathPrependPolicy = "SET-ASPATH-PREPEND"
-	// BGP MED policy name
-	setMedPolicy = "SET-MED"
+	setMedPolicy           = "SET-MED"
+	bgpMed                 = 25
 )
 
-// configuerSetMED is used to configure routing policy to set MED on DUT
+// setMED is used to configure routing policy to set MED on DUT
 // TODO : SetMED is not supported: https://github.com/openconfig/featureprofiles/issues/759
-func configuerSetMED(t *testing.T) {
+func setMED(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// Clear existing routing policies on DUT
@@ -64,8 +62,8 @@ func configuerSetMED(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
-// ConfigureASPath is used to configure route policy set-as-path prepend on DUT
-func ConfigureASPath(t *testing.T, dut *ondatra.DUTDevice) {
+// setASPath is used to configure route policy set-as-path prepend on DUT
+func setASPath(t *testing.T, dut *ondatra.DUTDevice) {
 	// Clear existing policies on dut
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), nil)
 
@@ -81,7 +79,7 @@ func ConfigureASPath(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // verifyBGPAsPath is to Validate AS Path attribute using bgp rib telemetry on ATE
-// TODO : https://github.com/openconfig/ondatra/issues/45
+// TODO : https://github.com/openconfig/ondatra/issues/67
 func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice) {
 	ate := ondatra.ATE(t, "ate")
 
@@ -125,17 +123,15 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice) {
 				}
 			}
 
-			// TODO: https://github.com/openconfig/ondatra/issues/45
+			// TODO: https://github.com/openconfig/ondatra/issues/67
 			/*rib := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, fmt.Sprintf("bgp-%s", ap.Name())).Bgp().Rib()
 			prefixPath := rib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().
 				Neighbor(setup.DUTIPList[ap.ID()].String()).AdjRibInPre().RouteAnyPrefix(0).Prefix()
 			pref := gnmi.Get(t, dut, prefixPath.State())
-			asPath := gnmi.Get(t, dut, rib.AttrSet(0).AsPath().State())
-
+			asPath := gnmi.Get(t, dut, rib.AttrSetAny().AsPath().State())
 			if diff := cmp.Diff(wantArray, asPath); diff != "" {
 				t.Errorf("obtained MED on ATE is not as expected, got %v, want %v, prefixes %v", asPath, wantArray, pref)
 			}*/
-
 		}
 	})
 
@@ -153,17 +149,17 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice) {
 		PeerGroup(setup.PeerGrpName).ApplyPolicy().ExportPolicy()
 
 	// Build wantArray to compare the diff
-	//var wantArray []uint32
-	//for i := 0; i < setup.RouteCount; i++ {
-	//	wantArray = append(wantArray, bgpMed)
-	//}
+	/*var wantArray []uint32
+	for i := 0; i < setup.RouteCount; i++ {
+		wantArray = append(wantArray, bgpMed)
+	}*/
 
 	// Start the timer.
 	start := time.Now()
 	gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setMedPolicy})
 
 	t.Run("BGP-MED-Verification", func(t *testing.T) {
-		// at := gnmi.OC()
+		//at := gnmi.OC()
 		for _, ap := range ate.Ports() {
 			if ap.ID() == "port1" {
 				continue
@@ -190,9 +186,9 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice) {
 			// TODO : SetMED is not supported: https://github.com/openconfig/featureprofiles/issues/759
 			/*rib := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, fmt.Sprintf("bgp-%s", ap.Name())).Bgp().Rib()
 			prefixPath := rib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().
-				Neighbor(setup.DutIPPool[ap.ID()].String()).AdjRibInPre().RouteAnyPrefix(0).Prefix()
+				Neighbor(setup.DUTIPList[ap.ID()].String()).AdjRibInPre().RouteAnyPrefix(0).Prefix()
 			pref := gnmi.Get(t, dut, prefixPath.State())
-			med := gnmi.Get(t, dut, rib.AttrSetAny().Med().State())
+			med := gnmi.GetAll(t, dut, rib.AttrSetAny().Med().State())
 
 			if diff := cmp.Diff(wantArray, med); diff != "" {
 				t.Errorf("obtained MED on ATE is not as expected, got %v, want %v, prefixes %v", med, wantArray, pref)
@@ -245,9 +241,8 @@ func TestBGPBenchmarking(t *testing.T) {
 
 	gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
 
-	// TODO : SetMED is not supported: https://github.com/openconfig/featureprofiles/issues/759
 	t.Logf("Configure MED routing policy")
-	configuerSetMED(t)
+	setMED(t)
 
 	t.Logf("Verify time taken to apply MED to all routes in bgp rib")
 	verifyBGPSetMED(t, dut)
@@ -257,7 +252,7 @@ func TestBGPBenchmarking(t *testing.T) {
 	gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
 
 	t.Logf("Configure SET-AS-PATH routing policy")
-	ConfigureASPath(t, dut)
+	setASPath(t, dut)
 
 	t.Logf("Verify time taken to apply SET-AS-PATH to all routes in bgp rib")
 	verifyBGPAsPath(t, dut)

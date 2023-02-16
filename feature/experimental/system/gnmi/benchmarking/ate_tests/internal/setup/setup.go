@@ -44,9 +44,9 @@ const (
 	DUTAs = 64500
 	// ATEAs is ATE AS.
 	ATEAs = 64501
-	// ISIS Metric
+	// ISISMetric is Metric for ISIS
 	ISISMetric = 100
-	// BGP , ISIS route count
+	// RouteCount for both BGP and ISIS
 	RouteCount = 200
 
 	dutAreaAddress        = "49.0001"
