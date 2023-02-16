@@ -41,8 +41,7 @@ var (
 		"cef", "cef platform", "ofa", "insight", "rib", "fabric",
 		"service-layer", "grpc", "spi", "hw-ac", "bundles", "cfgmgr",
 		"ctrace", "ethernet interfaces", "fabric link-include",
-		"interface", "optics", "pfi", "platform-fwd", "rdsfs", "spi",
-		"sysdb",
+		"interface", "optics", "pfi", "platform-fwd", "rdsfs", "sysdb",
 	}
 	showTech []string = []string{
 		"telemetry model-driven",
