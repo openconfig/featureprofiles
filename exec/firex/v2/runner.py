@@ -12,6 +12,7 @@ from microservices.runners.runner_base import FireXRunnerBase
 from test_framework import register_test_framework_provider
 from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
+from helper import CommandFailed
 from getpass import getuser
 from pathlib import Path
 import shutil
@@ -276,10 +277,15 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
 
         self.run_script(cmd,
                         inactivity_timeout=inactivity_timeout,
-                        ok_nonzero_returncodes=(1,),
                         extra_env_vars=_get_go_env(),
                         cwd=test_repo_dir)
         stop_time = self.get_current_time()
+    except CommandFailed as e:
+        if e.returncode == 1:
+            # test failed
+            self.enqueue_child(CollectDebugFiles.s(), block=True, raise_exception_on_failure=False)
+        else:
+            raise e
     finally:
         if xml_results_file and Path(xml_results_file).is_file():
             shutil.copyfile(xml_results_file, xunit_results_filepath)
@@ -399,6 +405,26 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
         r.git.checkout(repo_branch)
     r.git.reset('--hard')
     r.git.clean('-xdf')
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def CollectDebugFiles(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
+        ondatra_testbed_path, test_log_directory_path):
+    logger.print("Collecting debug files...")
+
+    collect_debug_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/debug ' \
+            f'-timeout 0 ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} ' \
+            f'-outDir {test_log_directory_path}/debug_files'
+    try:
+        env = dict(os.environ)
+        env.update(_get_go_env())
+        check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
+    except:
+        logger.warning(f'Failed to collect testbed information. Ignoring...') 
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
