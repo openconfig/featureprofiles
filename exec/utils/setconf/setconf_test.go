@@ -28,10 +28,13 @@ func TestSetConf(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
 
-	conf, err := os.ReadFile(*confFlag)
+	b, err := os.ReadFile(*confFlag)
 	if err != nil {
 		t.Fatalf("Error reading cli config file: %v", err)
 	}
+
+	conf := string(b)
+	t.Logf("Read conf:\n%s", conf)
 
 	updateRequest := &gnmi.Update{
 		Path: &gnmi.Path{
@@ -39,7 +42,7 @@ func TestSetConf(t *testing.T) {
 		},
 		Val: &gnmi.TypedValue{
 			Value: &gnmi.TypedValue_AsciiVal{
-				AsciiVal: string(conf),
+				AsciiVal: conf,
 			},
 		},
 	}
@@ -51,6 +54,12 @@ func TestSetConf(t *testing.T) {
 		setRequest.Replace = []*gnmi.Update{updateRequest}
 	}
 
+	t.Logf("Set request:\n%s", setRequest)
+
 	gnmiClient := dut.RawAPIs().GNMI().New(t)
-	gnmiClient.Set(ctx, setRequest)
+	if resp, err := gnmiClient.Set(ctx, setRequest); err != nil {
+		t.Fatalf("gNMI set request failed: %v", err)
+	} else {
+		t.Logf("Set response:\n%s", resp)
+	}
 }

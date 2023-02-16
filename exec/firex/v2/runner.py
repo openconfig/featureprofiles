@@ -487,9 +487,7 @@ def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path,
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
             f'-conf {conf_file} ' \
-            f'-update ' \
-            f'-v 5 ' \
-            f'-alsologtostderr'
+            f'-update'
     try:
         env = dict(os.environ)
         env.update(_get_go_env())
