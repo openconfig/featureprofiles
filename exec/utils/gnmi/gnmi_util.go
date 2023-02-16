@@ -22,13 +22,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-
 )
 
 var (
 	addr = flag.String("addr", "10.85.84.159:47402", "address of the gRIBI server in the format hostname:port")
 	//addr       = flag.String("addr", "10.85.84.159:57900", "address of the gRIBI server in the format hostname:port")
-	insecure   = flag.Bool("insecure", false, "dial insecure gRPC (no TLS)")
+	insec      = flag.Bool("insecure", false, "dial insecure gRPC (no TLS)")
 	skipVerify = flag.Bool("skip_verify", true, "allow self-signed TLS certificate; not needed for -insecure")
 	username   = flag.String("username", "cafyauto", "username to be sent as gRPC metadata")
 	password   = flag.String("password", "cisco123", "password to be sent as gRPC metadata")
@@ -55,7 +54,7 @@ func (flagCred) RequireTransportSecurity() bool {
 func init() {
 	flag.Parse()
 	dialOpts := []grpc.DialOption{grpc.WithBlock()}
-	if *insecure {
+	if *insec {
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else if *skipVerify {
 		tlsc := credentials.NewTLS(&tls.Config{
