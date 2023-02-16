@@ -16,12 +16,10 @@ package base_p4rt_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"sort"
-	"testing"
-	"encoding/json"
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/go-cmp/cmp"
@@ -35,6 +33,8 @@ import (
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"google.golang.org/protobuf/testing/protocmp"
+	"sort"
+	"testing"
 )
 
 type testArgs struct {
@@ -284,28 +284,26 @@ func verifyReadReceiveMatch(expected_update []*p4_v1.Update, received_entry *p4_
 
 	matches := 0
 	for _, table := range received_entry.Entities {
-		//add a switch case for the captured table entry 
-		//Switch case to remove the counter_data and meter_config from table entry returned by p4rt server 
+		//add a switch case for the captured table entry
+		//Switch case to remove the counter_data and meter_config from table entry returned by p4rt server
 		var tableMap map[string]interface{}
-		switch entry := table.Entity.(type) { 
+		switch entry := table.Entity.(type) {
 		case *p4_v1.Entity_TableEntry:
-			ent1,_ := json.Marshal(entry)
+			ent1, _ := json.Marshal(entry)
 			var toMap map[string]interface{}
-                    	_ = json.Unmarshal([]byte(string(ent1)), &toMap)
-		    	tableMap = toMap["TableEntry"].(map[string]interface{})
+			_ = json.Unmarshal([]byte(string(ent1)), &toMap)
+			tableMap = toMap["TableEntry"].(map[string]interface{})
 			delete(tableMap, "meter_config")
 			delete(tableMap, "counter_data")
-			ent1,_ = json.Marshal(tableMap)
 		default:
 			fmt.Println("Not a table entry")
-                  }
-		ent2,_ := json.Marshal(expected_update[0].Entity.Entity)
-                var toMap1 map[string]interface{}
+		}
+		ent2, _ := json.Marshal(expected_update[0].Entity.Entity)
+		var toMap1 map[string]interface{}
 
-                _ = json.Unmarshal([]byte(string(ent2)), &toMap1)
+		_ = json.Unmarshal([]byte(string(ent2)), &toMap1)
 		tableMap1 := toMap1["TableEntry"].(map[string]interface{})
-                ent2,_ = json.Marshal(tableMap1)
-		
+
 		if cmp.Equal(tableMap, tableMap1) {
 			fmt.Println("Table match succesful")
 			matches += 1
@@ -432,7 +430,7 @@ func TestP4rtConnect(t *testing.T) {
 			t.Errorf("Table entry for GDP %s", err)
 			nomatch += 1
 		} else {
-			t.Logf("Match successful for GDP for client%d",index)
+			t.Logf("Match successful for GDP for client%d", index)
 		}
 
 		// Construct expected table for LLDP to match with received table entry
@@ -448,7 +446,7 @@ func TestP4rtConnect(t *testing.T) {
 			t.Errorf("Table entry for LLDP %s", err)
 			nomatch += 1
 		} else {
-			t.Logf("Match successful for LLDP for client%d",index)
+			t.Logf("Match successful for LLDP for client%d", index)
 		}
 
 		// Construct expected table for traceroute to match with received table entry
@@ -465,7 +463,7 @@ func TestP4rtConnect(t *testing.T) {
 			t.Errorf("Table entry for traceroute %s", err)
 			nomatch += 1
 		} else {
-			t.Logf("Match successful for Traceroute for client%d",index)
+			t.Logf("Match successful for Traceroute for client%d", index)
 		}
 
 	}
