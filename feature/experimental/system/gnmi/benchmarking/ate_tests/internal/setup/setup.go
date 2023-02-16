@@ -44,6 +44,8 @@ const (
 	DUTAs = 64500
 	// ATEAs is ATE AS.
 	ATEAs = 64501
+	// ATEAs2 is ATE source port AS
+	ATEAs2 = 64502
 	// ISISMetric is Metric for ISIS
 	ISISMetric = 100
 	// RouteCount for both BGP and ISIS
@@ -51,7 +53,6 @@ const (
 
 	dutAreaAddress        = "49.0001"
 	dutSysID              = "1920.0000.2001"
-	ateAs2                = 64502
 	dutStartIPAddr        = "192.0.2.1"
 	ateStartIPAddr        = "192.0.2.2"
 	plenIPv4              = 30
@@ -172,7 +173,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		nv4 := bgp.GetOrCreateNeighbor(ATEIPList[dp.ID()].String())
 		nv4.PeerGroup = ygot.String(PeerGrpName)
 		if dp.ID() == "port1" {
-			nv4.PeerAs = ygot.Uint32(ateAs2)
+			nv4.PeerAs = ygot.Uint32(ATEAs2)
 		} else {
 			nv4.PeerAs = ygot.Uint32(ATEAs)
 		}
@@ -227,7 +228,7 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 		if dp.ID() == "port1" {
 			// Add BGP on ATE
 			bgpDut1 := iDut1.BGP()
-			bgpDut1.AddPeer().WithPeerAddress(DUTIPList[dp.ID()].String()).WithLocalASN(ateAs2).
+			bgpDut1.AddPeer().WithPeerAddress(DUTIPList[dp.ID()].String()).WithLocalASN(ATEAs2).
 				WithTypeExternal()
 
 			// Add ISIS on ATE

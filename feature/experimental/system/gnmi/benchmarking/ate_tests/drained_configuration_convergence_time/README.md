@@ -22,7 +22,7 @@ defined in the case):
             all IS-IS interfaces.
         *   Measure time between t=0 and all IS-IS sessions on ATE to
             report changed metric.
-    *   TODO: BGP AS_PATH prepend:
+    *   BGP AS_PATH prepend:
         *   At t=0, send Set to DUT changing BGP policy for each session
             to prepend AS_PATH.
         *   Measure time between t=0 and all BGP received routes on ATE

@@ -70,10 +70,10 @@ func verifyISISMetric(t *testing.T) {
 			}
 			is := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
 			lsps := is.LevelAny().LspAny()
-			metric := gnmi.GetAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Metric().State())
+			gotIsisMetric := gnmi.GetAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Metric().State())
 
-			if diff := cmp.Diff(setup.ISISMetricList, metric); diff != "" {
-				t.Errorf("obtained Metric on ATE is not as expected, got %v, want %v", metric, setup.ISISMetricList)
+			if diff := cmp.Diff(setup.ISISMetricList, gotIsisMetric); diff != "" {
+				t.Errorf("obtained Metric on ATE is not as expected, got %v, want %v", gotIsisMetric, setup.ISISMetricList)
 			}
 		}
 	})
@@ -101,11 +101,10 @@ func verifyISISOverloadBit(t *testing.T) {
 			// Ixia support not available to grep set bit
 			/*is := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
 			lsps := is.LevelAny().LspAny()
-			prefix := gnmi.GetAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Prefix().State())
-			setBit := gnmi.GetAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().SBit().State())
+			gotIsisSetBit := gnmi.GetAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().SBit().State())
 
-			if diff := cmp.Diff(setup.ISISSetBitList, setBit); diff != "" {
-				t.Errorf("obtained setBit on ATE is not as expected, got %v, want %v, prefixes %v", setBit, setup.ISISSetBitList, prefix)
+			if diff := cmp.Diff(setup.ISISSetBitList, gotIsisSetBit); diff != "" {
+				t.Errorf("obtained setBit on ATE is not as expected, got %v, want %v", gotIsisSetBit, setup.ISISSetBitList)
 			}*/
 		}
 	})
