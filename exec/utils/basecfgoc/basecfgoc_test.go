@@ -20,9 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	//"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/gnmi/proto/gnmi"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	ognmi "github.com/openconfig/ondatra/gnmi"
@@ -64,17 +62,17 @@ func prettySetRequest(t *testing.T, pathStruct ygnmi.PathStruct, ocVal interface
 	if err != nil {
 		t.Fatalf("Could not encode value (ocVal) into JSON format; %v", err)
 	}
-	ocReplaceReq := &gnmi.Update{
+	ocReplaceReq := &gpb.Update{
 		Path: path,
-		Val: &gnmi.TypedValue{
-			Value: &gnmi.TypedValue_JsonIetfVal{
+		Val: &gpb.TypedValue{
+			Value: &gpb.TypedValue_JsonIetfVal{
 				JsonIetfVal: ocJSONVal,
 			},
 		},
 	}
 
-	setRequest := &gnmi.SetRequest{
-		Update: []*gnmi.Update{ocReplaceReq},
+	setRequest := &gpb.SetRequest{
+		Update: []*gpb.Update{ocReplaceReq},
 	}
 
 	var buf strings.Builder
