@@ -431,8 +431,7 @@ func TestP4rtConnect(t *testing.T) {
 		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
 			t.Errorf("Table entry for GDP %s", err)
 			nomatch += 1
-		} 
-		else {
+		} else {
 			t.Logf("Match successful for GDP for client%d",index)
 		}
 
@@ -448,8 +447,7 @@ func TestP4rtConnect(t *testing.T) {
 		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
 			t.Errorf("Table entry for LLDP %s", err)
 			nomatch += 1
-		}
-		else {
+		} else {
 			t.Logf("Match successful for LLDP for client%d",index)
 		}
 
@@ -466,8 +464,7 @@ func TestP4rtConnect(t *testing.T) {
 		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
 			t.Errorf("Table entry for traceroute %s", err)
 			nomatch += 1
-		}
-		else {
+		} else {
 			t.Logf("Match successful for Traceroute for client%d",index)
 		}
 
