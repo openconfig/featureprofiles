@@ -116,11 +116,11 @@ func copyDebugFiles(t *testing.T, d targetInfo) {
 
 	sshConf := scp.NewSSHConfigFromPassword(d.sshUser, d.sshPass)
 	scpClient, err := scp.NewClient(target, sshConf, &scp.ClientOption{})
-	defer scpClient.Close()
 	if err != nil {
 		t.Errorf("Error initializing scp client: %v", err)
 		return
 	}
+	defer scpClient.Close()
 
 	dutOutDir := filepath.Join(outDir, d.dut)
 	if err := os.MkdirAll(dutOutDir, os.ModePerm); err != nil {
