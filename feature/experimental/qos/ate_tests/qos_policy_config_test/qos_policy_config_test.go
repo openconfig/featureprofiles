@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -81,6 +82,19 @@ func TestMain(m *testing.M) {
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
 
+const (
+	dropProfile               = "DropProfile"
+	forwardingGroup           = "fc"
+	schedulerMap              = "smap"
+	sequeneId                 = 1
+	schedulerPriority         = 1
+	queueName                 = "0"
+	minThresholdPerecent      = 10
+	maxThresholdPercent       = 70
+	maxDropProbabilityPercent = 1
+	enableEcn                 = true
+)
+
 func TestQoSForwadingGroupsConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
@@ -92,31 +106,31 @@ func TestQoSForwadingGroupsConfig(t *testing.T) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   "BE1",
+		queueName:   "0",
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   "BE0",
+		queueName:   "1",
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   "AF1",
+		queueName:   "2",
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   "AF2",
+		queueName:   "3",
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   "AF3",
+		queueName:   "4",
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   "AF4",
+		queueName:   "5",
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   "NC1",
+		queueName:   "6",
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -132,7 +146,7 @@ func TestQoSForwadingGroupsConfig(t *testing.T) {
 		})
 
 		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
+		//t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
 		// Verify the ForwardingGroup is applied by checking the telemetry path state values.
 		forwardingGroup := gnmi.OC().Qos().ForwardingGroup(tc.targetGroup)
@@ -157,6 +171,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID      string
 		targetGroup string
 		dscpSet     []uint8
+		QueueNumber string
 	}{{
 		desc:        "classifier_ipv4_be1",
 		name:        "dscp_based_classifier_ipv4",
@@ -164,6 +179,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "0",
 		targetGroup: "target-group-BE1",
 		dscpSet:     []uint8{0, 1, 2, 3},
+		QueueNumber: "0",
 	}, {
 		desc:        "classifier_ipv4_be0",
 		name:        "dscp_based_classifier_ipv4",
@@ -171,6 +187,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "1",
 		targetGroup: "target-group-BE0",
 		dscpSet:     []uint8{4, 5, 6, 7},
+		QueueNumber: "1",
 	}, {
 		desc:        "classifier_ipv4_af1",
 		name:        "dscp_based_classifier_ipv4",
@@ -178,6 +195,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "2",
 		targetGroup: "target-group-AF1",
 		dscpSet:     []uint8{8, 9, 10, 11},
+		QueueNumber: "2",
 	}, {
 		desc:        "classifier_ipv4_af2",
 		name:        "dscp_based_classifier_ipv4",
@@ -185,6 +203,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "3",
 		targetGroup: "target-group-AF2",
 		dscpSet:     []uint8{16, 17, 18, 19},
+		QueueNumber: "3",
 	}, {
 		desc:        "classifier_ipv4_af3",
 		name:        "dscp_based_classifier_ipv4",
@@ -192,6 +211,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "4",
 		targetGroup: "target-group-AF3",
 		dscpSet:     []uint8{24, 25, 26, 27},
+		QueueNumber: "4",
 	}, {
 		desc:        "classifier_ipv4_af4",
 		name:        "dscp_based_classifier_ipv4",
@@ -199,6 +219,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "5",
 		targetGroup: "target-group-AF4",
 		dscpSet:     []uint8{32, 33, 34, 35},
+		QueueNumber: "5",
 	}, {
 		desc:        "classifier_ipv4_nc1",
 		name:        "dscp_based_classifier_ipv4",
@@ -206,6 +227,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "6",
 		targetGroup: "target-group-NC1",
 		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
+		QueueNumber: "6",
 	}, {
 		desc:        "classifier_ipv6_be1",
 		name:        "dscp_based_classifier_ipv6",
@@ -213,6 +235,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "0",
 		targetGroup: "target-group-BE1",
 		dscpSet:     []uint8{0, 1, 2, 3},
+		QueueNumber: "0",
 	}, {
 		desc:        "classifier_ipv6_be0",
 		name:        "dscp_based_classifier_ipv6",
@@ -220,6 +243,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "1",
 		targetGroup: "target-group-BE0",
 		dscpSet:     []uint8{4, 5, 6, 7},
+		QueueNumber: "1",
 	}, {
 		desc:        "classifier_ipv6_af1",
 		name:        "dscp_based_classifier_ipv6",
@@ -227,6 +251,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "2",
 		targetGroup: "target-group-AF1",
 		dscpSet:     []uint8{8, 9, 10, 11},
+		QueueNumber: "2",
 	}, {
 		desc:        "classifier_ipv6_af2",
 		name:        "dscp_based_classifier_ipv6",
@@ -234,6 +259,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "3",
 		targetGroup: "target-group-AF2",
 		dscpSet:     []uint8{16, 17, 18, 19},
+		QueueNumber: "3",
 	}, {
 		desc:        "classifier_ipv6_af3",
 		name:        "dscp_based_classifier_ipv6",
@@ -241,6 +267,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "4",
 		targetGroup: "target-group-AF3",
 		dscpSet:     []uint8{24, 25, 26, 27},
+		QueueNumber: "4",
 	}, {
 		desc:        "classifier_ipv6_af4",
 		name:        "dscp_based_classifier_ipv6",
@@ -248,6 +275,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "5",
 		targetGroup: "target-group-AF4",
 		dscpSet:     []uint8{32, 33, 34, 35},
+		QueueNumber: "5",
 	}, {
 		desc:        "classifier_ipv6_nc1",
 		name:        "dscp_based_classifier_ipv6",
@@ -255,6 +283,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "6",
 		targetGroup: "target-group-NC1",
 		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
+		QueueNumber: "6",
 	}}
 
 	t.Logf("qos Classifiers config cases: %v", cases)
@@ -277,11 +306,15 @@ func TestQoSClassifierConfig(t *testing.T) {
 			} else if tc.name == "dscp_based_classifier_ipv6" {
 				condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
 			}
+			t.Logf("Forwarding group config required for binding to a classifier")
+			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
+			fwdGroup.SetName(tc.targetGroup)
+			fwdGroup.SetOutputQueue(tc.QueueNumber)
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
 		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
+		//t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
 		// Verify the Classifier is applied by checking the telemetry path state values.
 		classifier := gnmi.OC().Qos().Classifier(tc.name)
@@ -332,24 +365,67 @@ func TestQoSInputIntfClassifierConfig(t *testing.T) {
 		desc                string
 		inputClassifierType oc.E_Input_Classifier_Type
 		classifier          string
+		classType           oc.E_Qos_Classifier_Type
+		termID              string
+		dscpSet             []uint8
+		targetGrpoup        string
+		queueName           string
 	}{{
 		desc:                "Input Classifier Type IPV4",
 		inputClassifierType: oc.Input_Classifier_Type_IPV4,
 		classifier:          "dscp_based_classifier_ipv4",
+		classType:           oc.Qos_Classifier_Type_IPV4,
+		dscpSet:             []uint8{0, 1, 2, 3},
+		termID:              "0",
+		targetGrpoup:        "target-group-BE1",
+		queueName:           "0",
 	}, {
 		desc:                "Input Classifier Type IPV6",
 		inputClassifierType: oc.Input_Classifier_Type_IPV6,
 		classifier:          "dscp_based_classifier_ipv6",
+		classType:           oc.Qos_Classifier_Type_IPV6,
+		termID:              "0",
+		targetGrpoup:        "target-group-BE1",
+		dscpSet:             []uint8{0, 1, 2, 3},
+		queueName:           "0",
 	}}
 
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
+	t.Logf("Interface config required to bind a classifier with an interface")
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
+	i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	ip := &oc.Interface{}
 
 	t.Logf("qos input classifier config cases: %v", cases)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			t.Logf("Classifier config required to bind with an interface")
+			classifier := q.GetOrCreateClassifier(tc.classifier)
+			classifier.SetName(tc.classifier)
+			classifier.SetType(tc.classType)
+			term, err := classifier.NewTerm(tc.termID)
+			if err != nil {
+				t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
+			}
+			term.SetId(tc.termID)
+			action := term.GetOrCreateActions()
+			action.SetTargetGroup(tc.targetGrpoup)
+			condition := term.GetOrCreateConditions()
+			if tc.classifier == "dscp_based_classifier_ipv4" {
+				s := ip.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+				s.Enabled = ygot.Bool(true)
+				condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
+			} else if tc.classifier == "dscp_based_classifier_ipv6" {
+				s := ip.GetOrCreateSubinterface(0).GetOrCreateIpv6()
+				s.Enabled = ygot.Bool(true)
+				condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
+			}
+			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
+			fwdGroup.SetName(tc.targetGrpoup)
+			fwdGroup.SetOutputQueue(tc.queueName)
 			c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 			c.SetType(tc.inputClassifierType)
 			c.SetName(tc.classifier)
@@ -357,7 +433,7 @@ func TestQoSInputIntfClassifierConfig(t *testing.T) {
 		})
 
 		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
+		//t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
 		// Verify the Classifier is applied on interface by checking the telemetry path state values.
 		classifier := gnmi.OC().Qos().Interface(dp.Name()).Input().Classifier(tc.inputClassifierType)
@@ -449,8 +525,8 @@ func TestSchedulerPoliciesConfig(t *testing.T) {
 		targetGroup: "target-group-NC1",
 	}}
 
-	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
-	schedulerPolicy.SetName("scheduler")
+	schedulerPolicy := q.GetOrCreateSchedulerPolicy(schedulerMap)
+	schedulerPolicy.SetName(schedulerMap)
 	t.Logf("qos scheduler policies config cases: %v", cases)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -462,14 +538,20 @@ func TestSchedulerPoliciesConfig(t *testing.T) {
 			input.SetInputType(tc.inputType)
 			input.SetQueue(tc.queueName)
 			input.SetWeight(tc.weight)
+			t.Logf("Forwarding group config is required to bind with the scheduler")
+			Output := s.GetOrCreateOutput()
+			Output.SetOutputFwdGroup(tc.targetGroup)
+			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
+			fwdGroup.SetName(tc.targetGroup)
+			fwdGroup.SetOutputQueue(tc.queueName)
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
 		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
+		//t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
 		// Verify the SchedulerPolicy is applied by checking the telemetry path state values.
-		scheduler := gnmi.OC().Qos().SchedulerPolicy("scheduler").Scheduler(tc.sequence)
+		scheduler := gnmi.OC().Qos().SchedulerPolicy(schedulerMap).Scheduler(tc.sequence)
 		input := scheduler.Input(tc.inputID)
 
 		if got, want := gnmi.Get(t, dut, scheduler.Sequence().State()), tc.sequence; got != want {
@@ -478,17 +560,19 @@ func TestSchedulerPoliciesConfig(t *testing.T) {
 		if got, want := gnmi.Get(t, dut, scheduler.Priority().State()), tc.priority; got != want {
 			t.Errorf("scheduler.Priority().State(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.Get(t, dut, input.Id().State()), tc.inputID; got != want {
-			t.Errorf("input.Id().State(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.Get(t, dut, input.InputType().State()), tc.inputType; got != want {
-			t.Errorf("input.InputType().State(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.Get(t, dut, input.Weight().State()), tc.weight; got != want {
-			t.Errorf("input.Weight().State(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.Get(t, dut, input.Queue().State()), tc.queueName; got != want {
-			t.Errorf("input.Queue().State(): got %v, want %v", got, want)
+		if dut.Vendor() != ondatra.JUNIPER {
+			if got, want := gnmi.Get(t, dut, input.Id().State()), tc.inputID; got != want {
+				t.Errorf("input.Id().State(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.Get(t, dut, input.InputType().State()), tc.inputType; got != want {
+				t.Errorf("input.InputType().State(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.Get(t, dut, input.Weight().State()), tc.weight; got != want {
+				t.Errorf("input.Weight().State(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.Get(t, dut, input.Queue().State()), tc.queueName; got != want {
+				t.Errorf("input.Queue().State(): got %v, want %v", got, want)
+			}
 		}
 	}
 }
@@ -498,6 +582,43 @@ func TestECNConfig(t *testing.T) {
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 
+	if dut.Vendor() == ondatra.JUNIPER {
+		t.Logf("Interface config required for queue management profile")
+		dp := dut.Port(t, "port2")
+		i := q.GetOrCreateInterface(dp.Name())
+		i.SetInterfaceId(dp.Name())
+		iref := i.GetOrCreateInterfaceRef()
+		iref.SetInterface(dp.Name())
+
+		t.Logf("Forwarding group config required for queue management profile")
+		fwdGroup := q.GetOrCreateForwardingGroup(forwardingGroup)
+		fwdGroup.SetName(forwardingGroup)
+		fwdGroup.SetOutputQueue(queueName)
+
+		t.Logf("Scheduler config required for binding with queue management profile")
+		schedulerPolicy := q.GetOrCreateSchedulerPolicy(schedulerMap)
+		schedulerPolicy.SetName(schedulerMap)
+		s := schedulerPolicy.GetOrCreateScheduler(sequeneId)
+		s.SetSequence(sequeneId)
+		s.SetPriority(schedulerPriority)
+		Output := s.GetOrCreateOutput()
+		Output.SetOutputFwdGroup(forwardingGroup)
+		output := i.GetOrCreateOutput()
+		queue := output.GetOrCreateQueue(forwardingGroup)
+		queue.SetQueueManagementProfile(dropProfile)
+		queue.SetName(forwardingGroup)
+
+	}
+	var minThresholdValue, maxThresholdValue uint64
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		t.Logf("Minthreshold and Maxthreshold values are expressed in percentages")
+		minThresholdValue = uint64(10)
+		maxThresholdValue = uint64(70)
+	default:
+		minThresholdValue = uint64(80000)
+		maxThresholdValue = math.MaxUint64
+	}
 	ecnConfig := struct {
 		ecnEnabled                bool
 		dropEnabled               bool
@@ -508,37 +629,33 @@ func TestECNConfig(t *testing.T) {
 	}{
 		ecnEnabled:                true,
 		dropEnabled:               false,
-		minThreshold:              uint64(80000),
-		maxThreshold:              math.MaxUint64,
+		minThreshold:              minThresholdValue,
+		maxThreshold:              maxThresholdValue,
 		maxDropProbabilityPercent: uint8(1),
 		weight:                    uint32(0),
 	}
 
-	queueMgmtProfile := q.GetOrCreateQueueManagementProfile("DropProfile")
-	queueMgmtProfile.SetName("DropProfile")
+	queueMgmtProfile := q.GetOrCreateQueueManagementProfile(dropProfile)
+	queueMgmtProfile.SetName(dropProfile)
 	wred := queueMgmtProfile.GetOrCreateWred()
 	uniform := wred.GetOrCreateUniform()
 	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
-	uniform.SetDrop(ecnConfig.dropEnabled)
 	uniform.SetMinThreshold(ecnConfig.minThreshold)
 	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
-	// TODO: uncomment the following config after it is supported.
-	// uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
-	// uniform.SetWeight(ecnConfig.weight)
+	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
+	if dut.Vendor() != ondatra.JUNIPER {
+		uniform.SetDrop(ecnConfig.dropEnabled)
+		// TODO: uncomment the following config after it is supported.
+		// uniform.SetWeight(ecnConfig.weight)
+	}
 
 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
-	// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-	t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
-
 	// Verify the QueueManagementProfile is applied by checking the telemetry path state values.
-	wredUniform := gnmi.OC().Qos().QueueManagementProfile("DropProfile").Wred().Uniform()
+	wredUniform := gnmi.OC().Qos().QueueManagementProfile(dropProfile).Wred().Uniform()
 	if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {
 		t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
-	}
-	if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), ecnConfig.dropEnabled; got != want {
-		t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
 	}
 	if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), ecnConfig.minThreshold; got != want {
 		t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
@@ -549,8 +666,14 @@ func TestECNConfig(t *testing.T) {
 	if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().State()), ecnConfig.maxDropProbabilityPercent; got != want {
 		t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
 	}
-	if got, want := gnmi.Get(t, dut, wredUniform.Weight().State()), ecnConfig.weight; got != want {
-		t.Errorf("wredUniform.Weight().State(): got %v, want %v", got, want)
+	if dut.Vendor() != ondatra.JUNIPER {
+		if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), ecnConfig.dropEnabled; got != want {
+			t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, wredUniform.Weight().State()), ecnConfig.weight; got != want {
+			t.Errorf("wredUniform.Weight().State(): got %v, want %v", got, want)
+		}
+
 	}
 }
 
@@ -563,48 +686,77 @@ func TestQoSOutputIntfConfig(t *testing.T) {
 		queueName  string
 		ecnProfile string
 		scheduler  string
+		queue      string
+		sequence   uint32
 	}{{
 		desc:       "output-interface-BE1",
 		queueName:  "BE1",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "0",
+		sequence:   0,
 	}, {
 		desc:       "output-interface-BE0",
 		queueName:  "BE0",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "1",
+		sequence:   1,
 	}, {
 		desc:       "output-interface-AF1",
 		queueName:  "AF1",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "2",
+		sequence:   2,
 	}, {
 		desc:       "output-interface-AF2",
 		queueName:  "AF2",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "3",
+		sequence:   3,
 	}, {
 		desc:       "output-interface-AF3",
 		queueName:  "AF3",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "4",
+		sequence:   4,
 	}, {
 		desc:       "output-interface-AF4",
 		queueName:  "AF4",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "5",
+		sequence:   5,
 	}, {
 		desc:       "output-interface-NC1",
 		queueName:  "NC1",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		queue:      "6",
+		sequence:   6,
 	}}
 
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
-
+	if dut.Vendor() == ondatra.JUNIPER {
+		t.Logf("Adding required interface-ref config")
+		iref := i.GetOrCreateInterfaceRef()
+		iref.SetInterface(dp.Name())
+		t.Logf("Queue management profile config required for scheduler and Queue management profile binding")
+		queueMgmtProfile := q.GetOrCreateQueueManagementProfile(dropProfile)
+		queueMgmtProfile.SetName(dropProfile)
+		wred := queueMgmtProfile.GetOrCreateWred()
+		uniform := wred.GetOrCreateUniform()
+		uniform.SetEnableEcn(enableEcn)
+		uniform.SetMinThreshold(minThresholdPerecent)
+		uniform.SetMaxThreshold(maxThresholdPercent)
+		uniform.SetMaxDropProbabilityPercent(maxDropProbabilityPercent)
+	}
 	t.Logf("qos output interface config cases: %v", cases)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -614,11 +766,21 @@ func TestQoSOutputIntfConfig(t *testing.T) {
 			queue := output.GetOrCreateQueue(tc.queueName)
 			queue.SetQueueManagementProfile(tc.ecnProfile)
 			queue.SetName(tc.queueName)
+			t.Logf("Scheduler config required for binding with queue management profile")
+			if dut.Vendor() == ondatra.JUNIPER {
+				fwdGroup := q.GetOrCreateForwardingGroup(tc.queueName)
+				fwdGroup.SetName(tc.queueName)
+				fwdGroup.SetOutputQueue(tc.queue)
+				CreateSchedulerPolicy := q.GetOrCreateSchedulerPolicy(tc.scheduler)
+				CreateSchedulerPolicy.SetName(tc.scheduler)
+				s := CreateSchedulerPolicy.GetOrCreateScheduler(sequeneId)
+				s.SetSequence(tc.sequence)
+				s.SetPriority(schedulerPriority)
+				SchedulerOutput := s.GetOrCreateOutput()
+				SchedulerOutput.SetOutputFwdGroup(tc.queueName)
+			}
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
-
-		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
 		// Verify the policy is applied by checking the telemetry path state values.
 		policy := gnmi.OC().Qos().Interface(dp.Name()).Output().SchedulerPolicy()
