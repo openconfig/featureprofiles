@@ -17,6 +17,7 @@ from pathlib import Path
 import shutil
 import random
 import string
+import tempfile
 import time
 import json
 import yaml
@@ -135,6 +136,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
+    if using_sim:
+        c |= ConfigureVirtualIP.s()
     if install_image and not using_sim:
         c |= SoftwareUpgrade.s()
     if collect_tb_info:
@@ -449,6 +452,49 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path,
         logger.print(f'Testbed info file: {testbed_info_path}')
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...')
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
+        ondatra_testbed_path, testbed_logs_dir):
+    logger.print("Configuring Virtual IP...")
+
+    vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
+    with open(vxr_ports_file, "r") as fp:
+        try:
+            vxr_ports = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            logger.warning("Failed to parse vxr ports file...")
+            return
+
+    mgmt_ip = vxr_ports.get("dut", {}).get("xr_mgmt_ip", None)
+    if not mgmt_ip:
+        logger.warning("Could not find management ip for dut")
+        return
+    else: logger.info(f"Found dut manamgement ip: {mgmt_ip}")
+
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        conf_file = f.name
+
+    with open(conf_file, 'w') as fp:
+        fp.write(f'ipv4 virtual address {mgmt_ip}/24\nend')
+
+    set_conf_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/setconf ' \
+            f'-timeout 0 ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} ' \
+            f'-conf {conf_file} ' \
+            f'-update'
+    try:
+        env = dict(os.environ)
+        env.update(_get_go_env())
+        check_output(set_conf_cmd, env=env, cwd=internal_fp_repo_dir)
+    except:
+        logger.warning(f'Failed to configure virtual ip. Ignoring...')
+    finally:
+        os.remove(conf_file)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
