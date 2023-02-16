@@ -462,10 +462,6 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	t.Run("configureBGP", func(t *testing.T) {
 		t.Log("Configure BGP with Graceful Restart option under Global Bgp")
 		dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-		gnmi.Delete(t, dut, dutConfPath.Config())
-		if qs := gnmi.LookupConfig(t, dut, dutConfPath.Config()); qs.IsPresent() == true {
-			t.Errorf("Delete BGP Config fail: got %v", qs)
-		}
 		nbrList := buildNbrList(ateAS)
 		dutConf := bgpWithNbr(dutAS, nbrList)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
