@@ -20,7 +20,7 @@ import (
 
 const (
 	techDirectory  = "harddisk:/firex_tech"
-	scpCopyTimeout = 900 * time.Second
+	scpCopyTimeout = 300 * time.Second
 )
 
 var (
@@ -111,7 +111,7 @@ func copyDebugFiles(t *testing.T, d targetInfo) {
 	t.Helper()
 
 	target := fmt.Sprintf("%s:%s", d.sshIp, d.sshPort)
-	t.Logf("Copying image to %s (%s)", d.dut, target)
+	t.Logf("Copying debug files from %s (%s)", d.dut, target)
 
 	sshConf := scp.NewSSHConfigFromPassword(d.sshUser, d.sshPass)
 	scpClient, err := scp.NewClient(target, sshConf, &scp.ClientOption{})
@@ -130,7 +130,7 @@ func copyDebugFiles(t *testing.T, d targetInfo) {
 	if err := scpClient.CopyDirFromRemote("/"+techDirectory, dutOutDir, &scp.DirTransferOption{
 		Timeout: scpCopyTimeout,
 	}); err != nil {
-		t.Errorf("Error copying debug files from %s (%s:%s): %v", d.dut, d.sshIp, d.sshPort, err)
+		t.Errorf("Error copying debug files: %v", err)
 	}
 }
 
