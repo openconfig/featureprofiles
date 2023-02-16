@@ -478,8 +478,8 @@ def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path,
 
     with open(conf_file, 'w') as fp:
         fp.writelines([
-            f"ipv4 virtual address ${mgmt_ip}/24",
-            "end"
+            f"ipv4 virtual address ${mgmt_ip}/24\n",
+            "end\n"
         ])
 
     set_conf_cmd = f'{GO_BIN} test -v ' \
