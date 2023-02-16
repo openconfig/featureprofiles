@@ -12,21 +12,24 @@ Validate NHG update in hierarchical resolution scenario
 *   Establish gRIBI client connection with DUT and make it become leader.
 *   Use Modify RPC to install entries per the following order, and ensure FIB
     ACK is received for each of the AFTOperation:
-    *   Add 203.0.113.1/32 (default VRF) to NextHopGroup (default VRF)
-        containing one NextHop (default VRF) that that specifies DUT port-2 as
+    *   Add 203.0.113.1/32 (default VRF) to NextHopGroup (NHG#1 in default VRF)
+        containing one NextHop (NH#2 in default VRF) that specifies DUT port-2 as
         the egress interface and 00:1A:11:00:00:01 as the destination MAC
         address.
     *   Add 198.51.100.0/24 (VRF-1) to NextHopGroup (default VRF) containing one
         NextHop (default VRF) specified to be 203.0.113.1/32 in the default VRF.
-*   TODO: Ensure that ATE port-2 receives the packets with 00:1A:11:00:00:01 as
+*   Ensure that ATE port-2 receives the packets with 00:1A:11:00:00:01 as
     the destination MAC address.
-*   Use the Modify RPC to add the following entries with an implicit in-place
-    replace (ADD operation):
-    *   Add a new NH with egress interface that specifies DUT port-3 as the
+*   Use the Modify RPC with ADD operation to test NHG implicit in-place
+    replace (step by step as below):
+    1. Add a new NH (NH#3) with egress interface that specifies DUT port-3 as the
         egress interface and 00:1A:11:00:00:01 as the destination MAC address.
-    *   Add the same NHG (for 203.0.113.1/32) but pointing to the new added NH.
-*   TODO: Ensure that ATE port-3 receives the packets with 00:1A:11:00:00:01 as
-    the destination MAC address.
+    2. Add the same NHG#1 but reference both NH#2 and NH#3.
+    3. Validate that both ATE port-2 and ATE port-3 receives the packets with 00:1A:11:00:00:01 as the destination MAC address.
+    4. Add the same NHG#1 but reference only NH#3.
+    5. Validate that only ATE port-3 receives the packets.
+    6. Add the same NHG#1 but reference only NH#2.
+    7. Validate that only ATE port-2 receives the packets
 
 ## Config Parameter coverage
 
