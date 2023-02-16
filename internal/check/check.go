@@ -424,7 +424,7 @@ func NotPresent[T any, QT ygnmi.SingletonQuery[T]](query QT) Validator {
 	})
 }
 
-// Compare slices in un ordered way.
+// UnOrderedEqual is to compare slices in un ordered way.
 func UnOrderedEqual[T any, QT ygnmi.SingletonQuery[T]](query QT, want T) Validator {
 	return Predicate(query, fmt.Sprintf("want %#v", want), func(got T) bool {
 
