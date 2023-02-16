@@ -477,10 +477,8 @@ def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path,
         conf_file = f.name
 
     with open(conf_file, 'w') as fp:
-        fp.writelines([
-            f"ipv4 virtual address ${mgmt_ip}/24\n",
-            "end\n"
-        ])
+        fp.write(f'ipv4 virtual address ${mgmt_ip}/24\n')
+        fp.write('end\n')
 
     set_conf_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/setconf ' \
@@ -489,7 +487,9 @@ def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path,
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
             f'-conf {conf_file} ' \
-            f'-update'
+            f'-update ' \
+            f'-v 5 ' \
+            f'-alsologtostderr'
     try:
         env = dict(os.environ)
         env.update(_get_go_env())
