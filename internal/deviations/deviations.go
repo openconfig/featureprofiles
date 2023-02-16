@@ -162,4 +162,7 @@ var (
 
 	NoMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
+
+	BGPStateActiveACLDeny = flag.Bool("deviation_bgp_state_active_acl_deny", false,
+		"Device requires bgp state to be active after ACL deny policy")
 )
