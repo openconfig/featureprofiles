@@ -34,8 +34,6 @@ func TestSetConf(t *testing.T) {
 	}
 
 	conf := string(b)
-	t.Logf("Read conf:\n%s", conf)
-
 	updateRequest := &gnmi.Update{
 		Path: &gnmi.Path{
 			Origin: "cli",
@@ -54,12 +52,8 @@ func TestSetConf(t *testing.T) {
 		setRequest.Replace = []*gnmi.Update{updateRequest}
 	}
 
-	t.Logf("Set request:\n%s", setRequest)
-
 	gnmiClient := dut.RawAPIs().GNMI().New(t)
-	if resp, err := gnmiClient.Set(ctx, setRequest); err != nil {
+	if _, err := gnmiClient.Set(ctx, setRequest); err != nil {
 		t.Fatalf("gNMI set request failed: %v", err)
-	} else {
-		t.Logf("Set response:\n%s", resp)
 	}
 }
