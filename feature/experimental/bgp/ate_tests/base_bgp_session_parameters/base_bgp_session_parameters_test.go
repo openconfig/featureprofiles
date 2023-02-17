@@ -130,7 +130,9 @@ func bgpCreateNbr(bgpParams *bgpTestParams) *oc.NetworkInstance_Protocol {
 	nv4t := nv4.GetOrCreateTimers()
 	nv4t.HoldTime = ygot.Uint16(dutHoldTime)
 	nv4t.KeepaliveInterval = ygot.Uint16(dutKeepaliveTime)
-	nv4t.ConnectRetry = ygot.Uint16(connRetryTime)
+	if !*deviations.ConnectRetry {
+		nv4t.ConnectRetry = ygot.Uint16(connRetryTime)
+	}
 
 	nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	return ni_proto
