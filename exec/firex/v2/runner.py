@@ -37,7 +37,8 @@ INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
 TESTBEDS_FILE = 'exec/testbeds.yaml'
 
 whitelist_arguments([
-    'test_html_report'
+    'test_html_report',
+    'release_ixia_ports'
 ])
 
 class GoTestSegFaultException(Exception):
@@ -181,6 +182,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         internal_test=False,
                         test_debug=True,
                         test_html_report=True,
+                        release_ixia_ports=True,
                         testbed=None,
                         **kwargs):
 
@@ -214,7 +216,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 
     chain |= GoTidy.s(repo=test_repo_dir)
 
-    if '/ate_tests/' in test_path:
+    if release_ixia_ports and '/ate_tests/' in test_path:
         chain |= ReleaseIxiaPorts.s()
 
     if fp_pre_tests:
