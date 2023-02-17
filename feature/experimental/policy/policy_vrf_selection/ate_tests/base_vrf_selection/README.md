@@ -17,9 +17,15 @@ Test different VRF selection policies.
     
 *   Configure ATE to advertise following IP addresses.
 
-        *   IPv4: DEST-IPv4-VLAN10 in VLAN10
-        *   IPv4: DEST-IPv4-VLAN20 in VLAN20
-        *   IPv6: DEST-IPv6-VLAN20 in VLAN20
+        *   IPv4: ATE-DEST-IPv4-VLAN10 in VLAN10
+        *   IPv4: ATE-DEST-IPv4-VLAN20 in VLAN20        
+        *   IPv6: ATE-DEST-IPv6 in VLAN20
+        
+*   Configure DUT with following static routes for each VRF.
+      
+         *   Static route in VRF-10: ATE-DEST-IPv4-VLAN10 next-hop DUT:Port-2.10      
+         *   Static route in VRF DEFAULT: ATE-DEST-IPv4-VLAN20 next-hop DUT:Port-2.20    
+         *   Static route in VRF DEFAULT: ATE-DEST-IPv6 next-hop DUT:Port-2.20   
     
 
 ## Procedure
@@ -70,22 +76,22 @@ Test different VRF selection policies.
 
 *   IPinIP
 
-        *   Flow#1: IPinIP with outer source as not "222.222.222.222" and outer destination as the prefix DEST-IPv4-VLAN10
-        *   Flow#2: IPinIP with outer source as not "222.222.222.222" and outer destination as the prefix DEST-IPv4-VLAN20
-        *   Flow#3: IPinIP with outer source as "222.222.222.222" and outer destination as DEST-IPv4-VLAN10
-        *   Flow#4: IPinIP with outer source as "222.222.222.222" and outer destination as DEST-IPv4-VLAN20
+        *   Flow#1: IPinIP with outer source as not "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN10
+        *   Flow#2: IPinIP with outer source as not "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN20
+        *   Flow#3: IPinIP with outer source as "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN10
+        *   Flow#4: IPinIP with outer source as "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN20
 
 *   IPv6inIP
 
-        *   Flow#5: IPv6inIP with outer source as not "222.222.222.222" and outer destination as the prefix DEST-IPv4-VLAN10
-        *   Flow#6: IPv6inIP with outer source as not "222.222.222.222" and outer destination as the prefix DEST-IPv4-VLAN20    
-        *   Flow#7: IPv6inIP with outer source as "222.222.222.222" and outer destination as DEST-IPv4-VLAN10
-        *   Flow#8: IPv6inIP with outer source as "222.222.222.222" and outer destination as DEST-IPv4-VLAN20
+        *   Flow#5: IPv6inIP with outer source as not "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN10
+        *   Flow#6: IPv6inIP with outer source as not "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN20    
+        *   Flow#7: IPv6inIP with outer source as "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN10
+        *   Flow#8: IPv6inIP with outer source as "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN20
 
 *   Native IPv4
 
-        *   Flow#9: Native IPv4 flow with any source address and destination as DEST-IPv4-VLAN20
+        *   Flow#9: Native IPv4 flow with any source address and destination as ATE-DEST-IPv4-VLAN20
         
 *   Native IPv6
 
-        *   Flow#10: Native IPv6 flow with any source address and destination as DEST-IPv6-VLAN20
+        *   Flow#10: Native IPv6 flow with any source address and destination as ATE-DEST-IPv6-VLAN20
