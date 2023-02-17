@@ -441,7 +441,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	// Set up NH#100, NH#101, NHG#3, IPv4Entry(192.0.2.222).
 	nh100 := nextHopEntry(100, defaultVRF, atePort2.ip(3))
 	nh101 := nextHopEntry(101, defaultVRF, atePort2.ip(4))
-	nhg3 := nextHopGroupEntry(3, defaultVRF, []nhInfo{{index: 100, weight: 2}, {index: 101, weight: 3}})
+	nhg3 := nextHopGroupEntry(3, defaultVRF, []nhInfo{{index: 100, weight: 3}, {index: 101, weight: 5}})
 	ipEntry3 := ipv4Entry(nhgIPv4EntryMap[3], defaultVRF, 3, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh100, nh101, nhg3, ipEntry3)
@@ -474,8 +474,8 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	wantWeights := map[string]float64{
 		"1": 6.25,
 		"2": 18.75,
-		"3": 30,
-		"4": 45,
+		"3": 28.12,
+		"4": 46.87,
 	}
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
@@ -487,7 +487,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	t.Run("validateAFTWeights", func(t *testing.T) {
 		for nhg, weights := range map[uint64][]uint64{
 			2: {1, 3},
-			3: {2, 3},
+			3: {3, 5},
 		} {
 			got := aftNextHopWeights(t, dut, nhg, defaultVRF)
 			ok := cmp.Equal(weights, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
@@ -511,7 +511,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	// Set up NH#10, NH#11, NHG#2, IPv4Entry(192.0.2.111).
 	nh10 := nextHopEntry(10, defaultVRF, atePort2.ip(1))
 	nh11 := nextHopEntry(11, defaultVRF, atePort2.ip(2))
-	nhg2 := nextHopGroupEntry(2, defaultVRF, []nhInfo{{index: 10, weight: 2}, {index: 11, weight: 3}})
+	nhg2 := nextHopGroupEntry(2, defaultVRF, []nhInfo{{index: 10, weight: 3}, {index: 11, weight: 5}})
 	ipEntry2 := ipv4Entry(nhgIPv4EntryMap[2], defaultVRF, 2, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh10, nh11, nhg2, ipEntry2)
@@ -557,8 +557,8 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	}
 
 	wantWeights := map[string]float64{
-		"1": 1.25,
-		"2": 1.875,
+		"1": 1.171,
+		"2": 1.953,
 	}
 	// 6.05 weight for vlans 3 to 18.
 	for i := 3; i <= 18; i++ {
@@ -573,7 +573,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 
 	t.Run("validateAFTWeights", func(t *testing.T) {
 		for nhg, weights := range map[uint64][]uint64{
-			2: {2, 3},
+			2: {3, 5},
 			3: {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 		} {
 			got := aftNextHopWeights(t, dut, nhg, defaultVRF)
