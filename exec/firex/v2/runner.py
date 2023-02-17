@@ -18,6 +18,7 @@ from pathlib import Path
 import shutil
 import random
 import string
+import tempfile
 import time
 import json
 import yaml
@@ -136,8 +137,10 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
+    if using_sim:
+        c |= ConfigureVirtualIP.s()
     if install_image and not using_sim:
-        c |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = 'exec/utils/software_upgrade', test_args =f"-imagePath '{images[0]}'")
+        c |= SoftwareUpgrade.s()
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
     return internal_fp_repo_dir, reserved_testbed, self.enqueue_child_and_get_results(c)
@@ -347,13 +350,14 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     short_sha = repo.git.rev_parse(head_commit_sha, short=7)
     self.send_flame_html(version=f'{repo_name}: {short_sha}')
 
-@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path'))
+@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path', 'install_lock_file'))
 def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed, test_name, **kwargs):
     logger.print('Generating Ondatra files...')
     ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
     ondatra_testbed_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.testbed')
     ondatra_binding_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
+    install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
 
     if reserved_testbed.get('sim', False):
         vxr_testbed = kwargs['testbed_path']
@@ -364,6 +368,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     else:
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
+        install_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
+            f'testbed_{reserved_testbed["id"]}_install.lock')
 
         overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
         reserved_testbed.update(overrides)
@@ -378,7 +384,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
     logger.print(f'Ondatra testbed file: {ondatra_testbed_path}')
     logger.print(f'Ondatra binding file: {ondatra_binding_path}')
-    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path
+    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path, install_lock_file
 
 @app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
     soft_time_limit=12*60*60, time_limit=12*60*60)
@@ -392,6 +398,30 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
         time.sleep(1)
     logger.print(f'Reserved testbed {reserved_testbed["id"]}')
     return reserved_testbed
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def SoftwareUpgrade(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
+        ondatra_testbed_path, install_lock_file, images):
+    if os.path.exists(install_lock_file):
+        return
+    Path(install_lock_file).touch()
+
+    logger.print("Performing Software Upgrade...")
+    su_command = f'{GO_BIN} test -v ' \
+            f'./exec/utils/software_upgrade ' \
+            f'-timeout 0 ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} ' \
+            f'-imagePath "{images[0]}"'
+    try:
+        env = dict(os.environ)
+        env.update(_get_go_env())
+        check_output(su_command, env=env, cwd=internal_fp_repo_dir)
+    except:
+        logger.warning(f'Software upgrade failed. Ignoring...')
+
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
@@ -430,11 +460,10 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, ondatra_binding_path,
 @app.task(bind=True)
 def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
         ondatra_testbed_path, testbed_info_path):
-    logger.print("Collecting testbed info...")
-
     if os.path.exists(testbed_info_path):
         return
 
+    logger.print("Collecting testbed info...")
     testbed_info_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/testbed ' \
             f'-timeout 0 ' \
@@ -449,6 +478,49 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path,
         logger.print(f'Testbed info file: {testbed_info_path}')
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...')
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
+        ondatra_testbed_path, testbed_logs_dir):
+    logger.print("Configuring Virtual IP...")
+
+    vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
+    with open(vxr_ports_file, "r") as fp:
+        try:
+            vxr_ports = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            logger.warning("Failed to parse vxr ports file...")
+            return
+
+    mgmt_ip = vxr_ports.get("dut", {}).get("xr_mgmt_ip", None)
+    if not mgmt_ip:
+        logger.warning("Could not find management ip for dut")
+        return
+    else: logger.info(f"Found dut manamgement ip: {mgmt_ip}")
+
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        conf_file = f.name
+
+    with open(conf_file, 'w') as fp:
+        fp.write(f'ipv4 virtual address {mgmt_ip}/24\nend')
+
+    set_conf_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/setconf ' \
+            f'-timeout 0 ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} ' \
+            f'-conf {conf_file} ' \
+            f'-update'
+    try:
+        env = dict(os.environ)
+        env.update(_get_go_env())
+        check_output(set_conf_cmd, env=env, cwd=internal_fp_repo_dir)
+    except:
+        logger.warning(f'Failed to configure virtual ip. Ignoring...')
+    finally:
+        os.remove(conf_file)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
