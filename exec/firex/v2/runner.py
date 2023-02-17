@@ -411,10 +411,13 @@ def SoftwareUpgrade(self, ws, internal_fp_repo_dir, ondatra_binding_path,
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
             f'-imagePath "{images[0]}"'
+    try:
+        env = dict(os.environ)
+        env.update(_get_go_env())
+        check_output(su_command, env=env, cwd=internal_fp_repo_dir)
+    except:
+        logger.warning(f'Software upgrade failed. Ignoring...')
 
-    env = dict(os.environ)
-    env.update(_get_go_env())
-    check_output(su_command, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
