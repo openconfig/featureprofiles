@@ -16,11 +16,11 @@ Ensure my MAC entries installed on the DUT are honored and used for routing.
 
 ## Config Parameter Coverage
 
-*   /sytem/mac-address/config/routing-mac.
+*   /system/mac-address/config/routing-mac.
 
 ## Telemetry Parameter Coverage
 
-*   /sytem/mac-address/state/routing-mac.
+*   /system/mac-address/state/routing-mac.
 
 ## Protocol/RPC Parameter Coverage
 
