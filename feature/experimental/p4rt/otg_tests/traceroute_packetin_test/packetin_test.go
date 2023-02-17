@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
@@ -170,7 +171,10 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 	}}
 
 	t.Log("TTL/HopLimit 1")
-	dstMac := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
+	llAddress, _ := gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	dstMac, _ := llAddress.Val()
 	testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, dstMac, IsIpv4, 1, 300, 2), srcEndPoint, 10)
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
