@@ -119,7 +119,7 @@ func Properties(ctx context.Context, resv *binding.Reservation) map[string]strin
 
 	if resv != nil {
 		m["topology"] = topology(resv)
-		// dutsInfo(ctx, m, resv)
+		dutsInfo(ctx, m, resv)
 	}
 
 	return m
