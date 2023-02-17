@@ -96,37 +96,37 @@ duts {
 # Before this binding can be used with a topology, add ports mapping
 # from its topology ID to the actual port name on the device.
   
+  # ports {
+  #   id: "port1"
+  #   name: "HundredGigE0/7/0/34"  # Change this to the actual port name.
+  # }
+  # ports {
+  #   id: "port2"
+  #   name: "HundredGigE0/7/0/2"  # Change this to the actual port name.
+  # }
+  # ports {
+  #   id: "port3"
+  #   name: "HundredGigE0/7/0/4" # Change this to the actual port name.
+  # }
+  # ports {
+  #   id: "port4"
+  #   name: "HundredGigE0/7/0/5"  # Change this to the actual port name.
+  # }
   ports {
     id: "port1"
     name: "HundredGigE0/7/0/34"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "HundredGigE0/7/0/2"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port3"
-    name: "HundredGigE0/7/0/4" # Change this to the actual port name.
-  }
-  ports {
-    id: "port4"
-    name: "HundredGigE0/7/0/5"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port5"
-    name: "HundredGigE0/7/0/21"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port6"
     name: "HundredGigE0/7/0/22"  # Change this to the actual port name.
   }
   ports {
-    id: "port7"
+    id: "port3"
     name: "HundredGigE0/7/0/33"  # Change this to the actual port name.
   }
   ports {
-   id: "port8"
-   name: "HundredGigE0/7/0/0"  # Change this to the actual port name.
+   id: "port4"
+   name: "HundredGigE0/7/0/21"  # Change this to the actual port name.
   }
 }
 
@@ -158,36 +158,36 @@ ates {
 
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
+  # ports {
+  #   id: "port1"
+  #   name: "1/68"  # Change this to the actual port name.
+  # }
+  # ports {
+  #   id: "port2"
+  #   name: "1/50"  # Change this to the actual port name.
+  # }
+  # ports {
+  #   id: "port3"
+  #   name: "1/51"  # Change this to the actual port name.
+  # }
+  # ports {
+  #   id: "port4"
+  #   name: "1/52"  # Change this to the actual port name.
+  # }
   ports {
     id: "port1"
-    name: "1/68"  # Change this to the actual port name.
+    name: "1/68" # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "1/50"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port3"
-    name: "1/51"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port4"
-    name: "1/52"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port5"
-    name: "1/65" # Change this to the actual port name.
-  }
-  ports {
-    id: "port6"
     name: "1/66"  # Change this to the actual port name.
   }
   ports {
-    id: "port7"
+    id: "port3"
     name: "1/67"  # Change this to the actual port name.
   }
   ports {
-   id: "port8"
-   name: "1/49"  # Change this to the actual port name.
+   id: "port4"
+   name: "1/65"  # Change this to the actual port name.
   }
 }
