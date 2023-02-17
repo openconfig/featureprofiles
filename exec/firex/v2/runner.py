@@ -38,7 +38,8 @@ INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
 TESTBEDS_FILE = 'exec/testbeds.yaml'
 
 whitelist_arguments([
-    'test_html_report'
+    'test_html_report',
+    'collect_debug_files'
 ])
 
 class GoTestSegFaultException(Exception):
@@ -244,7 +245,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, ondatra_binding_path, ondatra_testbed_path, test_path, test_args=None, 
-        test_timeout=0, test_debug=True, testbed_info_path = None):
+        test_timeout=0, test_debug=True, testbed_info_path=None, collect_debug_files=False):
     
     logger.print('Running Go test...')
     json_results_file = Path(test_log_directory_path) / f'go_logs.json'
@@ -285,8 +286,10 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         stop_time = self.get_current_time()
     except CommandFailed as e:
         if e.returncode == 1:
-            # test failed
-            self.enqueue_child(CollectDebugFiles.s(), block=True, raise_exception_on_failure=False)
+            if collect_debug_files:
+                self.enqueue_child(
+                    CollectDebugFiles.s(), block=True, raise_exception_on_failure=False
+                )
         else:
             raise e
     finally:
