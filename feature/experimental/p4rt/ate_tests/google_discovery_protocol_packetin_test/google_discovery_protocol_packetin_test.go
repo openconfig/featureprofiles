@@ -165,6 +165,8 @@ func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTCli
 			t.Fatalf("There is error seen when receving packets. %v, %s", err, err)
 			break
 		}
+		// TODO(ankur19): remove the wait after fixing p4rt_client GetPacket.
+		time.Sleep(1 * time.Second)
 	}
 	return packets
 }
