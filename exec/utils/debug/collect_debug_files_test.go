@@ -49,6 +49,11 @@ var (
 	pipedCmds []string = []string{
 		"show telemetry model-driven trace all",
 		"show cef global gribi aft internal location all",
+		"show version",
+		"show platform",
+		"show install fixes active",
+		"show running-config",
+		"show context",
 	}
 )
 
@@ -186,5 +191,5 @@ func getSshInfo(t *testing.T) map[string]targetInfo {
 }
 
 func getTechFileName(tech string) string {
-	return techDirectory + "/" + strings.ReplaceAll(tech, " ", "_") + "-tech"
+	return techDirectory + "/" + strings.ReplaceAll(tech, " ", "_")
 }
