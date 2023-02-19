@@ -245,8 +245,8 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
-        test_repo_dir, ondatra_binding_path, ondatra_testbed_path, test_path, test_args=None, 
-        test_timeout=0, test_debug=False, testbed_info_path=None):
+        test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, 
+        test_path, test_args=None, test_timeout=0, test_debug=False, testbed_info_path=None):
     
     logger.print('Running Go test...')
     json_results_file = Path(test_log_directory_path) / f'go_logs.json'
@@ -297,7 +297,12 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                 if 'segmentation fault (core dumped)' in content:
                     raise GoTestSegFaultException
                 if test_debug and '"Action":"fail"' in content:
-                    self.enqueue_child(CollectDebugFiles.s())
+                    self.enqueue_child(CollectDebugFiles.s(
+                        internal_fp_repo_dir=internal_fp_repo_dir, 
+                        ondatra_binding_path=ondatra_binding_path, 
+                        ondatra_testbed_path=ondatra_testbed_path, 
+                        test_log_directory_path=test_log_directory_path
+                    ))
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
 
@@ -438,7 +443,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def CollectDebugFiles(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
+def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path, 
         ondatra_testbed_path, test_log_directory_path):
     logger.print("Collecting debug files...")
 
