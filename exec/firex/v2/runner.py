@@ -282,17 +282,10 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
 
         self.run_script(cmd,
                         inactivity_timeout=inactivity_timeout,
+                        ok_nonzero_returncodes=(1,),
                         extra_env_vars=_get_go_env(),
                         cwd=test_repo_dir)
         stop_time = self.get_current_time()
-    except CommandFailed as e:
-        if e.returncode == 1:
-            if test_debug:
-                self.enqueue_child(
-                    CollectDebugFiles.s(), raise_exception_on_failure=False
-                )
-        else:
-            raise e
     finally:
         if xml_results_file and Path(xml_results_file).is_file():
             shutil.copyfile(xml_results_file, xunit_results_filepath)
@@ -300,8 +293,13 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         if self.console_output_file and Path(self.console_output_file).is_file():
             shutil.copyfile(self.console_output_file, json_results_file)
             with open(json_results_file, 'r') as f:
-                if 'segmentation fault (core dumped)' in f.read():
+                content = f.read() 
+                if 'segmentation fault (core dumped)' in content:
                     raise GoTestSegFaultException
+                if test_debug and '"Action":"fail"' in content:
+                    self.enqueue_child(
+                        CollectDebugFiles.s(), raise_exception_on_failure=False
+                    )
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
 
