@@ -207,7 +207,7 @@ tests:
   owners:
     - sprem
   priority: 5
-  mustpass: false
+  mustpass: true
 - name: P4RT-5.1 (Traceroute Packetin)
   path: feature/experimental/p4rt/ate_tests/traceroute_packetin_test
   args:
@@ -215,7 +215,7 @@ tests:
   owners:
     - sprem
   priority: 5
-  mustpass: false
+  mustpass: true
 - name: gNMI-1.1 (cli Origin) 
   path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
   owners:

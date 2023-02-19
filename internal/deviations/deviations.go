@@ -127,9 +127,15 @@ var (
 
 	RoutePolicyUnderNeighborAfiSafi = flag.Bool("deviation_rpl_under_neighbor_afisafi", false, "Device requires route-policy configuration under bgp neighbor afisafi. Fully-compliant devices should pass with this deviation set to true.")
 
+	TraceRouteL4ProtocolUDP = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
+
+	TraceRouteFragmentation = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
+
 	ConnectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
 
 	MissingBgpNeighborStatePeerGroup = flag.Bool("deviation_missing_bgp_neighbor_state_peer_group", false, "Device requires peer-group under bgp neighbor bgp/neighbors/neighbor/state/peer-group.")
+
+	ExplicitIPv6EnableForGRIBI = flag.Bool("deviation_ipv6_enable_for_gribi_nh_dmac", false, "Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address")
 
 	ISISInterfaceLevel1DisableRequired = flag.Bool("deviation_isis_interface_level1_disable_required", false,
 		"Disable isis level1 under interface mode on the device if value is true, Default value is false and enables isis level2 under interface mode")
@@ -151,4 +157,9 @@ var (
 
 	ISISInstanceEnabledNotRequired = flag.Bool("deviation_isis_instance_enabled_not_required", false,
 		"Don't set isis instance enable flag on the device if value is true, Default value is false and instance enable flag is set")
+
+	ExplicitInterfaceRefDefinition = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
+
+	NoMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
+		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
 )
