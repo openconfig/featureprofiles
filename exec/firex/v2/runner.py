@@ -297,9 +297,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                 if 'segmentation fault (core dumped)' in content:
                     raise GoTestSegFaultException
                 if test_debug and '"Action":"fail"' in content:
-                    self.enqueue_child(
-                        CollectDebugFiles.s(), raise_exception_on_failure=False
-                    )
+                    self.enqueue_child(CollectDebugFiles.s())
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
 
