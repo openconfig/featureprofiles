@@ -289,7 +289,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         if e.returncode == 1:
             if test_debug:
                 self.enqueue_child(
-                    CollectDebugFiles.s(), block=True, raise_exception_on_failure=False
+                    CollectDebugFiles.s(), raise_exception_on_failure=False
                 )
         else:
             raise e
