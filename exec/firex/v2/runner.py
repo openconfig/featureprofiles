@@ -39,7 +39,6 @@ TESTBEDS_FILE = 'exec/testbeds.yaml'
 
 whitelist_arguments([
     'test_html_report',
-    'collect_debug_files',
     'release_ixia_ports'
 ])
 
@@ -247,7 +246,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, ondatra_binding_path, ondatra_testbed_path, test_path, test_args=None, 
-        test_timeout=0, test_debug=True, testbed_info_path=None, collect_debug_files=False):
+        test_timeout=0, test_debug=False, testbed_info_path=None):
     
     logger.print('Running Go test...')
     json_results_file = Path(test_log_directory_path) / f'go_logs.json'
@@ -288,7 +287,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         stop_time = self.get_current_time()
     except CommandFailed as e:
         if e.returncode == 1:
-            if collect_debug_files:
+            if test_debug:
                 self.enqueue_child(
                     CollectDebugFiles.s(), block=True, raise_exception_on_failure=False
                 )
