@@ -282,6 +282,7 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 	BaseFlow := createFlow(t, args.ate, args.top, "BaseFlow")
 
 	// validate programming using AFT
+	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	aftCheck(t, args.dut, dstPfx)
 	// Validate traffic over primary path port2, port3
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port2", "port3"})
@@ -289,12 +290,14 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 	//shutdown port2
 	flapinterface(t, args.ate, "port2", false)
 	defer flapinterface(t, args.ate, "port2", true)
+	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	// Validate traffic over primary path port3
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port3"})
 
 	//shutdown port3
 	flapinterface(t, args.ate, "port3", false)
 	defer flapinterface(t, args.ate, "port3", true)
+	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	// validate traffic over backup
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port4"})
 }
@@ -344,6 +347,7 @@ func flapinterface(t *testing.T, ate *ondatra.ATEDevice, port string, action boo
 }
 
 // aftCheck does ipv4, NHG and NH aft check
+// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string) {
 	// check prefix and get NHG ID
 	aftPfxNHG := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(prefix).NextHopGroup()
