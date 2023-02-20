@@ -15,9 +15,11 @@
 package fptest
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -41,5 +43,32 @@ func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni st
 	netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
 	if intf.GetOrCreateSubinterface(si) != nil {
 		gnmi.Update(t, d, gnmi.OC().NetworkInstance(ni).Config(), netInst)
+	}
+}
+
+// EnableGribiOnNetworkInstance enables Gribi protocol under network instance.
+func EnableGribiUnderNetworkInstance(t testing.TB, d *ondatra.DUTDevice, ni string) {
+	t.Helper()
+	if ni == "" {
+		t.Fatalf("Network instance not provided for interface assignment")
+	}
+
+	cliCmd := fmt.Sprintf("/set network-instance %s protocols gribi admin-state enable", ni)
+	gpbSetRequest := &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+				Elem:   []*gpb.PathElem{},
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: cliCmd,
+				},
+			},
+		}},
+	}
+	gnmiClient := d.RawAPIs().GNMI().Default(t)
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Fatalf("Enabling Gribi on network-instance %s failed with unexpected error: %v", ni, err)
 	}
 }

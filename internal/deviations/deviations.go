@@ -165,4 +165,7 @@ var (
 
 	BGPStateActiveACLDeny = flag.Bool("deviation_bgp_state_active_acl_deny", false,
 		"Device requires bgp state to be active after ACL deny policy")
+
+	ExplicitGribiUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false, 
+	    "Device requires gribi-protocol to be enabled under network-instance.")
 )
