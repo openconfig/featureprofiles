@@ -6,8 +6,8 @@ Validate gRIBI Backup NHG actions.
 
 ## Topology
 
-*   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2, and ATE port-3
-    to DUT port-3.
+*   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2, ATE port-3 to
+    DUT port-3, and ATE port-4 to DUT port-4.
 *   Create a 3 non-default VRF:
     *   `VRF-A` that includes DUT port-1.
     *   `VRF-B` that includes no interface.
@@ -26,9 +26,9 @@ Different test scenarios requires different setups.
 
 *   Setup#1
 
-    *   Make sure DUT port-2 and port-3 are up.
+    *   Make sure DUT port-2, port-3 and port-4 are up.
     *   Make sure there is a static route in the default VRF for `InnerDstIP_1`,
-        pointing to ATE port-3.
+        pointing to ATE port-4.
     *   Connect a gRIBI client to DUT with session parameters
         `{persistence=PRESERVE Redundancy=SINGLE_PRIMARY}`
     *   gRIBI Flush the DUT.
@@ -43,7 +43,9 @@ Different test scenarios requires different setups.
 
 *   Setup#2
 
-    *   Make sure DUT port-2 and port-3 are up.
+    *   Make sure DUT port-2, port-3 and port-4 are up.
+    *   Make sure there is a static route in the default VRF for `InnerDstIP_1`,
+        pointing to ATE port-4.
     *   Connect a gRIBI client to DUT with session parameters
         `{persistence=PRESERVE Redundancy=SINGLE_PRIMARY}`
     *   gRIBI Flush the DUT.
@@ -65,18 +67,6 @@ Different test scenarios requires different setups.
         OuterDstIP_1/32 {VRF-C} --> NHG#104
         ```
 
-*   Setup#3
-
-    *   Make sure DUT port-2 and port-3 are up.
-    *   Connect a gRIBI client to DUT with session parameters
-        `{persistence=PRESERVE Redundancy=SINGLE_PRIMARY}`
-    *   gRIBI Flush the DUT.
-    *   Inject the same as Setup#2, but have `VIP_2` point to NHG#1:
-
-        ```text
-        VIP_2/32 {DEFAULT VRF} --> NHG#1
-        ```
-
 ## Procedure
 
 *   TEST#1 - (next-hop viability triggers decap in backup NHG):
@@ -86,26 +76,23 @@ Different test scenarios requires different setups.
     2.  Send IPinIP traffic to `OuterDstIP_1` with inner IP as `InnerDstIP_1`,
         and validate that ATE port-2 receives the IPinIP traffic.
 
-    *   Shutdown DUT port-2 interface, and validate that ATE port-3 receives the
+    *   Shutdown DUT port-2 interface, and validate that ATE port-4 receives the
         decapsulated traffic with `InnerDstIP_1`.
 
-*   Test#2 - (new tunnel viability triggers decap-and-encap in the backup NHG):
+*   Test#2 - (tunnel viability triggers decap and encap in the backup NHG):
 
     *   Deploy Setup#2 as above.
 
-    *   Send IPinIP traffic to `OuterDstIP_1`. Validate that ATE port-2
-        receives the IPinIP traffic with outer IP as `OuterDstIP_1`.
+    *   Send IPinIP traffic to `OuterDstIP_1`. Validate that ATE port-2 receives
+        the IPinIP traffic with outer IP as `OuterDstIP_1`.
 
-    *   Shutdown DUT port-2 interface, and validate that ATE port-3 receives the traffic with the outer IP `OuterDstIP_2` at ATE port-3.
+    *   Shutdown DUT port-2 interface, and validate that ATE port-3 receives the
+        IPinIP traffic with outer destination IP as `OuterDstIP_2`, and outer
+        source IP as `OuterSrcIP_2`
 
-*   Test#3 - (new tunnel viability triggers decap in the backup NHG):
-
-    *   Deploy Setup#3 as above.
-
-    *   Send IPinIP traffic to `OuterDstIP_1`. Validate that ATE port-2
-        receives the IPinIP traffic with outer destination IP as `OuterDstIP_2`, and outer source IP as `OuterSrcIP_2`
-
-    *   Shutdown DUT port-2 interface, and validate that ATE port-3 receives the traffic with decapsulated traffic with destination IP as `InnerDstIP_1` at ATE port-3.
+    *   Shutdown DUT port-3 interface, and validate that ATE port-4 receives the
+        traffic with decapsulated traffic with destination IP as `InnerDstIP_1`
+        at ATE port-3.
 
 ## Config Parameter coverage
 
