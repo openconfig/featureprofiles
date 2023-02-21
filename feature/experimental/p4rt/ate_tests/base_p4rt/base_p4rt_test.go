@@ -20,6 +20,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"sort"
+	"testing"
+
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/go-cmp/cmp"
@@ -33,8 +36,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"google.golang.org/protobuf/testing/protocmp"
-	"sort"
-	"testing"
 )
 
 type testArgs struct {
@@ -61,7 +62,7 @@ var (
 	streamName2 = "p4rt2"
 
 	electionId = uint64(100)
-	//Enter the P4RT openconfig node-id and P4RT port-id to be configured in DUT and for client connection
+	// Enter the P4RT openconfig node-id and P4RT port-id to be configured in DUT and for client connection.
 	deviceId1 = uint64(100)
 	deviceId2 = uint64(200)
 
@@ -111,7 +112,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	return i
 }
 
-// configureDeviceIDs configures p4rt device-id on the DUT.
+// ConfigureDeviceIDs configures p4rt device-id on the DUT.
 func configureDeviceIDs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	nodes := p4rtutils.P4RTNodesByPort(t, dut)
 	deviceIDs := []uint64{deviceId1, deviceId2}
@@ -173,7 +174,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// ATE configuration with IP address
+// ATE configuration with IP address.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	top := ate.Topology().New()
 
@@ -192,8 +193,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// setupP4RTClient sends client arbitration message for both clients.
-// then sends setforwordingpipelineconfig for both clients, compare the P4Info
+// setupP4RTClient sends client arbitration message for both clients and
+// then sends setforwordingpipelineconfig for both clients, compare the P4Info.
 func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	// Setup p4rt-client stream parameters for both clients
 	streamParameter1 := p4rt_client.P4RTStreamParameters{
@@ -262,7 +263,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 		}
 	}
 
-	// Receive GetForwardingPipelineConfig
+	// Receive GetForwardingPipelineConfig.
 	for index, client := range clients {
 		resp, err := client.GetForwardingPipelineConfig(&p4_v1.GetForwardingPipelineConfigRequest{
 			DeviceId:     deviceid_list[index],
@@ -279,30 +280,39 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	return nil
 }
 
-// Function to compare and check if the expected table is present in RPC ReadResponse
+// Function to compare and check if the expected table is present in RPC ReadResponse.
 func verifyReadReceiveMatch(expected_update []*p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
 
 	matches := 0
 	for _, table := range received_entry.Entities {
-		//add a switch case for the captured table entry
-		//Switch case to remove the counter_data and meter_config from table entry returned by p4rt server
-		var tableMap map[string]interface{}
+		// Added a switch case for the captured table entry.
+		// Switch case to remove the counter_data and meter_config from table entry returned by p4rt server.
+		var tableMap map[string]any
 		switch entry := table.Entity.(type) {
 		case *p4_v1.Entity_TableEntry:
-			ent1, _ := json.Marshal(entry)
-			var toMap map[string]interface{}
-			_ = json.Unmarshal([]byte(string(ent1)), &toMap)
-			tableMap = toMap["TableEntry"].(map[string]interface{})
+			ent1, err1 := json.Marshal(entry)
+			if err1 != nil {
+				return errors.New("Unable to convert table entry to json")
+			}
+			var toMap map[string]any
+			err2 := json.Unmarshal([]byte(string(ent1)), &toMap)
+			if err2 != nil {
+				return errors.New("Unable to unmarshal table entry to map")
+			}
+			tableMap = toMap["TableEntry"].(map[string]any)
 			delete(tableMap, "meter_config")
 			delete(tableMap, "counter_data")
 		default:
 			fmt.Println("Not a table entry")
 		}
-		ent2, _ := json.Marshal(expected_update[0].Entity.Entity)
-		var toMap1 map[string]interface{}
+		ent2, err3 := json.Marshal(expected_update[0].Entity.Entity)
+		if err3 != nil {
+			return errors.New("Unable to convert table entry to json")
+		}
+		var toMap1 map[string]any
 
 		_ = json.Unmarshal([]byte(string(ent2)), &toMap1)
-		tableMap1 := toMap1["TableEntry"].(map[string]interface{})
+		tableMap1 := toMap1["TableEntry"].(map[string]any)
 
 		if cmp.Equal(tableMap, tableMap1) {
 			fmt.Println("Table match succesful")
