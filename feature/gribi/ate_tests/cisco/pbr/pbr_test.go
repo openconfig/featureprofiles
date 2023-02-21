@@ -282,15 +282,15 @@ func unconfigPBRunderInterface(t *testing.T, args *testArgs, interfaceName strin
 // Remove flowspec and add as pbr
 func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Remove Flowspec Config and add HW Module Config")
-	//configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
-	//util.GNMIWithText(ctx, t, dut, configToChange)
+	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
+	util.GNMIWithText(ctx, t, dut, configToChange)
 
-	//t.Log("Configure PBR policy and Apply it under interface")
-	//configBasePBR(t, dut)
-	//gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
+	t.Log("Configure PBR policy and Apply it under interface")
+	configBasePBR(t, dut)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
 
-	//t.Log("Reload the router to activate hw module config")
-	//util.ReloadDUT(t, dut)
+	t.Log("Reload the router to activate hw module config")
+	util.ReloadDUT(t, dut)
 
 }
 
