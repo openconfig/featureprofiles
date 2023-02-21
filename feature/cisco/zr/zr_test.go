@@ -48,7 +48,6 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
                 t.Fatalf("Get transceiver list for %q: got 0, want > 0", dut.Model())
         }
 
-
         for _, transceiver := range transceivers {
                 t.Logf("Validate transceiver: %s", transceiver)
                 component := gnmi.OC().Component(transceiver)
@@ -57,12 +56,66 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
                         t.Logf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiver)
                         continue
                 }
-            
+
+                //enabled := gnmi.Get(t, dut, component.Transceiver().Enabled().State())
+                //t.Log(enabled)
+
+                present := gnmi.Get(t, dut, component.Transceiver().Present().State())
+                t.Log(present)
+
+                formFactor := gnmi.Get(t, dut, component.Transceiver().FormFactor().State())
+                t.Log(formFactor)
+
+                connectorType := gnmi.Get(t, dut, component.Transceiver().ConnectorType().State())
+                t.Log(connectorType)
+
+                vendor := gnmi.Get(t, dut, component.Transceiver().Vendor().State())
+                t.Log(vendor)
+
+                vendorPart := gnmi.Get(t, dut, component.Transceiver().VendorPart().State())
+                t.Log(vendorPart)
+
+                vendorRev := gnmi.Get(t, dut, component.Transceiver().VendorRev().State())
+                t.Log(vendorRev)
+
+                sonetSdhComplianceCode := gnmi.Get(t, dut, component.Transceiver().SonetSdhComplianceCode().State())
+                t.Log(sonetSdhComplianceCode)
+
+                otnComplianceCode := gnmi.Get(t, dut, component.Transceiver().OtnComplianceCode().State())
+                t.Log(otnComplianceCode)
+
+                serialNo := gnmi.Get(t, dut, component.Transceiver().SerialNo().State())
+                t.Log(serialNo)
+
+		//dateCode := gnmi.Get(t, dut, component.Transceiver().DateCode().State())
+                //t.Log(dateCode)
+
+                faultCondition := gnmi.Get(t, dut, component.Transceiver().FaultCondition().State())
+                t.Log(faultCondition)
+
                 if strings.Contains(gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String(), "ZR") {
                         t.Logf("Transceiver %s has ZR optics",transceiver)
 
                         mfgName := gnmi.Get(t, dut, component.MfgName().State())
                         t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
+
+                        index := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().Index().State())
+                        t.Logf("Transceiver %s Index: %v", transceiver, index)
+                        if len(index) == 0 {
+                                t.Errorf("Get Index list for %q: got 0, want > 0", transceiver)
+                        }
+
+                        opFreq := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().OutputFrequency().State())
+                        t.Logf("Transceiver %s OutputFrequency: %v", transceiver, opFreq)
+                        if len(opFreq) == 0 {
+                                t.Errorf("Get OutputFrequency list for %q: got 0, want > 0", transceiver)
+                        }
+
+                        targetOpPower := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().TargetOutputPower().State())
+                        t.Logf("Transceiver %s TargetOutputPower: %v", transceiver, targetOpPower)
+                        if len(targetOpPower) == 0 {
+                                t.Errorf("Get TargetOutputPower list for %q: got 0, want > 0", transceiver)
+                        }
 
                         inputPowers := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().InputPower().Instant().State())
                         t.Logf("Transceiver %s inputPowerInstant: %v", transceiver, inputPowers)
