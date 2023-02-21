@@ -195,6 +195,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*nonDefaultNI).Config(), ni)
 	if *deviations.ExplicitGribiUnderNetworkInstance{
+		fptest.EnableGribiUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
 		fptest.EnableGribiUnderNetworkInstance(t, dut, *nonDefaultNI)
 	}
 	nip := gnmi.OC().NetworkInstance(*nonDefaultNI)
