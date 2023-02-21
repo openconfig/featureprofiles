@@ -28,21 +28,19 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
-// setISISOverloadBit is used to configure isis overload bit to true
-func setISISOverloadBit(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
+// setISISOverloadBit is used to configure isis overload bit to true.
+func setISISOverloadBit(t *testing.T, dut *ondatra.DUTDevice) {
 
-	// ISIS Configs to set OVerload Bit to true
+	// ISIS Configs to set Overload Bit to true.
 	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
 	lspBit := dutISISPath.Global().LspBit().OverloadBit()
 	gnmi.Replace(t, dut, lspBit.SetBit().Config(), true)
 }
 
-// setISISMetric is used to configure metric on isis interfaces
-func setISISMetric(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
+// setISISMetric is used to configure metric on isis interfaces.
+func setISISMetric(t *testing.T, dut *ondatra.DUTDevice) {
 
+	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
 	t.Logf("Configure ISIS metric to %v", setup.ISISMetric)
 	for _, dp := range dut.Ports() {
 		dutISISPathIntfAF := dutISISPath.Interface(dp.Name()).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
@@ -52,8 +50,7 @@ func setISISMetric(t *testing.T) {
 
 // verifyISISMetric is used to verify on ATE to see how much time it
 // has taken to apply changes in metric
-func verifyISISMetric(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
+func verifyISISMetric(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 
 	t.Run("ISIS Metric verification", func(t *testing.T) {
 		at := gnmi.OC()
@@ -79,11 +76,9 @@ func verifyISISMetric(t *testing.T) {
 	})
 }
 
-// TODO: verifyISISOverloadBit is used to verify on ATE to see how much time it
+// verifyISISOverloadBit is used to verify on ATE to see how much time it
 // has taken to apply overload bit on isis adjacencies.
-// https://github.com/openconfig/ondatra/issues/51
-func verifyISISOverloadBit(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
+func verifyISISOverloadBit(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 
 	t.Run("ISIS Overload bit verification", func(t *testing.T) {
 		at := gnmi.OC()
@@ -98,14 +93,15 @@ func verifyISISOverloadBit(t *testing.T) {
 			if got := gnmi.Get(t, ate, at.Interface(ap.Name()).OperStatus().State()); got != want {
 				t.Errorf("%s oper-status got %v, want %v", ap, got, want)
 			}
-			// Ixia support not available to grep set bit
-			/*is := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
-			lsps := is.LevelAny().LspAny()
-			gotIsisSetBit := gnmi.GetAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().SBit().State())
+			// TODO: SetBit is not working on Ixia.
+			// Below code will be uncommented once Ixia issue is resolved.
 
-			if diff := cmp.Diff(setup.ISISSetBitList, gotIsisSetBit); diff != "" {
-				t.Errorf("obtained setBit on ATE is not as expected, got %v, want %v", gotIsisSetBit, setup.ISISSetBitList)
-			}*/
+			// is := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
+			// lsps := is.LevelAny().LspAny()
+			// gotIsisSetBit := gnmi.GetAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().SBit().State())
+			// if diff := cmp.Diff(setup.ISISSetBitList, gotIsisSetBit); diff != "" {
+			// t.Errorf("obtained setBit on ATE is not as expected, got %v, want %v", gotIsisSetBit, setup.ISISSetBitList)
+			// }
 		}
 	})
 }
@@ -114,23 +110,25 @@ func verifyISISOverloadBit(t *testing.T) {
 // applied on all isis sessions.
 func TestISISBenchmarking(t *testing.T) {
 
-	t.Log("Start timer")
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+	t.Log("Start timer for ISIS overload bit verification test.")
 	start := time.Now()
-	t.Log("Configure ISIS overload bit on DUT")
-	setISISOverloadBit(t)
-	t.Log("Verify on ATE if ISIS overload bit is reflected on ATE")
-	verifyISISOverloadBit(t)
-	t.Log("End the timer and calculate time taken to apply ISIS overload bit")
+	t.Log("Configure ISIS overload bit on DUT.")
+	setISISOverloadBit(t, dut)
+	t.Log("Verify on ATE if ISIS overload bit is reflected on ATE.")
+	verifyISISOverloadBit(t, dut, ate)
+	t.Log("End the timer and calculate time taken to apply ISIS overload bit.")
 	elapsed := time.Since(start)
-	t.Logf("Duration taken to apply overload bit  %v", elapsed)
+	t.Logf("Duration taken to apply overload bit: %v", elapsed)
 
-	t.Log("Start timer")
+	t.Log("Start timer for ISIS Metric test.")
 	start = time.Now()
-	t.Log("Configure ISIS Metric on DUT")
-	setISISMetric(t)
-	t.Log("Verify on ATE if ISIS Metric changes are reflected")
-	verifyISISMetric(t)
-	t.Log("End the timer and calculate time taken to apply ISIS Metric")
+	t.Log("Configure ISIS Metric on DUT.")
+	setISISMetric(t, dut)
+	t.Log("Verify on ATE if ISIS Metric changes are reflected.")
+	verifyISISMetric(t, dut, ate)
+	t.Log("End the timer and calculate time taken to apply ISIS Metric.")
 	elapsed = time.Since(start)
-	t.Logf("Duration taken to apply isis metric  %v", elapsed)
+	t.Logf("Duration taken to apply isis metric: %v", elapsed)
 }
