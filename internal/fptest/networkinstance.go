@@ -50,9 +50,8 @@ func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni st
 func EnableGribiUnderNetworkInstance(t testing.TB, d *ondatra.DUTDevice, ni string) {
 	t.Helper()
 	if ni == "" {
-		t.Fatalf("Network instance not provided for interface assignment")
+		t.Fatalf("Network instance not provided for protocol definition")
 	}
-
 	cliCmd := fmt.Sprintf("/set network-instance %s protocols gribi admin-state enable", ni)
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{{
