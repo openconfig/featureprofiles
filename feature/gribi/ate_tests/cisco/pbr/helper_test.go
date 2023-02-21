@@ -233,36 +233,6 @@ func getSubInterface(ipv4 string, prefixlen4 uint8, ipv6 string, prefixlen6 uint
 	return s
 }
 
-// func addIpv6Address(interfaceName string, ipv6 string, prefixlen uint8, index uint32) *oc.Interface {
-// 	// s := &oc.Interface_Subinterface{}
-// 	// s.Index = ygot.Uint32(index)
-// 	// s4 := s.GetOrCreateIpv6()
-// 	// a := s4.GetOrCreateAddress(ipv6)
-// 	// a.PrefixLength = ygot.Uint8(prefixlen)
-// 	if strings.Contains(interfaceName, "Bundle") {
-// 		intType = ieee8023adLag
-// 	} else {
-// 		intType = ethernetCsmacd
-// 	}
-
-// 	config := oc.Interface{
-// 		Name:    ygot.String(interfaceName),
-// 		Enabled: ygot.Bool(true),
-// 		Type:    intType,
-// 		Subinterface: map[uint32]*oc.Interface_Subinterface{
-// 			0: {Index: ygot.Uint32(index), Ipv6: &oc.Interface_Subinterface_Ipv6{Address: map[string]*oc.Interface_Subinterface_Ipv6_Address{ygot.String("ipv6"): GetOrCreateIpv6(ipv6)}}},
-// 		},
-// 	}
-
-//		return &config
-//	}
-func addInterfaceType(intName string, inttype uint64) *oc.Interface {
-	s := &oc.Interface{
-		Name: ygot.String(intName),
-		Type: oc.E_IETFInterfaces_InterfaceType(inttype),
-	}
-	return s
-}
 func addIpv6Address(i *oc.Interface, ipv6 string, prefixlen uint8, index uint32) *oc.Interface {
 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	s := i.GetOrCreateSubinterface(index)
