@@ -128,11 +128,9 @@ func verifyNodeTelemetry(t *testing.T, node, peer gnmi.DeviceOrOpts, nodePort, p
 	interfacePath := gnmi.OC().Lldp().Interface(nodePort.Name())
 
 	// LLDP Disabled
-	if !*deviations.MissingValueForDefaults {
-		lldpTelemetry := gnmi.Get(t, node, gnmi.OC().Lldp().Enabled().State())
-		if lldpEnabled != lldpTelemetry {
-			t.Errorf("LLDP enabled telemetry got: %t, want: %t.", lldpTelemetry, lldpEnabled)
-		}
+	lldpTelemetry := gnmi.Get(t, node, gnmi.OC().Lldp().Enabled().State())
+	if lldpEnabled != lldpTelemetry {
+		t.Errorf("LLDP enabled telemetry got: %t, want: %t.", lldpTelemetry, lldpEnabled)
 	}
 
 	// Ensure that DUT does not generate any LLDP messages irrespective of the
@@ -146,9 +144,16 @@ func verifyNodeTelemetry(t *testing.T, node, peer gnmi.DeviceOrOpts, nodePort, p
 				return true
 			}
 			gotLen = len(intf.Neighbor)
+			if *deviations.LLDPInterfaceConfigOverrideGlobal {
+				return gotLen > 0
+			}
 			return gotLen == 0
 		}).Await(t); !ok {
-			t.Errorf("Number of neighbors got: %d, want: 0.", gotLen)
+			if *deviations.LLDPInterfaceConfigOverrideGlobal {
+				t.Errorf("Number of neighbors got: %d, want: non-zero.", gotLen)
+			} else {
+				t.Errorf("Number of neighbors got: %d, want: 0.", gotLen)
+			}
 		}
 		return
 	}
