@@ -19,6 +19,13 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+const (
+	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+)
+
+var intType oc.E_IETFInterfaces_InterfaceType
+
 func flushServer(t *testing.T, args *testArgs) {
 	c := args.clientA.Fluent(t)
 	if _, err := c.Flush().
@@ -226,19 +233,51 @@ func getSubInterface(ipv4 string, prefixlen4 uint8, ipv6 string, prefixlen6 uint
 	return s
 }
 
-func addIpv6Address(ipv6 string, prefixlen uint8, index uint32) *oc.Interface_Subinterface {
-	s := &oc.Interface_Subinterface{}
-	s.Index = ygot.Uint32(index)
-	s4 := s.GetOrCreateIpv6()
-	a := s4.GetOrCreateAddress(ipv6)
-	a.PrefixLength = ygot.Uint8(prefixlen)
+// func addIpv6Address(interfaceName string, ipv6 string, prefixlen uint8, index uint32) *oc.Interface {
+// 	// s := &oc.Interface_Subinterface{}
+// 	// s.Index = ygot.Uint32(index)
+// 	// s4 := s.GetOrCreateIpv6()
+// 	// a := s4.GetOrCreateAddress(ipv6)
+// 	// a.PrefixLength = ygot.Uint8(prefixlen)
+// 	if strings.Contains(interfaceName, "Bundle") {
+// 		intType = ieee8023adLag
+// 	} else {
+// 		intType = ethernetCsmacd
+// 	}
+
+// 	config := oc.Interface{
+// 		Name:    ygot.String(interfaceName),
+// 		Enabled: ygot.Bool(true),
+// 		Type:    intType,
+// 		Subinterface: map[uint32]*oc.Interface_Subinterface{
+// 			0: {Index: ygot.Uint32(index), Ipv6: &oc.Interface_Subinterface_Ipv6{Address: map[string]*oc.Interface_Subinterface_Ipv6_Address{ygot.String("ipv6"): GetOrCreateIpv6(ipv6)}}},
+// 		},
+// 	}
+
+//		return &config
+//	}
+func addInterfaceType(intName string, inttype uint64) *oc.Interface {
+	s := &oc.Interface{
+		Name: ygot.String(intName),
+		Type: oc.E_IETFInterfaces_InterfaceType(inttype),
+	}
 	return s
 }
+func addIpv6Address(i *oc.Interface, ipv6 string, prefixlen uint8, index uint32) *oc.Interface {
+	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	s := i.GetOrCreateSubinterface(index)
+	s4 := s.GetOrCreateIpv6()
+	s4a := s4.GetOrCreateAddress(ipv6)
+	s4a.PrefixLength = ygot.Uint8(prefixlen)
 
+	return i
+}
 func configureIpv6AndVlans(t *testing.T, dut *ondatra.DUTDevice) {
 	//Configure IPv6 address on Bundle-Ether120, Bundle-Ether121
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether120").Subinterface(0).Config(), addIpv6Address(dutPort1.IPv6, dutPort1.IPv6Len, 0))
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether121").Subinterface(0).Config(), addIpv6Address(dutPort2.IPv6, dutPort2.IPv6Len, 0))
+	i1 := &oc.Interface{Name: ygot.String("Bundle-Ether120")}
+	i2 := &oc.Interface{Name: ygot.String("Bundle-Ether121")}
+	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether120").Config(), addIpv6Address(i1, dutPort1.IPv6, dutPort1.IPv6Len, 0))
+	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether121").Config(), addIpv6Address(i2, dutPort2.IPv6, dutPort2.IPv6Len, 0))
 
 	//Configure VLANs on Bundle-Ether121
 	for i := 1; i <= 3; i++ {
