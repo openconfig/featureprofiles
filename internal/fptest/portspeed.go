@@ -24,11 +24,11 @@
 package fptest
 
 import (
-	"testing"
-
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"testing"
+	"time"
 )
 
 var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
@@ -49,4 +49,5 @@ func SetPortSpeed(t *testing.T, p *ondatra.Port) {
 	}
 	t.Logf("Configuring %v port-speed to %v", p.Name(), speed)
 	gnmi.Update(t, p.Device(), gnmi.OC().Interface(p.Name()).Ethernet().PortSpeed().Config(), speed)
+	time.Sleep(time.Second * 3)
 }
