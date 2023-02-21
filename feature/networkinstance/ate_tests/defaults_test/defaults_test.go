@@ -147,10 +147,12 @@ func TestDefaultAddressFamilies(t *testing.T) {
 			}
 			d := &oc.Root{}
 			// Assign two ports into the network instance.
-			assignPort(t, d, dut.Port(t, "port1").Name(), tc.niName, dutPort1)
-			defer unassignPort(t, dut, dutP1.Name(), tc.niName)
-			assignPort(t, d, dut.Port(t, "port2").Name(), tc.niName, dutPort2)
-			defer unassignPort(t, dut, dutP2.Name(), tc.niName)
+			assignPort(t, d, dutP1.Name(), tc.niName, dutPort1)
+			assignPort(t, d, dutP2.Name(), tc.niName, dutPort2)
+			if *deviations.ExplicitInterfaceInDefaultVRF {
+				defer unassignPort(t, dut, dutP1.Name(), tc.niName)
+				defer unassignPort(t, dut, dutP2.Name(), tc.niName)
+			}
 
 			fptest.LogQuery(t, "test configuration", gnmi.OC().Config(), d)
 			gnmi.Update(t, dut, gnmi.OC().Config(), d)
