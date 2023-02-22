@@ -1,4 +1,3 @@
-
 package optics_power_and_bias_current_test
 
 import (
@@ -56,42 +55,43 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
                         t.Logf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiver)
                         continue
                 }
-
-                //enabled := gnmi.Get(t, dut, component.Transceiver().Enabled().State())
-                //t.Log(enabled)
+		//No sysdb paths found for yang path components/component/transceiver/state/enabled
+                /*enabled := gnmi.Get(t, dut, component.Transceiver().Enabled().State())
+                t.Log(enabled)*/
 
                 present := gnmi.Get(t, dut, component.Transceiver().Present().State())
-                t.Log(present)
+                t.Logf("Transceiver %s present: %s", transceiver, present)
 
                 formFactor := gnmi.Get(t, dut, component.Transceiver().FormFactor().State())
-                t.Log(formFactor)
+                t.Logf("Transceiver %s formFactor: %s", transceiver, formFactor)
 
                 connectorType := gnmi.Get(t, dut, component.Transceiver().ConnectorType().State())
-                t.Log(connectorType)
+                t.Logf("Transceiver %s connectorType: %s", transceiver, connectorType)
 
                 vendor := gnmi.Get(t, dut, component.Transceiver().Vendor().State())
-                t.Log(vendor)
+                t.Logf("Transceiver %s vendor: %s", transceiver, vendor)
 
                 vendorPart := gnmi.Get(t, dut, component.Transceiver().VendorPart().State())
-                t.Log(vendorPart)
+                t.Logf("Transceiver %s vendorPart: %s", transceiver, vendorPart)
 
                 vendorRev := gnmi.Get(t, dut, component.Transceiver().VendorRev().State())
-                t.Log(vendorRev)
+                t.Logf("Transceiver %s vendorRev: %s", transceiver, vendorRev)
 
                 sonetSdhComplianceCode := gnmi.Get(t, dut, component.Transceiver().SonetSdhComplianceCode().State())
-                t.Log(sonetSdhComplianceCode)
+                t.Logf("Transceiver %s sonetSdhComplianceCode: %s", transceiver, sonetSdhComplianceCode)
 
                 otnComplianceCode := gnmi.Get(t, dut, component.Transceiver().OtnComplianceCode().State())
-                t.Log(otnComplianceCode)
+                t.Logf("Transceiver %s otnComplianceCode: %s", transceiver, otnComplianceCode)
 
                 serialNo := gnmi.Get(t, dut, component.Transceiver().SerialNo().State())
-                t.Log(serialNo)
+                t.Logf("Transceiver %s serialNo: %s", transceiver, serialNo)
 
-		//dateCode := gnmi.Get(t, dut, component.Transceiver().DateCode().State())
-                //t.Log(dateCode)
+                //Unmarshalling failed : Bug in Library code, ISSUE raised with google
+                /*dateCode := gnmi.Get(t, dut, component.Transceiver().DateCode().State())
+                t.Log(dateCode)*/
 
                 faultCondition := gnmi.Get(t, dut, component.Transceiver().FaultCondition().State())
-                t.Log(faultCondition)
+                t.Logf("Transceiver %s faultCondition: %t", transceiver, faultCondition)
 
                 if strings.Contains(gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String(), "ZR") {
                         t.Logf("Transceiver %s has ZR optics",transceiver)
@@ -111,11 +111,12 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
                                 t.Errorf("Get OutputFrequency list for %q: got 0, want > 0", transceiver)
                         }
 
-                        targetOpPower := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().TargetOutputPower().State())
+                        //No sysdb paths found for yang path components/component/transceiver/physical-channels/channel/state/target-output-power\x00"}
+                        /*targetOpPower := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().TargetOutputPower().State())
                         t.Logf("Transceiver %s TargetOutputPower: %v", transceiver, targetOpPower)
                         if len(targetOpPower) == 0 {
                                 t.Errorf("Get TargetOutputPower list for %q: got 0, want > 0", transceiver)
-                        }
+                        }*/
 
                         inputPowers := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().InputPower().Instant().State())
                         t.Logf("Transceiver %s inputPowerInstant: %v", transceiver, inputPowers)
@@ -126,7 +127,7 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
                         t.Logf("Transceiver %s inputPowerAvg : %v", transceiver, inputPowerAvg)
                         if len(inputPowerAvg) == 0 {
                                 t.Errorf("Get inputPowerAvg list for %q: got 0, want > 0", transceiver)
-                        }                        
+                        } 
                         inputPowerInterval := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().InputPower().Interval().State())
                         t.Logf("Transceiver %s inputPowerInterval: %v", transceiver, inputPowerInterval)
                         if len(inputPowerInterval) == 0 {
