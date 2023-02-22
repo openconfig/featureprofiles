@@ -93,9 +93,9 @@ func verifyISISOverloadBit(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 			if got := gnmi.Get(t, ate, at.Interface(ap.Name()).OperStatus().State()); got != want {
 				t.Errorf("%s oper-status got %v, want %v", ap, got, want)
 			}
-			// TODO: SetBit is not working on Ixia.
+			// TODO: SetBit retrieval is not working in ATE.
 			// Ref: https://github.com/openconfig/featureprofiles/issues/1176
-			// Below code will be uncommented once Ixia issue is resolved.
+			// Below code will be uncommented once above issue is resolved.
 
 			// is := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
 			// lsps := is.LevelAny().LspAny()
