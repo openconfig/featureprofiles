@@ -413,6 +413,11 @@ To contribute a pull request:
     written in Go using the [ONDATRA](https://github.com/openconfig/ondatra)
     framework.
 
+1.  We are in the process of migrating tests using the Ondatra ATE API to the
+    OTG API, so many tests have both versions. When making changes to an ATE
+    test, please port the changes to its OTG test unless it is missing. ATE
+    tests are found under the path `ate_tests`, and OTG tests under `otg_tests`.
+
 1.  The automated CI running against each pull request will check the pull
     request for compliance. The author should resolve any issues found by CI.
 
