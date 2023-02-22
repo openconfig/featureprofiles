@@ -93,18 +93,13 @@ func configureDeviceId(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
 }
 
-// configureInterfaceType configures interface type on the DUT.
-func configureInterfaceType(i *oc.Interface) *oc.Interface {
-	i.Type = if_type
-	return i
-}
-
-// configurePortId configures p4rt port-id on the DUT.
+// configurePortId configures p4rt port-id and interface type on the DUT.
 func configurePortId(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	portName := dut.Port(t, "port1").Name()
-	curr_intf := &oc.Interface{Name: ygot.String(portName)}
-	gnmi.Replace(t, dut, d.Interface(portName).Config(), configureInterfaceType(curr_intf))
+	curr_intf := &oc.Interface{Name: ygot.String(portName),
+		Type: if_type}
+	gnmi.Replace(t, dut, d.Interface(portName).Config(), curr_intf)
 
 	gnmi.Replace(t, dut, d.Interface(portName).Id().Config(), portId)
 
