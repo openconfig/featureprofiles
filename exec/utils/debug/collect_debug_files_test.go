@@ -30,23 +30,23 @@ var (
 
 type targetInfo struct {
 	dut     string
-	sshIp   string
+	sshIP   string
 	sshPort string
 	sshUser string
 	sshPass string
 }
 
 var (
-	showTechSupport []string = []string{
+	showTechSupport = []string{
 		"cef", "cef platform", "ofa", "insight", "rib", "fabric",
 		"service-layer", "grpc", "spi", "hw-ac", "bundles", "cfgmgr",
 		"ctrace", "ethernet interfaces", "fabric link-include", "p4rt",
 		"interface", "optics", "pfi", "platform-fwd", "rdsfs", "sysdb",
 	}
-	showTech []string = []string{
+	showTech = []string{
 		"telemetry model-driven",
 	}
-	pipedCmds []string = []string{
+	pipedCmds = []string{
 		"show telemetry model-driven trace all",
 		"show cef global gribi aft internal location all",
 		"show version",
@@ -85,13 +85,13 @@ func TestCollectDebugFiles(t *testing.T) {
 		commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFileName(t)))
 	}
 
-	targets := getSshInfo(t)
+	targets := getSSHInfo(t)
 
-	for dutId, targetInfo := range targets {
-		t.Logf("Collecting debug files on %s", dutId)
+	for dutID, targetInfo := range targets {
+		t.Logf("Collecting debug files on %s", dutID)
 
 		ctx := context.Background()
-		dut := ondatra.DUT(t, dutId)
+		dut := ondatra.DUT(t, dutID)
 		sshClient := dut.RawAPIs().CLI(t)
 		defer sshClient.Close()
 
@@ -115,7 +115,7 @@ func TestCollectDebugFiles(t *testing.T) {
 func copyDebugFiles(t *testing.T, d targetInfo) {
 	t.Helper()
 
-	target := fmt.Sprintf("%s:%s", d.sshIp, d.sshPort)
+	target := fmt.Sprintf("%s:%s", d.sshIP, d.sshPort)
 	t.Logf("Copying debug files from %s (%s)", d.dut, target)
 
 	sshConf := scp.NewSSHConfigFromPassword(d.sshUser, d.sshPass)
@@ -139,7 +139,7 @@ func copyDebugFiles(t *testing.T, d targetInfo) {
 	}
 }
 
-func getSshInfo(t *testing.T) map[string]targetInfo {
+func getSSHInfo(t *testing.T) map[string]targetInfo {
 	t.Helper()
 
 	bindingFile := flag.Lookup("binding").Value.String()
@@ -173,7 +173,7 @@ func getSshInfo(t *testing.T) map[string]targetInfo {
 		}
 
 		sshTarget := strings.Split(dut.Ssh.Target, ":")
-		sshIp := sshTarget[0]
+		sshIP := sshTarget[0]
 		sshPort := "22"
 		if len(sshTarget) > 1 {
 			sshPort = sshTarget[1]
@@ -181,7 +181,7 @@ func getSshInfo(t *testing.T) map[string]targetInfo {
 
 		targets[dut.Id] = targetInfo{
 			dut:     dut.Id,
-			sshIp:   sshIp,
+			sshIP:   sshIP,
 			sshPort: sshPort,
 			sshUser: sshUser,
 			sshPass: sshPass,
