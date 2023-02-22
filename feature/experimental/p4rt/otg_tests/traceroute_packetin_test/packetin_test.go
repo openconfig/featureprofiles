@@ -171,9 +171,12 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 	}}
 
 	t.Log("TTL/HopLimit 1")
-	llAddress, _ := gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+	llAddress, found := gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
 		return val.IsPresent()
 	}).Await(t)
+	if !found {
+		t.Errorf("Could not get the LinkLayerAddress %s", llAddress)
+	}
 	dstMac, _ := llAddress.Val()
 	testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, dstMac, IsIpv4, 1, 300, 2), srcEndPoint, 10)
 	for _, test := range packetInTests {
