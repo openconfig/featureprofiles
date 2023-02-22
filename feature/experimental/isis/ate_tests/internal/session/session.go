@@ -290,6 +290,7 @@ func (s *TestSession) AwaitAdjacency() (string, error) {
 		}
 		return ygnmi.Continue
 	})
+
 	got, err := watcher.Await()
 	if err != nil {
 		return "", err

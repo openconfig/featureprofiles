@@ -79,8 +79,8 @@ forwards AF3, AF2, AF1, BE1 and BE0 based on weight.
     AF3           | 16                      | 16                      | 100                   | 100
     AF2           | 8                       | 8                       | 100                   | 100
     AF1           | 4                       | 4                       | 100                   | 100
-    BE1           | 2                       | 2                       | 100                   | 100
-    BE0           | 0.5                     | 0.5                     | 100                   | 100
+    BE0           | 2                       | 2                       | 100                   | 100
+    BE1           | 0.5                     | 0.5                     | 100                   | 100
 
 *   Oversubscription traffic test case 1
 
@@ -91,8 +91,8 @@ forwards AF3, AF2, AF1, BE1 and BE0 based on weight.
     AF3           | 20                      | 14                      | 0                     | 0
     AF2           | 14                      | 24                      | 0                     | 0
     AF1           | 12                      | 4                       | 0                     | 0
-    BE1           | 1                       | 7                       | 0                     | 0
-    BE0           | 1                       | 1                       | 0                     | 0
+    BE0           | 1                       | 7                       | 0                     | 0
+    BE1           | 1                       | 1                       | 0                     | 0
 
 *   Oversubscription traffic test case 2
 
@@ -103,8 +103,8 @@ forwards AF3, AF2, AF1, BE1 and BE0 based on weight.
     AF3           | 40                      | 24                      | 50                    | 50
     AF2           | 8                       | 24                      | 50                    | 50
     AF1           | 12                      | 4                       | 50                    | 50
-    BE1           | 1                       | 7                       | 50                    | 50
-    BE0           | 1                       | 1                       | 50                    | 50
+    BE0           | 1                       | 7                       | 50                    | 50
+    BE1           | 1                       | 1                       | 50                    | 50
 
 ## Config parameter coverage
 

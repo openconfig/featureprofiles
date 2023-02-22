@@ -12,6 +12,7 @@ from microservices.runners.runner_base import FireXRunnerBase
 from test_framework import register_test_framework_provider
 from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
+from helper import CommandFailed
 from getpass import getuser
 from pathlib import Path
 import shutil
@@ -244,8 +245,8 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
-        test_repo_dir, ondatra_binding_path, ondatra_testbed_path, test_path, test_args=None, 
-        test_timeout=0, test_debug=True, testbed_info_path = None):
+        test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, 
+        test_path, test_args=None, test_timeout=0, test_debug=False, testbed_info_path=None):
     
     logger.print('Running Go test...')
     json_results_file = Path(test_log_directory_path) / f'go_logs.json'
@@ -292,8 +293,16 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         if self.console_output_file and Path(self.console_output_file).is_file():
             shutil.copyfile(self.console_output_file, json_results_file)
             with open(json_results_file, 'r') as f:
-                if 'segmentation fault (core dumped)' in f.read():
+                content = f.read() 
+                if 'segmentation fault (core dumped)' in content:
                     raise GoTestSegFaultException
+                if test_debug and '"Action":"fail"' in content:
+                    self.enqueue_child(CollectDebugFiles.s(
+                        internal_fp_repo_dir=internal_fp_repo_dir, 
+                        ondatra_binding_path=ondatra_binding_path, 
+                        ondatra_testbed_path=ondatra_testbed_path, 
+                        test_log_directory_path=test_log_directory_path
+                    ))
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
 
@@ -411,10 +420,13 @@ def SoftwareUpgrade(self, ws, internal_fp_repo_dir, ondatra_binding_path,
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
             f'-imagePath "{images[0]}"'
+    try:
+        env = dict(os.environ)
+        env.update(_get_go_env())
+        check_output(su_command, env=env, cwd=internal_fp_repo_dir)
+    except:
+        logger.warning(f'Software upgrade failed. Ignoring...')
 
-    env = dict(os.environ)
-    env.update(_get_go_env())
-    check_output(su_command, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
@@ -428,6 +440,26 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
         r.git.checkout(repo_branch)
     r.git.reset('--hard')
     r.git.clean('-xdf')
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path, 
+        ondatra_testbed_path, test_log_directory_path):
+    logger.print("Collecting debug files...")
+
+    collect_debug_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/debug ' \
+            f'-timeout 0 ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} ' \
+            f'-outDir {test_log_directory_path}/debug_files'
+    try:
+        env = dict(os.environ)
+        env.update(_get_go_env())
+        check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
+    except:
+        logger.warning(f'Failed to collect testbed information. Ignoring...') 
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
