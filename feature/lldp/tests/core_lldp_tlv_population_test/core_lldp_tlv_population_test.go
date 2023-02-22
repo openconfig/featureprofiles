@@ -128,9 +128,11 @@ func verifyNodeTelemetry(t *testing.T, node, peer gnmi.DeviceOrOpts, nodePort, p
 	interfacePath := gnmi.OC().Lldp().Interface(nodePort.Name())
 
 	// LLDP Disabled
-	lldpTelemetry := gnmi.Get(t, node, gnmi.OC().Lldp().Enabled().State())
-	if lldpEnabled != lldpTelemetry {
-		t.Errorf("LLDP enabled telemetry got: %t, want: %t.", lldpTelemetry, lldpEnabled)
+	if !*deviations.MissingValueForDefaults {
+		lldpTelemetry := gnmi.Get(t, node, gnmi.OC().Lldp().Enabled().State())
+		if lldpEnabled != lldpTelemetry {
+			t.Errorf("LLDP enabled telemetry got: %t, want: %t.", lldpTelemetry, lldpEnabled)
+		}
 	}
 
 	// Ensure that DUT does not generate any LLDP messages irrespective of the
