@@ -54,7 +54,7 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice) {
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef5 := rp.GetOrCreatePolicyDefinition(setMedPolicy)
 	actions5 := pdef5.GetOrCreateStatement(aclStatement3).GetOrCreateActions()
-	// TODO: Below code will be uncommented once SetMED is supported.
+	// TODO: Below code will be uncommented once configuring MED in DUT as referred in below issue is supported.
 	// Ref: https://github.com/openconfig/featureprofiles/issues/759
 	// setMedBGP := actions5.GetOrCreateBgpActions().GetOrCreateSetMed()
 	// setMedBGP.SetMed = ygot.Uint32(bgpMed)
@@ -150,7 +150,7 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
 		PeerGroup(setup.PeerGrpName).ApplyPolicy().ExportPolicy()
 
-	// TODO: Below code will be uncommented once SetMED is supported.
+	// TODO: Below code will be uncommented once configuring MED in DUT as referred in below issue is supported.
 	// Ref: https://github.com/openconfig/featureprofiles/issues/759
 	// Build wantSetMed to compare the diff.
 	// var wantSetMed []uint32
@@ -189,7 +189,7 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 					t.Errorf("Sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.ATEIPList[ap.ID()].String(), gotSent, setup.RouteCount)
 				}
 			}
-			// TODO: Below code will be uncommented once SetMED is supported.
+			// TODO: Below code will be uncommented once configuring MED in DUT as referred in below issue is supported.
 			// Ref: https://github.com/openconfig/featureprofiles/issues/759
 
 			// rib := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "0").Bgp().Rib()
