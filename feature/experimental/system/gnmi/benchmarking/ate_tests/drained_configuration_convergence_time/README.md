@@ -18,7 +18,7 @@ defined in the case):
         *   Measure time between t=0 and all IS-IS sessions on ATE to
             report DUT as overloaded.
     *   IS-IS metric change:
-        *   A t=0, send Set to DUT marking IS-IS metric as changed for
+        *   At t=0, send Set to DUT marking IS-IS metric as changed for
             all IS-IS interfaces.
         *   Measure time between t=0 and all IS-IS sessions on ATE to
             report changed metric.
