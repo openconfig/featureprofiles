@@ -59,6 +59,7 @@ type properties struct {
 	swVerValidation       bool
 	hwVerValidation       bool
 	fwVerValidation       bool
+	rrValidation          bool
 	operStatus            string
 	parent                string
 	pType                 string
@@ -129,6 +130,7 @@ func TestHardwarecards(t *testing.T) {
 			mfgDateValidation:     false,
 			hwVerValidation:       true,
 			fwVerValidation:       false,
+			rrValidation:          false,
 			operStatus:            activeStatus,
 			parent:                "",
 			pType:                 componentType["chassis"],
@@ -146,6 +148,7 @@ func TestHardwarecards(t *testing.T) {
 			mfgDateValidation:     true,
 			hwVerValidation:       true,
 			fwVerValidation:       false,
+			rrValidation:          false,
 			operStatus:            activeStatus,
 			parent:                componentParent["fabric"],
 			pType:                 componentType["fabric"],
@@ -163,6 +166,7 @@ func TestHardwarecards(t *testing.T) {
 			mfgDateValidation:     false,
 			hwVerValidation:       false,
 			fwVerValidation:       true,
+			rrValidation:          false,
 			operStatus:            "",
 			parent:                "",
 			pType:                 componentType["fabricchip"],
@@ -180,6 +184,7 @@ func TestHardwarecards(t *testing.T) {
 			mfgDateValidation:     false,
 			hwVerValidation:       false,
 			fwVerValidation:       false,
+			rrValidation:          false,
 			operStatus:            activeStatus,
 			parent:                "",
 			pType:                 componentType["fan"],
@@ -197,6 +202,7 @@ func TestHardwarecards(t *testing.T) {
 			mfgDateValidation:     true,
 			hwVerValidation:       true,
 			fwVerValidation:       false,
+			rrValidation:          false,
 			operStatus:            activeStatus,
 			parent:                componentParent["linecard"],
 			pType:                 componentType["linecard"],
@@ -214,6 +220,7 @@ func TestHardwarecards(t *testing.T) {
 			mfgDateValidation:     false,
 			hwVerValidation:       true,
 			fwVerValidation:       false,
+			rrValidation:          false,
 			operStatus:            activeStatus,
 			parent:                componentParent["powersupply"],
 			pType:                 componentType["powersupply"],
@@ -232,7 +239,8 @@ func TestHardwarecards(t *testing.T) {
 			swVerValidation:       true,
 			hwVerValidation:       true,
 			fwVerValidation:       false,
-			operStatus:            "",
+			rrValidation:          true,
+			operStatus:            activeStatus,
 			parent:                componentParent["supervisor"],
 			pType:                 componentType["supervisor"],
 		},
@@ -250,6 +258,7 @@ func TestHardwarecards(t *testing.T) {
 			swVerValidation:       false,
 			hwVerValidation:       true,
 			fwVerValidation:       false,
+			rrValidation:          false,
 			operStatus:            "",
 			parent:                "",
 			pType:                 componentType["transceiver"],
@@ -417,7 +426,6 @@ func findMatchedComponents(t *testing.T, dut *ondatra.DUTDevice, r *regexp.Regex
 func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string, p properties) {
 	t.Helper()
 
-	swVersionFound := false
 	for _, card := range cards {
 		t.Logf("Validate card %s", card)
 		component := gnmi.OC().Component(card)
@@ -490,17 +498,15 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.swVerValidation {
-			softwareVersion := ""
 			// Only a subset of cards are expected to report Software Version.
 			sw, present := gnmi.Lookup(t, dut, component.SoftwareVersion().State()).Val()
 			if present {
 				t.Logf("Hardware card %s SoftwareVersion: %s", card, sw)
-				swVersionFound = true
-				if softwareVersion == "" {
+				if sw == "" {
 					t.Errorf("component.SoftwareVersion().Get(t) for %q): got empty string, want non-empty string", card)
 				}
 			} else {
-				t.Logf("component.SoftwareVersion().Lookup(t) for %q): got no value.", card)
+				t.Errorf("component.SoftwareVersion().Lookup(t) for %q): got no value.", card)
 			}
 		}
 
@@ -517,6 +523,14 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 			t.Logf("Hardware card %s FirmwareVersion: %s", card, firmwareVersion)
 			if firmwareVersion == "" {
 				t.Errorf("component.FirmwareVersion().Get(t) for %q): got empty string, want non-empty string", card)
+			}
+		}
+
+		if p.rrValidation {
+			redundantRole := gnmi.Get(t, dut, component.RedundantRole().State()).String()
+			t.Logf("Hardware card %s RedundantRole: %s", card, redundantRole)
+			if redundantRole != "PRIMARY" && redundantRole != "SECONDARY" {
+				t.Errorf("component.RedundantRole().Get(t) for %q): got %v, want %v", card, redundantRole, p.operStatus)
 			}
 		}
 
@@ -544,9 +558,6 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 				t.Errorf("component.Type().Get(t) for %q): got %v, want %v", card, ptype, p.pType)
 			}
 		}
-	}
-	if p.swVerValidation && !swVersionFound {
-		t.Errorf("Failed to find software version from %v", cards)
 	}
 }
 
