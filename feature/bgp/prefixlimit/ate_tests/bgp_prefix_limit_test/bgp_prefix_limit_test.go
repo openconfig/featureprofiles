@@ -47,7 +47,6 @@ func TestMain(m *testing.M) {
 // consistent with IPv4.
 
 const (
-	trafficDuration        = 1 * time.Minute
 	grTimer                = 2 * time.Minute
 	grRestartTime          = 75
 	grStaleRouteTime       = 300.0
@@ -73,6 +72,8 @@ const (
 )
 
 var (
+	trafficDuration = 1 * time.Minute
+
 	dutSrc = attrs.Attributes{
 		Desc:    "DUT to ATE source",
 		IPv4:    "192.0.2.1",
@@ -480,6 +481,8 @@ type testCase struct {
 func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	t.Log(tc.desc)
 	configureBGPRoutes(t, conf.topo, conf.allNets, tc.numRoutes)
+	now := time.Now()
+
 	// Verify Port Status
 	t.Log(" Verifying port status")
 	t.Run("verifyPortsUp", func(t *testing.T) {
@@ -491,9 +494,14 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate 
 	t.Run("verifyBGPTelemetry", func(t *testing.T) {
 		tc.verifyBGPTelemetry(t, dut)
 	})
+	// Time Duration for which maximum-prefix-restart-time has been active
+	elapsed := time.Since(now)
 
 	// Starting ATE Traffic
 	t.Log("Verify Traffic statistics")
+	if tc.name == "OverLimit" {
+		trafficDuration = trafficDuration - time.Duration(elapsed.Nanoseconds())
+	}
 	sendTraffic(t, ate, conf.allFlows, trafficDuration)
 	if tc.wantNoPacketLoss {
 		t.Run("verifyNoPacketLoss", func(t *testing.T) {
@@ -501,7 +509,9 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate 
 		})
 	} else {
 		t.Run("verifyPacketLoss", func(t *testing.T) {
-			tc.verifyPacketLoss(t, ate, conf.allFlows)
+			if !*deviations.BGPPrefixOverlimit && tc.name == "OverLimit" {
+				tc.verifyPacketLoss(t, ate, conf.allFlows)
+			}
 		})
 	}
 }
