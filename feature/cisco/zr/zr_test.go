@@ -55,46 +55,45 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
                         t.Logf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiver)
                         continue
                 }
-		//No sysdb paths found for yang path components/component/transceiver/state/enabled
-                /*enabled := gnmi.Get(t, dut, component.Transceiver().Enabled().State())
-                t.Log(enabled)*/
-
-                present := gnmi.Get(t, dut, component.Transceiver().Present().State())
-                t.Logf("Transceiver %s present: %s", transceiver, present)
-
-                formFactor := gnmi.Get(t, dut, component.Transceiver().FormFactor().State())
-                t.Logf("Transceiver %s formFactor: %s", transceiver, formFactor)
-
-                connectorType := gnmi.Get(t, dut, component.Transceiver().ConnectorType().State())
-                t.Logf("Transceiver %s connectorType: %s", transceiver, connectorType)
-
-                vendor := gnmi.Get(t, dut, component.Transceiver().Vendor().State())
-                t.Logf("Transceiver %s vendor: %s", transceiver, vendor)
-
-                vendorPart := gnmi.Get(t, dut, component.Transceiver().VendorPart().State())
-                t.Logf("Transceiver %s vendorPart: %s", transceiver, vendorPart)
-
-                vendorRev := gnmi.Get(t, dut, component.Transceiver().VendorRev().State())
-                t.Logf("Transceiver %s vendorRev: %s", transceiver, vendorRev)
-
-                sonetSdhComplianceCode := gnmi.Get(t, dut, component.Transceiver().SonetSdhComplianceCode().State())
-                t.Logf("Transceiver %s sonetSdhComplianceCode: %s", transceiver, sonetSdhComplianceCode)
-
-                otnComplianceCode := gnmi.Get(t, dut, component.Transceiver().OtnComplianceCode().State())
-                t.Logf("Transceiver %s otnComplianceCode: %s", transceiver, otnComplianceCode)
-
-                serialNo := gnmi.Get(t, dut, component.Transceiver().SerialNo().State())
-                t.Logf("Transceiver %s serialNo: %s", transceiver, serialNo)
-
-                //Unmarshalling failed : Bug in Library code, ISSUE raised with google
-                /*dateCode := gnmi.Get(t, dut, component.Transceiver().DateCode().State())
-                t.Log(dateCode)*/
-
-                faultCondition := gnmi.Get(t, dut, component.Transceiver().FaultCondition().State())
-                t.Logf("Transceiver %s faultCondition: %t", transceiver, faultCondition)
-
                 if strings.Contains(gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String(), "ZR") {
                         t.Logf("Transceiver %s has ZR optics",transceiver)
+                        //No sysdb paths found for yang path components/component/transceiver/state/enabled
+                        /*enabled := gnmi.Get(t, dut, component.Transceiver().Enabled().State())
+                        t.Log(enabled)*/
+
+                        present := gnmi.Get(t, dut, component.Transceiver().Present().State())
+                        t.Logf("Transceiver %s present: %s", transceiver, present)
+
+                        formFactor := gnmi.Get(t, dut, component.Transceiver().FormFactor().State())
+                        t.Logf("Transceiver %s formFactor: %s", transceiver, formFactor)
+
+                        connectorType := gnmi.Get(t, dut, component.Transceiver().ConnectorType().State())
+                        t.Logf("Transceiver %s connectorType: %s", transceiver, connectorType)
+
+                        vendor := gnmi.Get(t, dut, component.Transceiver().Vendor().State())
+                        t.Logf("Transceiver %s vendor: %s", transceiver, vendor)
+
+                        vendorPart := gnmi.Get(t, dut, component.Transceiver().VendorPart().State())
+                        t.Logf("Transceiver %s vendorPart: %s", transceiver, vendorPart)
+
+                        vendorRev := gnmi.Get(t, dut, component.Transceiver().VendorRev().State())
+                        t.Logf("Transceiver %s vendorRev: %s", transceiver, vendorRev)
+
+                        sonetSdhComplianceCode := gnmi.Get(t, dut, component.Transceiver().SonetSdhComplianceCode().State())
+                        t.Logf("Transceiver %s sonetSdhComplianceCode: %s", transceiver, sonetSdhComplianceCode)
+
+                        otnComplianceCode := gnmi.Get(t, dut, component.Transceiver().OtnComplianceCode().State())
+                        t.Logf("Transceiver %s otnComplianceCode: %s", transceiver, otnComplianceCode)
+
+                        serialNo := gnmi.Get(t, dut, component.Transceiver().SerialNo().State())
+                        t.Logf("Transceiver %s serialNo: %s", transceiver, serialNo)
+
+                        //Unmarshalling failed : Bug in Library code, ISSUE raised with google
+                        /*dateCode := gnmi.Get(t, dut, component.Transceiver().DateCode().State())
+                        t.Log(dateCode)*/
+
+                        faultCondition := gnmi.Get(t, dut, component.Transceiver().FaultCondition().State())
+                        t.Logf("Transceiver %s faultCondition: %t", transceiver, faultCondition)
 
                         mfgName := gnmi.Get(t, dut, component.MfgName().State())
                         t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
