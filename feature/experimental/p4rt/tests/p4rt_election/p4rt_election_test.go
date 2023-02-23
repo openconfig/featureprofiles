@@ -305,7 +305,6 @@ func removeClient(handle *p4rt_client.P4RTClient) {
 	handle.ServerDisconnect()
 }
 
-
 // Test Primary Reconnect
 func TestPrimaryReconnect(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
