@@ -31,7 +31,6 @@ var (
 	npDesc       = "New Primary"
 	gdpEtherType = *ygot.Uint32(0x6007)
 	portId       = *ygot.Uint32(10)
-	if_type      = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	deviceId     = *ygot.Uint64(1)
 	inId0        = *ygot.Uint64(0)
 	inId90       = *ygot.Uint64(90)
@@ -97,11 +96,10 @@ func configureDeviceId(t *testing.T, dut *ondatra.DUTDevice) {
 func configurePortId(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	portName := dut.Port(t, "port1").Name()
-	curr_intf := &oc.Interface{Name: ygot.String(portName),
-		Type: if_type}
-	gnmi.Replace(t, dut, d.Interface(portName).Config(), curr_intf)
-
-	gnmi.Replace(t, dut, d.Interface(portName).Id().Config(), portId)
+	currIntf := &oc.Interface{Name: ygot.String(portName),
+		Type: oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Id:   &portId}
+	gnmi.Replace(t, dut, d.Interface(portName).Config(), currIntf)
 
 }
 
