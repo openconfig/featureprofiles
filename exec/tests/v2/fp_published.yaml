@@ -439,6 +439,9 @@ tests:
   mustpass: true
   priority: 54
   skip: false
+  args:
+    - '-deviation_bgp_state_active_acl_deny="true"'
+    - '-deviation_rpl_under_peergroup="true"'
 - name: RT-1.7 (Local BGP Test) 
   path: feature/bgp/tests/local_bgp_test
   owners:
