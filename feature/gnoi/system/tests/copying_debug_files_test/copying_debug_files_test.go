@@ -41,10 +41,6 @@ var components = map[ondatra.Vendor]string{
 	ondatra.NOKIA:   "Chassis",
 }
 
-const (
-	ipv4PrefixLen = 30
-)
-
 // testArgs holds the objects needed by the test case.
 type testArgs struct {
 	ctx context.Context
