@@ -165,4 +165,7 @@ var (
 
 	BGPTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
+
+	BGPStateActiveACLDeny = flag.Bool("deviation_bgp_state_active_acl_deny", false,
+		"Device requires bgp state to be active after ACL deny policy")
 )
