@@ -110,8 +110,8 @@ func createBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName s
 
 	member := &oc.Interface{
 		Enabled: ygot.Bool(true),
-		//
-		Name: ygot.String(interfaceName),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Name:    ygot.String(interfaceName),
 		Ethernet: &oc.Interface_Ethernet{
 			AggregateId: ygot.String(bundleName),
 		},
